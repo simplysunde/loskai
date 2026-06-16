@@ -46,7 +46,7 @@
 - [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
 - [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
 - [ ] `components/caddy/RouteList.tsx` — table of routes with toggle + delete actions
-- [ ] `components/caddy/AssignModal.tsx` — form: subdomain input, upstream input, submit calls `/api/assign`
+- [ ] `components/caddy/AssignModal.tsx` — form: subdomain input + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.), submit calls `/api/assign`
 - [ ] `components/caddy/CertStatus.tsx` — cert expiry date + days remaining, warning at 30 days
 
 ---

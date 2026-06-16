@@ -11,6 +11,25 @@ which works on its own. You can use just the Docker manager without touching AdG
 You can manage Caddy routes without the Docker manager open. Nothing depends on
 another module being healthy to function.
 
+### The core idea — name any service on your LAN
+
+FlytDokk + Caddy + AdGuard together let you assign a clean, memorable HTTPS name
+to **any service on your network** — not just Docker containers.
+
+```
+You type: proxmox.yourdomain.duckdns.org
+You get:  HTTPS reverse proxy → 192.168.10.10:8006    (your Proxmox host)
+
+You type: nas.yourdomain.duckdns.org
+You get:  HTTPS reverse proxy → 192.168.10.50:5000    (your NAS)
+
+You type: grafana.yourdomain.duckdns.org
+You get:  HTTPS reverse proxy → grafana:3000          (Docker container)
+```
+
+You configure this in one place — FlytDokk's Assign URL form — and it sets up
+both the Caddy route and the AdGuard DNS rewrite automatically.
+
 ---
 
 ## Infrastructure (What Already Exists / Will Exist)
@@ -158,8 +177,12 @@ AdGuard, WireGuard, or the Docker module.
 **Assign URL**
 - Input: subdomain prefix (e.g. `grafana`)
 - Domain suffix auto-filled from config (`myname.duckdns.org`)
-- Upstream: container name + port (or any host:port)
-- One click → route is live with HTTPS immediately
+- Upstream: any `host:port` — Docker container name, LAN IP, or any reachable address
+  - Docker container: `grafana:3000`
+  - LAN device:       `192.168.10.50:5000`
+  - Proxmox:          `192.168.10.10:8006`
+  - Other LXC:        `192.168.10.101:3000`
+- One click → Caddy route + AdGuard DNS rewrite created, HTTPS live immediately
 - Optional: simultaneously write AdGuard rewrite (if AdGuard module is healthy)
 
 **Certificate Status**
