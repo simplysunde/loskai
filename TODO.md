@@ -1,0 +1,158 @@
+# FlytDokk — TODO
+
+---
+
+## Phase 1 — Project Scaffolding
+- [ ] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml`
+- [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette
+- [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
+- [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
+- [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
+- [ ] Create `.env.example` with all required and optional variables
+- [ ] Create `HISTORY.md`
+
+---
+
+## Phase 2 — Backend Foundation
+- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class, validate all env vars on startup, exit with clear message if required vars are missing
+- [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
+- [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
+- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states
+
+---
+
+## Phase 3 — Caddy Module
+**Backend**
+- [ ] `modules/caddy/client.py` — async httpx wrapper for Caddy Admin API (`:2019`)
+  - `list_routes()` — GET /config/apps/http/servers/srv0/routes
+  - `add_route(subdomain, upstream)` — POST route JSON
+  - `delete_route(id)` — DELETE by @id
+  - `toggle_route(id, enabled)` — PUT to enable/disable
+  - `get_cert_info()` — parse cert expiry from Caddy config
+  - `health()` — returns `healthy` / `unreachable`
+- [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy`
+  - `GET /api/caddy/routes`
+  - `POST /api/caddy/routes`
+  - `DELETE /api/caddy/routes/{id}`
+  - `PUT /api/caddy/routes/{id}/toggle`
+  - `GET /api/caddy/health`
+
+**Frontend**
+- [ ] `App.tsx` — React Router setup, sidebar layout with nav links for each module
+- [ ] `lib/api.ts` — fetch wrapper with base URL, JSON error handling
+- [ ] `lib/useHealth.ts` — React Query hook polling `/api/health` every 30s, exposes per-module status
+- [ ] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable
+- [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
+- [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
+- [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
+- [ ] `components/caddy/RouteList.tsx` — table of routes with toggle + delete actions
+- [ ] `components/caddy/AssignModal.tsx` — form: subdomain input, upstream input, submit calls `/api/assign`
+- [ ] `components/caddy/CertStatus.tsx` — cert expiry date + days remaining, warning at 30 days
+
+---
+
+## Phase 4 — AdGuard Module
+**Backend**
+- [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard REST API (Basic Auth)
+  - `list_rewrites()`, `add_rewrite(domain, answer)`, `delete_rewrite(domain, answer)`
+  - `get_stats()`, `get_query_log(limit)`, `get_filtering_status()`
+  - `update_filtering(url, enabled)`, `add_blocklist(url)`
+  - `health()`
+- [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
+  - `GET /api/adguard/rewrites`, `POST`, `DELETE`
+  - `GET /api/adguard/stats`
+  - `GET /api/adguard/querylog`
+  - `GET /api/adguard/filtering`, `POST`
+  - `GET /api/adguard/health`
+
+**Frontend**
+- [ ] `pages/AdGuard.tsx` — AdGuard page with module status banner
+- [ ] `components/adguard/RewriteList.tsx` — list rewrites, wildcard entry shown at top, add/delete
+- [ ] `components/adguard/StatsPanel.tsx` — queries today, blocked, block %, top domains, top clients
+- [ ] `components/adguard/QueryLog.tsx` — last 100 queries, filterable by domain / client / status
+- [ ] `components/adguard/BlocklistManager.tsx` — list blocklists, enable/disable, add URL, trigger update
+
+---
+
+## Phase 5 — WireGuard Module
+**Backend**
+- [ ] `modules/wireguard/client.py` — async httpx wrapper for wg-easy / wg-dashboard API
+  - `get_peers()` — peer list with last handshake times
+  - `get_dns_setting()` — current DNS configured for peers
+  - `health()` — graceful: returns `unreachable` if dashboard URL not configured
+- [ ] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
+  - `GET /api/wireguard/status` — peer count, handshakes, DNS setting
+  - `GET /api/wireguard/dns-check` — is DNS pointing at AdGuard IP?
+
+**Frontend**
+- [ ] `pages/WireGuard.tsx` — WireGuard page, graceful static fallback if unreachable
+- [ ] `components/wireguard/DnsCheck.tsx` — DNS status, warning if not pointing at AdGuard, correct value shown, link to wg-dashboard
+
+---
+
+## Phase 6 — Cross-Module URL Assignment
+- [ ] `backend/src/flytdokk/shared/assign.py` — `POST /api/assign { subdomain, upstream }`
+  - Step 1: Create Caddy route (required — abort if fails)
+  - Step 2: Create AdGuard DNS rewrite (best-effort — warn but don't fail)
+  - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://..." }`
+- [ ] Wire `AssignModal.tsx` to `POST /api/assign`, show per-step result to user
+- [ ] Make Assign URL modal accessible from both Caddy page and (later) Docker page
+
+---
+
+## Phase 7 — Deployment
+- [ ] `Dockerfile` — multi-stage build:
+  - Stage 1 (node:20-alpine): build frontend → `/app/dist`
+  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI, copy dist to `./static`
+- [ ] `docker-compose.yml` — full homelab stack: caddy + flytdokk, homelab network, volumes
+- [ ] `caddy/Dockerfile` — xcaddy build with DuckDNS plugin
+- [ ] `caddy/Caddyfile` — wildcard cert, static routes for flytdokk + adguard, dynamic routes via Admin API
+- [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
+
+---
+
+## Phase 8 — Docker Module
+**Backend**
+- [ ] `modules/docker/client.py` — docker-py wrapper
+  - `list_containers()` — name, image, status, uptime, CPU%, RAM
+  - `start/stop/restart/remove(id)`
+  - `stream_logs(id)` — async generator for SSE
+  - `get_host_stats()` — total CPU, RAM, disk
+- [ ] `modules/docker/stacks.py` — directory-based stack manager
+  - `list_stacks()` — scan `STACKS_DIR` for subdirs with `compose.yml`
+  - `get_stack(name)` — read compose.yml + .env contents + container status
+  - `stack_action(name, action)` — up/down/restart/pull via `docker compose` subprocess
+  - `create_stack(name, compose_content, env_content)` — write files + run up -d
+  - `update_stack_file(name, file, content)` — write compose.yml or .env
+- [ ] `modules/docker/templates.py` — library of 10–15 app templates (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma, etc.)
+- [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
+  - `GET /api/docker/containers`
+  - `POST /api/docker/containers/{id}/start|stop|restart`
+  - `DELETE /api/docker/containers/{id}`
+  - `GET /api/docker/containers/{id}/logs` (SSE)
+  - `GET /api/docker/stacks`
+  - `GET /api/docker/stacks/{name}`
+  - `POST /api/docker/stacks` (install wizard)
+  - `PUT /api/docker/stacks/{name}/file` (edit compose or .env)
+  - `POST /api/docker/stacks/{name}/action` (up/down/restart/pull)
+  - `DELETE /api/docker/stacks/{name}`
+  - `GET /api/docker/templates`
+  - `GET /api/docker/stats`
+
+**Frontend**
+- [ ] `pages/Docker.tsx` — Docker page, two tabs: Containers and Stacks
+- [ ] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, actions
+- [ ] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
+- [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
+- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env
+- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick template → fill config → optionally assign URL → deploy
+- [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
+
+---
+
+## Phase 9 — Polish
+- [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
+- [ ] Basic auth — add `basicauth` to Caddyfile (no code change in FlytDokk)
+- [ ] Startup reconciliation — on `/api/health`, warn if Caddy routes exist without matching AdGuard rewrites
+- [ ] Config export — `GET /api/export` returns JSON snapshot of all routes + rewrites
+- [ ] Container label auto-discovery — detect `homelab.subdomain=X` label on start, auto-assign URL
