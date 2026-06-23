@@ -8,7 +8,7 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` with all vars, `CADDY_ADMIN_URL` documented for both co-located and remote setups
+- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (co-located vs remote), `ADGUARD_USER/PASSWORD`, `WIREGUARD_PASSWORD`
 - [ ] Create `HISTORY.md`
 
 ---
@@ -54,23 +54,18 @@
 ## Phase 4 — AdGuard Module
 **Backend**
 - [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard REST API (Basic Auth)
+  - `health()` — is AdGuard reachable?
+  - `check_wildcard()` — is `*.yourdomain.duckdns.org` rewrite present?
   - `list_rewrites()`, `add_rewrite(domain, answer)`, `delete_rewrite(domain, answer)`
-  - `get_stats()`, `get_query_log(limit)`, `get_filtering_status()`
-  - `update_filtering(url, enabled)`, `add_blocklist(url)`
-  - `health()`
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
+  - `GET /api/adguard/health` — reachable + wildcard present
   - `GET /api/adguard/rewrites`, `POST`, `DELETE`
-  - `GET /api/adguard/stats`
-  - `GET /api/adguard/querylog`
-  - `GET /api/adguard/filtering`, `POST`
-  - `GET /api/adguard/health`
 
 **Frontend**
-- [ ] `pages/AdGuard.tsx` — AdGuard page with module status banner
-- [ ] `components/adguard/RewriteList.tsx` — list rewrites, wildcard entry shown at top, add/delete
-- [ ] `components/adguard/StatsPanel.tsx` — queries today, blocked, block %, top domains, top clients
-- [ ] `components/adguard/QueryLog.tsx` — last 100 queries, filterable by domain / client / status
-- [ ] `components/adguard/BlocklistManager.tsx` — list blocklists, enable/disable, add URL, trigger update
+- [ ] `pages/AdGuard.tsx` — AdGuard page
+- [ ] `components/adguard/AdGuardStatus.tsx` — health status + prominent link out to full AdGuard UI
+- [ ] `components/adguard/WildcardCheck.tsx` — wildcard rewrite status, warning if missing
+- [ ] `components/adguard/RewriteList.tsx` — list rewrites in sync with Caddy routes, delete action
 
 ---
 
@@ -79,7 +74,8 @@
 - [ ] `modules/wireguard/client.py` — async httpx wrapper for wg-easy / wg-dashboard API
   - `get_peers()` — peer list with last handshake times
   - `get_dns_setting()` — current DNS configured for peers
-  - `health()` — graceful: returns `unreachable` if dashboard URL not configured
+  - `_authenticate()` — POST password to obtain JWT (wg-easy v8+) or session cookie (older), called automatically before requests
+  - `health()` — graceful: returns `unreachable` if dashboard URL or password not configured
 - [ ] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
   - `GET /api/wireguard/status` — peer count, handshakes, DNS setting
   - `GET /api/wireguard/dns-check` — is DNS pointing at AdGuard IP?

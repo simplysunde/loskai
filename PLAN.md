@@ -37,9 +37,10 @@ both the Caddy route and the AdGuard DNS rewrite automatically.
 ```
 Proxmox Host
 │
-├── LXC 101 — AdGuard Home                     192.168.10.101
-│   Runs: AdGuard natively
-│   Ports: :53 (DNS), :3000 (Admin UI + API)
+├── LXC 101 — Network Services                 192.168.10.101
+│   Runs: AdGuard Home (DNS) + Caddy (reverse proxy)  ← preferred setup
+│   Ports: :53 (DNS), :3000 (AdGuard UI + API)
+│          :80/:443 (Caddy), :2019 (Caddy Admin API — firewalled to LXC 103 only)
 │
 ├── LXC 102 — WireGuard                        192.168.10.102
 │   Runs: WireGuard + wg-easy or wg-dashboard
@@ -48,7 +49,6 @@ Proxmox Host
 └── LXC 103 (or VM) — Docker Host              192.168.10.100
     Runs: Docker Engine
     └── flytdokk      ← the thing we are building
-    └── caddy                ← reverse proxy
     └── your app containers  ← grafana, nextcloud, etc.
 ```
 
@@ -183,11 +183,11 @@ AdGuard, WireGuard, or the Docker module.
 **Assign URL**
 - Input: subdomain prefix (e.g. `grafana`)
 - Domain suffix auto-filled from config (`myname.duckdns.org`)
-- Upstream: any `host:port` — Docker container name, LAN IP, or any reachable address
-  - Docker container: `grafana:3000`
+- Upstream: any `host:port` reachable from LXC 101 — LAN IP + exposed port
+  - Docker container: `192.168.10.100:3000`  (port must be exposed on the host)
   - LAN device:       `192.168.10.50:5000`
   - Proxmox:          `192.168.10.10:8006`
-  - Other LXC:        `192.168.10.101:3000`
+  - FlytDokk itself:  `192.168.10.100:8080`
 - One click → Caddy route + AdGuard DNS rewrite created, HTTPS live immediately
 - Optional: simultaneously write AdGuard rewrite (if AdGuard module is healthy)
 
@@ -201,7 +201,7 @@ AdGuard, WireGuard, or the Docker module.
 - Useful for debugging
 
 ### Independence
-- Requires only: Caddy Admin API reachable at `http://caddy:2019`
+- Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`)
 - If AdGuard is down: routes can still be created/deleted, DNS rewrite step is
   skipped with a warning shown to the user
 - If Docker module is down: routing works fully, container name must be typed manually
@@ -245,60 +245,41 @@ GET  /api/caddy/upstreams        upstream health from caddy
 ## Module 3 — AdGuard DNS
 
 ### Purpose
-View and manage DNS rewrites on the AdGuard instance running on LXC 101.
-This module works entirely via the AdGuard REST API over the LAN and has zero
-dependency on Caddy, Docker, or WireGuard.
+Lightweight companion to AdGuard — not a replacement for its UI. AdGuard already
+has a fully featured web UI; this module only covers what's relevant to FlytDokk:
+confirming the wildcard rewrite is in place, staying in sync with Caddy routes,
+and linking out to AdGuard for everything else.
 
 ### Features
 
-**DNS Rewrite Manager**
-- List all current DNS rewrites
-- Add rewrite: domain → IP or CNAME
-- Delete rewrite
-- Wildcard rewrite shown prominently at top
-  (`*.myname.duckdns.org → 192.168.10.100` — the one that makes everything work)
+**Link out (most important)**
+- Prominent button to open the full AdGuard UI in a new tab
+- AdGuard's own UI handles query logs, stats, blocklists, upstream config, etc.
 
-**Query Log**
-- Live view of recent DNS queries (last 100)
-- Filterable by client IP, domain, status (allowed/blocked)
-- Useful for debugging "why isn't my domain resolving"
+**Health & Wildcard Check**
+- Is AdGuard reachable?
+- Is the wildcard rewrite (`*.yourdomain.duckdns.org → 192.168.10.100`) in place?
+  Shown prominently — warning if missing, since everything depends on it
 
-**Stats Overview**
-- Queries today, blocked today, block percentage
-- Top queried domains
-- Top blocked domains
-- Top clients by query count
-
-**Blocklist Manager**
-- View enabled/disabled blocklists
-- Enable / disable individual lists
-- Add custom blocklist URL
-- Trigger list update
-
-**Status**
-- AdGuard version
-- Upstream DNS servers configured
-- Protection enabled/disabled toggle
+**Rewrite List**
+- List existing DNS rewrites so you can see what's in sync with Caddy routes
+- Delete a rewrite if needed
+- Rewrites are primarily created automatically via the Assign URL action —
+  manual add is available but not the main flow
 
 ### Independence
-- Requires only: AdGuard API reachable at `http://192.168.10.101:3000`
-- If AdGuard LXC is down: module shows "AdGuard unreachable" banner,
+- Requires only: AdGuard API reachable at `ADGUARD_URL`
+- If AdGuard LXC is down: module shows "AdGuard unreachable" + link to open UI,
   all other modules unaffected
-- If Caddy is down: no effect
-- If Docker module is down: no effect
-- When assigning URLs via Caddy module: AdGuard module is called as a side effect,
-  but Caddy route is still created even if this call fails
+- When assigning URLs via Caddy module: AdGuard is called as a side effect,
+  Caddy route is still created even if this call fails
 
 ### API Surface (internal)
 ```
-GET  /api/adguard/status         health + version
+GET  /api/adguard/health         reachable + wildcard rewrite present
 GET  /api/adguard/rewrites       list DNS rewrites
-POST /api/adguard/rewrites       add rewrite
+POST /api/adguard/rewrites       add rewrite (used by assign URL flow)
 DEL  /api/adguard/rewrites       delete rewrite
-GET  /api/adguard/stats          query stats
-GET  /api/adguard/querylog       recent query log
-GET  /api/adguard/filtering      blocklist status
-POST /api/adguard/filtering      add/update blocklist
 ```
 
 ---
@@ -473,40 +454,24 @@ CMD ["node", "src/server/index.js"]
 
 ## Docker Compose (LXC 103 — Docker Host)
 
+Caddy is not a Docker container in the preferred setup — it runs natively on LXC 101.
+Only FlytDokk and your app containers run here.
+
 ```yaml
 services:
 
-  caddy:
-    build: ./caddy             # custom build with DuckDNS plugin
-    container_name: caddy
-    ports:
-      - "80:80"
-      - "443:443/tcp"
-      - "443:443/udp"
-      - "2019:2019"            # Admin API — Docker network only
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data       # certs — must persist
-      - caddy_config:/config
-    environment:
-      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
-      - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
-    restart: unless-stopped
-    networks:
-      - homelab
-
-  manager:
+  flytdokk:
     image: ghcr.io/youruser/flytdokk:latest
-    # build: ./manager        # use this during development
+    # build: .                 # use this during development
     container_name: flytdokk
     ports:
       - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./stacks:/opt/stacks   # managed compose stacks stored here
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${STACKS_DIR}:/opt/stacks
     environment:
-      # Caddy — container to container
-      - CADDY_ADMIN_URL=http://caddy:2019
+      # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
+      - CADDY_ADMIN_URL=http://192.168.10.101:2019
 
       # AdGuard — LXC 101 over LAN
       - ADGUARD_URL=http://192.168.10.101:3000
@@ -515,43 +480,32 @@ services:
 
       # WireGuard dashboard — LXC 102 over LAN (optional)
       - WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
+      - WIREGUARD_PASSWORD=${WIREGUARD_PASSWORD}
 
       # General
       - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
-      - SERVER_LAN_IP=192.168.10.100
       - PORT=8080
     restart: unless-stopped
-    networks:
-      - homelab
-
-networks:
-  homelab:
-    name: homelab
-    driver: bridge
-
-volumes:
-  caddy_data:
-  caddy_config:
 ```
 
 ---
 
-## Caddy Setup
+## Caddy Setup (runs natively on LXC 101)
 
-### Dockerfile
-```dockerfile
-FROM caddy:builder AS builder
-RUN xcaddy build \
-    --with github.com/caddy-dns/duckdns
-
-FROM caddy:latest
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+### Install
+```bash
+# Install Caddy with DuckDNS plugin via xcaddy
+apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-xcaddy-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-xcaddy.list
+apt update && apt install xcaddy
+xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy
 ```
 
 ### Caddyfile
 ```caddyfile
 {
-    admin 0.0.0.0:2019
+    admin 0.0.0.0:2019          # firewalled — only LXC 103 (192.168.10.100) can reach this
 }
 
 *.{$DUCKDNS_DOMAIN}.duckdns.org {
@@ -561,7 +515,7 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
     @flytdokk host flytdokk.{$DUCKDNS_DOMAIN}.duckdns.org
     handle @flytdokk {
-        reverse_proxy flytdokk:8080
+        reverse_proxy 192.168.10.100:8080
     }
 
     @adguard host adguard.{$DUCKDNS_DOMAIN}.duckdns.org
@@ -575,6 +529,16 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
 ---
 
+## Alternative Setups
+
+The preferred setup runs Caddy natively on LXC 101 alongside AdGuard. Two simpler
+alternatives exist and will have their own install instructions:
+
+- **Co-located** — Caddy runs as a Docker container on LXC 103 alongside FlytDokk
+- **All-in-one** — AdGuard, Caddy, and FlytDokk all on the same LXC
+
+---
+
 ## Environment Variables
 
 ```bash
@@ -583,10 +547,10 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 DUCKDNS_TOKEN=your-duckdns-token
 DUCKDNS_DOMAIN=myname               # just the name, not .duckdns.org
 
-# Caddy Admin API — configurable so FlytDokk can run anywhere
-# Co-located (same Docker network):  http://caddy:2019
-# Remote (different host on LAN):    http://192.168.10.100:2019
-CADDY_ADMIN_URL=http://caddy:2019
+# Caddy Admin API — on LXC 101, firewalled to this host only
+# Preferred (Caddy on LXC 101):      http://192.168.10.101:2019
+# Alternative (Caddy co-located):    http://caddy:2019
+CADDY_ADMIN_URL=http://192.168.10.101:2019
 
 # AdGuard — LXC over LAN
 ADGUARD_URL=http://192.168.10.101:3000
@@ -595,6 +559,9 @@ ADGUARD_PASSWORD=changeme
 
 # Optional — only if wg-easy or wg-dashboard is running
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
+WIREGUARD_PASSWORD=changeme     # wg-easy/wg-dashboard login password
+                                # wg-easy v8+: used to obtain a JWT token
+                                # older wg-easy: used to obtain a session cookie
 ```
 
 Different deployment setups are supported via different compose files
