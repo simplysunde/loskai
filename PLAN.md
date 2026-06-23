@@ -287,42 +287,39 @@ DEL  /api/adguard/rewrites       delete rewrite
 ## Module 4 — WireGuard (Lightweight)
 
 ### Purpose
-Lightweight companion — not a full WireGuard manager. The goal is only to surface
-relevant info and provide quick actions that relate to the homelab context.
-Full peer management stays in wg-easy or wg-dashboard.
+A minimal status card — not a WireGuard manager and not an API client.
+No authentication required. Full management stays in wg-easy or wg-dashboard.
+The most important feature is the link out.
 
 ### Features
 
-**DNS Status Check**
-- Calls the WireGuard dashboard API (if wg-easy or wg-dashboard is running on LXC 102)
-- Shows the current DNS setting configured for WireGuard peers
-- Warning if DNS is not pointing to AdGuard (`192.168.10.101`)
-- One-click button to open wg-dashboard in a new tab
+**Link out (most important)**
+- Prominent button to open wg-dashboard in a new tab
+- `WIREGUARD_DASHBOARD_URL` is the only config needed
 
-**Quick Info**
-- Number of active peers (from wg-easy API if available)
-- Last handshake times
-- Link to full wg-dashboard
+**Reachability check**
+- Is the wg-dashboard reachable? (simple HTTP ping, no auth)
+- Shows online / unreachable status
 
-**DNS Reminder**
-- Prominent notice if WireGuard DNS is not set to AdGuard
-- Shows the correct value to set: `192.168.10.101, 1.1.1.1`
-- This is especially useful after AdGuard's IP changes
+**DNS reminder (static)**
+- A static reminder card showing the correct DNS value to set in wg-dashboard:
+  `192.168.10.101` (AdGuard) + `1.1.1.1` (fallback)
+- Not fetched from the API — just a persistent reminder since this is
+  the most common misconfiguration
 
 ### What It Does NOT Do
-- No peer creation / deletion (use wg-dashboard for that)
-- No key management
-- No WireGuard config file editing
+- No API authentication — no password, no token
+- No peer list, no handshake times (use wg-dashboard for that)
+- No peer creation / deletion / key management
 
 ### Independence
-- Requires: wg-easy or wg-dashboard API on LXC 102 (optional — module degrades gracefully)
-- If WireGuard dashboard is not running: module shows static info + link, no live data
-- If all other modules are down: WireGuard module still shows its last-known state
+- Requires only: `WIREGUARD_DASHBOARD_URL` env var (optional)
+- If not configured or unreachable: shows static DNS reminder + greyed-out link
+- No credentials needed, nothing to break
 
 ### API Surface (internal)
 ```
-GET  /api/wireguard/status       peer count, last handshakes, DNS setting
-GET  /api/wireguard/dns-check    is WireGuard DNS pointing at AdGuard?
+GET  /api/wireguard/status       is dashboard reachable? returns { reachable: bool, url: str }
 ```
 
 ---
@@ -478,9 +475,8 @@ services:
       - ADGUARD_USER=${ADGUARD_USER}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD}
 
-      # WireGuard dashboard — LXC 102 over LAN (optional)
+      # WireGuard dashboard — LXC 102 over LAN (optional, no auth required)
       - WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
-      - WIREGUARD_PASSWORD=${WIREGUARD_PASSWORD}
 
       # General
       - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
@@ -559,9 +555,6 @@ ADGUARD_PASSWORD=changeme
 
 # Optional — only if wg-easy or wg-dashboard is running
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
-WIREGUARD_PASSWORD=changeme     # wg-easy/wg-dashboard login password
-                                # wg-easy v8+: used to obtain a JWT token
-                                # older wg-easy: used to obtain a session cookie
 ```
 
 Different deployment setups are supported via different compose files

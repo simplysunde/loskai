@@ -8,7 +8,7 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (co-located vs remote), `ADGUARD_USER/PASSWORD`, `WIREGUARD_PASSWORD`
+- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (co-located vs remote), `ADGUARD_USER/PASSWORD`, `WIREGUARD_DASHBOARD_URL`
 - [ ] Create `HISTORY.md`
 
 ---
@@ -71,18 +71,14 @@
 
 ## Phase 5 — WireGuard Module
 **Backend**
-- [ ] `modules/wireguard/client.py` — async httpx wrapper for wg-easy / wg-dashboard API
-  - `get_peers()` — peer list with last handshake times
-  - `get_dns_setting()` — current DNS configured for peers
-  - `_authenticate()` — POST password to obtain JWT (wg-easy v8+) or session cookie (older), called automatically before requests
-  - `health()` — graceful: returns `unreachable` if dashboard URL or password not configured
+- [ ] `modules/wireguard/client.py` — simple reachability check, no authentication
+  - `health()` — HTTP ping to `WIREGUARD_DASHBOARD_URL`, returns `{ reachable: bool }`
 - [ ] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
-  - `GET /api/wireguard/status` — peer count, handshakes, DNS setting
-  - `GET /api/wireguard/dns-check` — is DNS pointing at AdGuard IP?
+  - `GET /api/wireguard/status` — is dashboard reachable + its URL
 
 **Frontend**
-- [ ] `pages/WireGuard.tsx` — WireGuard page, graceful static fallback if unreachable
-- [ ] `components/wireguard/DnsCheck.tsx` — DNS status, warning if not pointing at AdGuard, correct value shown, link to wg-dashboard
+- [ ] `pages/WireGuard.tsx` — WireGuard page
+- [ ] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, static DNS reminder card (`192.168.10.101` + `1.1.1.1`)
 
 ---
 
