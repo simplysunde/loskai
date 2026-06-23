@@ -8,7 +8,7 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` with all required and optional variables
+- [ ] Create `.env.example` with all vars, `CADDY_ADMIN_URL` documented for both co-located and remote setups
 - [ ] Create `HISTORY.md`
 
 ---
@@ -104,7 +104,8 @@
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI, copy dist to `./static`
-- [ ] `docker-compose.yml` — full homelab stack: caddy + flytdokk, homelab network, volumes
+- [ ] `docker-compose.colocated.yml` — FlytDokk + Caddy on the same Docker host (default setup)
+- [ ] `docker-compose.remote.yml` — FlytDokk on a separate host, Caddy accessed by LAN IP
 - [ ] `caddy/Dockerfile` — xcaddy build with DuckDNS plugin
 - [ ] `caddy/Caddyfile` — wildcard cert, static routes for flytdokk + adguard, dynamic routes via Admin API
 - [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
@@ -124,7 +125,9 @@
   - `stack_action(name, action)` — up/down/restart/pull via `docker compose` subprocess
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
-- [ ] `modules/docker/templates.py` — library of 10–15 app templates (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma, etc.)
+- [ ] `modules/docker/recipes/` — personal install recipes defined in code, one file per service
+  - Each recipe defines: directory name, `compose.yml` content, required `.env` vars with defaults
+  - Initial recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`
   - `POST /api/docker/containers/{id}/start|stop|restart`
@@ -132,11 +135,11 @@
   - `GET /api/docker/containers/{id}/logs` (SSE)
   - `GET /api/docker/stacks`
   - `GET /api/docker/stacks/{name}`
-  - `POST /api/docker/stacks` (install wizard)
   - `PUT /api/docker/stacks/{name}/file` (edit compose or .env)
   - `POST /api/docker/stacks/{name}/action` (up/down/restart/pull)
   - `DELETE /api/docker/stacks/{name}`
-  - `GET /api/docker/templates`
+  - `GET /api/docker/recipes` (list available recipes)
+  - `POST /api/docker/recipes/{name}/install` (run recipe wizard)
   - `GET /api/docker/stats`
 
 **Frontend**
@@ -145,7 +148,7 @@
 - [ ] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
 - [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env
-- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick template → fill config → optionally assign URL → deploy
+- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values → optionally assign URL → deploy
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
 
 ---

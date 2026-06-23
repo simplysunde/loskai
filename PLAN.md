@@ -97,9 +97,10 @@ Internally it is split into four modules. Each module has:
 ## Module 1 — Docker Manager
 
 ### Purpose
-Manage all containers running on the Docker host. Install new apps from templates.
-Monitor resource usage. This module works entirely via the Docker socket and has
-zero dependency on Caddy, AdGuard, or WireGuard.
+Two distinct functions: manage running containers on the Docker host, and provide
+a personal install wizard for spinning up new services using your own curated,
+tested recipes. This module works entirely via the Docker socket and has zero
+dependency on Caddy, AdGuard, or WireGuard.
 
 ### Features
 
@@ -111,23 +112,26 @@ zero dependency on Caddy, AdGuard, or WireGuard.
 - View container environment variables (read-only)
 - Assigned URL shown inline if one exists (pulled from Caddy module)
 
-**Installation Wizard**
-- Template library of common self-hosted apps
-  (Grafana, Nextcloud, Vaultwarden, Jellyfin, Gitea, Uptime Kuma, etc.)
-- Each template defines: image, default ports, required env vars, volumes
-- Wizard steps:
-  1. Pick app from library (or enter custom image)
-  2. Fill in required config (env vars, data path)
-  3. Optionally assign a subdomain immediately (calls Caddy + AdGuard modules)
-  4. Confirm → generates and runs a Compose stack
-- Stacks stored as named Compose files in a managed directory
-- Custom image support — enter any Docker Hub / GHCR image directly
-
 **Stack Manager**
-- View all managed Compose stacks
-- Edit raw compose YAML in-browser (with validation)
-- Pull latest image versions
-- Stack-level start / stop / recreate
+- Discovers stacks by scanning `STACKS_DIR` — each subdirectory with a `compose.yml`
+  is a managed stack. The host directory is the source of truth, not FlytDokk.
+- View all stacks with current status (up / down / partial)
+- Stack-level start / stop / restart / pull latest images
+- Edit `compose.yml` and `.env` in-browser
+- `STACKS_DIR` is a configurable env var (e.g. `/opt/stacks`), mounted into the container
+
+**Personal Install Wizard**
+- A curated list of personal install recipes — not a generic community template store.
+  These are your own tested setups for services you actually run.
+- Each recipe is opinionated and complete: it knows the directory structure,
+  the exact `compose.yml`, and which `.env` vars need to be filled in.
+- Wizard steps per recipe:
+  1. Show what will be created (directory, compose, env vars)
+  2. Fill in required values (data path, passwords, ports — with your preferred defaults)
+  3. Optionally assign a subdomain (calls Caddy + AdGuard modules)
+  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs `docker compose up -d`
+- Example recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
+- Recipes are defined in code — add new ones by writing a recipe file, not via UI
 
 **Monitoring**
 - Per-container CPU + RAM graph (last 1h)
@@ -135,26 +139,28 @@ zero dependency on Caddy, AdGuard, or WireGuard.
 - Container event log: started, stopped, crashed, restarted
 
 ### Independence
-- Requires only: Docker socket mounted at `/var/run/docker.sock`
-- If Caddy is down: Docker module works fully, assigned URLs just not shown
+- Requires only: Docker socket mounted at `/var/run/docker.sock` (read-write)
+- Must run on the same host as Docker Engine
+- If Caddy is down: Docker module works fully, URL assignment step skipped with warning
 - If AdGuard is down: Docker module works fully
 - No network calls outside the local host
 
 ### API Surface (internal, consumed by frontend)
 ```
-GET  /api/docker/containers          list all containers + stats
-GET  /api/docker/containers/:id      single container detail
+GET  /api/docker/containers                list all containers + stats
 POST /api/docker/containers/:id/start
 POST /api/docker/containers/:id/stop
 POST /api/docker/containers/:id/restart
-DEL  /api/docker/containers/:id      remove container
-GET  /api/docker/containers/:id/logs  stream logs (SSE)
-GET  /api/docker/stacks              list managed compose stacks
-POST /api/docker/stacks              create stack from template
-PUT  /api/docker/stacks/:name        update stack yaml
-DEL  /api/docker/stacks/:name        remove stack
-GET  /api/docker/templates           list app templates
-GET  /api/docker/stats               host-level resource summary
+DEL  /api/docker/containers/:id
+GET  /api/docker/containers/:id/logs       stream logs (SSE)
+GET  /api/docker/stacks                    list discovered stacks
+GET  /api/docker/stacks/:name              stack detail + file contents
+POST /api/docker/stacks/:name/action       up / down / restart / pull
+PUT  /api/docker/stacks/:name/file         update compose.yml or .env
+DEL  /api/docker/stacks/:name
+GET  /api/docker/recipes                   list available install recipes
+POST /api/docker/recipes/:name/install     run install wizard for a recipe
+GET  /api/docker/stats                     host-level resource summary
 ```
 
 ---
@@ -577,12 +583,23 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 DUCKDNS_TOKEN=your-duckdns-token
 DUCKDNS_DOMAIN=myname               # just the name, not .duckdns.org
 
+# Caddy Admin API — configurable so FlytDokk can run anywhere
+# Co-located (same Docker network):  http://caddy:2019
+# Remote (different host on LAN):    http://192.168.10.100:2019
+CADDY_ADMIN_URL=http://caddy:2019
+
+# AdGuard — LXC over LAN
+ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 
 # Optional — only if wg-easy or wg-dashboard is running
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 ```
+
+Different deployment setups are supported via different compose files
+(e.g. `docker-compose.colocated.yml`, `docker-compose.remote.yml`).
+The application code is identical — only the environment variables differ.
 
 ---
 
