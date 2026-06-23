@@ -89,7 +89,7 @@ Internally it is split into four modules. Each module has:
          │                  │                  │
          ▼                  ▼                  ▼
   Docker Socket       Caddy :2019      AdGuard :3000
-  (same host)        (same host)      (192.168.10.101)
+  (same host)       (LXC 101 LAN)    (LXC 101 LAN)
 ```
 
 ---
@@ -233,7 +233,7 @@ GET  /api/caddy/upstreams        upstream health from caddy
     "routes": [{
       "handle": [{
         "handler": "reverse_proxy",
-        "upstreams": [{ "dial": "grafana:3000" }]
+        "upstreams": [{ "dial": "192.168.10.100:3000" }]
       }]
     }]
   }]
@@ -330,10 +330,10 @@ This is the one place where modules coordinate. When a user assigns a URL
 (from either the Docker Manager or the Caddy module), this happens:
 
 ```
-User: assign "grafana.myname.duckdns.org" → grafana:3000
+User: assign "grafana.myname.duckdns.org" → 192.168.10.100:3000
 
 Step 1 — Caddy route (REQUIRED)
-  POST http://caddy:2019/config/apps/http/servers/srv0/routes
+  POST http://192.168.10.101:2019/config/apps/http/servers/srv0/routes
   → If this fails: abort, show error, do not proceed
 
 Step 2 — AdGuard rewrite (BEST EFFORT)
@@ -353,98 +353,102 @@ Result shown to user:
 
 ## Tech Stack
 
-### Backend — Node.js with Fastify
-- Fast, low overhead, runs well in Alpine Docker image
-- Excellent Docker socket libraries (dockerode)
-- Easy to add WebSocket / SSE for live logs and stats
-- Simple to structure as independent service modules
+### Backend — Python + FastAPI + uv
+- Async, fast, excellent for API services
+- httpx for async HTTP calls to Caddy and AdGuard
+- docker-py for Docker socket management
+- pydantic-settings for env var validation
+- sse-starlette for SSE log streaming
 
 ```
-src/server/
-├── index.js                 entry point, registers all routes
-├── config.js                env var validation + defaults
+backend/src/flytdokk/
+├── main.py                  FastAPI app, registers routers, serves static files last
+├── config.py                pydantic-settings: validates all env vars on startup
 ├── modules/
-│   ├── docker/
-│   │   ├── client.js        dockerode wrapper
-│   │   ├── routes.js        Fastify route handlers
-│   │   ├── templates.js     app template library
-│   │   └── stats.js         resource monitoring
 │   ├── caddy/
-│   │   ├── client.js        Caddy Admin API wrapper
-│   │   └── routes.js
+│   │   ├── client.py        httpx wrapper for Caddy Admin API
+│   │   └── router.py        FastAPI APIRouter
 │   ├── adguard/
-│   │   ├── client.js        AdGuard REST API wrapper
-│   │   └── routes.js
-│   └── wireguard/
-│       ├── client.js        wg-easy/wg-dashboard API wrapper
-│       └── routes.js
+│   │   ├── client.py        httpx wrapper for AdGuard REST API
+│   │   └── router.py
+│   ├── wireguard/
+│   │   ├── client.py        simple reachability check
+│   │   └── router.py
+│   └── docker/              Phase 2
+│       ├── client.py        docker-py wrapper
+│       ├── stacks.py        directory-based stack manager
+│       ├── recipes/         personal install recipes (one file per service)
+│       └── router.py
 └── shared/
-    ├── health.js            aggregate health checks
-    └── assign.js            cross-module URL assignment logic
+    ├── health.py            GET /api/health — polls all module clients
+    └── assign.py            POST /api/assign — Caddy required, AdGuard best-effort
 ```
 
-### Frontend — React + Vite
+### Frontend — React + TypeScript + Vite
 - Tailwind CSS for styling
 - React Query for data fetching + caching
-- Recharts for CPU/RAM graphs
+- Recharts for CPU/RAM graphs (Docker module, Phase 2)
 - Lucide React for icons
-- Module pages are fully independent routes — `/docker`, `/caddy`, `/adguard`, `/wireguard`
+- Module pages are fully independent routes — `/caddy`, `/adguard`, `/wireguard`, `/docker`
 
 ```
-src/client/
-├── main.jsx
-├── App.jsx                  router setup
+frontend/src/
+├── main.tsx
+├── App.tsx                  React Router setup
 ├── pages/
-│   ├── Docker.jsx
-│   ├── Caddy.jsx
-│   ├── AdGuard.jsx
-│   └── WireGuard.jsx
+│   ├── Caddy.tsx
+│   ├── AdGuard.tsx
+│   ├── WireGuard.tsx
+│   └── Docker.tsx           Phase 2
 ├── components/
 │   ├── shared/
-│   │   ├── StatusBadge.jsx
-│   │   ├── ModuleStatus.jsx  shows degraded state per module
-│   │   └── ConfirmDialog.jsx
-│   ├── docker/
-│   │   ├── ContainerList.jsx
-│   │   ├── ContainerRow.jsx
-│   │   ├── LogViewer.jsx
-│   │   ├── InstallWizard.jsx
-│   │   └── StackEditor.jsx
+│   │   ├── StatusBadge.tsx
+│   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
+│   │   └── ConfirmDialog.tsx
 │   ├── caddy/
-│   │   ├── RouteList.jsx
-│   │   ├── AssignModal.jsx
-│   │   └── CertStatus.jsx
+│   │   ├── RouteList.tsx
+│   │   ├── AssignModal.tsx
+│   │   └── CertStatus.tsx
 │   ├── adguard/
-│   │   ├── RewriteList.jsx
-│   │   ├── QueryLog.jsx
-│   │   └── StatsPanel.jsx
-│   └── wireguard/
-│       └── DnsCheck.jsx
+│   │   ├── AdGuardStatus.tsx
+│   │   ├── WildcardCheck.tsx
+│   │   └── RewriteList.tsx
+│   ├── wireguard/
+│   │   └── WireGuardCard.tsx
+│   └── docker/              Phase 2
+│       ├── ContainerList.tsx
+│       ├── LogViewer.tsx
+│       ├── StackList.tsx
+│       ├── StackEditor.tsx
+│       ├── InstallWizard.tsx
+│       └── StatsBar.tsx
 └── lib/
-    ├── api.js               fetch wrapper
-    └── useHealth.js         module health polling hook
+    ├── api.ts               fetch wrapper
+    └── useHealth.ts         React Query hook, polls /api/health every 30s
 ```
 
 ### Single Docker Image
-The Vite build output is served as static files by Fastify.
+The Vite build output is served as static files by FastAPI.
 One image, one container, one port.
 
 ```dockerfile
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS frontend
 WORKDIR /app
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
-COPY . .
-RUN npm run build          # builds frontend into /app/dist
+COPY frontend/ .
+RUN npm run build            # → /app/dist
 
-FROM node:20-alpine
+FROM python:3.12-slim
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/server ./src/server
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+RUN apt-get update && apt-get install -y docker.io docker-compose-plugin && rm -rf /var/lib/apt/lists/*
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen --no-dev
+COPY backend/src ./src
+COPY --from=frontend /app/dist ./static
 EXPOSE 8080
-CMD ["node", "src/server/index.js"]
+CMD ["uv", "run", "uvicorn", "flytdokk.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 ---
@@ -589,71 +593,8 @@ WireGuard module: healthy   — unaffected
 
 ## Implementation Phases
 
-### Phase 1 — Infrastructure
-- [ ] Create LXC 101, install AdGuard natively, configure DNS rewrite + upstream
-- [ ] Create LXC 102, install WireGuard + wg-easy (or reuse existing)
-- [ ] Create LXC 103, install Docker Engine
-- [ ] Update WireGuard peer DNS: `192.168.10.101, 1.1.1.1`
-- [ ] Update router DHCP DNS: `192.168.10.101`
-- [ ] Deploy Caddy with DuckDNS plugin, confirm wildcard cert issues successfully
-- [ ] Verify `https://anything.myname.duckdns.org` resolves locally with valid cert
-
-### Phase 2 — Backend Skeleton
-- [ ] Fastify project setup + TypeScript or JSDoc types
-- [ ] Config module — validate all env vars on startup, log which services are configured
-- [ ] Health endpoint — `GET /api/health` returns status of all four modules
-- [ ] Docker client module (dockerode) — list containers, basic actions
-- [ ] Caddy client module — list routes, add route, delete route
-- [ ] AdGuard client module — list rewrites, add, delete
-- [ ] WireGuard client module — status from wg-easy API (degraded if not available)
-- [ ] Shared assign logic — `POST /api/assign` (Caddy first, AdGuard best-effort)
-
-### Phase 3 — Docker Module
-- [ ] Container list with stats (CPU, RAM, uptime, status)
-- [ ] Start / stop / restart / remove endpoints
-- [ ] Log streaming via SSE
-- [ ] Template library (10–15 common apps to start)
-- [ ] Installation wizard endpoint — generates + runs Compose stack
-- [ ] Stack manager — list, edit, recreate managed stacks
-
-### Phase 4 — Caddy Module
-- [ ] Route list from Caddy Admin API
-- [ ] Add route (with optional AdGuard side effect)
-- [ ] Delete route
-- [ ] Toggle route enable/disable
-- [ ] Cert expiry info
-- [ ] Upstream health passthrough
-
-### Phase 5 — AdGuard Module
-- [ ] Rewrite list, add, delete
-- [ ] Stats panel (queries, blocked, top domains)
-- [ ] Query log viewer
-- [ ] Blocklist manager
-
-### Phase 6 — WireGuard Module
-- [ ] Peer list + handshake times from wg-easy API
-- [ ] DNS check — is WireGuard DNS pointing at AdGuard?
-- [ ] Link out to full wg-dashboard
-- [ ] Graceful static fallback if wg-easy not available
-
-### Phase 7 — Frontend
-- [ ] App shell — sidebar nav, module status indicators in header
-- [ ] Docker page
-- [ ] Caddy page
-- [ ] AdGuard page
-- [ ] WireGuard page
-- [ ] Install wizard modal
-- [ ] Assign URL modal (reachable from Docker and Caddy pages)
-- [ ] Log viewer component (streaming)
-- [ ] CPU/RAM graphs (Recharts)
-
-### Phase 8 — Polish
-- [ ] Basic auth on manager (Caddy `basicauth` directive — one line)
-- [ ] Dark mode
-- [ ] Startup reconciliation — warn if Caddy routes and AdGuard rewrites are out of sync
-- [ ] Config export — dump all routes + rewrites as JSON backup
-- [ ] Label-based auto-discovery:
-      container label `homelab.subdomain=grafana` → auto-assign on container start
+See `TODO.md` for the full phased task list. PLAN.md is the architecture reference;
+TODO.md is the authoritative source for what to build and in what order.
 
 ---
 
@@ -662,7 +603,7 @@ WireGuard module: healthy   — unaffected
 | Failure | Impact | Mitigation |
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback in WireGuard; AdGuard module shows unreachable |
-| Caddy container crashes | HTTPS stops | `restart: unless-stopped` |
+| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts |
 | FlytDokk container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
@@ -675,14 +616,14 @@ If FlytDokk is down, all services keep running exactly as before.
 
 ## Security Notes
 
-- **Caddy Admin API** — never expose port 2019 outside Docker network.
-  Manager talks to it container-to-container only.
-- **Docker socket** — mounted read-only. Manager can read state and stream logs
-  but cannot modify the Docker daemon configuration.
-- **AdGuard API** — on the LAN. Consider a Proxmox firewall rule so only
-  LXC 103's IP can reach LXC 101 port 3000.
-- **Manager UI** — protected by Caddy `basicauth`. Only reachable via
-  `flytdokk.myname.duckdns.org` over HTTPS, accessible only through WireGuard
+- **Caddy Admin API** — port 2019 on LXC 101 must be firewalled so only
+  LXC 103 (192.168.10.100) can reach it. Never expose it to the wider network.
+- **Docker socket** — mounted read-write (required for container management).
+  FlytDokk should be the only container with socket access.
+- **AdGuard API** — port 3000 on LXC 101. Consider a Proxmox firewall rule so
+  only LXC 103's IP can reach it.
+- **Manager UI** — protect with Caddy `basicauth`. Only reachable via
+  `flytdokk.yourdomain.duckdns.org` over HTTPS, accessible only through WireGuard
   or locally.
 - **Secrets** — all in `.env`, never committed. Passed as environment variables
   to containers.
@@ -691,7 +632,6 @@ If FlytDokk is down, all services keep running exactly as before.
 
 ## Future Ideas
 
-- **App template store** — community-contributed templates pulled from a repo
 - **Uptime monitoring** — ping each upstream and record response time history
 - **Notification module** — alert on container crash, cert expiry, AdGuard outage
 - **Multi-host** — lightweight read-only agent on a second Docker host,
