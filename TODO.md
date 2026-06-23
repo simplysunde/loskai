@@ -8,37 +8,49 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (co-located vs remote), `ADGUARD_USER/PASSWORD`, `WIREGUARD_DASHBOARD_URL`
-- [ ] Create `HISTORY.md`
+- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (preferred LAN IP vs co-located container name), `ADGUARD_USER/PASSWORD`, `WIREGUARD_DASHBOARD_URL`
+- [x] Create `HISTORY.md`
 
 ---
 
 ## Phase 2 — Backend Foundation
-- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class, validate all env vars on startup, exit with clear message if required vars are missing
+- [ ] `backend/src/flytdokk/shared/settings.py` — settings manager
+  - Reads env vars on startup (highest priority)
+  - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
+  - Returns each value with source: `"env"` | `"stored"` | `"unset"`
+  - `DUCKDNS_TOKEN` is env-only, never written to `settings.json`
+- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class, only `DUCKDNS_TOKEN` is required at startup, all others optional
 - [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
 - [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
+- [ ] `GET /api/settings` — returns all settings with source field
+- [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
 - [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states
 
 ---
 
 ## Phase 3 — Caddy Module
 **Backend**
-- [ ] `modules/caddy/client.py` — async httpx wrapper for Caddy Admin API (`:2019`)
+- [ ] `modules/caddy/client.py` — async httpx wrapper for Caddy Admin API
   - `list_routes()` — GET /config/apps/http/servers/srv0/routes
   - `add_route(subdomain, upstream)` — POST route JSON
   - `delete_route(id)` — DELETE by @id
   - `toggle_route(id, enabled)` — PUT to enable/disable
   - `get_cert_info()` — parse cert expiry from Caddy config
+  - `get_mode()` — returns `"docker"` if CADDY_ADMIN_URL contains a hostname, `"lan"` if IP — used by frontend to hint upstream input format
   - `health()` — returns `healthy` / `unreachable`
 - [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy`
   - `GET /api/caddy/routes`
   - `POST /api/caddy/routes`
   - `DELETE /api/caddy/routes/{id}`
   - `PUT /api/caddy/routes/{id}/toggle`
-  - `GET /api/caddy/health`
+  - `GET /api/caddy/health` — status + mode (`docker` | `lan`)
 
 **Frontend**
-- [ ] `App.tsx` — React Router setup, sidebar layout with nav links for each module
+- [ ] `App.tsx` — React Router setup, sidebar layout with nav links for each module + Settings
+- [ ] `pages/Settings.tsx` — settings page: form for all service URLs and credentials
+  - Env-var-set fields shown as read-only with "set via environment" label
+  - Editable fields saved via `PUT /api/settings`
+  - Modules with unset required URLs show a banner linking to this page
 - [ ] `lib/api.ts` — fetch wrapper with base URL, JSON error handling
 - [ ] `lib/useHealth.ts` — React Query hook polling `/api/health` every 30s, exposes per-module status
 - [ ] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable
@@ -96,10 +108,10 @@
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI, copy dist to `./static`
-- [ ] `docker-compose.colocated.yml` — FlytDokk + Caddy on the same Docker host (default setup)
-- [ ] `docker-compose.remote.yml` — FlytDokk on a separate host, Caddy accessed by LAN IP
-- [ ] `caddy/Dockerfile` — xcaddy build with DuckDNS plugin
-- [ ] `caddy/Caddyfile` — wildcard cert, static routes for flytdokk + adguard, dynamic routes via Admin API
+- [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json`
+- [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
+- [ ] `Caddyfile` — reference config for LXC 101 native Caddy: wildcard cert, static routes, dynamic routes via Admin API
+- [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for co-located alternative only (Caddy as Docker container)
 - [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
 
 ---

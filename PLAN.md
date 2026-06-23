@@ -24,7 +24,7 @@ You type: nas.yourdomain.duckdns.org
 You get:  HTTPS reverse proxy → 192.168.10.50:5000    (your NAS)
 
 You type: grafana.yourdomain.duckdns.org
-You get:  HTTPS reverse proxy → grafana:3000          (Docker container)
+You get:  HTTPS reverse proxy → 192.168.10.100:3000    (Docker container, port exposed on host)
 ```
 
 You configure this in one place — FlytDokk's Assign URL form — and it sets up
@@ -204,12 +204,29 @@ AdGuard, WireGuard, or the Docker module.
 - Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`)
 - If AdGuard is down: routes can still be created/deleted, DNS rewrite step is
   skipped with a warning shown to the user
-- If Docker module is down: routing works fully, container name must be typed manually
+- If Docker module is down: routing works fully, LAN IP:port must be entered manually
 - If WireGuard is down: no effect whatsoever
+
+### Co-located vs External Mode
+
+`CADDY_ADMIN_URL` determines the mode — no other config needed:
+
+| `CADDY_ADMIN_URL` value | Mode | Upstream format |
+|---|---|---|
+| `http://caddy:2019` | Docker network (co-located) | Container names work: `grafana:3000` |
+| `http://192.168.10.101:2019` | LAN IP (preferred/external) | LAN IP required: `192.168.10.100:3000` |
+
+The backend client is identical in both cases — it just hits whatever URL is configured.
+On startup, config.py logs which mode is active.
+
+The frontend reads the resolved mode from `GET /api/caddy/health` and adjusts the
+upstream input hint in the Assign URL modal accordingly:
+- Docker mode → "e.g. grafana:3000"
+- LAN mode → "e.g. 192.168.10.100:3000"
 
 ### How Routes Are Stored
 Routes are written to Caddy's live config via the Admin API. Caddy persists them
-in the `caddy_config` volume. FlytDokk does NOT maintain its own route database —
+in its config storage. FlytDokk does NOT maintain its own route database —
 Caddy is the source of truth. On startup, the frontend fetches the current route
 list directly from Caddy.
 
@@ -469,7 +486,8 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${STACKS_DIR}:/opt/stacks
+      - ${STACKS_DIR:-/opt/stacks}:/opt/stacks
+      - ./flytdokk-settings:/opt/flytdokk   # persists settings.json
     environment:
       # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
       - CADDY_ADMIN_URL=http://192.168.10.101:2019
@@ -539,30 +557,79 @@ alternatives exist and will have their own install instructions:
 
 ---
 
-## Environment Variables
+## Settings & Configuration
 
+All service connection settings can be configured in two ways — both are optional:
+
+### Priority chain (highest to lowest)
+1. **Environment variable** — set in `.env` or compose file, read on startup, takes precedence
+2. **UI settings page** — configured in FlytDokk's settings page, persisted to `settings.json`
+3. **Unset** — module shows "not configured" and links to the settings page
+
+This means you can skip the `.env` entirely and configure everything through the app
+on first run. Or use env vars to pre-populate. Both work.
+
+### Configurable settings
+
+| Setting | Env var | Description |
+|---|---|---|
+| Caddy Admin URL | `CADDY_ADMIN_URL` | `http://192.168.10.101:2019` (LAN) or `http://caddy:2019` (Docker) |
+| AdGuard URL | `ADGUARD_URL` | `http://192.168.10.101:3000` |
+| AdGuard username | `ADGUARD_USER` | Basic auth username |
+| AdGuard password | `ADGUARD_PASSWORD` | Basic auth password |
+| WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
+| Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks` |
+| Domain | `DUCKDNS_DOMAIN` | Your DuckDNS name (without `.duckdns.org`) |
+
+`DUCKDNS_TOKEN` is the only value that must be in the env — it is never stored in
+`settings.json` for security reasons.
+
+### Settings persistence
+
+Settings are stored in `/opt/flytdokk/settings.json` inside the container,
+backed by a mounted volume. Env-var-set values are shown as read-only in the UI
+with a "set via environment" indicator — they cannot be overridden from the UI.
+
+```yaml
+# docker-compose.yml (settings volume)
+volumes:
+  - ./flytdokk-settings:/opt/flytdokk
+```
+
+### settings.json shape
+```json
+{
+  "caddy_admin_url": "http://192.168.10.101:2019",
+  "adguard_url": "http://192.168.10.101:3000",
+  "adguard_user": "admin",
+  "adguard_password": "...",
+  "wireguard_dashboard_url": "http://192.168.10.102:51821",
+  "stacks_dir": "/opt/stacks",
+  "domain": "myname"
+}
+```
+
+### Backend API
+```
+GET  /api/settings        returns all settings with source: "env" | "stored" | "unset"
+PUT  /api/settings        update stored settings (env-sourced values ignored)
+```
+
+### .env.example (all optional except DUCKDNS_TOKEN)
 ```bash
-# .env.example
+DUCKDNS_TOKEN=your-duckdns-token    # required — never stored in settings.json
 
-DUCKDNS_TOKEN=your-duckdns-token
-DUCKDNS_DOMAIN=myname               # just the name, not .duckdns.org
-
-# Caddy Admin API — on LXC 101, firewalled to this host only
-# Preferred (Caddy on LXC 101):      http://192.168.10.101:2019
-# Alternative (Caddy co-located):    http://caddy:2019
+# All below are optional — configure here or in the UI settings page
+DUCKDNS_DOMAIN=myname
 CADDY_ADMIN_URL=http://192.168.10.101:2019
-
-# AdGuard — LXC over LAN
 ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
-
-# Optional — only if wg-easy or wg-dashboard is running
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
+STACKS_DIR=/opt/stacks
 ```
 
-Different deployment setups are supported via different compose files
-(e.g. `docker-compose.colocated.yml`, `docker-compose.remote.yml`).
+Different deployment setups are supported via different compose files.
 The application code is identical — only the environment variables differ.
 
 ---
