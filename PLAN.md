@@ -176,7 +176,7 @@ AdGuard, WireGuard, or the Docker module.
 
 **Route List**
 - All active Caddy routes in a clean table
-- Each row: subdomain → upstream (container:port), status, toggle, delete
+- Each row: subdomain → upstream (host:port), status, toggle, delete
 - Enable / disable individual routes without deleting them
 - Upstream health shown (Caddy reports this via `/reverse_proxy/upstreams`)
 
@@ -398,7 +398,8 @@ backend/src/flytdokk/
 │       └── router.py
 └── shared/
     ├── health.py            GET /api/health — polls all module clients
-    └── assign.py            POST /api/assign — Caddy required, AdGuard best-effort
+    ├── assign.py            POST /api/assign — Caddy required, AdGuard best-effort
+    └── settings.py          read/write settings.json, merge with env vars, priority chain
 ```
 
 ### Frontend — React + TypeScript + Vite
@@ -416,6 +417,7 @@ frontend/src/
 │   ├── Caddy.tsx
 │   ├── AdGuard.tsx
 │   ├── WireGuard.tsx
+│   ├── Settings.tsx
 │   └── Docker.tsx           Phase 2
 ├── components/
 │   ├── shared/
@@ -500,9 +502,10 @@ services:
       # WireGuard dashboard — LXC 102 over LAN (optional, no auth required)
       - WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 
-      # General
+      # General (optional — can be set in UI settings page instead)
       - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
       - PORT=8080
+      # Note: DUCKDNS_TOKEN is set on LXC 101 (Caddy's environment) — not needed here
     restart: unless-stopped
 ```
 
@@ -581,8 +584,10 @@ on first run. Or use env vars to pre-populate. Both work.
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks` |
 | Domain | `DUCKDNS_DOMAIN` | Your DuckDNS name (without `.duckdns.org`) |
 
-`DUCKDNS_TOKEN` is the only value that must be in the env — it is never stored in
-`settings.json` for security reasons.
+`DUCKDNS_TOKEN` is used by Caddy directly on LXC 101 — FlytDokk never needs it.
+In the co-located alternative (Caddy as Docker container), it would be passed to
+the Caddy container, not to FlytDokk. No env var is strictly required by FlytDokk
+itself — everything can be configured via the settings page on first run.
 
 ### Settings persistence
 
@@ -615,11 +620,10 @@ GET  /api/settings        returns all settings with source: "env" | "stored" | "
 PUT  /api/settings        update stored settings (env-sourced values ignored)
 ```
 
-### .env.example (all optional except DUCKDNS_TOKEN)
+### .env.example (all optional — configure here or in the UI settings page)
 ```bash
-DUCKDNS_TOKEN=your-duckdns-token    # required — never stored in settings.json
+# DUCKDNS_TOKEN is set on LXC 101 (Caddy's environment), not here
 
-# All below are optional — configure here or in the UI settings page
 DUCKDNS_DOMAIN=myname
 CADDY_ADMIN_URL=http://192.168.10.101:2019
 ADGUARD_URL=http://192.168.10.101:3000
@@ -669,7 +673,7 @@ TODO.md is the authoritative source for what to build and in what order.
 
 | Failure | Impact | Mitigation |
 |---|---|---|
-| AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback in WireGuard; AdGuard module shows unreachable |
+| AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
 | Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts |
 | FlytDokk container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |

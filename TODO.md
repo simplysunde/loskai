@@ -8,7 +8,7 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` with all vars — `CADDY_ADMIN_URL` (preferred LAN IP vs co-located container name), `ADGUARD_USER/PASSWORD`, `WIREGUARD_DASHBOARD_URL`
+- [ ] Create `.env.example` — all vars optional, note that `DUCKDNS_TOKEN` belongs to Caddy on LXC 101 not FlytDokk
 - [x] Create `HISTORY.md`
 
 ---
