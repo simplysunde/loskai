@@ -17,15 +17,20 @@ FlytDokk + Caddy + AdGuard together let you assign a clean, memorable HTTPS name
 to **any service on your network** — not just Docker containers.
 
 ```
-You type: proxmox.yourdomain.duckdns.org
-You get:  HTTPS reverse proxy → 192.168.10.10:8006    (your Proxmox host)
-
-You type: nas.yourdomain.duckdns.org
-You get:  HTTPS reverse proxy → 192.168.10.50:5000    (your NAS)
-
-You type: grafana.yourdomain.duckdns.org
-You get:  HTTPS reverse proxy → 192.168.10.100:3000    (Docker container, port exposed on host)
+Browser
+  │  types https://grafana.yourdomain
+  ▼
+AdGuard (DNS)
+  │  resolves yourdomain → your server IP
+  ▼
+Caddy (reverse proxy)
+  │  matches grafana.yourdomain → routes to the right service
+  ▼
+Your service (any IP:port on the LAN)
 ```
+
+Any service on your LAN gets a clean HTTPS name. You manage this in one place —
+FlytDokk configures both Caddy and AdGuard in a single action.
 
 You configure this in one place — FlytDokk's Assign URL form — and it sets up
 both the Caddy route and the AdGuard DNS rewrite automatically.
