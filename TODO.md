@@ -142,7 +142,11 @@
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
 - [ ] `modules/docker/recipes/` — personal install recipes defined in code, one file per service
-  - Each recipe defines: directory name, `compose.yml` content, required `.env` vars with defaults
+  - Each recipe defines: type, directory name, `compose.yml` content, required `.env` vars with defaults
+  - Three recipe types:
+    - `pull` — pre-built public image, `docker compose up -d`
+    - `git_build` — `git clone <repo>` then `docker compose up -d --build`
+    - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
   - Initial recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`

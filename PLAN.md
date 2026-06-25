@@ -134,9 +134,22 @@ dependency on Caddy, AdGuard, or WireGuard.
   1. Show what will be created (directory, compose, env vars)
   2. Fill in required values (data path, passwords, ports — with your preferred defaults)
   3. Optionally assign a subdomain (calls Caddy + AdGuard modules)
-  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs `docker compose up -d`
-- Example recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
+  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs the install steps
 - Recipes are defined in code — add new ones by writing a recipe file, not via UI
+
+**Recipe types — three patterns supported:**
+
+1. **Pull** — standard pre-built public image, just `docker compose up -d`
+   - Used for: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma, etc.
+
+2. **Git + build** — clones a repo then builds the image locally
+   - Recipe specifies a `git_repo` URL, runs `git clone` then `docker compose up -d --build`
+   - Used for: services that require source customisation or have no pre-built image
+
+3. **Private registry pull** — pulls from your self-hosted Gitea container registry
+   - Image is already built and pushed to Gitea (`gitea.yourdomain/user/app:latest`)
+   - Recipe pulls like any other image — no build step at install time
+   - Recommended pattern for your own personal apps: build once, push to Gitea, deploy anywhere
 
 **Interactive Terminal**
 - Open a shell session inside any running container directly in the browser
@@ -163,7 +176,6 @@ dependency on Caddy, AdGuard, or WireGuard.
 - Must run on the same host as Docker Engine
 - If Caddy is down: Docker module works fully, URL assignment step skipped with warning
 - If AdGuard is down: Docker module works fully
-- No network calls outside the local host
 
 ### API Surface (internal, consumed by frontend)
 ```
