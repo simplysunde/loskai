@@ -105,6 +105,18 @@
 ---
 
 ## Phase 7 — Deployment
+
+**Infrastructure scripts**
+- [ ] `scripts/create-lxc101.sh` — Proxmox host script (run from Proxmox shell via `bash create-lxc101.sh`)
+  - Creates Debian LXC with sensible defaults (ID, memory, disk, network)
+  - Starts the container and runs setup inside it via `pct exec`
+  - Installs AdGuard Home (official installer script)
+  - Installs xcaddy, builds Caddy with DuckDNS plugin, installs to `/usr/bin/caddy`
+  - Drops a starter `Caddyfile` at `/etc/caddy/Caddyfile`
+  - Enables `caddy` and `adguardhome` as systemd services
+  - Prints next steps: set DuckDNS token in Caddyfile, open AdGuard UI to finish setup
+
+**FlytDokk container**
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI, copy dist to `./static`
