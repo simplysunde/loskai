@@ -513,7 +513,18 @@ services:
 
 ## Caddy Setup (runs natively on LXC 101)
 
-### Install
+### DuckDNS and HTTPS — out of scope for now
+
+This is a LAN-only solution. DuckDNS wildcard certs require Caddy to be built with
+the DuckDNS plugin (xcaddy), which is a one-time infrastructure step handled when
+setting up LXC 101. It has no impact on FlytDokk's application code — Caddy's Admin
+API works identically with or without the DuckDNS plugin.
+
+The LXC helper script (`scripts/create-lxc101.sh`) in Phase 7 will handle the
+xcaddy build and DuckDNS Caddyfile configuration. During development, a plain
+HTTP Caddyfile is sufficient.
+
+### Install (for reference — handled by the Phase 7 LXC script)
 ```bash
 # Install Caddy with DuckDNS plugin via xcaddy
 apt install -y debian-keyring debian-archive-keyring apt-transport-https
