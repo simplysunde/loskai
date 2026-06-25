@@ -138,6 +138,21 @@ dependency on Caddy, AdGuard, or WireGuard.
 - Example recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
 - Recipes are defined in code — add new ones by writing a recipe file, not via UI
 
+**Interactive Terminal**
+- Open a shell session inside any running container directly in the browser
+- Uses WebSocket for bidirectional streaming + xterm.js for terminal rendering
+- Equivalent to `docker exec -it <container> /bin/sh`
+- Falls back to `/bin/bash` if available, otherwise `/bin/sh`
+- **Quick commands** — clickable buttons above the terminal that send preset commands,
+  lowering the barrier for beginners who don't know what to type
+  - Generic (every container): view logs, list processes, show env vars, disk usage, list files
+  - Image-specific (detected from image name):
+    - `redis` → "Redis CLI" (`redis-cli`)
+    - `postgres` → "psql" (`psql -U postgres`)
+    - `mariadb` / `mysql` → "MySQL shell" (`mysql -u root -p`)
+    - `nginx` → "Test config" (`nginx -t`), "Reload" (`nginx -s reload`)
+  - Clicking a button sends the command into the terminal — full terminal still available for anything else
+
 **Monitoring**
 - Per-container CPU + RAM graph (last 1h)
 - Aggregate host stats: total CPU, RAM, disk usage
@@ -158,6 +173,7 @@ POST /api/docker/containers/:id/stop
 POST /api/docker/containers/:id/restart
 DEL  /api/docker/containers/:id
 GET  /api/docker/containers/:id/logs       stream logs (SSE)
+WS   /api/docker/containers/:id/exec       interactive terminal (WebSocket)
 GET  /api/docker/stacks                    list discovered stacks
 GET  /api/docker/stacks/:name              stack detail + file contents
 POST /api/docker/stacks/:name/action       up / down / restart / pull

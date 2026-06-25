@@ -6,7 +6,7 @@
 - [ ] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml`
 - [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
-- [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss
+- [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
 - [ ] Create `.env.example` — all vars optional, note that `DUCKDNS_TOKEN` belongs to Caddy on LXC 101 not FlytDokk
 - [x] Create `HISTORY.md`
@@ -162,6 +162,10 @@
 - [ ] `pages/Docker.tsx` — Docker page, two tabs: Containers and Stacks
 - [ ] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, actions
 - [ ] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
+- [ ] `components/docker/Terminal.tsx` — xterm.js browser terminal, WebSocket connection to `/api/docker/containers/{id}/exec`
+- [ ] `components/docker/QuickCommands.tsx` — preset command buttons above the terminal; generic set + image-specific commands detected from container image name
+- [ ] `modules/docker/quick_commands.py` — map of image name patterns to preset commands (e.g. `redis` → `redis-cli`, `postgres` → `psql -U postgres`)
+- [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
 - [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env
 - [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values → optionally assign URL → deploy
