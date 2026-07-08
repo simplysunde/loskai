@@ -410,19 +410,28 @@ upstream input hint in the Assign URL modal accordingly:
 Routes are not stored as their own thing. A route is simply an **instance** (see
 [Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
 Caddy live config is a **projection** of "every instance with a subdomain" — FlytDokk
-pushes those to Caddy via the Admin API by `id` (= Caddy `@id`).
+pushes those to Caddy via the Admin API by `id` (= Caddy `@id`). The exact endpoints are
+documented in [`docs/caddy-api.md`](../docs/caddy-api.md).
 
+- **Flat sibling routes.** Each route is an independent top-level entry in the server's
+  `routes` array, matching a single specific host (`grafana.example.no`) and keyed by
+  `@id`. No nesting under a wildcard site block — the wildcard exists only for the cert.
+  Specific hosts are disjoint, so append order never matters.
 - A route exists when an instance has a subdomain; it's gone when the subdomain is
   cleared or the instance is deleted. There is no enable/disable state — routes are binary.
-- **Persistence:** Caddy runs with `caddy run --resume`, so it reloads its last autosaved
-  config on restart — the everyday recovery path after an LXC / Proxmox reboot.
-- **Backstop:** the instance list (`instances.json`) is the durable record. A one-click
-  **"Push all to Caddy"** re-creates every route from it if Caddy ever loses its config.
+- **Route identity:** the instance `id` is used verbatim as Caddy's `@id`, so add
+  (`POST …/routes`), replace (`PATCH /id/<id>`), and delete (`DELETE /id/<id>`) are all
+  idempotent — re-pushing never creates duplicates.
+- **Persistence is automatic.** Caddy autosaves its full config to disk after *every* API
+  change and runs with `caddy run --resume`, so it restores that autosave on start. A
+  normal LXC / Proxmox reboot or Caddy restart brings every route back with **no action
+  from FlytDokk**.
+- **Backstop:** the instance list (`instances.json`) is the durable record. "Push all to
+  Caddy" re-creates every route from it — but only needed in the rare case where Caddy's
+  autosave itself is gone (fresh Caddy, wiped data dir), not on a normal reboot.
 - **Ownership rule:** FlytDokk only manages routes whose `@id` matches an instance. The
-  static bootstrap routes hand-written in the Caddyfile (FlytDokk itself, AdGuard) are
-  never touched.
-- **Route identity:** the instance `id` is used verbatim as Caddy's `@id`, so every push /
-  delete is idempotent — re-pushing never creates duplicates.
+  static bootstrap routes hand-written in the Caddyfile (FlytDokk itself, AdGuard) carry
+  no FlytDokk `@id` and are never touched.
 
 ### API Surface (internal)
 ```
@@ -560,7 +569,8 @@ Step 0 — Persist intent (REQUIRED)
   → The instance list is the durable record; Caddy and AdGuard are pushed from it
 
 Step 1 — Caddy route (REQUIRED)
-  POST http://192.168.10.101:2019/config/apps/http/servers/srv0/routes  (@id = instance id)
+  POST http://192.168.10.101:2019/config/apps/http/servers/<server>/routes  (@id = instance id)
+  → <server> is discovered at startup (GET .../servers), not hardcoded to srv0
   → If this fails: abort, roll back the subdomain, show error
 
 Step 2 — AdGuard rewrite (BEST EFFORT)
@@ -758,34 +768,42 @@ apt update && apt install xcaddy
 xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy   # swap plugin for your provider
 ```
 
-Caddy is run as a systemd service with **`caddy run --resume`** so it restores its last
-autosaved config immediately on restart. "Push all to Caddy" (rebuilding routes from
-`instances.json`) is the backstop if the autosave is ever stale or missing.
+Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy autosaves
+its full config to disk after every Admin API change, `--resume` restores every route on
+restart with no action from FlytDokk — this is the normal reboot path. "Push all to Caddy"
+(rebuilding routes from `instances.json`) is only the rare-case backstop for when that
+autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](../docs/caddy-api.md).
 
 ### Caddyfile (bootstrap only — dynamic routes come from FlytDokk via the Admin API)
+
+The wildcard site block exists **only to obtain the `*.BASE_DOMAIN` cert**; it has no
+handlers, so it is not a routing catch-all. The static routes are their own specific-host
+blocks and reuse that cert, exactly like the dynamic routes FlytDokk appends at runtime.
+
 ```caddyfile
 {
-    admin 0.0.0.0:2019          # firewalled — only LXC 103 (192.168.10.100) can reach this
+    admin 0.0.0.0:2019          # firewalled — only the Docker host (192.168.10.100) can reach this
 }
 
+# Obtain the wildcard *.BASE_DOMAIN cert once, via DNS challenge. No handlers → cert only.
 *.{$BASE_DOMAIN} {
     tls {
         dns duckdns {env.DUCKDNS_TOKEN}   # swap provider + token to match your domain
     }
-
-    # Static bootstrap routes — hand-written here, NEVER touched by FlytDokk
-    @flytdokk host flytdokk.{$BASE_DOMAIN}
-    handle @flytdokk {
-        reverse_proxy 192.168.10.100:8080
-    }
-
-    @adguard host adguard.{$BASE_DOMAIN}
-    handle @adguard {
-        reverse_proxy 192.168.10.101:3000
-    }
-
-    # All other routes added dynamically via the Admin API (owned by FlytDokk)
 }
+
+# Static bootstrap routes — specific hosts, hand-written, NEVER touched by FlytDokk.
+# They reuse the wildcard cert above.
+flytdokk.{$BASE_DOMAIN} {
+    reverse_proxy 192.168.10.100:8080
+}
+
+adguard.{$BASE_DOMAIN} {
+    reverse_proxy 192.168.10.101:3000
+}
+
+# Every other route (grafana.{$BASE_DOMAIN}, …) is a specific-host route appended at
+# runtime via the Admin API — a flat sibling of the two above, owned by FlytDokk.
 ```
 
 ---
@@ -916,7 +934,7 @@ TODO.md is the authoritative source for what to build and in what order.
 | Failure | Impact | Mitigation |
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
-| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`; "Push all to Caddy" rebuilds routes from `instances.json` as a backstop |
+| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Push all to Caddy" rebuilds from `instances.json` only if the autosave itself is lost |
 | FlytDokk container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
