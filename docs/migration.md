@@ -3,146 +3,109 @@
 FlytDokk's Stack Manager watches a single directory, `STACKS_DIR`, and treats each
 immediate subfolder that contains a compose file as a managed stack. The filesystem is
 the source of truth — FlytDokk keeps no separate database — so "adopting" an existing
-Docker Compose project is simply a matter of getting its folder into `STACKS_DIR`.
+Docker Compose project is essentially just getting its folder into `STACKS_DIR`.
 
-This guide covers how to do that safely, and — just as importantly — when you should
-leave a project exactly where it is.
+This guide covers how to do that, and — just as importantly — when to leave a project
+exactly where it is.
 
 ---
 
 ## Should you migrate a project at all?
 
-Moving a project into `STACKS_DIR` is **optional**. FlytDokk still *sees* every running
-container in the Container Overview regardless of where its compose file lives; migrating
-only changes whether the **Stack Manager** can start/stop/update/edit it as a unit.
+Migrating is **optional**. FlytDokk still *sees* every running container in the Container
+Overview regardless of where its compose file lives; migrating only changes whether the
+**Stack Manager** can start/stop/update/edit it as a unit.
 
-### Reasons to migrate
+**Good candidates** — normal, self-contained compose projects you currently edit and
+restart by hand, and want to manage from the browser instead.
 
-- You want to manage the stack (up / down / restart / pull-update, edit `compose.yml` and
-  `.env`) from the browser instead of SSH.
-- You want all your stacks discoverable in one place.
-- The project is a normal, self-contained compose project you actively maintain.
+**Leave it where it is if:**
 
-### Reasons to leave it where it is
+- It isn't really a compose project (installed via a package manager, systemd, or a one-off
+  `docker run` — there's no compose file to manage).
+- It's already managed by something else (a git repo you `git pull`, Ansible, Portainer).
+  Two tools fighting over one directory is how you lose an evening.
+- It's on a different host than the Docker daemon FlytDokk talks to — FlytDokk is
+  single-host.
 
-- **It isn't really a compose project.** Anything installed via a package manager, a
-  systemd service, or a one-off `docker run` has no compose file to manage — moving it
-  accomplishes nothing. (It still appears in the Container Overview.)
-- **Its data lives on absolute paths you don't want to touch.** If the project's volumes
-  point at fixed host paths (e.g. a media library on `/mnt/tank`), the compose folder and
-  the data are already decoupled — moving the folder gains you little and risks confusion.
-- **It's managed by something else** — a git repo you `git pull`, an Ansible role, a
-  Portainer stack. Two tools fighting over the same directory is how you lose an evening.
-- **It's on a different host** than the Docker daemon FlytDokk talks to. FlytDokk is
-  single-host; a stack on another machine can't be adopted.
-
-> Rule of thumb: migrate projects you *edit and restart by hand today*. Leave alone
-> anything that's automated, package-managed, or whose data you'd rather not disturb.
+> Rule of thumb: migrate what you edit-and-restart by hand. Leave alone anything that's
+> automated, package-managed, or elsewhere.
 
 ---
 
-## Before you start
+## Migrating a project
 
-- **Know your `STACKS_DIR`.** It can be any single directory on the Docker host —
-  `/opt/stacks`, `/mnt/tank/apps`, `/srv/compose`, etc. It does **not** have to be under
-  `/opt`. All the stacks you want FlytDokk to manage must live as subfolders of this one
-  directory.
-- **Confirm the same-path mount.** `STACKS_DIR` must be bind-mounted into the FlytDokk
-  container at the *same path* it has on the host (`${STACKS_DIR}:${STACKS_DIR}`).
-  FlytDokk runs `docker compose` inside its container and hands bind paths to the host
-  daemon, so the in-container path must equal the host path or volumes end up in the wrong
-  place.
-- **Have a backup** of the project's data before moving anything.
+Example — adopting a project at `/opt/immich` into a `STACKS_DIR` of `/opt/stacks`.
 
----
-
-## Migrating a project — step by step
-
-The example below adopts an Immich install currently at `/opt/immich` into a
-`STACKS_DIR` of `/opt/stacks`.
-
-**1. Stop the stack cleanly** (from its current location):
+**1. Stop the stack first.** Always bring it down before moving or copying anything, so
+the data is at rest and you capture a consistent copy — a database copied mid-write can
+come out corrupt.
 
 ```bash
 docker compose -f /opt/immich/docker-compose.yml down
 ```
 
-Do this *before* moving the folder — never pull the directory out from under running
-containers.
-
-**2. Move the folder into `STACKS_DIR`, keeping the folder name:**
+**2. Move or copy the whole folder** (compose file, `.env`, and any supporting files) into
+`STACKS_DIR`, keeping the folder name. Pick whichever fits you:
 
 ```bash
+# Option A — move: clean relocation, nothing left behind
 mv /opt/immich /opt/stacks/immich
+
+# Option B — copy: leaves the original in place as a fallback (uses extra disk)
+cp -r /opt/immich /opt/stacks/immich
 ```
 
-Keep the name (`immich`). Compose derives the **project name** from the folder name; if it
-stays the same, the existing containers and named volumes are still recognised. Rename the
-folder and compose treats it as a brand-new project, orphaning the old containers.
+Keep the name (`immich`). Compose derives the project name from the folder name; keeping it
+the same means the relocated project reuses the existing named volumes and containers
+rather than creating duplicates.
 
-**3. Make sure the compose file is discoverable.** FlytDokk discovers stacks by looking
-for a file named **`compose.yml`**. Many upstream projects (Immich included) ship
-`docker-compose.yml`. If so, rename it:
+**3. Fix absolute paths, if any.** Open `compose.yml` and `.env` and look at the volume /
+bind-mount paths (for Immich, `UPLOAD_LOCATION` and `DB_DATA_LOCATION` in `.env`):
+
+- **Relative paths** (`./library:/data`) — nothing to do. They resolve next to the compose
+  file, so the data moved/copied along with the folder.
+- **Absolute paths** (`/opt/immich/library:/data`) — decide one of two things:
+  - *Leave them* to keep using the original data in place (the data doesn't move; the
+    folder is just the compose definition), or
+  - *Update them* to point into the new location if you also moved/copied the data there.
+
+That decision is the only real work in a migration.
+
+**4. Make the compose file discoverable.** FlytDokk discovers stacks by the filename
+**`compose.yml`**. If the project ships `docker-compose.yml`, rename it:
 
 ```bash
 mv /opt/stacks/immich/docker-compose.yml /opt/stacks/immich/compose.yml
 ```
 
-Bring the `.env` file along too — it moves with the folder, but double-check it's there.
-
-**4. Handle the data paths** (see caveats below) — usually nothing to do, but confirm.
-
-**5. Bring it back up.** In FlytDokk the stack now appears in the Stack Manager. Hit
-**up**, or from the shell:
-
-```bash
-docker compose -f /opt/stacks/immich/compose.yml up -d
-```
+**5. Start it from FlytDokk.** The stack now appears in the Stack Manager — hit **up**.
 
 ---
 
-## Caveats and gotchas
+## Why absolute paths are the thing to watch
 
-- **Compose filename.** Only `compose.yml` is discovered. Rename `docker-compose.yml` →
-  `compose.yml` (step 3).
-- **Folder name = project name.** Keep it identical to preserve the link to existing
-  containers and volumes.
-- **Bind-mount paths — the thing most likely to surprise you:**
-  - **Relative** binds (`./library:/data`) resolve next to the compose file, so the data
-    lives *inside* the project folder and moves with it — make sure you actually moved the
-    data subfolders too (a `mv` of the whole directory does this; a `cp` of just the
-    compose file does not).
-  - **Absolute** binds (`/opt/immich/library:/data`, or an `.env` `UPLOAD_LOCATION` set to
-    an absolute path) stay pointed at the original location. The stack keeps working, but
-    its data is now decoupled from the folder. Update the path only if you also move the
-    data — and if you do, `down` first.
-- **Named volumes** (e.g. `immich_pgdata`) are stored by Docker independently of the folder
-  and are unaffected by the move, as long as the project name is unchanged.
-- **`.env` secrets.** The `.env` travels with the folder. FlytDokk can display and edit it
-  in the browser (behind the app's own access control) — be aware it contains secrets.
+Bind-mount paths are the only part of a compose project that cares *where the folder lives*:
+
+- **Relative** binds and **named volumes** travel cleanly — relative binds move with the
+  folder, and named volumes are keyed by project name (not location), so both survive a
+  copy untouched.
+- **Absolute** binds are pinned to a fixed host path and ignore the folder's new location.
+  They keep working, but the data is now decoupled from the folder — which is fine as long
+  as you *know* that's the case. That's why the one instruction that matters is: check for
+  absolute paths and decide whether to repoint them.
 
 ---
 
 ## Verify
 
-- The stack shows in the Stack Manager with status **up**.
-- Container Overview lists its containers as running.
-- If the service had an assigned URL, confirm the route still resolves (the route is tied
-  to the container's upstream, not to the stack's folder location).
+- The stack shows in the Stack Manager as **up**, and its containers show running in the
+  Container Overview.
+- If the service had an assigned URL, confirm it still resolves (the route is tied to the
+  container's upstream, not to the folder location).
 
----
-
-## Rollback
-
-If anything looks wrong, the move is reversible because nothing was rewritten — only
-relocated:
-
-```bash
-docker compose -f /opt/stacks/immich/compose.yml down
-mv /opt/stacks/immich /opt/immich
-# rename compose.yml back to docker-compose.yml if you changed it
-docker compose -f /opt/immich/docker-compose.yml up -d
-```
-
-Because the filesystem is the source of truth and FlytDokk stores no stack state of its
-own, there is nothing else to undo.
+**Rollback** — if you used `cp` (Option B), the original folder is untouched: stop the
+copy, delete it, and start the original again. If you used `mv` (Option A), move the folder
+back to where it came from (renaming `compose.yml` to `docker-compose.yml` if you changed
+it) and bring it up. Nothing else needs undoing — FlytDokk stores no stack state of its
+own.
