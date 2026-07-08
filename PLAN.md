@@ -99,6 +99,48 @@ Internally it is split into four modules. Each module has:
 
 ---
 
+## Core Data Model — Instances
+
+FlytDokk's one persistent domain object is the **instance**: a named service it knows
+about. A Docker container and an external LAN service are just two `type`s of the same
+structure, so they live in a single list that the Docker Manager and the Caddy routing
+view both read.
+
+```jsonc
+{
+  "id":        "grafana",        // stable slug — also the Caddy @id
+  "name":      "Grafana",        // display name
+  "type":      "docker",         // "docker" | "external"
+  "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
+  "upstream":  "192.168.10.100:3000",  // host:port — chosen at assign time
+  "container": "grafana"         // container name/id (docker type only; null for external)
+}
+```
+
+- **Docker instance** — backed by a real container; `container` links it to live data.
+- **External ("dummy") instance** — Proxmox, a NAS, any `IP:port`. No `container`,
+  just an `upstream`.
+- An instance may exist **without** a subdomain (tracked but not exposed). The route
+  table is exactly the subset of instances that *have* a subdomain.
+
+**What is stored vs. live:**
+- The instance list holds only **intent** — subdomain, upstream, and external targets.
+  It is a flat JSON file, `/opt/flytdokk/instances.json`, in the settings volume
+  (same pattern as `settings.json`; no database).
+- **Runtime state** (container status, CPU, RAM, ports) is never stored — it is read
+  live from the Docker socket and **joined in at display time** via `container`. This
+  keeps the store from ever drifting out of sync with reality.
+
+**How instances are created:**
+- **Automatically** — on container discovery, a `flytdokk.subdomain=<prefix>` label
+  auto-creates / updates a docker instance (see Phase 9 label auto-discovery).
+- **Manually** — added through the UI, either a docker instance or an external one.
+
+Both paths write to the same list, and Caddy routes + the Caddyfile export are both
+rendered from it.
+
+---
+
 ## Module 1 — Docker Manager
 
 ### Purpose
@@ -208,14 +250,20 @@ AdGuard, WireGuard, or the Docker module.
 ### Features
 
 **Route List**
-- All active Caddy routes in a clean table
-- Each row: subdomain → upstream (host:port), status, toggle, delete
-- Enable / disable individual routes without deleting them
+- Every instance that has a subdomain, in a clean table (this is the route table)
+- Each row: subdomain → upstream (host:port), live/synced status, delete
+- "Push all to Caddy" button — rebuilds every route from the instance list (recovery
+  after Caddy lost its config)
 - Upstream health shown (Caddy reports this via `/reverse_proxy/upstreams`)
 
 **Assign URL**
-- Input: subdomain prefix (e.g. `grafana`)
-- Domain suffix auto-filled from config (`myname.duckdns.org`)
+- Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
+  (lowercase letters, digits, hyphens; must be unique)
+- Domain suffix auto-filled from the global `BASE_DOMAIN` setting (e.g. `example.no`)
+- UI shows the assembled FQDN live as you type: `grafana` → `grafana.example.no`
+- Single-label only — keeps every name under the one `*.BASE_DOMAIN` wildcard cert
+  (`app.team.example.no` would need a separate `*.team.example.no` cert, which the
+  wildcard does not cover)
 - Upstream: any `host:port` reachable from LXC 101 — LAN IP + exposed port
   - Docker container: `192.168.10.100:3000`  (port must be exposed on the host)
   - LAN device:       `192.168.10.50:5000`
@@ -228,10 +276,21 @@ AdGuard, WireGuard, or the Docker module.
 - Current wildcard cert expiry date
 - Days remaining, with warning at 30 days
 - Cert issuer info
+- ⚠️ Verify first: cert metadata is NOT in Caddy's `/config`. Confirm the Admin API
+  exposes cert expiry (it may not) before building this — otherwise drop the feature.
 
 **Raw Config View**
 - Read-only view of the current Caddy JSON config
 - Useful for debugging
+
+**Caddyfile Export**
+- Generates a complete, runnable Caddyfile from the instance list (every instance
+  that has a subdomain)
+- Rendered from FlytDokk's own model, NOT from Caddy's JSON — Caddy adapts
+  Caddyfile → JSON but has no JSON → Caddyfile converter
+- Includes the wildcard TLS block + `admin` block (templated from `BASE_DOMAIN`),
+  so the output is directly usable — e.g. to bootstrap the co-located / all-in-one setups
+- Available as a file download or copy-to-clipboard
 
 ### Independence
 - Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`)
@@ -257,19 +316,33 @@ upstream input hint in the Assign URL modal accordingly:
 - Docker mode → "e.g. grafana:3000"
 - LAN mode → "e.g. 192.168.10.100:3000"
 
-### How Routes Are Stored
-Routes are written to Caddy's live config via the Admin API. Caddy persists them
-in its config storage. FlytDokk does NOT maintain its own route database —
-Caddy is the source of truth. On startup, the frontend fetches the current route
-list directly from Caddy.
+### How Routes Are Stored — derived from the instance list
+
+Routes are not stored as their own thing. A route is simply an **instance** (see
+[Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
+Caddy live config is a **projection** of "every instance with a subdomain" — FlytDokk
+pushes those to Caddy via the Admin API by `id` (= Caddy `@id`).
+
+- A route exists when an instance has a subdomain; it's gone when the subdomain is
+  cleared or the instance is deleted. There is no enable/disable state — routes are binary.
+- **Persistence:** Caddy runs with `caddy run --resume`, so it reloads its last autosaved
+  config on restart — the everyday recovery path after an LXC / Proxmox reboot.
+- **Backstop:** the instance list (`instances.json`) is the durable record. A one-click
+  **"Push all to Caddy"** re-creates every route from it if Caddy ever loses its config.
+- **Ownership rule:** FlytDokk only manages routes whose `@id` matches an instance. The
+  static bootstrap routes hand-written in the Caddyfile (FlytDokk itself, AdGuard) are
+  never touched.
+- **Route identity:** the instance `id` is used verbatim as Caddy's `@id`, so every push /
+  delete is idempotent — re-pushing never creates duplicates.
 
 ### API Surface (internal)
 ```
-GET  /api/caddy/routes           list all routes
-POST /api/caddy/routes           create route
-DEL  /api/caddy/routes/:id       remove route
-PUT  /api/caddy/routes/:id/toggle  enable/disable
-GET  /api/caddy/health           caddy status + cert info
+GET  /api/caddy/routes           list instances that have a subdomain (the route table)
+POST /api/caddy/routes           assign a subdomain to an instance + push to Caddy
+DEL  /api/caddy/routes/:id       clear the subdomain + delete the route from Caddy
+POST /api/caddy/push             re-push all routes from the instance list to Caddy
+GET  /api/caddy/caddyfile        export complete runnable Caddyfile (text/plain)
+GET  /api/caddy/health           caddy status + mode (`docker` | `lan`) + cert info
 GET  /api/caddy/upstreams        upstream health from caddy
 ```
 
@@ -277,7 +350,7 @@ GET  /api/caddy/upstreams        upstream health from caddy
 ```json
 {
   "@id": "grafana",
-  "match": [{ "host": ["grafana.myname.duckdns.org"] }],
+  "match": [{ "host": ["grafana.example.no"] }],
   "handle": [{
     "handler": "subroute",
     "routes": [{
@@ -308,7 +381,7 @@ and linking out to AdGuard for everything else.
 
 **Health & Wildcard Check**
 - Is AdGuard reachable?
-- Is the wildcard rewrite (`*.yourdomain.duckdns.org → 192.168.10.100`) in place?
+- Is the wildcard rewrite (`*.example.no → 192.168.10.100`) in place?
   Shown prominently — warning if missing, since everything depends on it
 
 **Rewrite List**
@@ -316,6 +389,14 @@ and linking out to AdGuard for everything else.
 - Delete a rewrite if needed
 - Rewrites are primarily created automatically via the Assign URL action —
   manual add is available but not the main flow
+
+**Sync with the instance list**
+- AdGuard is its own source of truth for rewrites — FlytDokk reads them straight from
+  AdGuard and shows which instances have a matching rewrite
+- "Push all to Caddy" also best-effort re-adds any missing rewrites for instances that
+  have a subdomain
+- Because the wildcard `*.example.no` already covers every subdomain, a missing
+  per-name rewrite is cosmetic; this sync is best-effort and never blocks a route
 
 ### Independence
 - Requires only: AdGuard API reachable at `ADGUARD_URL`
@@ -380,23 +461,28 @@ This is the one place where modules coordinate. When a user assigns a URL
 (from either the Docker Manager or the Caddy module), this happens:
 
 ```
-User: assign "grafana.myname.duckdns.org" → 192.168.10.100:3000
+User: enters prefix "grafana" → upstream 192.168.10.100:3000
+      (FlytDokk assembles grafana + BASE_DOMAIN = grafana.example.no)
+
+Step 0 — Persist intent (REQUIRED)
+  Set subdomain="grafana" + upstream on the instance and save instances.json
+  → The instance list is the durable record; Caddy and AdGuard are pushed from it
 
 Step 1 — Caddy route (REQUIRED)
-  POST http://192.168.10.101:2019/config/apps/http/servers/srv0/routes
-  → If this fails: abort, show error, do not proceed
+  POST http://192.168.10.101:2019/config/apps/http/servers/srv0/routes  (@id = instance id)
+  → If this fails: abort, roll back the subdomain, show error
 
 Step 2 — AdGuard rewrite (BEST EFFORT)
   POST http://192.168.10.101:3000/control/rewrite/add
   → If this fails: route was still created in Caddy
   → Show warning: "Route created, DNS rewrite failed — add manually in AdGuard"
-  → Because the wildcard *.myname.duckdns.org already covers all subdomains,
+  → Because the wildcard *.example.no already covers all subdomains,
     this failure rarely matters in practice
 
 Result shown to user:
   ✅ Caddy route created
   ✅ AdGuard rewrite created   (or ⚠️ AdGuard unreachable — wildcard covers this)
-  🔗 https://grafana.myname.duckdns.org
+  🔗 https://grafana.example.no
 ```
 
 ---
@@ -409,6 +495,7 @@ Result shown to user:
 - docker-py for Docker socket management
 - pydantic-settings for env var validation
 - sse-starlette for SSE log streaming
+- No database — persistent state is two flat JSON files (`settings.json`, `instances.json`)
 
 ```
 backend/src/flytdokk/
@@ -424,21 +511,23 @@ backend/src/flytdokk/
 │   ├── wireguard/
 │   │   ├── client.py        simple reachability check
 │   │   └── router.py
-│   └── docker/              Phase 2
+│   └── docker/              Phase 8
 │       ├── client.py        docker-py wrapper
 │       ├── stacks.py        directory-based stack manager
 │       ├── recipes/         personal install recipes (one file per service)
+│       ├── quick_commands.py  image-name → preset terminal commands map
 │       └── router.py
 └── shared/
     ├── health.py            GET /api/health — polls all module clients
     ├── assign.py            POST /api/assign — Caddy required, AdGuard best-effort
+    ├── instances.py        read/write instances.json — the instance list (route intent)
     └── settings.py          read/write settings.json, merge with env vars, priority chain
 ```
 
 ### Frontend — React + TypeScript + Vite
 - Tailwind CSS for styling
 - React Query for data fetching + caching
-- Recharts for CPU/RAM graphs (Docker module, Phase 2)
+- Recharts for CPU/RAM graphs (Docker module, Phase 8)
 - Lucide React for icons
 - Module pages are fully independent routes — `/caddy`, `/adguard`, `/wireguard`, `/docker`
 
@@ -451,15 +540,16 @@ frontend/src/
 │   ├── AdGuard.tsx
 │   ├── WireGuard.tsx
 │   ├── Settings.tsx
-│   └── Docker.tsx           Phase 2
+│   └── Docker.tsx           Phase 8
 ├── components/
 │   ├── shared/
 │   │   ├── StatusBadge.tsx
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
 │   │   └── ConfirmDialog.tsx
 │   ├── caddy/
-│   │   ├── RouteList.tsx
+│   │   ├── RouteList.tsx        instances that have a subdomain, + "Push all to Caddy"
 │   │   ├── AssignModal.tsx
+│   │   ├── CaddyfileExport.tsx  download / copy-to-clipboard Caddyfile
 │   │   └── CertStatus.tsx
 │   ├── adguard/
 │   │   ├── AdGuardStatus.tsx
@@ -467,9 +557,11 @@ frontend/src/
 │   │   └── RewriteList.tsx
 │   ├── wireguard/
 │   │   └── WireGuardCard.tsx
-│   └── docker/              Phase 2
+│   └── docker/              Phase 8
 │       ├── ContainerList.tsx
 │       ├── LogViewer.tsx
+│       ├── Terminal.tsx         xterm.js browser terminal (WebSocket exec)
+│       ├── QuickCommands.tsx    preset command buttons above the terminal
 │       ├── StackList.tsx
 │       ├── StackEditor.tsx
 │       ├── InstallWizard.tsx
@@ -494,7 +586,7 @@ RUN npm run build            # → /app/dist
 FROM python:3.12-slim
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-RUN apt-get update && apt-get install -y docker.io docker-compose-plugin && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y docker.io docker-compose-plugin git && rm -rf /var/lib/apt/lists/*
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY backend/src ./src
@@ -522,7 +614,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${STACKS_DIR:-/opt/stacks}:/opt/stacks
-      - ./flytdokk-settings:/opt/flytdokk   # persists settings.json
+      - ./flytdokk-settings:/opt/flytdokk   # persists settings.json + instances.json
     environment:
       # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
       - CADDY_ADMIN_URL=http://192.168.10.101:2019
@@ -536,9 +628,10 @@ services:
       - WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 
       # General (optional — can be set in UI settings page instead)
-      - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
+      - BASE_DOMAIN=${BASE_DOMAIN}          # e.g. example.no
       - PORT=8080
-      # Note: DUCKDNS_TOKEN is set on LXC 101 (Caddy's environment) — not needed here
+      # Note: the ACME/DNS-challenge token (DuckDNS, Cloudflare, …) lives on LXC 101
+      # in Caddy's environment — FlytDokk never needs it
     restart: unless-stopped
 ```
 
@@ -546,49 +639,59 @@ services:
 
 ## Caddy Setup (runs natively on LXC 101)
 
-### DuckDNS and HTTPS — out of scope for now
+### HTTPS and the wildcard cert — out of scope for the app
 
-This is a LAN-only solution. DuckDNS wildcard certs require Caddy to be built with
-the DuckDNS plugin (xcaddy), which is a one-time infrastructure step handled when
-setting up LXC 101. It has no impact on FlytDokk's application code — Caddy's Admin
-API works identically with or without the DuckDNS plugin.
+FlytDokk only needs to know the `BASE_DOMAIN` string (e.g. `example.no`). *How* the
+wildcard `*.BASE_DOMAIN` cert is obtained is a one-time LXC 101 infrastructure step and
+has no impact on FlytDokk's application code — Caddy's Admin API works identically
+regardless of the cert method.
 
-The LXC helper script (`scripts/create-lxc101.sh`) in Phase 7 will handle the
-xcaddy build and DuckDNS Caddyfile configuration. During development, a plain
-HTTP Caddyfile is sufficient.
+The ACME DNS challenge provider depends on your domain:
+- `example.no` and other real domains → your registrar's DNS or Cloudflare, etc.
+- a free `*.duckdns.org` name → the DuckDNS plugin
+
+Either way Caddy must be built with the matching `caddy-dns` plugin (via xcaddy) and
+given that provider's API token in its own environment on LXC 101. The LXC helper script
+(`scripts/create-lxc101.sh`, Phase 7) handles the xcaddy build and Caddyfile. During
+development, a plain HTTP Caddyfile is sufficient.
 
 ### Install (for reference — handled by the Phase 7 LXC script)
 ```bash
-# Install Caddy with DuckDNS plugin via xcaddy
+# Build Caddy with your DNS provider's plugin via xcaddy (DuckDNS shown as one example)
 apt install -y debian-keyring debian-archive-keyring apt-transport-https
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-xcaddy-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-xcaddy.list
 apt update && apt install xcaddy
-xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy
+xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy   # swap plugin for your provider
 ```
 
-### Caddyfile
+Caddy is run as a systemd service with **`caddy run --resume`** so it restores its last
+autosaved config immediately on restart. "Push all to Caddy" (rebuilding routes from
+`instances.json`) is the backstop if the autosave is ever stale or missing.
+
+### Caddyfile (bootstrap only — dynamic routes come from FlytDokk via the Admin API)
 ```caddyfile
 {
     admin 0.0.0.0:2019          # firewalled — only LXC 103 (192.168.10.100) can reach this
 }
 
-*.{$DUCKDNS_DOMAIN}.duckdns.org {
+*.{$BASE_DOMAIN} {
     tls {
-        dns duckdns {env.DUCKDNS_TOKEN}
+        dns duckdns {env.DUCKDNS_TOKEN}   # swap provider + token to match your domain
     }
 
-    @flytdokk host flytdokk.{$DUCKDNS_DOMAIN}.duckdns.org
+    # Static bootstrap routes — hand-written here, NEVER touched by FlytDokk
+    @flytdokk host flytdokk.{$BASE_DOMAIN}
     handle @flytdokk {
         reverse_proxy 192.168.10.100:8080
     }
 
-    @adguard host adguard.{$DUCKDNS_DOMAIN}.duckdns.org
+    @adguard host adguard.{$BASE_DOMAIN}
     handle @adguard {
         reverse_proxy 192.168.10.101:3000
     }
 
-    # All other routes added dynamically via Admin API
+    # All other routes added dynamically via the Admin API (owned by FlytDokk)
 }
 ```
 
@@ -626,18 +729,20 @@ on first run. Or use env vars to pre-populate. Both work.
 | AdGuard password | `ADGUARD_PASSWORD` | Basic auth password |
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks` |
-| Domain | `DUCKDNS_DOMAIN` | Your DuckDNS name (without `.duckdns.org`) |
+| Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
 
-`DUCKDNS_TOKEN` is used by Caddy directly on LXC 101 — FlytDokk never needs it.
-In the co-located alternative (Caddy as Docker container), it would be passed to
-the Caddy container, not to FlytDokk. No env var is strictly required by FlytDokk
-itself — everything can be configured via the settings page on first run.
+The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
+LXC 101 — FlytDokk never needs it. In the co-located alternative (Caddy as Docker
+container), it would be passed to the Caddy container, not to FlytDokk. **No env var
+is required by FlytDokk itself** — everything can be configured via the settings page
+on first run.
 
 ### Settings persistence
 
 Settings are stored in `/opt/flytdokk/settings.json` inside the container,
-backed by a mounted volume. Env-var-set values are shown as read-only in the UI
-with a "set via environment" indicator — they cannot be overridden from the UI.
+backed by a mounted volume (the same volume also holds `instances.json`). Env-var-set
+values are shown as read-only in the UI with a "set via environment" indicator — they
+cannot be overridden from the UI.
 
 ```yaml
 # docker-compose.yml (settings volume)
@@ -654,7 +759,7 @@ volumes:
   "adguard_password": "...",
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
   "stacks_dir": "/opt/stacks",
-  "domain": "myname"
+  "base_domain": "example.no"
 }
 ```
 
@@ -666,9 +771,9 @@ PUT  /api/settings        update stored settings (env-sourced values ignored)
 
 ### .env.example (all optional — configure here or in the UI settings page)
 ```bash
-# DUCKDNS_TOKEN is set on LXC 101 (Caddy's environment), not here
+# The ACME/DNS-challenge token is set on LXC 101 (Caddy's environment), not here
 
-DUCKDNS_DOMAIN=myname
+BASE_DOMAIN=example.no
 CADDY_ADMIN_URL=http://192.168.10.101:2019
 ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
@@ -718,7 +823,7 @@ TODO.md is the authoritative source for what to build and in what order.
 | Failure | Impact | Mitigation |
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
-| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts |
+| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`; "Push all to Caddy" rebuilds routes from `instances.json` as a backstop |
 | FlytDokk container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
@@ -738,8 +843,7 @@ If FlytDokk is down, all services keep running exactly as before.
 - **AdGuard API** — port 3000 on LXC 101. Consider a Proxmox firewall rule so
   only LXC 103's IP can reach it.
 - **Manager UI** — protect with Caddy `basicauth`. Only reachable via
-  `flytdokk.yourdomain.duckdns.org` over HTTPS, accessible only through WireGuard
-  or locally.
+  `flytdokk.example.no` over HTTPS, accessible only through WireGuard or locally.
 - **Secrets** — all in `.env`, never committed. Passed as environment variables
   to containers.
 

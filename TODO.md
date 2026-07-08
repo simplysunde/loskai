@@ -8,7 +8,8 @@
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
-- [ ] Create `.env.example` — all vars optional, note that `DUCKDNS_TOKEN` belongs to Caddy on LXC 101 not FlytDokk
+  - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
+- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain. The ACME/DNS-challenge token belongs to Caddy on LXC 101, not FlytDokk
 - [x] Create `HISTORY.md`
 
 ---
@@ -18,32 +19,44 @@
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
-  - `DUCKDNS_TOKEN` is env-only, never written to `settings.json`
-- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class, only `DUCKDNS_TOKEN` is required at startup, all others optional
+  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `stacks_dir`, `base_domain`
+- [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
+  - Flat JSON file (same pattern as `settings.json`), no database
+  - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container }`
+  - `id` doubles as the Caddy `@id`; `subdomain` null = tracked but no route
+  - CRUD helpers (list / get / upsert / delete)
+- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class; **no env var required** at startup, all optional
 - [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
 - [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
 - [ ] `GET /api/settings` — returns all settings with source field
 - [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
-- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states
+- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`)
 
 ---
 
 ## Phase 3 — Caddy Module
 **Backend**
-- [ ] `modules/caddy/client.py` — async httpx wrapper for Caddy Admin API
-  - `list_routes()` — GET /config/apps/http/servers/srv0/routes
-  - `add_route(subdomain, upstream)` — POST route JSON
-  - `delete_route(id)` — DELETE by @id
-  - `toggle_route(id, enabled)` — PUT to enable/disable
-  - `get_cert_info()` — parse cert expiry from Caddy config
-  - `get_mode()` — returns `"docker"` if CADDY_ADMIN_URL contains a hostname, `"lan"` if IP — used by frontend to hint upstream input format
+- [ ] `modules/caddy/client.py` — async httpx wrapper for the Caddy Admin API (push side only)
+  - `list_live_routes()` — GET /config/apps/http/servers/srv0/routes (Caddy's current state)
+  - `push_route(id, host, upstream)` — POST route JSON tagged with `@id`
+  - `delete_route(id)` — DELETE /id/{id}
+  - `get_mode()` — `"docker"` if CADDY_ADMIN_URL host is a name, `"lan"` if an IP — frontend upstream hint
   - `health()` — returns `healthy` / `unreachable`
+  - `get_cert_info()` — ⚠️ verify first: cert expiry is NOT in `/config`; confirm what the Admin API actually exposes before building CertStatus, otherwise drop it
+- [ ] `modules/caddy/service.py` — derives Caddy routes from the instance list
+  - `assign(instance_id, subdomain, upstream)` — validate single-label prefix + uniqueness, set subdomain/upstream on the instance, push to Caddy
+  - `unassign(instance_id)` — clear subdomain + `delete_route` from Caddy
+  - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — never the static bootstrap routes
+  - `render_caddyfile()` — generate a complete, runnable Caddyfile from the instances that have a subdomain (TLS + admin block templated from `base_domain`)
 - [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy`
-  - `GET /api/caddy/routes`
-  - `POST /api/caddy/routes`
-  - `DELETE /api/caddy/routes/{id}`
-  - `PUT /api/caddy/routes/{id}/toggle`
+  - `GET /api/caddy/routes` — instances that have a subdomain, annotated with live-sync status
+  - `POST /api/caddy/routes` — assign a subdomain
+  - `DELETE /api/caddy/routes/{id}` — clear the subdomain + delete the route
+  - `POST /api/caddy/push` — `push_all()`
+  - `GET /api/caddy/caddyfile` — export Caddyfile (text/plain)
   - `GET /api/caddy/health` — status + mode (`docker` | `lan`)
+- [ ] Persistence: Caddy runs with `caddy run --resume` (its own config survives restarts);
+  `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
 
 **Frontend**
 - [ ] `App.tsx` — React Router setup, sidebar layout with nav links for each module + Settings
@@ -57,9 +70,10 @@
 - [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
 - [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
 - [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
-- [ ] `components/caddy/RouteList.tsx` — table of routes with toggle + delete actions
-- [ ] `components/caddy/AssignModal.tsx` — form: subdomain input + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.), submit calls `/api/assign`
-- [ ] `components/caddy/CertStatus.tsx` — cert expiry date + days remaining, warning at 30 days
+- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, live/synced status, delete; "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
+- [ ] `components/caddy/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
+- [ ] `components/caddy/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
+- [ ] `components/caddy/CertStatus.tsx` — cert expiry + days remaining, warning at 30 days — ⚠️ build only if `get_cert_info()` proves reachable via the Admin API, otherwise drop
 
 ---
 
@@ -67,7 +81,7 @@
 **Backend**
 - [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard REST API (Basic Auth)
   - `health()` — is AdGuard reachable?
-  - `check_wildcard()` — is `*.yourdomain.duckdns.org` rewrite present?
+  - `check_wildcard()` — is the `*.{base_domain}` rewrite present?
   - `list_rewrites()`, `add_rewrite(domain, answer)`, `delete_rewrite(domain, answer)`
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
   - `GET /api/adguard/health` — reachable + wildcard present
@@ -95,10 +109,12 @@
 ---
 
 ## Phase 6 — Cross-Module URL Assignment
-- [ ] `backend/src/flytdokk/shared/assign.py` — `POST /api/assign { subdomain, upstream }`
-  - Step 1: Create Caddy route (required — abort if fails)
-  - Step 2: Create AdGuard DNS rewrite (best-effort — warn but don't fail)
-  - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://..." }`
+- [ ] `backend/src/flytdokk/shared/assign.py` — `POST /api/assign { instance_id, prefix, upstream }`
+  - Handles both existing instances (a container) and new external ("dummy") instances
+  - Step 0: validate single-label prefix; set subdomain/upstream on the instance + save `instances.json`
+  - Step 1: push Caddy route (required — abort + roll back the subdomain if it fails)
+  - Step 2: create AdGuard DNS rewrite (best-effort — warn but don't fail)
+  - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://prefix.base_domain" }`
 - [ ] Wire `AssignModal.tsx` to `POST /api/assign`, show per-step result to user
 - [ ] Make Assign URL modal accessible from both Caddy page and (later) Docker page
 
@@ -119,7 +135,7 @@
 **FlytDokk container**
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
-  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI, copy dist to `./static`
+  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed for `git_build` recipes), copy dist to `./static`
 - [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json`
 - [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
 - [ ] `Caddyfile` — reference config for LXC 101 native Caddy: wildcard cert, static routes, dynamic routes via Admin API
@@ -135,18 +151,23 @@
   - `start/stop/restart/remove(id)`
   - `stream_logs(id)` — async generator for SSE
   - `get_host_stats()` — total CPU, RAM, disk
+- [ ] Merge live containers with the instance list: join each container to its instance
+  by `container` to surface the assigned subdomain inline; containers with no instance
+  yet can be assigned one on the spot (creates a docker instance)
 - [ ] `modules/docker/stacks.py` — directory-based stack manager
   - `list_stacks()` — scan `STACKS_DIR` for subdirs with `compose.yml`
   - `get_stack(name)` — read compose.yml + .env contents + container status
   - `stack_action(name, action)` — up/down/restart/pull via `docker compose` subprocess
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
+  - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
 - [ ] `modules/docker/recipes/` — personal install recipes defined in code, one file per service
   - Each recipe defines: type, directory name, `compose.yml` content, required `.env` vars with defaults
   - Three recipe types:
     - `pull` — pre-built public image, `docker compose up -d`
     - `git_build` — `git clone <repo>` then `docker compose up -d --build`
     - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
+      - ⚠️ needs `docker login` to the Gitea registry — decide where registry credentials live (new settings entry vs per-recipe) before building this type
   - Initial recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`
@@ -164,7 +185,7 @@
 
 **Frontend**
 - [ ] `pages/Docker.tsx` — Docker page, two tabs: Containers and Stacks
-- [ ] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, actions
+- [ ] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, assigned subdomain (from its instance), actions incl. "Assign URL"
 - [ ] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
 - [ ] `components/docker/Terminal.tsx` — xterm.js browser terminal, WebSocket connection to `/api/docker/containers/{id}/exec`
 - [ ] `components/docker/QuickCommands.tsx` — preset command buttons above the terminal; generic set + image-specific commands detected from container image name
@@ -180,6 +201,7 @@
 ## Phase 9 — Polish
 - [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
 - [ ] Basic auth — add `basicauth` to Caddyfile (no code change in FlytDokk)
-- [ ] Startup reconciliation — on `/api/health`, warn if Caddy routes exist without matching AdGuard rewrites
-- [ ] Config export — `GET /api/export` returns JSON snapshot of all routes + rewrites
-- [ ] Container label auto-discovery — detect `homelab.subdomain=X` label on start, auto-assign URL
+- [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (best-effort; wildcard covers it)
+- [ ] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites
+- [ ] Container label auto-discovery — detect `flytdokk.subdomain=X` label on start, auto-create/update the container's docker instance and push its route
+- [ ] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete
