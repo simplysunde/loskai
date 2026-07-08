@@ -139,6 +139,40 @@ view both read.
 Both paths write to the same list, and Caddy routes + the Caddyfile export are both
 rendered from it.
 
+### How the instance list connects the modules
+
+The instance list is the shared spine the modules read from and write to. It is local
+state (a JSON file), always available — so touching it never introduces a cross-module
+runtime dependency. The graceful-degradation guarantees (each module still works when an
+*external* service is down) are unchanged.
+
+| Module | Relationship to the instance list |
+|---|---|
+| **Docker Manager** | Surfaces each container as a `docker` instance (live data joined via `container`); creating a service or assigning a URL writes an instance |
+| **Caddy Routing** | Reads instances that have a `subdomain` and pushes them as routes; owns that projection. External instances need no container at all |
+| **AdGuard DNS** | For each instance-with-subdomain, best-effort creates the matching DNS rewrite; reads rewrites back from AdGuard to show which instances are in sync |
+| **WireGuard** | None — a standalone status card, not part of the instance model |
+
+```
+                       ┌───────────────────────┐
+                       │     instances.json     │   ← the shared spine
+                       │  (id, type, subdomain, │
+                       │   upstream, container) │
+                       └───────────┬───────────┘
+              writes /             │            reads (subdomain set)
+              joins live           │                    │
+        ┌─────────────────┐        │        ┌───────────┴───────────┐
+        │  Docker Manager │────────┘        │     Caddy Routing     │──► push routes
+        │  (containers)   │                 │  (route = projection) │
+        └─────────────────┘                 └───────────┬───────────┘
+                                                         │ best-effort
+                                                         ▼
+                                              ┌────────────────────┐
+                                              │    AdGuard DNS     │──► rewrite per name
+                                              └────────────────────┘
+        WireGuard: standalone status card — does not touch instances
+```
+
 ---
 
 ## Module 1 — Docker Manager
@@ -149,6 +183,11 @@ a personal install wizard for spinning up new services using your own curated,
 tested recipes. This module works entirely via the Docker socket and has zero
 dependency on Caddy, AdGuard, or WireGuard.
 
+Each container surfaces as a `docker` **instance** (see
+[Core Data Model](#core-data-model--instances)): the live container data is joined to
+its instance record by `container`, so a container's assigned subdomain shows inline and
+"Assign URL" here writes the same instance the Caddy module routes from.
+
 ### Features
 
 **Container Overview**
@@ -157,7 +196,8 @@ dependency on Caddy, AdGuard, or WireGuard.
 - Remove container (with confirmation)
 - View live logs (streaming, last N lines)
 - View container environment variables (read-only)
-- Assigned URL shown inline if one exists (pulled from Caddy module)
+- Assigned URL shown inline if one exists (from the container's instance `subdomain`)
+- "Assign URL" action on any container — creates/updates its `docker` instance and routes it
 
 **Stack Manager**
 - Discovers stacks by scanning `STACKS_DIR` — each subdirectory with a `compose.yml`
@@ -175,8 +215,10 @@ dependency on Caddy, AdGuard, or WireGuard.
 - Wizard steps per recipe:
   1. Show what will be created (directory, compose, env vars)
   2. Fill in required values (data path, passwords, ports — with your preferred defaults)
-  3. Optionally assign a subdomain (calls Caddy + AdGuard modules)
-  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs the install steps
+  3. Optionally assign a subdomain (records it on the new `docker` instance, then calls
+     the Caddy + AdGuard modules)
+  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs the install steps,
+     and registers the service as a `docker` instance
 - Recipes are defined in code — add new ones by writing a recipe file, not via UI
 
 **Recipe types — three patterns supported:**
@@ -216,6 +258,7 @@ dependency on Caddy, AdGuard, or WireGuard.
 ### Independence
 - Requires only: Docker socket mounted at `/var/run/docker.sock` (read-write)
 - Must run on the same host as Docker Engine
+- Reads/writes the shared instance list (local JSON — always available, never a failure point)
 - If Caddy is down: Docker module works fully, URL assignment step skipped with warning
 - If AdGuard is down: Docker module works fully
 
@@ -243,9 +286,11 @@ GET  /api/docker/stats                     host-level resource summary
 ## Module 2 — Caddy Routing
 
 ### Purpose
-Manage all reverse proxy routes. Assign a URL to any container instantly.
-This module works entirely via Caddy's Admin API and has zero dependency on
-AdGuard, WireGuard, or the Docker module.
+Manage all reverse proxy routes. A route is just an **instance** with a `subdomain`
+(see [Core Data Model](#core-data-model--instances)) — this module reads the instance
+list and pushes those to Caddy via the Admin API. It can route any instance, whether
+backed by a container or an external LAN target, so it has zero runtime dependency on
+AdGuard, WireGuard, or the Docker module (external instances need no Docker at all).
 
 ### Features
 
@@ -293,10 +338,12 @@ AdGuard, WireGuard, or the Docker module.
 - Available as a file download or copy-to-clipboard
 
 ### Independence
-- Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`)
+- Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`) + the local instance list
 - If AdGuard is down: routes can still be created/deleted, DNS rewrite step is
   skipped with a warning shown to the user
-- If Docker module is down: routing works fully, LAN IP:port must be entered manually
+- If the Docker module / socket is down: routing works fully — external instances are
+  unaffected, and a container instance's stored `upstream` is still valid (only live
+  status/stats can't be shown)
 - If WireGuard is down: no effect whatsoever
 
 ### Co-located vs External Mode
@@ -370,8 +417,8 @@ GET  /api/caddy/upstreams        upstream health from caddy
 ### Purpose
 Lightweight companion to AdGuard — not a replacement for its UI. AdGuard already
 has a fully featured web UI; this module only covers what's relevant to FlytDokk:
-confirming the wildcard rewrite is in place, staying in sync with Caddy routes,
-and linking out to AdGuard for everything else.
+confirming the wildcard rewrite is in place, staying in sync with the routed
+instances (those with a `subdomain`), and linking out to AdGuard for everything else.
 
 ### Features
 
@@ -385,7 +432,7 @@ and linking out to AdGuard for everything else.
   Shown prominently — warning if missing, since everything depends on it
 
 **Rewrite List**
-- List existing DNS rewrites so you can see what's in sync with Caddy routes
+- List existing DNS rewrites so you can see which routed instances are in sync
 - Delete a rewrite if needed
 - Rewrites are primarily created automatically via the Assign URL action —
   manual add is available but not the main flow
@@ -442,6 +489,8 @@ The most important feature is the link out.
 - No API authentication — no password, no token
 - No peer list, no handshake times (use wg-dashboard for that)
 - No peer creation / deletion / key management
+- Not part of the instance model — it stores nothing and reads nothing from
+  `instances.json`; it is a pure status card standing on its own
 
 ### Independence
 - Requires only: `WIREGUARD_DASHBOARD_URL` env var (optional)
