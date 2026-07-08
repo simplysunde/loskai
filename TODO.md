@@ -136,7 +136,8 @@
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed for `git_build` recipes), copy dist to `./static`
-- [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json`
+- [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
+  - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
 - [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
 - [ ] `Caddyfile` — reference config for LXC 101 native Caddy: wildcard cert, static routes, dynamic routes via Admin API
 - [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for co-located alternative only (Caddy as Docker container)
@@ -192,7 +193,7 @@
 - [ ] `modules/docker/quick_commands.py` — map of image name patterns to preset commands (e.g. `redis` → `redis-cli`, `postgres` → `psql -U postgres`)
 - [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
-- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env
+- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path (freeform counterpart to the recipe wizard)
 - [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values → optionally assign URL → deploy
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
 

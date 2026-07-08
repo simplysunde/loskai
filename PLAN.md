@@ -200,12 +200,32 @@ its instance record by `container`, so a container's assigned subdomain shows in
 - "Assign URL" action on any container — creates/updates its `docker` instance and routes it
 
 **Stack Manager**
-- Discovers stacks by scanning `STACKS_DIR` — each subdirectory with a `compose.yml`
-  is a managed stack. The host directory is the source of truth, not FlytDokk.
-- View all stacks with current status (up / down / partial)
-- Stack-level start / stop / restart / pull latest images
-- Edit `compose.yml` and `.env` in-browser
-- `STACKS_DIR` is a configurable env var (e.g. `/opt/stacks`), mounted into the container
+
+A browser front-end over `docker compose` — the same thing as SSH-ing in and running
+compose by hand, minus the SSH. It runs the real `docker compose` CLI against the host
+daemon; it invents no new deployment method.
+
+- **One directory, one variable.** FlytDokk watches exactly one directory, `STACKS_DIR`
+  (default `/opt/stacks`). Every immediate subdirectory with a `compose.yml` is a stack.
+  There is no separate "manual" vs "managed" location — a stack is *managed* purely by
+  virtue of living in `STACKS_DIR`.
+- **The filesystem is the only source of truth.** FlytDokk keeps no database of stacks.
+  Editing a file in the browser and editing it over SSH touch the same file — the two are
+  fully interchangeable, and FlytDokk never locks or "owns" a stack. SSH stays a
+  first-class equal, never a hidden lock-in.
+- View all stacks with current status (up / down / partial), computed by matching the
+  `com.docker.compose.project` label on running containers against the declared services.
+- Stack-level start / stop / restart / pull-and-update (`docker compose pull` + `up -d`)
+- Create a stack manually (write/paste a `compose.yml` in the browser) — the freeform
+  counterpart to the recipe-driven Install Wizard
+- Edit `compose.yml` and `.env` in-browser, then re-`up` to apply
+- Delete a stack (`down` + remove the directory, with confirmation)
+
+> **Same-path mount (important).** `STACKS_DIR` must be bind-mounted at the **same path**
+> inside the container as on the host (`${STACKS_DIR}:${STACKS_DIR}`), not remapped to a
+> different path. FlytDokk's compose CLI resolves bind-mount paths and hands them to the
+> host daemon, so the in-container path must equal the host path or volumes get created in
+> the wrong place. See the compose file below.
 
 **Personal Install Wizard**
 - A curated list of personal install recipes — not a generic community template store.
@@ -254,6 +274,28 @@ its instance record by `container`, so a container's assigned subdomain shows in
 - Per-container CPU + RAM graph (last 1h)
 - Aggregate host stats: total CPU, RAM, disk usage
 - Container event log: started, stopped, crashed, restarted
+
+### Scope — what it can and can't do
+
+Two views over one host, at two granularities:
+- **Container Overview** — *every* running container (live, from the socket), whatever
+  started it. Runtime control + logs + terminal.
+- **Stack Manager** — only the compose projects in `STACKS_DIR` (the ones with editable
+  files). A stack container shows in both views; a bare `docker run` container shows only
+  in Container Overview (nothing to edit — it has no compose file).
+
+| ✅ Can do | ❌ Can't do (by design) |
+|---|---|
+| List all running containers with live stats | Manage containers on **other hosts** (single host, for now) |
+| Start / stop / restart / remove any container | Edit config of a container with **no compose file** |
+| Stream logs, open a browser terminal, quick commands | Be a full Portainer (no network / volume / image-management UI) |
+| Discover, start/stop/restart, and **pull-update** stacks | See stacks **outside** `STACKS_DIR` |
+| Create a stack (wizard *or* manual browser compose) | Do anything without the **socket mounted** |
+| Edit `compose.yml` / `.env`, delete a stack | Build/manage arbitrary images (only recipe builds + pull) |
+| Host CPU / RAM / disk; assign a URL to a container | |
+
+Everything is compose-based: even a single-container app is a one-service `compose.yml`,
+so there are no special cases. Recovery/escape hatch is always plain SSH + `docker compose`.
 
 ### Independence
 - Requires only: Docker socket mounted at `/var/run/docker.sock` (read-write)
@@ -662,7 +704,9 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${STACKS_DIR:-/opt/stacks}:/opt/stacks
+      # Same path inside and out — the compose CLI hands bind paths to the host daemon,
+      # so in-container path must equal host path or stack volumes land in the wrong place
+      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
       - ./flytdokk-settings:/opt/flytdokk   # persists settings.json + instances.json
     environment:
       # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
