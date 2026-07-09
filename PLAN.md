@@ -135,9 +135,15 @@ view both read.
 - **Automatically** — on container discovery, a `flytdokk.subdomain=<prefix>` label
   auto-creates / updates a docker instance (see Phase 9 label auto-discovery).
 - **Manually** — added through the UI, either a docker instance or an external one.
+- **Seeded** — the AdGuard instance is created automatically when `ADGUARD_URL` is set to
+  a valid target: an `external` instance pointing at that IP:port, defaulting to the
+  `adguard` subdomain so its route is created out of the box (replacing the old hand-written
+  Caddyfile route). FlytDokk's own UI needs no seeding: it is a normal container on the
+  Docker host, discovered as a plain `docker` instance like any other — no special-casing.
 
 Both paths write to the same list, and Caddy routes + the Caddyfile export are both
-rendered from it.
+rendered from it. Because FlytDokk and AdGuard are ordinary instances, they carry no
+reserved status — the normal subdomain-uniqueness rule prevents collisions.
 
 ### How the instance list connects the modules
 
@@ -338,10 +344,14 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 
 **Route List**
 - Every instance that has a subdomain, in a clean table (this is the route table)
-- Each row: subdomain → upstream (host:port), live/synced status, delete
+- Each row: subdomain → upstream (host:port), synced + live status, delete
+- **Synced status** — FlytDokk fetches Caddy's live routes (`GET …/routes`) and checks each
+  instance's `@id` against them. Present = synced; missing = not pushed (offer "Push all").
+  This is a **read-only comparison for display only** — it never auto-corrects, so it can't
+  reintroduce a drift/reconcile loop.
+- **Live status** — upstream reachability, from Caddy's `/reverse_proxy/upstreams`
 - "Push all to Caddy" button — rebuilds every route from the instance list (recovery
   after Caddy lost its config)
-- Upstream health shown (Caddy reports this via `/reverse_proxy/upstreams`)
 
 **Assign URL**
 - Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
@@ -419,9 +429,10 @@ documented in [`docs/caddy-api.md`](../docs/caddy-api.md).
   Specific hosts are disjoint, so append order never matters.
 - A route exists when an instance has a subdomain; it's gone when the subdomain is
   cleared or the instance is deleted. There is no enable/disable state — routes are binary.
-- **Route identity:** the instance `id` is used verbatim as Caddy's `@id`, so add
-  (`POST …/routes`), replace (`PATCH /id/<id>`), and delete (`DELETE /id/<id>`) are all
-  idempotent — re-pushing never creates duplicates.
+- **Route identity:** the instance `id` is used verbatim as Caddy's `@id`. Add is
+  `POST …/routes`, delete is `DELETE /id/<id>`, and **editing an existing route is just
+  delete-then-add** (not `PATCH`) — one code path that always converges, and re-pushing
+  never creates duplicates.
 - **Persistence is automatic.** Caddy autosaves its full config to disk after *every* API
   change and runs with `caddy run --resume`, so it restores that autosave on start. A
   normal LXC / Proxmox reboot or Caddy restart brings every route back with **no action
@@ -429,9 +440,10 @@ documented in [`docs/caddy-api.md`](../docs/caddy-api.md).
 - **Backstop:** the instance list (`instances.json`) is the durable record. "Push all to
   Caddy" re-creates every route from it — but only needed in the rare case where Caddy's
   autosave itself is gone (fresh Caddy, wiped data dir), not on a normal reboot.
-- **Ownership rule:** FlytDokk only manages routes whose `@id` matches an instance. The
-  static bootstrap routes hand-written in the Caddyfile (FlytDokk itself, AdGuard) carry
-  no FlytDokk `@id` and are never touched.
+- **Ownership rule:** FlytDokk manages every route whose `@id` matches an instance — which
+  now includes its own UI and AdGuard, since both are ordinary instances. The bootstrap
+  Caddyfile defines **no** routes of its own; any route a human adds directly to Caddy
+  without a matching instance `@id` is simply left alone by the per-route push.
 
 ### API Surface (internal)
 ```
@@ -774,11 +786,13 @@ restart with no action from FlytDokk — this is the normal reboot path. "Push a
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
 autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](../docs/caddy-api.md).
 
-### Caddyfile (bootstrap only — dynamic routes come from FlytDokk via the Admin API)
+### Caddyfile (bootstrap only — all routes come from FlytDokk via the Admin API)
 
-The wildcard site block exists **only to obtain the `*.BASE_DOMAIN` cert**; it has no
-handlers, so it is not a routing catch-all. The static routes are their own specific-host
-blocks and reuse that cert, exactly like the dynamic routes FlytDokk appends at runtime.
+The bootstrap Caddyfile defines **no routes at all** — only the admin endpoint and the
+wildcard cert. The wildcard site block exists solely to obtain the `*.BASE_DOMAIN` cert; it
+has no handlers, so it is not a routing catch-all. Every route, including FlytDokk's own UI
+and AdGuard, is a specific-host route pushed at runtime from the instance list — they are
+all flat siblings reusing this one cert.
 
 ```caddyfile
 {
@@ -792,19 +806,14 @@ blocks and reuse that cert, exactly like the dynamic routes FlytDokk appends at 
     }
 }
 
-# Static bootstrap routes — specific hosts, hand-written, NEVER touched by FlytDokk.
-# They reuse the wildcard cert above.
-flytdokk.{$BASE_DOMAIN} {
-    reverse_proxy 192.168.10.100:8080
-}
-
-adguard.{$BASE_DOMAIN} {
-    reverse_proxy 192.168.10.101:3000
-}
-
-# Every other route (grafana.{$BASE_DOMAIN}, …) is a specific-host route appended at
-# runtime via the Admin API — a flat sibling of the two above, owned by FlytDokk.
+# No routes here. FlytDokk pushes every specific-host route (flytdokk, adguard,
+# grafana, …) at runtime via the Admin API, each reusing the wildcard cert above.
 ```
+
+> **Cold-start recovery.** On a brand-new Caddy with an empty autosave, no routes exist yet,
+> so `flytdokk.{$BASE_DOMAIN}` doesn't resolve. Reach FlytDokk directly at
+> `http://192.168.10.100:8080` and click **"Push all to Caddy"** — that seeds every route,
+> including its own. After that, autosave + `--resume` keep them across restarts.
 
 ---
 

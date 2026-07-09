@@ -70,20 +70,21 @@ DELETE /id/grafana
 `@id` addressing: removes the entire route object whose `@id` is `grafana`, wherever it
 sits. Used when a subdomain is cleared or an instance is deleted.
 
-### 4. Update a route in place (upstream / host changed)
+### 4. Edit a route (upstream / prefix changed)
+
+Editing is **delete-then-add**, not an in-place update:
 
 ```
-PATCH /id/grafana
-Content-Type: application/json
+DELETE /id/grafana            # ignore 404 — the route may not be pushed yet
+POST   …/servers/<server>/routes   # re-add with the new upstream/host
 ```
 
-PATCH strictly replaces the existing object. Body is the full route object (same shape as
-the POST body). Used when an assigned instance's upstream or prefix changes without
-tearing the route down first.
-
-> An equivalent, simpler path is **`DELETE /id/grafana` then re-`POST`**. Because the
-> instance `id` is reused as the `@id`, both approaches are idempotent and converge on the
-> same result. FlytDokk may use either; PATCH avoids a momentary gap in the route.
+Caddy does have `PATCH /id/<id>`, but it *strictly replaces and errors if the target
+doesn't exist* — so using it would force the code to first know whether the route is
+already live (POST-if-new vs PATCH-if-exists). Delete-then-add is a single code path that
+always converges, reuses the same add call as everything else, and is idempotent because
+the `@id` is the stable instance `id`. The only cost is a sub-second gap while the route is
+absent, which is irrelevant for a config change the user just initiated.
 
 ### 5. Push all — rebuild every route from `instances.json`
 
@@ -93,8 +94,8 @@ the full route set from FlytDokk's instance list. Two equivalent strategies:
 - **Per route:** `POST …/routes` for each instance that has a subdomain. Idempotent by
   `@id` — re-pushing an existing route replaces it rather than duplicating.
 - **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
-  everything at once. Prefer the per-route loop so the static bootstrap routes are left
-  untouched (see [Ownership](#ownership--what-flytdokk-will-not-touch)).
+  everything at once. Prefer the per-route loop so any human-added route with a non-instance
+  `@id` is left untouched (see [Ownership](#ownership--what-flytdokk-manages)).
 
 ### 6. Read current routes / raw config
 
@@ -103,7 +104,11 @@ GET /config/apps/http/servers/<server>/routes    # the live route list
 GET /config/                                      # full config (Raw Config View, debug)
 ```
 
-Used to render the route table's live/synced state and the read-only Raw Config View.
+Used to render the read-only Raw Config View, and to compute each route's **synced**
+status: FlytDokk pulls the live route list and checks whether each instance's `@id` is
+present. Present = synced; missing = not pushed. This is a **display-only comparison** —
+FlytDokk never auto-corrects a mismatch (that would be the drift/reconcile loop we
+deliberately dropped); it just surfaces "Push all to Caddy" when something is missing.
 
 ### 7. Upstream health
 
@@ -129,13 +134,16 @@ config. In that case `instances.json` is the durable record we rebuild from.
 
 ---
 
-## Ownership — what FlytDokk will not touch
+## Ownership — what FlytDokk manages
 
-FlytDokk only manages routes whose `@id` matches an instance `id`. The static bootstrap
-routes (FlytDokk's own UI, AdGuard) are defined in the Caddyfile and carry no
-FlytDokk-owned `@id`, so the add/delete/patch calls above never address them. The
-per-route "Push all" loop preserves them; a blunt `POST /load` would not, which is why the
-loop is preferred.
+FlytDokk manages every route whose `@id` matches an instance `id`. That now includes its
+own UI and AdGuard, since both are ordinary instances (FlytDokk is a discovered container;
+AdGuard is a seeded `external` instance) rather than hand-written Caddyfile routes. The
+bootstrap Caddyfile defines **no routes** — only the admin endpoint and the wildcard cert.
+
+The only thing FlytDokk leaves alone is a route a human adds directly to Caddy with an
+`@id` that matches no instance. The per-route "Push all" loop preserves such a route; a
+blunt `POST /load` would wipe it, which is one reason the loop is preferred.
 
 ---
 
@@ -144,6 +152,7 @@ loop is preferred.
 For clarity, endpoints FlytDokk deliberately does **not** call:
 
 - `POST /stop` — never shuts Caddy down.
+- `PATCH /id/<id>` — editing is done as delete-then-add (endpoint #4), so PATCH is unused.
 - `PUT /config/...` (insert-at-index) — not needed; specific-host routes are
   order-independent, so append is always sufficient.
 - `POST /adapt` — FlytDokk renders its Caddyfile export from its own instance list, not by
