@@ -369,8 +369,9 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   - LAN device:       `192.168.10.50:5000`
   - Proxmox:          `192.168.10.10:8006`
   - FlytDokk itself:  `192.168.10.100:8080`
-- One click → Caddy route + AdGuard DNS rewrite created, HTTPS live immediately
-- Optional: simultaneously write AdGuard rewrite (if AdGuard module is healthy)
+- One click (`POST /api/assign`) → Caddy route created (required), HTTPS live immediately;
+  the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
+  if AdGuard is unhealthy — the wildcard rewrite already covers the name)
 
 **Certificate Status**
 - Current wildcard cert expiry date
@@ -449,13 +450,17 @@ documented in [`docs/caddy-api.md`](../docs/caddy-api.md).
   without a matching instance `@id` is simply left alone by the per-route push.
 
 ### API Surface (internal)
+
+The Caddy module is **read + push only**. Assigning or clearing a subdomain is a
+cross-module action and lives at `POST` / `DELETE /api/assign` (see
+[The "Assign URL" Action](#the-assign-url-action--cross-module-coordination)) — the Caddy
+module never writes a single route on its own.
+
 ```
 GET  /api/caddy/routes           list instances that have a subdomain (the route table)
-POST /api/caddy/routes           assign a subdomain to an instance + push to Caddy
-DEL  /api/caddy/routes/:id       clear the subdomain + delete the route from Caddy
 POST /api/caddy/push             re-push all routes from the instance list to Caddy
 GET  /api/caddy/caddyfile        export complete runnable Caddyfile (text/plain)
-GET  /api/caddy/health           caddy status + mode (`docker` | `lan`) + cert info
+GET  /api/caddy/health           caddy status + mode (`docker` | `lan`) + cert info (if available)
 GET  /api/caddy/upstreams        upstream health from caddy
 ```
 
@@ -601,6 +606,11 @@ Result shown to user:
   🔗 https://grafana.example.no
 ```
 
+**Clearing a URL** (`DELETE /api/assign/:id`, from the route list's delete or the Docker
+Manager) is the exact mirror: clear the instance's `subdomain` and save, delete the Caddy
+route (`DELETE /id/<id>`, required), then best-effort remove the AdGuard rewrite. The
+instance itself survives — it just no longer has a route.
+
 ---
 
 ## Tech Stack
@@ -635,7 +645,8 @@ backend/src/flytdokk/
 │       └── router.py
 └── shared/
     ├── health.py            GET /api/health — polls all module clients
-    ├── assign.py            POST /api/assign — Caddy required, AdGuard best-effort
+    ├── assign.py            POST/DELETE /api/assign — assign & clear a subdomain;
+    │                        Caddy required, AdGuard best-effort, both directions
     ├── instances.py        read/write instances.json — the instance list (route intent)
     └── settings.py          read/write settings.json, merge with env vars, priority chain
 ```

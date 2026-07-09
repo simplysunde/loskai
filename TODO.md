@@ -37,24 +37,25 @@
 ## Phase 3 — Caddy Module
 **Backend**
 - [ ] `modules/caddy/client.py` — async httpx wrapper for the Caddy Admin API (push side only)
-  - `list_live_routes()` — GET /config/apps/http/servers/srv0/routes (Caddy's current state)
-  - `push_route(id, host, upstream)` — POST route JSON tagged with `@id`
-  - `delete_route(id)` — DELETE /id/{id}
+  - `server_name()` — GET /config/apps/http/servers, cache the single key (e.g. `srv0`) at startup; never hardcode it
+  - `list_live_routes()` — GET /config/apps/http/servers/{server}/routes (Caddy's current state)
+  - `push_route(id, host, upstream)` — POST route JSON tagged with `@id` (append to the server's routes)
+  - `delete_route(id)` — DELETE /id/{id} (ignore 404 — route may not be pushed yet)
   - `get_mode()` — `"docker"` if CADDY_ADMIN_URL host is a name, `"lan"` if an IP — frontend upstream hint
   - `health()` — returns `healthy` / `unreachable`
+  - `upstreams()` — GET /reverse_proxy/upstreams (upstream liveness for the route list)
   - `get_cert_info()` — ⚠️ verify first: cert expiry is NOT in `/config`; confirm what the Admin API actually exposes before building CertStatus, otherwise drop it
-- [ ] `modules/caddy/service.py` — derives Caddy routes from the instance list
-  - `assign(instance_id, subdomain, upstream)` — validate single-label prefix + uniqueness, set subdomain/upstream on the instance, push to Caddy
-  - `unassign(instance_id)` — clear subdomain + `delete_route` from Caddy
-  - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — never the static bootstrap routes
+- [ ] `modules/caddy/service.py` — read + push only; owns the projection, not assignment
+  - `list_with_sync()` — instances that have a subdomain, each annotated with synced (`@id` present in `list_live_routes()`) + live (`upstreams()`) status; read-only comparison, never auto-corrects
+  - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — leaves any human-added route with a non-instance `@id` alone
   - `render_caddyfile()` — generate a complete, runnable Caddyfile from the instances that have a subdomain (TLS + admin block templated from `base_domain`)
-- [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy`
-  - `GET /api/caddy/routes` — instances that have a subdomain, annotated with live-sync status
-  - `POST /api/caddy/routes` — assign a subdomain
-  - `DELETE /api/caddy/routes/{id}` — clear the subdomain + delete the route
+  - Note: assigning / clearing a subdomain lives in `shared/assign.py` (Phase 6), not here — the Caddy module never writes a single route on its own
+- [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy` (read + push only)
+  - `GET /api/caddy/routes` — instances that have a subdomain, annotated with synced + live status
   - `POST /api/caddy/push` — `push_all()`
   - `GET /api/caddy/caddyfile` — export Caddyfile (text/plain)
-  - `GET /api/caddy/health` — status + mode (`docker` | `lan`)
+  - `GET /api/caddy/health` — status + mode (`docker` | `lan`) + cert info if available
+  - `GET /api/caddy/upstreams` — upstream liveness
 - [ ] Persistence: Caddy runs with `caddy run --resume` (its own config survives restarts);
   `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
 
@@ -70,7 +71,7 @@
 - [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
 - [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
 - [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
-- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, live/synced status, delete; "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
+- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, synced + live status, delete (`DELETE /api/assign/{id}`); "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
 - [ ] `components/caddy/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
 - [ ] `components/caddy/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
 - [ ] `components/caddy/CertStatus.tsx` — cert expiry + days remaining, warning at 30 days — ⚠️ build only if `get_cert_info()` proves reachable via the Admin API, otherwise drop
@@ -109,13 +110,17 @@
 ---
 
 ## Phase 6 — Cross-Module URL Assignment
-- [ ] `backend/src/flytdokk/shared/assign.py` — `POST /api/assign { instance_id, prefix, upstream }`
-  - Handles both existing instances (a container) and new external ("dummy") instances
-  - Step 0: validate single-label prefix; set subdomain/upstream on the instance + save `instances.json`
-  - Step 1: push Caddy route (required — abort + roll back the subdomain if it fails)
-  - Step 2: create AdGuard DNS rewrite (best-effort — warn but don't fail)
-  - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://prefix.base_domain" }`
-- [ ] Wire `AssignModal.tsx` to `POST /api/assign`, show per-step result to user
+- [ ] `backend/src/flytdokk/shared/assign.py` — the one place assignment lives; orchestrates
+      the Caddy client + AdGuard client + instance store (Caddy module never writes routes itself)
+  - `POST /api/assign { instance_id, prefix, upstream }`
+    - Handles both existing instances (a container) and new external ("dummy") instances
+    - Step 0: validate single-label prefix + uniqueness; set subdomain/upstream on the instance + save `instances.json`
+    - Step 1: push Caddy route via `client.push_route` (required — abort + roll back the subdomain if it fails)
+    - Step 2: create AdGuard DNS rewrite (best-effort — warn but don't fail)
+    - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://prefix.base_domain" }`
+  - `DELETE /api/assign/{instance_id}` — the mirror: clear the instance's subdomain + save,
+    `client.delete_route` (required), then best-effort remove the AdGuard rewrite; instance survives
+- [ ] Wire `AssignModal.tsx` to `POST /api/assign` and the route-list delete to `DELETE /api/assign/{id}`, show per-step result to user
 - [ ] Make Assign URL modal accessible from both Caddy page and (later) Docker page
 
 ---
@@ -139,7 +144,7 @@
 - [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
   - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
 - [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
-- [ ] `Caddyfile` — reference config for LXC 101 native Caddy: wildcard cert, static routes, dynamic routes via Admin API
+- [ ] `Caddyfile` — reference config for LXC 101 native Caddy: admin endpoint + wildcard cert only (no routes); every route pushed at runtime via the Admin API
 - [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for co-located alternative only (Caddy as Docker container)
 - [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
 
