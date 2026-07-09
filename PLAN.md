@@ -135,11 +135,14 @@ view both read.
 - **Automatically** — on container discovery, a `flytdokk.subdomain=<prefix>` label
   auto-creates / updates a docker instance (see Phase 9 label auto-discovery).
 - **Manually** — added through the UI, either a docker instance or an external one.
-- **Seeded** — the AdGuard instance is created automatically when `ADGUARD_URL` is set to
-  a valid target: an `external` instance pointing at that IP:port, defaulting to the
-  `adguard` subdomain so its route is created out of the box (replacing the old hand-written
-  Caddyfile route). FlytDokk's own UI needs no seeding: it is a normal container on the
-  Docker host, discovered as a plain `docker` instance like any other — no special-casing.
+- **Seeded** — on first run, if `ADGUARD_URL` is set to a valid target and no AdGuard
+  instance exists yet, one is created: an `external` instance pointing at that IP:port,
+  defaulting to the `adguard` subdomain so its route is created out of the box (replacing
+  the old hand-written Caddyfile route). Seeding is **create-if-absent, once** — after that
+  the AdGuard instance is a completely ordinary `external` instance: rename its subdomain,
+  edit its upstream, or delete it, and the change sticks (it is never re-asserted on later
+  boots). FlytDokk's own UI needs no seeding: it is a normal container on the Docker host,
+  discovered as a plain `docker` instance like any other — no special-casing.
 
 Both paths write to the same list, and Caddy routes + the Caddyfile export are both
 rendered from it. Because FlytDokk and AdGuard are ordinary instances, they carry no
