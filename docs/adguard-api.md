@@ -118,9 +118,15 @@ Content-Type: application/json
 ```
 
 Note the verb: AdGuard deletes via **POST** to `/rewrite/delete`, and the body is the
-whole `(domain, answer)` entry — there is no delete-by-domain. FlytDokk reconstructs the
-pair from the instance (subdomain → domain) plus the constant Caddy IP (→ answer). Used
-when a subdomain is cleared or an instance is deleted.
+whole `(domain, answer)` entry — there is no delete-by-domain. FlytDokk sends the **exact
+pair** it created: the instance's domain plus the current Caddy IP. Used when a subdomain
+is cleared or an instance is deleted.
+
+Deleting the *exact pair* (not just the domain) is a deliberate safety choice: if a
+rewrite exists for the same domain but points somewhere else — e.g. one you added by
+hand — it does not match and is left untouched. The only cost is that if `CADDY_HOST_IP`
+was changed after a rewrite was created, the stale entry won't match and is left orphaned
+(harmless — still points at Caddy's old address — and removable by hand or a re-push).
 
 ### 5. Edit a rewrite — delete-then-add
 
@@ -151,11 +157,19 @@ per-name rewrites.
 
 ## Ownership — what FlytDokk manages
 
-FlytDokk manages only the per-name rewrites that correspond to its instances (one
-`(subdomain.{BASE_DOMAIN}, caddy-ip)` entry per routed instance). Any **hand-added**
-rewrite whose domain matches no instance is left untouched. There is no wildcard rewrite
-to own or assert — the set is exactly one entry per routed instance, and that set is
-load-bearing: it is what makes local names resolve.
+FlytDokk manages only the exact `(subdomain.{BASE_DOMAIN}, caddy-ip)` entries that
+correspond to its instances — one per routed instance. It **never** touches anything else
+in AdGuard's rewrite list, because every write is a single add or an exact-pair delete
+(the API has no bulk/replace):
+
+- A **hand-added** rewrite for a different domain is invisible to FlytDokk.
+- A **hand-added** rewrite for the *same* domain as an instance but a *different* answer is
+  left in place (the exact-pair delete won't match it). Because AdGuard would then hold two
+  answers for that name and resolve ambiguously, FlytDokk **surfaces this as a conflict
+  warning** rather than silently overwriting or deleting the manual entry.
+
+There is no wildcard rewrite to own or assert — the managed set is exactly one entry per
+routed instance, and it is load-bearing: it is what makes local names resolve.
 
 ---
 

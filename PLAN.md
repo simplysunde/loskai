@@ -493,9 +493,11 @@ relevant to FlytDokk: keeping DNS rewrites in sync with the routed instances (th
 One explicit rewrite per routed instance (`grafana.example.no → <caddy-ip>`), no
 `*.BASE_DOMAIN` catch-all — an unassigned name just falls through to public DNS. The
 answer is the Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when
-that's a hostname), the same for every rewrite. Rationale and edge cases are in
-[docs/adguard-api.md](docs/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
-stays.)
+that's a hostname), the same for every rewrite. Every write is a single add or exact-pair
+delete (the API has no bulk op), so **manually-added rewrites are never touched** — a
+hand-added entry on the same domain is surfaced as a conflict, not overwritten. Rationale
+and edge cases are in [docs/adguard-api.md](docs/adguard-api.md). (Unrelated to Caddy's
+wildcard TLS cert, which stays.)
 
 ### Features
 

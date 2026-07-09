@@ -84,7 +84,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `health()` — `GET /control/status`, reachable + `running`
   - `list_rewrites()` — `GET /control/rewrite/list`
   - `add_rewrite(domain, answer)` — `POST /control/rewrite/add`
-  - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (full `{domain, answer}` pair — no ID)
+  - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (exact `{domain, answer}` pair — never match-by-domain, so manual rewrites are safe)
   - editing a rewrite is delete-then-add (no `PUT /rewrite/update`)
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
   - `GET /api/adguard/health` — reachable
@@ -208,7 +208,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ## Phase 9 — Polish
 - [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
 - [ ] Basic auth — add `basicauth` to Caddyfile (no code change in FlytDokk)
-- [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added)
+- [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added), or if a same-domain rewrite points somewhere other than the Caddy IP (manual conflict — never auto-overwrite)
 - [ ] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites
 - [ ] Container label auto-discovery — detect `flytdokk.subdomain=X` label on start, auto-create/update the container's docker instance and push its route
 - [ ] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete
