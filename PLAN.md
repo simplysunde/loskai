@@ -371,7 +371,8 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   - FlytDokk itself:  `192.168.10.100:8080`
 - One click (`POST /api/assign`) → Caddy route created (required), HTTPS live immediately;
   the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
-  if AdGuard is unhealthy — the wildcard rewrite already covers the name)
+  if AdGuard is unhealthy — the name won't resolve on the LAN until the rewrite is added,
+  so retry when AdGuard is back)
 
 > **Certificate Status is deferred** — out of current scope. Caddy's Admin API does not
 > expose the public wildcard cert's expiry (the PKI endpoints cover only Caddy's internal
@@ -486,8 +487,27 @@ GET  /api/caddy/upstreams        upstream health from caddy
 ### Purpose
 Lightweight companion to AdGuard — not a replacement for its UI. AdGuard already
 has a fully featured web UI; this module only covers what's relevant to FlytDokk:
-confirming the wildcard rewrite is in place, staying in sync with the routed
-instances (those with a `subdomain`), and linking out to AdGuard for everything else.
+one explicit DNS rewrite per routed instance, staying in sync with the instances
+(those with a `subdomain`), and linking out to AdGuard for everything else. See
+[docs/adguard-api.md](docs/adguard-api.md) for the exact API contract.
+
+### No wildcard rewrite — explicit per-instance
+FlytDokk does **not** create a `*.BASE_DOMAIN` DNS rewrite. It writes **one explicit
+rewrite per routed instance** (`grafana.example.no → <caddy-ip>`) and nothing catch-all.
+A name that hasn't been assigned simply doesn't resolve locally — it falls through to
+public DNS. This is deliberate: a wildcard rewrite would shadow the entire subdomain
+space on the LAN and could hijack a real public name under the same base domain. It also
+mirrors the Caddy module, which already routes every instance as a specific host.
+
+The rewrite's answer is the **Caddy LAN IP** (where clients reach the reverse proxy on
+`:443`), the same for every rewrite — never the instance's upstream, never `localhost`.
+It is derived from the host of `CADDY_ADMIN_URL` (e.g. `http://192.168.10.101:2019` →
+`192.168.10.101`); only the Docker co-located mode, where that URL is a hostname
+(`http://caddy:2019`), needs an explicit fallback setting.
+
+> This is separate from Caddy's wildcard **TLS certificate** (`*.BASE_DOMAIN`), which
+> stays — it's how local-only names get valid HTTPS from one DNS-01 challenge, lives in
+> Caddy's own config, and has nothing to do with DNS rewrites.
 
 ### Features
 
@@ -495,10 +515,8 @@ instances (those with a `subdomain`), and linking out to AdGuard for everything 
 - Prominent button to open the full AdGuard UI in a new tab
 - AdGuard's own UI handles query logs, stats, blocklists, upstream config, etc.
 
-**Health & Wildcard Check**
-- Is AdGuard reachable?
-- Is the wildcard rewrite (`*.example.no → 192.168.10.100`) in place?
-  Shown prominently — warning if missing, since everything depends on it
+**Health Check**
+- Is AdGuard reachable? (`GET /control/status`)
 
 **Rewrite List**
 - List existing DNS rewrites so you can see which routed instances are in sync
@@ -508,11 +526,11 @@ instances (those with a `subdomain`), and linking out to AdGuard for everything 
 
 **Sync with the instance list**
 - AdGuard is its own source of truth for rewrites — FlytDokk reads them straight from
-  AdGuard and shows which instances have a matching rewrite
-- "Push all to Caddy" also best-effort re-adds any missing rewrites for instances that
-  have a subdomain
-- Because the wildcard `*.example.no` already covers every subdomain, a missing
-  per-name rewrite is cosmetic; this sync is best-effort and never blocks a route
+  AdGuard and shows which instances have a matching rewrite (read-only comparison, never
+  auto-corrected)
+- "Push all" best-effort re-adds any missing rewrites for instances that have a subdomain
+- Each per-name rewrite is load-bearing — a missing one means that name won't resolve on
+  the LAN until it's added; the AdGuard step still never blocks a Caddy route
 
 ### Independence
 - Requires only: AdGuard API reachable at `ADGUARD_URL`
@@ -523,11 +541,14 @@ instances (those with a `subdomain`), and linking out to AdGuard for everything 
 
 ### API Surface (internal)
 ```
-GET  /api/adguard/health         reachable + wildcard rewrite present
+GET  /api/adguard/health         reachable (GET /control/status)
 GET  /api/adguard/rewrites       list DNS rewrites
 POST /api/adguard/rewrites       add rewrite (used by assign URL flow)
-DEL  /api/adguard/rewrites       delete rewrite
+DEL  /api/adguard/rewrites       delete rewrite (carries {domain, answer} — see below)
 ```
+Delete carries the full `{domain, answer}` pair: AdGuard rewrites have no ID, so
+`POST /control/rewrite/delete` takes the whole entry back. FlytDokk reconstructs it from
+the instance (subdomain → domain) plus the constant Caddy IP (→ answer).
 
 ---
 
@@ -593,14 +614,16 @@ Step 1 — Caddy route (REQUIRED)
 
 Step 2 — AdGuard rewrite (BEST EFFORT)
   POST http://192.168.10.101:3000/control/rewrite/add
-  → If this fails: route was still created in Caddy
-  → Show warning: "Route created, DNS rewrite failed — add manually in AdGuard"
-  → Because the wildcard *.example.no already covers all subdomains,
-    this failure rarely matters in practice
+  body: { "domain": "grafana.example.no", "answer": "<caddy-ip>" }
+  → answer = Caddy LAN IP (host of CADDY_ADMIN_URL), same for every rewrite
+  → If this fails: route was still created in Caddy, but the name won't
+    resolve on the LAN until the rewrite is added — surface that clearly
+  → Show warning: "Route created, DNS rewrite failed — add manually in
+    AdGuard or retry when it's reachable"
 
 Result shown to user:
   ✅ Caddy route created
-  ✅ AdGuard rewrite created   (or ⚠️ AdGuard unreachable — wildcard covers this)
+  ✅ AdGuard rewrite created   (or ⚠️ AdGuard unreachable — name won't resolve until added)
   🔗 https://grafana.example.no
 ```
 
@@ -677,8 +700,7 @@ frontend/src/
 │   │   └── CaddyfileExport.tsx  download / copy-to-clipboard Caddyfile
 │   ├── adguard/
 │   │   ├── AdGuardStatus.tsx
-│   │   ├── WildcardCheck.tsx
-│   │   └── RewriteList.tsx
+│   │   └── RewriteList.tsx    per-instance rewrites, sync status, delete
 │   ├── wireguard/
 │   │   └── WireGuardCard.tsx
 │   └── docker/              Phase 8
@@ -861,6 +883,7 @@ on first run. Or use env vars to pre-populate. Both work.
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks` |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
+| Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
 The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
 LXC 101 — FlytDokk never needs it. In the co-located alternative (Caddy as Docker
@@ -890,7 +913,8 @@ volumes:
   "adguard_password": "...",
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
   "stacks_dir": "/opt/stacks",
-  "base_domain": "example.no"
+  "base_domain": "example.no",
+  "caddy_host_ip": "192.168.10.101"
 }
 ```
 
@@ -911,6 +935,7 @@ ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 STACKS_DIR=/opt/stacks
+# CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
 ```
 
 Different deployment setups are supported via different compose files.

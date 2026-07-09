@@ -19,7 +19,7 @@
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
-  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `stacks_dir`, `base_domain`
+  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `stacks_dir`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted)
 - [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
   - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container }`
@@ -78,20 +78,22 @@
 ---
 
 ## Phase 4 — AdGuard Module
+_Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
 **Backend**
-- [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard REST API (Basic Auth)
-  - `health()` — is AdGuard reachable?
-  - `check_wildcard()` — is the `*.{base_domain}` rewrite present?
-  - `list_rewrites()`, `add_rewrite(domain, answer)`, `delete_rewrite(domain, answer)`
+- [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard `/control` API (Basic Auth)
+  - `health()` — `GET /control/status`, reachable + `running`
+  - `list_rewrites()` — `GET /control/rewrite/list`
+  - `add_rewrite(domain, answer)` — `POST /control/rewrite/add`
+  - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (full `{domain, answer}` pair — no ID)
+  - editing a rewrite is delete-then-add (no `PUT /rewrite/update`)
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
-  - `GET /api/adguard/health` — reachable + wildcard present
-  - `GET /api/adguard/rewrites`, `POST`, `DELETE`
+  - `GET /api/adguard/health` — reachable
+  - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`)
 
 **Frontend**
 - [ ] `pages/AdGuard.tsx` — AdGuard page
 - [ ] `components/adguard/AdGuardStatus.tsx` — health status + prominent link out to full AdGuard UI
-- [ ] `components/adguard/WildcardCheck.tsx` — wildcard rewrite status, warning if missing
-- [ ] `components/adguard/RewriteList.tsx` — list rewrites in sync with Caddy routes, delete action
+- [ ] `components/adguard/RewriteList.tsx` — per-instance rewrites, read-only sync status vs instances, delete action
 
 ---
 
@@ -115,7 +117,7 @@
     - Handles both existing instances (a container) and new external ("dummy") instances
     - Step 0: validate single-label prefix + uniqueness; set subdomain/upstream on the instance + save `instances.json`
     - Step 1: push Caddy route via `client.push_route` (required — abort + roll back the subdomain if it fails)
-    - Step 2: create AdGuard DNS rewrite (best-effort — warn but don't fail)
+    - Step 2: create AdGuard DNS rewrite `{domain, answer: caddy_host_ip}` (best-effort — warn but don't fail; the name won't resolve on the LAN until it lands)
     - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://prefix.base_domain" }`
   - `DELETE /api/assign/{instance_id}` — the mirror: clear the instance's subdomain + save,
     `client.delete_route` (required), then best-effort remove the AdGuard rewrite; instance survives
@@ -206,7 +208,7 @@
 ## Phase 9 — Polish
 - [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
 - [ ] Basic auth — add `basicauth` to Caddyfile (no code change in FlytDokk)
-- [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (best-effort; wildcard covers it)
+- [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added)
 - [ ] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites
 - [ ] Container label auto-discovery — detect `flytdokk.subdomain=X` label on start, auto-create/update the container's docker instance and push its route
 - [ ] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete

@@ -42,23 +42,36 @@ handle to address one by. `POST /control/rewrite/delete` takes the *full entry b
 a key. So to delete a rewrite FlytDokk must reproduce both fields exactly.
 
 **2. `answer` is a single deployment-wide constant: the reverse-proxy (Caddy) IP.** DNS
-only resolves a *name to an address* — it does not know about ports. Every routed name
-(`grafana.example.no`, `nextcloud.example.no`, …) must resolve to the one IP where Caddy
-listens for `:443`; Caddy then reverse-proxies to each instance's real `host:port`
-upstream. So the rewrite's `answer` is **not** the instance's upstream — it is the same
-Caddy front IP for every rewrite, identical to the wildcard's answer.
+only resolves a *name to an address* — it does not know about ports. The `answer` is
+consumed by **LAN clients** (a browser resolving `grafana.example.no`), not by AdGuard
+itself — AdGuard never connects to Caddy. So every routed name must resolve to the one IP
+where Caddy listens for `:443`; the client then connects there and Caddy reverse-proxies
+to each instance's real `host:port` upstream. The rewrite's `answer` is therefore **not**
+the instance's upstream — it is the same Caddy LAN IP for every rewrite. Because it is
+served to other machines it must be a **LAN IP, never `localhost`/`127.0.0.1`**, even when
+AdGuard and Caddy are co-located on one box.
 
-> **Open item — where the answer IP comes from.** In the preferred topology Caddy runs on
-> LXC 101 (`192.168.10.101`), so the answer is `192.168.10.101`. In the co-located
-> alternative (Caddy as a Docker container on the Docker host) it would be `192.168.10.100`.
-> FlytDokk has no dedicated setting for this yet, and PLAN.md is currently inconsistent
-> (topology says Caddy is on `.101`, but the wildcard example reads `→ .100`). This must be
-> pinned to one configured value before the module is built — see PLAN.md Module 3.
+**Where the answer IP comes from:** it is derived from the host of `CADDY_ADMIN_URL`
+(`http://192.168.10.101:2019` → `192.168.10.101`) — the Caddy admin host *is* the Caddy
+host, so no separate setting is needed for the normal (LAN) deployment. The one exception
+is the Docker co-located mode where `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`):
+a hostname yields no client-usable LAN IP, so that case falls back to an explicit setting.
 
-Because the wildcard `*.example.no → <caddy-ip>` already resolves *every* subdomain to
-Caddy, the per-name rewrites FlytDokk adds are **cosmetic** — they make the routed set
-visible and tidy in AdGuard, but the wildcard is what actually makes names work. This is
-why the AdGuard step of an assign is always best-effort and never blocks a route.
+**There is no wildcard DNS rewrite.** FlytDokk creates **one explicit rewrite per routed
+instance** and nothing catch-all. A name you have not assigned simply does not resolve
+locally — it falls through to public DNS. This is deliberate: a `*.example.no` rewrite
+would shadow the entire subdomain space locally and could hijack a real public name (say
+`mail.example.no`) that happens to share the base domain. Explicit per-name rewrites are
+surgical and mirror the Caddy module, which already routes every instance as a specific
+host. (Separately, Caddy still uses a wildcard *TLS certificate* to get valid HTTPS for
+local-only names — that is a cert concern in Caddy's own config, unrelated to DNS
+rewrites, and FlytDokk does not touch it.)
+
+Consequently each per-name rewrite is **load-bearing**, not cosmetic: without it the name
+does not resolve locally. The AdGuard step of an assign is still best-effort in that a DNS
+failure never rolls back the Caddy route — but the warning is meaningful ("name won't
+resolve until the rewrite is added; retry when AdGuard is reachable"), not "the wildcard
+covers it."
 
 ---
 
@@ -72,7 +85,7 @@ GET /control/status
 
 Returns `{ running, version, protection_enabled, dns_addresses, dns_port, http_port, … }`.
 A 200 with `running: true` is FlytDokk's "AdGuard reachable" signal. No rewrite data here —
-the wildcard check (below) is a separate call.
+the rewrite list (below) is a separate call.
 
 ### 2. List rewrites
 
@@ -80,8 +93,8 @@ the wildcard check (below) is a separate call.
 GET /control/rewrite/list
 ```
 
-Returns the full `RewriteEntry[]`. FlytDokk uses this for three things: rendering the
-rewrite list, the wildcard check, and the read-only sync comparison against instances.
+Returns the full `RewriteEntry[]`. FlytDokk uses this for two things: rendering the
+rewrite list, and the read-only sync comparison against instances (endpoint #7).
 
 ### 3. Add a rewrite
 
@@ -122,40 +135,27 @@ AdGuard *does* offer `PUT /control/rewrite/update` (`{ target, update }` pair), 
 FlytDokk does not use it: delete-then-add is a single convergent code path that reuses the
 same add call as everything else, mirrors the Caddy module's editing model, and is
 idempotent. Because `answer` is constant, an edit is really just swapping the `domain`.
-The brief gap while the old rewrite is absent is irrelevant — the wildcard covers the name
-throughout.
+The brief gap between delete and add is irrelevant — it is a config change the user just
+initiated, and it only affects the name being renamed.
 
-### 6. Wildcard check
-
-Not a dedicated endpoint — it is `GET /control/rewrite/list` (endpoint #2) filtered for an
-entry whose `domain` is `*.{BASE_DOMAIN}` and whose `answer` is the Caddy IP. Surfaced
-prominently in the UI, because everything depends on it: if the wildcard is missing, no
-routed name resolves (regardless of per-name rewrites). FlytDokk only *reports* a missing
-wildcard with a warning — creating it is a one-time setup step, not something the module
-silently asserts.
-
-### 7. Sync with the instance list — read-only
+### 6. Sync with the instance list — read-only
 
 FlytDokk pulls `GET /control/rewrite/list` and, for each instance that has a subdomain,
 checks whether a matching `(domain, answer)` rewrite is present. Present = in sync;
-missing = cosmetic gap (the wildcard still covers it). This is a **display-only
-comparison** — it never auto-corrects, matching the Caddy module's synced-status behavior.
-"Push all" (best-effort) is the manual way to re-add any missing per-name rewrites.
+missing = the name does not resolve locally until the rewrite is added. This is a
+**display-only comparison** — it never auto-corrects, matching the Caddy module's
+synced-status behavior. "Push all" (best-effort) is the manual way to re-add any missing
+per-name rewrites.
 
 ---
 
 ## Ownership — what FlytDokk manages
 
 FlytDokk manages only the per-name rewrites that correspond to its instances (one
-`(subdomain.{BASE_DOMAIN}, caddy-ip)` entry per routed instance). It treats everything else
-in AdGuard as not-its-business:
-
-- The **wildcard** rewrite is infrastructure — FlytDokk checks it and warns if absent, but
-  does not create or delete it.
-- Any **hand-added** rewrite whose domain matches no instance is left untouched.
-
-Because the wildcard already resolves every subdomain, the whole per-name set is a
-convenience layer; losing it degrades tidiness, never reachability.
+`(subdomain.{BASE_DOMAIN}, caddy-ip)` entry per routed instance). Any **hand-added**
+rewrite whose domain matches no instance is left untouched. There is no wildcard rewrite
+to own or assert — the set is exactly one entry per routed instance, and that set is
+load-bearing: it is what makes local names resolve.
 
 ---
 
