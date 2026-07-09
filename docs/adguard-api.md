@@ -126,12 +126,13 @@ Deleting the *exact pair* (not just the domain) is a deliberate safety choice: i
 rewrite exists for the same domain but points somewhere else — e.g. one you added by
 hand — it does not match and is left untouched.
 
-To also clean up entries left behind when the Caddy IP changes, FlytDokk records the
-**set of Caddy IPs it has used** as a rewrite answer (see [Reconcile](#6-sync--reconcile-with-the-instance-list)).
-A delete/reconcile removes not just `(domain, currentIP)` but any `(domain, recordedIP)` —
-so an old-generation orphan is removed, while an entry whose answer FlytDokk never set is
-still never matched. That recorded set is what separates "our stale entry" (safe to
-delete) from "a manual entry on the same domain" (leave, warn).
+To also clean up entries left behind when the Caddy IP changes, each instance records the
+answer FlytDokk last wrote for it in its `dns_answer` field (see
+[Reconcile](#6-sync--reconcile-with-the-instance-list)). A delete/reconcile removes the
+`(domain, dns_answer)` pair actually on record — so an old-generation orphan (from a
+previous IP) is removed, while an entry whose answer FlytDokk never wrote is never matched.
+That recorded answer is what separates "our stale entry" (safe to delete) from "a manual
+entry on the same domain" (leave, warn).
 
 ### 5. Edit a rewrite — delete-then-add
 
@@ -158,12 +159,13 @@ the rewrite is added. This is a **display-only comparison** — it never auto-co
 matching the Caddy module's synced-status behavior.
 
 **Reconcile** (the explicit "Push all" action, or when a Caddy-IP change is detected on
-startup): for each routed instance FlytDokk ensures `(domain, currentIP)` exists and, using
-its recorded set of previously-used Caddy IPs, deletes any `(domain, recordedIP)` left over
-from an earlier IP — migrating orphans onto the current IP. It records `currentIP` into that
-set whenever it adds a rewrite. A same-domain entry whose answer is **not** in the recorded
-set is a manual rewrite: reconcile leaves it and reports a conflict, never overwrites it.
-Reconcile is best-effort and only ever touches answers FlytDokk itself set.
+startup): for each routed instance FlytDokk ensures `(domain, currentIP)` exists and, if the
+instance's stored `dns_answer` differs from `currentIP`, deletes the stale
+`(domain, dns_answer)` pair — migrating the entry onto the current IP — then updates
+`dns_answer`. It writes `dns_answer` whenever it adds a rewrite. A same-domain entry whose
+answer matches **neither** `currentIP` **nor** the instance's stored `dns_answer` is a
+manual rewrite: reconcile leaves it and reports a conflict, never overwrites it. Reconcile
+is best-effort and only ever touches answers FlytDokk itself wrote.
 
 ---
 
@@ -175,11 +177,11 @@ in AdGuard's rewrite list, because every write is a single add or an exact-pair 
 (the API has no bulk/replace):
 
 - A **hand-added** rewrite for a different domain is invisible to FlytDokk.
-- A **hand-added** rewrite for the *same* domain as an instance, whose answer is **not** in
-  FlytDokk's recorded set of Caddy IPs, is treated as manual: reconcile leaves it in place
-  and **surfaces a conflict warning** (AdGuard would otherwise hold two answers for that
-  name and resolve ambiguously), rather than overwriting or deleting it. Only answers
-  FlytDokk has itself set — current or previously-used Caddy IPs — are ever removed.
+- A **hand-added** rewrite for the *same* domain as an instance, whose answer matches
+  neither the current Caddy IP nor the instance's stored `dns_answer`, is treated as manual:
+  reconcile leaves it in place and **surfaces a conflict warning** (AdGuard would otherwise
+  hold two answers for that name and resolve ambiguously), rather than overwriting or
+  deleting it. Only answers FlytDokk has itself written are ever removed.
 
 There is no wildcard rewrite to own or assert — the managed set is exactly one entry per
 routed instance, and it is load-bearing: it is what makes local names resolve.

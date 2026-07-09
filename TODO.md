@@ -22,7 +22,7 @@
   - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `stacks_dir`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted)
 - [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
-  - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container }`
+  - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer }` (`dns_answer` = Caddy IP last written to AdGuard for this name; null if no rewrite pushed)
   - `id` doubles as the Caddy `@id`; `subdomain` null = tracked but no route
   - CRUD helpers (list / get / upsert / delete)
 - [ ] `backend/src/flytdokk/config.py` — pydantic-settings class; **no env var required** at startup, all optional
@@ -86,8 +86,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `add_rewrite(domain, answer)` — `POST /control/rewrite/add`
   - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (exact `{domain, answer}` pair — never match-by-domain, so manual rewrites are safe)
   - editing a rewrite is delete-then-add (no `PUT /rewrite/update`)
-- [ ] `reconcile_rewrites()` — for each routed instance ensure `(domain, currentIP)` exists; delete any `(domain, recordedIP)` from a prior Caddy IP (orphan migration); leave + flag same-domain entries whose answer isn't in the recorded set (manual conflict). Runs on "Push all" and when an IP change is detected on startup
-- [ ] Persist the recorded Caddy-IP set in `state.json` (same volume as `instances.json`); append `currentIP` on every `add_rewrite`
+- [ ] `reconcile_rewrites()` — for each routed instance ensure `(domain, currentIP)` exists; if its stored `dns_answer` differs, delete the stale `(domain, dns_answer)` pair (orphan migration) and update `dns_answer`; leave + flag same-domain entries whose answer matches neither `currentIP` nor `dns_answer` (manual conflict). Runs on "Push all" and when an IP change is detected on startup
+- [ ] Write each instance's `dns_answer` whenever a rewrite is added; clear it when the rewrite is removed (no separate state file — it lives on the instance)
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
   - `GET /api/adguard/health` — reachable
   - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`)
