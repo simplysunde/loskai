@@ -495,9 +495,11 @@ One explicit rewrite per routed instance (`grafana.example.no → <caddy-ip>`), 
 answer is the Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when
 that's a hostname), the same for every rewrite. Every write is a single add or exact-pair
 delete (the API has no bulk op), so **manually-added rewrites are never touched** — a
-hand-added entry on the same domain is surfaced as a conflict, not overwritten. Rationale
-and edge cases are in [docs/adguard-api.md](docs/adguard-api.md). (Unrelated to Caddy's
-wildcard TLS cert, which stays.)
+hand-added entry on the same domain is surfaced as a conflict, not overwritten. FlytDokk
+records the set of Caddy IPs it has used as answers, so if the Caddy IP ever changes a
+re-push migrates its own old entries onto the new IP (leaving anything it never set alone).
+Rationale and edge cases are in [docs/adguard-api.md](docs/adguard-api.md). (Unrelated to
+Caddy's wildcard TLS cert, which stays.)
 
 ### Features
 
@@ -881,9 +883,10 @@ on first run.
 ### Settings persistence
 
 Settings are stored in `/opt/flytdokk/settings.json` inside the container,
-backed by a mounted volume (the same volume also holds `instances.json`). Env-var-set
-values are shown as read-only in the UI with a "set via environment" indicator — they
-cannot be overridden from the UI.
+backed by a mounted volume (the same volume also holds `instances.json` and a small
+`state.json` of operational state — including the set of Caddy IPs used as rewrite answers,
+for orphan cleanup). Env-var-set values are shown as read-only in the UI with a "set via
+environment" indicator — they cannot be overridden from the UI.
 
 ```yaml
 # docker-compose.yml (settings volume)

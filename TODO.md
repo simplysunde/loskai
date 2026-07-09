@@ -86,6 +86,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `add_rewrite(domain, answer)` — `POST /control/rewrite/add`
   - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (exact `{domain, answer}` pair — never match-by-domain, so manual rewrites are safe)
   - editing a rewrite is delete-then-add (no `PUT /rewrite/update`)
+- [ ] `reconcile_rewrites()` — for each routed instance ensure `(domain, currentIP)` exists; delete any `(domain, recordedIP)` from a prior Caddy IP (orphan migration); leave + flag same-domain entries whose answer isn't in the recorded set (manual conflict). Runs on "Push all" and when an IP change is detected on startup
+- [ ] Persist the recorded Caddy-IP set in `state.json` (same volume as `instances.json`); append `currentIP` on every `add_rewrite`
 - [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
   - `GET /api/adguard/health` — reachable
   - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`)
