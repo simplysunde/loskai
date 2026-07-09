@@ -485,29 +485,17 @@ GET  /api/caddy/upstreams        upstream health from caddy
 ## Module 3 — AdGuard DNS
 
 ### Purpose
-Lightweight companion to AdGuard — not a replacement for its UI. AdGuard already
-has a fully featured web UI; this module only covers what's relevant to FlytDokk:
-one explicit DNS rewrite per routed instance, staying in sync with the instances
-(those with a `subdomain`), and linking out to AdGuard for everything else. See
-[docs/adguard-api.md](docs/adguard-api.md) for the exact API contract.
+Lightweight companion to AdGuard — not a replacement for its UI. It only covers what's
+relevant to FlytDokk: keeping DNS rewrites in sync with the routed instances (those with a
+`subdomain`) and linking out to AdGuard for everything else.
 
-### No wildcard rewrite — explicit per-instance
-FlytDokk does **not** create a `*.BASE_DOMAIN` DNS rewrite. It writes **one explicit
-rewrite per routed instance** (`grafana.example.no → <caddy-ip>`) and nothing catch-all.
-A name that hasn't been assigned simply doesn't resolve locally — it falls through to
-public DNS. This is deliberate: a wildcard rewrite would shadow the entire subdomain
-space on the LAN and could hijack a real public name under the same base domain. It also
-mirrors the Caddy module, which already routes every instance as a specific host.
-
-The rewrite's answer is the **Caddy LAN IP** (where clients reach the reverse proxy on
-`:443`), the same for every rewrite — never the instance's upstream, never `localhost`.
-It is derived from the host of `CADDY_ADMIN_URL` (e.g. `http://192.168.10.101:2019` →
-`192.168.10.101`); only the Docker co-located mode, where that URL is a hostname
-(`http://caddy:2019`), needs an explicit fallback setting.
-
-> This is separate from Caddy's wildcard **TLS certificate** (`*.BASE_DOMAIN`), which
-> stays — it's how local-only names get valid HTTPS from one DNS-01 challenge, lives in
-> Caddy's own config, and has nothing to do with DNS rewrites.
+### Model
+One explicit rewrite per routed instance (`grafana.example.no → <caddy-ip>`), no
+`*.BASE_DOMAIN` catch-all — an unassigned name just falls through to public DNS. The
+answer is the Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when
+that's a hostname), the same for every rewrite. Rationale and edge cases are in
+[docs/adguard-api.md](docs/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
+stays.)
 
 ### Features
 
@@ -544,11 +532,8 @@ It is derived from the host of `CADDY_ADMIN_URL` (e.g. `http://192.168.10.101:20
 GET  /api/adguard/health         reachable (GET /control/status)
 GET  /api/adguard/rewrites       list DNS rewrites
 POST /api/adguard/rewrites       add rewrite (used by assign URL flow)
-DEL  /api/adguard/rewrites       delete rewrite (carries {domain, answer} — see below)
+DEL  /api/adguard/rewrites       delete rewrite (carries {domain, answer} — no ID exists)
 ```
-Delete carries the full `{domain, answer}` pair: AdGuard rewrites have no ID, so
-`POST /control/rewrite/delete` takes the whole entry back. FlytDokk reconstructs it from
-the instance (subdomain → domain) plus the constant Caddy IP (→ answer).
 
 ---
 
