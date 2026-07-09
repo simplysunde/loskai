@@ -157,6 +157,8 @@ For clarity, endpoints FlytDokk deliberately does **not** call:
   order-independent, so append is always sufficient.
 - `POST /adapt` — FlytDokk renders its Caddyfile export from its own instance list, not by
   round-tripping through Caddy (there is no JSON → Caddyfile converter anyway).
-- Cert / PKI endpoints (`GET /pki/...`) — cert metadata is **not** exposed at
-  `/config`; whether expiry is reachable at all via the Admin API is unconfirmed, so the
-  Certificate Status feature is on hold pending verification.
+- Cert / PKI endpoints (`GET /pki/...`) — confirmed dead end for our cert. The PKI
+  endpoints cover only Caddy's internal `local` CA (returning PEM blobs, no structured
+  expiry), and the public wildcard cert is never exposed at `/config` or `/pki`. The
+  Certificate Status feature is **deferred**; when revisited it will use a TLS probe to a
+  routed name (read the served cert's `notAfter`), not the Admin API. See PLAN.md Future Ideas.

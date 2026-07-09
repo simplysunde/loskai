@@ -44,7 +44,6 @@
   - `get_mode()` — `"docker"` if CADDY_ADMIN_URL host is a name, `"lan"` if an IP — frontend upstream hint
   - `health()` — returns `healthy` / `unreachable`
   - `upstreams()` — GET /reverse_proxy/upstreams (upstream liveness for the route list)
-  - `get_cert_info()` — ⚠️ verify first: cert expiry is NOT in `/config`; confirm what the Admin API actually exposes before building CertStatus, otherwise drop it
 - [ ] `modules/caddy/service.py` — read + push only; owns the projection, not assignment
   - `list_with_sync()` — instances that have a subdomain, each annotated with synced (`@id` present in `list_live_routes()`) + live (`upstreams()`) status; read-only comparison, never auto-corrects
   - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — leaves any human-added route with a non-instance `@id` alone
@@ -54,7 +53,7 @@
   - `GET /api/caddy/routes` — instances that have a subdomain, annotated with synced + live status
   - `POST /api/caddy/push` — `push_all()`
   - `GET /api/caddy/caddyfile` — export Caddyfile (text/plain)
-  - `GET /api/caddy/health` — status + mode (`docker` | `lan`) + cert info if available
+  - `GET /api/caddy/health` — status + mode (`docker` | `lan`)
   - `GET /api/caddy/upstreams` — upstream liveness
 - [ ] Persistence: Caddy runs with `caddy run --resume` (its own config survives restarts);
   `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
@@ -74,7 +73,7 @@
 - [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, synced + live status, delete (`DELETE /api/assign/{id}`); "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
 - [ ] `components/caddy/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
 - [ ] `components/caddy/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
-- [ ] `components/caddy/CertStatus.tsx` — cert expiry + days remaining, warning at 30 days — ⚠️ build only if `get_cert_info()` proves reachable via the Admin API, otherwise drop
+- [ ] _(deferred)_ `components/caddy/CertStatus.tsx` — cert expiry + days remaining. Out of current scope; when revisited, implement via a TLS probe to a routed name (read the served cert's `notAfter`), not the Admin API — see PLAN.md Future Ideas
 
 ---
 

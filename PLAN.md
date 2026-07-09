@@ -373,12 +373,10 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
   if AdGuard is unhealthy — the wildcard rewrite already covers the name)
 
-**Certificate Status**
-- Current wildcard cert expiry date
-- Days remaining, with warning at 30 days
-- Cert issuer info
-- ⚠️ Verify first: cert metadata is NOT in Caddy's `/config`. Confirm the Admin API
-  exposes cert expiry (it may not) before building this — otherwise drop the feature.
+> **Certificate Status is deferred** — out of current scope. Caddy's Admin API does not
+> expose the public wildcard cert's expiry (the PKI endpoints cover only Caddy's internal
+> `local` CA), and Caddy auto-renews anyway, so this is low-urgency. When revisited it will
+> be implemented as a TLS probe, not via the Admin API — see [Future Ideas](#future-ideas).
 
 **Raw Config View**
 - Read-only view of the current Caddy JSON config
@@ -460,7 +458,7 @@ module never writes a single route on its own.
 GET  /api/caddy/routes           list instances that have a subdomain (the route table)
 POST /api/caddy/push             re-push all routes from the instance list to Caddy
 GET  /api/caddy/caddyfile        export complete runnable Caddyfile (text/plain)
-GET  /api/caddy/health           caddy status + mode (`docker` | `lan`) + cert info (if available)
+GET  /api/caddy/health           caddy status + mode (`docker` | `lan`)
 GET  /api/caddy/upstreams        upstream health from caddy
 ```
 
@@ -676,8 +674,7 @@ frontend/src/
 │   ├── caddy/
 │   │   ├── RouteList.tsx        instances that have a subdomain, + "Push all to Caddy"
 │   │   ├── AssignModal.tsx
-│   │   ├── CaddyfileExport.tsx  download / copy-to-clipboard Caddyfile
-│   │   └── CertStatus.tsx
+│   │   └── CaddyfileExport.tsx  download / copy-to-clipboard Caddyfile
 │   ├── adguard/
 │   │   ├── AdGuardStatus.tsx
 │   │   ├── WildcardCheck.tsx
@@ -986,6 +983,12 @@ If FlytDokk is down, all services keep running exactly as before.
 ## Future Ideas
 
 - **Uptime monitoring** — ping each upstream and record response time history
+- **Certificate Status** — surface the wildcard cert's expiry, issuer, and days remaining.
+  Caddy's Admin API can't provide this (PKI endpoints cover only the internal `local` CA,
+  not the public ACME cert), so implement it as a **TLS probe**: open a TLS connection to a
+  routed name (e.g. `flytdokk.{BASE_DOMAIN}:443`), read the served certificate's `notAfter`
+  and issuer via Python's `ssl`. Host-independent, no Admin API dependency, reflects the
+  live cert. Deferred until the core modules are done and functional.
 - **Notification module** — alert on container crash, cert expiry, AdGuard outage
 - **Multi-host** — lightweight read-only agent on a second Docker host,
   aggregated into the same dashboard
