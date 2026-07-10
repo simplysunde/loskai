@@ -866,8 +866,10 @@ All service connection settings can be configured in two ways — both are optio
 2. **UI settings page** — configured in FlytDokk's settings page, persisted to `settings.json`
 3. **Unset** — module shows "not configured" and links to the settings page
 
-This means you can skip the `.env` entirely and configure everything through the app
-on first run. Or use env vars to pre-populate. Both work.
+This means you can skip the `.env` entirely and configure the service connections
+through the app on first run. Or use env vars to pre-populate. Both work. (The one
+exception is `STACKS_DIR` — it drives the compose bind mount, so it lives in the compose
+file only and is shown read-only in the UI; see the table below.)
 
 ### Configurable settings
 
@@ -878,7 +880,7 @@ on first run. Or use env vars to pre-populate. Both work.
 | AdGuard username | `ADGUARD_USER` | Basic auth username |
 | AdGuard password | `ADGUARD_PASSWORD` | Basic auth password |
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
-| Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks` |
+| Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks`. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
@@ -909,7 +911,6 @@ volumes:
   "adguard_user": "admin",
   "adguard_password": "...",
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
-  "stacks_dir": "/opt/stacks",
   "base_domain": "example.no",
   "caddy_host_ip": "192.168.10.101"
 }

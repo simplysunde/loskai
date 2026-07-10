@@ -19,7 +19,8 @@
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
-  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `stacks_dir`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted)
+  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted)
+  - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
 - [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
   - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer }` (`dns_answer` = Caddy IP last written to AdGuard for this name; null if no rewrite pushed)
