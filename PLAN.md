@@ -559,12 +559,17 @@ The most important feature is the link out.
 
 **Reachability check**
 - Is the wg-dashboard reachable? (simple HTTP ping, no auth)
+- **Any HTTP response counts as reachable** — an auth-protected dashboard returning
+  `401`/`403` is still up; only a connection failure/timeout means unreachable
 - Shows online / unreachable status
 
-**DNS reminder (static)**
-- A static reminder card showing the correct DNS value to set in wg-dashboard:
-  `192.168.10.101` (AdGuard) + `1.1.1.1` (fallback)
-- Not fetched from the API — just a persistent reminder since this is
+**DNS reminder**
+- A reminder card showing the correct DNS value to set in wg-dashboard so remote peers
+  resolve names through AdGuard: the **host of `ADGUARD_URL`** (e.g. `192.168.10.101`)
+  + `1.1.1.1` (fallback)
+- Derived from config, not hardcoded — if `ADGUARD_URL` is unset, the card shows generic
+  guidance ("set your AdGuard server's IP") instead of a placeholder number
+- Not fetched from the wg API — just a persistent reminder since this is
   the most common misconfiguration
 
 ### What It Does NOT Do
@@ -576,7 +581,7 @@ The most important feature is the link out.
 
 ### Independence
 - Requires only: `WIREGUARD_DASHBOARD_URL` env var (optional)
-- If not configured or unreachable: shows static DNS reminder + greyed-out link
+- If not configured or unreachable: shows the DNS reminder + greyed-out link
 - No credentials needed, nothing to break
 
 ### API Surface (internal)

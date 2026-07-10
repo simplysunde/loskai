@@ -102,13 +102,13 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ## Phase 5 — WireGuard Module
 **Backend**
 - [ ] `modules/wireguard/client.py` — simple reachability check, no authentication
-  - `health()` — HTTP ping to `WIREGUARD_DASHBOARD_URL`, returns `{ reachable: bool }`
+  - `health()` — HTTP ping to `WIREGUARD_DASHBOARD_URL`, returns `{ reachable: bool }` (any HTTP response = reachable, incl. `401`/`403`; only connection failure/timeout = unreachable)
 - [ ] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
   - `GET /api/wireguard/status` — is dashboard reachable + its URL
 
 **Frontend**
 - [ ] `pages/WireGuard.tsx` — WireGuard page
-- [ ] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, static DNS reminder card (`192.168.10.101` + `1.1.1.1`)
+- [ ] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, DNS reminder card (host of `ADGUARD_URL` + `1.1.1.1`; generic guidance if `ADGUARD_URL` unset)
 
 ---
 
