@@ -311,6 +311,10 @@ so there are no special cases. Recovery/escape hatch is always plain SSH + `dock
 ### Independence
 - Requires only: Docker socket mounted at `/var/run/docker.sock` (read-write)
 - Must run on the same host as Docker Engine
+- One startup check that `STACKS_DIR` exists inside the container (the compose mount took):
+  if not, `/api/health` reports it and stack writes are refused with a clear message,
+  rather than the wizard writing into an unmounted path the host can't see. Container
+  Overview still works — this only gates the Stack Manager
 - Reads/writes the shared instance list (local JSON — always available, never a failure point)
 - If Caddy is down: Docker module works fully, URL assignment step skipped with warning
 - If AdGuard is down: Docker module works fully

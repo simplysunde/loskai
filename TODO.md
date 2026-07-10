@@ -29,6 +29,7 @@
 - [ ] `backend/src/flytdokk/config.py` — pydantic-settings class; **no env var required** at startup, all optional
 - [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
 - [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
+  - Docker status also carries `stacks_dir_ok` (from `stacks.py`) so the UI can surface "stacks directory not found — check the compose mount" instead of a silently empty Stack Manager
 - [ ] `GET /api/settings` — returns all settings with source field
 - [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
 - [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`)
@@ -165,7 +166,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   by `container` to surface the assigned subdomain inline; containers with no instance
   yet can be assigned one on the spot (creates a docker instance)
 - [ ] `modules/docker/stacks.py` — directory-based stack manager
-  - `list_stacks()` — scan `STACKS_DIR` for subdirs with `compose.yml`
+  - `stacks_dir_ok()` — `os.path.isdir(STACKS_DIR)` inside the container: the one check that the compose mount actually stuck. Feeds `/api/health`; write paths (`create_stack`, recipe install) refuse with a clear "stacks directory not found — check the compose mount" error rather than writing into an unmounted path (which the host can't see and whose bind-volumes would land wrong)
+  - `list_stacks()` — scan `STACKS_DIR` for subdirs with `compose.yml`; returns empty (not an error) when the dir is present but has none — so a broken mount (`stacks_dir_ok()` false) is distinguishable from a genuinely empty one
   - `get_stack(name)` — read compose.yml + .env contents + container status
   - `stack_action(name, action)` — up/down/restart/pull via `docker compose` subprocess
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
