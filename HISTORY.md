@@ -1,5 +1,23 @@
 # FlytDokk — History
 
+## 2026-07-10 — Caddy + AdGuard API contracts, wildcard drop, per-instance DNS tracking
+
+Hardened the two integration modules by pinning each to its real API and writing a
+`/docs` contract for the exact subset FlytDokk calls. Resolved the `srv0`/nested-Caddyfile
+conflict, reworked the AdGuard module around explicit per-instance rewrites (no wildcard),
+and made both modules read straight off `instances.json` — `@id` for Caddy, a new
+`dns_answer` field for AdGuard — so "what FlytDokk created" lives on the instance itself.
+
+- Key files: `docs/caddy-api.md` (new), `docs/adguard-api.md` (new), `PLAN.md` (Module 2/3, Assign, Settings), `TODO.md` (Phases 3–4, 6)
+- **Caddy contract**: flat sibling routes in one server (name discovered, never hardcoded `srv0`); bootstrap Caddyfile is cert-only (wildcard TLS block, no routes); edit = delete-then-add (PATCH errors if absent); autosave + `--resume` is the restart path, "Push all" the backstop. Certificate Status **deferred** — Admin API doesn't expose the public cert; captured a TLS-probe approach for later
+- **Assign consolidated** on `POST /api/assign` (Caddy required, AdGuard best-effort); Caddy module trimmed to read + push only
+- **AdGuard contract**: `/control` REST API, Basic Auth, rewrite list/add/delete only; everything else (filtering, clients, DHCP, stats) stays in AdGuard's own UI
+- **Dropped the wildcard DNS rewrite** — one explicit rewrite per routed instance instead, so an unassigned name falls through to public DNS and can't shadow a real public name. (Caddy's wildcard TLS *cert* is unrelated and stays)
+- **DNS answer** = Caddy LAN IP (derived from `CADDY_ADMIN_URL`; new optional `CADDY_HOST_IP` fallback when that's a hostname), never the upstream, never `localhost`
+- **Manual-safety**: per-entry API + exact-pair delete means hand-added rewrites are never touched; same-domain conflicts are flagged, not overwritten
+- **Orphan cleanup on IP change**: each instance stores `dns_answer` (the answer last written); reconcile deletes its own stale pair and re-adds the current one — no separate state file. Instance shape gains `dns_answer`
+- Known residual: an instance deleted while AdGuard is unreachable orphans its rewrite (rare, cosmetic, hand-fixable) — no pending-deletions queue for now
+
 ## 2026-07-08 — Instance data model + Caddy routing redesign + domain model
 
 Reworked how routes are stored after mapping out the assignment workflow end to end.
