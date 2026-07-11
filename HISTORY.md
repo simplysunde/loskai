@@ -1,5 +1,32 @@
 # FlytDokk — History
 
+## 2026-07-11 — Install-wizard recipes: repo-synced declarative manifests
+
+Reworked the install wizard from "recipes defined in code, baked into the image" to
+declarative recipes FlytDokk validates but never executes — so adding or fixing a service
+is a file edit, not a FlytDokk rebuild. Landed the schema as a `docs/` contract rather than
+building any authoring UI, keeping the module thin.
+
+- Key files: `docs/recipe-schema.md` (new), `PLAN.md` (Module 1 wizard + Stack Manager, Settings), `TODO.md` (Phases 2, 8), `README.md`
+- **Recipes are declarative data, never code**: FlytDokk validates each `recipe.yml` against
+  a fixed schema and drives it with its own engine; a malformed recipe is skipped, never run.
+  This is what makes syncing them from a repo safe
+- **Two sources, merged**: a public git repo you own (`RECIPES_REPO_URL`, canonical, synced
+  to a settings-volume cache, no auth) + a local `/opt/flytdokk/recipes/` dir (dev/testing
+  scratchpad, same volume, no new mount). On a name clash the **repo wins**; the shadowed
+  local copy is flagged. Sync is explicit ("Refresh recipes"), no background polling
+- **Recipe folder** = `recipe.yml` (manifest) + a standalone `compose.yml` (native `${VAR}`,
+  testable/SSH-editable, not embedded) + `instructions.md`. The **`.env` is generated** from
+  wizard answers at install time and never committed (holds secrets); `docker compose`
+  substitutes `${VAR}` from it, so no templating engine
+- **Schema is the authoring tool**: `docs/recipe-schema.md` documents every field, validation
+  rules, and the three `type` patterns (`pull` / `git_build` / `registry_pull`) — authored by
+  hand or with an AI coder, so no manifest-authoring UI was built. Sample recipes live in the
+  repo, not the codebase
+- **Raw path made explicit**: the Stack Manager's manual create takes a finished
+  `compose.yml` + `.env` and runs `up` (Docker auto-creates bind-mount dirs) — the one-off
+  counterpart to the reusable recipe path
+
 ## 2026-07-11 — Docker module review: STACKS_DIR pinned, registry auth resolved
 
 Reviewed the Docker module — the last of the four — and closed three loose ends, all
