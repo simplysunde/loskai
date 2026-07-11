@@ -239,20 +239,44 @@ daemon; it invents no new deployment method.
 > the wrong place. See the compose file below.
 
 **Personal Install Wizard**
-- A curated list of personal install recipes — not a generic community template store.
+- A curated set of personal install recipes — not a generic community template store.
   These are your own tested setups for services you actually run.
-- Each recipe is opinionated and complete: it knows the directory structure,
-  the exact `compose.yml`, and which `.env` vars need to be filled in.
+- **Recipes live in a public git repo you own, not baked into the image.** FlytDokk syncs
+  the repo (a plain `git clone`/`pull` — public, so no auth) into a cache in the settings
+  volume and reads recipes from there. Adding or fixing a service is a push to that repo —
+  no FlytDokk rebuild. If the repo is unreachable, the last-synced cache still renders. Sync
+  is explicit: a "Refresh recipes" action (and optionally once on startup), no background
+  polling. The repo URL (`RECIPES_REPO_URL`) is a normal setting; unset = the wizard shows
+  an empty state prompting you to configure it.
+- **A recipe is declarative data, never executable code.** FlytDokk validates each recipe
+  against a fixed schema and drives it with its own engine — it never runs recipe-supplied
+  code. A malformed recipe fails validation and is skipped; it can't push FlytDokk outside
+  its three known install paths.
+- **One folder per recipe** in the repo:
+  - `recipe.yml` — the manifest: `type`, display name, the `.env` question schema (`env:` —
+    each entry has `key`, `label`, `default`, optional `secret` flag), the `directories` to
+    create, a `suggested_subdomain`, plus any type-specific field (e.g. `git_repo` for
+    `git_build`).
+  - `compose.yml` — a real, standalone compose file using native `${VAR}` interpolation.
+    Directly `docker compose up`-testable and SSH-editable — **not** embedded in the manifest
+    (it is itself YAML; keeping it a separate file preserves tooling and the SSH-equal rule).
+  - `instructions.md` — the guided walk-through text shown in the wizard.
+- **The `.env` is generated, never stored in the repo.** It carries per-install values and
+  secrets (passwords), so it is written into the stack directory at install time from your
+  wizard answers — never committed. `docker compose` then substitutes `${VAR}` from it
+  automatically, so there is no templating engine and the compose file stays a genuine
+  compose file. (The only substitution FlytDokk does itself is the `directories` paths, since
+  it runs the `mkdir` before compose does.)
 - Wizard steps per recipe:
-  1. Show what will be created (directory, compose, env vars)
-  2. Fill in required values (data path, passwords, ports — with your preferred defaults)
+  1. Show what will be created (directory, compose, the env vars it will ask for)
+  2. Fill in required values (data path, passwords, ports — with the recipe's defaults),
+     the form rendered from the manifest's `env:` schema
   3. Optionally assign a subdomain (records it on the new `docker` instance, then calls
      the Caddy + AdGuard modules)
-  4. Confirm → creates directory, writes `compose.yml` + `.env`, runs the install steps,
-     and registers the service as a `docker` instance
-- Recipes are defined in code — add new ones by writing a recipe file, not via UI
+  4. Confirm → creates the directories, writes `compose.yml` + the generated `.env`, runs the
+     `type`'s install command, and registers the service as a `docker` instance
 
-**Recipe types — three patterns supported:**
+**Recipe types — the manifest's `type:` field, three patterns supported:**
 
 1. **Pull** — standard pre-built public image, just `docker compose up -d`
    - Used for: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma, etc.
@@ -337,7 +361,8 @@ GET  /api/docker/stacks/:name              stack detail + file contents
 POST /api/docker/stacks/:name/action       up / down / restart / pull
 PUT  /api/docker/stacks/:name/file         update compose.yml or .env
 DEL  /api/docker/stacks/:name
-GET  /api/docker/recipes                   list available install recipes
+GET  /api/docker/recipes                   list available install recipes (from the synced repo)
+POST /api/docker/recipes/refresh           re-sync recipes from the repo
 POST /api/docker/recipes/:name/install     run install wizard for a recipe
 GET  /api/docker/stats                     host-level resource summary
 ```
@@ -666,7 +691,7 @@ backend/src/flytdokk/
 │   └── docker/              Phase 8
 │       ├── client.py        docker-py wrapper
 │       ├── stacks.py        directory-based stack manager
-│       ├── recipes/         personal install recipes (one file per service)
+│       ├── recipes.py       recipe engine: sync + validate + install (recipes live in an external repo)
 │       ├── quick_commands.py  image-name → preset terminal commands map
 │       └── router.py
 └── shared/
@@ -890,6 +915,7 @@ file only and is shown read-only in the UI; see the table below.)
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks`. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
+| Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL FlytDokk syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
 The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
@@ -920,7 +946,8 @@ volumes:
   "adguard_password": "...",
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
   "base_domain": "example.no",
-  "caddy_host_ip": "192.168.10.101"
+  "caddy_host_ip": "192.168.10.101",
+  "recipes_repo_url": "https://github.com/you/flytdokk-recipes"
 }
 ```
 
@@ -941,6 +968,7 @@ ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 STACKS_DIR=/opt/stacks
+# RECIPES_REPO_URL=https://github.com/you/flytdokk-recipes   # public repo the install wizard syncs recipes from
 # CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
 ```
 

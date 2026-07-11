@@ -19,7 +19,7 @@
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
-  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted)
+  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
   - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
 - [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
@@ -145,7 +145,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 **FlytDokk container**
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
-  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed for `git_build` recipes), copy dist to `./static`
+  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed to sync the recipes repo and for `git_build` recipes), copy dist to `./static`
 - [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
   - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
 - [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
@@ -173,14 +173,18 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
-- [ ] `modules/docker/recipes/` — personal install recipes defined in code, one file per service
-  - Each recipe defines: type, directory name, `compose.yml` content, required `.env` vars with defaults
-  - Three recipe types:
+- [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code
+  - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
+  - `list_recipes()` — read each recipe folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). Empty/none when `recipes_repo_url` is unset
+  - `install_recipe(name, answers)` — create the manifest's `directories` (substituting answers), write the folder's `compose.yml` + a **generated `.env`** (from the answers — holds secrets, never in the repo), run the `type`'s command, register a `docker` instance, optionally assign a subdomain
+  - **Recipe folder** (in the repo, one per service): `recipe.yml` (manifest) + standalone `compose.yml` (native `${VAR}`) + `instructions.md` (displayed)
+  - **Manifest (`recipe.yml`) schema**: `type` (`pull` | `git_build` | `registry_pull`), display name, `env:` (list of `key`/`label`/`default`/optional `secret`), `directories`, `suggested_subdomain`, plus type-specific fields (`git_repo` for `git_build`)
+  - Recipe-type commands:
     - `pull` — pre-built public image, `docker compose up -d`
-    - `git_build` — `git clone <repo>` then `docker compose up -d --build`
+    - `git_build` — `git clone <git_repo>` then `docker compose up -d --build`
     - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
       - Registry auth is a **host precondition, not FlytDokk's job**: you run `docker login <gitea-registry>` once on the Docker host; the daemon caches the credential, so this recipe's pull is mechanically identical to a public `pull`. FlytDokk stores no registry token — keeps it secret-free, mirroring how the ACME token lives with Caddy, not here
-  - Initial recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
+  - Sample recipes (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma) live **in the recipes repo, not in this codebase** — adding one is a repo push, no FlytDokk rebuild
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`
   - `POST /api/docker/containers/{id}/start|stop|restart`
@@ -192,7 +196,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `PUT /api/docker/stacks/{name}/file` (edit compose or .env)
   - `POST /api/docker/stacks/{name}/action` (up/down/restart/pull)
   - `DELETE /api/docker/stacks/{name}`
-  - `GET /api/docker/recipes` (list available recipes)
+  - `GET /api/docker/recipes` (list available recipes from the synced repo)
+  - `POST /api/docker/recipes/refresh` (re-sync recipes from the repo)
   - `POST /api/docker/recipes/{name}/install` (run recipe wizard)
   - `GET /api/docker/stats`
 
@@ -206,7 +211,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 - [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
 - [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path (freeform counterpart to the recipe wizard)
-- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values → optionally assign URL → deploy
+- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list comes from the synced repo; includes a "Refresh recipes" action and an empty state prompting to set `recipes_repo_url` when unset
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
 
 ---
