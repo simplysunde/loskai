@@ -174,8 +174,9 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
 - [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code
+  - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/flytdokk/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
-  - `list_recipes()` — read each recipe folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). Empty/none when `recipes_repo_url` is unset
+  - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
   - `install_recipe(name, answers)` — create the manifest's `directories` (substituting answers), write the folder's `compose.yml` + a **generated `.env`** (from the answers — holds secrets, never in the repo), run the `type`'s command, register a `docker` instance, optionally assign a subdomain
   - **Recipe folder** (in the repo, one per service): `recipe.yml` (manifest) + standalone `compose.yml` (native `${VAR}`) + `instructions.md` (displayed)
   - **Manifest (`recipe.yml`) schema**: `type` (`pull` | `git_build` | `registry_pull`), display name, `env:` (list of `key`/`label`/`default`/optional `secret`), `directories`, `suggested_subdomain`, plus type-specific fields (`git_repo` for `git_build`)
@@ -211,7 +212,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 - [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
 - [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path (freeform counterpart to the recipe wizard)
-- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list comes from the synced repo; includes a "Refresh recipes" action and an empty state prompting to set `recipes_repo_url` when unset
+- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list is the merged repo + local set (repo wins on name clash, shadowed local flagged); includes a "Refresh recipes" action and an empty state (prompt to set `recipes_repo_url` and/or drop a local recipe) when both sources are empty
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
 
 ---

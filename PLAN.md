@@ -241,18 +241,25 @@ daemon; it invents no new deployment method.
 **Personal Install Wizard**
 - A curated set of personal install recipes — not a generic community template store.
   These are your own tested setups for services you actually run.
-- **Recipes live in a public git repo you own, not baked into the image.** FlytDokk syncs
-  the repo (a plain `git clone`/`pull` — public, so no auth) into a cache in the settings
-  volume and reads recipes from there. Adding or fixing a service is a push to that repo —
-  no FlytDokk rebuild. If the repo is unreachable, the last-synced cache still renders. Sync
-  is explicit: a "Refresh recipes" action (and optionally once on startup), no background
-  polling. The repo URL (`RECIPES_REPO_URL`) is a normal setting; unset = the wizard shows
-  an empty state prompting you to configure it.
+- **Recipes are never baked into the image** — they come from two sources, both scanned the
+  same way and merged into one list:
+  - **A public git repo you own** (`RECIPES_REPO_URL`) — the canonical, most up-to-date
+    library. FlytDokk syncs it (a plain `git clone`/`pull` — public, so no auth) into a cache
+    in the settings volume. Adding or fixing a service is a push to that repo, no FlytDokk
+    rebuild. If the repo is unreachable, the last-synced cache still renders. Sync is explicit:
+    a "Refresh recipes" action (and optionally once on startup), no background polling.
+  - **A local directory** in the settings volume (`/opt/flytdokk/recipes/`) — a dev/testing
+    scratchpad for private or in-progress manifests, always available with no network. No new
+    mount: it lives in the same `flytdokk-settings` volume as `settings.json`.
+  - Both are optional — have one, the other, or both. On a **name clash the repo wins** (it is
+    the maintained source, most likely current); the shadowed local copy is **flagged** in the
+    list so it is never silently hidden. To test a variant of an existing recipe locally, give
+    it a distinct name so it does not collide.
 - **A recipe is declarative data, never executable code.** FlytDokk validates each recipe
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
   code. A malformed recipe fails validation and is skipped; it can't push FlytDokk outside
   its three known install paths.
-- **One folder per recipe** in the repo:
+- **One folder per recipe** (same shape in either source):
   - `recipe.yml` — the manifest: `type`, display name, the `.env` question schema (`env:` —
     each entry has `key`, `label`, `default`, optional `secret` flag), the `directories` to
     create, a `suggested_subdomain`, plus any type-specific field (e.g. `git_repo` for
