@@ -179,7 +179,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
     - `pull` — pre-built public image, `docker compose up -d`
     - `git_build` — `git clone <repo>` then `docker compose up -d --build`
     - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
-      - ⚠️ needs `docker login` to the Gitea registry — decide where registry credentials live (new settings entry vs per-recipe) before building this type
+      - Registry auth is a **host precondition, not FlytDokk's job**: you run `docker login <gitea-registry>` once on the Docker host; the daemon caches the credential, so this recipe's pull is mechanically identical to a public `pull`. FlytDokk stores no registry token — keeps it secret-free, mirroring how the ACME token lives with Caddy, not here
   - Initial recipes: Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`

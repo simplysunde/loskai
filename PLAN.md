@@ -265,6 +265,10 @@ daemon; it invents no new deployment method.
    - Image is already built and pushed to Gitea (`gitea.yourdomain/user/app:latest`)
    - Recipe pulls like any other image — no build step at install time
    - Recommended pattern for your own personal apps: build once, push to Gitea, deploy anywhere
+   - **Registry auth is a host precondition**: run `docker login <gitea-registry>` once on
+     the Docker host and the daemon caches it, so the pull is identical to a public one.
+     FlytDokk stores no registry credential — same principle as the ACME token living with
+     Caddy, not here
 
 **Interactive Terminal**
 - Open a shell session inside any running container directly in the browser
