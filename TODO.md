@@ -173,7 +173,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
-- [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code
+- [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/recipe-schema.md) (authored by hand/AI, no authoring UI)
   - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/flytdokk/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
   - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
@@ -211,7 +211,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 - [ ] `modules/docker/quick_commands.py` — map of image name patterns to preset commands (e.g. `redis` → `redis-cli`, `postgres` → `psql -U postgres`)
 - [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
 - [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
-- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path (freeform counterpart to the recipe wizard)
+- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path — the raw path: paste a finished compose + .env and `up`, no manifest/wizard. Docker auto-creates bind-mount source dirs, so no directory step
 - [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list is the merged repo + local set (repo wins on name clash, shadowed local flagged); includes a "Refresh recipes" action and an empty state (prompt to set `recipes_repo_url` and/or drop a local recipe) when both sources are empty
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
 

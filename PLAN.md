@@ -227,8 +227,10 @@ daemon; it invents no new deployment method.
 - View all stacks with current status (up / down / partial), computed by matching the
   `com.docker.compose.project` label on running containers against the declared services.
 - Stack-level start / stop / restart / pull-and-update (`docker compose pull` + `up -d`)
-- Create a stack manually (write/paste a `compose.yml` in the browser) — the freeform
-  counterpart to the recipe-driven Install Wizard
+- Create a stack manually — the **raw path**, freeform counterpart to the recipe wizard:
+  paste/upload a finished `compose.yml` + `.env` and run `up`, no manifest and no wizard
+  prompts. For a one-off or a stack you already have. Bind-mount source directories are
+  auto-created by Docker on `up`, so no directory step is needed
 - Edit `compose.yml` and `.env` in-browser, then re-`up` to apply
 - Delete a stack (`down` + remove the directory, with confirmation)
 
@@ -259,6 +261,8 @@ daemon; it invents no new deployment method.
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
   code. A malformed recipe fails validation and is skipped; it can't push FlytDokk outside
   its three known install paths.
+- The `recipe.yml` schema is documented in [docs/recipe-schema.md](docs/recipe-schema.md) —
+  the contract to author against (by hand or with an AI coder); there is no authoring UI.
 - **One folder per recipe** (same shape in either source):
   - `recipe.yml` — the manifest: `type`, display name, the `.env` question schema (`env:` —
     each entry has `key`, `label`, `default`, optional `secret` flag), the `directories` to
