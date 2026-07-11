@@ -4,12 +4,12 @@
 
 ## Phase 1 — Project Scaffolding
 - [ ] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml`
-- [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette
+- [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette, argon2-cffi (admin-password hashing), itsdangerous (signed session cookie)
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
   - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
-- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain. The ACME/DNS-challenge token belongs to Caddy on LXC 101, not FlytDokk
+- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `FLYTDOKK_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not FlytDokk
 - [x] Create `HISTORY.md`
 
 ---
@@ -21,18 +21,25 @@
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
   - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
   - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
+  - `admin_password_hash` — set from `FLYTDOKK_PASSWORD` (env) or at first run, stored **hashed** (argon2/bcrypt); **never** returned by `GET /api/settings`
 - [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
-  - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer }` (`dns_answer` = Caddy IP last written to AdGuard for this name; null if no rewrite pushed)
+  - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer, private }` (`dns_answer` = Caddy IP last written to AdGuard for this name, null if no rewrite; `private` = hide from the public dashboard, default false)
   - `id` doubles as the Caddy `@id`; `subdomain` null = tracked but no route
   - CRUD helpers (list / get / upsert / delete)
 - [ ] `backend/src/flytdokk/config.py` — pydantic-settings class; **no env var required** at startup, all optional
 - [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
 - [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
   - Docker status also carries `stacks_dir_ok` (from `stacks.py`) so the UI can surface "stacks directory not found — check the compose mount" instead of a silently empty Stack Manager
-- [ ] `GET /api/settings` — returns all settings with source field
+- [ ] `GET /api/settings` — returns all settings with source field (**never** the admin password hash)
 - [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
-- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`)
+- [ ] `backend/src/flytdokk/shared/auth.py` — single-password auth, no accounts
+  - Middleware: reject unauthenticated `/api/*` with 401 **except** `GET /api/dashboard` and the login route — this is the real security boundary, not the frontend
+  - `POST /api/login` — verify against `admin_password_hash`, issue a signed `HttpOnly` `SameSite` session cookie; `POST /api/logout` — clear it
+  - `GET /api/auth/status` — `{ authed, password_set }` so the SPA can route to login vs first-run setup
+  - First-run: when no `admin_password_hash` exists, admin tier is locked; a setup endpoint sets the initial password (hashed). Session secret generated + persisted in the settings volume
+- [ ] `backend/src/flytdokk/shared/dashboard.py` — `GET /api/dashboard` (public): non-private routed instances as launcher cards `{ name, url, icon }` only — no container detail or module state
+- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`); `curl` of any other `/api/*` without a session returns 401, while `GET /api/dashboard` returns the public list
 
 ---
 
@@ -61,18 +68,23 @@
   `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
 
 **Frontend**
-- [ ] `App.tsx` — React Router setup, sidebar layout with nav links for each module + Settings
+- [ ] `App.tsx` — React Router: **public** `/` (Dashboard) + `/login`; the module tabs + Settings wrapped in `RequireAuth` with the sidebar layout
+- [ ] `pages/Dashboard.tsx` — public landing: grid of `ServiceCard`s from `GET /api/dashboard` (no auth); link into the admin tier (which prompts login)
+- [ ] `pages/Login.tsx` — the security screen: single-password form → `POST /api/login`; doubles as first-run "set admin password" when `GET /api/auth/status` reports `password_set: false`
+- [ ] `components/shared/RequireAuth.tsx` — wrapper that checks `GET /api/auth/status` and redirects to `/login` when not authed (UX only — the API is the real gate)
+- [ ] `components/shared/ServiceCard.tsx` — one dashboard card: service name, icon, link to `https://prefix.base_domain`
 - [ ] `pages/Settings.tsx` — settings page: form for all service URLs and credentials
   - Env-var-set fields shown as read-only with "set via environment" label
   - Editable fields saved via `PUT /api/settings`
+  - Admin password: a "change password" field (write-only; the hash is never fetched)
   - Modules with unset required URLs show a banner linking to this page
-- [ ] `lib/api.ts` — fetch wrapper with base URL, JSON error handling
+- [ ] `lib/api.ts` — fetch wrapper with base URL, JSON error handling; on a 401 redirect to `/login`
 - [ ] `lib/useHealth.ts` — React Query hook polling `/api/health` every 30s, exposes per-module status
 - [ ] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable
 - [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
 - [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
 - [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
-- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, synced + live status, delete (`DELETE /api/assign/{id}`); "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
+- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, synced + live status, a **private toggle** (hide from the public dashboard, persists the instance `private` flag), delete (`DELETE /api/assign/{id}`); "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
 - [ ] `components/caddy/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
 - [ ] `components/caddy/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
 - [ ] _(deferred)_ `components/caddy/CertStatus.tsx` — cert expiry + days remaining. Out of current scope; when revisited, implement via a TLS probe to a routed name (read the served cert's `notAfter`), not the Admin API — see PLAN.md Future Ideas
@@ -219,7 +231,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 
 ## Phase 9 — Polish
 - [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
-- [ ] Basic auth — add `basicauth` to Caddyfile (no code change in FlytDokk)
+- [ ] ~~Basic auth via Caddyfile~~ — superseded by in-app single-password auth (Phase 2 `auth.py`), since the public dashboard can't sit behind a blanket Caddy `basicauth`. See PLAN.md "Security & Access"
 - [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added), or if a same-domain rewrite points somewhere other than the Caddy IP (manual conflict — never auto-overwrite)
 - [ ] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites
 - [ ] Container label auto-discovery — detect `flytdokk.subdomain=X` label on start, auto-create/update the container's docker instance and push its route

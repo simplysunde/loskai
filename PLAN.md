@@ -114,8 +114,9 @@ view both read.
   "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
   "upstream":  "192.168.10.100:3000",  // host:port — chosen at assign time
   "container": "grafana",        // container name/id (docker type only; null for external)
-  "dns_answer": "192.168.10.101"  // Caddy IP last written to AdGuard for this name
+  "dns_answer": "192.168.10.101", // Caddy IP last written to AdGuard for this name
                                  //   (null = no rewrite pushed; used to clean up on IP change)
+  "private":   false             // true = hide from the public dashboard (still fully managed)
 }
 ```
 
@@ -707,6 +708,10 @@ backend/src/flytdokk/
 │       └── router.py
 └── shared/
     ├── health.py            GET /api/health — polls all module clients
+    ├── auth.py              login + session middleware — gates every /api/* except
+    │                        the public dashboard endpoint (see Security & Access)
+    ├── dashboard.py         GET /api/dashboard — the one public endpoint: non-private
+    │                        routed services (name, url, icon) for the launcher
     ├── assign.py            POST/DELETE /api/assign — assign & clear a subdomain;
     │                        Caddy required, AdGuard best-effort, both directions
     ├── instances.py        read/write instances.json — the instance list (route intent)
@@ -723,17 +728,21 @@ backend/src/flytdokk/
 ```
 frontend/src/
 ├── main.tsx
-├── App.tsx                  React Router setup
+├── App.tsx                  React Router: public Dashboard + Login, gated admin tabs
 ├── pages/
-│   ├── Caddy.tsx
-│   ├── AdGuard.tsx
-│   ├── WireGuard.tsx
-│   ├── Settings.tsx
-│   └── Docker.tsx           Phase 8
+│   ├── Dashboard.tsx        public landing — grid of service cards (launcher)
+│   ├── Login.tsx            the security screen — single-password form
+│   ├── Caddy.tsx            ─┐
+│   ├── AdGuard.tsx           │ admin tabs — all behind the session gate
+│   ├── WireGuard.tsx         │
+│   ├── Settings.tsx          │
+│   └── Docker.tsx           ─┘ Phase 8
 ├── components/
 │   ├── shared/
 │   │   ├── StatusBadge.tsx
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
+│   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
+│   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
 │   │   └── ConfirmDialog.tsx
 │   ├── caddy/
 │   │   ├── RouteList.tsx        instances that have a subdomain, + "Push all to Caddy"
@@ -927,6 +936,7 @@ file only and is shown read-only in the UI; see the table below.)
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks`. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
 | Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL FlytDokk syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
+| FlytDokk admin password | `FLYTDOKK_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
 The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
@@ -949,7 +959,7 @@ volumes:
 ```
 
 ### settings.json shape
-```json
+```jsonc
 {
   "caddy_admin_url": "http://192.168.10.101:2019",
   "adguard_url": "http://192.168.10.101:3000",
@@ -958,7 +968,8 @@ volumes:
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
   "base_domain": "example.no",
   "caddy_host_ip": "192.168.10.101",
-  "recipes_repo_url": "https://github.com/you/flytdokk-recipes"
+  "recipes_repo_url": "https://github.com/you/flytdokk-recipes",
+  "admin_password_hash": "$argon2id$..."   // set at first run; never returned by GET /api/settings
 }
 ```
 
@@ -973,6 +984,7 @@ PUT  /api/settings        update stored settings (env-sourced values ignored)
 # The ACME/DNS-challenge token is set on LXC 101 (Caddy's environment), not here
 
 BASE_DOMAIN=example.no
+FLYTDOKK_PASSWORD=changeme     # guards the admin UI; or set it at first run
 CADDY_ADMIN_URL=http://192.168.10.101:2019
 ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
@@ -1035,18 +1047,59 @@ If FlytDokk is down, all services keep running exactly as before.
 
 ---
 
-## Security Notes
+## Security & Access
 
-- **Caddy Admin API** — port 2019 on LXC 101 must be firewalled so only
-  LXC 103 (192.168.10.100) can reach it. Never expose it to the wider network.
-- **Docker socket** — mounted read-write (required for container management).
-  FlytDokk should be the only container with socket access.
-- **AdGuard API** — port 3000 on LXC 101. Consider a Proxmox firewall rule so
-  only LXC 103's IP can reach it.
-- **Manager UI** — protect with Caddy `basicauth`. Only reachable via
-  `flytdokk.example.no` over HTTPS, accessible only through WireGuard or locally.
-- **Secrets** — all in `.env`, never committed. Passed as environment variables
-  to containers.
+FlytDokk is the highest-privilege service in the homelab — it holds the Docker socket
+(root-equivalent on the host), the Caddy Admin API, and AdGuard credentials. Its own access
+model is therefore a first-class concern, not a polish-phase afterthought.
+
+### Two tiers, one in-app gate
+
+The UI is split in two, so authentication lives **inside FlytDokk** (not a blanket Caddy
+`basicauth`, which would also lock the public dashboard):
+
+- **Public tier — the Dashboard.** A launcher: a grid of cards for the non-private routed
+  services (name, icon, link to `https://prefix.{BASE_DOMAIN}`). No login. Served by the one
+  public endpoint, `GET /api/dashboard`, which exposes *only* launcher data — never container
+  detail, module state, or anything sensitive.
+- **Admin tier — everything else.** The module tabs (Docker, Caddy, AdGuard, WireGuard) and
+  Settings, plus every action. Behind the login.
+
+### The gate is server-side, on the API
+
+Hiding admin *pages* in the frontend is not security — the boundary is enforced in the
+backend. **Every `/api/*` route requires a valid session except `GET /api/dashboard`.** This
+is non-negotiable for endpoints like `WS /api/docker/containers/{id}/exec`, which is a root
+shell into a container: a hidden React route would still leave it one WebSocket away from
+anyone on the LAN. `shared/auth.py` is middleware that rejects unauthenticated `/api/*`
+calls; the frontend `RequireAuth` wrapper is only UX (redirect to `/login`), never the
+actual guard.
+
+### Single-password auth (no accounts)
+
+- **One admin password** — no users, no roles. A `POST /api/login` verifies it and issues a
+  signed, `HttpOnly`, `SameSite` session cookie; `POST /api/logout` clears it.
+- The password is set via `FLYTDOKK_PASSWORD` (env) or at first run, and stored **hashed**
+  (argon2/bcrypt) — never plaintext. Unlike the AdGuard password (which FlytDokk must replay
+  verbatim to AdGuard), FlytDokk's own password only needs verifying, so it is only ever
+  stored as a hash.
+- **Known tradeoff (deliberate):** the public dashboard reveals that the non-private services
+  exist and lets anyone on the LAN/WireGuard click through to them (each service keeps its own
+  auth). The `private` per-instance flag hides a service from the dashboard; FlytDokk being
+  LAN-only (remote access via WireGuard) is the outer boundary.
+
+### Infrastructure boundaries
+
+- **Caddy Admin API** — port 2019 on LXC 101 must be firewalled so only LXC 103
+  (192.168.10.100) can reach it. Never expose it to the wider network.
+- **Docker socket** — mounted read-write (required for container management). FlytDokk should
+  be the only container with socket access.
+- **AdGuard API** — port 3000 on LXC 101. A Proxmox firewall rule so only LXC 103's IP can
+  reach it.
+- **Reachability** — FlytDokk is only served on the LAN via `flytdokk.{BASE_DOMAIN}` over
+  HTTPS; remote access is through WireGuard, never a public port.
+- **Secrets** — service credentials and `FLYTDOKK_PASSWORD` live in `.env` (or the settings
+  page), never committed. FlytDokk's own password is stored only as a hash.
 
 ---
 
