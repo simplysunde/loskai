@@ -1,5 +1,27 @@
 # FlytDokk — History
 
+## 2026-07-11 — Docker module review: STACKS_DIR pinned, registry auth resolved
+
+Reviewed the Docker module — the last of the four — and closed three loose ends, all
+plan-level (no code yet). The module is now internally consistent: container overview +
+stack manager, filesystem-as-source-of-truth, and the container→instance join all hold up.
+
+- Key files: `PLAN.md` (Module 1, Settings table + `settings.json` shape), `TODO.md` (Phases 2, 8)
+- **`STACKS_DIR` pinned to the compose mount**: it drives the same-path bind mount, so the
+  container only sees the directory mounted at launch — presenting it as a UI-editable
+  setting invited pointing FlytDokk at an unmounted host path (stacks vanish, writes land
+  where the host can't see them). Now compose/env-only, shown read-only in the UI, dropped
+  from `settings.json`
+- **One `stacks_dir_ok()` existence check** guards the gap the empty-list signal missed —
+  the write path. `create_stack` / the install wizard refuse (with a clear message) when the
+  dir is absent instead of writing into the void; feeds `/api/health`. Distinguishes a broken
+  mount from a genuinely empty stacks dir. No other validation logic — deliberately minimal
+- **`registry_pull` auth resolved**: private-registry `docker login` is a host precondition,
+  not FlytDokk's job — the daemon caches the credential, so the pull is identical to a public
+  one and FlytDokk stores no registry token (same principle as the ACME token living with Caddy)
+- Also listed the `WS .../exec` interactive-terminal endpoint in the Docker router task
+- All four modules (Docker, Caddy, AdGuard, WireGuard) are now planning-complete
+
 ## 2026-07-10 — Caddy + AdGuard API contracts, wildcard drop, per-instance DNS tracking
 
 Hardened the two integration modules by pinning each to its real API and writing a
