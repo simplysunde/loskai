@@ -186,6 +186,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `POST /api/docker/containers/{id}/start|stop|restart`
   - `DELETE /api/docker/containers/{id}`
   - `GET /api/docker/containers/{id}/logs` (SSE)
+  - `WS /api/docker/containers/{id}/exec` (interactive terminal — see the WebSocket exec task below)
   - `GET /api/docker/stacks`
   - `GET /api/docker/stacks/{name}`
   - `PUT /api/docker/stacks/{name}/file` (edit compose or .env)
