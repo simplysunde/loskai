@@ -1,5 +1,32 @@
 # FlytDokk — History
 
+## 2026-07-12 — Access model + frontend design: gated admin, Lutris-style shell
+
+Pinned down two cross-cutting concerns before implementation: FlytDokk's own security
+posture and the frontend layout. The security work replaced a single "add Caddy basicauth"
+line with a real two-tier model; the design work settled the navigation and view structure
+from four explicit choices.
+
+- Key files: `PLAN.md` (new Security & Access section, Layout & design philosophy, instance model, frontend/backend trees, Settings), `TODO.md` (Phases 1–4, 9)
+- **Two-tier access, in-app auth**: a **public Dashboard** (launcher grid of non-private
+  routed services, served by the one unauthenticated endpoint `GET /api/dashboard`) and an
+  **admin tier** behind a single-password login. A blanket Caddy `basicauth` can't coexist
+  with a public dashboard, so auth moved *into* FlytDokk
+- **The gate is server-side**: middleware (`shared/auth.py`) rejects every `/api/*` except the
+  dashboard endpoint — load-bearing because the container-exec WebSocket is a root shell; the
+  frontend `RequireAuth` is UX only. Single admin password, **no accounts**, hashed (argon2)
+  from `FLYTDOKK_PASSWORD` or first-run, signed `HttpOnly` session cookie. First-run locks the
+  admin until a password is set; the session secret is generated + persisted to the volume so
+  sessions survive restarts
+- **Instance model gains `private`** (dashboard hide toggle) alongside `dns_answer`
+- **Frontend = Lutris-inspired shell**: a persistent left sidebar (`Dashboard · Docker ·
+  Routing · VPN · Settings`) + a library-style main area with contextual per-item actions
+- **Caddy + AdGuard merge into one Routing tab** (frontend only — backends stay independent):
+  an assign spans both, so the view is **one row per service** with route-sync and DNS-rewrite
+  status inline, instead of two tabs to cross-reference. If AdGuard is down the tab still shows
+  routes; only the DNS column degrades
+- **Hybrid aesthetic**: card grid for dashboard/launchers, dense tables for stat-heavy lists
+
 ## 2026-07-11 — Install-wizard recipes: repo-synced declarative manifests
 
 Reworked the install wizard from "recipes defined in code, baked into the image" to
