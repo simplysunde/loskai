@@ -68,7 +68,7 @@
   `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
 
 **Frontend**
-- [ ] `App.tsx` — React Router: **public** `/` (Dashboard) + `/login`; the module tabs + Settings wrapped in `RequireAuth` with the sidebar layout
+- [ ] `App.tsx` — React Router + the persistent left-sidebar shell (Lutris-inspired): `Dashboard · Docker · Routing · VPN · Settings`. `/` (Dashboard) + `/login` public; admin tabs wrapped in `RequireAuth`. Hybrid aesthetic: card grid for dashboard/launchers, dense tables for stat-heavy lists
 - [ ] `pages/Dashboard.tsx` — public landing: grid of `ServiceCard`s from `GET /api/dashboard` (no auth); link into the admin tier (which prompts login)
 - [ ] `pages/Login.tsx` — the security screen: single-password form → `POST /api/login`; doubles as first-run "set admin password" when `GET /api/auth/status` reports `password_set: false`
 - [ ] `components/shared/RequireAuth.tsx` — wrapper that checks `GET /api/auth/status` and redirects to `/login` when not authed (UX only — the API is the real gate)
@@ -83,11 +83,11 @@
 - [ ] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable
 - [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
 - [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
-- [ ] `pages/Caddy.tsx` — Caddy page, shows module status banner if unreachable
-- [ ] `components/caddy/RouteList.tsx` — table of instances that have a subdomain: assembled FQDN, upstream, synced + live status, a **private toggle** (hide from the public dashboard, persists the instance `private` flag), delete (`DELETE /api/assign/{id}`); "Push all to Caddy" button (`POST /api/caddy/push`) for recovery
-- [ ] `components/caddy/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
-- [ ] `components/caddy/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
-- [ ] _(deferred)_ `components/caddy/CertStatus.tsx` — cert expiry + days remaining. Out of current scope; when revisited, implement via a TLS probe to a routed name (read the served cert's `notAfter`), not the Admin API — see PLAN.md Future Ideas
+- [ ] `pages/Routing.tsx` — **unified Caddy + AdGuard view** (one tab, not two), shows module status banners if either is unreachable. Hosts the service table below; the DNS-status column is wired up in Phase 4
+- [ ] `components/routing/ServiceTable.tsx` — **one row per routed service**: assembled FQDN, upstream, Caddy route-sync + live status, AdGuard DNS-rewrite status (Phase 4), a **private toggle** (persists the instance `private` flag), delete (`DELETE /api/assign/{id}`); "Push all" (`POST /api/caddy/push`) for recovery
+- [ ] `components/routing/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
+- [ ] `components/routing/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
+- [ ] _(deferred)_ `components/routing/CertStatus.tsx` — cert expiry + days remaining. Out of current scope; when revisited, implement via a TLS probe to a routed name (read the served cert's `notAfter`), not the Admin API — see PLAN.md Future Ideas
 
 ---
 
@@ -106,10 +106,10 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `GET /api/adguard/health` — reachable
   - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`)
 
-**Frontend**
-- [ ] `pages/AdGuard.tsx` — AdGuard page
-- [ ] `components/adguard/AdGuardStatus.tsx` — health status + prominent link out to full AdGuard UI
-- [ ] `components/adguard/RewriteList.tsx` — per-instance rewrites, read-only sync status vs instances, delete action
+**Frontend** — folds into the unified `pages/Routing.tsx` (no separate AdGuard page)
+- [ ] Add the **DNS-rewrite status column** to `components/routing/ServiceTable.tsx`: per row, whether `(domain, currentIP)` is present, plus the manual-conflict flag; row action to add/remove the rewrite (best-effort)
+- [ ] `components/routing/AdGuardStatus.tsx` — AdGuard health pill + prominent link out to the full AdGuard UI, shown in the Routing tab header
+- [ ] Reconcile action ("Push all") surfaced in the Routing tab, reporting per-service route + DNS results
 
 ---
 
@@ -121,7 +121,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `GET /api/wireguard/status` — is dashboard reachable + its URL
 
 **Frontend**
-- [ ] `pages/WireGuard.tsx` — WireGuard page
+- [ ] `pages/WireGuard.tsx` — the **VPN** sidebar tab (WireGuard reachability card)
 - [ ] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, DNS reminder card (host of `ADGUARD_URL` + `1.1.1.1`; generic guidance if `ADGUARD_URL` unset)
 
 ---
@@ -138,7 +138,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `DELETE /api/assign/{instance_id}` — the mirror: clear the instance's subdomain + save,
     `client.delete_route` (required), then best-effort remove the AdGuard rewrite; instance survives
 - [ ] Wire `AssignModal.tsx` to `POST /api/assign` and the route-list delete to `DELETE /api/assign/{id}`, show per-step result to user
-- [ ] Make Assign URL modal accessible from both Caddy page and (later) Docker page
+- [ ] Make Assign URL modal accessible from both the Routing page and (later) the Docker page
 
 ---
 

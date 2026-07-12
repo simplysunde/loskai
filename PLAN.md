@@ -723,7 +723,23 @@ backend/src/flytdokk/
 - React Query for data fetching + caching
 - Recharts for CPU/RAM graphs (Docker module, Phase 8)
 - Lucide React for icons
-- Module pages are fully independent routes — `/caddy`, `/adguard`, `/wireguard`, `/docker`
+
+**Layout & design philosophy** (Lutris-inspired): a **persistent left sidebar** shell +
+a main "library" content area, with contextual action buttons per item.
+
+- **Sidebar**: `Dashboard · Docker · Routing · VPN · Settings`. Always visible; the Dashboard
+  is the first item, and clicking an admin item when not logged in prompts the security
+  screen. (The sidebar being visible is UX only — the API is the real gate.)
+- **Routing tab merges Caddy + AdGuard into one view.** An assign writes both a Caddy route
+  and an AdGuard rewrite for one service, so the view is **one row per routed service** showing
+  FQDN, upstream, route-sync status, and DNS-rewrite status inline, with per-row actions —
+  instead of two tabs to cross-reference. (The *backends* stay independent modules; only the
+  frontend unifies them.)
+- **VPN tab** = the WireGuard reachability card. **Docker tab** = containers + stacks + wizard.
+- **Hybrid card/table aesthetic**: card grid for the Dashboard and service launchers (library
+  feel); dense tables where live stats must be scannable (container/stack lists, the routing
+  table).
+- Routes: `/` (Dashboard) · `/login` · `/docker` · `/routing` · `/vpn` · `/settings`.
 
 ```
 frontend/src/
@@ -732,11 +748,10 @@ frontend/src/
 ├── pages/
 │   ├── Dashboard.tsx        public landing — grid of service cards (launcher)
 │   ├── Login.tsx            the security screen — single-password form
-│   ├── Caddy.tsx            ─┐
-│   ├── AdGuard.tsx           │ admin tabs — all behind the session gate
-│   ├── WireGuard.tsx         │
-│   ├── Settings.tsx          │
-│   └── Docker.tsx           ─┘ Phase 8
+│   ├── Docker.tsx           ─┐ admin tabs — behind the session gate (Phase 8)
+│   ├── Routing.tsx           │ unified Caddy + AdGuard: one row per service
+│   ├── WireGuard.tsx         │ "VPN" tab — reachability card
+│   └── Settings.tsx         ─┘
 ├── components/
 │   ├── shared/
 │   │   ├── StatusBadge.tsx
@@ -744,13 +759,12 @@ frontend/src/
 │   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
 │   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
 │   │   └── ConfirmDialog.tsx
-│   ├── caddy/
-│   │   ├── RouteList.tsx        instances that have a subdomain, + "Push all to Caddy"
-│   │   ├── AssignModal.tsx
-│   │   └── CaddyfileExport.tsx  download / copy-to-clipboard Caddyfile
-│   ├── adguard/
-│   │   ├── AdGuardStatus.tsx
-│   │   └── RewriteList.tsx    per-instance rewrites, sync status, delete
+│   ├── routing/            unified Caddy + AdGuard view
+│   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
+│   │   │                       route-sync + DNS-rewrite status, per-row actions,
+│   │   │                       private toggle; "Push all" for recovery
+│   │   ├── AssignModal.tsx     prefix + upstream form → POST /api/assign
+│   │   └── CaddyfileExport.tsx download / copy-to-clipboard Caddyfile
 │   ├── wireguard/
 │   │   └── WireGuardCard.tsx
 │   └── docker/              Phase 8
