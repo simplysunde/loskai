@@ -1,0 +1,29 @@
+[project]
+name = "loskai"
+version = "0.1.0"
+description = "Control plane for your homelab — Docker, Caddy, AdGuard, and WireGuard in one image"
+readme = "README.md"
+authors = [
+    { name = "sunde", email = "295954441+simplysunde@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx",
+    "pydantic-settings",
+    "sse-starlette",
+    "argon2-cffi",
+    "itsdangerous",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-httpx",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.15,<0.12.0"]
+build-backend = "uv_build"
