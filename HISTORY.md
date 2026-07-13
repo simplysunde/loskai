@@ -1,5 +1,31 @@
 # FlytDokk — History
 
+## 2026-07-13 — Testing strategy, co-located deployment, plan review
+
+Settled the second pre-build cross-cutting concern — how FlytDokk gets verified given its
+real side effects — then did a full plan review pass and fixed the discrepancies it surfaced.
+With this, both pre-build items (security, testing) are closed and the plan is build-ready.
+
+- Key files: `PLAN.md` (Testing & CI, Co-located port notes, compose/diagram fixes), `TODO.md` (Phases 1, 7, 8b)
+- **Testing principle**: test the logic FlytDokk owns, mock the systems it talks to,
+  rig/hand-verify the irreversible side effects — never test `httpx`/`docker-py`. Relies on
+  the `client.py` (I/O) vs pure-logic seam the modules already keep
+- **Three tiers**: unit tests (`pytest`) on pure logic incl. the AdGuard reconcile; client
+  contract tests (`pytest-httpx`) guarding the `docs/*-api.md` contracts; a disposable
+  `docker-compose.test.yml` rig of throwaway Caddy + AdGuard (`tls internal`, no ACME token,
+  ephemeral). Vitest on key frontend components; no E2E. Tiers 1–2 written alongside each module
+- **Co-located deployment**: `docker-compose.colocated.yml` now runs Caddy **+ AdGuard** as
+  containers — a real all-in-Docker alternative to Proxmox/LXC, and the basis for the test rig.
+  Documented its port gotchas (AdGuard `:53` vs `systemd-resolved`; keep AdGuard off `80`/`443`;
+  services don't conflict with each other, only host-published ports do)
+- **CI**: Forgejo Actions (`.forgejo/workflows/ci.yml`, GitHub-compatible) runs `pytest` +
+  `vitest` on push; one-time `act_runner` registration
+- **Plan review**: fixed a real gap (compose didn't pass `STACKS_DIR` into the container, so a
+  custom path would mismatch the mount) plus nits — `FLYTDOKK_PASSWORD` missing from the compose
+  env, two broken `caddy-api.md` links, the "co-located" term drifting between "Caddy only" and
+  "Caddy + AdGuard", a dead `PORT` env, a redundant Vision paragraph, and two misaligned ASCII
+  diagrams
+
 ## 2026-07-12 — Access model + frontend design: gated admin, Lutris-style shell
 
 Pinned down two cross-cutting concerns before implementation: FlytDokk's own security
