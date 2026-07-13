@@ -1,13 +1,28 @@
-# FlytDokk — History
+# Loskai — History
+
+## 2026-07-13 — Renamed FlytDokk → Loskai
+
+Renamed the project from *FlytDokk* (Norwegian *flyt* "flow" + *dokk* "dock") to **Loskai**,
+chosen for searchability and adoption. From Norwegian *los* (the harbor pilot who steers ships
+safely to berth) + *kai* (quay/dock). The metaphor sits inside Docker's own maritime language
+(container, port, harbor) and supplies a built-in security narrative — a pilot guides you in
+*safely* — which the old name lacked. Tagline: *"Safe passage for your Docker deployments."*
+
+- Availability (checked 2026-07-13): PyPI, npm, and `.dev`/`.io`/`.app`/`.com` domains all free;
+  only the empty `@Loskai` GitHub *username* is taken (use a GitHub **org**, not that handle).
+  Rejected alternative *Losen* — npm `losen` is an active React **wizard** framework (direct clash).
+- Mechanical: `FlytDokk`→`Loskai`, `flytdokk`→`loskai` (package/container), `FLYTDOKK_PASSWORD`→
+  `LOSKAI_PASSWORD` across all `*.md` + `docs/*.md`. Prose rewrites: `PLAN.md` etymology, `README.md` header/tagline.
+- **Not yet done**: repo directory is still `Flytdokk/`; GitHub org/repo, PyPI/npm names not yet claimed.
 
 ## 2026-07-13 — Testing strategy, co-located deployment, plan review
 
-Settled the second pre-build cross-cutting concern — how FlytDokk gets verified given its
+Settled the second pre-build cross-cutting concern — how Loskai gets verified given its
 real side effects — then did a full plan review pass and fixed the discrepancies it surfaced.
 With this, both pre-build items (security, testing) are closed and the plan is build-ready.
 
 - Key files: `PLAN.md` (Testing & CI, Co-located port notes, compose/diagram fixes), `TODO.md` (Phases 1, 7, 8b)
-- **Testing principle**: test the logic FlytDokk owns, mock the systems it talks to,
+- **Testing principle**: test the logic Loskai owns, mock the systems it talks to,
   rig/hand-verify the irreversible side effects — never test `httpx`/`docker-py`. Relies on
   the `client.py` (I/O) vs pure-logic seam the modules already keep
 - **Three tiers**: unit tests (`pytest`) on pure logic incl. the AdGuard reconcile; client
@@ -21,14 +36,14 @@ With this, both pre-build items (security, testing) are closed and the plan is b
 - **CI**: Forgejo Actions (`.forgejo/workflows/ci.yml`, GitHub-compatible) runs `pytest` +
   `vitest` on push; one-time `act_runner` registration
 - **Plan review**: fixed a real gap (compose didn't pass `STACKS_DIR` into the container, so a
-  custom path would mismatch the mount) plus nits — `FLYTDOKK_PASSWORD` missing from the compose
+  custom path would mismatch the mount) plus nits — `LOSKAI_PASSWORD` missing from the compose
   env, two broken `caddy-api.md` links, the "co-located" term drifting between "Caddy only" and
   "Caddy + AdGuard", a dead `PORT` env, a redundant Vision paragraph, and two misaligned ASCII
   diagrams
 
 ## 2026-07-12 — Access model + frontend design: gated admin, Lutris-style shell
 
-Pinned down two cross-cutting concerns before implementation: FlytDokk's own security
+Pinned down two cross-cutting concerns before implementation: Loskai's own security
 posture and the frontend layout. The security work replaced a single "add Caddy basicauth"
 line with a real two-tier model; the design work settled the navigation and view structure
 from four explicit choices.
@@ -37,11 +52,11 @@ from four explicit choices.
 - **Two-tier access, in-app auth**: a **public Dashboard** (launcher grid of non-private
   routed services, served by the one unauthenticated endpoint `GET /api/dashboard`) and an
   **admin tier** behind a single-password login. A blanket Caddy `basicauth` can't coexist
-  with a public dashboard, so auth moved *into* FlytDokk
+  with a public dashboard, so auth moved *into* Loskai
 - **The gate is server-side**: middleware (`shared/auth.py`) rejects every `/api/*` except the
   dashboard endpoint — load-bearing because the container-exec WebSocket is a root shell; the
   frontend `RequireAuth` is UX only. Single admin password, **no accounts**, hashed (argon2)
-  from `FLYTDOKK_PASSWORD` or first-run, signed `HttpOnly` session cookie. First-run locks the
+  from `LOSKAI_PASSWORD` or first-run, signed `HttpOnly` session cookie. First-run locks the
   admin until a password is set; the session secret is generated + persisted to the volume so
   sessions survive restarts
 - **Instance model gains `private`** (dashboard hide toggle) alongside `dns_answer`
@@ -56,16 +71,16 @@ from four explicit choices.
 ## 2026-07-11 — Install-wizard recipes: repo-synced declarative manifests
 
 Reworked the install wizard from "recipes defined in code, baked into the image" to
-declarative recipes FlytDokk validates but never executes — so adding or fixing a service
-is a file edit, not a FlytDokk rebuild. Landed the schema as a `docs/` contract rather than
+declarative recipes Loskai validates but never executes — so adding or fixing a service
+is a file edit, not a Loskai rebuild. Landed the schema as a `docs/` contract rather than
 building any authoring UI, keeping the module thin.
 
 - Key files: `docs/recipe-schema.md` (new), `PLAN.md` (Module 1 wizard + Stack Manager, Settings), `TODO.md` (Phases 2, 8), `README.md`
-- **Recipes are declarative data, never code**: FlytDokk validates each `recipe.yml` against
+- **Recipes are declarative data, never code**: Loskai validates each `recipe.yml` against
   a fixed schema and drives it with its own engine; a malformed recipe is skipped, never run.
   This is what makes syncing them from a repo safe
 - **Two sources, merged**: a public git repo you own (`RECIPES_REPO_URL`, canonical, synced
-  to a settings-volume cache, no auth) + a local `/opt/flytdokk/recipes/` dir (dev/testing
+  to a settings-volume cache, no auth) + a local `/opt/loskai/recipes/` dir (dev/testing
   scratchpad, same volume, no new mount). On a name clash the **repo wins**; the shadowed
   local copy is flagged. Sync is explicit ("Refresh recipes"), no background polling
 - **Recipe folder** = `recipe.yml` (manifest) + a standalone `compose.yml` (native `${VAR}`,
@@ -89,7 +104,7 @@ stack manager, filesystem-as-source-of-truth, and the container→instance join 
 - Key files: `PLAN.md` (Module 1, Settings table + `settings.json` shape), `TODO.md` (Phases 2, 8)
 - **`STACKS_DIR` pinned to the compose mount**: it drives the same-path bind mount, so the
   container only sees the directory mounted at launch — presenting it as a UI-editable
-  setting invited pointing FlytDokk at an unmounted host path (stacks vanish, writes land
+  setting invited pointing Loskai at an unmounted host path (stacks vanish, writes land
   where the host can't see them). Now compose/env-only, shown read-only in the UI, dropped
   from `settings.json`
 - **One `stacks_dir_ok()` existence check** guards the gap the empty-list signal missed —
@@ -97,18 +112,18 @@ stack manager, filesystem-as-source-of-truth, and the container→instance join 
   dir is absent instead of writing into the void; feeds `/api/health`. Distinguishes a broken
   mount from a genuinely empty stacks dir. No other validation logic — deliberately minimal
 - **`registry_pull` auth resolved**: private-registry `docker login` is a host precondition,
-  not FlytDokk's job — the daemon caches the credential, so the pull is identical to a public
-  one and FlytDokk stores no registry token (same principle as the ACME token living with Caddy)
+  not Loskai's job — the daemon caches the credential, so the pull is identical to a public
+  one and Loskai stores no registry token (same principle as the ACME token living with Caddy)
 - Also listed the `WS .../exec` interactive-terminal endpoint in the Docker router task
 - All four modules (Docker, Caddy, AdGuard, WireGuard) are now planning-complete
 
 ## 2026-07-10 — Caddy + AdGuard API contracts, wildcard drop, per-instance DNS tracking
 
 Hardened the two integration modules by pinning each to its real API and writing a
-`/docs` contract for the exact subset FlytDokk calls. Resolved the `srv0`/nested-Caddyfile
+`/docs` contract for the exact subset Loskai calls. Resolved the `srv0`/nested-Caddyfile
 conflict, reworked the AdGuard module around explicit per-instance rewrites (no wildcard),
 and made both modules read straight off `instances.json` — `@id` for Caddy, a new
-`dns_answer` field for AdGuard — so "what FlytDokk created" lives on the instance itself.
+`dns_answer` field for AdGuard — so "what Loskai created" lives on the instance itself.
 
 - Key files: `docs/caddy-api.md` (new), `docs/adguard-api.md` (new), `PLAN.md` (Module 2/3, Assign, Settings), `TODO.md` (Phases 3–4, 6)
 - **Caddy contract**: flat sibling routes in one server (name discovered, never hardcoded `srv0`); bootstrap Caddyfile is cert-only (wildcard TLS block, no routes); edit = delete-then-add (PATCH errors if absent); autosave + `--resume` is the restart path, "Push all" the backstop. Certificate Status **deferred** — Admin API doesn't expose the public cert; captured a TLS-probe approach for later
@@ -132,7 +147,7 @@ lives in data we track anyway.)
 - **Instance model**: `{ id, name, type: "docker"|"external", subdomain, upstream, container }`,
   stored as one flat `instances.json` in the settings volume — **no database**. A Docker
   container and an external LAN service (Proxmox, NAS, any IP:port) are the same structure,
-  different `type`. Created manually or auto (via a `flytdokk.subdomain` container label)
+  different `type`. Created manually or auto (via a `loskai.subdomain` container label)
 - **Routes are a projection**: the route table = instances that have a `subdomain`. No
   enable/disable — a route exists or it doesn't. `id` = Caddy `@id` (idempotent push/delete)
 - Runtime container state (status/CPU/RAM) is never stored — read live from Docker and
@@ -141,18 +156,18 @@ lives in data we track anyway.)
   "Push all to Caddy" rebuilds every route from `instances.json` as the backstop. No
   reconcile/drift loop
 - Caddyfile export: rendered from the instance list (download / copy), also the manual backup
-- Ownership rule: FlytDokk only manages routes whose `@id` matches an instance — the static
-  bootstrap routes (FlytDokk, AdGuard) in the Caddyfile are never touched
+- Ownership rule: Loskai only manages routes whose `@id` matches an instance — the static
+  bootstrap routes (Loskai, AdGuard) in the Caddyfile are never touched
 - Domain model: one global `BASE_DOMAIN` (e.g. `example.no`) + per-service single-label
   prefix = FQDN. Decoupled from DuckDNS (cert method is an LXC 101 concern); renamed
-  `DUCKDNS_DOMAIN` → `BASE_DOMAIN`. **No env var is required by FlytDokk** — this supersedes
+  `DUCKDNS_DOMAIN` → `BASE_DOMAIN`. **No env var is required by Loskai** — this supersedes
   the earlier "`DUCKDNS_TOKEN` is the only required env var" note
 - Flagged for verification: Caddy cert-expiry may not be reachable via the Admin API
   (CertStatus at risk); `registry_pull` recipes still need registry-credential handling
 
 ## 2026-06-23 — Project planning and architecture
 
-Defined the full scope and architecture of FlytDokk in a planning session.
+Defined the full scope and architecture of Loskai in a planning session.
 The core purpose is two-fold: a single UI for assigning clean HTTPS names to any
 LAN service (Docker container, NAS, Proxmox, etc.) via Caddy + AdGuard, and a
 personal install wizard for spinning up self-hosted services using curated,

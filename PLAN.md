@@ -1,11 +1,12 @@
-# FlytDokk — Project Plan
+# Loskai — Project Plan
 
 ## Vision
 
 A single Docker container that acts as the control plane for your entire homelab.
 
-> **FlytDokk** — from Norwegian *flyt* (flow) and *dokk* (dock).
-> *Deploy, route, done.*
+> **Loskai** — from Norwegian *los* (the harbor pilot who steers ships safely to berth)
+> and *kai* (quay/dock, where containers are loaded).
+> *Safe passage for your Docker deployments.*
 It has four independent modules — Docker, Caddy, AdGuard, and WireGuard — each of
 which works on its own. You can use just the Docker manager without touching AdGuard.
 You can manage Caddy routes without the Docker manager open. Nothing depends on
@@ -13,7 +14,7 @@ another module being healthy to function.
 
 ### The core idea — name any service on your LAN
 
-FlytDokk + Caddy + AdGuard together let you assign a clean, memorable HTTPS name
+Loskai + Caddy + AdGuard together let you assign a clean, memorable HTTPS name
 to **any service on your network** — not just Docker containers.
 
 ```
@@ -30,7 +31,7 @@ Your service (any IP:port on the LAN)
 ```
 
 Any service on your LAN gets a clean HTTPS name. You configure it in one place —
-FlytDokk's Assign URL form — and it sets up both the Caddy route and the AdGuard
+Loskai's Assign URL form — and it sets up both the Caddy route and the AdGuard
 DNS rewrite in a single action.
 
 ---
@@ -51,7 +52,7 @@ Proxmox Host
 │
 └── LXC 103 (or VM) — Docker Host              192.168.10.100
     Runs: Docker Engine
-    └── flytdokk      ← the thing we are building
+    └── loskai      ← the thing we are building
     └── your app containers  ← grafana, nextcloud, etc.
 ```
 
@@ -59,7 +60,7 @@ Proxmox Host
 
 ## Application Overview
 
-The FlytDokk is one Docker image that serves a web UI.
+The Loskai is one Docker image that serves a web UI.
 Internally it is split into four modules. Each module has:
 
 - Its own backend service class (isolated API client)
@@ -69,7 +70,7 @@ Internally it is split into four modules. Each module has:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                             FlytDokk                             │
+│                             Loskai                             │
 │                      (single Docker image)                       │
 │                                                                  │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐      │
@@ -99,7 +100,7 @@ Internally it is split into four modules. Each module has:
 
 ## Core Data Model — Instances
 
-FlytDokk's one persistent domain object is the **instance**: a named service it knows
+Loskai's one persistent domain object is the **instance**: a named service it knows
 about. A Docker container and an external LAN service are just two `type`s of the same
 structure, so they live in a single list that the Docker Manager and the Caddy routing
 view both read.
@@ -126,14 +127,14 @@ view both read.
 
 **What is stored vs. live:**
 - The instance list holds only **intent** — subdomain, upstream, and external targets.
-  It is a flat JSON file, `/opt/flytdokk/instances.json`, in the settings volume
+  It is a flat JSON file, `/opt/loskai/instances.json`, in the settings volume
   (same pattern as `settings.json`; no database).
 - **Runtime state** (container status, CPU, RAM, ports) is never stored — it is read
   live from the Docker socket and **joined in at display time** via `container`. This
   keeps the store from ever drifting out of sync with reality.
 
 **How instances are created:**
-- **Automatically** — on container discovery, a `flytdokk.subdomain=<prefix>` label
+- **Automatically** — on container discovery, a `loskai.subdomain=<prefix>` label
   auto-creates / updates a docker instance (see Phase 9 label auto-discovery).
 - **Manually** — added through the UI, either a docker instance or an external one.
 - **Seeded** — on first run, if `ADGUARD_URL` is set to a valid target and no AdGuard
@@ -142,11 +143,11 @@ view both read.
   the old hand-written Caddyfile route). Seeding is **create-if-absent, once** — after that
   the AdGuard instance is a completely ordinary `external` instance: rename its subdomain,
   edit its upstream, or delete it, and the change sticks (it is never re-asserted on later
-  boots). FlytDokk's own UI needs no seeding: it is a normal container on the Docker host,
+  boots). Loskai's own UI needs no seeding: it is a normal container on the Docker host,
   discovered as a plain `docker` instance like any other — no special-casing.
 
 Both paths write to the same list, and Caddy routes + the Caddyfile export are both
-rendered from it. Because FlytDokk and AdGuard are ordinary instances, they carry no
+rendered from it. Because Loskai and AdGuard are ordinary instances, they carry no
 reserved status — the normal subdomain-uniqueness rule prevents collisions.
 
 ### How the instance list connects the modules
@@ -215,13 +216,13 @@ A browser front-end over `docker compose` — the same thing as SSH-ing in and r
 compose by hand, minus the SSH. It runs the real `docker compose` CLI against the host
 daemon; it invents no new deployment method.
 
-- **One directory, one variable.** FlytDokk watches exactly one directory, `STACKS_DIR`
+- **One directory, one variable.** Loskai watches exactly one directory, `STACKS_DIR`
   (default `/opt/stacks`). Every immediate subdirectory with a `compose.yml` is a stack.
   There is no separate "manual" vs "managed" location — a stack is *managed* purely by
   virtue of living in `STACKS_DIR`.
-- **The filesystem is the only source of truth.** FlytDokk keeps no database of stacks.
+- **The filesystem is the only source of truth.** Loskai keeps no database of stacks.
   Editing a file in the browser and editing it over SSH touch the same file — the two are
-  fully interchangeable, and FlytDokk never locks or "owns" a stack. SSH stays a
+  fully interchangeable, and Loskai never locks or "owns" a stack. SSH stays a
   first-class equal, never a hidden lock-in.
 - View all stacks with current status (up / down / partial), computed by matching the
   `com.docker.compose.project` label on running containers against the declared services.
@@ -235,7 +236,7 @@ daemon; it invents no new deployment method.
 
 > **Same-path mount (important).** `STACKS_DIR` must be bind-mounted at the **same path**
 > inside the container as on the host (`${STACKS_DIR}:${STACKS_DIR}`), not remapped to a
-> different path. FlytDokk's compose CLI resolves bind-mount paths and hands them to the
+> different path. Loskai's compose CLI resolves bind-mount paths and hands them to the
 > host daemon, so the in-container path must equal the host path or volumes get created in
 > the wrong place. See the compose file below.
 
@@ -245,20 +246,20 @@ daemon; it invents no new deployment method.
 - **Recipes are never baked into the image** — they come from two sources, both scanned the
   same way and merged into one list:
   - **A public git repo you own** (`RECIPES_REPO_URL`) — the canonical, most up-to-date
-    library. FlytDokk syncs it (a plain `git clone`/`pull` — public, so no auth) into a cache
-    in the settings volume. Adding or fixing a service is a push to that repo, no FlytDokk
+    library. Loskai syncs it (a plain `git clone`/`pull` — public, so no auth) into a cache
+    in the settings volume. Adding or fixing a service is a push to that repo, no Loskai
     rebuild. If the repo is unreachable, the last-synced cache still renders. Sync is explicit:
     a "Refresh recipes" action (and optionally once on startup), no background polling.
-  - **A local directory** in the settings volume (`/opt/flytdokk/recipes/`) — a dev/testing
+  - **A local directory** in the settings volume (`/opt/loskai/recipes/`) — a dev/testing
     scratchpad for private or in-progress manifests, always available with no network. No new
-    mount: it lives in the same `flytdokk-settings` volume as `settings.json`.
+    mount: it lives in the same `loskai-settings` volume as `settings.json`.
   - Both are optional — have one, the other, or both. On a **name clash the repo wins** (it is
     the maintained source, most likely current); the shadowed local copy is **flagged** in the
     list so it is never silently hidden. To test a variant of an existing recipe locally, give
     it a distinct name so it does not collide.
-- **A recipe is declarative data, never executable code.** FlytDokk validates each recipe
+- **A recipe is declarative data, never executable code.** Loskai validates each recipe
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
-  code. A malformed recipe fails validation and is skipped; it can't push FlytDokk outside
+  code. A malformed recipe fails validation and is skipped; it can't push Loskai outside
   its three known install paths.
 - The `recipe.yml` schema is documented in [docs/recipe-schema.md](docs/recipe-schema.md) —
   the contract to author against (by hand or with an AI coder); there is no authoring UI.
@@ -275,7 +276,7 @@ daemon; it invents no new deployment method.
   secrets (passwords), so it is written into the stack directory at install time from your
   wizard answers — never committed. `docker compose` then substitutes `${VAR}` from it
   automatically, so there is no templating engine and the compose file stays a genuine
-  compose file. (The only substitution FlytDokk does itself is the `directories` paths, since
+  compose file. (The only substitution Loskai does itself is the `directories` paths, since
   it runs the `mkdir` before compose does.)
 - Wizard steps per recipe:
   1. Show what will be created (directory, compose, the env vars it will ask for)
@@ -301,7 +302,7 @@ daemon; it invents no new deployment method.
    - Recommended pattern for your own personal apps: build once, push to Gitea, deploy anywhere
    - **Registry auth is a host precondition**: run `docker login <gitea-registry>` once on
      the Docker host and the daemon caches it, so the pull is identical to a public one.
-     FlytDokk stores no registry credential — same principle as the ACME token living with
+     Loskai stores no registry credential — same principle as the ACME token living with
      Caddy, not here
 
 **Interactive Terminal**
@@ -393,7 +394,7 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 **Route List**
 - Every instance that has a subdomain, in a clean table (this is the route table)
 - Each row: subdomain → upstream (host:port), synced + live status, delete
-- **Synced status** — FlytDokk fetches Caddy's live routes (`GET …/routes`) and checks each
+- **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
   instance's `@id` against them. Present = synced; missing = not pushed (offer "Push all").
   This is a **read-only comparison for display only** — it never auto-corrects, so it can't
   reintroduce a drift/reconcile loop.
@@ -413,7 +414,7 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   - Docker container: `192.168.10.100:3000`  (port must be exposed on the host)
   - LAN device:       `192.168.10.50:5000`
   - Proxmox:          `192.168.10.10:8006`
-  - FlytDokk itself:  `192.168.10.100:8080`
+  - Loskai itself:  `192.168.10.100:8080`
 - One click (`POST /api/assign`) → Caddy route created (required), HTTPS live immediately;
   the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
   if AdGuard is unhealthy — the name won't resolve on the LAN until the rewrite is added,
@@ -431,7 +432,7 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 **Caddyfile Export**
 - Generates a complete, runnable Caddyfile from the instance list (every instance
   that has a subdomain)
-- Rendered from FlytDokk's own model, NOT from Caddy's JSON — Caddy adapts
+- Rendered from Loskai's own model, NOT from Caddy's JSON — Caddy adapts
   Caddyfile → JSON but has no JSON → Caddyfile converter
 - Includes the wildcard TLS block + `admin` block (templated from `BASE_DOMAIN`),
   so the output is directly usable — e.g. to bootstrap the co-located / all-in-one setups
@@ -467,7 +468,7 @@ upstream input hint in the Assign URL modal accordingly:
 
 Routes are not stored as their own thing. A route is simply an **instance** (see
 [Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
-Caddy live config is a **projection** of "every instance with a subdomain" — FlytDokk
+Caddy live config is a **projection** of "every instance with a subdomain" — Loskai
 pushes those to Caddy via the Admin API by `id` (= Caddy `@id`). The exact endpoints are
 documented in [`docs/caddy-api.md`](docs/caddy-api.md).
 
@@ -484,11 +485,11 @@ documented in [`docs/caddy-api.md`](docs/caddy-api.md).
 - **Persistence is automatic.** Caddy autosaves its full config to disk after *every* API
   change and runs with `caddy run --resume`, so it restores that autosave on start. A
   normal LXC / Proxmox reboot or Caddy restart brings every route back with **no action
-  from FlytDokk**.
+  from Loskai**.
 - **Backstop:** the instance list (`instances.json`) is the durable record. "Push all to
   Caddy" re-creates every route from it — but only needed in the rare case where Caddy's
   autosave itself is gone (fresh Caddy, wiped data dir), not on a normal reboot.
-- **Ownership rule:** FlytDokk manages every route whose `@id` matches an instance — which
+- **Ownership rule:** Loskai manages every route whose `@id` matches an instance — which
   now includes its own UI and AdGuard, since both are ordinary instances. The bootstrap
   Caddyfile defines **no** routes of its own; any route a human adds directly to Caddy
   without a matching instance `@id` is simply left alone by the per-route push.
@@ -531,7 +532,7 @@ GET  /api/caddy/upstreams        upstream health from caddy
 
 ### Purpose
 Lightweight companion to AdGuard — not a replacement for its UI. It only covers what's
-relevant to FlytDokk: keeping DNS rewrites in sync with the routed instances (those with a
+relevant to Loskai: keeping DNS rewrites in sync with the routed instances (those with a
 `subdomain`) and linking out to AdGuard for everything else.
 
 ### Model
@@ -541,7 +542,7 @@ answer is the Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fall
 that's a hostname), the same for every rewrite. Every write is a single add or exact-pair
 delete (the API has no bulk op), so **manually-added rewrites are never touched** — a
 hand-added entry on the same domain is surfaced as a conflict, not overwritten. Each
-instance records the answer FlytDokk last wrote for it (`dns_answer`), so if the Caddy IP
+instance records the answer Loskai last wrote for it (`dns_answer`), so if the Caddy IP
 ever changes a re-push deletes each instance's old entry and re-adds the new one — cleaning
 its own orphans while leaving anything it never set alone. Rationale and edge cases are in
 [docs/adguard-api.md](docs/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
@@ -563,7 +564,7 @@ stays.)
   manual add is available but not the main flow
 
 **Sync with the instance list**
-- AdGuard is its own source of truth for rewrites — FlytDokk reads them straight from
+- AdGuard is its own source of truth for rewrites — Loskai reads them straight from
   AdGuard and shows which instances have a matching rewrite (read-only comparison, never
   auto-corrected)
 - "Push all" best-effort re-adds any missing rewrites for instances that have a subdomain
@@ -641,7 +642,7 @@ This is the one place where modules coordinate. When a user assigns a URL
 
 ```
 User: enters prefix "grafana" → upstream 192.168.10.100:3000
-      (FlytDokk assembles grafana + BASE_DOMAIN = grafana.example.no)
+      (Loskai assembles grafana + BASE_DOMAIN = grafana.example.no)
 
 Step 0 — Persist intent (REQUIRED)
   Set subdomain="grafana" + upstream on the instance and save instances.json
@@ -685,7 +686,7 @@ instance itself survives — it just no longer has a route.
 - No database — persistent state is two flat JSON files (`settings.json`, `instances.json`)
 
 ```
-backend/src/flytdokk/
+backend/src/loskai/
 ├── main.py                  FastAPI app, registers routers, serves static files last
 ├── config.py                pydantic-settings: validates all env vars on startup
 ├── modules/
@@ -800,7 +801,7 @@ RUN uv sync --frozen --no-dev
 COPY backend/src ./src
 COPY --from=frontend /app/dist ./static
 EXPOSE 8080
-CMD ["uv", "run", "uvicorn", "flytdokk.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uv", "run", "uvicorn", "loskai.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 ---
@@ -808,15 +809,15 @@ CMD ["uv", "run", "uvicorn", "flytdokk.main:app", "--host", "0.0.0.0", "--port",
 ## Docker Compose (LXC 103 — Docker Host)
 
 Caddy is not a Docker container in the preferred setup — it runs natively on LXC 101.
-Only FlytDokk and your app containers run here.
+Only Loskai and your app containers run here.
 
 ```yaml
 services:
 
-  flytdokk:
-    image: ghcr.io/youruser/flytdokk:latest
+  loskai:
+    image: ghcr.io/youruser/loskai:latest
     # build: .                 # use this during development
-    container_name: flytdokk
+    container_name: loskai
     ports:
       - "8080:8080"
     volumes:
@@ -824,7 +825,7 @@ services:
       # Same path inside and out — the compose CLI hands bind paths to the host daemon,
       # so in-container path must equal host path or stack volumes land in the wrong place
       - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
-      - ./flytdokk-settings:/opt/flytdokk   # persists settings.json + instances.json
+      - ./loskai-settings:/opt/loskai   # persists settings.json + instances.json
     environment:
       # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
       - CADDY_ADMIN_URL=http://192.168.10.101:2019
@@ -839,11 +840,11 @@ services:
 
       # General (optional — can be set in UI settings page instead)
       - BASE_DOMAIN=${BASE_DOMAIN}          # e.g. example.no
-      - FLYTDOKK_PASSWORD=${FLYTDOKK_PASSWORD}   # guards the admin UI (or set at first run)
-      # Must equal the bind mount above so FlytDokk scans the same path that's mounted
+      - LOSKAI_PASSWORD=${LOSKAI_PASSWORD}   # guards the admin UI (or set at first run)
+      # Must equal the bind mount above so Loskai scans the same path that's mounted
       - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
       # Note: the ACME/DNS-challenge token (DuckDNS, Cloudflare, …) lives on LXC 101
-      # in Caddy's environment — FlytDokk never needs it
+      # in Caddy's environment — Loskai never needs it
     restart: unless-stopped
 ```
 
@@ -853,9 +854,9 @@ services:
 
 ### HTTPS and the wildcard cert — out of scope for the app
 
-FlytDokk only needs to know the `BASE_DOMAIN` string (e.g. `example.no`). *How* the
+Loskai only needs to know the `BASE_DOMAIN` string (e.g. `example.no`). *How* the
 wildcard `*.BASE_DOMAIN` cert is obtained is a one-time LXC 101 infrastructure step and
-has no impact on FlytDokk's application code — Caddy's Admin API works identically
+has no impact on Loskai's application code — Caddy's Admin API works identically
 regardless of the cert method.
 
 The ACME DNS challenge provider depends on your domain:
@@ -879,15 +880,15 @@ xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy   # swa
 
 Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy autosaves
 its full config to disk after every Admin API change, `--resume` restores every route on
-restart with no action from FlytDokk — this is the normal reboot path. "Push all to Caddy"
+restart with no action from Loskai — this is the normal reboot path. "Push all to Caddy"
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
 autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](docs/caddy-api.md).
 
-### Caddyfile (bootstrap only — all routes come from FlytDokk via the Admin API)
+### Caddyfile (bootstrap only — all routes come from Loskai via the Admin API)
 
 The bootstrap Caddyfile defines **no routes at all** — only the admin endpoint and the
 wildcard cert. The wildcard site block exists solely to obtain the `*.BASE_DOMAIN` cert; it
-has no handlers, so it is not a routing catch-all. Every route, including FlytDokk's own UI
+has no handlers, so it is not a routing catch-all. Every route, including Loskai's own UI
 and AdGuard, is a specific-host route pushed at runtime from the instance list — they are
 all flat siblings reusing this one cert.
 
@@ -903,12 +904,12 @@ all flat siblings reusing this one cert.
     }
 }
 
-# No routes here. FlytDokk pushes every specific-host route (flytdokk, adguard,
+# No routes here. Loskai pushes every specific-host route (loskai, adguard,
 # grafana, …) at runtime via the Admin API, each reusing the wildcard cert above.
 ```
 
 > **Cold-start recovery.** On a brand-new Caddy with an empty autosave, no routes exist yet,
-> so `flytdokk.{$BASE_DOMAIN}` doesn't resolve. Reach FlytDokk directly at
+> so `loskai.{$BASE_DOMAIN}` doesn't resolve. Reach Loskai directly at
 > `http://192.168.10.100:8080` and click **"Push all to Caddy"** — that seeds every route,
 > including its own. After that, autosave + `--resume` keep them across restarts.
 
@@ -920,22 +921,22 @@ The preferred setup runs Caddy natively on LXC 101 alongside AdGuard. Two simple
 alternatives exist and will have their own install instructions:
 
 - **Co-located (all-in-Docker)** — Caddy *and* AdGuard run as Docker containers on the
-  Docker host alongside FlytDokk (`docker-compose.colocated.yml`), for setups without a
+  Docker host alongside Loskai (`docker-compose.colocated.yml`), for setups without a
   separate LXC 101. The Tier-3 test rig is a disposable variant of this same stack.
-- **All-in-one** — AdGuard, Caddy, and FlytDokk all on a single LXC (native services on one box)
+- **All-in-one** — AdGuard, Caddy, and Loskai all on a single LXC (native services on one box)
 
 ### Co-located port notes
 
-The three FlytDokk services do **not** conflict with each other — Docker containers only
-contend for ports they *publish to the host*, and container-to-container traffic (FlytDokk →
-`caddy:2019`, FlytDokk → `adguard:3000`) stays on the internal network. The only conflicts
+The three Loskai services do **not** conflict with each other — Docker containers only
+contend for ports they *publish to the host*, and container-to-container traffic (Loskai →
+`caddy:2019`, Loskai → `adguard:3000`) stays on the internal network. The only conflicts
 are with the **host OS**, and there are two:
 
 | Service | Host-published | Internal-only |
 |---|---|---|
-| Caddy | `80`, `443` (entry point) | `2019` (admin — FlytDokk reaches it as `caddy:2019`) |
+| Caddy | `80`, `443` (entry point) | `2019` (admin — Loskai reaches it as `caddy:2019`) |
 | AdGuard | `53/tcp+udp` (DNS) | `3000` (UI/API — via `adguard:3000` or proxied through Caddy) |
-| FlytDokk | `8080` (optional — usually reached through Caddy) | — |
+| Loskai | `8080` (optional — usually reached through Caddy) | — |
 
 1. **AdGuard `:53` vs the host resolver.** Most Linux hosts run `systemd-resolved` on port
    53, so AdGuard can't bind it. Free port 53 (disable/reconfigure `systemd-resolved`) or
@@ -956,7 +957,7 @@ All service connection settings can be configured in two ways — both are optio
 
 ### Priority chain (highest to lowest)
 1. **Environment variable** — set in `.env` or compose file, read on startup, takes precedence
-2. **UI settings page** — configured in FlytDokk's settings page, persisted to `settings.json`
+2. **UI settings page** — configured in Loskai's settings page, persisted to `settings.json`
 3. **Unset** — module shows "not configured" and links to the settings page
 
 This means you can skip the `.env` entirely and configure the service connections
@@ -975,19 +976,19 @@ file only and is shown read-only in the UI; see the table below.)
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks`. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
-| Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL FlytDokk syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
-| FlytDokk admin password | `FLYTDOKK_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
+| Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL Loskai syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
+| Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
 The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
-LXC 101 — FlytDokk never needs it. In the co-located alternative (Caddy as Docker
-container), it would be passed to the Caddy container, not to FlytDokk. **No env var
-is required by FlytDokk itself** — everything can be configured via the settings page
+LXC 101 — Loskai never needs it. In the co-located alternative (Caddy as Docker
+container), it would be passed to the Caddy container, not to Loskai. **No env var
+is required by Loskai itself** — everything can be configured via the settings page
 on first run.
 
 ### Settings persistence
 
-Settings are stored in `/opt/flytdokk/settings.json` inside the container,
+Settings are stored in `/opt/loskai/settings.json` inside the container,
 backed by a mounted volume (the same volume also holds `instances.json`). Env-var-set
 values are shown as read-only in the UI with a "set via environment" indicator — they
 cannot be overridden from the UI.
@@ -995,7 +996,7 @@ cannot be overridden from the UI.
 ```yaml
 # docker-compose.yml (settings volume)
 volumes:
-  - ./flytdokk-settings:/opt/flytdokk
+  - ./loskai-settings:/opt/loskai
 ```
 
 ### settings.json shape
@@ -1008,7 +1009,7 @@ volumes:
   "wireguard_dashboard_url": "http://192.168.10.102:51821",
   "base_domain": "example.no",
   "caddy_host_ip": "192.168.10.101",
-  "recipes_repo_url": "https://github.com/you/flytdokk-recipes",
+  "recipes_repo_url": "https://github.com/you/loskai-recipes",
   "admin_password_hash": "$argon2id$..."   // set at first run; never returned by GET /api/settings
 }
 ```
@@ -1024,14 +1025,14 @@ PUT  /api/settings        update stored settings (env-sourced values ignored)
 # The ACME/DNS-challenge token is set on LXC 101 (Caddy's environment), not here
 
 BASE_DOMAIN=example.no
-FLYTDOKK_PASSWORD=changeme     # guards the admin UI; or set it at first run
+LOSKAI_PASSWORD=changeme     # guards the admin UI; or set it at first run
 CADDY_ADMIN_URL=http://192.168.10.101:2019
 ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 STACKS_DIR=/opt/stacks
-# RECIPES_REPO_URL=https://github.com/you/flytdokk-recipes   # public repo the install wizard syncs recipes from
+# RECIPES_REPO_URL=https://github.com/you/loskai-recipes   # public repo the install wizard syncs recipes from
 # CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
 ```
 
@@ -1077,25 +1078,25 @@ TODO.md is the authoritative source for what to build and in what order.
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
 | Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Push all to Caddy" rebuilds from `instances.json` only if the autosave itself is lost |
-| FlytDokk container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
+| Loskai container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
 
-**Core property:** FlytDokk is never in the data path.
-Caddy routes traffic. AdGuard resolves DNS. FlytDokk only configures them.
-If FlytDokk is down, all services keep running exactly as before.
+**Core property:** Loskai is never in the data path.
+Caddy routes traffic. AdGuard resolves DNS. Loskai only configures them.
+If Loskai is down, all services keep running exactly as before.
 
 ---
 
 ## Security & Access
 
-FlytDokk is the highest-privilege service in the homelab — it holds the Docker socket
+Loskai is the highest-privilege service in the homelab — it holds the Docker socket
 (root-equivalent on the host), the Caddy Admin API, and AdGuard credentials. Its own access
 model is therefore a first-class concern, not a polish-phase afterthought.
 
 ### Two tiers, one in-app gate
 
-The UI is split in two, so authentication lives **inside FlytDokk** (not a blanket Caddy
+The UI is split in two, so authentication lives **inside Loskai** (not a blanket Caddy
 `basicauth`, which would also lock the public dashboard):
 
 - **Public tier — the Dashboard.** A launcher: a grid of cards for the non-private routed
@@ -1119,36 +1120,36 @@ actual guard.
 
 - **One admin password** — no users, no roles. A `POST /api/login` verifies it and issues a
   signed, `HttpOnly`, `SameSite` session cookie; `POST /api/logout` clears it.
-- The password is set via `FLYTDOKK_PASSWORD` (env) or at first run, and stored **hashed**
-  (argon2/bcrypt) — never plaintext. Unlike the AdGuard password (which FlytDokk must replay
-  verbatim to AdGuard), FlytDokk's own password only needs verifying, so it is only ever
+- The password is set via `LOSKAI_PASSWORD` (env) or at first run, and stored **hashed**
+  (argon2/bcrypt) — never plaintext. Unlike the AdGuard password (which Loskai must replay
+  verbatim to AdGuard), Loskai's own password only needs verifying, so it is only ever
   stored as a hash.
 - **Known tradeoff (deliberate):** the public dashboard reveals that the non-private services
   exist and lets anyone on the LAN/WireGuard click through to them (each service keeps its own
-  auth). The `private` per-instance flag hides a service from the dashboard; FlytDokk being
+  auth). The `private` per-instance flag hides a service from the dashboard; Loskai being
   LAN-only (remote access via WireGuard) is the outer boundary.
 
 ### Infrastructure boundaries
 
 - **Caddy Admin API** — port 2019 on LXC 101 must be firewalled so only LXC 103
   (192.168.10.100) can reach it. Never expose it to the wider network.
-- **Docker socket** — mounted read-write (required for container management). FlytDokk should
+- **Docker socket** — mounted read-write (required for container management). Loskai should
   be the only container with socket access.
 - **AdGuard API** — port 3000 on LXC 101. A Proxmox firewall rule so only LXC 103's IP can
   reach it.
-- **Reachability** — FlytDokk is only served on the LAN via `flytdokk.{BASE_DOMAIN}` over
+- **Reachability** — Loskai is only served on the LAN via `loskai.{BASE_DOMAIN}` over
   HTTPS; remote access is through WireGuard, never a public port.
-- **Secrets** — service credentials and `FLYTDOKK_PASSWORD` live in `.env` (or the settings
-  page), never committed. FlytDokk's own password is stored only as a hash.
+- **Secrets** — service credentials and `LOSKAI_PASSWORD` live in `.env` (or the settings
+  page), never committed. Loskai's own password is stored only as a hash.
 
 ---
 
 ## Testing & CI
 
-FlytDokk is glue and logic around systems it should not touch in a test (a live Caddy,
+Loskai is glue and logic around systems it should not touch in a test (a live Caddy,
 AdGuard, the Docker daemon). The strategy follows one line:
 
-> **Test the logic FlytDokk owns. Mock the systems it talks to. Verify the irreversible
+> **Test the logic Loskai owns. Mock the systems it talks to. Verify the irreversible
 > side effects with a disposable rig or by hand. Never test `httpx`/`docker-py` themselves.**
 
 This only works because of the **`client.py` (I/O) vs logic (pure functions) seam** the
@@ -1161,7 +1162,7 @@ network. That seam is a testability requirement, held strictly everywhere.
   `dns_answer` orphan migration, manual-conflict detection — the trickiest code in the app),
   answer-IP derivation, recipe-manifest validation, and auth (hash/verify, session sign).
 - **Tier 2 — client contract tests (`pytest-httpx`).** Mock the Caddy/AdGuard HTTP responses
-  using the shapes from `docs/*-api.md`; assert the *request* FlytDokk builds and that it
+  using the shapes from `docs/*-api.md`; assert the *request* Loskai builds and that it
   *parses* responses right, including the designed edges (delete-by-exact-pair, 404-ignored,
   `401`=reachable). These guard the API contracts against drift.
 - **Tier 3 — disposable integration rig.** `docker-compose.test.yml` spins up throwaway Caddy
@@ -1175,7 +1176,7 @@ network. That seam is a testability requirement, held strictly everywhere.
   `pytest` + `vitest` on every push and marks the commit pass/fail; a one-time `act_runner`
   registered on the Forgejo instance executes it. Portable to GitHub unchanged.
 
-The all-in-Docker **co-located deployment** (`docker-compose.colocated.yml`: FlytDokk + Caddy
+The all-in-Docker **co-located deployment** (`docker-compose.colocated.yml`: Loskai + Caddy
 + AdGuard as containers) doubles as the basis for the Tier-3 rig — and is itself a real
 alternative to the Proxmox/LXC topology for anyone not running Proxmox.
 
@@ -1187,7 +1188,7 @@ alternative to the Proxmox/LXC topology for anyone not running Proxmox.
 - **Certificate Status** — surface the wildcard cert's expiry, issuer, and days remaining.
   Caddy's Admin API can't provide this (PKI endpoints cover only the internal `local` CA,
   not the public ACME cert), so implement it as a **TLS probe**: open a TLS connection to a
-  routed name (e.g. `flytdokk.{BASE_DOMAIN}:443`), read the served certificate's `notAfter`
+  routed name (e.g. `loskai.{BASE_DOMAIN}:443`), read the served certificate's `notAfter`
   and issuer via Python's `ssl`. Host-independent, no Admin API dependency, reflects the
   live cert. Deferred until the core modules are done and functional.
 - **Notification module** — alert on container crash, cert expiry, AdGuard outage

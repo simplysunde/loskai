@@ -1,8 +1,8 @@
-# Migrating an Existing Project into a FlytDokk Stack
+# Migrating an Existing Project into a Loskai Stack
 
-FlytDokk's Stack Manager watches a single directory, `STACKS_DIR`, and treats each
+Loskai's Stack Manager watches a single directory, `STACKS_DIR`, and treats each
 immediate subfolder that contains a compose file as a managed stack. The filesystem is
-the source of truth — FlytDokk keeps no separate database — so "adopting" an existing
+the source of truth — Loskai keeps no separate database — so "adopting" an existing
 Docker Compose project is essentially just getting its folder into `STACKS_DIR`.
 
 This guide covers how to do that, and — just as importantly — when to leave a project
@@ -12,7 +12,7 @@ exactly where it is.
 
 ## Should you migrate a project at all?
 
-Migrating is **optional**. FlytDokk still *sees* every running container in the Container
+Migrating is **optional**. Loskai still *sees* every running container in the Container
 Overview regardless of where its compose file lives; migrating only changes whether the
 **Stack Manager** can start/stop/update/edit it as a unit.
 
@@ -25,7 +25,7 @@ restart by hand, and want to manage from the browser instead.
   `docker run` — there's no compose file to manage).
 - It's already managed by something else (a git repo you `git pull`, Ansible, Portainer).
   Two tools fighting over one directory is how you lose an evening.
-- It's on a different host than the Docker daemon FlytDokk talks to — FlytDokk is
+- It's on a different host than the Docker daemon Loskai talks to — Loskai is
   single-host.
 
 > Rule of thumb: migrate what you edit-and-restart by hand. Leave alone anything that's
@@ -72,14 +72,14 @@ bind-mount paths (for Immich, `UPLOAD_LOCATION` and `DB_DATA_LOCATION` in `.env`
 
 That decision is the only real work in a migration.
 
-**4. Make the compose file discoverable.** FlytDokk discovers stacks by the filename
+**4. Make the compose file discoverable.** Loskai discovers stacks by the filename
 **`compose.yml`**. If the project ships `docker-compose.yml`, rename it:
 
 ```bash
 mv /opt/stacks/immich/docker-compose.yml /opt/stacks/immich/compose.yml
 ```
 
-**5. Start it from FlytDokk.** The stack now appears in the Stack Manager — hit **up**.
+**5. Start it from Loskai.** The stack now appears in the Stack Manager — hit **up**.
 
 ---
 
@@ -107,5 +107,5 @@ Bind-mount paths are the only part of a compose project that cares *where the fo
 **Rollback** — if you used `cp` (Option B), the original folder is untouched: stop the
 copy, delete it, and start the original again. If you used `mv` (Option A), move the folder
 back to where it came from (renaming `compose.yml` to `docker-compose.yml` if you changed
-it) and bring it up. Nothing else needs undoing — FlytDokk stores no stack state of its
+it) and bring it up. Nothing else needs undoing — Loskai stores no stack state of its
 own.

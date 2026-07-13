@@ -12,14 +12,14 @@ directories exist; Phase 1 in `TODO.md` scaffolds them. The authoritative source
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/*.md`** — API contracts. Read the relevant one before touching that integration:
-  `caddy-api.md`, `adguard-api.md` (external API subsets FlytDokk calls), `recipe-schema.md`
+  `caddy-api.md`, `adguard-api.md` (external API subsets Loskai calls), `recipe-schema.md`
   (the install-wizard manifest format), `migration.md`.
 
 ## Intended commands (once Phase 1 scaffolds them)
 
 Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vite (in `frontend/`).
 
-- Backend dev server: `uv run uvicorn flytdokk.main:app --reload --port 8000`
+- Backend dev server: `uv run uvicorn loskai.main:app --reload --port 8000`
 - Frontend dev server: `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`)
 - Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
 - Frontend tests: `npm test` (Vitest)
@@ -58,7 +58,7 @@ login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *b
 independent modules.
 
 **Settings priority: env var > `settings.json` > unset**, each value tagged with its source.
-Everything is optional (configurable via UI or env). FlytDokk stores no third-party secret it
+Everything is optional (configurable via UI or env). Loskai stores no third-party secret it
 must replay except the AdGuard password; its *own* admin password is stored only as a hash.
 
 ## Invariants that are easy to violate
@@ -71,7 +71,7 @@ must replay except the AdGuard password; its *own* admin password is stored only
   rewrite per routed instance. (Caddy's wildcard *TLS cert* is a separate, unrelated concern.)
 - **Caddy routes are keyed by `@id` = the instance `id`; editing a route is delete-then-add,
   never `PATCH`.** The server name is discovered at startup — never hardcode `srv0`.
-- **FlytDokk never handles the ACME/DNS-challenge token or private-registry credentials** —
+- **Loskai never handles the ACME/DNS-challenge token or private-registry credentials** —
   those live with Caddy / the Docker host. Registry `docker login` is a host precondition.
 - **Recipes are declarative data, validated but never executed** — synced from a public git
   repo (+ a local dev dir); the `.env` is generated at install, never committed.

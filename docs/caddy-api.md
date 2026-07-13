@@ -1,17 +1,17 @@
-# Caddy Admin API — Endpoints FlytDokk Uses
+# Caddy Admin API — Endpoints Loskai Uses
 
-FlytDokk drives Caddy entirely through its [Admin API](https://caddyserver.com/docs/api)
+Loskai drives Caddy entirely through its [Admin API](https://caddyserver.com/docs/api)
 (default `:2019`, firewalled to the Docker host). It never edits the Caddyfile per change —
 the Caddyfile is a one-time bootstrap, and every route after that is a live API mutation.
 
 This document is the contract: the exact subset of the API the Caddy module calls, why,
-and what it sends. Anything not listed here, FlytDokk does not touch.
+and what it sends. Anything not listed here, Loskai does not touch.
 
 ---
 
 ## Data model recap
 
-Every route FlytDokk manages is a **flat, top-level route** in one HTTP server's `routes`
+Every route Loskai manages is a **flat, top-level route** in one HTTP server's `routes`
 array, keyed by `@id` = the instance's `id`. There is no nesting under a wildcard site
 block; each route is an independent sibling matching a single host. This is what makes the
 `@id` endpoints below idempotent — one `@id`, one route, add/replace/delete by that key.
@@ -29,7 +29,7 @@ hardcoded — see [Server name discovery](#server-name-discovery).
 GET /config/apps/http/servers
 ```
 
-Returns the servers object; FlytDokk reads its single key (e.g. `srv0`) and caches it as
+Returns the servers object; Loskai reads its single key (e.g. `srv0`) and caches it as
 `<server>` for the paths below. Done once on startup so nothing hardcodes `srv0`.
 
 ### 2. Add / assign a route
@@ -89,13 +89,13 @@ absent, which is irrelevant for a config change the user just initiated.
 ### 5. Push all — rebuild every route from `instances.json`
 
 Backstop for when Caddy has lost its config (fresh instance, wiped autosave). Rebuilds
-the full route set from FlytDokk's instance list. Two equivalent strategies:
+the full route set from Loskai's instance list. Two equivalent strategies:
 
 - **Per route:** `POST …/routes` for each instance that has a subdomain. Idempotent by
   `@id` — re-pushing an existing route replaces it rather than duplicating.
 - **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
   everything at once. Prefer the per-route loop so any human-added route with a non-instance
-  `@id` is left untouched (see [Ownership](#ownership--what-flytdokk-manages)).
+  `@id` is left untouched (see [Ownership](#ownership--what-loskai-manages)).
 
 ### 6. Read current routes / raw config
 
@@ -105,9 +105,9 @@ GET /config/                                      # full config (Raw Config View
 ```
 
 Used to render the read-only Raw Config View, and to compute each route's **synced**
-status: FlytDokk pulls the live route list and checks whether each instance's `@id` is
+status: Loskai pulls the live route list and checks whether each instance's `@id` is
 present. Present = synced; missing = not pushed. This is a **display-only comparison** —
-FlytDokk never auto-corrects a mismatch (that would be the drift/reconcile loop we
+Loskai never auto-corrects a mismatch (that would be the drift/reconcile loop we
 deliberately dropped); it just surfaces "Push all to Caddy" when something is missing.
 
 ### 7. Upstream health
@@ -126,7 +126,7 @@ route list.
 Caddy **autosaves the full config to disk after every API change** (unless disabled). The
 service runs with `caddy run --resume`, which reloads that autosave on start. So the
 normal recovery path — LXC reboot, Proxmox restart, Caddy crash + systemd restart — needs
-**no action from FlytDokk**: the routes come back from Caddy's own autosave.
+**no action from Loskai**: the routes come back from Caddy's own autosave.
 
 "Push all to Caddy" (endpoint #5) is the **rare-case** backstop, only for when the autosave
 itself is gone or stale: a freshly provisioned Caddy, a wiped data dir, a hand-reset
@@ -134,14 +134,14 @@ config. In that case `instances.json` is the durable record we rebuild from.
 
 ---
 
-## Ownership — what FlytDokk manages
+## Ownership — what Loskai manages
 
-FlytDokk manages every route whose `@id` matches an instance `id`. That now includes its
-own UI and AdGuard, since both are ordinary instances (FlytDokk is a discovered container;
+Loskai manages every route whose `@id` matches an instance `id`. That now includes its
+own UI and AdGuard, since both are ordinary instances (Loskai is a discovered container;
 AdGuard is a seeded `external` instance) rather than hand-written Caddyfile routes. The
 bootstrap Caddyfile defines **no routes** — only the admin endpoint and the wildcard cert.
 
-The only thing FlytDokk leaves alone is a route a human adds directly to Caddy with an
+The only thing Loskai leaves alone is a route a human adds directly to Caddy with an
 `@id` that matches no instance. The per-route "Push all" loop preserves such a route; a
 blunt `POST /load` would wipe it, which is one reason the loop is preferred.
 
@@ -149,13 +149,13 @@ blunt `POST /load` would wipe it, which is one reason the loop is preferred.
 
 ## Not used
 
-For clarity, endpoints FlytDokk deliberately does **not** call:
+For clarity, endpoints Loskai deliberately does **not** call:
 
 - `POST /stop` — never shuts Caddy down.
 - `PATCH /id/<id>` — editing is done as delete-then-add (endpoint #4), so PATCH is unused.
 - `PUT /config/...` (insert-at-index) — not needed; specific-host routes are
   order-independent, so append is always sufficient.
-- `POST /adapt` — FlytDokk renders its Caddyfile export from its own instance list, not by
+- `POST /adapt` — Loskai renders its Caddyfile export from its own instance list, not by
   round-tripping through Caddy (there is no JSON → Caddyfile converter anyway).
 - Cert / PKI endpoints (`GET /pki/...`) — confirmed dead end for our cert. The PKI
   endpoints cover only Caddy's internal `local` CA (returning PEM blobs, no structured

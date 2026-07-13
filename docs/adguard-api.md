@@ -1,15 +1,15 @@
-# AdGuard Home REST API — Endpoints FlytDokk Uses
+# AdGuard Home REST API — Endpoints Loskai Uses
 
-FlytDokk talks to AdGuard Home through its
+Loskai talks to AdGuard Home through its
 [REST API](https://github.com/AdguardTeam/AdGuardHome/blob/master/openapi/openapi.yaml)
 (the same API its own web UI is built on). All paths are under the `/control` base
 (so `ADGUARD_URL` = `http://192.168.10.101:3000`, and a call to "rewrite list" is
 `GET http://192.168.10.101:3000/control/rewrite/list`).
 
-FlytDokk is a **thin companion** to AdGuard, not a replacement for its UI. It touches
+Loskai is a **thin companion** to AdGuard, not a replacement for its UI. It touches
 exactly one feature area — **DNS rewrites** — plus a status probe. Everything else
 (query logs, blocklists, clients, DHCP, TLS, upstreams) is left to AdGuard's own UI,
-which FlytDokk links out to. This document is the contract: the subset we call, and why.
+which Loskai links out to. This document is the contract: the subset we call, and why.
 
 ---
 
@@ -19,7 +19,7 @@ The API's security scheme is HTTP **Basic Auth** (`basicAuth`, applied globally)
 request carries `Authorization: Basic <base64(user:password)>` from `ADGUARD_USER` /
 `ADGUARD_PASSWORD`. There is a cookie-based `POST /control/login` flow as well, but Basic
 Auth is per-request and stateless — no session to establish or refresh — so that is what
-FlytDokk uses.
+Loskai uses.
 
 ---
 
@@ -33,13 +33,13 @@ A DNS rewrite in AdGuard is a flat object (`RewriteEntry`):
 
 - **`domain`** — the name to intercept. Supports wildcards (`*.example.no`).
 - **`answer`** — the A/AAAA/CNAME value the name resolves to.
-- **`enabled`** — optional; omitted on add defaults to `true`. FlytDokk always omits it.
+- **`enabled`** — optional; omitted on add defaults to `true`. Loskai always omits it.
 
 Two things follow from this that shape the whole module:
 
 **1. A rewrite has no ID — its identity is the `(domain, answer)` pair.** There is no
 handle to address one by. `POST /control/rewrite/delete` takes the *full entry back*, not
-a key. So to delete a rewrite FlytDokk must reproduce both fields exactly.
+a key. So to delete a rewrite Loskai must reproduce both fields exactly.
 
 **2. `answer` is one shared value across all rewrites: the reverse-proxy (Caddy) IP.** DNS
 only resolves a *name to an address* — it does not know about ports. The `answer` is
@@ -57,7 +57,7 @@ host, so no separate setting is needed for the normal (LAN) deployment. The one 
 is the Docker co-located mode where `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`):
 a hostname yields no client-usable LAN IP, so that case falls back to an explicit setting.
 
-**There is no wildcard DNS rewrite.** FlytDokk creates **one explicit rewrite per routed
+**There is no wildcard DNS rewrite.** Loskai creates **one explicit rewrite per routed
 instance** and nothing catch-all. A name you have not assigned simply does not resolve
 locally — it falls through to public DNS. This is deliberate: a `*.example.no` rewrite
 would shadow the entire subdomain space locally and could hijack a real public name (say
@@ -65,7 +65,7 @@ would shadow the entire subdomain space locally and could hijack a real public n
 surgical and mirror the Caddy module, which already routes every instance as a specific
 host. (Separately, Caddy still uses a wildcard *TLS certificate* to get valid HTTPS for
 local-only names — that is a cert concern in Caddy's own config, unrelated to DNS
-rewrites, and FlytDokk does not touch it.)
+rewrites, and Loskai does not touch it.)
 
 Consequently each per-name rewrite is **load-bearing**, not cosmetic: without it the name
 does not resolve locally. The AdGuard step of an assign is still best-effort in that a DNS
@@ -84,7 +84,7 @@ GET /control/status
 ```
 
 Returns `{ running, version, protection_enabled, dns_addresses, dns_port, http_port, … }`.
-A 200 with `running: true` is FlytDokk's "AdGuard reachable" signal. No rewrite data here —
+A 200 with `running: true` is Loskai's "AdGuard reachable" signal. No rewrite data here —
 the rewrite list (below) is a separate call.
 
 ### 2. List rewrites
@@ -93,7 +93,7 @@ the rewrite list (below) is a separate call.
 GET /control/rewrite/list
 ```
 
-Returns the full `RewriteEntry[]`. FlytDokk uses this for two things: rendering the
+Returns the full `RewriteEntry[]`. Loskai uses this for two things: rendering the
 rewrite list, and the read-only sync comparison against instances (endpoint #7).
 
 ### 3. Add a rewrite
@@ -118,7 +118,7 @@ Content-Type: application/json
 ```
 
 Note the verb: AdGuard deletes via **POST** to `/rewrite/delete`, and the body is the
-whole `(domain, answer)` entry — there is no delete-by-domain. FlytDokk sends the **exact
+whole `(domain, answer)` entry — there is no delete-by-domain. Loskai sends the **exact
 pair** it created: the instance's domain plus the current Caddy IP. Used when a subdomain
 is cleared or an instance is deleted.
 
@@ -127,10 +127,10 @@ rewrite exists for the same domain but points somewhere else — e.g. one you ad
 hand — it does not match and is left untouched.
 
 To also clean up entries left behind when the Caddy IP changes, each instance records the
-answer FlytDokk last wrote for it in its `dns_answer` field (see
+answer Loskai last wrote for it in its `dns_answer` field (see
 [Reconcile](#6-sync--reconcile-with-the-instance-list)). A delete/reconcile removes the
 `(domain, dns_answer)` pair actually on record — so an old-generation orphan (from a
-previous IP) is removed, while an entry whose answer FlytDokk never wrote is never matched.
+previous IP) is removed, while an entry whose answer Loskai never wrote is never matched.
 That recorded answer is what separates "our stale entry" (safe to delete) from "a manual
 entry on the same domain" (leave, warn).
 
@@ -144,7 +144,7 @@ POST /control/rewrite/add      { new domain, answer }
 ```
 
 AdGuard *does* offer `PUT /control/rewrite/update` (`{ target, update }` pair), but
-FlytDokk does not use it: delete-then-add is a single convergent code path that reuses the
+Loskai does not use it: delete-then-add is a single convergent code path that reuses the
 same add call as everything else, mirrors the Caddy module's editing model, and is
 idempotent. Because `answer` is constant, an edit is really just swapping the `domain`.
 The brief gap between delete and add is irrelevant — it is a config change the user just
@@ -152,36 +152,36 @@ initiated, and it only affects the name being renamed.
 
 ### 6. Sync / reconcile with the instance list
 
-**Read-only status** (the default view): FlytDokk pulls `GET /control/rewrite/list` and,
+**Read-only status** (the default view): Loskai pulls `GET /control/rewrite/list` and,
 for each instance that has a subdomain, checks whether a matching `(domain, currentIP)`
 rewrite is present. Present = in sync; missing = the name does not resolve locally until
 the rewrite is added. This is a **display-only comparison** — it never auto-corrects,
 matching the Caddy module's synced-status behavior.
 
 **Reconcile** (the explicit "Push all" action, or when a Caddy-IP change is detected on
-startup): for each routed instance FlytDokk ensures `(domain, currentIP)` exists and, if the
+startup): for each routed instance Loskai ensures `(domain, currentIP)` exists and, if the
 instance's stored `dns_answer` differs from `currentIP`, deletes the stale
 `(domain, dns_answer)` pair — migrating the entry onto the current IP — then updates
 `dns_answer`. It writes `dns_answer` whenever it adds a rewrite. A same-domain entry whose
 answer matches **neither** `currentIP` **nor** the instance's stored `dns_answer` is a
 manual rewrite: reconcile leaves it and reports a conflict, never overwrites it. Reconcile
-is best-effort and only ever touches answers FlytDokk itself wrote.
+is best-effort and only ever touches answers Loskai itself wrote.
 
 ---
 
-## Ownership — what FlytDokk manages
+## Ownership — what Loskai manages
 
-FlytDokk manages only the exact `(subdomain.{BASE_DOMAIN}, caddy-ip)` entries that
+Loskai manages only the exact `(subdomain.{BASE_DOMAIN}, caddy-ip)` entries that
 correspond to its instances — one per routed instance. It **never** touches anything else
 in AdGuard's rewrite list, because every write is a single add or an exact-pair delete
 (the API has no bulk/replace):
 
-- A **hand-added** rewrite for a different domain is invisible to FlytDokk.
+- A **hand-added** rewrite for a different domain is invisible to Loskai.
 - A **hand-added** rewrite for the *same* domain as an instance, whose answer matches
   neither the current Caddy IP nor the instance's stored `dns_answer`, is treated as manual:
   reconcile leaves it in place and **surfaces a conflict warning** (AdGuard would otherwise
   hold two answers for that name and resolve ambiguously), rather than overwriting or
-  deleting it. Only answers FlytDokk has itself written are ever removed.
+  deleting it. Only answers Loskai has itself written are ever removed.
 
 There is no wildcard rewrite to own or assert — the managed set is exactly one entry per
 routed instance, and it is load-bearing: it is what makes local names resolve.
@@ -190,11 +190,11 @@ routed instance, and it is load-bearing: it is what makes local names resolve.
 
 ## Not used
 
-For clarity, the large majority of the AdGuard Home API that FlytDokk deliberately does
+For clarity, the large majority of the AdGuard Home API that Loskai deliberately does
 **not** call — AdGuard's own UI owns all of it:
 
 - `PUT /control/rewrite/update` — editing is delete-then-add (endpoint #5), so unused.
-- `GET|PUT /control/rewrite/settings` — global "rewrites enabled" toggle; FlytDokk assumes
+- `GET|PUT /control/rewrite/settings` — global "rewrites enabled" toggle; Loskai assumes
   rewrites are on and does not flip it.
 - `/control/login`, `/control/logout` — Basic Auth is per-request; no session flow.
 - Filtering (`/control/filtering/*`), blocked services, safebrowsing, parental, safesearch
@@ -203,5 +203,5 @@ For clarity, the large majority of the AdGuard Home API that FlytDokk deliberate
 - Clients / access (`/control/clients/*`, `/control/access/*`) — AdGuard's UI.
 - DHCP (`/control/dhcp/*`), TLS (`/control/tls/*`), DNS config (`/control/dns_config`,
   `/control/dns_info`), upstream testing — infrastructure, out of scope.
-- Install wizard (`/control/install/*`) — AdGuard is already installed; FlytDokk never
+- Install wizard (`/control/install/*`) — AdGuard is already installed; Loskai never
   runs first-time setup.

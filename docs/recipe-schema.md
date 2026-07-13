@@ -1,16 +1,16 @@
 # Install-Wizard Recipe Schema
 
-A **recipe** is the input to FlytDokk's Install Wizard: a declarative description of a
-service to deploy. FlytDokk **validates and interprets** a recipe against the fixed schema
+A **recipe** is the input to Loskai's Install Wizard: a declarative description of a
+service to deploy. Loskai **validates and interprets** a recipe against the fixed schema
 below — it never executes recipe-supplied code. A malformed recipe fails validation and is
-skipped, so it can never push FlytDokk outside its known install paths.
+skipped, so it can never push Loskai outside its known install paths.
 
 Recipes are not baked into the image. They come from two sources, both scanned the same way
 and merged into one list:
 
 - **A public git repo you own** (`RECIPES_REPO_URL`) — the canonical, most up-to-date
   library, synced into a cache in the settings volume.
-- **A local directory** (`/opt/flytdokk/recipes/`, in the settings volume) — a dev/testing
+- **A local directory** (`/opt/loskai/recipes/`, in the settings volume) — a dev/testing
   scratchpad for private or in-progress recipes.
 
 On a **name clash the repo wins**; the shadowed local copy is flagged, not dropped. To test
@@ -85,17 +85,17 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 
 ### `type` — the three install patterns
 
-| `type` | What FlytDokk runs | Notes |
+| `type` | What Loskai runs | Notes |
 |---|---|---|
 | `pull` | `docker compose up -d` | Pre-built public image. |
 | `git_build` | `git clone <git_repo>` then `docker compose up -d --build` | Builds locally; needs `git_repo`. |
-| `registry_pull` | `docker compose up -d` | Image lives in your private Gitea registry. **Registry auth is a host precondition** — run `docker login <gitea-registry>` once on the Docker host; FlytDokk stores no registry credential. |
+| `registry_pull` | `docker compose up -d` | Image lives in your private Gitea registry. **Registry auth is a host precondition** — run `docker login <gitea-registry>` once on the Docker host; Loskai stores no registry credential. |
 
 ---
 
 ## How `.env` is produced
 
-The `.env` never lives in the repo. At install time FlytDokk:
+The `.env` never lives in the repo. At install time Loskai:
 
 1. Renders a form from `env`, with the user's answers (defaults pre-filled).
 2. Writes those answers as `KEY=value` lines into a `.env` in the new stack directory.
@@ -110,7 +110,7 @@ stack directory, never in version control.
 
 ## Validation
 
-FlytDokk rejects a recipe (skips it, surfaces why) when:
+Loskai rejects a recipe (skips it, surfaces why) when:
 
 - `recipe.yml` is missing or not valid YAML.
 - `name` or `type` is missing, or `type` is not one of the three values.

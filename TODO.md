@@ -1,4 +1,4 @@
-# FlytDokk — TODO
+# Loskai — TODO
 
 ---
 
@@ -11,36 +11,36 @@
 - [ ] Add frontend **dev** deps: `vitest` + `@testing-library/react`
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
   - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
-- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `FLYTDOKK_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not FlytDokk
+- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `LOSKAI_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not Loskai
 - [x] Create `HISTORY.md`
 
 ---
 
 ## Phase 2 — Backend Foundation
-- [ ] `backend/src/flytdokk/shared/settings.py` — settings manager
+- [ ] `backend/src/loskai/shared/settings.py` — settings manager
   - Reads env vars on startup (highest priority)
-  - Falls back to `settings.json` at `/opt/flytdokk/settings.json`
+  - Falls back to `settings.json` at `/opt/loskai/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
   - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
   - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
-  - `admin_password_hash` — set from `FLYTDOKK_PASSWORD` (env) or at first run, stored **hashed** (argon2/bcrypt); **never** returned by `GET /api/settings`
-- [ ] `backend/src/flytdokk/shared/instances.py` — instance list at `/opt/flytdokk/instances.json`
+  - `admin_password_hash` — set from `LOSKAI_PASSWORD` (env) or at first run, stored **hashed** (argon2/bcrypt); **never** returned by `GET /api/settings`
+- [ ] `backend/src/loskai/shared/instances.py` — instance list at `/opt/loskai/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
   - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer, private }` (`dns_answer` = Caddy IP last written to AdGuard for this name, null if no rewrite; `private` = hide from the public dashboard, default false)
   - `id` doubles as the Caddy `@id`; `subdomain` null = tracked but no route
   - CRUD helpers (list / get / upsert / delete)
-- [ ] `backend/src/flytdokk/config.py` — pydantic-settings class; **no env var required** at startup, all optional
-- [ ] `backend/src/flytdokk/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
-- [ ] `backend/src/flytdokk/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
+- [ ] `backend/src/loskai/config.py` — pydantic-settings class; **no env var required** at startup, all optional
+- [ ] `backend/src/loskai/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
+- [ ] `backend/src/loskai/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
   - Docker status also carries `stacks_dir_ok` (from `stacks.py`) so the UI can surface "stacks directory not found — check the compose mount" instead of a silently empty Stack Manager
 - [ ] `GET /api/settings` — returns all settings with source field (**never** the admin password hash)
 - [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
-- [ ] `backend/src/flytdokk/shared/auth.py` — single-password auth, no accounts
+- [ ] `backend/src/loskai/shared/auth.py` — single-password auth, no accounts
   - Middleware: reject unauthenticated `/api/*` with 401 **except** `GET /api/dashboard` and the login route — this is the real security boundary, not the frontend
   - `POST /api/login` — verify against `admin_password_hash`, issue a signed `HttpOnly` `SameSite` session cookie; `POST /api/logout` — clear it
   - `GET /api/auth/status` — `{ authed, password_set }` so the SPA can route to login vs first-run setup
   - First-run: when no `admin_password_hash` exists, admin tier is locked; a setup endpoint sets the initial password (hashed). Session secret generated + persisted in the settings volume
-- [ ] `backend/src/flytdokk/shared/dashboard.py` — `GET /api/dashboard` (public): non-private routed instances as launcher cards `{ name, url, icon }` only — no container detail or module state
+- [ ] `backend/src/loskai/shared/dashboard.py` — `GET /api/dashboard` (public): non-private routed instances as launcher cards `{ name, url, icon }` only — no container detail or module state
 - [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`); `curl` of any other `/api/*` without a session returns 401, while `GET /api/dashboard` returns the public list
 
 ---
@@ -129,7 +129,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ---
 
 ## Phase 6 — Cross-Module URL Assignment
-- [ ] `backend/src/flytdokk/shared/assign.py` — the one place assignment lives; orchestrates
+- [ ] `backend/src/loskai/shared/assign.py` — the one place assignment lives; orchestrates
       the Caddy client + AdGuard client + instance store (Caddy module never writes routes itself)
   - `POST /api/assign { instance_id, prefix, upstream }`
     - Handles both existing instances (a container) and new external ("dummy") instances
@@ -156,13 +156,13 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - Enables `caddy` and `adguardhome` as systemd services
   - Prints next steps: set DuckDNS token in Caddyfile, open AdGuard UI to finish setup
 
-**FlytDokk container**
+**Loskai container**
 - [ ] `Dockerfile` — multi-stage build:
   - Stage 1 (node:20-alpine): build frontend → `/app/dist`
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed to sync the recipes repo and for `git_build` recipes), copy dist to `./static`
-- [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
+- [ ] `docker-compose.yml` — preferred setup: Loskai on LXC 103, Caddy on LXC 101 by LAN IP, includes `loskai-settings` volume for `settings.json` + `instances.json`
   - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
-- [ ] `docker-compose.colocated.yml` — full all-in-Docker alternative to the Proxmox/LXC setup: FlytDokk **+ Caddy + AdGuard** all as containers (for people who don't run Proxmox). The Tier-3 test rig is a disposable variant of this same stack (see Testing)
+- [ ] `docker-compose.colocated.yml` — full all-in-Docker alternative to the Proxmox/LXC setup: Loskai **+ Caddy + AdGuard** all as containers (for people who don't run Proxmox). The Tier-3 test rig is a disposable variant of this same stack (see Testing)
   - Port notes (see PLAN.md "Co-located port notes"): only host-published ports conflict — Caddy owns `80`/`443`, AdGuard owns `53`; `2019`/`3000` stay internal. Watch the two host-OS conflicts: AdGuard `:53` vs `systemd-resolved`, and keep AdGuard off `80`/`443`. Set `CADDY_HOST_IP` (admin URL is a hostname here)
 - [ ] `Caddyfile` — reference config for LXC 101 native Caddy: admin endpoint + wildcard cert only (no routes); every route pushed at runtime via the Admin API
 - [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy as Docker container)
@@ -189,7 +189,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
 - [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/recipe-schema.md) (authored by hand/AI, no authoring UI)
-  - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/flytdokk/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
+  - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/loskai/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
   - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
   - `install_recipe(name, answers)` — create the manifest's `directories` (substituting answers), write the folder's `compose.yml` + a **generated `.env`** (from the answers — holds secrets, never in the repo), run the `type`'s command, register a `docker` instance, optionally assign a subdomain
@@ -199,8 +199,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
     - `pull` — pre-built public image, `docker compose up -d`
     - `git_build` — `git clone <git_repo>` then `docker compose up -d --build`
     - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
-      - Registry auth is a **host precondition, not FlytDokk's job**: you run `docker login <gitea-registry>` once on the Docker host; the daemon caches the credential, so this recipe's pull is mechanically identical to a public `pull`. FlytDokk stores no registry token — keeps it secret-free, mirroring how the ACME token lives with Caddy, not here
-  - Sample recipes (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma) live **in the recipes repo, not in this codebase** — adding one is a repo push, no FlytDokk rebuild
+      - Registry auth is a **host precondition, not Loskai's job**: you run `docker login <gitea-registry>` once on the Docker host; the daemon caches the credential, so this recipe's pull is mechanically identical to a public `pull`. Loskai stores no registry token — keeps it secret-free, mirroring how the ACME token lives with Caddy, not here
+  - Sample recipes (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma) live **in the recipes repo, not in this codebase** — adding one is a repo push, no Loskai rebuild
 - [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`
   - `POST /api/docker/containers/{id}/start|stop|restart`
@@ -233,7 +233,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ---
 
 ## Phase 8b — Testing & CI
-_Principle: test the logic FlytDokk owns, mock the systems it talks to, manually/rig-verify the irreversible side effects. Never test `httpx`/`docker-py` themselves. Depends on the strict `client.py` (I/O) vs logic seam — keep decision logic in pure functions so it's testable without a network._
+_Principle: test the logic Loskai owns, mock the systems it talks to, manually/rig-verify the irreversible side effects. Never test `httpx`/`docker-py` themselves. Depends on the strict `client.py` (I/O) vs logic seam — keep decision logic in pure functions so it's testable without a network._
 _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set up in Phase 1); this list is the consolidated checklist. Tier 3 (the rig) and CI are the net-new work here._
 
 **Setup**
@@ -267,5 +267,5 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 - [ ] ~~Basic auth via Caddyfile~~ — superseded by in-app single-password auth (Phase 2 `auth.py`), since the public dashboard can't sit behind a blanket Caddy `basicauth`. See PLAN.md "Security & Access"
 - [ ] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added), or if a same-domain rewrite points somewhere other than the Caddy IP (manual conflict — never auto-overwrite)
 - [ ] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites
-- [ ] Container label auto-discovery — detect `flytdokk.subdomain=X` label on start, auto-create/update the container's docker instance and push its route
+- [ ] Container label auto-discovery — detect `loskai.subdomain=X` label on start, auto-create/update the container's docker instance and push its route
 - [ ] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete
