@@ -29,11 +29,9 @@ Caddy (reverse proxy)
 Your service (any IP:port on the LAN)
 ```
 
-Any service on your LAN gets a clean HTTPS name. You manage this in one place —
-FlytDokk configures both Caddy and AdGuard in a single action.
-
-You configure this in one place — FlytDokk's Assign URL form — and it sets up
-both the Caddy route and the AdGuard DNS rewrite automatically.
+Any service on your LAN gets a clean HTTPS name. You configure it in one place —
+FlytDokk's Assign URL form — and it sets up both the Caddy route and the AdGuard
+DNS rewrite in a single action.
 
 ---
 
@@ -71,14 +69,14 @@ Internally it is split into four modules. Each module has:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                      FlytDokk                            │
-│                    (single Docker image)                        │
+│                             FlytDokk                             │
+│                      (single Docker image)                       │
 │                                                                  │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐     │
-│  │    MODULE 1    │  │    MODULE 2    │  │    MODULE 3    │     │
-│  │    Docker      │  │     Caddy      │  │   AdGuard      │     │
-│  │    Manager     │  │    Routing     │  │     DNS        │     │
-│  └────────────────┘  └────────────────┘  └────────────────┘     │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐      │
+│  │    MODULE 1    │  │    MODULE 2    │  │    MODULE 3    │      │
+│  │    Docker      │  │     Caddy      │  │   AdGuard      │      │
+│  │    Manager     │  │    Routing     │  │     DNS        │      │
+│  └────────────────┘  └────────────────┘  └────────────────┘      │
 │                                                                  │
 │  ┌────────────────┐                                              │
 │  │    MODULE 4    │                                              │
@@ -87,9 +85,9 @@ Internally it is split into four modules. Each module has:
 │  └────────────────┘                                              │
 │                                                                  │
 │  Each module:                                                    │
-│  ✓ Works independently                                          │
-│  ✓ Shows degraded state if service unreachable                  │
-│  ✓ Never blocks other modules from loading                      │
+│  ✓ Works independently                                           │
+│  ✓ Shows degraded state if service unreachable                   │
+│  ✓ Never blocks other modules from loading                       │
 └──────────────────────────────────────────────────────────────────┘
          │                  │                  │
          ▼                  ▼                  ▼
@@ -167,9 +165,9 @@ runtime dependency. The graceful-degradation guarantees (each module still works
 
 ```
                        ┌───────────────────────┐
-                       │     instances.json     │   ← the shared spine
-                       │  (id, type, subdomain, │
-                       │   upstream, container) │
+                       │     instances.json    │   ← the shared spine
+                       │(id, type, subdomain,  │
+                       │upstream, container, …)│
                        └───────────┬───────────┘
               writes /             │            reads (subdomain set)
               joins live           │                    │
@@ -471,7 +469,7 @@ Routes are not stored as their own thing. A route is simply an **instance** (see
 [Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
 Caddy live config is a **projection** of "every instance with a subdomain" — FlytDokk
 pushes those to Caddy via the Admin API by `id` (= Caddy `@id`). The exact endpoints are
-documented in [`docs/caddy-api.md`](../docs/caddy-api.md).
+documented in [`docs/caddy-api.md`](docs/caddy-api.md).
 
 - **Flat sibling routes.** Each route is an independent top-level entry in the server's
   `routes` array, matching a single specific host (`grafana.example.no`) and keyed by
@@ -841,7 +839,9 @@ services:
 
       # General (optional — can be set in UI settings page instead)
       - BASE_DOMAIN=${BASE_DOMAIN}          # e.g. example.no
-      - PORT=8080
+      - FLYTDOKK_PASSWORD=${FLYTDOKK_PASSWORD}   # guards the admin UI (or set at first run)
+      # Must equal the bind mount above so FlytDokk scans the same path that's mounted
+      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
       # Note: the ACME/DNS-challenge token (DuckDNS, Cloudflare, …) lives on LXC 101
       # in Caddy's environment — FlytDokk never needs it
     restart: unless-stopped
@@ -881,7 +881,7 @@ Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy a
 its full config to disk after every Admin API change, `--resume` restores every route on
 restart with no action from FlytDokk — this is the normal reboot path. "Push all to Caddy"
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
-autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](../docs/caddy-api.md).
+autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](docs/caddy-api.md).
 
 ### Caddyfile (bootstrap only — all routes come from FlytDokk via the Admin API)
 
@@ -919,8 +919,10 @@ all flat siblings reusing this one cert.
 The preferred setup runs Caddy natively on LXC 101 alongside AdGuard. Two simpler
 alternatives exist and will have their own install instructions:
 
-- **Co-located** — Caddy runs as a Docker container on LXC 103 alongside FlytDokk
-- **All-in-one** — AdGuard, Caddy, and FlytDokk all on the same LXC
+- **Co-located (all-in-Docker)** — Caddy *and* AdGuard run as Docker containers on the
+  Docker host alongside FlytDokk (`docker-compose.colocated.yml`), for setups without a
+  separate LXC 101. The Tier-3 test rig is a disposable variant of this same stack.
+- **All-in-one** — AdGuard, Caddy, and FlytDokk all on a single LXC (native services on one box)
 
 ---
 
