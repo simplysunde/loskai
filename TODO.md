@@ -3,15 +3,15 @@
 ---
 
 ## Phase 1 — Project Scaffolding
-- [ ] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml`
-- [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette, argon2-cffi (admin-password hashing), itsdangerous (signed session cookie)
-- [ ] Add backend **dev** deps + set up `pytest` early (`pytest`, `pytest-httpx`, `pytest-asyncio`) so each module ships its Tier-1/2 tests as it's built — see Phase 8b for the full strategy
-- [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
-- [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit
-- [ ] Add frontend **dev** deps: `vitest` + `@testing-library/react`
-- [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
+- [x] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml` — src layout, Python pinned to 3.12 to match the prod image
+- [x] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette, argon2-cffi (admin-password hashing), itsdangerous (signed session cookie)
+- [x] Add backend **dev** deps + set up `pytest` early (`pytest`, `pytest-httpx`, `pytest-asyncio`) so each module ships its Tier-1/2 tests as it's built — see Phase 8b for the full strategy
+- [x] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
+- [x] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit — installed the canonical `@xterm/xterm` + `@xterm/addon-fit` (old `xterm` is deprecated; new addon expects the new namespace)
+- [x] Add frontend **dev** deps: `vitest` + `@testing-library/react` (with jsdom + jest-dom for the DOM env + matchers)
+- [x] Configure Vite dev proxy: `/api/*` → `http://localhost:8000` (`ws: true` for the later container-exec socket)
   - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
-- [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `LOSKAI_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not Loskai
+- [x] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `LOSKAI_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not Loskai
 - [x] Create `HISTORY.md`
 
 ---

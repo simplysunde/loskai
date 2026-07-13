@@ -1,5 +1,27 @@
 # Loskai — History
 
+## 2026-07-13 — Phase 1 scaffolding: backend + frontend stood up
+
+First code lands. Verified TODO against PLAN (fully aligned after the prior review
+passes), confirmed the repo was still planning-stage, then scaffolded the two-project
+layout with no app logic yet — the foundation Phases 2+ build on.
+
+- Key files: `backend/` (uv package `loskai`, src layout, `pyproject.toml` + `uv.lock`),
+  `frontend/` (Vite + React + TS), `.env.example`
+- **Backend**: uv package, Python pinned to **3.12** to match the prod `python:3.12-slim`
+  image (uv defaulted to 3.14). Runtime deps fastapi / uvicorn[standard] / httpx /
+  pydantic-settings / sse-starlette / argon2-cffi / itsdangerous; dev pytest +
+  pytest-asyncio + pytest-httpx. Dropped uv's console-script stub (app runs via uvicorn)
+- **Frontend**: Vite 8 / React 19 / router 7 / Tailwind 4. Dev proxy `/api/*` → `:8000`
+  with `ws: true` (for the Phase 8 container-exec socket); prod serves API + bundle on
+  `:8080`. Tailwind via `@tailwindcss/vite`; Vitest + Testing Library (jsdom + jest-dom),
+  a smoke test proving the harness
+- **Deviation from TODO**: installed `@xterm/xterm` + `@xterm/addon-fit` instead of the
+  listed `xterm` — npm deprecates the old `xterm` package and the new fit addon expects
+  the new namespace. Unused until Phase 8
+- **Verified**: backend `uv sync` + import smoke of all runtime libs + `pytest --version`;
+  frontend `npm run build` (tsc + Vite + Tailwind, CSS emitted) + `npm test` (1 passed)
+
 ## 2026-07-13 — Renamed FlytDokk → Loskai
 
 Renamed the project from *FlytDokk* (Norwegian *flyt* "flow" + *dokk* "dock") to **Loskai**,
