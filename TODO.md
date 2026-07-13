@@ -17,31 +17,32 @@
 ---
 
 ## Phase 2 — Backend Foundation
-- [ ] `backend/src/loskai/shared/settings.py` — settings manager
+- [x] `backend/src/loskai/shared/settings.py` — settings manager (+ `shared/store.py`: atomic JSON read/write, the flat-file I/O seam shared with instances)
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/loskai/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
   - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
   - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
   - `admin_password_hash` — set from `LOSKAI_PASSWORD` (env) or at first run, stored **hashed** (argon2/bcrypt); **never** returned by `GET /api/settings`
-- [ ] `backend/src/loskai/shared/instances.py` — instance list at `/opt/loskai/instances.json`
+- [x] `backend/src/loskai/shared/instances.py` — instance list at `/opt/loskai/instances.json`
   - Flat JSON file (same pattern as `settings.json`), no database
   - Each instance: `{ id, name, type: "docker"|"external", subdomain, upstream, container, dns_answer, private }` (`dns_answer` = Caddy IP last written to AdGuard for this name, null if no rewrite; `private` = hide from the public dashboard, default false)
   - `id` doubles as the Caddy `@id`; `subdomain` null = tracked but no route
   - CRUD helpers (list / get / upsert / delete)
-- [ ] `backend/src/loskai/config.py` — pydantic-settings class; **no env var required** at startup, all optional
-- [ ] `backend/src/loskai/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback)
-- [ ] `backend/src/loskai/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
-  - Docker status also carries `stacks_dir_ok` (from `stacks.py`) so the UI can surface "stacks directory not found — check the compose mount" instead of a silently empty Stack Manager
-- [ ] `GET /api/settings` — returns all settings with source field (**never** the admin password hash)
-- [ ] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
-- [ ] `backend/src/loskai/shared/auth.py` — single-password auth, no accounts
-  - Middleware: reject unauthenticated `/api/*` with 401 **except** `GET /api/dashboard` and the login route — this is the real security boundary, not the frontend
+- [x] `backend/src/loskai/config.py` — pydantic-settings class; **no env var required** at startup, all optional
+- [x] `backend/src/loskai/main.py` — FastAPI app, register all routers, mount static files last (for SPA fallback — conditional on the built bundle existing; catch-all serves `index.html`, never shadows `/api`)
+- [x] `backend/src/loskai/shared/health.py` — `GET /api/health` — polls each module client and returns aggregate status: `{ caddy, adguard, wireguard, docker }`
+  - Registry pattern: each module registers its checker as it's built; Phase 2 reports `unconfigured` until then. Docker carries `stacks_dir_ok` (computed from `STACKS_DIR` existence)
+- [x] `GET /api/settings` — returns all settings with source field (**never** the admin password hash)
+- [x] `PUT /api/settings` — updates `settings.json` (env-sourced values ignored)
+- [x] `backend/src/loskai/shared/auth.py` — single-password auth, no accounts
+  - Middleware: reject unauthenticated `/api/*` with 401 **except** `GET /api/dashboard` and the login flow (`/api/login`, `/api/logout`, `/api/auth/status`, `/api/auth/setup`) — the real security boundary, not the frontend. **Note:** `/api/health` is gated too (only the dashboard + login flow are public); verify below adjusted accordingly
   - `POST /api/login` — verify against `admin_password_hash`, issue a signed `HttpOnly` `SameSite` session cookie; `POST /api/logout` — clear it
   - `GET /api/auth/status` — `{ authed, password_set }` so the SPA can route to login vs first-run setup
-  - First-run: when no `admin_password_hash` exists, admin tier is locked; a setup endpoint sets the initial password (hashed). Session secret generated + persisted in the settings volume
-- [ ] `backend/src/loskai/shared/dashboard.py` — `GET /api/dashboard` (public): non-private routed instances as launcher cards `{ name, url, icon }` only — no container detail or module state
-- [ ] Verify: `curl http://localhost:8000/api/health` returns JSON with all module states (dev backend on `:8000`; prod container on `:8080`); `curl` of any other `/api/*` without a session returns 401, while `GET /api/dashboard` returns the public list
+  - First-run: when no `admin_password_hash` exists, admin tier is locked; `POST /api/auth/setup` sets the initial password (hashed). Session secret generated + persisted in the settings volume
+- [x] `backend/src/loskai/shared/dashboard.py` — `GET /api/dashboard` (public): non-private routed instances as launcher cards `{ name, url, icon }` only — no container detail or module state
+- [x] Verify: `GET /api/dashboard` returns the public list unauthenticated; every other `/api/*` (incl. `/api/health`, `/api/settings`) returns 401 without a session and 200 with one; login + first-run setup flows exercised by curl (dev backend on `:8000`; prod container on `:8080`)
+  - Tier-1 tests written alongside (Phase 8b): `tests/test_settings.py` (priority chain + answer-IP derivation), `tests/test_instances.py` (CRUD + routed subset), `tests/test_auth.py` (hash/verify, session sign/verify, first-run seeding) — 16 passing
 
 ---
 

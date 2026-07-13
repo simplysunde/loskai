@@ -1,5 +1,39 @@
 # Loskai — History
 
+## 2026-07-13 — Phase 2: backend foundation (shared spine + auth boundary)
+
+Built the backend skeleton every module hangs off: the flat-file stores, the settings
+priority chain, the security gate, and the aggregate health/dashboard endpoints. No
+external-service clients yet (those are Phases 3+) — this is the shared core.
+
+- Key files: `backend/src/loskai/config.py`, `shared/{store,settings,instances,auth,health,dashboard}.py`,
+  `main.py`, `tests/test_{settings,instances,auth}.py`
+- **`config.py`**: pydantic-settings, every value optional. Added dev-only `LOSKAI_DATA_DIR`
+  / `LOSKAI_STATIC_DIR` (aliased) so the data volume + built bundle are relocatable for
+  tests and local runs
+- **`shared/store.py`** (new, not in the PLAN tree): atomic JSON read/write (temp-file +
+  rename) — the single file-I/O seam shared by settings + instances, so neither can be
+  left half-written and both stay testable against `tmp_path`
+- **`settings.py`**: the priority chain env > `settings.json` > unset, each value
+  source-tagged; `PUT` ignores env-sourced keys; admin hash stored but never returned;
+  answer-IP derivation (IP host of `CADDY_ADMIN_URL`, else explicit `CADDY_HOST_IP`)
+- **`instances.py`**: the `Instance` model (all 7 fields) + CRUD + `list_routed()` (the
+  route table = the subdomain subset)
+- **`auth.py`**: argon2 hash/verify, itsdangerous signed `HttpOnly` session cookie
+  (secret generated + persisted to the volume), middleware gating every `/api/*` except
+  the public dashboard + login flow, first-run `/api/auth/setup`, and `LOSKAI_PASSWORD`
+  seed-once-on-boot
+- **Decision — `/api/health` is gated.** PLAN's security rule ("gate every `/api/*` except
+  `GET /api/dashboard`") is absolute, so health sits behind auth; only the dashboard and
+  the login flow are public. The Phase 2 verify line (which read as if health were public)
+  was reconciled to this — health returns 401 unauthenticated, 200 with a session
+- **Verified**: 16 Tier-1 tests pass; curl confirmed the full boundary (public dashboard,
+  401→200 on health/settings, wrong/right login, and the complete first-run setup path
+  incl. 409/422 guards). Cookie session round-trips
+- **Watch out**: session cookie `secure=False` for dev HTTP — flip to True behind Caddy
+  TLS at deployment (Phase 7). Health reports `unconfigured` for all four modules until
+  their clients land
+
 ## 2026-07-13 — Phase 1 scaffolding: backend + frontend stood up
 
 First code lands. Verified TODO against PLAN (fully aligned after the prior review
