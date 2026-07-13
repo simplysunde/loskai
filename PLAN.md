@@ -1117,6 +1117,44 @@ actual guard.
 
 ---
 
+## Testing & CI
+
+FlytDokk is glue and logic around systems it should not touch in a test (a live Caddy,
+AdGuard, the Docker daemon). The strategy follows one line:
+
+> **Test the logic FlytDokk owns. Mock the systems it talks to. Verify the irreversible
+> side effects with a disposable rig or by hand. Never test `httpx`/`docker-py` themselves.**
+
+This only works because of the **`client.py` (I/O) vs logic (pure functions) seam** the
+modules already keep — decision logic that never does I/O directly is testable without a
+network. That seam is a testability requirement, held strictly everywhere.
+
+- **Tier 1 — unit tests (`pytest`), the payoff.** Pure logic, fast, no network: the instance
+  store and settings priority chain (against a `tmp_path`), FQDN assembly, the Caddy route
+  builder + Caddyfile render, **the AdGuard reconcile logic** (`(domain, answer)` diffing,
+  `dns_answer` orphan migration, manual-conflict detection — the trickiest code in the app),
+  answer-IP derivation, recipe-manifest validation, and auth (hash/verify, session sign).
+- **Tier 2 — client contract tests (`pytest-httpx`).** Mock the Caddy/AdGuard HTTP responses
+  using the shapes from `docs/*-api.md`; assert the *request* FlytDokk builds and that it
+  *parses* responses right, including the designed edges (delete-by-exact-pair, 404-ignored,
+  `401`=reachable). These guard the API contracts against drift.
+- **Tier 3 — disposable integration rig.** `docker-compose.test.yml` spins up throwaway Caddy
+  + AdGuard containers (a slim variant of the co-located stack) with Caddy `tls internal` (no
+  ACME/DNS token — tests exercise the *APIs*, not browser TLS), ephemeral volumes, seeded and
+  torn down per run. A few tests push a real route/rewrite and assert it lands. The Docker/
+  `compose` side is too host-bound to rig — covered by a documented manual smoke checklist.
+- **Frontend** — `Vitest` + React Testing Library on logic-bearing components only
+  (`AssignModal` validation, the auth redirect, dashboard rendering). No Playwright/E2E.
+- **CI — Forgejo Actions** (GitHub-Actions-compatible). `.forgejo/workflows/ci.yml` runs
+  `pytest` + `vitest` on every push and marks the commit pass/fail; a one-time `act_runner`
+  registered on the Forgejo instance executes it. Portable to GitHub unchanged.
+
+The all-in-Docker **co-located deployment** (`docker-compose.colocated.yml`: FlytDokk + Caddy
++ AdGuard as containers) doubles as the basis for the Tier-3 rig — and is itself a real
+alternative to the Proxmox/LXC topology for anyone not running Proxmox.
+
+---
+
 ## Future Ideas
 
 - **Uptime monitoring** — ping each upstream and record response time history

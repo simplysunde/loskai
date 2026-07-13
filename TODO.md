@@ -5,8 +5,10 @@
 ## Phase 1 — Project Scaffolding
 - [ ] Create `backend/` directory, init uv project (`uv init`), add `pyproject.toml`
 - [ ] Add backend dependencies: fastapi, uvicorn[standard], httpx, pydantic-settings, sse-starlette, argon2-cffi (admin-password hashing), itsdangerous (signed session cookie)
+- [ ] Add backend **dev** deps + set up `pytest` early (`pytest`, `pytest-httpx`, `pytest-asyncio`) so each module ships its Tier-1/2 tests as it's built — see Phase 8b for the full strategy
 - [ ] Create `frontend/` directory, scaffold with Vite + React + TypeScript (`npm create vite`)
 - [ ] Add frontend dependencies: react-router-dom, @tanstack/react-query, recharts, lucide-react, tailwindcss, xterm, @xterm/addon-fit
+- [ ] Add frontend **dev** deps: `vitest` + `@testing-library/react`
 - [ ] Configure Vite dev proxy: `/api/*` → `http://localhost:8000`
   - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
 - [ ] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `FLYTDOKK_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not FlytDokk
@@ -160,9 +162,9 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed to sync the recipes repo and for `git_build` recipes), copy dist to `./static`
 - [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
   - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
-- [ ] `docker-compose.colocated.yml` — alternative: Caddy as Docker container alongside FlytDokk
+- [ ] `docker-compose.colocated.yml` — full all-in-Docker alternative to the Proxmox/LXC setup: FlytDokk **+ Caddy + AdGuard** all as containers (for people who don't run Proxmox). The Tier-3 test rig is a disposable variant of this same stack (see Testing)
 - [ ] `Caddyfile` — reference config for LXC 101 native Caddy: admin endpoint + wildcard cert only (no routes); every route pushed at runtime via the Admin API
-- [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for co-located alternative only (Caddy as Docker container)
+- [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy as Docker container)
 - [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
 
 ---
@@ -226,6 +228,36 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 - [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path — the raw path: paste a finished compose + .env and `up`, no manifest/wizard. Docker auto-creates bind-mount source dirs, so no directory step
 - [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list is the merged repo + local set (repo wins on name clash, shadowed local flagged); includes a "Refresh recipes" action and an empty state (prompt to set `recipes_repo_url` and/or drop a local recipe) when both sources are empty
 - [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
+
+---
+
+## Phase 8b — Testing & CI
+_Principle: test the logic FlytDokk owns, mock the systems it talks to, manually/rig-verify the irreversible side effects. Never test `httpx`/`docker-py` themselves. Depends on the strict `client.py` (I/O) vs logic seam — keep decision logic in pure functions so it's testable without a network._
+_Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set up in Phase 1); this list is the consolidated checklist. Tier 3 (the rig) and CI are the net-new work here._
+
+**Setup**
+- [ ] Backend: add `pytest`, `pytest-httpx` (or `respx`), `pytest-asyncio` as dev deps; `uv run pytest`
+- [ ] Frontend: add `vitest` + `@testing-library/react`; `npm test`
+
+**Tier 1 — unit tests on pure logic** (fast, no network, `tmp_path` for files)
+- [ ] `instances.py` CRUD + `settings.py` env→json priority chain & source tagging
+- [ ] FQDN assembly, Caddy route-JSON builder, Caddyfile render
+- [ ] **AdGuard reconcile** — `(domain, answer)` diffing, `dns_answer` orphan migration, manual-conflict detection (the trickiest logic — cover thoroughly)
+- [ ] answer-IP derivation (`CADDY_ADMIN_URL` host / `CADDY_HOST_IP` fallback)
+- [ ] recipe manifest validation (schema + malformed rejection), quick-commands image→cmd map
+- [ ] auth: password hash/verify, session sign/verify
+
+**Tier 2 — client contract tests** (`pytest-httpx`, response shapes from `docs/*-api.md`)
+- [ ] Caddy client: request built (URL/method/body, `@id`), delete-ignores-404
+- [ ] AdGuard client: delete-by-exact-pair body, add/list parsing
+- [ ] WireGuard client: any HTTP response (incl. 401/403) = reachable
+
+**Tier 3 — disposable integration rig**
+- [ ] `docker-compose.test.yml` — throwaway Caddy + AdGuard containers (a slim variant of the co-located stack): Caddy `tls internal` (no ACME/DNS token), ephemeral volumes, seeded before each run, torn down after
+- [ ] A handful of integration tests that push a route to the rig Caddy and a rewrite to the rig AdGuard, asserting they land — plus a documented manual smoke checklist for the Docker/`compose` side (too host-bound to rig)
+
+**CI — Forgejo Actions**
+- [ ] `.forgejo/workflows/ci.yml` — on push: run `pytest` (Tiers 1–2, + Tier 3 if the rig is available) and `vitest`. GitHub-Actions-compatible YAML (portable). One-time: register an `act_runner` on the Forgejo instance
 
 ---
 
