@@ -163,6 +163,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 - [ ] `docker-compose.yml` — preferred setup: FlytDokk on LXC 103, Caddy on LXC 101 by LAN IP, includes `flytdokk-settings` volume for `settings.json` + `instances.json`
   - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
 - [ ] `docker-compose.colocated.yml` — full all-in-Docker alternative to the Proxmox/LXC setup: FlytDokk **+ Caddy + AdGuard** all as containers (for people who don't run Proxmox). The Tier-3 test rig is a disposable variant of this same stack (see Testing)
+  - Port notes (see PLAN.md "Co-located port notes"): only host-published ports conflict — Caddy owns `80`/`443`, AdGuard owns `53`; `2019`/`3000` stay internal. Watch the two host-OS conflicts: AdGuard `:53` vs `systemd-resolved`, and keep AdGuard off `80`/`443`. Set `CADDY_HOST_IP` (admin URL is a hostname here)
 - [ ] `Caddyfile` — reference config for LXC 101 native Caddy: admin endpoint + wildcard cert only (no routes); every route pushed at runtime via the Admin API
 - [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy as Docker container)
 - [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly

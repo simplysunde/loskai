@@ -924,6 +924,30 @@ alternatives exist and will have their own install instructions:
   separate LXC 101. The Tier-3 test rig is a disposable variant of this same stack.
 - **All-in-one** — AdGuard, Caddy, and FlytDokk all on a single LXC (native services on one box)
 
+### Co-located port notes
+
+The three FlytDokk services do **not** conflict with each other — Docker containers only
+contend for ports they *publish to the host*, and container-to-container traffic (FlytDokk →
+`caddy:2019`, FlytDokk → `adguard:3000`) stays on the internal network. The only conflicts
+are with the **host OS**, and there are two:
+
+| Service | Host-published | Internal-only |
+|---|---|---|
+| Caddy | `80`, `443` (entry point) | `2019` (admin — FlytDokk reaches it as `caddy:2019`) |
+| AdGuard | `53/tcp+udp` (DNS) | `3000` (UI/API — via `adguard:3000` or proxied through Caddy) |
+| FlytDokk | `8080` (optional — usually reached through Caddy) | — |
+
+1. **AdGuard `:53` vs the host resolver.** Most Linux hosts run `systemd-resolved` on port
+   53, so AdGuard can't bind it. Free port 53 (disable/reconfigure `systemd-resolved`) or
+   bind AdGuard's 53 to a specific host IP. This is the classic AdGuard-in-Docker gotcha.
+2. **Keep AdGuard off `80`/`443`.** AdGuard's admin defaults to `:3000` (fine), but don't
+   point its setup at 80/443 or enable DNS-over-HTTPS on 443 — those belong to Caddy. Let
+   Caddy terminate TLS and reverse-proxy the AdGuard UI instead.
+
+In this mode `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so the DNS-rewrite answer
+IP comes from **`CADDY_HOST_IP`** — the Docker host's LAN IP, which is where Caddy's published
+`:443` actually lives for LAN clients. (This is exactly the case `CADDY_HOST_IP` exists for.)
+
 ---
 
 ## Settings & Configuration
