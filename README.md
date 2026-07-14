@@ -54,6 +54,7 @@ Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:80
 
 ## Documentation
 
+- [Loskai internal API](docs/api.md) — the endpoints the frontend consumes (a human-readable overview of the live `/docs`).
 - [Migrating an existing project into a Loskai stack](docs/migration.md) — how (and when) to adopt an existing Docker Compose project into the Stack Manager.
 - [Caddy Admin API endpoints Loskai uses](docs/caddy-api.md) — the exact subset of the Caddy API the routing module calls, and why.
 - [AdGuard Home REST API endpoints Loskai uses](docs/adguard-api.md) — the DNS-rewrite subset of the AdGuard API the DNS module calls, and why.

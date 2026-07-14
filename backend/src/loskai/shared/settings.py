@@ -45,15 +45,20 @@ def _write_stored(data: dict[str, Any]) -> None:
     store.write_json(_path(), data)
 
 
-def resolve(key: str) -> tuple[Any, Source]:
-    """Return (value, source) for a configurable key following the priority chain."""
+def _resolve(key: str, stored: dict[str, Any]) -> tuple[Any, Source]:
+    """Resolve one key against an already-read stored dict (avoids re-reading the file)."""
     env_val = getattr(env, key, None)
     if env_val not in (None, ""):
         return env_val, "env"
-    stored = _read_stored().get(key)
-    if stored not in (None, ""):
-        return stored, "stored"
+    stored_val = stored.get(key)
+    if stored_val not in (None, ""):
+        return stored_val, "stored"
     return None, "unset"
+
+
+def resolve(key: str) -> tuple[Any, Source]:
+    """Return (value, source) for a configurable key following the priority chain."""
+    return _resolve(key, _read_stored())
 
 
 def value(key: str) -> Any:
@@ -62,9 +67,10 @@ def value(key: str) -> Any:
 
 def get_view() -> dict[str, Any]:
     """Source-tagged settings for GET /api/settings. Never includes the admin hash."""
+    stored = _read_stored()  # read once, resolve every key against it
     view: dict[str, Any] = {}
     for key in CONFIGURABLE_KEYS:
-        val, source = resolve(key)
+        val, source = _resolve(key, stored)
         view[key] = {"value": val, "source": source, "secret": key in SECRET_KEYS}
     # stacks_dir is env-only (drives the compose mount) — always shown read-only.
     view["stacks_dir"] = {"value": env.stacks_dir, "source": "env", "secret": False}
@@ -77,7 +83,7 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
     for key, val in payload.items():
         if key not in CONFIGURABLE_KEYS:
             continue
-        if resolve(key)[1] == "env":
+        if _resolve(key, stored)[1] == "env":
             continue  # env wins — never override from the UI
         if val in (None, ""):
             stored.pop(key, None)
