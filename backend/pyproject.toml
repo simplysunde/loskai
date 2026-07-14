@@ -15,6 +15,8 @@ dependencies = [
     "sse-starlette",
     "argon2-cffi",
     "itsdangerous",
+    "docker>=7.2.0",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]
