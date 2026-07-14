@@ -19,7 +19,8 @@ This publishes Caddy's admin API on **:2019** and AdGuard on **:3000** (see
 Open <http://localhost:3000>. In the wizard:
 
 - **Admin Web Interface** — listen on `All interfaces`, port **3000**.
-- **DNS server** — port **53** (it's mapped to host `5353`).
+- **DNS server** — port **53** (stays inside the container; the rig doesn't publish it,
+  since Loskai only uses AdGuard's REST API).
 - Create an **admin username + password** — you'll give these to Loskai next.
 
 ## 3. Start the Loskai backend (terminal 1)
@@ -74,9 +75,10 @@ docker compose -f docker-compose.dev.yml down -v     # wipe them too
 
 - **`CADDY_HOST_IP` isn't needed** here: `CADDY_ADMIN_URL` uses an IP (`127.0.0.1`), so the
   DNS-rewrite answer IP derives from it automatically.
-- **Full name resolution** (actually browsing `https://test.lvh.me`) would need your
-  resolver pointed at AdGuard on `:5353` and Caddy's internal CA trusted — beyond a basic
-  integration test. Verifying the route/rewrite landed (above) confirms the wiring.
+- **Full name resolution** (actually browsing `https://test.lvh.me`) would need AdGuard's
+  DNS port published (uncomment it in the compose, on a free host port) with your resolver
+  pointed at it, plus Caddy's internal CA trusted — beyond a basic integration test.
+  Verifying the route/rewrite landed (above) confirms the wiring.
 - Prefer not to export each time? Put the block in a file and `set -a; source it; set +a`
   before running uvicorn (don't commit it — it holds the AdGuard password).
 

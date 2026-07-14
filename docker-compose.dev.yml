@@ -26,8 +26,11 @@ services:
     container_name: loskai-dev-adguard
     ports:
       - "3000:3000" # web UI + REST API — the dev backend reaches AdGuard here (required)
-      - "5353:53/tcp" # DNS (mapped off :53 to avoid the host resolver; optional for API tests)
-      - "5353:53/udp"
+      # DNS is NOT published — Loskai only uses the REST API. AdGuard still binds :53
+      # inside the container. Only publish it if you want real DNS resolution, and pick a
+      # free host port (5353 is often taken by mDNS/avahi):
+      # - "5354:53/udp"
+      # - "5354:53/tcp"
     volumes:
       - adguard-work:/opt/adguardhome/work
       - adguard-conf:/opt/adguardhome/conf
