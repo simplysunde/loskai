@@ -1,5 +1,38 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 3: Caddy module (backend) + frontend shell
+
+First module and the whole UI skeleton. Backend Caddy module is read + push only
+(never assigns — that's Phase 6); frontend is the Lutris-inspired shell plus the read
+side of the routing view. Everything the write-path needs (assign, DNS column) is
+deliberately deferred to Phases 4/6.
+
+- Key files: `backend/src/loskai/modules/caddy/{client,service,router}.py`,
+  `backend/tests/test_caddy_{logic,client}.py`; `frontend/src/{App,main}.tsx`,
+  `components/{shared,routing}/*`, `pages/*`, `lib/*`
+- **Backend, per `docs/caddy-api.md`**: `client.py` is thin I/O (server name discovered
+  from `/config/apps/http/servers` and cached — never hardcodes `srv0`; push, delete
+  ignoring 404, upstreams, a health probe). `service.py` holds all logic: FQDN + route
+  JSON builders (keyed by `@id`), Caddyfile render, `list_with_sync` (display-only sync
+  comparison, never auto-corrects), delete-then-add `upsert_route`, `push_all` recovery.
+  Mode detection lives in `service`, not `client`, to keep the I/O/logic seam clean
+  (TODO had it under client)
+- **Health registry wired**: the caddy router registers its checker, so the aggregate
+  `/api/health` now reports a real caddy status (+ `mode`) instead of `unconfigured`
+- **Frontend shell**: persistent left sidebar (health dots + logout), `api.ts`
+  (401→/login), `useHealth` **gated on auth** (so the public dashboard never 401s on the
+  gated health endpoint), Dashboard, Login (doubles as first-run setup), Settings
+  (env-read-only fields), and the Routing view (ServiceTable + Push all + Caddyfile
+  export). Dark-first, Tailwind v4, maritime teal
+- **Deferred (noted in TODO)**: AssignModal built + unit-tested but its `/api/assign`
+  wiring is Phase 6 (the Assign button is a disabled signpost); the DNS-rewrite column is
+  Phase 4; ServiceTable delete/private-toggle are Phase 6; the Settings change-password
+  field awaits a change-password endpoint
+- **Verified**: 30 backend tests + 7 Vitest tests pass; `tsc`/`vite build`/`oxlint` clean.
+  Curl against the built `dist/` confirmed prod SPA serving (index, deep-route fallback,
+  assets), API precedence over the catch-all, and unknown `/api` paths returning 404
+  JSON (authed) / 401 (unauth) — never `index.html`
+
 ## 2026-07-13 — Phase 2: backend foundation (shared spine + auth boundary)
 
 Built the backend skeleton every module hangs off: the flat-file stores, the settings

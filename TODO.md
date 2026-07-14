@@ -48,48 +48,50 @@
 
 ## Phase 3 — Caddy Module
 **Backend**
-- [ ] `modules/caddy/client.py` — async httpx wrapper for the Caddy Admin API (push side only)
+- [x] `modules/caddy/client.py` — async httpx wrapper for the Caddy Admin API (push side only)
   - `server_name()` — GET /config/apps/http/servers, cache the single key (e.g. `srv0`) at startup; never hardcode it
   - `list_live_routes()` — GET /config/apps/http/servers/{server}/routes (Caddy's current state)
-  - `push_route(id, host, upstream)` — POST route JSON tagged with `@id` (append to the server's routes)
+  - `push_route(route)` — POST route JSON tagged with `@id` (append to the server's routes); route built by `service.build_route`
   - `delete_route(id)` — DELETE /id/{id} (ignore 404 — route may not be pushed yet)
-  - `get_mode()` — `"docker"` if CADDY_ADMIN_URL host is a name, `"lan"` if an IP — frontend upstream hint
-  - `health()` — returns `healthy` / `unreachable`
+  - `get_mode()` — moved to `service.caddy_mode()` (pure logic, kept out of client.py per the I/O-vs-logic seam)
+  - `health()` — returns `healthy` / `unreachable` / `degraded` / `unconfigured`; doubles as server-name refresh
   - `upstreams()` — GET /reverse_proxy/upstreams (upstream liveness for the route list)
-- [ ] `modules/caddy/service.py` — read + push only; owns the projection, not assignment
+- [x] `modules/caddy/service.py` — read + push only; owns the projection, not assignment
   - `list_with_sync()` — instances that have a subdomain, each annotated with synced (`@id` present in `list_live_routes()`) + live (`upstreams()`) status; read-only comparison, never auto-corrects
   - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — leaves any human-added route with a non-instance `@id` alone
   - `render_caddyfile()` — generate a complete, runnable Caddyfile from the instances that have a subdomain (TLS + admin block templated from `base_domain`)
   - Note: assigning / clearing a subdomain lives in `shared/assign.py` (Phase 6), not here — the Caddy module never writes a single route on its own
-- [ ] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy` (read + push only)
+- [x] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy` (read + push only); registers the caddy health checker with the aggregate poller
   - `GET /api/caddy/routes` — instances that have a subdomain, annotated with synced + live status
   - `POST /api/caddy/push` — `push_all()`
   - `GET /api/caddy/caddyfile` — export Caddyfile (text/plain)
   - `GET /api/caddy/health` — status + mode (`docker` | `lan`)
   - `GET /api/caddy/upstreams` — upstream liveness
-- [ ] Persistence: Caddy runs with `caddy run --resume` (its own config survives restarts);
+- [x] Persistence: Caddy runs with `caddy run --resume` (its own config survives restarts);
   `push_all()` is the backstop if that config is ever lost — no reconcile/drift loop needed
+- [x] Backend tests: Tier-1 logic (route JSON, mode, Caddyfile render) + Tier-2 client contract (pytest-httpx: server discovery, delete-ignores-404, unreachable). 30 backend tests pass
 
-**Frontend**
-- [ ] `App.tsx` — React Router + the persistent left-sidebar shell (Lutris-inspired): `Dashboard · Docker · Routing · VPN · Settings`. `/` (Dashboard) + `/login` public; admin tabs wrapped in `RequireAuth`. Hybrid aesthetic: card grid for dashboard/launchers, dense tables for stat-heavy lists
-- [ ] `pages/Dashboard.tsx` — public landing: grid of `ServiceCard`s from `GET /api/dashboard` (no auth); link into the admin tier (which prompts login)
-- [ ] `pages/Login.tsx` — the security screen: single-password form → `POST /api/login`; doubles as first-run "set admin password" when `GET /api/auth/status` reports `password_set: false`
-- [ ] `components/shared/RequireAuth.tsx` — wrapper that checks `GET /api/auth/status` and redirects to `/login` when not authed (UX only — the API is the real gate)
-- [ ] `components/shared/ServiceCard.tsx` — one dashboard card: service name, icon, link to `https://prefix.base_domain`
-- [ ] `pages/Settings.tsx` — settings page: form for all service URLs and credentials
+**Frontend** _(dark-first, Lutris-inspired; Tailwind v4, maritime teal accent)_
+- [x] `App.tsx` + `components/shared/Layout.tsx` — React Router + the persistent left-sidebar shell: `Dashboard · Docker · Routing · VPN · Settings` (per-module health dots + logout). `/` (Dashboard) + `/login` public; admin tabs wrapped in `RequireAuth`. Docker (Phase 8) + VPN (Phase 5) render `Placeholder`
+- [x] `pages/Dashboard.tsx` — public landing: grid of `ServiceCard`s from `GET /api/dashboard` (no auth)
+- [x] `pages/Login.tsx` — the security screen: single-password form → `POST /api/login`; doubles as first-run "set admin password" (`POST /api/auth/setup`) when `GET /api/auth/status` reports `password_set: false`
+- [x] `components/shared/RequireAuth.tsx` — checks `GET /api/auth/status`, redirects to `/login` when not authed (UX only — the API is the real gate)
+- [x] `components/shared/ServiceCard.tsx` — one dashboard card: name, icon, link to `https://prefix.base_domain`
+- [x] `pages/Settings.tsx` — form for all service URLs and credentials
   - Env-var-set fields shown as read-only with "set via environment" label
   - Editable fields saved via `PUT /api/settings`
-  - Admin password: a "change password" field (write-only; the hash is never fetched)
-  - Modules with unset required URLs show a banner linking to this page
-- [ ] `lib/api.ts` — fetch wrapper with base URL, JSON error handling; on a 401 redirect to `/login`
-- [ ] `lib/useHealth.ts` — React Query hook polling `/api/health` every 30s, exposes per-module status
-- [ ] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable
-- [ ] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable
-- [ ] `components/shared/ConfirmDialog.tsx` — generic confirm modal
-- [ ] `pages/Routing.tsx` — **unified Caddy + AdGuard view** (one tab, not two), shows module status banners if either is unreachable. Hosts the service table below; the DNS-status column is wired up in Phase 4
-- [ ] `components/routing/ServiceTable.tsx` — **one row per routed service**: assembled FQDN, upstream, Caddy route-sync + live status, AdGuard DNS-rewrite status (Phase 4), a **private toggle** (persists the instance `private` flag), delete (`DELETE /api/assign/{id}`); "Push all" (`POST /api/caddy/push`) for recovery
-- [ ] `components/routing/AssignModal.tsx` — form: prefix input (single DNS label, validated + uniqueness) showing assembled `prefix.base_domain` live, + upstream input (any `host:port` — Docker container, LAN IP, Proxmox, NAS, etc.). For a bare LAN target it creates an external ("dummy") instance; from the Docker page it assigns to the selected container's instance. Submit calls `/api/assign`
-- [ ] `components/routing/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
+  - ~~Admin password change field~~ — **deferred**: no change-password endpoint exists yet (Phase 2 auth has setup + login only); revisit when a `POST /api/auth/change-password` lands
+  - Modules with unset required URLs surface via the `ModuleStatus` banner (links here)
+- [x] `lib/api.ts` — fetch wrapper, JSON error handling; on a 401 redirect to `/login` (+ `useAuth`, `validation`)
+- [x] `lib/useHealth.ts` — React Query hook polling `/api/health` every 30s; **`enabled` gated on auth** so the public dashboard never polls the gated health endpoint
+- [x] `components/shared/StatusBadge.tsx` — coloured pill: healthy / degraded / unreachable / unconfigured / synced
+- [x] `components/shared/ModuleStatus.tsx` — banner shown when a module is unreachable/degraded/unconfigured
+- [x] `components/shared/ConfirmDialog.tsx` — generic confirm modal
+- [x] `pages/Routing.tsx` — unified view; Caddy module status banner + Push all + Caddyfile export (AdGuard DNS folds in Phase 4)
+- [x] `components/routing/ServiceTable.tsx` — one row per routed service: FQDN, upstream, Caddy route-sync + live status. **Deferred:** AdGuard DNS-rewrite column → Phase 4; the private toggle + delete (`DELETE /api/assign/{id}`) → Phase 6. "Push all" (`POST /api/caddy/push`) works now
+- [x] `components/routing/AssignModal.tsx` — form: prefix (single DNS label, validated) with live `prefix.base_domain` + upstream input (mode-aware hint). Built + unit-tested. **Submit wiring to `/api/assign` → Phase 6**; the Routing "Assign URL" button is a disabled signpost until then
+- [x] `components/routing/CaddyfileExport.tsx` — download + copy-to-clipboard of `GET /api/caddy/caddyfile`
+- [x] Frontend tests: `validation` (prefix rules) + `AssignModal` (FQDN preview, enable/disable, mode hint). 7 Vitest tests pass; `tsc` + `vite build` + `oxlint` clean
 - [ ] _(deferred)_ `components/routing/CertStatus.tsx` — cert expiry + days remaining. Out of current scope; when revisited, implement via a TLS probe to a routed name (read the served cert's `notAfter`), not the Admin API — see PLAN.md Future Ideas
 
 ---
