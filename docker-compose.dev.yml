@@ -16,9 +16,6 @@ services:
       - "2019:2019" # admin API — the dev backend reaches Caddy here (required)
       - "8081:80" # http  (optional — only to browse routed services)
       - "8443:443" # https (optional — Caddy serves an internal cert)
-    environment:
-      # The wildcard site in dev/Caddyfile. Keep this equal to the backend's BASE_DOMAIN.
-      - BASE_DOMAIN=${BASE_DOMAIN:-lvh.me}
     volumes:
       - ./dev/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data # certs + the autosaved config (routes survive restarts)

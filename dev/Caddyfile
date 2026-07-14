@@ -1,16 +1,20 @@
-# Dev Caddyfile — admin endpoint + local CA, plus a wildcard site so an HTTP server
-# (srv0) EXISTS for Loskai to discover and push routes into. Without a site, Caddy has no
-# apps.http.servers and Loskai can't find a server to append routes to.
+# Dev Caddyfile — admin endpoint + local CA, plus ONE placeholder site so an HTTP server
+# (srv0) exists for Loskai to discover and push routes into. Without any site there is no
+# apps.http.servers, so Loskai has no server to append routes to.
 #
-# `tls internal` / `local_certs` use Caddy's own CA — no ACME or DNS token needed. Loskai
-# pushes each specific-host route (test.lvh.me, …) at runtime via the Admin API; they all
-# reuse this server and its internal cert.
+# The hostname below is an arbitrary placeholder. In dev, `local_certs` makes Caddy issue
+# an internal cert per routed name on demand, so this does NOT need to match Loskai's
+# BASE_DOMAIN — set that wherever you like (Loskai's UI or the backend env); Caddy doesn't
+# need it here.
+#
+# (Production differs: the real wildcard `*.BASE_DOMAIN` cert is obtained via DNS challenge,
+# so there Caddy DOES need BASE_DOMAIN in its own env — see the root Caddyfile + PLAN.md.)
 
 {
 	admin 0.0.0.0:2019
 	local_certs
 }
 
-*.{$BASE_DOMAIN:lvh.me} {
+*.localhost {
 	tls internal
 }

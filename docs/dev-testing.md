@@ -73,6 +73,10 @@ docker compose -f docker-compose.dev.yml down -v     # wipe them too
 
 ## Notes
 
+- **`BASE_DOMAIN` is a Loskai-only setting in dev** — set it via the env above *or* on the
+  Settings page in the UI. The dev Caddy uses an internal CA (a per-name cert on demand), so
+  it doesn't need the domain. (Production is different: the real wildcard cert requires Caddy
+  to know `BASE_DOMAIN` too.)
 - **`CADDY_HOST_IP` isn't needed** here: `CADDY_ADMIN_URL` uses an IP (`127.0.0.1`), so the
   DNS-rewrite answer IP derives from it automatically.
 - **Full name resolution** (actually browsing `https://test.lvh.me`) would need AdGuard's
