@@ -1,0 +1,8 @@
+# Dev Caddyfile — admin endpoint + local CA only. No routes and no ACME/DNS token:
+# Loskai pushes every route at runtime via the Admin API, and `local_certs` makes Caddy
+# issue internal certs for them (fine for local testing).
+
+{
+	admin 0.0.0.0:2019
+	local_certs
+}

@@ -1,0 +1,39 @@
+# Local dev rig: Caddy + AdGuard as containers to point a dev Loskai at (Loskai itself
+# runs on the host via uv + vite, NOT here). Uses Caddy's internal CA — no domain or
+# ACME/DNS token needed.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then set on the dev backend:  CADDY_ADMIN_URL=http://127.0.0.1:2019
+#                               ADGUARD_URL=http://127.0.0.1:3000
+# See docs/dev-testing.md for the full walkthrough.
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: loskai-dev-caddy
+    ports:
+      - "2019:2019" # admin API — the dev backend reaches Caddy here (required)
+      - "8081:80" # http  (optional — only to browse routed services)
+      - "8443:443" # https (optional — Caddy serves an internal cert)
+    volumes:
+      - ./dev/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # certs + the autosaved config (routes survive restarts)
+    restart: unless-stopped
+
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: loskai-dev-adguard
+    ports:
+      - "3000:3000" # web UI + REST API — the dev backend reaches AdGuard here (required)
+      - "5353:53/tcp" # DNS (mapped off :53 to avoid the host resolver; optional for API tests)
+      - "5353:53/udp"
+    volumes:
+      - adguard-work:/opt/adguardhome/work
+      - adguard-conf:/opt/adguardhome/conf
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  adguard-work:
+  adguard-conf:
