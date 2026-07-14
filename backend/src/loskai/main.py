@@ -16,7 +16,7 @@ from .config import settings
 from .modules.adguard import router as adguard_router
 from .modules.caddy import router as caddy_router
 from .modules.wireguard import router as wireguard_router
-from .shared import auth, dashboard, health, instances
+from .shared import assign, auth, dashboard, health, instances
 from .shared import settings as settings_module
 
 
@@ -36,6 +36,7 @@ app.include_router(settings_module.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(instances.router)
+app.include_router(assign.router)
 app.include_router(caddy_router.router)
 app.include_router(adguard_router.router)
 app.include_router(wireguard_router.router)

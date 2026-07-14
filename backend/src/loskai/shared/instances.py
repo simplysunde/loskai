@@ -9,7 +9,7 @@ read live from the Docker socket and joined at display time via `container`.
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..config import settings
@@ -76,3 +76,23 @@ router = APIRouter(prefix="/api", tags=["instances"])
 @router.get("/instances")
 def get_instances() -> list[Instance]:
     return list_instances()
+
+
+class InstancePatch(BaseModel):
+    private: bool | None = None
+    name: str | None = None
+
+
+@router.patch("/instances/{instance_id}")
+def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
+    """Update mutable display fields (private flag, display name). Subdomain/upstream
+    are changed through the assign flow, never here."""
+    inst = get_instance(instance_id)
+    if inst is None:
+        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    updates: dict = {}
+    if body.private is not None:
+        updates["private"] = body.private
+    if body.name is not None:
+        updates["name"] = body.name
+    return upsert_instance(inst.model_copy(update=updates))
