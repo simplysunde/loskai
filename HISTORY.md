@@ -1,5 +1,38 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 4: AdGuard module (DNS rewrites + reconcile)
+
+The second module — and the trickiest logic in the app, the `(domain, answer)`
+reconcile. Backend follows `docs/adguard-api.md`; the DNS column and AdGuard status
+fold into the existing Routing view (no separate page).
+
+- Key files: `backend/src/loskai/modules/adguard/{client,service,router}.py`,
+  `backend/tests/test_adguard_{reconcile,client}.py`;
+  `frontend/src/components/routing/{AdGuardStatus,ServiceTable}.tsx`, `pages/Routing.tsx`
+- **One explicit rewrite per routed instance, no wildcard.** `answer` is the shared Caddy
+  LAN IP from `derive_caddy_host_ip()` (IP host of `CADDY_ADMIN_URL`, else `CADDY_HOST_IP`
+  in docker mode). Delete is POST to `/rewrite/delete` with the whole `(domain, answer)` —
+  the exact-pair delete is what protects hand-added rewrites
+- **`plan_reconcile` is pure** (unit-tested directly): ensure `(domain, current_ip)`
+  exists, migrate an orphan when the stored `dns_answer` differs (delete the stale pair),
+  and report a same-domain foreign answer as a manual conflict without touching it. The
+  executor applies it best-effort and persists `dns_answer` for every domain now resolving
+  to `current_ip`. Only ever deletes answers Loskai itself wrote
+- **Router**: health / rewrites (list+add+delete) per the contract, plus two small
+  additions — `GET /status` (per-instance DNS comparison kept server-side + testable) and
+  `POST /reconcile`. AdGuard unreachable → 502, never a bare 500
+- **Frontend**: DNS column (rewrite set / missing / unknown + conflict) with a best-effort
+  per-row add/remove; `AdGuardStatus` pill + link-out; "Push all" now runs the Caddy push
+  and the AdGuard reconcile together with a combined summary
+- **Fixed a Phase 3 regression**: the repo's Python `.gitignore` has `lib/`, which also
+  matched `frontend/src/lib/` and silently kept it out of the Phase 3 commit — the UI built
+  locally only because the ignored files still sat in the working tree; a fresh checkout
+  would have failed. Added a `!frontend/src/lib/` negation and committed the missing files.
+  Confirmed no other source is silently ignored
+- **Verified**: 50 backend + 9 Vitest tests pass; `tsc`/`vite build`/`oxlint` clean. Curl
+  confirmed answer-IP derivation, `/status` (present=null when AdGuard down), and the
+  graceful 502 on reconcile when AdGuard is unreachable
+
 ## 2026-07-14 — Phase 3: Caddy module (backend) + frontend shell
 
 First module and the whole UI skeleton. Backend Caddy module is read + push only

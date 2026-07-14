@@ -99,22 +99,25 @@
 ## Phase 4 — AdGuard Module
 _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
 **Backend**
-- [ ] `modules/adguard/client.py` — async httpx wrapper for AdGuard `/control` API (Basic Auth)
+- [x] `modules/adguard/client.py` — async httpx wrapper for AdGuard `/control` API (Basic Auth)
   - `health()` — `GET /control/status`, reachable + `running`
   - `list_rewrites()` — `GET /control/rewrite/list`
   - `add_rewrite(domain, answer)` — `POST /control/rewrite/add`
   - `delete_rewrite(domain, answer)` — `POST /control/rewrite/delete` (exact `{domain, answer}` pair — never match-by-domain, so manual rewrites are safe)
   - editing a rewrite is delete-then-add (no `PUT /rewrite/update`)
-- [ ] `reconcile_rewrites()` — for each routed instance ensure `(domain, currentIP)` exists; if its stored `dns_answer` differs, delete the stale `(domain, dns_answer)` pair (orphan migration) and update `dns_answer`; leave + flag same-domain entries whose answer matches neither `currentIP` nor `dns_answer` (manual conflict). Runs on "Push all" and when an IP change is detected on startup
-- [ ] Write each instance's `dns_answer` whenever a rewrite is added; clear it when the rewrite is removed (no separate state file — it lives on the instance)
-- [ ] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
-  - `GET /api/adguard/health` — reachable
-  - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`)
+- [x] `plan_reconcile()` (pure) + `reconcile()` (executor) in `service.py` — ensure `(domain, currentIP)` exists; if stored `dns_answer` differs, delete the stale `(domain, dns_answer)` pair (orphan migration); leave + flag same-domain entries whose answer matches neither `currentIP` nor `dns_answer` (manual conflict). Runs on "Push all" (`POST /api/adguard/reconcile`)
+- [x] Write each instance's `dns_answer` whenever a rewrite is added (executor persists it for every domain that now resolves to `currentIP`); clearing on removal is Phase 6 (assign clear)
+- [x] `modules/adguard/router.py` — FastAPI APIRouter at `/api/adguard`
+  - `GET /api/adguard/health` — reachable (+ `answer_ip`, `url` for the link-out)
+  - `GET /api/adguard/rewrites`, `POST`, `DELETE` (DELETE carries `{domain, answer}`); AdGuard unreachable → 502
+  - **Added beyond the surface**: `GET /api/adguard/status` (per-instance DNS comparison, server-side + testable) and `POST /api/adguard/reconcile`
+- [x] Backend tests: Tier-1 reconcile (add / in-sync / orphan-migration / manual-conflict / stale-not-conflict) + executor via a fake client; Tier-2 client contract (exact-pair delete body, Basic Auth header). 50 backend tests pass
 
 **Frontend** — folds into the unified `pages/Routing.tsx` (no separate AdGuard page)
-- [ ] Add the **DNS-rewrite status column** to `components/routing/ServiceTable.tsx`: per row, whether `(domain, currentIP)` is present, plus the manual-conflict flag; row action to add/remove the rewrite (best-effort)
-- [ ] `components/routing/AdGuardStatus.tsx` — AdGuard health pill + prominent link out to the full AdGuard UI, shown in the Routing tab header
-- [ ] Reconcile action ("Push all") surfaced in the Routing tab, reporting per-service route + DNS results
+- [x] Added the **DNS-rewrite status column** to `components/routing/ServiceTable.tsx`: per row, present / missing / unknown + the manual-conflict flag; best-effort row action to add/remove the rewrite
+- [x] `components/routing/AdGuardStatus.tsx` — AdGuard health pill + answer-IP + prominent link out to the full AdGuard UI, in the Routing header
+- [x] Reconcile action folded into "Push all": runs `POST /api/caddy/push` + `POST /api/adguard/reconcile` together, reports a combined per-side summary. 9 Vitest tests pass
+- [x] Fixed a Phase 3 regression: the Python `.gitignore`'s `lib/` had silently excluded `frontend/src/lib/` from git (built locally, would fail a fresh checkout) — negation added, files committed
 
 ---
 
