@@ -1,0 +1,88 @@
+"""Tier-2: Caddy client contract — request shapes + designed edges, HTTP mocked.
+
+Mocks the Admin API responses from docs/caddy-api.md and asserts the *requests* the
+client builds. Never tests httpx itself.
+"""
+
+import json
+
+import httpx
+import pytest
+
+from loskai.modules.caddy.client import CaddyClient
+
+BASE = "http://caddy.test:2019"
+
+
+def _client() -> CaddyClient:
+    return CaddyClient(base_url=BASE)
+
+
+async def test_server_name_discovered_not_hardcoded(httpx_mock):
+    httpx_mock.add_response(
+        method="GET", url=f"{BASE}/config/apps/http/servers", json={"srv0": {}}
+    )
+    assert await _client().server_name() == "srv0"
+
+
+async def test_push_route_posts_to_discovered_server_with_id(httpx_mock):
+    client = _client()
+    client._server_name = "srv0"  # skip discovery for an isolated assertion
+    httpx_mock.add_response(
+        method="POST", url=f"{BASE}/config/apps/http/servers/srv0/routes"
+    )
+    route = {"@id": "grafana", "match": [{"host": ["grafana.example.no"]}]}
+    await client.push_route(route)
+
+    sent = httpx_mock.get_requests()[0]
+    assert sent.method == "POST"
+    assert json.loads(sent.read())["@id"] == "grafana"
+
+
+async def test_delete_route_ignores_404(httpx_mock):
+    httpx_mock.add_response(method="DELETE", url=f"{BASE}/id/grafana", status_code=404)
+    await _client().delete_route("grafana")  # must not raise
+
+
+async def test_delete_route_raises_on_500(httpx_mock):
+    httpx_mock.add_response(method="DELETE", url=f"{BASE}/id/grafana", status_code=500)
+    with pytest.raises(httpx.HTTPStatusError):
+        await _client().delete_route("grafana")
+
+
+async def test_upstreams_parsed(httpx_mock):
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{BASE}/reverse_proxy/upstreams",
+        json=[{"address": "192.168.10.100:3000", "num_requests": 2, "fails": 0}],
+    )
+    ups = await _client().upstreams()
+    assert ups[0]["address"] == "192.168.10.100:3000"
+
+
+async def test_health_healthy(httpx_mock):
+    httpx_mock.add_response(
+        method="GET", url=f"{BASE}/config/apps/http/servers", json={"srv0": {}}
+    )
+    result = await _client().health()
+    assert result == {"status": "healthy", "server": "srv0"}
+
+
+async def test_health_unreachable(httpx_mock):
+    httpx_mock.add_exception(
+        httpx.ConnectError("connection refused"),
+        method="GET",
+        url=f"{BASE}/config/apps/http/servers",
+    )
+    result = await _client().health()
+    assert result["status"] == "unreachable"
+
+
+def test_health_unconfigured_without_base():
+    # No explicit base and no setting -> unconfigured, no HTTP attempted.
+    import asyncio
+
+    from loskai import config
+
+    config.settings.caddy_admin_url = None
+    assert asyncio.run(CaddyClient().health()) == {"status": "unconfigured"}

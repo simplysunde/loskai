@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
 from .config import settings
+from .modules.caddy import router as caddy_router
 from .shared import auth, dashboard, health, instances
 from .shared import settings as settings_module
 
@@ -33,6 +34,7 @@ app.include_router(settings_module.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(instances.router)
+app.include_router(caddy_router.router)
 
 
 # --- Static SPA (production only) ---
