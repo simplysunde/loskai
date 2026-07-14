@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
 from .config import settings
+from .modules.adguard import router as adguard_router
 from .modules.caddy import router as caddy_router
 from .shared import auth, dashboard, health, instances
 from .shared import settings as settings_module
@@ -35,6 +36,7 @@ app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(instances.router)
 app.include_router(caddy_router.router)
+app.include_router(adguard_router.router)
 
 
 # --- Static SPA (production only) ---
