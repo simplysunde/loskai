@@ -1,3 +1,5 @@
+import { Loader2, Plus, Trash2 } from "lucide-react";
+
 import { StatusBadge } from "../shared/StatusBadge";
 
 export interface RouteRow {
@@ -10,11 +12,22 @@ export interface RouteRow {
   private: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
+  // Merged in from /api/adguard/status (Phase 4):
+  dnsPresent?: boolean | null; // null = unknown (AdGuard down / no answer IP)
+  dnsConflict?: boolean; // a manual same-domain rewrite points elsewhere
 }
 
-// One row per routed service. Route-sync + live columns here; the DNS-rewrite column
-// lands in Phase 4 and per-row assign/delete/private actions in Phase 6.
-export function ServiceTable({ rows }: { rows: RouteRow[] }) {
+// One row per routed service. Route-sync, live, and DNS-rewrite columns; the per-row
+// rewrite add/remove is best-effort. Assign/delete/private actions land in Phase 6.
+export function ServiceTable({
+  rows,
+  onToggleRewrite,
+  rewriteBusyId,
+}: {
+  rows: RouteRow[];
+  onToggleRewrite?: (row: RouteRow) => void;
+  rewriteBusyId?: string | null;
+}) {
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
@@ -32,6 +45,8 @@ export function ServiceTable({ rows }: { rows: RouteRow[] }) {
             <th className="px-4 py-2.5 font-medium">Upstream</th>
             <th className="px-4 py-2.5 font-medium">Route</th>
             <th className="px-4 py-2.5 font-medium">Live</th>
+            <th className="px-4 py-2.5 font-medium">DNS</th>
+            {onToggleRewrite && <th className="px-4 py-2.5 font-medium" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/70">
@@ -62,10 +77,74 @@ export function ServiceTable({ rows }: { rows: RouteRow[] }) {
                   <StatusBadge status="unreachable" label="down" />
                 )}
               </td>
+              <td className="px-4 py-3">
+                <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
+              </td>
+              {onToggleRewrite && (
+                <td className="px-4 py-3 text-right">
+                  <RewriteAction
+                    row={row}
+                    busy={rewriteBusyId === row.id}
+                    onToggle={onToggleRewrite}
+                  />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function DnsCell({
+  present,
+  conflict,
+}: {
+  present?: boolean | null;
+  conflict?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {present === undefined || present === null ? (
+        <StatusBadge status="unknown" label="unknown" />
+      ) : present ? (
+        <StatusBadge status="synced" label="rewrite set" />
+      ) : (
+        <StatusBadge status="unsynced" label="missing" />
+      )}
+      {conflict && <StatusBadge status="degraded" label="conflict" />}
+    </div>
+  );
+}
+
+function RewriteAction({
+  row,
+  busy,
+  onToggle,
+}: {
+  row: RouteRow;
+  busy: boolean;
+  onToggle: (row: RouteRow) => void;
+}) {
+  // Can't act when DNS status is unknown (AdGuard down or no answer IP).
+  const disabled = busy || row.dnsPresent === undefined || row.dnsPresent === null;
+  const present = row.dnsPresent === true;
+  return (
+    <button
+      disabled={disabled}
+      onClick={() => onToggle(row)}
+      title={present ? "Remove DNS rewrite" : "Add DNS rewrite"}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+    >
+      {busy ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : present ? (
+        <Trash2 className="h-3.5 w-3.5" />
+      ) : (
+        <Plus className="h-3.5 w-3.5" />
+      )}
+      {present ? "Rewrite" : "Rewrite"}
+    </button>
   );
 }

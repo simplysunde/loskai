@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/adguard", tags=["adguard"])
 async def _health_payload() -> dict:
     payload = await adguard.health()
     payload["answer_ip"] = settings_store.derive_caddy_host_ip()
+    payload["url"] = settings_store.value("adguard_url")  # for the UI link-out
     return payload
 
 
