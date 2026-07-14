@@ -1,9 +1,9 @@
 import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/shared/Layout";
-import { Placeholder } from "./components/shared/Placeholder";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Dashboard } from "./pages/Dashboard";
+import { Docker } from "./pages/Docker";
 import { Login } from "./pages/Login";
 import { Routing } from "./pages/Routing";
 import { Settings } from "./pages/Settings";
@@ -21,7 +21,7 @@ export default function App() {
           path="/docker"
           element={
             <RequireAuth>
-              <Placeholder title="Docker" note="The Docker module lands in Phase 8." />
+              <Docker />
             </RequireAuth>
           }
         />

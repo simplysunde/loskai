@@ -89,6 +89,16 @@ async def test_assign_rejects_duplicate_subdomain():
 # --- Happy path (new external instance) ---
 
 
+async def test_assign_with_container_creates_docker_instance():
+    result = await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
+        base_domain=BASE, current_ip=IP, container="grafana",
+    )
+    assert result["caddy"] == "ok"
+    inst = instances_store.get_instance("grafana")
+    assert inst.type == "docker" and inst.container == "grafana"
+
+
 async def test_assign_creates_external_routes_and_rewrites():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
