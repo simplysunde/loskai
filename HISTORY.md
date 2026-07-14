@@ -1,5 +1,22 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 5: WireGuard module (reachability card)
+
+The simplest module — no auth, no API, no state. Loskai never manages peers; this is a
+pure status card that links out to wg-dashboard.
+
+- Key files: `backend/src/loskai/modules/wireguard/{client,router}.py`,
+  `frontend/src/pages/WireGuard.tsx`, `components/wireguard/WireGuardCard.tsx`
+- **Reachability**: a plain GET to `WIREGUARD_DASHBOARD_URL` with no `raise_for_status` —
+  any HTTP response (incl. 401/403 from an auth-protected dashboard) counts as reachable;
+  only a connection failure/timeout is unreachable
+- **DNS reminder**: the router derives `dns_hint` from the host of `ADGUARD_URL` so the
+  card can tell peers which DNS to use (AdGuard IP + 1.1.1.1); generic guidance when unset
+- **Frontend**: the VPN tab replaces its placeholder and reads `wireguard` straight from
+  the aggregate `useHealth` (the registered checker already returns url + dns_hint)
+- **Verified**: 54 backend + 11 Vitest tests pass; clean build/lint. Curl-confirmed the
+  reachable-on-401 rule (self-pinged the gated `/api/health`) and dns_hint derivation
+
 ## 2026-07-14 — Phase 4: AdGuard module (DNS rewrites + reconcile)
 
 The second module — and the trickiest logic in the app, the `(domain, answer)`

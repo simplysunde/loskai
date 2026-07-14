@@ -123,14 +123,15 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 
 ## Phase 5 — WireGuard Module
 **Backend**
-- [ ] `modules/wireguard/client.py` — simple reachability check, no authentication
-  - `health()` — HTTP ping to `WIREGUARD_DASHBOARD_URL`, returns `{ reachable: bool }` (any HTTP response = reachable, incl. `401`/`403`; only connection failure/timeout = unreachable)
-- [ ] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
-  - `GET /api/wireguard/status` — is dashboard reachable + its URL
+- [x] `modules/wireguard/client.py` — simple reachability check, no authentication
+  - `health()` — HTTP ping to `WIREGUARD_DASHBOARD_URL`, returns `{ reachable: bool }` (any HTTP response = reachable, incl. `401`/`403`; only connection failure/timeout = unreachable — no `raise_for_status`)
+- [x] `modules/wireguard/router.py` — FastAPI APIRouter at `/api/wireguard`
+  - `GET /api/wireguard/status` — reachable + url + `dns_hint` (AdGuard IP from `ADGUARD_URL` host); registers the wireguard health checker
 
 **Frontend**
-- [ ] `pages/WireGuard.tsx` — the **VPN** sidebar tab (WireGuard reachability card)
-- [ ] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, DNS reminder card (host of `ADGUARD_URL` + `1.1.1.1`; generic guidance if `ADGUARD_URL` unset)
+- [x] `pages/WireGuard.tsx` — the **VPN** sidebar tab (replaces the placeholder); reads `wireguard` from `useHealth`
+- [x] `components/wireguard/WireGuardCard.tsx` — reachability status, prominent link out to wg-dashboard, DNS reminder card (host of `ADGUARD_URL` + `1.1.1.1`; generic guidance if `ADGUARD_URL` unset)
+- [x] Tests: Tier-2 client (`401`/`403` = reachable, conn-fail = unreachable) + card render. 54 backend + 11 Vitest pass; `tsc`/`vite build`/`oxlint` clean
 
 ---
 
