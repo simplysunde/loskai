@@ -1,0 +1,37 @@
+# Preferred setup: Loskai runs on the Docker host (LXC 103); Caddy + AdGuard run
+# natively on LXC 101, reached over the LAN. Copy .env.example to .env first.
+#
+# Cold start: on a brand-new Caddy no routes exist yet, so loskai.<domain> won't
+# resolve. Reach Loskai directly at http://<docker-host>:8080 and click "Push all".
+
+services:
+  loskai:
+    build: .
+    image: loskai:latest # `docker compose build` tags it here
+    container_name: loskai
+    ports:
+      - "8080:8080"
+    volumes:
+      # Root-equivalent on the host — Loskai must be the only container with this.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Same path inside and out: the compose CLI hands bind paths to the host daemon,
+      # so the in-container scan path must equal the host path (or volumes land wrong).
+      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      # Persists settings.json + instances.json + the session secret.
+      - ./loskai-settings:/opt/loskai
+    environment:
+      # Caddy Admin API — LXC 101 over the LAN (port 2019 firewalled to this host).
+      - CADDY_ADMIN_URL=${CADDY_ADMIN_URL:-http://192.168.10.101:2019}
+      # AdGuard — LXC 101 over the LAN.
+      - ADGUARD_URL=${ADGUARD_URL:-http://192.168.10.101:3000}
+      - ADGUARD_USER=${ADGUARD_USER:-}
+      - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
+      # WireGuard dashboard — LXC 102 (optional, no auth).
+      - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
+      # General — all optional; can be set in the UI on first run instead.
+      - BASE_DOMAIN=${BASE_DOMAIN:-}
+      - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      # Must equal the bind mount above so the scan path matches what's mounted.
+      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      # The ACME/DNS-challenge token lives with Caddy on LXC 101 — Loskai never needs it.
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+# Bootstrap Caddyfile for the native LXC 101 setup — reference config.
+#
+# It defines NO routes: only the admin endpoint and the wildcard cert. Every route
+# (loskai, adguard, grafana, …) is pushed at runtime by Loskai via the Admin API, each
+# reusing the wildcard cert below. Caddy autosaves after every API change and runs with
+# `caddy run --resume`, so routes survive restarts with no action from Loskai.
+#
+# Set BASE_DOMAIN and the DNS-provider token in Caddy's environment on LXC 101.
+
+{
+	# Firewall this: only the Docker host (e.g. 192.168.10.100) may reach :2019.
+	admin 0.0.0.0:2019
+}
+
+# Obtain the wildcard *.{$BASE_DOMAIN} cert once, via DNS challenge. No handlers -> cert
+# only (this is not a routing catch-all). Swap the provider + token to match your domain.
+*.{$BASE_DOMAIN} {
+	tls {
+		dns duckdns {env.DUCKDNS_TOKEN}
+	}
+}

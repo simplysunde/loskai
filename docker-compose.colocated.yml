@@ -1,0 +1,70 @@
+# All-in-Docker alternative (no Proxmox/LXC): Loskai + Caddy + AdGuard as containers on
+# one host. Also the basis for the Tier-3 test rig. Copy .env.example to .env first.
+#
+# Port notes (only host-published ports conflict; container-to-container stays internal):
+#   - AdGuard :53 vs the host resolver — most Linux hosts run systemd-resolved on 53.
+#     Free it (disable/reconfigure systemd-resolved) or bind AdGuard's 53 to a host IP.
+#   - Keep AdGuard off 80/443 — those belong to Caddy. Let Caddy reverse-proxy the UI.
+#   - CADDY_ADMIN_URL is a hostname here, so DNS-rewrite answers need CADDY_HOST_IP =
+#     the host's LAN IP (where Caddy's published :443 actually lives for LAN clients).
+
+services:
+  caddy:
+    build: ./caddy # xcaddy build with your DNS provider's plugin
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
+    environment:
+      # Token for the wildcard-cert DNS challenge (swap provider to match your domain).
+      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
+    volumes:
+      - caddy-data:/data # certs + the autosaved config (survives restarts)
+      - caddy-config:/config
+    restart: unless-stopped
+
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000" # first-run setup UI; afterwards reach it through Caddy
+    volumes:
+      - adguard-work:/opt/adguardhome/work
+      - adguard-conf:/opt/adguardhome/conf
+    restart: unless-stopped
+
+  loskai:
+    build: .
+    image: loskai:latest
+    container_name: loskai
+    depends_on:
+      - caddy
+      - adguard
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      - ./loskai-settings:/opt/loskai
+    environment:
+      - CADDY_ADMIN_URL=http://caddy:2019
+      - ADGUARD_URL=http://adguard:3000
+      - ADGUARD_USER=${ADGUARD_USER:-}
+      - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
+      - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
+      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
+      - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      # Required in this mode: the host LAN IP where Caddy's :443 is published.
+      - CADDY_HOST_IP=${CADDY_HOST_IP:?set CADDY_HOST_IP to the host's LAN IP}
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:
+  adguard-work:
+  adguard-conf:

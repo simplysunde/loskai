@@ -1,0 +1,18 @@
+# Keep the build context small and reproducible — install deps from lockfiles, not
+# whatever happens to be in the working tree.
+**/node_modules
+**/.venv
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+frontend/coverage
+loskai-settings
+.git
+.github
+.forgejo
+docs
+*.md
+!backend/README.md
+scripts

@@ -1,0 +1,16 @@
+# Caddyfile for the co-located Caddy container. Same shape as the LXC 101 reference:
+# admin endpoint + wildcard cert only. Loskai pushes every specific-host route at runtime
+# via the Admin API (reached as caddy:2019 on the internal Docker network).
+
+{
+	# Internal to the Docker network — Loskai reaches this as caddy:2019. Not published.
+	admin 0.0.0.0:2019
+}
+
+# Wildcard cert via DNS challenge. Token comes from the caddy service's environment
+# (DUCKDNS_TOKEN in docker-compose.colocated.yml). Swap the provider to match your domain.
+*.{$BASE_DOMAIN} {
+	tls {
+		dns duckdns {env.DUCKDNS_TOKEN}
+	}
+}
