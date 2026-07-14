@@ -156,26 +156,20 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ## Phase 7 — Deployment
 
 **Infrastructure scripts**
-- [ ] `scripts/create-lxc101.sh` — Proxmox host script (run from Proxmox shell via `bash create-lxc101.sh`)
-  - Creates Debian LXC with sensible defaults (ID, memory, disk, network)
-  - Starts the container and runs setup inside it via `pct exec`
-  - Installs AdGuard Home (official installer script)
-  - Installs xcaddy, builds Caddy with DuckDNS plugin, installs to `/usr/bin/caddy`
-  - Drops a starter `Caddyfile` at `/etc/caddy/Caddyfile`
-  - Enables `caddy` and `adguardhome` as systemd services
-  - Prints next steps: set DuckDNS token in Caddyfile, open AdGuard UI to finish setup
+- [x] `scripts/create-lxc101.sh` — Proxmox host script (run from Proxmox shell via `bash create-lxc101.sh`)
+  - Creates + starts a Debian LXC (configurable ID/memory/disk/network), provisions via `pct exec`
+  - Installs AdGuard Home (official installer)
+  - Installs Caddy via the **official custom-build download** (prebuilt binary with the DNS plugin — simpler/more reliable than xcaddy+Go for an untested script), drops the cert-only `Caddyfile`, adds a `caddy.service` unit (`run --resume`)
+  - Prints next steps (set the DNS token, finish AdGuard setup, firewall :2019). Bash syntax-checked; can't be run outside Proxmox
 
 **Loskai container**
-- [ ] `Dockerfile` — multi-stage build:
-  - Stage 1 (node:20-alpine): build frontend → `/app/dist`
-  - Stage 2 (python:3.12-slim): install uv + backend deps + Docker CLI + compose plugin + `git` (needed to sync the recipes repo and for `git_build` recipes), copy dist to `./static`
-- [ ] `docker-compose.yml` — preferred setup: Loskai on LXC 103, Caddy on LXC 101 by LAN IP, includes `loskai-settings` volume for `settings.json` + `instances.json`
-  - Mount `STACKS_DIR` at the **same path** in and out (`${STACKS_DIR}:${STACKS_DIR}`) — the compose CLI hands bind paths to the host daemon, so paths must match or stack volumes land in the wrong place
-- [ ] `docker-compose.colocated.yml` — full all-in-Docker alternative to the Proxmox/LXC setup: Loskai **+ Caddy + AdGuard** all as containers (for people who don't run Proxmox). The Tier-3 test rig is a disposable variant of this same stack (see Testing)
-  - Port notes (see PLAN.md "Co-located port notes"): only host-published ports conflict — Caddy owns `80`/`443`, AdGuard owns `53`; `2019`/`3000` stay internal. Watch the two host-OS conflicts: AdGuard `:53` vs `systemd-resolved`, and keep AdGuard off `80`/`443`. Set `CADDY_HOST_IP` (admin URL is a hostname here)
-- [ ] `Caddyfile` — reference config for LXC 101 native Caddy: admin endpoint + wildcard cert only (no routes); every route pushed at runtime via the Admin API
-- [ ] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy as Docker container)
-- [ ] Verify: `docker compose up` → open `http://localhost:8080`, all modules report health correctly
+- [x] `Dockerfile` — multi-stage build. Stage 1 (node:20-alpine) builds the frontend; stage 2 (**python:3.12-slim-bookworm**, pinned so the Docker apt repo matches) installs deps with `uv` in two steps (deps cached, then the project), adds `git` + Docker CLI + Compose v2 plugin, copies dist to `./static`, serves on :8080. `+ .dockerignore`
+- [x] `docker-compose.yml` — preferred setup (Loskai on the Docker host, Caddy/AdGuard over the LAN); `loskai-settings` volume; same-path `${STACKS_DIR}:${STACKS_DIR}` mount + socket
+- [x] `docker-compose.colocated.yml` — all-in-Docker alternative (Loskai + Caddy + AdGuard as containers); port-conflict notes + required `CADDY_HOST_IP`; named volumes for caddy/adguard state
+- [x] `Caddyfile` — cert-only reference for native LXC 101 Caddy (admin + wildcard, no routes)
+- [x] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy container built with the DNS plugin)
+- [x] README updated with build/run/deploy + develop instructions
+- [x] Verify: **Docker daemon unavailable in this environment** — replicated the image contents instead: `uv sync --frozen --no-dev` (prod install, dev deps removed) + the exact container CMD serves the SPA + gated API on :8080 with all four modules reporting; compose YAML + LXC script parse. Actual `docker build`/`docker compose up` must run on a real host
 
 ---
 

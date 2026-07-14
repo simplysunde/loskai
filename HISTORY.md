@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 7: deployment (single image + compose + LXC script)
+
+Made the whole thing runnable as the single container the plan describes. No app-code
+changes — packaging and infra only.
+
+- Key files: `Dockerfile`, `.dockerignore`, `docker-compose.yml`,
+  `docker-compose.colocated.yml`, `Caddyfile`, `caddy/{Dockerfile,Caddyfile}`,
+  `scripts/create-lxc101.sh`, `README.md`
+- **Dockerfile**: multi-stage single image. Frontend built in node:20-alpine; runtime is
+  python:3.12-slim-bookworm (pinned so the Docker apt repo line matches the base OS) with
+  a two-step `uv sync` (deps cached, then the project), git + Docker CLI + Compose v2, the
+  bundle at `./static`, served on :8080. `CMD uv run --no-sync` so the locked env is never
+  touched at runtime
+- **Two compose files**: the preferred split (Loskai on the Docker host, Caddy/AdGuard on
+  LXC 101) and the all-in-Docker co-located stack (with the port-conflict notes and
+  required `CADDY_HOST_IP`)
+- **LXC script**: provisions the Network Services box — AdGuard via its installer, Caddy
+  via the **official custom-build download** (prebuilt binary with the DNS plugin, avoiding
+  an xcaddy/Go toolchain in an untested script) + a systemd unit
+- **Verified without a Docker daemon** (unavailable here): ran the exact production install
+  `uv sync --frozen --no-dev` (confirmed dev deps removed, app still imports) and the exact
+  container CMD serving the freshly-built bundle on :8080 — SPA + deep-route fallback +
+  gated API + all four module statuses. Compose YAML and the LXC script parse. The real
+  `docker build` / `docker compose up` still needs a Docker host
+
 ## 2026-07-14 — Phase 6: cross-module URL assignment (the keystone)
 
 `shared/assign.py` — the one place modules coordinate, and the action that unblocks the
