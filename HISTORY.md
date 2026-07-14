@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 6: cross-module URL assignment (the keystone)
+
+`shared/assign.py` — the one place modules coordinate, and the action that unblocks the
+deferred write-path UI. The Caddy and AdGuard modules stay read + push only; this is the
+sole cross-module writer.
+
+- Key files: `backend/src/loskai/shared/assign.py`, `shared/instances.py` (PATCH),
+  `frontend/src/pages/Routing.tsx`, `components/routing/ServiceTable.tsx`
+- **`POST /api/assign`**: validate single-label prefix + subdomain uniqueness → Step 0
+  persist intent → Step 1 Caddy route (REQUIRED; roll back — delete a new instance or
+  restore an existing one — and 502 on failure) → Step 2 AdGuard rewrite with
+  answer = derived Caddy IP (BEST EFFORT; warn, never fail). Handles a new external
+  ("dummy") instance and an existing one; a rename removes the orphaned old-domain rewrite
+- **`DELETE /api/assign/{id}`**: the mirror — clear subdomain + save, Caddy delete
+  (required, rollback), best-effort AdGuard delete by exact pair; the instance survives
+- **`PATCH /api/instances/{id}`**: persists the `private` flag / name (routing-table toggle)
+- **Frontend**: Assign button → AssignModal → assign (result banner with URL + any AdGuard
+  warning); ServiceTable delete (ConfirmDialog) + private toggle; `api.patch` added
+- **assign/unassign take the clients as args** so they're driven by fakes in tests. Tier-1
+  covers validation, uniqueness, happy path, Caddy-fail rollback (new + existing), AdGuard
+  best-effort (error/skipped/no-IP), and the unassign mirror
+- **Verified**: 65 backend + 12 Vitest tests pass; clean build/lint. Ran the whole flow end
+  to end through the real HTTP clients against a throwaway Caddy+AdGuard stub — route +
+  rewrite land, 422/409 guards fire, private toggle and the delete mirror both confirmed
+
 ## 2026-07-14 — Phase 5: WireGuard module (reachability card)
 
 The simplest module — no auth, no API, no state. Loskai never manages peers; this is a

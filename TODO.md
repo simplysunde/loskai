@@ -136,18 +136,20 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ---
 
 ## Phase 6 — Cross-Module URL Assignment
-- [ ] `backend/src/loskai/shared/assign.py` — the one place assignment lives; orchestrates
+- [x] `backend/src/loskai/shared/assign.py` — the one place assignment lives; orchestrates
       the Caddy client + AdGuard client + instance store (Caddy module never writes routes itself)
-  - `POST /api/assign { instance_id, prefix, upstream }`
+  - `POST /api/assign { prefix, upstream, instance_id?, name? }`
     - Handles both existing instances (a container) and new external ("dummy") instances
     - Step 0: validate single-label prefix + uniqueness; set subdomain/upstream on the instance + save `instances.json`
-    - Step 1: push Caddy route via `client.push_route` (required — abort + roll back the subdomain if it fails)
-    - Step 2: create AdGuard DNS rewrite `{domain, answer: caddy_host_ip}` (best-effort — warn but don't fail; the name won't resolve on the LAN until it lands)
-    - Returns: `{ caddy: ok|error, adguard: ok|error|skipped, url: "https://prefix.base_domain" }`
+    - Step 1: push Caddy route via `caddy_service.upsert_route` (required — abort + roll back if it fails: delete a new instance, restore an existing one)
+    - Step 2: create AdGuard DNS rewrite `{domain, answer: caddy_host_ip}` (best-effort — warn but don't fail; on a rename the orphaned old-domain rewrite is removed)
+    - Returns: `{ caddy, adguard: ok|error|skipped, url, instance_id, warning }`; validation→422, duplicate→409, not-found→404, Caddy-required failure→502
   - `DELETE /api/assign/{instance_id}` — the mirror: clear the instance's subdomain + save,
-    `client.delete_route` (required), then best-effort remove the AdGuard rewrite; instance survives
-- [ ] Wire `AssignModal.tsx` to `POST /api/assign` and the route-list delete to `DELETE /api/assign/{id}`, show per-step result to user
-- [ ] Make Assign URL modal accessible from both the Routing page and (later) the Docker page
+    `client.delete_route` (required, rollback on failure), then best-effort remove the AdGuard rewrite by exact pair; instance survives
+- [x] `PATCH /api/instances/{id}` — persist the `private` flag / display name (backs the routing-table private toggle)
+- [x] Wired `AssignModal.tsx` → `POST /api/assign` (result banner with URL + AdGuard warning); ServiceTable delete → `DELETE /api/assign/{id}` behind a ConfirmDialog; private toggle → `PATCH /api/instances/{id}`
+- [x] Assign URL modal accessible from the Routing page (the Docker-page entry point lands in Phase 8)
+- [x] Tests: Tier-1 validation/uniqueness + orchestration via fake clients (happy path, Caddy-fail rollback for new + existing, AdGuard best-effort error/skipped/no-IP, unassign mirror). 65 backend + 12 Vitest pass. **Verified end to end through the real HTTP clients against a throwaway Caddy+AdGuard stub** (route + rewrite land, 422/409 guards, private toggle, delete mirror)
 
 ---
 
