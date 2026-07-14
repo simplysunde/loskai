@@ -1,5 +1,36 @@
 # Loskai — History
 
+## 2026-07-14 — Phase 8: Docker module (the big one)
+
+The last and largest module — container management, directory-based stacks, and the
+recipe install wizard — built last because it's the most complex. All four modules are
+now feature-complete.
+
+- Key files: `backend/src/loskai/modules/docker/{logic,client,stacks,recipes,quick_commands,router}.py`,
+  four docker test files; `frontend/src/pages/Docker.tsx`, `components/docker/*`,
+  `components/shared/Modal.tsx`, `lib/format.ts`
+- **The seam paid off**: `logic.py` holds every computation (CPU%/memory math, RFC3339
+  parsing, port formatting, the container↔instance join, stack up/down/partial, compose
+  service parsing) as pure functions, so the whole module is unit-tested with **no daemon**;
+  `client.py` is docker-py I/O. A down daemon surfaces as `DockerException` *or* a
+  requests/OS error, so callers catch a `DOCKER_ERRORS` tuple and degrade instead of 500ing
+- **Stacks**: `STACKS_DIR` is the only source of truth (no DB, no lock). Scan/read/write is
+  filesystem; up/down/restart/pull/create/delete shell out to `docker compose`.
+  `stacks_dir_ok` gates writes; stack names are validated against path traversal
+- **Recipes**: declarative manifests validated against `docs/recipe-schema.md`, never
+  executed. Two sources merged (repo wins, shadowed local flagged), git sync, install
+  (generate `.env` from answers → run the type's command → register a docker instance)
+- **Exec terminal**: xterm.js over a WebSocket. Critically, the WS **authenticates itself**
+  — Starlette's `BaseHTTPMiddleware` doesn't cover WebSocket connections, and this is a root
+  shell into a container. Keystrokes are binary stdin; resize is a JSON control frame
+- **Assign extension**: `/api/assign` gained an optional `container` so a container gets a
+  linked `docker` instance rather than an `external` one
+- **Verified**: 103 backend + 12 Vitest tests pass; clean build/lint. Curl-confirmed
+  graceful degradation with no daemon (stacks from the filesystem, recipes list, health
+  `unreachable` + `stacks_dir_ok`, container ops → 502, unauthenticated exec WS rejected).
+  **Live container control, log streaming, the exec terminal, and `docker compose` need a
+  real daemon — untested here.** Bundle grew with xterm (~670 kB); code-split in Phase 9
+
 ## 2026-07-14 — Phase 7: deployment (single image + compose + LXC script)
 
 Made the whole thing runnable as the single container the plan describes. No app-code

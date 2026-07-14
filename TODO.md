@@ -148,7 +148,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
     `client.delete_route` (required, rollback on failure), then best-effort remove the AdGuard rewrite by exact pair; instance survives
 - [x] `PATCH /api/instances/{id}` — persist the `private` flag / display name (backs the routing-table private toggle)
 - [x] Wired `AssignModal.tsx` → `POST /api/assign` (result banner with URL + AdGuard warning); ServiceTable delete → `DELETE /api/assign/{id}` behind a ConfirmDialog; private toggle → `PATCH /api/instances/{id}`
-- [x] Assign URL modal accessible from the Routing page (the Docker-page entry point lands in Phase 8)
+- [x] Assign URL modal accessible from the Routing page and the Docker page (container assign, Phase 8)
 - [x] Tests: Tier-1 validation/uniqueness + orchestration via fake clients (happy path, Caddy-fail rollback for new + existing, AdGuard best-effort error/skipped/no-IP, unassign mirror). 65 backend + 12 Vitest pass. **Verified end to end through the real HTTP clients against a throwaway Caddy+AdGuard stub** (route + rewrite land, 422/409 guards, private toggle, delete mirror)
 
 ---
@@ -175,15 +175,15 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 
 ## Phase 8 — Docker Module
 **Backend**
-- [ ] `modules/docker/client.py` — docker-py wrapper
+- [x] `modules/docker/client.py` — docker-py wrapper
   - `list_containers()` — name, image, status, uptime, CPU%, RAM
   - `start/stop/restart/remove(id)`
   - `stream_logs(id)` — async generator for SSE
   - `get_host_stats()` — total CPU, RAM, disk
-- [ ] Merge live containers with the instance list: join each container to its instance
+- [x] Merge live containers with the instance list: join each container to its instance
   by `container` to surface the assigned subdomain inline; containers with no instance
   yet can be assigned one on the spot (creates a docker instance)
-- [ ] `modules/docker/stacks.py` — directory-based stack manager
+- [x] `modules/docker/stacks.py` — directory-based stack manager
   - `stacks_dir_ok()` — `os.path.isdir(STACKS_DIR)` inside the container: the one check that the compose mount actually stuck. Feeds `/api/health`; write paths (`create_stack`, recipe install) refuse with a clear "stacks directory not found — check the compose mount" error rather than writing into an unmounted path (which the host can't see and whose bind-volumes would land wrong)
   - `list_stacks()` — scan `STACKS_DIR` for subdirs with `compose.yml`; returns empty (not an error) when the dir is present but has none — so a broken mount (`stacks_dir_ok()` false) is distinguishable from a genuinely empty one
   - `get_stack(name)` — read compose.yml + .env contents + container status
@@ -191,7 +191,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
-- [ ] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/recipe-schema.md) (authored by hand/AI, no authoring UI)
+- [x] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/recipe-schema.md) (authored by hand/AI, no authoring UI)
   - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/loskai/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
   - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
@@ -204,7 +204,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
     - `registry_pull` — pull from private Gitea registry, `docker compose up -d`
       - Registry auth is a **host precondition, not Loskai's job**: you run `docker login <gitea-registry>` once on the Docker host; the daemon caches the credential, so this recipe's pull is mechanically identical to a public `pull`. Loskai stores no registry token — keeps it secret-free, mirroring how the ACME token lives with Caddy, not here
   - Sample recipes (Grafana, Jellyfin, Nextcloud, Vaultwarden, Gitea, Uptime Kuma) live **in the recipes repo, not in this codebase** — adding one is a repo push, no Loskai rebuild
-- [ ] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
+- [x] `modules/docker/router.py` — FastAPI APIRouter at `/api/docker`
   - `GET /api/docker/containers`
   - `POST /api/docker/containers/{id}/start|stop|restart`
   - `DELETE /api/docker/containers/{id}`
@@ -221,17 +221,21 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `GET /api/docker/stats`
 
 **Frontend**
-- [ ] `pages/Docker.tsx` — Docker page, two tabs: Containers and Stacks
-- [ ] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, assigned subdomain (from its instance), actions incl. "Assign URL"
-- [ ] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
-- [ ] `components/docker/Terminal.tsx` — xterm.js browser terminal, WebSocket connection to `/api/docker/containers/{id}/exec`
-- [ ] `components/docker/QuickCommands.tsx` — preset command buttons above the terminal; generic set + image-specific commands detected from container image name
-- [ ] `modules/docker/quick_commands.py` — map of image name patterns to preset commands (e.g. `redis` → `redis-cli`, `postgres` → `psql -U postgres`)
-- [ ] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
-- [ ] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
-- [ ] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path — the raw path: paste a finished compose + .env and `up`, no manifest/wizard. Docker auto-creates bind-mount source dirs, so no directory step
-- [ ] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list is the merged repo + local set (repo wins on name clash, shadowed local flagged); includes a "Refresh recipes" action and an empty state (prompt to set `recipes_repo_url` and/or drop a local recipe) when both sources are empty
-- [ ] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
+- [x] `pages/Docker.tsx` — Docker page, two tabs: Containers and Stacks
+- [x] `components/docker/ContainerList.tsx` — table with name, image, status, uptime, CPU%, RAM, assigned subdomain (from its instance), actions incl. "Assign URL"
+- [x] `components/docker/LogViewer.tsx` — SSE log stream, auto-scroll, copy button
+- [x] `components/docker/Terminal.tsx` — xterm.js browser terminal, WebSocket connection to `/api/docker/containers/{id}/exec`
+- [x] `components/docker/QuickCommands.tsx` — preset command buttons above the terminal; generic set + image-specific commands detected from container image name
+- [x] `modules/docker/quick_commands.py` — map of image name patterns to preset commands (e.g. `redis` → `redis-cli`, `postgres` → `psql -U postgres`)
+- [x] Backend: WebSocket exec endpoint — docker-py exec_create + exec_start, stream bidirectional I/O
+- [x] `components/docker/StackList.tsx` — list of discovered stacks with status + actions
+- [x] `components/docker/StackEditor.tsx` — side-by-side editor for compose.yml and .env; doubles as the manual "new stack" create path — the raw path: paste a finished compose + .env and `up`, no manifest/wizard. Docker auto-creates bind-mount source dirs, so no directory step
+- [x] `components/docker/InstallWizard.tsx` — multi-step modal: pick recipe → review what will be created → fill in required values (form rendered from the manifest `env:` schema) → optionally assign URL → deploy. Recipe list is the merged repo + local set (repo wins on name clash, shadowed local flagged); includes a "Refresh recipes" action and an empty state (prompt to set `recipes_repo_url` and/or drop a local recipe) when both sources are empty
+- [x] `components/docker/StatsBar.tsx` — host CPU, RAM, disk usage summary
+- [x] **Additions**: `modules/docker/logic.py` (pure — stats math, parsing, joins, stack status, compose service parse; the seam that makes everything testable without a daemon); `components/shared/Modal.tsx` (generic dialog shell); `lib/format.ts`. Added `docker` + `pyyaml` deps. Exec WS **authenticates itself** (BaseHTTPMiddleware doesn't cover WebSockets — it's a root shell). Removed the now-unused `Placeholder`
+- [x] **Assign extension**: `/api/assign` gained an optional `container`, so assigning a URL to a container creates a linked `docker` instance (not `external`)
+- [x] Tests: Tier-1 stats/parse/stack-status/quick-commands + recipe validation/merge + stack fs logic; docker-py mocked for the client. 103 backend + 12 Vitest pass; `tsc`/`vite build`/`oxlint` clean
+- [x] Verify: **no Docker daemon in this environment** — curl-confirmed graceful degradation (stacks list from the filesystem, recipes list, health `unreachable` + `stacks_dir_ok`, container ops → 502, unauthenticated exec WS rejected). **Live container control, log streaming, the exec terminal, and `docker compose` run against a real daemon — untested here**
 
 ---
 
