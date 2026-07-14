@@ -7,6 +7,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Routing } from "./pages/Routing";
 import { Settings } from "./pages/Settings";
+import { WireGuard } from "./pages/WireGuard";
 
 // Public: / (Dashboard) + /login. Admin tabs sit behind RequireAuth (UX) — the API
 // middleware is the real gate. Docker (Phase 8) and VPN (Phase 5) are placeholders.
@@ -36,7 +37,7 @@ export default function App() {
           path="/vpn"
           element={
             <RequireAuth>
-              <Placeholder title="VPN" note="The WireGuard module lands in Phase 5." />
+              <WireGuard />
             </RequireAuth>
           }
         />

@@ -10,9 +10,11 @@ export interface ModuleHealth {
   mode?: "docker" | "lan" | null; // caddy
   stacks_dir_ok?: boolean; // docker
   answer_ip?: string | null; // adguard — the shared Caddy IP rewrites resolve to
-  url?: string | null; // adguard — base URL for the link-out
+  url?: string | null; // adguard + wireguard — base URL for the link-out
   running?: boolean; // adguard
   version?: string | null; // adguard
+  reachable?: boolean; // wireguard
+  dns_hint?: string | null; // wireguard — AdGuard IP for peer DNS
 }
 
 export type ModuleName = "caddy" | "adguard" | "wireguard" | "docker";
