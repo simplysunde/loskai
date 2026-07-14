@@ -1,4 +1,4 @@
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
 
@@ -18,16 +18,25 @@ export interface RouteRow {
 }
 
 // One row per routed service. Route-sync, live, and DNS-rewrite columns; the per-row
-// rewrite add/remove is best-effort. Assign/delete/private actions land in Phase 6.
+// rewrite add/remove is best-effort. Private toggle + delete go through the assign flow.
 export function ServiceTable({
   rows,
   onToggleRewrite,
   rewriteBusyId,
+  onTogglePrivate,
+  privateBusyId,
+  onDelete,
+  deleteBusyId,
 }: {
   rows: RouteRow[];
   onToggleRewrite?: (row: RouteRow) => void;
   rewriteBusyId?: string | null;
+  onTogglePrivate?: (row: RouteRow) => void;
+  privateBusyId?: string | null;
+  onDelete?: (row: RouteRow) => void;
+  deleteBusyId?: string | null;
 }) {
+  const hasActions = Boolean(onToggleRewrite || onTogglePrivate || onDelete);
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
@@ -46,7 +55,7 @@ export function ServiceTable({
             <th className="px-4 py-2.5 font-medium">Route</th>
             <th className="px-4 py-2.5 font-medium">Live</th>
             <th className="px-4 py-2.5 font-medium">DNS</th>
-            {onToggleRewrite && <th className="px-4 py-2.5 font-medium" />}
+            {hasActions && <th className="px-4 py-2.5 font-medium text-right">Actions</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/70">
@@ -80,13 +89,34 @@ export function ServiceTable({
               <td className="px-4 py-3">
                 <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
               </td>
-              {onToggleRewrite && (
-                <td className="px-4 py-3 text-right">
-                  <RewriteAction
-                    row={row}
-                    busy={rewriteBusyId === row.id}
-                    onToggle={onToggleRewrite}
-                  />
+              {hasActions && (
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-1.5">
+                    {onToggleRewrite && (
+                      <RewriteAction
+                        row={row}
+                        busy={rewriteBusyId === row.id}
+                        onToggle={onToggleRewrite}
+                      />
+                    )}
+                    {onTogglePrivate && (
+                      <IconButton
+                        busy={privateBusyId === row.id}
+                        title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
+                        onClick={() => onTogglePrivate(row)}
+                        icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      />
+                    )}
+                    {onDelete && (
+                      <IconButton
+                        busy={deleteBusyId === row.id}
+                        title="Remove route"
+                        danger
+                        onClick={() => onDelete(row)}
+                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                      />
+                    )}
+                  </div>
                 </td>
               )}
             </tr>
@@ -115,6 +145,35 @@ function DnsCell({
       )}
       {conflict && <StatusBadge status="degraded" label="conflict" />}
     </div>
+  );
+}
+
+function IconButton({
+  busy,
+  title,
+  icon,
+  onClick,
+  danger = false,
+}: {
+  busy: boolean;
+  title: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      disabled={busy}
+      onClick={onClick}
+      title={title}
+      className={`inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs disabled:opacity-40 ${
+        danger
+          ? "text-rose-300 hover:bg-rose-500/10"
+          : "text-slate-300 hover:bg-slate-800"
+      }`}
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
+    </button>
   );
 }
 

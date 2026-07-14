@@ -46,3 +46,19 @@ test("rewrite action fires and is disabled when DNS status is unknown", () => {
   );
   expect(screen.getByRole("button", { name: /Rewrite/ })).toBeDisabled();
 });
+
+test("delete and private-toggle actions fire", () => {
+  const onDelete = vi.fn();
+  const onTogglePrivate = vi.fn();
+  render(
+    <ServiceTable
+      rows={[row()]}
+      onDelete={onDelete}
+      onTogglePrivate={onTogglePrivate}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Remove route" }));
+  expect(onDelete).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Public on dashboard" }));
+  expect(onTogglePrivate).toHaveBeenCalledOnce();
+});

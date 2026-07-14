@@ -1,23 +1,39 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, UploadCloud } from "lucide-react";
 
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
 import { AdGuardStatus } from "../components/routing/AdGuardStatus";
+import { AssignModal } from "../components/routing/AssignModal";
 import { CaddyfileExport } from "../components/routing/CaddyfileExport";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { ModuleStatus } from "../components/shared/ModuleStatus";
 
 interface DnsStatus {
   answer_ip: string | null;
   instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
 }
+interface SettingsView {
+  base_domain?: { value: string | null };
+}
+interface AssignResult {
+  caddy: string;
+  adguard: string;
+  url: string;
+  warning: string | null;
+}
 
-// Unified routing view: Caddy routes + AdGuard DNS in one row per service. Push all
-// runs the Caddy push and the AdGuard reconcile together. Assign/delete land in Phase 6.
+// Unified routing view: Caddy routes + AdGuard DNS in one row per service, with the
+// full assign / clear / private flow (the cross-module /api/assign action).
 export function Routing() {
   const qc = useQueryClient();
   const health = useHealth();
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [result, setResult] = useState<AssignResult | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -29,29 +45,51 @@ export function Routing() {
     queryFn: () => api.get<DnsStatus>("/api/adguard/status"),
     refetchInterval: 15_000,
   });
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<SettingsView>("/api/settings"),
+  });
 
-  // Merge DNS status into each Caddy route row by instance id.
+  const baseDomain = settings.data?.base_domain?.value ?? null;
+  const mode = health.data?.caddy?.mode ?? null;
+  const answerIp = dns.data?.answer_ip ?? null;
+
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const rows: RouteRow[] = (routes.data ?? []).map((r) => {
     const d = dnsById.get(r.id);
     return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
   });
-  const answerIp = dns.data?.answer_ip ?? null;
 
-  const push = useMutation({
-    mutationFn: async () => {
-      const [caddy, adguard] = await Promise.allSettled([
-        api.post<{ pushed: { id: string; status: string }[] }>("/api/caddy/push"),
-        api.post<{ added: string[]; deleted: string[]; conflicts: unknown[]; errors: unknown[] }>(
-          "/api/adguard/reconcile",
-        ),
-      ]);
-      return { caddy, adguard };
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["caddy-routes"] });
+    qc.invalidateQueries({ queryKey: ["adguard-status"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
+  const assign = useMutation({
+    mutationFn: (p: { prefix: string; upstream: string }) =>
+      api.post<AssignResult>("/api/assign", p),
+    onSuccess: (data) => {
+      setAssignOpen(false);
+      setResult(data);
+      invalidate();
     },
+    onError: (err) =>
+      setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
+  });
+
+  const remove = useMutation({
+    mutationFn: (row: RouteRow) => api.del(`/api/assign/${row.id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-      qc.invalidateQueries({ queryKey: ["adguard-status"] });
+      setConfirmDelete(null);
+      invalidate();
     },
+  });
+
+  const privateToggle = useMutation({
+    mutationFn: (row: RouteRow) =>
+      api.patch(`/api/instances/${row.id}`, { private: !row.private }),
+    onSuccess: invalidate,
   });
 
   const rewrite = useMutation({
@@ -62,6 +100,19 @@ export function Routing() {
         : api.post("/api/adguard/rewrites", body);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["adguard-status"] }),
+  });
+
+  const push = useMutation({
+    mutationFn: async () => {
+      const [caddy, adguard] = await Promise.allSettled([
+        api.post<{ pushed: { status: string }[] }>("/api/caddy/push"),
+        api.post<{ added: string[]; deleted: string[]; conflicts: unknown[]; errors: unknown[] }>(
+          "/api/adguard/reconcile",
+        ),
+      ]);
+      return { caddy, adguard };
+    },
+    onSuccess: invalidate,
   });
 
   return (
@@ -75,9 +126,11 @@ export function Routing() {
         </div>
         <div className="flex shrink-0 gap-2">
           <button
-            disabled
-            title="URL assignment lands in Phase 6 (cross-module assign endpoint)"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-500"
+            onClick={() => {
+              setAssignError(null);
+              setAssignOpen(true);
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
             <Plus className="h-4 w-4" /> Assign URL
           </button>
@@ -100,7 +153,18 @@ export function Routing() {
       <div className="mb-4 space-y-3">
         <AdGuardStatus health={health.data?.adguard} />
         <ModuleStatus name="Caddy" health={health.data?.caddy} />
-        {push.data && <PushSummary result={push.data} />}
+        {result && (
+          <div
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              result.warning
+                ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
+                : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
+            }`}
+          >
+            <span className="font-medium">{result.url}</span> —{" "}
+            {result.warning ?? "route + DNS rewrite created."}
+          </div>
+        )}
       </div>
 
       {routes.isLoading ? (
@@ -112,52 +176,39 @@ export function Routing() {
           rows={rows}
           onToggleRewrite={(row) => rewrite.mutate(row)}
           rewriteBusyId={rewrite.isPending ? rewrite.variables?.id : null}
+          onTogglePrivate={(row) => privateToggle.mutate(row)}
+          privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
+          onDelete={(row) => setConfirmDelete(row)}
+          deleteBusyId={remove.isPending ? remove.variables?.id : null}
         />
       )}
 
       <div className="mt-6">
         <CaddyfileExport />
       </div>
-    </div>
-  );
-}
 
-function PushSummary({
-  result,
-}: {
-  result: {
-    caddy: PromiseSettledResult<{ pushed: { status: string }[] }>;
-    adguard: PromiseSettledResult<{ added: string[]; deleted: string[]; conflicts: unknown[]; errors: unknown[] }>;
-  };
-}) {
-  const parts: string[] = [];
-  if (result.caddy.status === "fulfilled") {
-    const failed = result.caddy.value.pushed.filter((p) => p.status !== "ok").length;
-    parts.push(`Caddy: ${result.caddy.value.pushed.length} pushed${failed ? `, ${failed} failed` : ""}`);
-  } else {
-    parts.push("Caddy: push failed");
-  }
-  if (result.adguard.status === "fulfilled") {
-    const a = result.adguard.value;
-    parts.push(
-      `AdGuard: +${a.added.length} −${a.deleted.length}` +
-        (a.conflicts.length ? `, ${a.conflicts.length} conflict(s)` : "") +
-        (a.errors.length ? `, ${a.errors.length} error(s)` : ""),
-    );
-  } else {
-    parts.push("AdGuard: reconcile failed (unreachable or no answer IP)");
-  }
-  const bad =
-    result.caddy.status === "rejected" || result.adguard.status === "rejected";
-  return (
-    <div
-      className={`rounded-lg border px-3 py-2 text-sm ${
-        bad
-          ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
-          : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
-      }`}
-    >
-      {parts.join(" · ")}
+      <AssignModal
+        open={assignOpen}
+        baseDomain={baseDomain}
+        mode={mode}
+        pending={assign.isPending}
+        error={assignError}
+        onSubmit={(p) => assign.mutate(p)}
+        onClose={() => setAssignOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Remove route"
+        destructive
+        confirmLabel="Remove"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && remove.mutate(confirmDelete)}
+      >
+        This removes the Caddy route and AdGuard rewrite for{" "}
+        <span className="font-medium text-slate-200">{confirmDelete?.fqdn}</span>. The
+        service itself keeps running.
+      </ConfirmDialog>
     </div>
   );
 }

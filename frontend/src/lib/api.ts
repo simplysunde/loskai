@@ -46,6 +46,8 @@ export const api = {
     request<T>(p, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   put: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  patch: <T>(p: string, body?: unknown) =>
+    request<T>(p, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   // DELETE may carry a body — AdGuard's rewrite delete takes the whole (domain, answer).
   del: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
