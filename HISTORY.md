@@ -1,5 +1,34 @@
 # Loskai — History
 
+## 2026-07-15 — First live end-to-end validation (real Caddy + AdGuard)
+
+Stood the whole thing up on a real machine — dev Loskai (uv + Vite on the host) against
+Caddy + AdGuard **containers** — and drove the full cross-module assign flow that couldn't
+be tested during the build (the dev sandbox had no Docker daemon). **It works end to end**:
+Loskai pushes the Caddy route and the AdGuard rewrite, and a browser request flows
+`DNS (lvh.me) → Caddy → reverse_proxy → AdGuard's login page`. The load-bearing
+integration is confirmed.
+
+- Key files: `docker-compose.dev.yml`, `dev/Caddyfile`, `docs/dev-testing.md`
+- **New dev rig**: Caddy (`local_certs`, internal CA — no domain/ACME token) + AdGuard as
+  throwaway containers for a host-run dev Loskai to point at
+- **Confirmed live**: `POST /api/assign` → Caddy route lands in `srv0` (verified via the
+  admin API) + the AdGuard rewrite lands (verified in AdGuard's UI); the proxied service
+  actually loads through Caddy over HTTPS (internal cert, untrusted — expected in dev)
+- **Learnings captured in `docs/dev-testing.md`** (troubleshooting section): dev needs
+  `LOSKAI_DATA_DIR` (the `/opt/loskai` default isn't writable); the rig maps Caddy to
+  `:8443`/`:8081`, so browse with the port; a `502` means Caddy reached the route but not
+  the upstream; and the upstream must be reachable **from Caddy's container** — a sibling
+  compose service by name (`adguard:3000`), a LAN target by IP — never `localhost`
+- **Design confirmation**: an HTTP server must pre-exist in Caddy for Loskai to append to
+  (it discovers, never creates). In prod the `*.BASE_DOMAIN` cert site provides it; the dev
+  rig uses a fixed `*.localhost` placeholder, so `BASE_DOMAIN` stays a Loskai-only setting
+  in dev (internal certs are issued per-name on demand)
+- **Two gaps surfaced → Phase 9**: (1) upstream validation — Loskai stored a full URL
+  verbatim into Caddy's `dial`, producing a malformed route; (2) HTTPS/TLS upstreams — the
+  route builder only emits plain `dial: host:port`, so a TLS backend like Proxmox can't be
+  proxied yet
+
 ## 2026-07-14 — Phase 8: Docker module (the big one)
 
 The last and largest module — container management, directory-based stacks, and the
