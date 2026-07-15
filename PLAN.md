@@ -141,8 +141,12 @@ view both read.
   keeps the store from ever drifting out of sync with reality.
 
 **How instances are created:**
-- **Automatically** — on container discovery, a `loskai.subdomain=<prefix>` label
-  auto-creates / updates a docker instance (see Phase 9 label auto-discovery).
+- **Automatically** — a `loskai.subdomain=<prefix>` label auto-creates / updates a docker
+  instance + route. Scanned on Loskai startup and on demand (`POST /api/docker/discover`);
+  idempotent and best-effort. The upstream comes from `loskai.upstream=host:port`, or in
+  co-located (Docker) mode is derived as `<container>:<port>` (`loskai.port` or the single
+  exposed port); `loskai.tls=true` sets an HTTPS backend. Non-labeled containers are left
+  alone (they still show live in the Docker Manager — they just have no route).
 - **Manually** — added through the UI, either a docker instance or an external one.
 - **Seeded** — on first run, if `ADGUARD_URL` is set to a valid target and no AdGuard
   instance exists yet, one is created: an `external` instance pointing at that IP:port,

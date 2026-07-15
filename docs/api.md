@@ -124,6 +124,7 @@ External contract: [adguard-api.md](adguard-api.md).
 | Method & path | Purpose |
 |---|---|
 | `GET /recipes` | Merged install recipes: `{ recipes, invalid, shadowed }` (repo wins; shadowed local flagged). |
+| `POST /discover` | Re-scan running containers for `loskai.subdomain` labels and reconcile their routes (same as the startup scan). Returns `{ discovered: [{ container, subdomain, status }] }`. |
 | `POST /recipes/refresh` | Re-sync the recipes repo (`git clone`/`pull`). |
 | `POST /recipes/{id}/install` | Body `{ answers }` — generate `.env`, run the type's command, register a `docker` instance. |
 | `GET /stats` | Host resource summary (containers, CPUs, memory, disk). |

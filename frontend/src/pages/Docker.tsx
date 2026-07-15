@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FilePlus2, PackagePlus } from "lucide-react";
+import { FilePlus2, Loader2, PackagePlus, ScanLine } from "lucide-react";
 
 import { api } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
@@ -70,11 +70,40 @@ export function Docker() {
     },
   });
 
+  const [discoverMsg, setDiscoverMsg] = useState<string | null>(null);
+  const discover = useMutation({
+    mutationFn: () =>
+      api.post<{ discovered: { status: string }[] }>("/api/docker/discover"),
+    onSuccess: (data) => {
+      const applied = data.discovered.filter((d) => d.status === "created" || d.status === "updated").length;
+      setDiscoverMsg(
+        applied ? `Discovered ${applied} labeled service${applied === 1 ? "" : "s"}.` : "No new labeled services.",
+      );
+      setTimeout(() => setDiscoverMsg(null), 4000);
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
+    },
+  });
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-100">Docker</h1>
-        <p className="mt-1 text-sm text-slate-500">Containers and compose stacks on this host.</p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-100">Docker</h1>
+          <p className="mt-1 text-sm text-slate-500">Containers and compose stacks on this host.</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {discoverMsg && <span className="text-xs text-slate-400">{discoverMsg}</span>}
+          <button
+            onClick={() => discover.mutate()}
+            disabled={discover.isPending}
+            title="Scan containers for loskai.subdomain labels and reconcile their routes"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            {discover.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
+            Discover
+          </button>
+        </div>
       </header>
 
       <div className="mb-4 space-y-3">
