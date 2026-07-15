@@ -1,26 +1,26 @@
 # Loskai — History
 
-## 2026-07-16 — Container label auto-discovery
+## 2026-07-16 — Semi-automatic container routing (via the Docker tab)
 
-Built the planned Phase 9 auto-discovery: a container declares its route in its own
-compose file with a `loskai.subdomain=<prefix>` label, and Loskai picks it up — no
-clicking in the UI. Prompted by a user deleting `instances.json` and asking how routes
-could self-recover from the containers.
+Prompted by a user deleting `instances.json` and asking how routes could come back from
+the containers. Explored `loskai.subdomain` **label auto-discovery** (scan on startup,
+create routes automatically) and built it — but the user didn't want compose labels or
+automatic assignment, so it was **removed** in favor of a semi-automatic model.
 
-- Key files: `modules/docker/{logic,discovery,client}.py`, `main.py` (startup hook),
-  `pages/Docker.tsx` (Discover button)
-- **Scanned on startup + on demand** (`POST /api/docker/discover`, and a "Discover" button
-  on the Docker page). Idempotent (in-sync containers left alone) and best-effort — a down
-  Docker/Caddy or a bad label is reported per-container and never blocks boot
-- **Upstream derivation** (pure `logic.derive_upstream`, unit-tested): `loskai.upstream=`
-  wins in any mode; else co-located (Docker) mode → `<container>:<port>` (`loskai.port` or
-  the single exposed port); LAN mode needs an explicit `loskai.upstream` (the docker host
-  IP isn't knowable). `loskai.tls=true` → HTTPS backend
-- **Design note captured**: containers never *need* an instance to be visible (the Docker
-  tab is live from the socket); auto-discovery only creates instances for *labeled*
-  containers that want a route — non-labeled ones are left alone
-- Reconciles through the normal `assign()` path, so it reuses validation + Caddy-required +
-  AdGuard-best-effort. 124 backend + 17 Vitest tests pass
+- **Removed** `modules/docker/discovery.py`, the startup scan, `POST /api/docker/discover`,
+  the "Discover" button, `client.running_with_label`, and the `logic.derive_upstream`
+  helpers — no auto-assignment anywhere
+- **Kept the useful part** as the intended flow: in the Docker Manager, "Assign URL" on a
+  container is **pre-filled with a suggested subdomain** from the container name (or its
+  current one — the button reads "Change URL" then)
+- **No duplicates**: a container assign now targets that container's existing instance
+  (change its URL) instead of creating a second docker instance — `assign()` looks it up
+  via `instances.get_by_container`. A second route to one service is a separate `external`
+  instance (the normal Routing-tab assign)
+- **Design note**: a container never *needs* an instance to be visible (the Docker tab is
+  live from the socket); an instance only exists to hold a route. So auto-creating one per
+  container would just be noise — routing stays an explicit, per-container action
+- 114 backend + 17 Vitest tests pass
 
 ## 2026-07-15 — Instance deletion + all-instances routing view
 

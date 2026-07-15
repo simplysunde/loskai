@@ -14,11 +14,8 @@ from sse_starlette.sse import EventSourceResponse
 
 from ...shared import auth
 from ...shared import health as health_registry
-from ..adguard.client import adguard
-from ..caddy.client import caddy
 from . import recipes as recipes_mod
 from . import stacks as stacks_mod
-from .discovery import discover_labeled
 from .client import DOCKER_ERRORS, describe_error, docker_client
 from .quick_commands import quick_commands_for
 from .recipes import RecipeError
@@ -226,13 +223,6 @@ def delete_stack(name: str) -> dict:
 
 
 # --- Recipes ---
-
-
-@router.post("/discover")
-async def discover() -> dict:
-    """Re-scan running containers for `loskai.subdomain` labels and reconcile their
-    routes (same as the startup scan, on demand)."""
-    return {"discovered": await discover_labeled(caddy, adguard)}
 
 
 @router.get("/recipes")

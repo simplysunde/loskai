@@ -107,39 +107,6 @@ def declared_services(compose_text: str) -> set[str]:
     return set(services) if isinstance(services, dict) else set()
 
 
-def parse_bool(value: str | None) -> bool:
-    return str(value).strip().lower() in ("1", "true", "yes", "on")
-
-
-def _single_container_port(ports: dict) -> str | None:
-    """The container-side port when exactly one is exposed/published, else None.
-    `ports` is docker-py's NetworkSettings.Ports, e.g. {"3000/tcp": [...]}."""
-    keys = list((ports or {}).keys())
-    if len(keys) != 1:
-        return None
-    return keys[0].split("/")[0]
-
-
-def derive_upstream(
-    name: str, labels: dict | None, ports: dict | None, mode: str | None
-) -> str | None:
-    """The reverse-proxy upstream for a labeled container.
-
-    - `loskai.upstream=host:port` (any mode) → used verbatim.
-    - Otherwise, in **docker** (co-located) mode → `<container-name>:<port>`, where port is
-      `loskai.port` or the single exposed port. In **lan** mode the docker host IP is
-      unknowable here, so an explicit `loskai.upstream` is required (None otherwise).
-    """
-    labels = labels or {}
-    explicit = labels.get("loskai.upstream")
-    if explicit:
-        return explicit
-    if mode == "docker":
-        port = labels.get("loskai.port") or _single_container_port(ports or {})
-        return f"{name}:{port}" if port else None
-    return None
-
-
 def subdomain_for(container_name: str, instances: list) -> str | None:
     """The assigned subdomain for a container, joined via the instance's `container`."""
     for inst in instances:
