@@ -112,6 +112,7 @@ view both read.
   "type":      "docker",         // "docker" | "external"
   "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
   "upstream":  "192.168.10.100:3000",  // host:port — chosen at assign time
+  "upstream_tls": false,         // true = dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
   "container": "grafana",        // container name/id (docker type only; null for external)
   "dns_answer": "192.168.10.101", // Caddy IP last written to AdGuard for this name
                                  //   (null = no rewrite pushed; used to clean up on IP change)
@@ -122,8 +123,14 @@ view both read.
 - **Docker instance** — backed by a real container; `container` links it to live data.
 - **External ("dummy") instance** — Proxmox, a NAS, any `IP:port`. No `container`,
   just an `upstream`.
-- An instance may exist **without** a subdomain (tracked but not exposed). The route
-  table is exactly the subset of instances that *have* a subdomain.
+- An instance may exist **without** a subdomain (tracked but not exposed). A *route* is
+  exactly an instance that *has* a subdomain; the routing view lists **all** instances
+  (routed or not) and lets you assign/clear routes per row.
+- **Deletion is type-aware.** Clearing a route (unassign) keeps the instance. An
+  **external** instance is a pure route definition, so it can be deleted outright
+  (`DELETE /api/instances/{id}` → route + rewrite + record). A **docker** instance is
+  container-backed and cannot be deleted (that endpoint returns 409) — you remove its
+  route; the container itself lives in the Docker Manager.
 
 **What is stored vs. live:**
 - The instance list holds only **intent** — subdomain, upstream, and external targets.
@@ -392,8 +399,10 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 ### Features
 
 **Route List**
-- Every instance that has a subdomain, in a clean table (this is the route table)
-- Each row: subdomain → upstream (host:port), synced + live status, delete
+- Every instance in a clean table — routed rows show route/DNS status, unrouted rows offer
+  "Assign". Per-row actions depend on type: remove-route (keep instance) for any routed
+  row; delete for external instances; docker instances can't be deleted (see Core Data Model)
+- Each row: subdomain → upstream (host:port, optionally HTTPS), synced + live + DNS status
 - **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
   instance's `@id` against them. Present = synced; missing = not pushed (offer "Push all").
   This is a **read-only comparison for display only** — it never auto-corrects, so it can't
@@ -410,10 +419,12 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 - Single-label only — keeps every name under the one `*.BASE_DOMAIN` wildcard cert
   (`app.team.example.no` would need a separate `*.team.example.no` cert, which the
   wildcard does not cover)
-- Upstream: any `host:port` reachable from LXC 101 — LAN IP + exposed port
+- Upstream: any `host:port` reachable from LXC 101 — LAN IP + exposed port (a bare
+  `host:port`, no scheme/path; validated on assign). A "Backend speaks HTTPS" toggle sets
+  `upstream_tls` for TLS-only backends (see below)
   - Docker container: `192.168.10.100:3000`  (port must be exposed on the host)
   - LAN device:       `192.168.10.50:5000`
-  - Proxmox:          `192.168.10.10:8006`
+  - Proxmox:          `192.168.10.10:8006`  (tick "Backend speaks HTTPS" — it's TLS-only)
   - Loskai itself:  `192.168.10.100:8080`
 - One click (`POST /api/assign`) → Caddy route created (required), HTTPS live immediately;
   the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
@@ -525,6 +536,11 @@ GET  /api/caddy/upstreams        upstream health from caddy
   }]
 }
 ```
+
+When the instance has `upstream_tls: true` (an HTTPS-only backend like Proxmox), the
+`reverse_proxy` handler also carries
+`"transport": { "protocol": "http", "tls": { "insecure_skip_verify": true } }` — dial the
+upstream over TLS, cert unverified. The `dial` stays a bare `host:port`.
 
 ---
 
@@ -671,7 +687,9 @@ Result shown to user:
 **Clearing a URL** (`DELETE /api/assign/:id`, from the route list's delete or the Docker
 Manager) is the exact mirror: clear the instance's `subdomain` and save, delete the Caddy
 route (`DELETE /id/<id>`, required), then best-effort remove the AdGuard rewrite. The
-instance itself survives — it just no longer has a route.
+instance itself survives — it just no longer has a route. To remove the instance entirely,
+`DELETE /api/instances/{id}` (external only; docker instances 409 — see Core Data Model),
+which runs this same clear-route step first and then drops the record.
 
 ---
 
