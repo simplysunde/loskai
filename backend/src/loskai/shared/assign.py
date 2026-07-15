@@ -45,6 +45,23 @@ def validate_prefix(prefix: str) -> None:
         )
 
 
+def validate_upstream(upstream: str) -> None:
+    """The upstream goes verbatim into Caddy's `dial`, which wants a bare host:port — a
+    scheme or path produces a malformed, non-connecting route. Reject those early."""
+    if not upstream:
+        raise AssignError(422, "upstream is required")
+    if "://" in upstream or "/" in upstream or any(c.isspace() for c in upstream):
+        raise AssignError(
+            422,
+            "upstream must be host:port — no scheme or path (e.g. 192.168.10.100:3000 or grafana:3000)",
+        )
+    host, sep, port = upstream.rpartition(":")
+    if not sep or not host:
+        raise AssignError(422, "upstream must include a port, e.g. grafana:3000")
+    if not port.isdigit() or not (1 <= int(port) <= 65535):
+        raise AssignError(422, f"invalid port in upstream: {port!r}")
+
+
 def subdomain_taken(prefix: str, exclude_id: str) -> bool:
     return any(
         i.subdomain == prefix and i.id != exclude_id
@@ -67,8 +84,8 @@ async def assign(
     validate_prefix(prefix)
     if not base_domain:
         raise AssignError(400, "base_domain is not set — configure it in Settings")
-    if not upstream:
-        raise AssignError(422, "upstream is required")
+    upstream = upstream.strip()
+    validate_upstream(upstream)
 
     existing = instances_store.get_instance(instance_id) if instance_id else None
     if instance_id and existing is None:

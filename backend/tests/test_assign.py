@@ -74,6 +74,36 @@ def test_validate_prefix_accepts_labels():
     assign.validate_prefix("uptime-kuma")
 
 
+def test_validate_upstream_accepts_host_port():
+    assign.validate_upstream("192.168.10.100:3000")
+    assign.validate_upstream("grafana:3000")
+
+
+def test_validate_upstream_rejects_scheme_path_and_bad_port():
+    for bad in [
+        "https://192.168.10.202:8006/",  # scheme + path (the Proxmox footgun)
+        "http://grafana:3000",  # scheme
+        "grafana:3000/app",  # path
+        "192.168.10.100",  # no port
+        "grafana:",  # empty port
+        "grafana:99999",  # port out of range
+        "grafana:abc",  # non-numeric port
+        "has space:80",  # whitespace
+        "",  # empty
+    ]:
+        with pytest.raises(AssignError):
+            assign.validate_upstream(bad)
+
+
+async def test_assign_rejects_url_upstream():
+    with pytest.raises(AssignError) as exc:
+        await assign.assign(
+            FakeCaddy(), FakeAdGuard(), prefix="proxmox",
+            upstream="https://192.168.10.202:8006/", base_domain=BASE, current_ip=IP,
+        )
+    assert exc.value.status_code == 422
+
+
 async def test_assign_rejects_duplicate_subdomain():
     instances_store.upsert_instance(
         Instance(id="other", name="Other", type="external", subdomain="grafana")

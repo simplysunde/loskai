@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { assembleFqdn, isValidPrefix } from "../../lib/validation";
+import { assembleFqdn, isValidPrefix, isValidUpstream } from "../../lib/validation";
 
 // Assign URL form: a single-label prefix + an upstream host:port, with the assembled
 // FQDN shown live. Presentational — submit is handed to onSubmit (wired to /api/assign
@@ -27,10 +27,11 @@ export function AssignModal({
   if (!open) return null;
 
   const prefixOk = isValidPrefix(prefix);
+  const upstreamOk = isValidUpstream(upstream);
   const upstreamHint =
     mode === "docker" ? "e.g. grafana:3000" : "e.g. 192.168.10.100:3000";
   const fqdn = assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN");
-  const canSubmit = prefixOk && upstream.trim().length > 0 && !pending;
+  const canSubmit = prefixOk && upstreamOk && !pending;
 
   return (
     <div
@@ -74,6 +75,11 @@ export function AssignModal({
             placeholder={upstreamHint}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
+          {upstream && !upstreamOk && (
+            <span className="mt-1 block text-xs text-rose-400">
+              Use host:port — no scheme (http://) or path.
+            </span>
+          )}
         </label>
 
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
