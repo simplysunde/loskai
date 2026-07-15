@@ -68,3 +68,19 @@ test("uses the Docker upstream hint in docker mode", () => {
   renderModal({ mode: "docker" });
   expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
 });
+
+test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {
+  const { onSubmit } = renderModal({
+    initialPrefix: "proxmox",
+    initialUpstream: "192.168.10.202:8006",
+    initialTls: true,
+  });
+  const assign = screen.getByRole("button", { name: "Assign" });
+  expect(assign).toBeEnabled(); // valid prefilled values -> submittable immediately
+  fireEvent.click(assign);
+  expect(onSubmit).toHaveBeenCalledWith({
+    prefix: "proxmox",
+    upstream: "192.168.10.202:8006",
+    upstream_tls: true,
+  });
+});

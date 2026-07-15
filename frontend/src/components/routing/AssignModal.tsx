@@ -13,6 +13,9 @@ export function AssignModal({
   error,
   onSubmit,
   onClose,
+  initialPrefix = "",
+  initialUpstream = "",
+  initialTls = false,
 }: {
   open: boolean;
   baseDomain: string | null;
@@ -21,10 +24,15 @@ export function AssignModal({
   error?: string | null;
   onSubmit: (payload: { prefix: string; upstream: string; upstream_tls: boolean }) => void;
   onClose: () => void;
+  // Prefilled when re-assigning an existing instance (the modal is keyed per target so
+  // these seed fresh state on each open).
+  initialPrefix?: string;
+  initialUpstream?: string;
+  initialTls?: boolean;
 }) {
-  const [prefix, setPrefix] = useState("");
-  const [upstream, setUpstream] = useState("");
-  const [tls, setTls] = useState(false);
+  const [prefix, setPrefix] = useState(initialPrefix);
+  const [upstream, setUpstream] = useState(initialUpstream);
+  const [tls, setTls] = useState(initialTls);
   if (!open) return null;
 
   const prefixOk = isValidPrefix(prefix);

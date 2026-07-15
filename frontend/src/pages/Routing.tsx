@@ -32,7 +32,7 @@ export function Routing() {
   const qc = useQueryClient();
   const health = useHealth();
   const [assignOpen, setAssignOpen] = useState(false);
-  const [assignInstanceId, setAssignInstanceId] = useState<string | null>(null);
+  const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // null = new instance
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
@@ -71,7 +71,7 @@ export function Routing() {
 
   const assign = useMutation({
     mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
-      api.post<AssignResult>("/api/assign", { ...p, instance_id: assignInstanceId ?? undefined }),
+      api.post<AssignResult>("/api/assign", { ...p, instance_id: assignTarget?.id ?? undefined }),
     onSuccess: (data) => {
       setAssignOpen(false);
       setResult(data);
@@ -127,8 +127,8 @@ export function Routing() {
     onSuccess: invalidate,
   });
 
-  const openAssign = (instanceId: string | null) => {
-    setAssignInstanceId(instanceId);
+  const openAssign = (target: RouteRow | null) => {
+    setAssignTarget(target);
     setAssignError(null);
     setAssignOpen(true);
   };
@@ -190,7 +190,7 @@ export function Routing() {
       ) : (
         <ServiceTable
           rows={rows}
-          onAssign={(row) => openAssign(row.id)}
+          onAssign={(row) => openAssign(row)}
           onRemoveRoute={(row) => setConfirmRemove(row)}
           onDelete={(row) => setConfirmDelete(row)}
           actionBusyId={actionBusyId}
@@ -206,12 +206,15 @@ export function Routing() {
       </div>
 
       <AssignModal
-        key={`${assignInstanceId ?? "new"}:${assignOpen}`}
+        key={`${assignTarget?.id ?? "new"}:${assignOpen}`}
         open={assignOpen}
         baseDomain={baseDomain}
         mode={mode}
         pending={assign.isPending}
         error={assignError}
+        initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
+        initialUpstream={assignTarget?.upstream ?? ""}
+        initialTls={assignTarget?.upstream_tls ?? false}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}
       />
