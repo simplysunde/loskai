@@ -45,22 +45,20 @@ def build_route(instance: Instance, base_domain: str) -> dict:
     if not instance.upstream:
         raise ValueError(f"instance {instance.id} has no upstream")
     host = assemble_fqdn(instance.subdomain, base_domain)
+    proxy: dict = {
+        "handler": "reverse_proxy",
+        "upstreams": [{"dial": instance.upstream}],
+    }
+    if instance.upstream_tls:
+        # Dial the backend over HTTPS; skip cert verification for LAN/self-signed backends.
+        proxy["transport"] = {"protocol": "http", "tls": {"insecure_skip_verify": True}}
     return {
         "@id": instance.id,
         "match": [{"host": [host]}],
         "handle": [
             {
                 "handler": "subroute",
-                "routes": [
-                    {
-                        "handle": [
-                            {
-                                "handler": "reverse_proxy",
-                                "upstreams": [{"dial": instance.upstream}],
-                            }
-                        ]
-                    }
-                ],
+                "routes": [{"handle": [proxy]}],
             }
         ],
     }
@@ -95,7 +93,15 @@ def render_caddyfile(instances: list[Instance], base_domain: str) -> str:
             lines.append(f"# {host}: no upstream set — assign one to route it")
             continue
         lines.append(f"{host} {{")
-        lines.append(f"\treverse_proxy {inst.upstream}")
+        if inst.upstream_tls:
+            lines.append(f"\treverse_proxy {inst.upstream} {{")
+            lines.append("\t\ttransport http {")
+            lines.append("\t\t\ttls")
+            lines.append("\t\t\ttls_insecure_skip_verify")
+            lines.append("\t\t}")
+            lines.append("\t}")
+        else:
+            lines.append(f"\treverse_proxy {inst.upstream}")
         lines.append("}")
     return "\n".join(lines) + "\n"
 
@@ -141,6 +147,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "subdomain": inst.subdomain,
                 "fqdn": fqdn,
                 "upstream": inst.upstream,
+                "upstream_tls": inst.upstream_tls,
                 "private": inst.private,
                 "synced": synced,
                 "upstream_healthy": upstream_healthy,

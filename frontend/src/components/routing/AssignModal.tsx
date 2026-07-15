@@ -19,11 +19,12 @@ export function AssignModal({
   mode: "docker" | "lan" | null;
   pending?: boolean;
   error?: string | null;
-  onSubmit: (payload: { prefix: string; upstream: string }) => void;
+  onSubmit: (payload: { prefix: string; upstream: string; upstream_tls: boolean }) => void;
   onClose: () => void;
 }) {
   const [prefix, setPrefix] = useState("");
   const [upstream, setUpstream] = useState("");
+  const [tls, setTls] = useState(false);
   if (!open) return null;
 
   const prefixOk = isValidPrefix(prefix);
@@ -82,6 +83,21 @@ export function AssignModal({
           )}
         </label>
 
+        <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={tls}
+            onChange={(e) => setTls(e.target.checked)}
+            className="mt-0.5 accent-teal-500"
+          />
+          <span>
+            Backend speaks HTTPS
+            <span className="block text-xs text-slate-500">
+              Dial the upstream over TLS, accepting a self-signed cert (e.g. Proxmox).
+            </span>
+          </span>
+        </label>
+
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
@@ -93,7 +109,7 @@ export function AssignModal({
           </button>
           <button
             disabled={!canSubmit}
-            onClick={() => onSubmit({ prefix, upstream: upstream.trim() })}
+            onClick={() => onSubmit({ prefix, upstream: upstream.trim(), upstream_tls: tls })}
             className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             Assign

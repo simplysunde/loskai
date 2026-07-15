@@ -43,7 +43,7 @@ export function Docker() {
   const mode = health.data?.caddy?.mode ?? null;
 
   const assign = useMutation({
-    mutationFn: (p: { prefix: string; upstream: string }) =>
+    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
       api.post("/api/assign", { ...p, container: assignFor?.name, name: assignFor?.name }),
     onSuccess: () => {
       setAssignFor(null);

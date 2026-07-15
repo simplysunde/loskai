@@ -67,7 +67,7 @@ export function Routing() {
   };
 
   const assign = useMutation({
-    mutationFn: (p: { prefix: string; upstream: string }) =>
+    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
       api.post<AssignResult>("/api/assign", p),
     onSuccess: (data) => {
       setAssignOpen(false);

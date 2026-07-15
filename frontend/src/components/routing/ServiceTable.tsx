@@ -9,6 +9,7 @@ export interface RouteRow {
   subdomain: string | null;
   fqdn: string | null;
   upstream: string | null;
+  upstream_tls?: boolean;
   private: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
@@ -67,6 +68,11 @@ export function ServiceTable({
               </td>
               <td className="px-4 py-3 font-mono text-xs text-slate-400">
                 {row.upstream ?? "—"}
+                {row.upstream_tls && (
+                  <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
+                    https
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3">
                 {row.synced === null ? (

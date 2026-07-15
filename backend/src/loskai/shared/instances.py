@@ -22,6 +22,7 @@ class Instance(BaseModel):
     type: Literal["docker", "external"]
     subdomain: str | None = None  # null = tracked, no route assigned
     upstream: str | None = None  # host:port — chosen at assign time
+    upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
     container: str | None = None  # container name/id (docker type only)
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)

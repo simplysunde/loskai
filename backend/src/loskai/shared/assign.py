@@ -80,6 +80,7 @@ async def assign(
     instance_id: str | None = None,
     name: str | None = None,
     container: str | None = None,
+    upstream_tls: bool = False,
 ) -> dict:
     validate_prefix(prefix)
     if not base_domain:
@@ -98,7 +99,9 @@ async def assign(
     created_new = existing is None
     if existing:
         prev: Instance | None = existing.model_copy(deep=True)
-        inst = existing.model_copy(update={"subdomain": prefix, "upstream": upstream})
+        inst = existing.model_copy(
+            update={"subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls}
+        )
     else:
         if instances_store.get_instance(prefix) is not None:
             raise AssignError(409, f"instance id '{prefix}' already exists")
@@ -108,6 +111,7 @@ async def assign(
             id=prefix, name=name or prefix,
             type="docker" if container else "external",
             container=container, subdomain=prefix, upstream=upstream,
+            upstream_tls=upstream_tls,
         )
 
     old_domain = (
@@ -216,6 +220,7 @@ class AssignBody(BaseModel):
     instance_id: str | None = None
     name: str | None = None
     container: str | None = None
+    upstream_tls: bool = False
 
 
 @router.post("/assign")
@@ -227,6 +232,7 @@ async def post_assign(body: AssignBody) -> dict:
             caddy, adguard,
             prefix=body.prefix, upstream=body.upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
+            upstream_tls=body.upstream_tls,
             base_domain=base, current_ip=current_ip,
         )
     except AssignError as exc:

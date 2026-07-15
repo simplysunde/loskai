@@ -119,6 +119,16 @@ async def test_assign_rejects_duplicate_subdomain():
 # --- Happy path (new external instance) ---
 
 
+async def test_assign_sets_upstream_tls():
+    caddy = FakeCaddy()
+    await assign.assign(
+        caddy, FakeAdGuard(), prefix="proxmox", upstream="192.168.10.202:8006",
+        base_domain=BASE, current_ip=IP, upstream_tls=True,
+    )
+    inst = instances_store.get_instance("proxmox")
+    assert inst.upstream_tls is True
+
+
 async def test_assign_with_container_creates_docker_instance():
     result = await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",

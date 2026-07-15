@@ -28,6 +28,34 @@ def test_build_route_matches_contract():
     assert dial == "192.168.10.100:3000"
 
 
+def test_build_route_https_upstream_adds_tls_transport():
+    inst = Instance(
+        id="proxmox", name="Proxmox", type="external",
+        subdomain="proxmox", upstream="192.168.10.202:8006", upstream_tls=True,
+    )
+    proxy = service.build_route(inst, "example.no")["handle"][0]["routes"][0]["handle"][0]
+    assert proxy["transport"] == {"protocol": "http", "tls": {"insecure_skip_verify": True}}
+
+
+def test_build_route_plain_upstream_has_no_transport():
+    inst = Instance(
+        id="grafana", name="Grafana", type="docker",
+        subdomain="grafana", upstream="192.168.10.100:3000",
+    )
+    proxy = service.build_route(inst, "example.no")["handle"][0]["routes"][0]["handle"][0]
+    assert "transport" not in proxy
+
+
+def test_render_caddyfile_https_upstream():
+    inst = Instance(
+        id="proxmox", name="Proxmox", type="external",
+        subdomain="proxmox", upstream="192.168.10.202:8006", upstream_tls=True,
+    )
+    out = service.render_caddyfile([inst], "example.no")
+    assert "transport http {" in out
+    assert "tls_insecure_skip_verify" in out
+
+
 def test_build_route_requires_subdomain_and_upstream():
     with pytest.raises(ValueError):
         service.build_route(Instance(id="x", name="X", type="docker"), "example.no")

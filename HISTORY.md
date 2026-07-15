@@ -1,5 +1,22 @@
 # Loskai — History
 
+## 2026-07-15 — HTTPS upstreams + upstream validation (post-testing gaps)
+
+Closed the two gaps local testing surfaced. **Upstream validation**: the assign flow
+stored the upstream verbatim into Caddy's `dial`, so a URL (e.g. `https://…:8006/`)
+produced a malformed, non-connecting route — now rejected (422) on both API and form,
+requiring a bare `host:port`. **HTTPS upstreams**: the route builder only emitted a plain
+HTTP `dial`, so a TLS-only backend like **Proxmox** couldn't be proxied — now the instance
+carries `upstream_tls`, and `build_route` / the Caddyfile export emit a
+`transport http { tls tls_insecure_skip_verify }`, with a "Backend speaks HTTPS" checkbox
+in the Assign form and an `https` tag in the routing table.
+
+- Key files: `shared/assign.py`, `shared/instances.py` (`upstream_tls`),
+  `modules/caddy/service.py`, `components/routing/AssignModal.tsx`, `lib/validation.ts`
+- Both are additive + backward-compatible (`upstream_tls` defaults false; existing
+  instances unaffected)
+- Verified: 110 backend + 15 Vitest tests pass; clean build/lint
+
 ## 2026-07-15 — First live end-to-end validation (real Caddy + AdGuard)
 
 Stood the whole thing up on a real machine — dev Loskai (uv + Vite on the host) against
