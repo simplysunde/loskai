@@ -34,6 +34,8 @@ export ADGUARD_USER=admin                        # what you set in step 2
 export ADGUARD_PASSWORD=changeme                 # what you set in step 2
 export BASE_DOMAIN=lvh.me                         # *.lvh.me resolves to 127.0.0.1 — handy
 export LOSKAI_PASSWORD=devpass                    # or set it at first run in the UI
+# Writable state dir — the default /opt/loskai is the prod path and isn't writable in dev.
+export LOSKAI_DATA_DIR="$HOME/loskai-data"; mkdir -p "$LOSKAI_DATA_DIR"
 export STACKS_DIR="$HOME/loskai-stacks"; mkdir -p "$STACKS_DIR"
 
 cd backend
