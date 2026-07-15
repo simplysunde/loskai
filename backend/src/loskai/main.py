@@ -6,6 +6,7 @@ SPA is served unauthenticated. Module routers (caddy, adguard, wireguard, docker
 registered here as each phase adds them.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -14,17 +15,31 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from .config import settings
 from .modules.adguard import router as adguard_router
+from .modules.adguard.client import adguard
 from .modules.caddy import router as caddy_router
+from .modules.caddy.client import caddy
 from .modules.docker import router as docker_router
+from .modules.docker.discovery import discover_labeled
 from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, health, instances
 from .shared import settings as settings_module
+
+log = logging.getLogger("loskai")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Seed the admin password from LOSKAI_PASSWORD once, if provided.
     auth.ensure_seeded()
+    # Label auto-discovery: reconcile routes for `loskai.subdomain`-labeled containers.
+    # Best-effort — a down Docker/Caddy must never block startup.
+    try:
+        results = await discover_labeled(caddy, adguard)
+        applied = [r for r in results if r["status"] in ("created", "updated")]
+        if applied:
+            log.info("label auto-discovery: %s", applied)
+    except Exception as exc:  # noqa: BLE001 — startup must not fail on discovery
+        log.warning("label auto-discovery skipped: %s", exc)
     yield
 
 

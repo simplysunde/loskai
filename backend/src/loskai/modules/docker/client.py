@@ -102,6 +102,16 @@ class DockerClient:
                 result.setdefault(project, set()).add(service)
         return result
 
+    def running_with_label(self, label: str) -> list[dict]:
+        """Running containers carrying `label`, as {name, labels, ports} — for label
+        auto-discovery. Returns plain dicts so the discovery logic stays I/O-free."""
+        out: list[dict] = []
+        for c in self._get().containers.list():  # running only
+            labels = c.labels or {}
+            if label in labels:
+                out.append({"name": c.name, "labels": labels, "ports": c.ports or {}})
+        return out
+
     def image_of(self, container_id: str) -> str:
         c = self._get().containers.get(container_id)
         return logic.image_name(c.attrs, c.image.tags if c.image else [])

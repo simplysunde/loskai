@@ -73,6 +73,36 @@ def test_subdomain_for():
     assert logic.subdomain_for("missing", instances) is None
 
 
+def test_parse_bool():
+    assert logic.parse_bool("true") and logic.parse_bool("1") and logic.parse_bool("Yes")
+    assert not logic.parse_bool("") and not logic.parse_bool("false") and not logic.parse_bool(None)
+
+
+def test_derive_upstream_docker_mode():
+    ports = {"3000/tcp": [{"HostPort": "3000"}]}
+    assert logic.derive_upstream("grafana", {}, ports, "docker") == "grafana:3000"
+
+
+def test_derive_upstream_explicit_label_wins():
+    labels = {"loskai.upstream": "192.168.10.100:3000"}
+    assert logic.derive_upstream("grafana", labels, {}, "lan") == "192.168.10.100:3000"
+
+
+def test_derive_upstream_port_label():
+    ports = {"3000/tcp": None, "9000/tcp": None}  # ambiguous -> need loskai.port
+    assert logic.derive_upstream("app", {"loskai.port": "9000"}, ports, "docker") == "app:9000"
+
+
+def test_derive_upstream_lan_mode_needs_explicit():
+    ports = {"3000/tcp": [{"HostPort": "3000"}]}
+    assert logic.derive_upstream("grafana", {}, ports, "lan") is None
+
+
+def test_derive_upstream_ambiguous_ports():
+    ports = {"3000/tcp": None, "9000/tcp": None}
+    assert logic.derive_upstream("app", {}, ports, "docker") is None
+
+
 def test_quick_commands_generic_and_specific():
     generic = quick_commands_for("alpine")
     assert {c["label"] for c in generic} == {"List processes", "Env vars", "Disk usage", "List files"}
