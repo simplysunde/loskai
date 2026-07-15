@@ -47,6 +47,7 @@ app is running — this document is the human-readable overview.
 |---|---|
 | `GET /api/instances` | The full instance list (the shared spine). |
 | `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. |
+| `DELETE /api/instances/{id}` | Fully delete an instance: removes its route + rewrite (if any), then the record. **External only** — a docker (container-backed) instance returns `409` (remove its route via `DELETE /api/assign/{id}` instead). |
 
 ### Assign (the one cross-module action)
 
@@ -61,7 +62,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /routes` | Routed instances annotated with `synced` (in Caddy) + `upstream_healthy`. Display-only comparison — never auto-corrects. |
+| `GET /routes` | **All** instances (routed or not) annotated with `routed` + `synced` (in Caddy) + `upstream_healthy`. Route fields are null when unrouted. Display-only comparison — never auto-corrects. |
 | `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s. |
 | `GET /caddyfile` | A complete, runnable Caddyfile rendered from the instance list (`text/plain`). `400` if `base_domain` is unset. |
 | `GET /health` | `{ status, server?, mode: "docker"\|"lan"\|null }`. |

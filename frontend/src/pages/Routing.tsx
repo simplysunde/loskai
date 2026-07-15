@@ -25,14 +25,17 @@ interface AssignResult {
   warning: string | null;
 }
 
-// Unified routing view: Caddy routes + AdGuard DNS in one row per service, with the
-// full assign / clear / private flow (the cross-module /api/assign action).
+// Unified routing view. Lists every instance (routed or not). Routed rows manage the
+// Caddy route + DNS rewrite; unrouted rows can be assigned. External instances can be
+// deleted outright; docker instances (container-backed) can only have their route removed.
 export function Routing() {
   const qc = useQueryClient();
   const health = useHealth();
   const [assignOpen, setAssignOpen] = useState(false);
+  const [assignInstanceId, setAssignInstanceId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
 
   const routes = useQuery({
@@ -68,27 +71,36 @@ export function Routing() {
 
   const assign = useMutation({
     mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
-      api.post<AssignResult>("/api/assign", p),
+      api.post<AssignResult>("/api/assign", { ...p, instance_id: assignInstanceId ?? undefined }),
     onSuccess: (data) => {
       setAssignOpen(false);
       setResult(data);
       invalidate();
     },
-    onError: (err) =>
-      setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
   });
 
-  const remove = useMutation({
+  // Remove the route (Caddy + DNS), keep the instance.
+  const removeRoute = useMutation({
     mutationFn: (row: RouteRow) => api.del(`/api/assign/${row.id}`),
     onSuccess: () => {
-      setConfirmDelete(null);
+      setConfirmRemove(null);
       invalidate();
     },
   });
 
+  // Delete an external instance entirely (docker instances 409 on the backend).
+  const deleteInstance = useMutation({
+    mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}`),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      invalidate();
+    },
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Delete failed"),
+  });
+
   const privateToggle = useMutation({
-    mutationFn: (row: RouteRow) =>
-      api.patch(`/api/instances/${row.id}`, { private: !row.private }),
+    mutationFn: (row: RouteRow) => api.patch(`/api/instances/${row.id}`, { private: !row.private }),
     onSuccess: invalidate,
   });
 
@@ -115,6 +127,17 @@ export function Routing() {
     onSuccess: invalidate,
   });
 
+  const openAssign = (instanceId: string | null) => {
+    setAssignInstanceId(instanceId);
+    setAssignError(null);
+    setAssignOpen(true);
+  };
+  const actionBusyId = removeRoute.isPending
+    ? removeRoute.variables?.id
+    : deleteInstance.isPending
+      ? deleteInstance.variables?.id
+      : null;
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
       <header className="mb-6 flex items-start justify-between gap-4">
@@ -126,10 +149,7 @@ export function Routing() {
         </div>
         <div className="flex shrink-0 gap-2">
           <button
-            onClick={() => {
-              setAssignError(null);
-              setAssignOpen(true);
-            }}
+            onClick={() => openAssign(null)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
             <Plus className="h-4 w-4" /> Assign URL
@@ -140,11 +160,7 @@ export function Routing() {
             title="Push Caddy routes + reconcile AdGuard rewrites"
             className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
-            {push.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UploadCloud className="h-4 w-4" />
-            )}
+            {push.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
             Push all
           </button>
         </div>
@@ -174,12 +190,14 @@ export function Routing() {
       ) : (
         <ServiceTable
           rows={rows}
+          onAssign={(row) => openAssign(row.id)}
+          onRemoveRoute={(row) => setConfirmRemove(row)}
+          onDelete={(row) => setConfirmDelete(row)}
+          actionBusyId={actionBusyId}
           onToggleRewrite={(row) => rewrite.mutate(row)}
           rewriteBusyId={rewrite.isPending ? rewrite.variables?.id : null}
           onTogglePrivate={(row) => privateToggle.mutate(row)}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
-          onDelete={(row) => setConfirmDelete(row)}
-          deleteBusyId={remove.isPending ? remove.variables?.id : null}
         />
       )}
 
@@ -188,6 +206,7 @@ export function Routing() {
       </div>
 
       <AssignModal
+        key={`${assignInstanceId ?? "new"}:${assignOpen}`}
         open={assignOpen}
         baseDomain={baseDomain}
         mode={mode}
@@ -198,16 +217,29 @@ export function Routing() {
       />
 
       <ConfirmDialog
-        open={confirmDelete !== null}
+        open={confirmRemove !== null}
         title="Remove route"
         destructive
-        confirmLabel="Remove"
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && remove.mutate(confirmDelete)}
+        confirmLabel="Remove route"
+        onCancel={() => setConfirmRemove(null)}
+        onConfirm={() => confirmRemove && removeRoute.mutate(confirmRemove)}
       >
         This removes the Caddy route and AdGuard rewrite for{" "}
-        <span className="font-medium text-slate-200">{confirmDelete?.fqdn}</span>. The
-        service itself keeps running.
+        <span className="font-medium text-slate-200">{confirmRemove?.fqdn}</span>. The
+        instance is kept — you can re-assign it later.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Delete instance"
+        destructive
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && deleteInstance.mutate(confirmDelete)}
+      >
+        This deletes{" "}
+        <span className="font-medium text-slate-200">{confirmDelete?.name}</span> entirely,
+        including its route and DNS rewrite. The service it points to isn't affected.
       </ConfirmDialog>
     </div>
   );

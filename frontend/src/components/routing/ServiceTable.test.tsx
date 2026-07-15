@@ -12,6 +12,7 @@ function row(overrides: Partial<RouteRow> = {}): RouteRow {
     fqdn: "grafana.example.no",
     upstream: "192.168.10.100:3000",
     private: false,
+    routed: true,
     synced: true,
     upstream_healthy: true,
     ...overrides,
@@ -47,18 +48,42 @@ test("rewrite action fires and is disabled when DNS status is unknown", () => {
   expect(screen.getByRole("button", { name: /Rewrite/ })).toBeDisabled();
 });
 
-test("delete and private-toggle actions fire", () => {
-  const onDelete = vi.fn();
+test("routed docker row: remove-route + private, but no delete", () => {
+  const onRemoveRoute = vi.fn();
   const onTogglePrivate = vi.fn();
+  const onDelete = vi.fn();
   render(
     <ServiceTable
-      rows={[row()]}
-      onDelete={onDelete}
+      rows={[row({ type: "docker" })]}
+      onRemoveRoute={onRemoveRoute}
       onTogglePrivate={onTogglePrivate}
+      onDelete={onDelete}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Remove route" }));
-  expect(onDelete).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Remove route (keep the instance)" }));
+  expect(onRemoveRoute).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole("button", { name: "Public on dashboard" }));
   expect(onTogglePrivate).toHaveBeenCalledOnce();
+  // docker instances can't be deleted
+  expect(screen.queryByRole("button", { name: "Delete instance" })).toBeNull();
+});
+
+test("external routed row can be deleted; unrouted row shows Assign", () => {
+  const onDelete = vi.fn();
+  const onAssign = vi.fn();
+  const { rerender } = render(
+    <ServiceTable rows={[row({ type: "external" })]} onDelete={onDelete} onAssign={onAssign} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete instance" }));
+  expect(onDelete).toHaveBeenCalledOnce();
+
+  rerender(
+    <ServiceTable
+      rows={[row({ type: "external", routed: false, subdomain: null, fqdn: null })]}
+      onAssign={onAssign}
+      onDelete={onDelete}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Assign a URL" }));
+  expect(onAssign).toHaveBeenCalledOnce();
 });

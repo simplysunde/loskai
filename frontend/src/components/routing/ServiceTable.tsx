@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Plus, Trash2, Unlink } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
 
@@ -11,37 +11,44 @@ export interface RouteRow {
   upstream: string | null;
   upstream_tls?: boolean;
   private: boolean;
+  routed: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
-  // Merged in from /api/adguard/status (Phase 4):
-  dnsPresent?: boolean | null; // null = unknown (AdGuard down / no answer IP)
-  dnsConflict?: boolean; // a manual same-domain rewrite points elsewhere
+  // Merged in from /api/adguard/status (routed rows only):
+  dnsPresent?: boolean | null;
+  dnsConflict?: boolean;
 }
 
-// One row per routed service. Route-sync, live, and DNS-rewrite columns; the per-row
-// rewrite add/remove is best-effort. Private toggle + delete go through the assign flow.
+// One row per instance (routed or not). Routed rows show route/DNS status + rewrite,
+// private, and "remove route". Unrouted rows show "assign". External instances can be
+// deleted outright; docker instances (container-backed) cannot.
 export function ServiceTable({
   rows,
+  onAssign,
+  onRemoveRoute,
+  onDelete,
+  actionBusyId,
   onToggleRewrite,
   rewriteBusyId,
   onTogglePrivate,
   privateBusyId,
-  onDelete,
-  deleteBusyId,
 }: {
   rows: RouteRow[];
+  onAssign?: (row: RouteRow) => void;
+  onRemoveRoute?: (row: RouteRow) => void;
+  onDelete?: (row: RouteRow) => void;
+  actionBusyId?: string | null;
   onToggleRewrite?: (row: RouteRow) => void;
   rewriteBusyId?: string | null;
   onTogglePrivate?: (row: RouteRow) => void;
   privateBusyId?: string | null;
-  onDelete?: (row: RouteRow) => void;
-  deleteBusyId?: string | null;
 }) {
-  const hasActions = Boolean(onToggleRewrite || onTogglePrivate || onDelete);
+  const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onToggleRewrite || onTogglePrivate);
+
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
-        No routes yet. Assigning a URL to a service will add it here.
+        No services yet. Assign a URL to add one.
       </div>
     );
   }
@@ -63,8 +70,17 @@ export function ServiceTable({
           {rows.map((row) => (
             <tr key={row.id} className="hover:bg-slate-900/40">
               <td className="px-4 py-3">
-                <div className="font-medium text-slate-100">{row.name}</div>
-                <div className="text-xs text-slate-500">{row.fqdn ?? row.subdomain}</div>
+                <div className="flex items-center gap-2 font-medium text-slate-100">
+                  {row.name}
+                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                    {row.type}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-500">
+                  {row.fqdn ?? (
+                    <span className="text-slate-600">not routed</span>
+                  )}
+                </div>
               </td>
               <td className="px-4 py-3 font-mono text-xs text-slate-400">
                 {row.upstream ?? "—"}
@@ -75,7 +91,9 @@ export function ServiceTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                {row.synced === null ? (
+                {!row.routed ? (
+                  <Dash />
+                ) : row.synced === null ? (
                   <StatusBadge status="unknown" label="unknown" />
                 ) : row.synced ? (
                   <StatusBadge status="synced" label="synced" />
@@ -84,8 +102,8 @@ export function ServiceTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                {row.upstream_healthy === null ? (
-                  <span className="text-xs text-slate-600">—</span>
+                {!row.routed || row.upstream_healthy === null ? (
+                  <Dash />
                 ) : row.upstream_healthy ? (
                   <StatusBadge status="healthy" label="up" />
                 ) : (
@@ -93,19 +111,19 @@ export function ServiceTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
+                {row.routed ? (
+                  <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
+                ) : (
+                  <Dash />
+                )}
               </td>
               {hasActions && (
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
-                    {onToggleRewrite && (
-                      <RewriteAction
-                        row={row}
-                        busy={rewriteBusyId === row.id}
-                        onToggle={onToggleRewrite}
-                      />
+                    {row.routed && onToggleRewrite && (
+                      <RewriteAction row={row} busy={rewriteBusyId === row.id} onToggle={onToggleRewrite} />
                     )}
-                    {onTogglePrivate && (
+                    {row.routed && onTogglePrivate && (
                       <IconButton
                         busy={privateBusyId === row.id}
                         title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
@@ -113,10 +131,26 @@ export function ServiceTable({
                         icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       />
                     )}
-                    {onDelete && (
+                    {!row.routed && onAssign && (
                       <IconButton
-                        busy={deleteBusyId === row.id}
-                        title="Remove route"
+                        busy={false}
+                        title="Assign a URL"
+                        onClick={() => onAssign(row)}
+                        icon={<Plus className="h-3.5 w-3.5" />}
+                      />
+                    )}
+                    {row.routed && onRemoveRoute && (
+                      <IconButton
+                        busy={actionBusyId === row.id}
+                        title="Remove route (keep the instance)"
+                        onClick={() => onRemoveRoute(row)}
+                        icon={<Unlink className="h-3.5 w-3.5" />}
+                      />
+                    )}
+                    {row.type === "external" && onDelete && (
+                      <IconButton
+                        busy={actionBusyId === row.id}
+                        title="Delete instance"
                         danger
                         onClick={() => onDelete(row)}
                         icon={<Trash2 className="h-3.5 w-3.5" />}
@@ -133,13 +167,11 @@ export function ServiceTable({
   );
 }
 
-function DnsCell({
-  present,
-  conflict,
-}: {
-  present?: boolean | null;
-  conflict?: boolean;
-}) {
+function Dash() {
+  return <span className="text-xs text-slate-600">—</span>;
+}
+
+function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       {present === undefined || present === null ? (
@@ -173,9 +205,7 @@ function IconButton({
       onClick={onClick}
       title={title}
       className={`inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs disabled:opacity-40 ${
-        danger
-          ? "text-rose-300 hover:bg-rose-500/10"
-          : "text-slate-300 hover:bg-slate-800"
+        danger ? "text-rose-300 hover:bg-rose-500/10" : "text-slate-300 hover:bg-slate-800"
       }`}
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
@@ -192,7 +222,6 @@ function RewriteAction({
   busy: boolean;
   onToggle: (row: RouteRow) => void;
 }) {
-  // Can't act when DNS status is unknown (AdGuard down or no answer IP).
   const disabled = busy || row.dnsPresent === undefined || row.dnsPresent === null;
   const present = row.dnsPresent === true;
   return (
@@ -202,14 +231,8 @@ function RewriteAction({
       title={present ? "Remove DNS rewrite" : "Add DNS rewrite"}
       className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
     >
-      {busy ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : present ? (
-        <Trash2 className="h-3.5 w-3.5" />
-      ) : (
-        <Plus className="h-3.5 w-3.5" />
-      )}
-      {present ? "Rewrite" : "Rewrite"}
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : present ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+      Rewrite
     </button>
   );
 }

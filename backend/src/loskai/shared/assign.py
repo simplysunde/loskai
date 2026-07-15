@@ -209,6 +209,25 @@ async def unassign(
     return {"caddy": "ok", "adguard": adguard_status, "cleared": True, "instance_id": inst.id}
 
 
+async def delete_instance(
+    caddy_client, adguard_client, instance_id: str, *, base_domain: str | None
+) -> dict:
+    """Fully delete an instance. Docker instances are container-backed and can't be
+    deleted (remove their route instead); external instances are pure route definitions,
+    so we clear the route + rewrite (if any) and drop the record."""
+    inst = instances_store.get_instance(instance_id)
+    if inst is None:
+        raise AssignError(404, f"instance '{instance_id}' not found")
+    if inst.type == "docker":
+        raise AssignError(
+            409, "can't delete a container-backed instance — remove its route instead"
+        )
+    if inst.subdomain:
+        await unassign(caddy_client, adguard_client, instance_id, base_domain=base_domain)
+    instances_store.delete_instance(instance_id)
+    return {"deleted": True, "instance_id": instance_id}
+
+
 # --- Router ---
 
 router = APIRouter(prefix="/api", tags=["assign"])
@@ -244,5 +263,16 @@ async def delete_assign(instance_id: str) -> dict:
     base = settings_store.value("base_domain")
     try:
         return await unassign(caddy, adguard, instance_id, base_domain=base)
+    except AssignError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+
+# Full instance deletion is a cross-module action (route + rewrite cleanup), so it lives
+# here rather than in shared/instances.py (which must not import the module clients).
+@router.delete("/instances/{instance_id}")
+async def delete_instance_route(instance_id: str) -> dict:
+    base = settings_store.value("base_domain")
+    try:
+        return await delete_instance(caddy, adguard, instance_id, base_domain=base)
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)

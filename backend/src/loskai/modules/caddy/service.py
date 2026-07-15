@@ -110,9 +110,10 @@ def render_caddyfile(instances: list[Instance], base_domain: str) -> str:
 
 
 async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[dict]:
-    """Every routed instance annotated with synced (@id present in Caddy) + live
-    upstream status. Read-only comparison — never auto-corrects (no drift loop)."""
-    routed = instances_store.list_routed()
+    """Every instance (routed or not) annotated with `routed` + synced (@id present in
+    Caddy) + live upstream status. The routing view manages all instances, so unrouted
+    ones appear here too (with null route fields). Read-only — never auto-corrects."""
+    instances = instances_store.list_instances()
 
     live_ids: set[str] | None
     try:
@@ -129,13 +130,14 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         upstream_fails = None
 
     rows: list[dict] = []
-    for inst in routed:
-        fqdn = assemble_fqdn(inst.subdomain, base_domain) if base_domain else None
-        if live_ids is None:
+    for inst in instances:
+        routed = inst.subdomain is not None
+        fqdn = assemble_fqdn(inst.subdomain, base_domain) if routed and base_domain else None
+        if not routed or live_ids is None:
             synced = None
         else:
             synced = inst.id in live_ids
-        if upstream_fails is None or inst.upstream is None:
+        if not routed or upstream_fails is None or inst.upstream is None:
             upstream_healthy = None
         else:
             upstream_healthy = inst.upstream in upstream_fails and upstream_fails[inst.upstream] == 0
@@ -149,6 +151,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "upstream": inst.upstream,
                 "upstream_tls": inst.upstream_tls,
                 "private": inst.private,
+                "routed": routed,
                 "synced": synced,
                 "upstream_healthy": upstream_healthy,
             }

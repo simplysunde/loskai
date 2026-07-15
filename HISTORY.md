@@ -1,5 +1,25 @@
 # Loskai — History
 
+## 2026-07-15 — Instance deletion + all-instances routing view
+
+Fixed a model gap found in use: removing a route (unassign) kept the instance, but the
+routing table only showed *routed* instances — so cleared instances became invisible
+orphans with no way to delete them. Reworked to a type-aware model.
+
+- Key files: `modules/caddy/service.py` (`list_with_sync`), `shared/assign.py`
+  (`delete_instance` + `DELETE /api/instances/{id}`), `shared/instances.py`,
+  `components/routing/ServiceTable.tsx`, `pages/Routing.tsx`
+- **Routing view now lists every instance** (routed or not) with a `routed` flag; unrouted
+  rows show "Assign", routed rows show route/DNS status + "Remove route"
+- **Type-aware delete**: external instances are pure route definitions, so they can be
+  deleted outright (route + rewrite + record); docker instances are container-backed, so
+  `DELETE /api/instances/{id}` returns **409** — you remove their route instead, and the
+  container lives on in the Docker tab
+- `DELETE /api/instances/{id}` is a cross-module action (route/rewrite cleanup), so it
+  lives in `assign.py`, not `instances.py` (which must not import the module clients)
+- Verified: 113 backend + 16 Vitest pass; curl confirmed the all-instances listing,
+  external delete, and the docker 409
+
 ## 2026-07-15 — HTTPS upstreams + upstream validation (post-testing gaps)
 
 Closed the two gaps local testing surfaced. **Upstream validation**: the assign flow

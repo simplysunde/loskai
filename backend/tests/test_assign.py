@@ -233,6 +233,37 @@ async def test_unassign_clears_and_deletes():
     assert inst.subdomain is None and inst.dns_answer is None  # instance survives
 
 
+async def test_delete_external_instance_removes_route_and_record():
+    instances_store.upsert_instance(
+        Instance(id="nas", name="NAS", type="external", subdomain="nas",
+                 upstream="192.168.10.50:5000", dns_answer=IP)
+    )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
+
+    assert result["deleted"] is True
+    assert caddy.deleted == ["nas"]  # route removed
+    assert ag.deleted == [("nas.example.no", IP)]  # rewrite removed
+    assert instances_store.get_instance("nas") is None  # record gone
+
+
+async def test_delete_unrouted_external_instance():
+    instances_store.upsert_instance(Instance(id="old", name="Old", type="external"))
+    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "old", base_domain=BASE)
+    assert result["deleted"] is True
+    assert instances_store.get_instance("old") is None
+
+
+async def test_cannot_delete_docker_instance():
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker", container="grafana", subdomain="graf")
+    )
+    with pytest.raises(AssignError) as exc:
+        await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "grafana", base_domain=BASE)
+    assert exc.value.status_code == 409
+    assert instances_store.get_instance("grafana") is not None  # still there
+
+
 async def test_unassign_caddy_failure_rolls_back():
     instances_store.upsert_instance(
         Instance(id="nas", name="NAS", type="external", subdomain="nas", dns_answer=IP)
