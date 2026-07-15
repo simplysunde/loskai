@@ -44,6 +44,12 @@ def get_instance(instance_id: str) -> Instance | None:
     return next((i for i in list_instances() if i.id == instance_id), None)
 
 
+def get_by_container(container: str) -> Instance | None:
+    """The instance linked to a container (one per container) — used to keep a container
+    assign idempotent so it never creates a duplicate docker instance."""
+    return next((i for i in list_instances() if i.container == container), None)
+
+
 def upsert_instance(instance: Instance) -> Instance:
     """Insert or replace by `id` — the one write path (create and edit converge here)."""
     instances = list_instances()

@@ -20,6 +20,15 @@ import { ModuleStatus } from "../components/shared/ModuleStatus";
 
 type Tab = "containers" | "stacks";
 
+// A suggested subdomain for a container: its current one, else its name, cleaned to a
+// valid single DNS label. The user can still edit it before assigning.
+function suggestPrefix(c: Container): string {
+  return (c.subdomain ?? c.name)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function Docker() {
   const qc = useQueryClient();
   const health = useHealth();
@@ -160,11 +169,13 @@ export function Docker() {
       {wizardOpen && <InstallWizard onClose={() => setWizardOpen(false)} />}
 
       <AssignModal
+        key={assignFor?.id ?? "none"}
         open={assignFor !== null}
         baseDomain={baseDomain}
         mode={mode}
         pending={assign.isPending}
         error={assignError}
+        initialPrefix={assignFor ? suggestPrefix(assignFor) : ""}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignFor(null)}
       />

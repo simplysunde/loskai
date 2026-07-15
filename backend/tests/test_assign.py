@@ -139,6 +139,21 @@ async def test_assign_with_container_creates_docker_instance():
     assert inst.type == "docker" and inst.container == "grafana"
 
 
+async def test_container_assign_is_idempotent_no_duplicate():
+    # Assign a URL to a container, then change it — must reuse the same instance.
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="graf", upstream="graf:3000",
+        base_domain=BASE, current_ip=IP, container="grafana",
+    )
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="dashboards", upstream="graf:3000",
+        base_domain=BASE, current_ip=IP, container="grafana",
+    )
+    docker_instances = [i for i in instances_store.list_instances() if i.container == "grafana"]
+    assert len(docker_instances) == 1  # no duplicate
+    assert docker_instances[0].subdomain == "dashboards"  # URL changed on the same instance
+
+
 async def test_assign_creates_external_routes_and_rewrites():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(

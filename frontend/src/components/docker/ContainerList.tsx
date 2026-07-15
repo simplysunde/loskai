@@ -130,7 +130,7 @@ export function ContainerList({
                     <Act title="Terminal" onClick={() => onTerminal(c)} disabled={!running}>
                       <TerminalSquare className="h-3.5 w-3.5" />
                     </Act>
-                    <Act title="Assign URL" onClick={() => onAssign(c)}>
+                    <Act title={c.subdomain ? "Change URL" : "Assign URL"} onClick={() => onAssign(c)}>
                       <Link2 className="h-3.5 w-3.5" />
                     </Act>
                     <Act title="Remove" danger onClick={() => onRemove(c)}>

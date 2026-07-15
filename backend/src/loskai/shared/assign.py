@@ -92,6 +92,12 @@ async def assign(
     if instance_id and existing is None:
         raise AssignError(404, f"instance '{instance_id}' not found")
 
+    # No duplicates: assigning a container targets its existing instance (change its URL)
+    # rather than creating a second one. For more routes to one service, add a separate
+    # external instance instead.
+    if existing is None and container:
+        existing = instances_store.get_by_container(container)
+
     target_id = existing.id if existing else prefix
     if subdomain_taken(prefix, exclude_id=target_id):
         raise AssignError(409, f"subdomain '{prefix}' is already assigned")
