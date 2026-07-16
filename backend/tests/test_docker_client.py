@@ -18,6 +18,7 @@ class FakeContainer:
         self.name = name
         self.status = "running" if running else "exited"
         self.image = SimpleNamespace(tags=[f"{name}/img:latest"])
+        self.labels = {"com.docker.compose.service": name}
         self.attrs = {
             "Image": "sha256:deadbeef",
             "State": {"Status": self.status, "StartedAt": "2024-01-01T12:00:00Z"},
@@ -76,6 +77,7 @@ def test_list_containers_joins_instance_and_computes_stats(monkeypatch, data_dir
     assert row["image"] == "grafana/img:latest"
     assert row["subdomain"] == "graf"  # joined from the instance
     assert row["ports"] == ["8080->80/tcp"]
+    assert row["suggested_upstream"] == "grafana:80"  # service name + single published port
     assert row["cpu"] == 10.0  # cpu_delta 100 / system_delta 1000 * 1 cpu * 100
     assert row["mem"]["percent"] == 10.0
 

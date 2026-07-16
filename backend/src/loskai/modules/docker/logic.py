@@ -107,6 +107,30 @@ def declared_services(compose_text: str) -> set[str]:
     return set(services) if isinstance(services, dict) else set()
 
 
+def suggested_container_port(ports: dict | None) -> str | None:
+    """The container-side port to route to, best-effort. Prefers the single *published*
+    binding (e.g. AdGuard exposes many ports but publishes only 3000); falls back to a
+    single exposed port. None when it's ambiguous (0 or several). `ports` is docker-py's
+    NetworkSettings.Ports, e.g. {"3000/tcp": [{"HostPort": "3000"}], "53/tcp": None}."""
+    p = ports or {}
+    published = [spec for spec, bindings in p.items() if bindings]
+    if len(published) == 1:
+        return published[0].split("/")[0]
+    if len(p) == 1:
+        return next(iter(p)).split("/")[0]
+    return None
+
+
+def suggested_upstream(container_name: str, service: str | None, ports: dict | None) -> str | None:
+    """A reachable upstream for a co-located container: `<service-or-name>:<port>`. The
+    name resolves to the container's network IP via Docker DNS (robust across restarts) as
+    long as Caddy shares the network. None when the port can't be determined."""
+    port = suggested_container_port(ports)
+    if not port:
+        return None
+    return f"{service or container_name}:{port}"
+
+
 def subdomain_for(container_name: str, instances: list) -> str | None:
     """The assigned subdomain for a container, joined via the instance's `container`."""
     for inst in instances:

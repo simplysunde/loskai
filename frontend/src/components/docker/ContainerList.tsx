@@ -22,6 +22,7 @@ export interface Container {
   uptime: number | null;
   ports: string[];
   subdomain: string | null;
+  suggested_upstream: string | null;
   cpu: number | null;
   mem: { percent: number | null } | null;
 }

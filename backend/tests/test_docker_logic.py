@@ -73,6 +73,29 @@ def test_subdomain_for():
     assert logic.subdomain_for("missing", instances) is None
 
 
+def test_suggested_container_port_prefers_single_published():
+    # AdGuard: many exposed, only 3000 published -> 3000.
+    ports = {"3000/tcp": [{"HostPort": "3000"}], "53/tcp": None, "53/udp": None, "80/tcp": None}
+    assert logic.suggested_container_port(ports) == "3000"
+
+
+def test_suggested_container_port_single_exposed_fallback():
+    assert logic.suggested_container_port({"8080/tcp": None}) == "8080"
+
+
+def test_suggested_container_port_ambiguous():
+    ports = {"3000/tcp": [{"HostPort": "3000"}], "9000/tcp": [{"HostPort": "9000"}]}
+    assert logic.suggested_container_port(ports) is None
+
+
+def test_suggested_upstream_uses_service_name():
+    ports = {"3000/tcp": [{"HostPort": "3000"}], "53/tcp": None}
+    assert logic.suggested_upstream("loskai-dev-adguard", "adguard", ports) == "adguard:3000"
+    # No compose service -> container name.
+    assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}) == "myapp:8080"
+    assert logic.suggested_upstream("x", "x", {}) is None
+
+
 def test_quick_commands_generic_and_specific():
     generic = quick_commands_for("alpine")
     assert {c["label"] for c in generic} == {"List processes", "Env vars", "Disk usage", "List files"}

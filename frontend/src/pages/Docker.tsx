@@ -147,6 +147,7 @@ export function Docker() {
         pending={assign.isPending}
         error={assignError}
         initialPrefix={assignFor ? suggestPrefix(assignFor) : ""}
+        initialUpstream={assignFor?.suggested_upstream ?? ""}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignFor(null)}
       />

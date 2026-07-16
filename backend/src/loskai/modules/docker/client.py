@@ -52,6 +52,7 @@ class DockerClient:
             attrs = c.attrs
             state = attrs.get("State", {})
             running = c.status == "running"
+            labels = c.labels or {}
             summary = {
                 "id": c.id[:12],
                 "name": c.name,
@@ -60,6 +61,13 @@ class DockerClient:
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
                 "subdomain": logic.subdomain_for(c.name, instances),
+                # A reachable upstream to pre-fill the assign form (Caddy dials it by name
+                # on the shared Docker network).
+                "suggested_upstream": logic.suggested_upstream(
+                    c.name,
+                    labels.get("com.docker.compose.service"),
+                    (attrs.get("NetworkSettings") or {}).get("Ports"),
+                ),
                 "cpu": None,
                 "mem": None,
             }
