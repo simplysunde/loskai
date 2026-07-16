@@ -411,12 +411,13 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   row; delete for external instances; docker instances can't be deleted (see Core Data Model)
 - Each row: subdomain → upstream (host:port, optionally HTTPS), synced + live + DNS status
 - **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
-  instance's `@id` against them. Present = synced; missing = not pushed (offer "Push all").
+  instance's `@id` against them. Present = synced; missing = not pushed (offer "Sync").
   This is a **read-only comparison for display only** — it never auto-corrects, so it can't
   reintroduce a drift/reconcile loop.
 - **Live status** — upstream reachability, from Caddy's `/reverse_proxy/upstreams`
-- "Push all to Caddy" button — rebuilds every route from the instance list (recovery
-  after Caddy lost its config)
+- "Sync" button — re-pushes every Caddy route from the instance list **and** reconciles
+  AdGuard rewrites (adds missing, migrates stale, sweeps orphaned); the one-click recovery
+  + refresh action
 
 **Assign URL**
 - Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
@@ -504,8 +505,8 @@ documented in [`docs/caddy-api.md`](docs/caddy-api.md).
   change and runs with `caddy run --resume`, so it restores that autosave on start. A
   normal LXC / Proxmox reboot or Caddy restart brings every route back with **no action
   from Loskai**.
-- **Backstop:** the instance list (`instances.json`) is the durable record. "Push all to
-  Caddy" re-creates every route from it — but only needed in the rare case where Caddy's
+- **Backstop:** the instance list (`instances.json`) is the durable record. "Sync"
+  re-creates every route from it — but only needed in the rare case where Caddy's
   autosave itself is gone (fresh Caddy, wiped data dir), not on a normal reboot.
 - **Ownership rule:** Loskai manages every route whose `@id` matches an instance — which
   now includes its own UI and AdGuard, since both are ordinary instances. The bootstrap
@@ -590,7 +591,8 @@ stays.)
 - AdGuard is its own source of truth for rewrites — Loskai reads them straight from
   AdGuard and shows which instances have a matching rewrite (read-only comparison, never
   auto-corrected)
-- "Push all" best-effort re-adds any missing rewrites for instances that have a subdomain
+- "Sync" best-effort re-adds any missing rewrites for instances that have a subdomain, and
+  sweeps orphaned `<label>.<base>` rewrites at the Caddy IP that no live route owns
 - Each per-name rewrite is load-bearing — a missing one means that name won't resolve on
   the LAN until it's added; the AdGuard step still never blocks a Caddy route
 
@@ -786,7 +788,7 @@ frontend/src/
 │   ├── routing/            unified Caddy + AdGuard view
 │   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
 │   │   │                       route-sync + DNS-rewrite status, per-row actions,
-│   │   │                       private toggle; "Push all" for recovery
+│   │   │                       private toggle; "Sync" for recovery
 │   │   ├── AssignModal.tsx     prefix + upstream form → POST /api/assign
 │   │   └── CaddyfileExport.tsx download / copy-to-clipboard Caddyfile
 │   ├── wireguard/
@@ -905,7 +907,7 @@ xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy   # swa
 
 Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy autosaves
 its full config to disk after every Admin API change, `--resume` restores every route on
-restart with no action from Loskai — this is the normal reboot path. "Push all to Caddy"
+restart with no action from Loskai — this is the normal reboot path. "Sync"
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
 autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](docs/caddy-api.md).
 
@@ -935,7 +937,7 @@ all flat siblings reusing this one cert.
 
 > **Cold-start recovery.** On a brand-new Caddy with an empty autosave, no routes exist yet,
 > so `loskai.{$BASE_DOMAIN}` doesn't resolve. Reach Loskai directly at
-> `http://192.168.10.100:8080` and click **"Push all to Caddy"** — that seeds every route,
+> `http://192.168.10.100:8080` and click **"Sync"** — that seeds every route,
 > including its own. After that, autosave + `--resume` keep them across restarts.
 
 ---
@@ -1102,7 +1104,7 @@ TODO.md is the authoritative source for what to build and in what order.
 | Failure | Impact | Mitigation |
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
-| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Push all to Caddy" rebuilds from `instances.json` only if the autosave itself is lost |
+| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Sync" rebuilds from `instances.json` only if the autosave itself is lost |
 | Loskai container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |

@@ -88,8 +88,9 @@ absent, which is irrelevant for a config change the user just initiated.
 
 ### 5. Push all — rebuild every route from `instances.json`
 
-Backstop for when Caddy has lost its config (fresh instance, wiped autosave). Rebuilds
-the full route set from Loskai's instance list. Two equivalent strategies:
+The `POST …/push` operation behind the UI's **Sync** button (which also runs the AdGuard
+reconcile). Backstop for when Caddy has lost its config (fresh instance, wiped autosave).
+Rebuilds the full route set from Loskai's instance list. Two equivalent strategies:
 
 - **Per route:** `POST …/routes` for each instance that has a subdomain. Idempotent by
   `@id` — re-pushing an existing route replaces it rather than duplicating.
@@ -108,7 +109,7 @@ Used to render the read-only Raw Config View, and to compute each route's **sync
 status: Loskai pulls the live route list and checks whether each instance's `@id` is
 present. Present = synced; missing = not pushed. This is a **display-only comparison** —
 Loskai never auto-corrects a mismatch (that would be the drift/reconcile loop we
-deliberately dropped); it just surfaces "Push all to Caddy" when something is missing.
+deliberately dropped); it just surfaces the "Sync" action when something is missing.
 
 ### 7. Upstream health
 
@@ -128,9 +129,9 @@ service runs with `caddy run --resume`, which reloads that autosave on start. So
 normal recovery path — LXC reboot, Proxmox restart, Caddy crash + systemd restart — needs
 **no action from Loskai**: the routes come back from Caddy's own autosave.
 
-"Push all to Caddy" (endpoint #5) is the **rare-case** backstop, only for when the autosave
-itself is gone or stale: a freshly provisioned Caddy, a wiped data dir, a hand-reset
-config. In that case `instances.json` is the durable record we rebuild from.
+"Sync" (endpoint #5, plus the AdGuard reconcile) is the **rare-case** backstop, only for
+when the autosave itself is gone or stale: a freshly provisioned Caddy, a wiped data dir, a
+hand-reset config. In that case `instances.json` is the durable record we rebuild from.
 
 ---
 
@@ -142,7 +143,7 @@ AdGuard is a seeded `external` instance) rather than hand-written Caddyfile rout
 bootstrap Caddyfile defines **no routes** — only the admin endpoint and the wildcard cert.
 
 The only thing Loskai leaves alone is a route a human adds directly to Caddy with an
-`@id` that matches no instance. The per-route "Push all" loop preserves such a route; a
+`@id` that matches no instance. The per-route push loop preserves such a route; a
 blunt `POST /load` would wipe it, which is one reason the loop is preferred.
 
 ---
