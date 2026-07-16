@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Loader2, Plus, Trash2, Unlink } from "lucide-react";
+import { Eye, EyeOff, Loader2, Pencil, Plus, Trash2, Unlink } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
 
@@ -131,12 +131,18 @@ export function ServiceTable({
                         icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       />
                     )}
-                    {!row.routed && onAssign && (
+                    {onAssign && (
                       <IconButton
                         busy={false}
-                        title="Assign a URL"
+                        title={row.routed ? "Change URL" : "Assign a URL"}
                         onClick={() => onAssign(row)}
-                        icon={<Plus className="h-3.5 w-3.5" />}
+                        icon={
+                          row.routed ? (
+                            <Pencil className="h-3.5 w-3.5" />
+                          ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                          )
+                        }
                       />
                     )}
                     {row.routed && onRemoveRoute && (

@@ -68,6 +68,13 @@ test("routed docker row: remove-route + private, but no delete", () => {
   expect(screen.queryByRole("button", { name: "Delete instance" })).toBeNull();
 });
 
+test("routed row offers Change URL in place", () => {
+  const onAssign = vi.fn();
+  render(<ServiceTable rows={[row({ routed: true })]} onAssign={onAssign} />);
+  fireEvent.click(screen.getByRole("button", { name: "Change URL" }));
+  expect(onAssign).toHaveBeenCalledOnce();
+});
+
 test("external routed row can be deleted; unrouted row shows Assign", () => {
   const onDelete = vi.fn();
   const onAssign = vi.fn();
