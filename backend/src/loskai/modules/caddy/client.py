@@ -37,16 +37,17 @@ class CaddyClient:
         return httpx.AsyncClient(base_url=base, timeout=_TIMEOUT)
 
     async def server_name(self) -> str:
-        """Discover (and cache) the single HTTP server key — never hardcode srv0."""
+        """Discover (and cache) the routing server key — never hardcode srv0, and never
+        the static :80 cert-setup server (see service.select_server_name)."""
         if self._server_name:
             return self._server_name
         async with self._client() as c:
             r = await c.get("/config/apps/http/servers")
             r.raise_for_status()
             servers = r.json() or {}
-        if not servers:
-            raise CaddyError("Caddy has no HTTP servers configured")
-        self._server_name = next(iter(servers))
+        from . import service  # lazy: service imports this module (avoid an import cycle)
+
+        self._server_name = service.select_server_name(servers)
         return self._server_name
 
     async def list_live_routes(self) -> list[dict]:
@@ -90,7 +91,9 @@ class CaddyClient:
             return {"status": "unreachable", "detail": describe_error(exc)}
         if not servers:
             return {"status": "degraded", "detail": "no HTTP servers configured"}
-        self._server_name = next(iter(servers))
+        from . import service  # lazy: avoid an import cycle (service imports this module)
+
+        self._server_name = service.select_server_name(servers)
         return {"status": "healthy", "server": self._server_name}
 
 

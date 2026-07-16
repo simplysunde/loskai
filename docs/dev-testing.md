@@ -99,7 +99,11 @@ assign must be reachable **from inside the Caddy container**:
 - A LAN target → by **IP**, e.g. `192.168.10.50:5000`.
 
 Caddy serves an internal cert, so the browser will warn it's untrusted (expected). To make
-it trusted, export the dev root CA and import it into your browser's Authorities:
+it trusted, open the **certificate onboarding page** at <http://localhost:8081/> — it
+detects your OS and walks you through installing Caddy's root CA. See
+[certificate-setup.md](certificate-setup.md).
+
+Or extract the dev root CA by hand and import it into your browser's Authorities:
 
 ```bash
 docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > caddy-dev-root.crt

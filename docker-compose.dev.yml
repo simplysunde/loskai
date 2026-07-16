@@ -18,6 +18,7 @@ services:
       - "8443:443" # https (optional — Caddy serves an internal cert)
     volumes:
       - ./dev/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/setup:/srv/setup:ro # cert-onboarding page served on :80 (Phase 10a)
       - caddy-data:/data # certs + the autosaved config (routes survive restarts)
     restart: unless-stopped
 

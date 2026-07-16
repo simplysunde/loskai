@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kom i gang — home.lan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red-primary:  #DC4549;
+    --red-300:      #9C131E;
+    --red-400:      #61080E;
+    --red-500:      #350A0B;
+    --rl-10:        #FAEDED;
+    --rl-20:        #FDDCDC;
+    --rl-200:       #FAA5A7;
+    --white:        #FFFFFF;
+    --success:      #1a7a4a;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--rl-10);
+    color: var(--red-500);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px 80px;
+  }
+
+  /* ── Language toggle ── */
+  .lang-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--white);
+    border: 1.5px solid var(--rl-200);
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .lang-toggle button {
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: var(--rl-200);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .lang-toggle button.active {
+    background: var(--red-primary);
+    color: var(--white);
+  }
+
+  .lang-toggle .sep {
+    width: 1px;
+    height: 28px;
+    background: var(--rl-20);
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .shield {
+    width: 64px; height: 64px;
+    margin: 0 auto 20px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 6px #DC454944); }
+    50%       { filter: drop-shadow(0 0 18px #DC454988); }
+  }
+
+  .header h1 {
+    font-family: var(--sans);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--red-500);
+    letter-spacing: -0.01em;
+  }
+
+  .header p {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--red-300);
+    max-width: 420px;
+    line-height: 1.65;
+  }
+
+  /* ── Detected badge ── */
+  .detected {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--white);
+    border: 1.5px solid var(--rl-200);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--red-300);
+    margin-bottom: 36px;
+  }
+
+  .detected .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red-primary);
+    box-shadow: 0 0 6px #DC454977;
+  }
+
+  /* ── Card ── */
+  .card {
+    width: 100%;
+    max-width: 580px;
+    background: var(--white);
+    border: 1.5px solid var(--rl-20);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: var(--rl-20);
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--red-400);
+  }
+
+  .card-header .num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--red-primary);
+    color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .card-body { padding: 22px 20px; }
+
+  .card-body p {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--red-500);
+    margin-bottom: 14px;
+  }
+
+  /* ── Code block ── */
+  .code-block {
+    position: relative;
+    background: var(--rl-10);
+    border: 1.5px solid var(--rl-20);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 12px 0;
+  }
+
+  .code-block code {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--red-400);
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: block;
+    padding-right: 56px;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--rl-20);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--red-300);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .copy-btn:hover { background: var(--rl-200); color: var(--red-500); }
+  .copy-btn.copied { color: var(--success); }
+
+  /* ── Download button ── */
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--red-primary);
+    color: var(--white);
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 11px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-top: 4px;
+    transition: background 0.15s;
+  }
+
+  .dl-btn:hover { background: var(--red-300); }
+
+  /* ── Note boxes ── */
+  .warn {
+    background: var(--rl-10);
+    border: 1.5px solid var(--rl-200);
+    border-left: 3px solid var(--red-primary);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    color: var(--red-400);
+    line-height: 1.6;
+    margin-top: 12px;
+  }
+
+  .firefox-note {
+    background: var(--rl-10);
+    border: 1.5px solid var(--rl-20);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--red-300);
+  }
+
+  .firefox-note strong { color: var(--red-400); font-weight: 600; }
+
+  /* ── Platform sections ── */
+  .platform { display: none; }
+  .platform.active { display: block; }
+
+  /* ── Steps list ── */
+  ol.steps { list-style: none; counter-reset: step; padding: 0; }
+
+  ol.steps li {
+    counter-increment: step;
+    padding: 6px 0 6px 30px;
+    position: relative;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--red-500);
+  }
+
+  ol.steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 7px;
+    width: 18px; height: 18px;
+    background: var(--rl-20);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--red-300);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  footer {
+    margin-top: 44px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--rl-200);
+    text-align: center;
+  }
+
+  /* ── Advanced collapsible ── */
+  details.advanced {
+    margin: 14px 0;
+    border: 1.5px solid var(--rl-20);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  details.advanced summary {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--red-300);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+
+  details.advanced summary::-webkit-details-marker { display: none; }
+
+  details.advanced summary::before {
+    content: '▸';
+    font-size: 0.7rem;
+    color: var(--rl-200);
+    transition: transform 0.15s;
+  }
+
+  details.advanced[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  details.advanced summary:hover { color: var(--red-400); }
+
+  .advanced-body {
+    padding: 0 14px 14px;
+    border-top: 1.5px solid var(--rl-20);
+  }
+
+  .advanced-body p {
+    padding-top: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    details.advanced summary::before { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Language toggle -->
+<div class="lang-toggle">
+  <button id="btn-no" class="active" onclick="setLang('no')">NO</button>
+  <div class="sep"></div>
+  <button id="btn-en" onclick="setLang('en')">EN</button>
+</div>
+
+<header class="header">
+  <svg class="shield" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M32 4L8 14v18c0 13.3 10.3 25.7 24 29 13.7-3.3 24-15.7 24-29V14L32 4z"
+      fill="#DC454918" stroke="#DC4549" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M24 32l6 6 10-12" stroke="#DC4549" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h1 data-no="Kom i gang på ett minutt"
+      data-en="Get started in one minute"></h1>
+  <p data-no="For å få tilgang til interne sider uten advarsler, må du installere en sikkerhetsfil én gang. Følg stegene nedenfor — det tar ikke mer enn ett minutt."
+     data-en="To access internal sites without warnings, you need to install a security file once. Follow the steps below — it takes less than a minute."></p>
+</header>
+
+<div class="detected">
+  <span class="dot"></span>
+  <span id="detected-label"></span>
+</div>
+
+<!-- STEP 1 -->
+<div class="card">
+  <div class="card-header">
+    <span class="num">1</span>
+    <span data-no="Last ned sertifikatet" data-en="Download the certificate"></span>
+  </div>
+  <div class="card-body">
+    <p data-no="Last ned sikkerhetsfilen nedenfor. Du vil få en advarsel om at du er i ferd med å installere noe — det er helt normalt og trygt å godta."
+       data-en="Download the security file below. Your computer will warn you that you are about to install something — it is completely normal and safe to approve."></p>
+    <a class="dl-btn" href="/caddy-root.crt" download="caddy-root.crt">
+      ↓ &nbsp;caddy-root.crt
+    </a>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="card">
+  <div class="card-header">
+    <span class="num">2</span>
+    <span data-no="Installer sikkerhetsfilen" data-en="Install the security file"></span>
+  </div>
+  <div class="card-body">
+
+    <!-- Windows -->
+    <div class="platform" id="p-windows">
+      <p data-no="Du bruker Windows. Dobbeltklikk på filen du lastet ned og følg veiviseren:"
+         data-en="You're on Windows. Double-click the file you downloaded and follow the wizard:"></p>
+      <ol class="steps">
+        <li data-no="Dobbeltklikk på <strong>caddy-root.crt</strong> i nedlastingsmappen din."
+            data-en="Double-click <strong>caddy-root.crt</strong> in your downloads folder."></li>
+        <li data-no="Klikk <strong>Installer sertifikat</strong>."
+            data-en="Click <strong>Install Certificate</strong>."></li>
+        <li data-no="Velg <strong>Lokal maskin</strong> og klikk Neste."
+            data-en="Select <strong>Local Machine</strong> and click Next."></li>
+        <li data-no="Velg <strong>Klarerte rotsertifiseringsinstanser</strong> og klikk Neste, deretter Fullfør."
+            data-en="Select <strong>Trusted Root Certification Authorities</strong>, click Next, then Finish."></li>
+      </ol>
+      <details class="advanced">
+        <summary><span data-no="Avansert: installer via kommandolinje" data-en="Advanced: install via command line"></span></summary>
+        <div class="advanced-body">
+          <p data-no="Kjør dette i PowerShell som administrator:" data-en="Run this in PowerShell as Administrator:" style="margin-bottom:0"></p>
+          <div class="code-block" style="margin-top:10px">
+            <code>certutil -addstore -f "ROOT" "$env:USERPROFILE\Downloads\caddy-root.crt"</code>
+            <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+          </div>
+        </div>
+      </details>
+      <div class="firefox-note"
+           data-no="<strong>Bruker du Firefox?</strong> Stegene over dekker Chrome og Edge. Åpne filen direkte i Firefox — den tar deg gjennom resten selv."
+           data-en="<strong>Using Firefox?</strong> The steps above cover Chrome and Edge. Open the file directly in Firefox — it will guide you through the rest."></div>
+    </div>
+
+    <!-- macOS -->
+    <div class="platform" id="p-macos">
+      <p data-no="Du bruker macOS. Kjør kommandoen nedenfor i Terminal:"
+         data-en="You're on macOS. Run the command below in Terminal:"></p>
+      <div class="code-block">
+        <code>sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain \
+  ~/Downloads/caddy-root.crt</code>
+        <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+      </div>
+      <p data-no="Du vil bli bedt om å skrive inn passordet ditt. Etter det er du ferdig i Safari og Chrome."
+         data-en="You will be asked to enter your password. After that you are done in Safari and Chrome."></p>
+      <div class="firefox-note"
+           data-no="<strong>Bruker du Firefox?</strong> Installasjonen over dekker Safari og Chrome. Åpne filen direkte i Firefox — den tar deg gjennom resten selv."
+           data-en="<strong>Using Firefox?</strong> The installation above covers Safari and Chrome. Open the file directly in Firefox — it will guide you through the rest."></div>
+    </div>
+
+    <!-- Linux -->
+    <div class="platform" id="p-linux">
+      <p data-no="Du bruker Linux. Kjør disse kommandoene i en terminal:"
+         data-en="You're on Linux. Run these commands in a terminal:"></p>
+      <div class="code-block">
+        <code>sudo cp ~/Downloads/caddy-root.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates</code>
+        <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+      </div>
+      <div class="firefox-note"
+           data-no="<strong>Bruker du Firefox?</strong> Åpne filen direkte i Firefox — den tar deg gjennom resten selv."
+           data-en="<strong>Using Firefox?</strong> Open the file directly in Firefox — it will guide you through the rest."></div>
+    </div>
+
+    <!-- Fallback -->
+    <div class="platform active" id="p-unknown">
+      <ol class="steps">
+        <li data-no="<strong>Windows:</strong> Kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>certutil -addstore -f &quot;ROOT&quot; caddy-root.crt</code> i PowerShell som administrator, eller dobbeltklikk filen og følg veiviseren."
+            data-en="<strong>Windows:</strong> Run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>certutil -addstore -f &quot;ROOT&quot; caddy-root.crt</code> in PowerShell as Administrator, or double-click the file and follow the wizard."></li>
+        <li data-no="<strong>macOS:</strong> Kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt</code> i Terminal."
+            data-en="<strong>macOS:</strong> Run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt</code> in Terminal."></li>
+        <li data-no="<strong>Linux:</strong> Kopier til <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> og kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."
+            data-en="<strong>Linux:</strong> Copy to <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> and run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."></li>
+        <li data-no="<strong>Firefox (alle OS):</strong> Åpne .crt-filen — Firefox vil be deg importere den."
+            data-en="<strong>Firefox (any OS):</strong> Open the .crt file — Firefox will prompt you to import it."></li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="card">
+  <div class="card-header">
+    <span class="num">3</span>
+    <span data-no="Sjekk at det fungerer" data-en="Check that it works"></span>
+  </div>
+  <div class="card-body">
+    <p data-no="Last inn siden på nytt. Ser du en hengelås i adressefeltet? Da er alt klart! Du trenger ikke gjøre noe mer, selv om det kommer nye interne sider."
+       data-en="Reload this page. Do you see a padlock in the address bar? You're all set! You won't need to do this again, even when new internal sites are added."></p>
+  </div>
+</div>
+
+<footer>
+  <span data-no="home.lan internt nettverk"
+        data-en="home.lan internal network"></span>
+</footer>
+
+<script>
+  const t = {
+    no: { detecting: 'Oppdager plattform…', detected: 'Oppdaget: ', copy: 'kopier', copied: 'kopiert' },
+    en: { detecting: 'Detecting your platform…', detected: 'Detected: ', copy: 'copy', copied: 'copied' }
+  };
+
+  const platforms = {
+    no: { windows: 'Windows', macos: 'macOS', linux: 'Linux', unknown: 'Ukjent plattform' },
+    en: { windows: 'Windows', macos: 'macOS', linux: 'Linux', unknown: 'Unknown platform' }
+  };
+
+  let currentLang = 'no';
+  let detectedPlatform = 'unknown';
+  let detectedLabel = '';
+
+  function applyLang(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+
+    // Toggle buttons
+    document.getElementById('btn-no').classList.toggle('active', lang === 'no');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+
+    // Update all translatable elements
+    document.querySelectorAll('[data-no][data-en]').forEach(el => {
+      el.innerHTML = el.getAttribute('data-' + lang);
+    });
+
+    // Update detected label
+    document.getElementById('detected-label').textContent =
+      t[lang].detected + platforms[lang][detectedPlatform];
+
+    // Update copy buttons that aren't in copied state
+    document.querySelectorAll('.copy-btn:not(.copied)').forEach(btn => {
+      btn.textContent = t[lang].copy;
+    });
+  }
+
+  function setLang(lang) {
+    applyLang(lang);
+    localStorage.setItem('lang', lang);
+  }
+
+  function detect() {
+    const ua = navigator.userAgent;
+    const isWindows = /Windows/.test(ua);
+    const isMac     = /Macintosh|Mac OS X/.test(ua);
+    const isLinux   = /Linux/.test(ua) && !/Android/.test(ua);
+
+    if (isWindows)       detectedPlatform = 'windows';
+    else if (isMac)      detectedPlatform = 'macos';
+    else if (isLinux)    detectedPlatform = 'linux';
+    else                 detectedPlatform = 'unknown';
+
+    document.getElementById('p-unknown').classList.remove('active');
+    document.getElementById('p-' + detectedPlatform).classList.add('active');
+  }
+
+  function copy(btn) {
+    const code = btn.closest('.code-block').querySelector('code').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+      btn.textContent = t[currentLang].copied;
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = t[currentLang].copy;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  // Init
+  detect();
+  const saved = localStorage.getItem('lang') || 'no';
+  applyLang(saved);
+</script>
+</body>
+</html>

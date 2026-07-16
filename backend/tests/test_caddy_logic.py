@@ -85,3 +85,34 @@ def test_render_caddyfile():
 def test_render_caddyfile_requires_base_domain():
     with pytest.raises(ValueError):
         service.render_caddyfile([], "")
+
+
+# --- select_server_name (routing-server discovery, robust to a :80 setup server) ---
+
+
+def test_select_server_prefers_https_listener():
+    servers = {
+        "srv0": {"listen": [":80"], "routes": [{"@id": "x"}]},  # the :80 cert-setup site
+        "srv1": {"listen": [":443"]},                            # the routing server
+    }
+    assert service.select_server_name(servers) == "srv1"
+
+
+def test_select_server_https_wins_even_if_second():
+    servers = {"setup": {"listen": [":80"]}, "https": {"listen": ["0.0.0.0:443"]}}
+    assert service.select_server_name(servers) == "https"
+
+
+def test_select_server_falls_back_to_one_with_routes():
+    servers = {"a": {"listen": [":80"]}, "b": {"listen": [":8080"], "routes": [1]}}
+    assert service.select_server_name(servers) == "b"
+
+
+def test_select_server_falls_back_to_first():
+    servers = {"only": {"listen": [":8080"]}}
+    assert service.select_server_name(servers) == "only"
+
+
+def test_select_server_raises_when_empty():
+    with pytest.raises(service.CaddyError):
+        service.select_server_name({})

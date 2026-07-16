@@ -290,15 +290,14 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 ## Phase 10a — Certificate onboarding (internal-CA mode)
 _Ship first — standalone, low-risk, doesn't touch the Loskai app. Caddy serves an internal-CA trust page so LAN devices trust `*.BASE_DOMAIN` once. Loskai handles zero cert material (invariant)._
 
-- [ ] Move `setup.html` → `caddy/setup/index.html` (served as directory index; bilingual NO/EN, OS-detecting)
-- [ ] Bootstrap Caddyfile: a **`:80` HTTP site** (reachable by IP — deliberately not HTTPS, to dodge the untrusted-cert chicken-and-egg):
-  - `handle /caddy-root.crt` → `file_server` from `/data/caddy/pki/authorities/local/root.crt` (+ `Content-Type: application/x-x509-ca-cert`)
-  - default `handle` → `file_server` from `/srv/setup`
-- [ ] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (the PKI path is already in Caddy's `/data` volume)
-- [ ] **Access is by-IP only** — `http://<caddy-ip>/`. No `setup.<domain>` AdGuard rewrite (a bare manual rewrite → Caddy IP would be reclaimed by the orphan sweep). A friendly public name is a *later, optional* concern (see 10b note) that needs no work now
-- [ ] Verify the `:80` server doesn't shift Loskai's startup HTTPS server-discovery
-- [ ] `docs/certificate-setup.md` — the Caddyfile block, the mount, "hand out `http://<caddy-ip>/`," and how one internal root trusts all `*.BASE_DOMAIN` leaves
-- [ ] Note the `home.lan` strings in the page are the base domain (leave / parameterize later)
+- [x] Move `setup.html` → `caddy/setup/index.html` (bilingual NO/EN, OS-detecting)
+- [x] Bootstrap Caddyfile (`dev/Caddyfile`): a **`:80` HTTP site** (reachable by IP — deliberately not HTTPS, to dodge the untrusted-cert chicken-and-egg): `handle /caddy-root.crt` → `file_server` from `/data/caddy/pki/authorities/local/root.crt` (+ `Content-Type`); default `handle` → `/srv/setup`
+- [x] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (`docker-compose.dev.yml`; PKI path already in `/data`)
+- [x] **Access is by-IP only** — `http://<caddy-ip>/` (dev: `http://localhost:8081/`). No `setup.<domain>` rewrite. Friendly name deferred (see 10b note)
+- [x] **Hardened server-discovery** (was "verify") — the `:80` site is a 2nd Caddy server; `next(iter(servers))` could pick it and break route pushes. `service.select_server_name` now picks the routing server by its `:443` listener (fallback: has-routes, then first). +5 tests
+- [x] `docs/certificate-setup.md` — the Caddyfile block, the mount, by-IP access (dev + prod), and how one internal root trusts all `*.BASE_DOMAIN` leaves
+- [x] Noted the `home.lan` strings are the base domain (documented; leave / parameterize later)
+- [ ] **Live smoke (user — needs Docker):** `docker compose -f docker-compose.dev.yml up -d`, then `http://localhost:8081/` serves the page and `/caddy-root.crt` downloads the root; confirm Loskai still pushes routes (Caddy card healthy, an assign lands). Not verifiable in-sandbox
 
 _Invariants: no cert material in Loskai; the `:80` site has no `@id` so Sync never touches it; unrelated to the deferred Cert-Status (expiry) item._
 

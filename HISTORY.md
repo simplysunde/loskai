@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-07-17 — Phase 10a: certificate onboarding (internal-CA)
+
+The homelab commits to Caddy's **internal CA** (not public ACME), so LAN devices must trust
+Caddy's root once. Added a small onboarding site Caddy serves itself; Loskai stays entirely
+out of the cert path (invariant). Ship-first, standalone half of the Phase 10 plan.
+
+- **Page:** `setup.html` → `caddy/setup/index.html` (bilingual NO/EN, OS-detecting; hands out
+  the root + install steps for Windows/macOS/Linux/Firefox).
+- **Serving:** a plain-HTTP `:80` site in the bootstrap Caddyfile (`dev/Caddyfile`) —
+  `/caddy-root.crt` streamed live from Caddy's PKI, everything else the page. HTTP + by-IP on
+  purpose: the page can't sit behind the very cert it's there to get trusted. Mounted
+  read-only via `docker-compose.dev.yml`. Not pushed through Loskai's API — it's static files
+  Caddy owns.
+- **Server-discovery hardened** (the load-bearing code change): the `:80` site is a *second*
+  Caddy server, and Loskai discovered its routing server with a blind `next(iter(servers))` —
+  which could now pick the static `:80` server and silently push routes into it. Replaced with
+  `service.select_server_name`: prefer the `:443` listener, fall back to has-routes, then
+  first. Pure + unit-tested (139 backend now, +5).
+- Docs: `docs/certificate-setup.md`; `dev-testing.md` points at the page instead of the manual
+  `docker exec … root.crt` extraction.
+- Key files: `caddy/setup/index.html`, `dev/Caddyfile`, `docker-compose.dev.yml`,
+  `modules/caddy/{service,client}.py`, `docs/certificate-setup.md`
+- **Unverified in-sandbox:** the actual `:80` serving needs a real Caddy (no Docker here) — a
+  user smoke test is the last open 10a item.
+
 ## 2026-07-16 — Phase 9 polish
 
 Cleared the remaining Phase 9 items in one pass (upstream validation + HTTPS upstreams

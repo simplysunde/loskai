@@ -18,3 +18,24 @@
 *.localhost {
 	tls internal
 }
+
+# Certificate onboarding (Phase 10a) — served over plain HTTP on :80 so it's reachable
+# by IP *before* Caddy's internal CA is trusted (installing that CA is the page's whole
+# job — it can't sit behind the untrusted cert). This is a SEPARATE Caddy server from the
+# :443 routing one; Loskai discovers the routing server by its :443 listener, so it never
+# pushes routes here. In dev, reach it at http://localhost:8081/ (compose maps 8081:80).
+:80 {
+	# The internal root CA, streamed live from Caddy's PKI (unique per install — never
+	# committed). Appears once Caddy has initialised its `local` CA.
+	handle /caddy-root.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	# Everything else → the onboarding page (index.html).
+	handle {
+		root * /srv/setup
+		file_server
+	}
+}

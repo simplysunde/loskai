@@ -37,6 +37,30 @@ def caddy_mode(admin_url: str | None) -> str | None:
     return "lan"
 
 
+def _listen_port(addr: str) -> str:
+    """Port of a Caddy listen address (':443', '0.0.0.0:443', '[::]:443')."""
+    return addr.rsplit(":", 1)[-1]
+
+
+def select_server_name(servers: dict) -> str:
+    """Pick the server Loskai pushes routes into. Prefer one listening on the HTTPS port
+    (`:443`) — that's the routing server; a static `:80` cert-setup site is a *separate*
+    Caddy server we must never push reverse-proxy routes into. Fall back to a server that
+    already carries routes, then to the first key. Raises if there are none.
+
+    This replaces a blind `next(iter(servers))`, which broke once a second server existed."""
+    if not servers:
+        raise CaddyError("Caddy has no HTTP servers configured")
+    for name, cfg in servers.items():
+        listen = (cfg or {}).get("listen") or []
+        if any(_listen_port(addr) == "443" for addr in listen):
+            return name
+    for name, cfg in servers.items():
+        if (cfg or {}).get("routes"):
+            return name
+    return next(iter(servers))
+
+
 def build_route(instance: Instance, base_domain: str) -> dict:
     """The Caddy route JSON for an instance (see docs/caddy-api.md §2). Flat, keyed by
     @id = instance id, matching one specific host."""
