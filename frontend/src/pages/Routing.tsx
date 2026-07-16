@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, UploadCloud } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, UploadCloud } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
@@ -56,6 +56,7 @@ export function Routing() {
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const mode = health.data?.caddy?.mode ?? null;
   const answerIp = dns.data?.answer_ip ?? null;
+  const consistency = health.data?.consistency ?? [];
 
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const rows: RouteRow[] = (routes.data ?? []).map((r) => {
@@ -169,6 +170,19 @@ export function Routing() {
       <div className="mb-4 space-y-3">
         <AdGuardStatus health={health.data?.adguard} />
         <ModuleStatus name="Caddy" health={health.data?.caddy} />
+        {consistency.length > 0 && (
+          <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <div className="mb-1 flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              {consistency.length} DNS {consistency.length === 1 ? "warning" : "warnings"}
+            </div>
+            <ul className="list-disc space-y-0.5 pl-5 text-amber-200/90">
+              {consistency.map((w) => (
+                <li key={`${w.id}:${w.kind}`}>{w.detail}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {result && (
           <div
             className={`rounded-lg border px-3 py-2 text-sm ${

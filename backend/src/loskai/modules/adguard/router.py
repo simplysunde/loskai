@@ -4,6 +4,7 @@ import httpx
 from fastapi import APIRouter, Body, HTTPException
 
 from ...shared import health as health_registry
+from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from . import service
 from .client import AdGuardError, adguard, describe_error
@@ -23,6 +24,22 @@ async def _health_payload() -> dict:
 
 # Register with the aggregate /api/health poller (import-time side effect).
 health_registry.register("adguard", _health_payload)
+
+
+async def _consistency() -> list[dict]:
+    """DNS drift warnings for /api/health. Self-degrading: AdGuard unreachable -> []."""
+    base = settings_store.value("base_domain")
+    current_ip = settings_store.derive_caddy_host_ip()
+    try:
+        rewrites = await adguard.list_rewrites()
+    except _UNREACHABLE:
+        return []  # can't determine drift while AdGuard is down
+    return service.consistency_warnings(
+        instances_store.list_routed(), rewrites, base, current_ip
+    )
+
+
+health_registry.register_consistency(_consistency)
 
 
 @router.get("/health")

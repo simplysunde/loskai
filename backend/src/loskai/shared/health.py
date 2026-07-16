@@ -21,9 +21,19 @@ MODULES = ["caddy", "adguard", "wireguard", "docker"]
 # Populated by each module's router as it is built.
 _checkers: dict[str, Callable[[], Awaitable[dict]]] = {}
 
+# Optional cross-module consistency check (registered by the AdGuard router). Kept as a
+# hook so this shared module never imports a module — it must be self-degrading (return
+# [] rather than raise when it can't determine drift).
+_consistency: Callable[[], Awaitable[list[dict]]] | None = None
+
 
 def register(name: str, checker: Callable[[], Awaitable[dict]]) -> None:
     _checkers[name] = checker
+
+
+def register_consistency(checker: Callable[[], Awaitable[list[dict]]]) -> None:
+    global _consistency
+    _consistency = checker
 
 
 router = APIRouter(prefix="/api", tags=["health"])
@@ -43,4 +53,6 @@ async def health() -> dict[str, dict]:
             }
     # Cheap and honest even before the Docker module exists.
     result["docker"]["stacks_dir_ok"] = os.path.isdir(env.stacks_dir)
+    # Cross-module drift (routed but no DNS rewrite / manual conflict). Self-degrading.
+    result["consistency"] = await _consistency() if _consistency is not None else []
     return result

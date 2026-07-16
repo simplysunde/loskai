@@ -150,3 +150,32 @@ async def test_reconcile_migrates_orphan_on_ip_change(data_dir):
 async def test_reconcile_requires_answer_ip(data_dir):
     with pytest.raises(ValueError):
         await service.reconcile(FakeClient([]), BASE, None)
+
+
+# --- consistency_warnings (the /api/health drift check) ---
+
+
+def test_consistency_missing_rewrite():
+    warns = service.consistency_warnings([inst("grafana", "grafana")], [], BASE, IP)
+    assert len(warns) == 1
+    assert warns[0]["kind"] == "dns_missing"
+    assert warns[0]["id"] == "grafana"
+
+
+def test_consistency_conflict_on_foreign_answer():
+    existing = [rw("grafana.example.no", IP), rw("grafana.example.no", "10.9.9.9")]
+    warns = service.consistency_warnings([inst("grafana", "grafana", IP)], existing, BASE, IP)
+    kinds = {w["kind"] for w in warns}
+    assert kinds == {"dns_conflict"}
+
+
+def test_consistency_silent_when_in_sync():
+    existing = [rw("grafana.example.no", IP)]
+    warns = service.consistency_warnings([inst("grafana", "grafana", IP)], existing, BASE, IP)
+    assert warns == []
+
+
+def test_consistency_undeterminable_when_adguard_down():
+    # rewrites None (AdGuard unreachable) -> no warnings, never cries wolf.
+    warns = service.consistency_warnings([inst("grafana", "grafana")], None, BASE, IP)
+    assert warns == []

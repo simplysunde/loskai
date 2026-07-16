@@ -18,7 +18,17 @@ export interface ModuleHealth {
 }
 
 export type ModuleName = "caddy" | "adguard" | "wireguard" | "docker";
-export type HealthMap = Record<ModuleName, ModuleHealth>;
+
+export interface ConsistencyWarning {
+  id: string;
+  domain: string;
+  kind: "dns_missing" | "dns_conflict";
+  detail: string;
+}
+
+export type HealthMap = Record<ModuleName, ModuleHealth> & {
+  consistency?: ConsistencyWarning[];
+};
 
 // Polls the aggregate health every 30s (PLAN: one poll, all modules, no reload on a
 // single module going down). Disabled when logged out — /api/health is gated, so

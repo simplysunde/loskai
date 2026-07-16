@@ -110,6 +110,41 @@ def dns_status_rows(
     return rows
 
 
+def consistency_warnings(
+    instances: list[Instance],
+    rewrites: list[dict] | None,
+    base_domain: str | None,
+    current_ip: str | None,
+) -> list[dict]:
+    """Cross-module drift warnings for `/api/health`. Pure.
+
+    Flags a routed instance whose LAN name won't resolve (a route exists but no AdGuard
+    rewrite points at the Caddy IP) or whose domain also carries a foreign answer (a
+    manual conflict — Loskai never auto-overwrites it). Returns `[]` when drift can't be
+    determined (AdGuard unreachable, or no base domain / answer IP)."""
+    warnings: list[dict] = []
+    for row in dns_status_rows(instances, rewrites, base_domain, current_ip):
+        if row["present"] is None:
+            continue  # undeterminable — say nothing rather than cry wolf
+        if not row["present"]:
+            warnings.append({
+                "id": row["id"],
+                "domain": row["domain"],
+                "kind": "dns_missing",
+                "detail": f"{row['domain']} has a route but no AdGuard rewrite to "
+                          f"{current_ip}; it won't resolve on the LAN until one is added.",
+            })
+        if row["conflict"]:
+            warnings.append({
+                "id": row["id"],
+                "domain": row["domain"],
+                "kind": "dns_conflict",
+                "detail": f"{row['domain']} has a DNS rewrite pointing somewhere other "
+                          f"than {current_ip}; resolve it manually — Loskai won't overwrite it.",
+            })
+    return warnings
+
+
 # --- Orchestration (I/O via the client) ---
 
 
