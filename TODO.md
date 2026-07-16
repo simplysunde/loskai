@@ -295,9 +295,9 @@ _Ship first — standalone, low-risk, doesn't touch the Loskai app. Caddy serves
   - `handle /caddy-root.crt` → `file_server` from `/data/caddy/pki/authorities/local/root.crt` (+ `Content-Type: application/x-x509-ca-cert`)
   - default `handle` → `file_server` from `/srv/setup`
 - [ ] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (the PKI path is already in Caddy's `/data` volume)
-- [ ] AdGuard rewrite `setup.<BASE_DOMAIN>` → Caddy IP (friendly name **in addition to** by-IP)
+- [ ] **Access is by-IP only** — `http://<caddy-ip>/`. No `setup.<domain>` AdGuard rewrite (a bare manual rewrite → Caddy IP would be reclaimed by the orphan sweep). A friendly public name is a *later, optional* concern (see 10b note) that needs no work now
 - [ ] Verify the `:80` server doesn't shift Loskai's startup HTTPS server-discovery
-- [ ] `docs/certificate-setup.md` — the Caddyfile block, the mount, "hand out `http://<caddy-ip>/` to first-timers / `setup.<domain>` after trust," and how one internal root trusts all `*.BASE_DOMAIN` leaves
+- [ ] `docs/certificate-setup.md` — the Caddyfile block, the mount, "hand out `http://<caddy-ip>/`," and how one internal root trusts all `*.BASE_DOMAIN` leaves
 - [ ] Note the `home.lan` strings in the page are the base domain (leave / parameterize later)
 
 _Invariants: no cert material in Loskai; the `:80` site has no `@id` so Sync never touches it; unrelated to the deferred Cert-Status (expiry) item._
@@ -309,7 +309,8 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
 - [ ] Three service panels, each with health (from `/api/health`) + link-out + its URL field:
   - **AdGuard (DNS)**
   - **Gateway** (WireGuard) — the remote-access gateway; carries the "hands out AdGuard as DNS" reminder
-  - **Caddy (TLS / cert setup)** — derived `http://<caddy_host_ip>/` cert-setup link + "copy to share"
+  - **Caddy (TLS / cert setup)** — **option C:** a derived `http://<caddy_host_ip>/` cert-setup link + "copy to share". Not an instance, not a Dashboard card
+- [ ] _(Optional, later — no work now)_ a public friendly `setup.<BASE_DOMAIN>` is just an ordinary external instance with upstream `<caddy-ip>:80` (Caddy proxies to its own file_server). Being a routed/owned instance, it's sweep-safe; the HTTPS cert chicken-egg is accepted (post-trust convenience, first-timers use the by-IP link)
 - [ ] Move service-URL config **UI** out of Settings into the panels (same `settings.json` keys — single source, no new store): `caddy_admin_url`, `caddy_host_ip`, `adguard_url`, `adguard_user`, `adguard_password`, `wireguard_dashboard_url`
 - [ ] Settings slims to app/security: `base_domain`, `recipes_repo_url`, `stacks_dir` (env), admin password
 - [ ] Per-service **pre-filled "Assign URL"** (mirror the Docker flow): suggested subdomain + upstream derived from the service's configured URL → `POST /api/assign` → external instance
