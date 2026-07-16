@@ -160,7 +160,7 @@ export function ServiceTable({
                         disabled={row.type === "docker"}
                         title={
                           row.type === "docker"
-                            ? "Container-backed instance — can't be deleted here. Remove its route instead, or delete the container in the Docker tab (its route is cleaned up automatically when the container is gone)."
+                            ? "Container-backed — delete it from the Docker tab"
                             : "Delete instance"
                         }
                         danger
