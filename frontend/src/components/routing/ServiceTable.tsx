@@ -19,18 +19,17 @@ export interface RouteRow {
   dnsConflict?: boolean;
 }
 
-// One row per instance (routed or not). Routed rows show route/DNS status + rewrite,
-// private, and "remove route". Unrouted rows show "assign". External instances can be
-// deleted outright; docker instances show the delete icon disabled (with a tooltip) since
-// they're container-backed — their route is removed here, the instance via the Docker tab.
+// One row per instance (routed or not). Routed rows show route/DNS status, private, and
+// "remove route". Unrouted rows show "assign". External instances can be deleted outright;
+// docker instances show the delete icon disabled (with a tooltip) since they're
+// container-backed — their route is removed here, the instance via the Docker tab. Missing
+// or stale DNS rewrites are fixed globally via the Sync button, not per row.
 export function ServiceTable({
   rows,
   onAssign,
   onRemoveRoute,
   onDelete,
   actionBusyId,
-  onToggleRewrite,
-  rewriteBusyId,
   onTogglePrivate,
   privateBusyId,
 }: {
@@ -39,12 +38,10 @@ export function ServiceTable({
   onRemoveRoute?: (row: RouteRow) => void;
   onDelete?: (row: RouteRow) => void;
   actionBusyId?: string | null;
-  onToggleRewrite?: (row: RouteRow) => void;
-  rewriteBusyId?: string | null;
   onTogglePrivate?: (row: RouteRow) => void;
   privateBusyId?: string | null;
 }) {
-  const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onToggleRewrite || onTogglePrivate);
+  const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onTogglePrivate);
 
   if (rows.length === 0) {
     return (
@@ -121,9 +118,6 @@ export function ServiceTable({
               {hasActions && (
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
-                    {row.routed && onToggleRewrite && (
-                      <RewriteAction row={row} busy={rewriteBusyId === row.id} onToggle={onToggleRewrite} />
-                    )}
                     {row.routed && onTogglePrivate && (
                       <IconButton
                         busy={privateBusyId === row.id}
@@ -235,30 +229,6 @@ function IconButton({
       }`}
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
-    </button>
-  );
-}
-
-function RewriteAction({
-  row,
-  busy,
-  onToggle,
-}: {
-  row: RouteRow;
-  busy: boolean;
-  onToggle: (row: RouteRow) => void;
-}) {
-  const disabled = busy || row.dnsPresent === undefined || row.dnsPresent === null;
-  const present = row.dnsPresent === true;
-  return (
-    <button
-      disabled={disabled}
-      onClick={() => onToggle(row)}
-      title={present ? "Remove DNS rewrite" : "Add DNS rewrite"}
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-    >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : present ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-      Rewrite
     </button>
   );
 }

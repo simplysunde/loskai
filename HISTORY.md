@@ -28,6 +28,16 @@ were already done in earlier sessions). Five commits, each self-contained and te
   `shared/assign.py`
 - Tests: 126 backend (was 118) + 18 Vitest, all green
 
+Follow-up UX cleanup after review:
+- The per-row **Rewrite** toggle in the routing table was redundant — "Push all" already
+  reconciles every missing/stale AdGuard rewrite. Removed it and renamed the button to
+  **Sync** (a `RefreshCw` hard-refresh that re-pushes routes + reconciles rewrites). The
+  `POST /adguard/rewrites` add/delete endpoints stay for scripting; nothing in the UI calls
+  them now. Vitest 18 → 17
+- The delete icon now renders on **every** routing row; for container-backed (docker)
+  instances it's shown gray + disabled with a tooltip ("Container-backed — delete it from
+  the Docker tab") rather than hidden, so the affordance is discoverable
+
 ## 2026-07-16 — Semi-automatic container routing (via the Docker tab)
 
 Prompted by a user deleting `instances.json` and asking how routes could come back from

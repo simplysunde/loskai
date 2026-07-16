@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Plus, Trash2, Unplug, UploadCloud } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, RefreshCw, Trash2, Unplug } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
@@ -66,7 +66,6 @@ export function Routing() {
 
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const mode = health.data?.caddy?.mode ?? null;
-  const answerIp = dns.data?.answer_ip ?? null;
   const consistency = health.data?.consistency ?? [];
 
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
@@ -123,16 +122,6 @@ export function Routing() {
     onSuccess: invalidate,
   });
 
-  const rewrite = useMutation({
-    mutationFn: (row: RouteRow) => {
-      const body = { domain: row.fqdn, answer: answerIp };
-      return row.dnsPresent
-        ? api.del("/api/adguard/rewrites", body)
-        : api.post("/api/adguard/rewrites", body);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["adguard-status"] }),
-  });
-
   const push = useMutation({
     mutationFn: async () => {
       const [caddy, adguard] = await Promise.allSettled([
@@ -176,11 +165,11 @@ export function Routing() {
           <button
             onClick={() => push.mutate()}
             disabled={push.isPending}
-            title="Push Caddy routes + reconcile AdGuard rewrites"
+            title="Re-push every Caddy route and add any missing or stale AdGuard rewrites"
             className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
-            {push.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-            Push all
+            {push.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sync
           </button>
         </div>
       </header>
@@ -261,8 +250,6 @@ export function Routing() {
           onRemoveRoute={(row) => setConfirmRemove(row)}
           onDelete={(row) => setConfirmDelete(row)}
           actionBusyId={actionBusyId}
-          onToggleRewrite={(row) => rewrite.mutate(row)}
-          rewriteBusyId={rewrite.isPending ? rewrite.variables?.id : null}
           onTogglePrivate={(row) => privateToggle.mutate(row)}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />

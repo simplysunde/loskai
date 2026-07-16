@@ -33,21 +33,6 @@ test("renders the DNS column states", () => {
   expect(screen.getByText("conflict")).toBeInTheDocument();
 });
 
-test("rewrite action fires and is disabled when DNS status is unknown", () => {
-  const onToggle = vi.fn();
-  const { rerender } = render(
-    <ServiceTable rows={[row({ dnsPresent: false })]} onToggleRewrite={onToggle} />,
-  );
-  const btn = screen.getByRole("button", { name: /Rewrite/ });
-  fireEvent.click(btn);
-  expect(onToggle).toHaveBeenCalledOnce();
-
-  rerender(
-    <ServiceTable rows={[row({ dnsPresent: null })]} onToggleRewrite={onToggle} />,
-  );
-  expect(screen.getByRole("button", { name: /Rewrite/ })).toBeDisabled();
-});
-
 test("routed docker row: remove-route + private, but no delete", () => {
   const onRemoveRoute = vi.fn();
   const onTogglePrivate = vi.fn();
