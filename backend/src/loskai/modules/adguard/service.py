@@ -22,6 +22,17 @@ def rewrite_domain(instance: Instance, base_domain: str) -> str:
     return f"{instance.subdomain}.{base_domain}"
 
 
+def is_loskai_domain(domain: str, base_domain: str) -> bool:
+    """True if `domain` has the shape Loskai writes: `<single-label>.<base_domain>`. Used
+    to scope the orphan sweep so it can only ever touch names in Loskai's own namespace —
+    never an unrelated hand-added rewrite that happens to point at the Caddy IP."""
+    suffix = f".{base_domain}"
+    if not domain.endswith(suffix):
+        return False
+    label = domain[: -len(suffix)]
+    return bool(label) and "." not in label
+
+
 def _index_by_domain(rewrites: list[dict]) -> dict[str, set[str]]:
     """domain -> set of answers currently in AdGuard."""
     by_domain: dict[str, set[str]] = {}
@@ -38,6 +49,7 @@ def _index_by_domain(rewrites: list[dict]) -> dict[str, set[str]]:
 class ReconcilePlan:
     adds: list[tuple[str, str]] = field(default_factory=list)  # (domain, answer)
     deletes: list[tuple[str, str]] = field(default_factory=list)  # (domain, stale answer)
+    sweeps: list[tuple[str, str]] = field(default_factory=list)  # (domain, answer) orphan
     conflicts: list[dict] = field(default_factory=list)  # {id, domain, answers}
     in_sync: list[str] = field(default_factory=list)  # instance ids already correct
 
@@ -55,9 +67,17 @@ def plan_reconcile(
     (orphan migration on a Caddy-IP change); any same-domain answer that is neither
     `current_ip` nor the stored `dns_answer` is a manual entry — reported as a conflict,
     never touched.
+
+    Orphan sweep: a rewrite that points at `current_ip`, sits in Loskai's `<label>.<base>`
+    namespace, and belongs to no routed instance is a Loskai leftover (a teardown whose
+    best-effort DNS delete failed while AdGuard was down) — queue it for deletion. The
+    `answer == current_ip` guard means a hand-added rewrite pointing anywhere else is safe.
     """
     plan = ReconcilePlan()
     by_domain = _index_by_domain(rewrites)
+    routed_domains = {
+        rewrite_domain(inst, base_domain) for inst in instances if inst.subdomain
+    }
 
     for inst in instances:
         if not inst.subdomain:
@@ -77,6 +97,12 @@ def plan_reconcile(
         foreign = sorted(a for a in answers if a != current_ip and a != stored)
         if foreign:
             plan.conflicts.append({"id": inst.id, "domain": domain, "answers": foreign})
+
+    for domain, answers in by_domain.items():
+        if domain in routed_domains or not is_loskai_domain(domain, base_domain):
+            continue
+        if current_ip in answers:
+            plan.sweeps.append((domain, current_ip))
 
     return plan
 
@@ -167,7 +193,9 @@ async def reconcile(
     client: AdGuardClient, base_domain: str | None, current_ip: str | None
 ) -> dict:
     """Apply the plan best-effort and persist `dns_answer` for every domain that now
-    resolves to `current_ip`. Only ever deletes answers Loskai itself wrote."""
+    resolves to `current_ip`. Only ever deletes answers Loskai itself wrote: a stale pair
+    from a Caddy-IP change (`deletes`), or an orphaned `<label>.<base>` rewrite pointing at
+    `current_ip` that no live route owns (`sweeps`)."""
     if not base_domain:
         raise ValueError("base_domain is not set")
     if not current_ip:
@@ -181,6 +209,7 @@ async def reconcile(
     ensured = {e["domain"] for e in rewrites if e.get("answer") == current_ip}
     added: list[str] = []
     deleted: list[str] = []
+    swept: list[str] = []
     errors: list[dict] = []
 
     for domain, answer in plan.adds:
@@ -198,6 +227,13 @@ async def reconcile(
         except (httpx.HTTPError, AdGuardError):
             pass  # may already be gone — harmless
 
+    for domain, answer in plan.sweeps:
+        try:
+            await client.delete_rewrite(domain, answer)  # best-effort
+            swept.append(domain)
+        except (httpx.HTTPError, AdGuardError):
+            pass
+
     # Persist dns_answer for instances whose name now resolves to current_ip.
     for inst in routed:
         domain = rewrite_domain(inst, base_domain)
@@ -209,6 +245,7 @@ async def reconcile(
     return {
         "added": added,
         "deleted": deleted,
+        "swept": swept,
         "conflicts": plan.conflicts,
         "errors": errors,
     }

@@ -37,6 +37,13 @@ Follow-up UX cleanup after review:
 - The delete icon now renders on **every** routing row; for container-backed (docker)
   instances it's shown gray + disabled with a tooltip ("Container-backed — delete it from
   the Docker tab") rather than hidden, so the affordance is discoverable
+- **Orphan DNS sweep** added to reconcile (closes the one gap in the teardown story): a
+  rewrite pointing at the Caddy IP, in the `<label>.<base>` namespace, owned by no routed
+  instance is a Loskai leftover from a teardown whose best-effort DNS delete failed while
+  AdGuard was down. Sync now deletes these. The `answer == currentIP` + base-shape guard
+  keeps it off any hand-added rewrite. Reported as `swept` and shown in the Sync banner
+  ("Removed N orphaned DNS rewrites"). Pure `is_loskai_domain` + `plan.sweeps`; +5 tests
+  (134 backend total)
 
 ## 2026-07-16 — Semi-automatic container routing (via the Docker tab)
 

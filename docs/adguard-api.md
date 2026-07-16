@@ -158,14 +158,22 @@ rewrite is present. Present = in sync; missing = the name does not resolve local
 the rewrite is added. This is a **display-only comparison** — it never auto-corrects,
 matching the Caddy module's synced-status behavior.
 
-**Reconcile** (the explicit "Push all" action, or when a Caddy-IP change is detected on
+**Reconcile** (the explicit **Sync** action, or when a Caddy-IP change is detected on
 startup): for each routed instance Loskai ensures `(domain, currentIP)` exists and, if the
 instance's stored `dns_answer` differs from `currentIP`, deletes the stale
 `(domain, dns_answer)` pair — migrating the entry onto the current IP — then updates
 `dns_answer`. It writes `dns_answer` whenever it adds a rewrite. A same-domain entry whose
 answer matches **neither** `currentIP` **nor** the instance's stored `dns_answer` is a
-manual rewrite: reconcile leaves it and reports a conflict, never overwrites it. Reconcile
-is best-effort and only ever touches answers Loskai itself wrote.
+manual rewrite: reconcile leaves it and reports a conflict, never overwrites it.
+
+**Orphan sweep** (part of reconcile): a rewrite that points at `currentIP`, sits in the
+`<single-label>.{BASE_DOMAIN}` namespace, and is owned by **no** routed instance is a
+Loskai leftover — typically from a remove/delete whose best-effort DNS delete failed while
+AdGuard was down. Reconcile deletes these. The `answer == currentIP` + base-domain-shape
+guard is what keeps the sweep off any hand-added rewrite (a different answer, or a name
+outside the `<label>.{BASE_DOMAIN}` form, is never touched). Reported as `swept`.
+
+Reconcile is best-effort and only ever touches answers Loskai itself wrote.
 
 ---
 

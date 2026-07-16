@@ -179,3 +179,39 @@ def test_consistency_undeterminable_when_adguard_down():
     # rewrites None (AdGuard unreachable) -> no warnings, never cries wolf.
     warns = service.consistency_warnings([inst("grafana", "grafana")], None, BASE, IP)
     assert warns == []
+
+
+# --- orphan sweep (reclaim Loskai's own leftover rewrites) ---
+
+
+def test_sweep_orphan_pointing_at_caddy_ip():
+    # A rewrite in Loskai's namespace, at the Caddy IP, owned by no routed instance.
+    existing = [rw("ghost.example.no", IP)]
+    plan = service.plan_reconcile([], existing, BASE, IP)
+    assert plan.sweeps == [("ghost.example.no", IP)]
+
+
+def test_sweep_skips_routed_domain():
+    existing = [rw("grafana.example.no", IP)]
+    plan = service.plan_reconcile([inst("grafana", "grafana", IP)], existing, BASE, IP)
+    assert plan.sweeps == []  # a live route owns it
+
+
+def test_sweep_skips_foreign_answer():
+    # Hand-added rewrite pointing somewhere other than the Caddy IP — never swept.
+    existing = [rw("ghost.example.no", "10.0.0.9")]
+    plan = service.plan_reconcile([], existing, BASE, IP)
+    assert plan.sweeps == []
+
+
+def test_sweep_skips_domain_outside_base():
+    existing = [rw("nas.local", IP), rw("deep.sub.example.no", IP)]
+    plan = service.plan_reconcile([], existing, BASE, IP)
+    assert plan.sweeps == []  # wrong suffix / not a single label
+
+
+def test_is_loskai_domain():
+    assert service.is_loskai_domain("grafana.example.no", BASE)
+    assert not service.is_loskai_domain("example.no", BASE)
+    assert not service.is_loskai_domain("a.b.example.no", BASE)
+    assert not service.is_loskai_domain("grafana.other.no", BASE)

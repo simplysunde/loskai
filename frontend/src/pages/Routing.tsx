@@ -43,6 +43,7 @@ export function Routing() {
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -126,13 +127,29 @@ export function Routing() {
     mutationFn: async () => {
       const [caddy, adguard] = await Promise.allSettled([
         api.post<{ pushed: { status: string }[] }>("/api/caddy/push"),
-        api.post<{ added: string[]; deleted: string[]; conflicts: unknown[]; errors: unknown[] }>(
-          "/api/adguard/reconcile",
-        ),
+        api.post<{
+          added: string[];
+          deleted: string[];
+          swept: string[];
+          conflicts: unknown[];
+          errors: unknown[];
+        }>("/api/adguard/reconcile"),
       ]);
       return { caddy, adguard };
     },
-    onSuccess: invalidate,
+    onSuccess: ({ adguard }) => {
+      invalidate();
+      const ag = adguard.status === "fulfilled" ? adguard.value : null;
+      const swept = ag?.swept?.length ?? 0;
+      setSyncNote(
+        ag === null
+          ? "Routes pushed. AdGuard was unreachable — DNS not reconciled."
+          : swept > 0
+            ? `Synced. Removed ${swept} orphaned DNS ${swept === 1 ? "rewrite" : "rewrites"}.`
+            : "Synced.",
+      );
+      setTimeout(() => setSyncNote(null), 4000);
+    },
   });
 
   const openAssign = (target: RouteRow | null) => {
@@ -177,6 +194,11 @@ export function Routing() {
       <div className="mb-4 space-y-3">
         <AdGuardStatus health={health.data?.adguard} />
         <ModuleStatus name="Caddy" health={health.data?.caddy} />
+        {syncNote && (
+          <div className="rounded-lg border border-teal-600/40 bg-teal-500/10 px-3 py-2 text-sm text-teal-200">
+            {syncNote}
+          </div>
+        )}
         {consistency.length > 0 && (
           <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             <div className="mb-1 flex items-center gap-1.5 font-medium">

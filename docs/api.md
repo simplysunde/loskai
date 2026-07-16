@@ -82,7 +82,7 @@ External contract: [caddy-api.md](caddy-api.md).
 | `POST /rewrites` | Body `{ domain, answer }` — add a rewrite. |
 | `DELETE /rewrites` | Body `{ domain, answer }` — delete by **exact pair** (protects hand-added rewrites). |
 | `GET /status` | Per-instance DNS status: `{ answer_ip, instances: [{ id, domain, present, conflict }] }` — powers the routing table's DNS column. |
-| `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites, report conflicts. `400` if no answer IP, `502` if AdGuard is down. |
+| `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites, **sweep** orphaned `<label>.<base>` rewrites that point at the Caddy IP but no live route owns (reclaims Loskai leftovers from a failed offline teardown), and report conflicts. Returns `{ added, deleted, swept, conflicts, errors }`. `400` if no answer IP, `502` if AdGuard is down. |
 
 External contract: [adguard-api.md](adguard-api.md).
 
