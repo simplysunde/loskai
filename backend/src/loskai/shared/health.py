@@ -40,8 +40,10 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 
 @router.get("/health")
-async def health() -> dict[str, dict]:
-    result: dict[str, dict] = {}
+async def health() -> dict:
+    # Values are heterogeneous: a status dict per module, plus a `consistency` list — so
+    # the response type stays a bare dict (a stricter `dict[str, dict]` rejects the list).
+    result: dict = {}
     for name in MODULES:
         checker = _checkers.get(name)
         if checker is not None:
