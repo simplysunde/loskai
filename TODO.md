@@ -243,28 +243,33 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 _Principle: test the logic Loskai owns, mock the systems it talks to, manually/rig-verify the irreversible side effects. Never test `httpx`/`docker-py` themselves. Depends on the strict `client.py` (I/O) vs logic seam — keep decision logic in pure functions so it's testable without a network._
 _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set up in Phase 1); this list is the consolidated checklist. Tier 3 (the rig) and CI are the net-new work here._
 
+> **Status (2026-07-16): Setup + Tiers 1 & 2 are done** (134 backend + 17 Vitest passing).
+> **Tier 3 (integration rig) and CI (Forgejo) are deferred by choice** — the core was
+> validated live on-device, and the short manual smoke checklist covers the irreversible
+> paths, so automated CI isn't needed right now. Left as backlog, not pending work.
+
 **Setup**
-- [ ] Backend: add `pytest`, `pytest-httpx` (or `respx`), `pytest-asyncio` as dev deps; `uv run pytest`
-- [ ] Frontend: add `vitest` + `@testing-library/react`; `npm test`
+- [x] Backend: add `pytest`, `pytest-httpx` (or `respx`), `pytest-asyncio` as dev deps; `uv run pytest`
+- [x] Frontend: add `vitest` + `@testing-library/react`; `npm test`
 
 **Tier 1 — unit tests on pure logic** (fast, no network, `tmp_path` for files)
-- [ ] `instances.py` CRUD + `settings.py` env→json priority chain & source tagging
-- [ ] FQDN assembly, Caddy route-JSON builder, Caddyfile render
-- [ ] **AdGuard reconcile** — `(domain, answer)` diffing, `dns_answer` orphan migration, manual-conflict detection (the trickiest logic — cover thoroughly)
-- [ ] answer-IP derivation (`CADDY_ADMIN_URL` host / `CADDY_HOST_IP` fallback)
-- [ ] recipe manifest validation (schema + malformed rejection), quick-commands image→cmd map
-- [ ] auth: password hash/verify, session sign/verify
+- [x] `instances.py` CRUD + `settings.py` env→json priority chain & source tagging
+- [x] FQDN assembly, Caddy route-JSON builder, Caddyfile render
+- [x] **AdGuard reconcile** — `(domain, answer)` diffing, `dns_answer` orphan migration, manual-conflict detection (the trickiest logic — cover thoroughly)
+- [x] answer-IP derivation (`CADDY_ADMIN_URL` host / `CADDY_HOST_IP` fallback)
+- [x] recipe manifest validation (schema + malformed rejection), quick-commands image→cmd map
+- [x] auth: password hash/verify, session sign/verify
 
 **Tier 2 — client contract tests** (`pytest-httpx`, response shapes from `docs/*-api.md`)
-- [ ] Caddy client: request built (URL/method/body, `@id`), delete-ignores-404
-- [ ] AdGuard client: delete-by-exact-pair body, add/list parsing
-- [ ] WireGuard client: any HTTP response (incl. 401/403) = reachable
+- [x] Caddy client: request built (URL/method/body, `@id`), delete-ignores-404
+- [x] AdGuard client: delete-by-exact-pair body, add/list parsing
+- [x] WireGuard client: any HTTP response (incl. 401/403) = reachable
 
-**Tier 3 — disposable integration rig**
+**Tier 3 — disposable integration rig** _(deferred by choice — manual smoke test suffices)_
 - [ ] `docker-compose.test.yml` — throwaway Caddy + AdGuard containers (a slim variant of the co-located stack): Caddy `tls internal` (no ACME/DNS token), ephemeral volumes, seeded before each run, torn down after
 - [ ] A handful of integration tests that push a route to the rig Caddy and a rewrite to the rig AdGuard, asserting they land — plus a documented manual smoke checklist for the Docker/`compose` side (too host-bound to rig)
 
-**CI — Forgejo Actions**
+**CI — Forgejo Actions** _(deferred by choice — not needed while validating manually)_
 - [ ] `.forgejo/workflows/ci.yml` — on push: run `pytest` (Tiers 1–2, + Tier 3 if the rig is available) and `vitest`. GitHub-Actions-compatible YAML (portable). One-time: register an `act_runner` on the Forgejo instance
 
 ---
