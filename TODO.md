@@ -283,4 +283,35 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 - [x] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete. `logic.orphaned_instances` (pure) + `GET/DELETE /api/docker/orphans`; the delete re-verifies the container is gone (409 otherwise) then reuses `assign.purge_instance` for cross-module teardown. Rose banner on the Routing page with per-item Delete
 - [x] **Upstream validation** — reject an upstream that carries a scheme or path (e.g. `https://host:8006/`) and require a bare `host:port`; the assign flow stored it verbatim into Caddy's `dial`, so a URL produced a malformed, non-connecting route (found during local testing). Done: `validate_upstream` in `assign.py` (422 on scheme/path/missing-or-bad-port) + `isValidUpstream` in `AssignModal`
 - [x] **HTTPS / TLS upstreams** — done: instance gains `upstream_tls`; `build_route` + `render_caddyfile` emit a `reverse_proxy` `transport http { tls tls_insecure_skip_verify }` when set; the Assign form has a "Backend speaks HTTPS" checkbox and the routing table shows an `https` tag. Proxmox (HTTPS-only, self-signed on :8006) can now be proxied
-- [ ] **Code-split the Docker route / xterm** — the single JS chunk is ~670 kB (Vite warns) because xterm loads eagerly. `React.lazy` the Docker page so xterm only loads when that tab is opened
+- [x] **Code-split the Docker route / xterm** — done: `React.lazy` + `Suspense` in `App.tsx` splits the ~670 kB single chunk into `index` (~310 kB) + `Docker` (~365 kB, xterm), so xterm only loads when that tab opens. Vite size warning gone
+
+---
+
+## Phase 10a — Certificate onboarding (internal-CA mode)
+_Ship first — standalone, low-risk, doesn't touch the Loskai app. Caddy serves an internal-CA trust page so LAN devices trust `*.BASE_DOMAIN` once. Loskai handles zero cert material (invariant)._
+
+- [ ] Move `setup.html` → `caddy/setup/index.html` (served as directory index; bilingual NO/EN, OS-detecting)
+- [ ] Bootstrap Caddyfile: a **`:80` HTTP site** (reachable by IP — deliberately not HTTPS, to dodge the untrusted-cert chicken-and-egg):
+  - `handle /caddy-root.crt` → `file_server` from `/data/caddy/pki/authorities/local/root.crt` (+ `Content-Type: application/x-x509-ca-cert`)
+  - default `handle` → `file_server` from `/srv/setup`
+- [ ] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (the PKI path is already in Caddy's `/data` volume)
+- [ ] AdGuard rewrite `setup.<BASE_DOMAIN>` → Caddy IP (friendly name **in addition to** by-IP)
+- [ ] Verify the `:80` server doesn't shift Loskai's startup HTTPS server-discovery
+- [ ] `docs/certificate-setup.md` — the Caddyfile block, the mount, "hand out `http://<caddy-ip>/` to first-timers / `setup.<domain>` after trust," and how one internal root trusts all `*.BASE_DOMAIN` leaves
+- [ ] Note the `home.lan` strings in the page are the base domain (leave / parameterize later)
+
+_Invariants: no cert material in Loskai; the `:80` site has no `@id` so Sync never touches it; unrelated to the deferred Cert-Status (expiry) item._
+
+## Phase 10b — Network tab (repurpose `/vpn`)
+_Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGuard Gateway, and Caddy — status + link-out + URL config + a Docker-style "Assign URL" per service._
+
+- [ ] Rename `/vpn` route → `/network` (nav label + icon)
+- [ ] Three service panels, each with health (from `/api/health`) + link-out + its URL field:
+  - **AdGuard (DNS)**
+  - **Gateway** (WireGuard) — the remote-access gateway; carries the "hands out AdGuard as DNS" reminder
+  - **Caddy (TLS / cert setup)** — derived `http://<caddy_host_ip>/` cert-setup link + "copy to share"
+- [ ] Move service-URL config **UI** out of Settings into the panels (same `settings.json` keys — single source, no new store): `caddy_admin_url`, `caddy_host_ip`, `adguard_url`, `adguard_user`, `adguard_password`, `wireguard_dashboard_url`
+- [ ] Settings slims to app/security: `base_domain`, `recipes_repo_url`, `stacks_dir` (env), admin password
+- [ ] Per-service **pre-filled "Assign URL"** (mirror the Docker flow): suggested subdomain + upstream derived from the service's configured URL → `POST /api/assign` → external instance
+- [ ] CA-setup instance routed normally at `https://setup.<BASE_DOMAIN>` (card useful post-trust; first-timers use the by-IP link) — chose the simpler HTTPS-route option over an HTTP-by-IP Dashboard special-case
+- [ ] Update PLAN.md (Network restructure + internal-CA mode) and HISTORY.md when built
