@@ -137,3 +137,14 @@ def subdomain_for(container_name: str, instances: list) -> str | None:
         if inst.container == container_name and inst.subdomain:
             return inst.subdomain
     return None
+
+
+def orphaned_instances(instances: list, live_container_names: set[str]) -> list:
+    """Docker-backed instances whose linked container is gone (removed, not just
+    stopped — a stopped container still appears in the host list). These point at an
+    upstream that no longer exists and are safe to clean up."""
+    return [
+        inst
+        for inst in instances
+        if inst.type == "docker" and inst.container and inst.container not in live_container_names
+    ]

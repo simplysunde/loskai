@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Plus, UploadCloud } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, Trash2, Unplug, UploadCloud } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
@@ -14,6 +14,12 @@ import { ModuleStatus } from "../components/shared/ModuleStatus";
 interface DnsStatus {
   answer_ip: string | null;
   instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
+}
+interface Orphan {
+  id: string;
+  name: string;
+  container: string | null;
+  subdomain: string | null;
 }
 interface SettingsView {
   base_domain?: { value: string | null };
@@ -52,6 +58,11 @@ export function Routing() {
     queryKey: ["settings"],
     queryFn: () => api.get<SettingsView>("/api/settings"),
   });
+  const orphans = useQuery({
+    queryKey: ["docker-orphans"],
+    queryFn: () => api.get<Orphan[]>("/api/docker/orphans"),
+    refetchInterval: 30_000,
+  });
 
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const mode = health.data?.caddy?.mode ?? null;
@@ -68,7 +79,14 @@ export function Routing() {
     qc.invalidateQueries({ queryKey: ["caddy-routes"] });
     qc.invalidateQueries({ queryKey: ["adguard-status"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["docker-orphans"] });
   };
+
+  const cleanupOrphan = useMutation({
+    mutationFn: (o: Orphan) => api.del(`/api/docker/orphans/${o.id}`),
+    onSuccess: invalidate,
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Cleanup failed"),
+  });
 
   const assign = useMutation({
     mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
@@ -179,6 +197,41 @@ export function Routing() {
             <ul className="list-disc space-y-0.5 pl-5 text-amber-200/90">
               {consistency.map((w) => (
                 <li key={`${w.id}:${w.kind}`}>{w.detail}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {(orphans.data?.length ?? 0) > 0 && (
+          <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+            <div className="mb-2 flex items-center gap-1.5 font-medium">
+              <Unplug className="h-4 w-4" />
+              {orphans.data!.length} orphaned{" "}
+              {orphans.data!.length === 1 ? "route" : "routes"} — the container was removed
+            </div>
+            <ul className="space-y-1">
+              {orphans.data!.map((o) => (
+                <li key={o.id} className="flex items-center justify-between gap-3">
+                  <span>
+                    <span className="font-medium text-rose-100">{o.name}</span>
+                    <span className="text-rose-300/80">
+                      {" "}
+                      → {o.container}
+                      {o.subdomain ? ` (${o.subdomain})` : ""}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => cleanupOrphan.mutate(o)}
+                    disabled={cleanupOrphan.isPending}
+                    className="flex shrink-0 items-center gap-1 rounded-md border border-rose-500/50 px-2 py-1 text-xs text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                  >
+                    {cleanupOrphan.isPending && cleanupOrphan.variables?.id === o.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Delete
+                  </button>
+                </li>
               ))}
             </ul>
           </div>

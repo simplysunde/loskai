@@ -215,12 +215,25 @@ async def unassign(
     return {"caddy": "ok", "adguard": adguard_status, "cleared": True, "instance_id": inst.id}
 
 
+async def purge_instance(
+    caddy_client, adguard_client, inst: Instance, *, base_domain: str | None
+) -> dict:
+    """Clear any route + rewrite for `inst` and drop its record. The caller owns the
+    policy of *which* instances may be purged (external delete; orphan cleanup) — this
+    just does the cross-module teardown."""
+    if inst.subdomain:
+        await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
+    instances_store.delete_instance(inst.id)
+    return {"deleted": True, "instance_id": inst.id}
+
+
 async def delete_instance(
     caddy_client, adguard_client, instance_id: str, *, base_domain: str | None
 ) -> dict:
     """Fully delete an instance. Docker instances are container-backed and can't be
     deleted (remove their route instead); external instances are pure route definitions,
-    so we clear the route + rewrite (if any) and drop the record."""
+    so we clear the route + rewrite (if any) and drop the record. Orphaned docker
+    instances (container gone) are cleaned up via the Docker module, not here."""
     inst = instances_store.get_instance(instance_id)
     if inst is None:
         raise AssignError(404, f"instance '{instance_id}' not found")
@@ -228,10 +241,7 @@ async def delete_instance(
         raise AssignError(
             409, "can't delete a container-backed instance — remove its route instead"
         )
-    if inst.subdomain:
-        await unassign(caddy_client, adguard_client, instance_id, base_domain=base_domain)
-    instances_store.delete_instance(instance_id)
-    return {"deleted": True, "instance_id": instance_id}
+    return await purge_instance(caddy_client, adguard_client, inst, base_domain=base_domain)
 
 
 # --- Router ---

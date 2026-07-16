@@ -105,6 +105,8 @@ External contract: [adguard-api.md](adguard-api.md).
 | `GET /containers` | Live list: `[{ id, name, image, status, uptime, ports, subdomain, suggested_upstream, cpu, mem }]`. `subdomain` is joined from the instance; `suggested_upstream` is a reachable `<service>:<port>` derived from the socket to pre-fill the assign form. |
 | `POST /containers/{id}/start` · `/stop` · `/restart` | Lifecycle control. |
 | `DELETE /containers/{id}` | Force-remove the container. |
+| `GET /orphans` | Docker instances whose linked container was removed: `[{ id, name, container, subdomain }]`. `[]` when the daemon is down (an unreachable socket must not make live instances look orphaned). |
+| `DELETE /orphans/{instance_id}` | Clean up one orphan: re-checks the container is really gone (`409` if it still exists), then tears down the route + rewrite and drops the record. |
 | `GET /containers/{id}/quick-commands` | Preset terminal commands for the image: `[{ label, command }]`. |
 | `GET /containers/{id}/logs` | **SSE** stream of log lines (`?tail=N`). |
 | `WS /containers/{id}/exec` | Interactive shell. **Authenticates itself** (WS bypasses the HTTP middleware). Client sends keystrokes as binary stdin and `{"type":"resize","rows","cols"}` as a text control frame; output arrives as bytes. |

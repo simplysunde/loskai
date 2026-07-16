@@ -106,3 +106,21 @@ def test_quick_commands_generic_and_specific():
     nginx = quick_commands_for("library/nginx:latest")
     labels = [c["label"] for c in nginx]
     assert "Test config" in labels and "Reload" in labels
+
+
+def test_orphaned_instances_flags_missing_container():
+    instances = [
+        Instance(id="grafana", name="G", type="docker", container="grafana", subdomain="graf"),
+        Instance(id="dead", name="D", type="docker", container="removed", subdomain="dead"),
+        Instance(id="nas", name="N", type="external", subdomain="nas"),
+    ]
+    orphans = logic.orphaned_instances(instances, {"grafana", "other"})
+    assert [i.id for i in orphans] == ["dead"]
+
+
+def test_orphaned_instances_ignores_external_and_containerless():
+    instances = [
+        Instance(id="nas", name="N", type="external", subdomain="nas"),
+        Instance(id="bare", name="B", type="docker"),  # no container linked
+    ]
+    assert logic.orphaned_instances(instances, set()) == []

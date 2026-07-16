@@ -12,8 +12,14 @@ from docker.errors import NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
 from sse_starlette.sse import EventSourceResponse
 
+from ...shared import assign as assign_mod
 from ...shared import auth
 from ...shared import health as health_registry
+from ...shared import instances as instances_store
+from ...shared import settings as settings_store
+from ..adguard.client import adguard
+from ..caddy.client import caddy
+from . import logic
 from . import recipes as recipes_mod
 from . import stacks as stacks_mod
 from .client import DOCKER_ERRORS, describe_error, docker_client
@@ -72,6 +78,44 @@ def restart(container_id: str) -> dict:
 def remove(container_id: str) -> dict:
     _docker_call(docker_client.remove, container_id)
     return {"ok": True}
+
+
+# --- Orphaned routes (a docker instance whose container was removed) ---
+
+
+@router.get("/orphans")
+def orphans() -> list[dict]:
+    """Docker instances whose linked container no longer exists. `[]` if the daemon is
+    down — an unreachable socket must not make live instances look orphaned."""
+    try:
+        live = docker_client.container_names()
+    except DOCKER_ERRORS:
+        return []
+    return [
+        {"id": i.id, "name": i.name, "container": i.container, "subdomain": i.subdomain}
+        for i in logic.orphaned_instances(instances_store.list_instances(), live)
+    ]
+
+
+@router.delete("/orphans/{instance_id}")
+async def delete_orphan(instance_id: str) -> dict:
+    """Clean up an orphaned docker instance: verify its container is really gone, then
+    tear down its route + rewrite and drop the record."""
+    inst = instances_store.get_instance(instance_id)
+    if inst is None:
+        raise HTTPException(status_code=404, detail="instance not found")
+    if inst.type != "docker" or not inst.container:
+        raise HTTPException(status_code=409, detail="not a container-backed instance")
+    live = _docker_call(docker_client.container_names)
+    if inst.container in live:
+        raise HTTPException(
+            status_code=409, detail="container still exists — remove its route instead"
+        )
+    base = settings_store.value("base_domain")
+    try:
+        return await assign_mod.purge_instance(caddy, adguard, inst, base_domain=base)
+    except assign_mod.AssignError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
 @router.get("/containers/{container_id}/quick-commands")

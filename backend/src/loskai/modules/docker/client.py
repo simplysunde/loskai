@@ -81,6 +81,11 @@ class DockerClient:
             out.append(summary)
         return out
 
+    def container_names(self) -> set[str]:
+        """Every container name present on the host (running or stopped). A name absent
+        here means the container was removed — used to flag orphaned instances."""
+        return {c.name for c in self._get().containers.list(all=True)}
+
     def start(self, container_id: str) -> None:
         self._get().containers.get(container_id).start()
 
