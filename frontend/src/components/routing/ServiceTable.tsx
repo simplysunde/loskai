@@ -163,7 +163,7 @@ export function ServiceTable({
                             ? "Container-backed — delete it from the Docker tab"
                             : "Delete instance"
                         }
-                        danger
+                        danger={row.type !== "docker"}
                         onClick={() => onDelete(row)}
                         icon={<Trash2 className="h-3.5 w-3.5" />}
                       />
