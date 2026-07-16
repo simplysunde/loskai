@@ -40,6 +40,7 @@ app is running — this document is the human-readable overview.
 | `GET /api/health` | Aggregate per-module status: `{ caddy, adguard, wireguard, docker }`, each `{ status, … }`. `docker` also carries `stacks_dir_ok`. Polled every 30s. |
 | `GET /api/settings` | All configurable values, each `{ value, source: "env"\|"stored"\|"unset", secret }`. Never returns the admin password hash. |
 | `PUT /api/settings` | Body of `{ key: value }` — persists stored settings. Env-sourced and unknown keys are ignored. Returns the refreshed view. |
+| `GET /api/export` | Backup snapshot: `{ schema_version, generated_at, base_domain, instances, adguard_rewrites, warning }`. AdGuard rewrites are best-effort — `null` + a `warning` when AdGuard is unreachable. |
 
 ### Instances
 

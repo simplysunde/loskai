@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Lock } from "lucide-react";
+import { Download, Loader2, Lock } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 
@@ -34,6 +34,24 @@ export function Settings() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch the config snapshot and trigger a browser download of it as JSON.
+  const exportConfig = useMutation({
+    mutationFn: () => api.get<unknown>("/api/export"),
+    onSuccess: (snapshot) => {
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `loskai-config-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Export failed"),
+  });
 
   // Seed local edits from the fetched values (stored/unset fields only).
   useEffect(() => {
@@ -118,6 +136,29 @@ export function Settings() {
           {saved && <span className="text-sm text-emerald-400">Saved</span>}
         </div>
       </form>
+
+      <section className="mt-10 max-w-xl border-t border-slate-800 pt-6">
+        <h2 className="text-sm font-medium text-slate-300">Backup</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Download a JSON snapshot of your instances and AdGuard rewrites.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            exportConfig.mutate();
+          }}
+          disabled={exportConfig.isPending}
+          className="mt-3 flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+        >
+          {exportConfig.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          Export config
+        </button>
+      </section>
     </Page>
   );
 }
