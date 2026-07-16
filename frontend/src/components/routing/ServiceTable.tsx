@@ -21,7 +21,8 @@ export interface RouteRow {
 
 // One row per instance (routed or not). Routed rows show route/DNS status + rewrite,
 // private, and "remove route". Unrouted rows show "assign". External instances can be
-// deleted outright; docker instances (container-backed) cannot.
+// deleted outright; docker instances show the delete icon disabled (with a tooltip) since
+// they're container-backed — their route is removed here, the instance via the Docker tab.
 export function ServiceTable({
   rows,
   onAssign,
@@ -153,10 +154,15 @@ export function ServiceTable({
                         icon={<Unlink className="h-3.5 w-3.5" />}
                       />
                     )}
-                    {row.type === "external" && onDelete && (
+                    {onDelete && (
                       <IconButton
                         busy={actionBusyId === row.id}
-                        title="Delete instance"
+                        disabled={row.type === "docker"}
+                        title={
+                          row.type === "docker"
+                            ? "Container-backed instance — can't be deleted here. Remove its route instead, or delete the container in the Docker tab (its route is cleaned up automatically when the container is gone)."
+                            : "Delete instance"
+                        }
                         danger
                         onClick={() => onDelete(row)}
                         icon={<Trash2 className="h-3.5 w-3.5" />}
@@ -198,20 +204,34 @@ function IconButton({
   icon,
   onClick,
   danger = false,
+  disabled = false,
 }: {
   busy: boolean;
   title: string;
   icon: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
+  const base = `inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs ${
+    danger ? "text-rose-300" : "text-slate-300"
+  }`;
+  // Disabled action: render a non-interactive span (a `disabled` <button> suppresses the
+  // hover tooltip in most browsers) so the explanatory title still shows on hover.
+  if (disabled && !busy) {
+    return (
+      <span aria-disabled="true" title={title} className={`${base} cursor-not-allowed opacity-40`}>
+        {icon}
+      </span>
+    );
+  }
   return (
     <button
       disabled={busy}
       onClick={onClick}
       title={title}
-      className={`inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs disabled:opacity-40 ${
-        danger ? "text-rose-300 hover:bg-rose-500/10" : "text-slate-300 hover:bg-slate-800"
+      className={`${base} disabled:opacity-40 ${
+        danger ? "hover:bg-rose-500/10" : "hover:bg-slate-800"
       }`}
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
