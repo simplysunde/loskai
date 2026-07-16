@@ -35,8 +35,8 @@ Follow-up UX cleanup after review:
   `POST /adguard/rewrites` add/delete endpoints stay for scripting; nothing in the UI calls
   them now. Vitest 18 → 17
 - The delete icon now renders on **every** routing row; for container-backed (docker)
-  instances it's shown gray + disabled with a tooltip ("Container-backed — delete it from
-  the Docker tab") rather than hidden, so the affordance is discoverable
+  instances it's shown gray + disabled with a tooltip ("Container-backed — remove its
+  container to delete it") rather than hidden, so the affordance is discoverable
 - **Orphan DNS sweep** added to reconcile (closes the one gap in the teardown story): a
   rewrite pointing at the Caddy IP, in the `<label>.<base>` namespace, owned by no routed
   instance is a Loskai leftover from a teardown whose best-effort DNS delete failed while

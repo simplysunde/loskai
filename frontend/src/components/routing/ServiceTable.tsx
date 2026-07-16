@@ -154,7 +154,7 @@ export function ServiceTable({
                         disabled={row.type === "docker"}
                         title={
                           row.type === "docker"
-                            ? "Container-backed — delete it from the Docker tab"
+                            ? "Container-backed — remove its container to delete it"
                             : "Delete instance"
                         }
                         danger={row.type !== "docker"}
