@@ -142,11 +142,14 @@ view both read.
 
 **How instances are created:**
 - **Semi-automatically, from the Docker Manager** — "Assign URL" on a container creates /
-  updates its `docker` instance + route, pre-filled with a suggested subdomain from the
-  container name. **One instance per container** (a container assign is idempotent — it
-  changes that container's URL, never creates a duplicate); a *second* route to the same
-  service is a separate `external` instance. Assignment is never automatic — a container
-  with no assigned URL simply shows live in the Docker Manager with no route.
+  updates its `docker` instance + route, pre-filled with a suggested subdomain (the
+  container name) **and a reachable upstream** — `<service>:<port>` derived from the Docker
+  socket (the container-side of its published port; resolves via Docker DNS when Caddy
+  shares the network). **One instance per container** (a container assign is idempotent —
+  it changes that container's URL, never creates a duplicate); a *second* route to the same
+  service is a separate `external` instance. The URL is editable in place from either tab
+  ("Change URL"). Assignment is never automatic — a container with no assigned URL simply
+  shows live in the Docker Manager with no route.
 - **Manually** — added through the UI, either a docker instance or an external one.
 - **Seeded** — on first run, if `ADGUARD_URL` is set to a valid target and no AdGuard
   instance exists yet, one is created: an `external` instance pointing at that IP:port,

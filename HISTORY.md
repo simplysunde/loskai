@@ -20,7 +20,13 @@ automatic assignment, so it was **removed** in favor of a semi-automatic model.
 - **Design note**: a container never *needs* an instance to be visible (the Docker tab is
   live from the socket); an instance only exists to hold a route. So auto-creating one per
   container would just be noise — routing stays an explicit, per-container action
-- 114 backend + 17 Vitest tests pass
+- **Edit in place from either tab**: the Routing table gained a "Change URL" action on
+  routed rows (not just Remove) — opens the prefilled modal targeting the same instance
+- **Reachable upstream autofill**: `logic.suggested_upstream` derives `<service>:<port>`
+  from the socket (container-side of the single published binding — e.g. AdGuard exposes
+  many ports but publishes only 3000) and pre-fills the assign form, so users no longer
+  guess (and type `0.0.0.0:3000`). Uses the service name over a raw IP (survives restarts)
+- 118 backend + 18 Vitest tests pass
 
 ## 2026-07-15 — Instance deletion + all-instances routing view
 

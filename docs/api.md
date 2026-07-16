@@ -53,7 +53,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, upstream_tls? }`. Validates the single-label prefix + `host:port` upstream + uniqueness, sets the subdomain, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**). Returns `{ caddy, adguard: ok\|error\|skipped, url, instance_id, warning }`. `container` present → a linked `docker` instance; otherwise `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox). |
+| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, upstream_tls? }`. Validates the single-label prefix + `host:port` upstream + uniqueness, sets the subdomain, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**). Returns `{ caddy, adguard: ok\|error\|skipped, url, instance_id, warning }`. `container` present → targets that container's existing instance (idempotent — no duplicate) or a new linked `docker` instance; otherwise `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox). |
 | `DELETE /api/assign/{instance_id}` | The mirror: clears the subdomain, deletes the Caddy route (required), best-effort removes the rewrite. The instance survives. |
 
 ---
@@ -101,7 +101,7 @@ External contract: [adguard-api.md](adguard-api.md).
 
 | Method & path | Purpose |
 |---|---|
-| `GET /containers` | Live list: `[{ id, name, image, status, uptime, ports, subdomain, cpu, mem }]` (subdomain joined from the instance). |
+| `GET /containers` | Live list: `[{ id, name, image, status, uptime, ports, subdomain, suggested_upstream, cpu, mem }]`. `subdomain` is joined from the instance; `suggested_upstream` is a reachable `<service>:<port>` derived from the socket to pre-fill the assign form. |
 | `POST /containers/{id}/start` · `/stop` · `/restart` | Lifecycle control. |
 | `DELETE /containers/{id}` | Force-remove the container. |
 | `GET /containers/{id}/quick-commands` | Preset terminal commands for the image: `[{ label, command }]`. |
