@@ -270,7 +270,7 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 ---
 
 ## Phase 9 — Polish
-- [ ] Dark mode (Tailwind `dark:` classes, toggle stored in localStorage)
+- [x] Dark/light theme toggle (stored in localStorage). The UI is authored dark against the slate scale; light mode inverts `--color-slate-*` under `html.light` in `index.css` (Tailwind v4 utilities read those vars), so it re-skins every component with no markup changes. Toggle lives in the sidebar; applied pre-paint in `main.tsx` to avoid a flash
 - [ ] ~~Basic auth via Caddyfile~~ — superseded by in-app single-password auth (Phase 2 `auth.py`), since the public dashboard can't sit behind a blanket Caddy `basicauth`. See PLAN.md "Security & Access"
 - [x] Consistency check — on `/api/health`, warn if an instance has a subdomain but no matching AdGuard rewrite (that name won't resolve on the LAN until the rewrite is added), or if a same-domain rewrite points somewhere other than the Caddy IP (manual conflict — never auto-overwrite). Pure `consistency_warnings` in `adguard/service.py`; surfaced as a `consistency[]` key on `/api/health` (self-degrading via a registry hook) + an amber banner on the Routing page
 - [x] Config export — `GET /api/export` returns a JSON snapshot of the instance list + AdGuard rewrites (best-effort: rewrites `null` + warning when AdGuard is down). Download button on the Settings page

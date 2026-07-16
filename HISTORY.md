@@ -1,5 +1,33 @@
 # Loskai — History
 
+## 2026-07-16 — Phase 9 polish
+
+Cleared the remaining Phase 9 items in one pass (upstream validation + HTTPS upstreams
+were already done in earlier sessions). Five commits, each self-contained and tested.
+
+- **Code-split the Docker page** (`React.lazy` + `Suspense` in `App.tsx`) — xterm now loads
+  only when that tab is opened, splitting the ~670 kB single chunk into `index` (~308 kB)
+  + `Docker` (~365 kB) and clearing the Vite size warning
+- **Config export** — `GET /api/export` (new `shared/export.py`) returns a JSON snapshot of
+  the instances + AdGuard rewrites (rewrites best-effort: `null` + warning when AdGuard is
+  down). Download button on the Settings page
+- **DNS consistency check** — pure `consistency_warnings` in `adguard/service.py`, surfaced
+  as a `consistency[]` key on `/api/health` via a new self-degrading registry hook
+  (`register_consistency`) so `health.py` still imports no module. Amber banner on Routing
+  flags routed-but-no-rewrite and manual same-domain conflicts
+- **Orphaned-route cleanup** — `logic.orphaned_instances` (pure) + `GET/DELETE
+  /api/docker/orphans`; the delete re-verifies the container is really gone (409 otherwise)
+  then reuses a new `assign.purge_instance` for cross-module teardown. Rose banner on Routing
+  with per-item Delete. This is the one sanctioned path to delete a docker instance
+- **Dark/light theme toggle** — the UI is authored dark against the slate scale; light mode
+  inverts `--color-slate-*` under `html.light` in `index.css` (Tailwind v4 utilities read
+  those vars), re-skinning all 27 components with zero markup changes. Toggle in the sidebar,
+  applied pre-paint in `main.tsx`; choice stored in localStorage
+- Key files: `frontend/src/App.tsx`, `lib/theme.ts`, `index.css`, `backend/.../shared/export.py`,
+  `shared/health.py`, `modules/adguard/service.py`, `modules/docker/{logic,client,router}.py`,
+  `shared/assign.py`
+- Tests: 126 backend (was 118) + 18 Vitest, all green
+
 ## 2026-07-16 — Semi-automatic container routing (via the Docker tab)
 
 Prompted by a user deleting `instances.json` and asking how routes could come back from

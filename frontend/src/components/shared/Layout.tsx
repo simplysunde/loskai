@@ -1,18 +1,22 @@
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
   Container,
   LayoutDashboard,
   LogOut,
+  Moon,
   Route as RouteIcon,
   Settings as SettingsIcon,
   Shield,
+  Sun,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus } from "../../lib/useAuth";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
+import { getTheme, setTheme, type Theme } from "../../lib/theme";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -45,6 +49,13 @@ export function Layout() {
   const health = useHealth(authed);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+
+  function toggleTheme() {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setThemeState(next);
+  }
 
   const h = health.data;
   const dotFor: Record<string, ModuleState | undefined> = {
@@ -95,10 +106,18 @@ export function Layout() {
           ))}
         </nav>
 
+        <button
+          onClick={toggleTheme}
+          className="mx-3 mt-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
+
         {authed && (
           <button
             onClick={logout}
-            className="m-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+            className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
           >
             <LogOut className="h-4 w-4" /> Log out
           </button>

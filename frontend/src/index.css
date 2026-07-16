@@ -4,6 +4,25 @@
   color-scheme: dark;
 }
 
+/* Light theme: the UI is authored dark against the slate scale, so a light theme is
+   just the scale inverted about its midpoint (950<->50, 900<->100, ...). Tailwind v4
+   utilities read `var(--color-slate-*)`, so remapping them here re-skins every
+   component with no markup changes. Teal accents are left as-is (they read on both). */
+html.light {
+  color-scheme: light;
+  --color-slate-50: #020617;
+  --color-slate-100: #0f172a;
+  --color-slate-200: #1e293b;
+  --color-slate-300: #334155;
+  --color-slate-400: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-600: #94a3b8;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+  --color-slate-950: #f8fafc;
+}
+
 html,
 body,
 #root {
@@ -15,4 +34,9 @@ body {
   background: #020617; /* slate-950 — no white flash outside the app root */
   color: #e2e8f0; /* slate-200 */
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+html.light body {
+  background: #f8fafc; /* inverted slate-950 */
+  color: #1e293b; /* inverted slate-200 */
 }
