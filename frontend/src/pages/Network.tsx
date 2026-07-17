@@ -27,6 +27,17 @@ export function Network() {
 
       <div className="max-w-2xl space-y-4">
         <ServicePanel
+          icon={<Router className="h-5 w-5" />}
+          name="Gateway"
+          subtitle="WireGuard remote access"
+          status={h?.wireguard?.status ?? "unconfigured"}
+          linkUrl={h?.wireguard?.url}
+          linkLabel="Open wg-dashboard"
+        >
+          <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
+        </ServicePanel>
+
+        <ServicePanel
           icon={<Shield className="h-5 w-5" />}
           name="AdGuard"
           subtitle="DNS rewrites"
@@ -40,17 +51,6 @@ export function Network() {
               <span className="font-mono text-slate-400">{h.adguard.answer_ip}</span> (Caddy).
             </p>
           )}
-        </ServicePanel>
-
-        <ServicePanel
-          icon={<Router className="h-5 w-5" />}
-          name="Gateway"
-          subtitle="WireGuard remote access"
-          status={h?.wireguard?.status ?? "unconfigured"}
-          linkUrl={h?.wireguard?.url}
-          linkLabel="Open wg-dashboard"
-        >
-          <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
         </ServicePanel>
 
         <ServicePanel
