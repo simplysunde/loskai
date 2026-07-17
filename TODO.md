@@ -316,3 +316,17 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
 - [x] Update PLAN.md (Network restructure) and HISTORY.md
 
 **Phase 10 complete.** _Unverified in-sandbox (no Docker): the rendered Network tab, the cert-page instance assign, and per-service assign upstream reachability. Smoke-test on device._
+
+---
+
+## Phase 11 — Consolidate route creation into the Routing tab
+_One creation surface: the Routing tab's **Add route** picker (Container / Network service / External). The Docker + Network tabs *display* routed state but no longer create routes — killing the competing-assign overlap when infra runs as containers. Routed sources drop out of the picker._
+
+**Stage A — backend link + Routing "Add route" picker**
+- [ ] Instance gains an `origin` marker (network-service link, mirroring `container`): `get_by_origin`, `assign()` dedups by it + accepts it, `AssignBody.origin`. Include `origin` in the caddy `/routes` rows. Tests.
+- [ ] Routing **Add route** modal — source selector `[ Container | Network service | External ]`; Container/Network lists show only *unrouted* items (pre-fill subdomain + upstream); External is the current blank form. Submit → `/api/assign` with `container` / `origin` / neither.
+
+**Stage B — strip Assign from Docker/Network + routed-state display**
+- [ ] Docker tab: remove the Assign action; container subdomain badge → link to `https://<sub>.<domain>`.
+- [ ] Network tab: remove per-panel Assign; link-out prefers `https://<sub>.<domain>` when routed (found by `origin`). **Caddy cert page keeps the by-IP HTTP link** (exception — first-timers can't trust the cert yet).
+- [ ] Docs: PLAN (creation surface), HISTORY, api.md (`origin` on assign).
