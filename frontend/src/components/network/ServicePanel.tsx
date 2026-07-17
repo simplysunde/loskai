@@ -32,9 +32,9 @@ export function ServicePanel({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
@@ -42,22 +42,21 @@ export function ServicePanel({
           <div className="truncate text-xs text-slate-500">{subtitle}</div>
         </div>
         <StatusBadge status={status} label={STATUS_LABEL[status]} />
+        <a
+          href={linkUrl ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
+            linkUrl
+              ? "border-slate-700 text-slate-200 hover:bg-slate-800"
+              : "pointer-events-none border-slate-800 text-slate-600"
+          }`}
+        >
+          {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
+        </a>
       </div>
 
-      {children && <div className="mt-4 flex-1">{children}</div>}
-
-      <a
-        href={linkUrl ?? undefined}
-        target="_blank"
-        rel="noreferrer"
-        className={`mt-4 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium ${
-          linkUrl
-            ? "bg-teal-600 text-white hover:bg-teal-500"
-            : "pointer-events-none bg-slate-800 text-slate-500"
-        }`}
-      >
-        {linkLabel} <ExternalLink className="h-4 w-4" />
-      </a>
+      {children && <div className="mt-4">{children}</div>}
     </div>
   );
 }

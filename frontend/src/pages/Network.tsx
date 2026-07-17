@@ -1,31 +1,54 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Lock, Router, Shield } from "lucide-react";
 
+import { api } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
 import { PeerDnsReminder } from "../components/network/PeerDnsReminder";
 import { ServicePanel } from "../components/network/ServicePanel";
+import { SettingsFields, type SettingsView } from "../components/shared/SettingsFields";
 
-// The Network tab: the infrastructure services Loskai works with — AdGuard (DNS), the
-// WireGuard gateway, and Caddy (TLS + the CA-onboarding page). Status + link-out per
-// service; URL config and per-service Assign land in later Phase 10b steps.
+const GATEWAY_FIELDS = [
+  { key: "wireguard_dashboard_url", label: "Dashboard URL", hint: "http://…:51821" },
+];
+const ADGUARD_FIELDS = [
+  { key: "adguard_url", label: "URL", hint: "http://…:3000" },
+  { key: "adguard_user", label: "Username" },
+  { key: "adguard_password", label: "Password" },
+];
+const CADDY_FIELDS = [
+  { key: "caddy_admin_url", label: "Admin URL", hint: "http://…:2019" },
+  { key: "caddy_host_ip", label: "LAN IP", hint: "bare IP, e.g. 192.168.10.100" },
+  { key: "caddy_setup_url", label: "Certificate setup URL", hint: "defaults to http://<LAN IP>/" },
+];
+
+// The Network tab: the infrastructure services Loskai works with — the WireGuard gateway,
+// AdGuard (DNS), and Caddy (TLS + the CA-onboarding page). Each panel shows health, a
+// link-out, its config, and (Caddy) the by-IP certificate-setup link.
 export function Network() {
   const health = useHealth();
   const h = health.data;
-  // AdGuard's answer IP *is* the Caddy host IP — the cert-onboarding page is served there
-  // over plain HTTP by IP (see docs/certificate-setup.md). Be defensive: strip any scheme
-  // or port a stray CADDY_HOST_IP value might carry, so we never emit `http://http://…`.
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<SettingsView>("/api/settings"),
+  });
+
+  // AdGuard's answer IP *is* the Caddy host IP; the cert page is served there over plain
+  // HTTP by IP. Strip any stray scheme/port so we never emit `http://http://…`. An explicit
+  // caddy_setup_url wins (needed when the port is remapped, e.g. dev's 8081:80).
   const caddyHost = (h?.adguard?.answer_ip ?? "")
     .replace(/^\w+:\/\//, "")
     .split("/")[0]
     .split(":")[0];
-  const certUrl = caddyHost ? `http://${caddyHost}/` : null;
+  const derived = caddyHost ? `http://${caddyHost}/` : null;
+  const certUrl = settings.data?.caddy_setup_url?.value || derived;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-100">Network</h1>
         <p className="mt-1 text-sm text-slate-500">
-          The infrastructure services Loskai works with — DNS, VPN gateway, and TLS.
+          The infrastructure services Loskai works with — VPN gateway, DNS, and TLS.
         </p>
       </header>
 
@@ -36,9 +59,12 @@ export function Network() {
           subtitle="WireGuard remote access"
           status={h?.wireguard?.status ?? "unconfigured"}
           linkUrl={h?.wireguard?.url}
-          linkLabel="Open wg-dashboard"
+          linkLabel="Open"
         >
-          <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
+          <SettingsFields fields={GATEWAY_FIELDS} />
+          <div className="mt-4">
+            <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
+          </div>
         </ServicePanel>
 
         <ServicePanel
@@ -47,10 +73,11 @@ export function Network() {
           subtitle="DNS rewrites"
           status={h?.adguard?.status ?? "unconfigured"}
           linkUrl={h?.adguard?.url}
-          linkLabel="Open AdGuard"
+          linkLabel="Open"
         >
+          <SettingsFields fields={ADGUARD_FIELDS} />
           {h?.adguard?.answer_ip && (
-            <p className="text-xs text-slate-500">
+            <p className="mt-3 text-xs text-slate-500">
               Names resolve to{" "}
               <span className="font-mono text-slate-400">{h.adguard.answer_ip}</span> (Caddy).
             </p>
@@ -63,13 +90,14 @@ export function Network() {
           subtitle="TLS / reverse proxy"
           status={h?.caddy?.status ?? "unconfigured"}
           linkUrl={certUrl}
-          linkLabel="Certificate setup"
+          linkLabel="Cert page"
         >
-          <div className="space-y-2">
+          <SettingsFields fields={CADDY_FIELDS} />
+          <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
             <p className="text-xs text-slate-400">
               Install Caddy's root CA on a LAN device once and every{" "}
               <span className="font-mono text-slate-300">*.domain</span> name is trusted.
-              Share the by-IP link:
+              Share the link:
             </p>
             <CopyLink url={certUrl} />
           </div>
