@@ -787,6 +787,8 @@ frontend/src/
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
 │   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
 │   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
+│   │   ├── SettingsFields.tsx       settings form (used by the Settings page)
+│   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (Network panels)
 │   │   └── ConfirmDialog.tsx
 │   ├── routing/            unified Caddy + AdGuard view
 │   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
@@ -794,8 +796,9 @@ frontend/src/
 │   │   │                       private toggle; "Sync" for recovery
 │   │   ├── AssignModal.tsx     prefix + upstream form → POST /api/assign
 │   │   └── CaddyfileExport.tsx download / copy-to-clipboard Caddyfile
-│   ├── wireguard/
-│   │   └── WireGuardCard.tsx
+│   ├── network/            Gateway / AdGuard / Caddy service panels
+│   │   ├── ServicePanel.tsx    status + link-out + Assign header, config body
+│   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance
 │   └── docker/              Phase 8
 │       ├── ContainerList.tsx
 │       ├── LogViewer.tsx

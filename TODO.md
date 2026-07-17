@@ -308,10 +308,11 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
 - [x] Three service panels, each with health (from `/api/health`) + link-out (reusable `ServicePanel`):
   - **AdGuard (DNS)** — status + Open-AdGuard link + answer-IP note
   - **Gateway** (WireGuard) — remote-access gateway; carries the peer-DNS reminder (`PeerDnsReminder`)
-  - **Caddy (TLS / cert setup)** — **option C:** derived `http://<caddy_host_ip>/` link (from `adguard.answer_ip`) + copy-to-share. Not an instance, not a Dashboard card
+  - **Caddy (TLS / reverse proxy)** — derived by-IP cert link `http://<caddy_host_ip>/` (:80) + copy-to-share
 - [x] Per-panel **inline auto-saving fields** (commit on blur / Enter) — service config moved out of Settings into the panels (`InlineSettingsFields`, partial PUT, same `settings.json` keys, single source): Gateway `wireguard_dashboard_url`; AdGuard `adguard_url`/`adguard_user`/`adguard_password`; Caddy `caddy_admin_url`/`caddy_host_ip`
 - [x] Settings slims to app/security: `base_domain`, `recipes_repo_url`, `stacks_dir` (env) + backup export
 - [x] **Validated `caddy_host_ip`** must be a bare IP (a stray `http://…` corrupted every AdGuard answer) → 422. The bare LAN IP also derives the by-IP cert link `http://<IP>/` (:80, prod-shaped)
-- [x] Per-service **pre-filled "Assign URL"** on AdGuard, Gateway **and Caddy** (cert page → `setup.<domain>`, upstream `<caddy-ip>:80`) → `POST /api/assign` → external instance, reusing `AssignModal`
-- [ ] _(Optional, later — no work now)_ a public friendly `setup.<BASE_DOMAIN>` is just an ordinary external instance with upstream `<caddy-ip>:80` (Caddy proxies to its own file_server); being routed/owned it's sweep-safe, and the HTTPS cert chicken-egg is accepted (first-timers use the by-IP link)
+- [x] Per-service **pre-filled "Assign"** (header button, link icon) on AdGuard, Gateway **and Caddy** (cert page → `setup.<domain>`, upstream `<caddy-ip>:80` — Caddy proxies to its own file_server, sweep-safe) → `POST /api/assign` → external instance, reusing `AssignModal`. This is the friendly-name path (dropped the `caddy_setup_url` override in favour of it)
 - [x] Update PLAN.md (Network restructure) and HISTORY.md
+
+**Phase 10 complete.** _Unverified in-sandbox (no Docker): the rendered Network tab, the cert-page instance assign, and per-service assign upstream reachability. Smoke-test on device._
