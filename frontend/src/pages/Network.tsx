@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, Lock, Router, Shield } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Copy, Lock, Plus, Router, Shield } from "lucide-react";
 
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
+import { AssignModal } from "../components/routing/AssignModal";
 import { PeerDnsReminder } from "../components/network/PeerDnsReminder";
 import { ServicePanel } from "../components/network/ServicePanel";
 import { SettingsFields, type SettingsView } from "../components/shared/SettingsFields";
@@ -22,16 +23,38 @@ const CADDY_FIELDS = [
   { key: "caddy_setup_url", label: "Certificate setup URL", hint: "defaults to http://<LAN IP>/" },
 ];
 
+// A service URL → a bare host:port upstream for the assign form (Caddy dials it). "" when
+// the URL is unset or has no explicit port (the user fills it in).
+function urlToUpstream(url?: string | null): string {
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    return u.port ? `${u.hostname}:${u.port}` : u.hostname;
+  } catch {
+    return "";
+  }
+}
+
+type AssignTarget = { name: string; prefix: string; upstream: string };
+
 // The Network tab: the infrastructure services Loskai works with — the WireGuard gateway,
 // AdGuard (DNS), and Caddy (TLS + the CA-onboarding page). Each panel shows health, a
-// link-out, its config, and (Caddy) the by-IP certificate-setup link.
+// link-out, its config, an "Assign URL" (external instance), and (Caddy) the cert link.
 export function Network() {
+  const qc = useQueryClient();
   const health = useHealth();
   const h = health.data;
   const settings = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<SettingsView>("/api/settings"),
   });
+  const s = settings.data;
+
+  const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  const baseDomain = s?.base_domain?.value ?? null;
+  const mode = h?.caddy?.mode ?? null;
 
   // AdGuard's answer IP *is* the Caddy host IP; the cert page is served there over plain
   // HTTP by IP. Strip any stray scheme/port so we never emit `http://http://…`. An explicit
@@ -41,7 +64,24 @@ export function Network() {
     .split("/")[0]
     .split(":")[0];
   const derived = caddyHost ? `http://${caddyHost}/` : null;
-  const certUrl = settings.data?.caddy_setup_url?.value || derived;
+  const certUrl = s?.caddy_setup_url?.value || derived;
+
+  const assign = useMutation({
+    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
+      api.post("/api/assign", { ...p, name: assignFor?.name }),
+    onSuccess: () => {
+      setAssignFor(null);
+      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
+      qc.invalidateQueries({ queryKey: ["adguard-status"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
+  });
+
+  const openAssign = (target: AssignTarget) => {
+    setAssignError(null);
+    setAssignFor(target);
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -62,6 +102,15 @@ export function Network() {
           linkLabel="Open"
         >
           <SettingsFields fields={GATEWAY_FIELDS} />
+          <AssignRow
+            onClick={() =>
+              openAssign({
+                name: "Gateway",
+                prefix: "wg",
+                upstream: urlToUpstream(s?.wireguard_dashboard_url?.value),
+              })
+            }
+          />
           <div className="mt-4">
             <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
           </div>
@@ -76,6 +125,15 @@ export function Network() {
           linkLabel="Open"
         >
           <SettingsFields fields={ADGUARD_FIELDS} />
+          <AssignRow
+            onClick={() =>
+              openAssign({
+                name: "AdGuard",
+                prefix: "adguard",
+                upstream: urlToUpstream(s?.adguard_url?.value),
+              })
+            }
+          />
           {h?.adguard?.answer_ip && (
             <p className="mt-3 text-xs text-slate-500">
               Names resolve to{" "}
@@ -103,7 +161,31 @@ export function Network() {
           </div>
         </ServicePanel>
       </div>
+
+      <AssignModal
+        key={assignFor?.name ?? "none"}
+        open={assignFor !== null}
+        baseDomain={baseDomain}
+        mode={mode}
+        pending={assign.isPending}
+        error={assignError}
+        initialPrefix={assignFor?.prefix ?? ""}
+        initialUpstream={assignFor?.upstream ?? ""}
+        onSubmit={(p) => assign.mutate(p)}
+        onClose={() => setAssignFor(null)}
+      />
     </div>
+  );
+}
+
+function AssignRow({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+    >
+      <Plus className="h-3.5 w-3.5" /> Assign URL
+    </button>
   );
 }
 
