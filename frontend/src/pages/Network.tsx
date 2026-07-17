@@ -12,9 +12,13 @@ export function Network() {
   const health = useHealth();
   const h = health.data;
   // AdGuard's answer IP *is* the Caddy host IP — the cert-onboarding page is served there
-  // over plain HTTP by IP (see docs/certificate-setup.md).
-  const caddyIp = h?.adguard?.answer_ip ?? null;
-  const certUrl = caddyIp ? `http://${caddyIp}/` : null;
+  // over plain HTTP by IP (see docs/certificate-setup.md). Be defensive: strip any scheme
+  // or port a stray CADDY_HOST_IP value might carry, so we never emit `http://http://…`.
+  const caddyHost = (h?.adguard?.answer_ip ?? "")
+    .replace(/^\w+:\/\//, "")
+    .split("/")[0]
+    .split(":")[0];
+  const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
