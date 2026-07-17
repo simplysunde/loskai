@@ -80,6 +80,7 @@ async def assign(
     instance_id: str | None = None,
     name: str | None = None,
     container: str | None = None,
+    origin: str | None = None,
     upstream_tls: bool = False,
 ) -> dict:
     validate_prefix(prefix)
@@ -92,11 +93,13 @@ async def assign(
     if instance_id and existing is None:
         raise AssignError(404, f"instance '{instance_id}' not found")
 
-    # No duplicates: assigning a container targets its existing instance (change its URL)
-    # rather than creating a second one. For more routes to one service, add a separate
-    # external instance instead.
+    # No duplicates: assigning a container (or a built-in network service) targets its
+    # existing instance — change its URL — rather than creating a second one. Keyed by the
+    # container name or the `origin` service marker, whichever the assign carries.
     if existing is None and container:
         existing = instances_store.get_by_container(container)
+    if existing is None and origin:
+        existing = instances_store.get_by_origin(origin)
 
     target_id = existing.id if existing else prefix
     if subdomain_taken(prefix, exclude_id=target_id):
@@ -112,11 +115,12 @@ async def assign(
         if instances_store.get_instance(prefix) is not None:
             raise AssignError(409, f"instance id '{prefix}' already exists")
         prev = None
-        # A container gets a `docker` instance linked by name; a bare LAN target is `external`.
+        # A container gets a `docker` instance linked by name; everything else is `external`
+        # (a built-in network service carries its `origin` marker, a bare LAN target none).
         inst = Instance(
             id=prefix, name=name or prefix,
             type="docker" if container else "external",
-            container=container, subdomain=prefix, upstream=upstream,
+            container=container, origin=origin, subdomain=prefix, upstream=upstream,
             upstream_tls=upstream_tls,
         )
 
@@ -255,6 +259,7 @@ class AssignBody(BaseModel):
     instance_id: str | None = None
     name: str | None = None
     container: str | None = None
+    origin: str | None = None
     upstream_tls: bool = False
 
 
@@ -267,6 +272,7 @@ async def post_assign(body: AssignBody) -> dict:
             caddy, adguard,
             prefix=body.prefix, upstream=body.upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
+            origin=body.origin,
             upstream_tls=body.upstream_tls,
             base_domain=base, current_ip=current_ip,
         )

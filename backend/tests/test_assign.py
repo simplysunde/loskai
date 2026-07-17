@@ -154,6 +154,24 @@ async def test_container_assign_is_idempotent_no_duplicate():
     assert docker_instances[0].subdomain == "dashboards"  # URL changed on the same instance
 
 
+async def test_assign_with_origin_creates_external_and_is_idempotent():
+    # A built-in network service (AdGuard) routes as an external instance keyed by origin;
+    # re-assigning it changes the URL on the same instance (no duplicate).
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="adguard", upstream="adguard:3000",
+        base_domain=BASE, current_ip=IP, origin="adguard", name="AdGuard",
+    )
+    inst = instances_store.get_by_origin("adguard")
+    assert inst is not None and inst.type == "external" and inst.subdomain == "adguard"
+
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="dns", upstream="adguard:3000",
+        base_domain=BASE, current_ip=IP, origin="adguard", name="AdGuard",
+    )
+    linked = [i for i in instances_store.list_instances() if i.origin == "adguard"]
+    assert len(linked) == 1 and linked[0].subdomain == "dns"
+
+
 async def test_assign_creates_external_routes_and_rewrites():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(

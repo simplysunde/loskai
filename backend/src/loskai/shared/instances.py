@@ -24,6 +24,7 @@ class Instance(BaseModel):
     upstream: str | None = None  # host:port — chosen at assign time
     upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
     container: str | None = None  # container name/id (docker type only)
+    origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
 
@@ -48,6 +49,12 @@ def get_by_container(container: str) -> Instance | None:
     """The instance linked to a container (one per container) — used to keep a container
     assign idempotent so it never creates a duplicate docker instance."""
     return next((i for i in list_instances() if i.container == container), None)
+
+
+def get_by_origin(origin: str) -> Instance | None:
+    """The instance routing a built-in network service (AdGuard/Gateway/Caddy) — the
+    external-service analogue of `get_by_container`, so its assign stays idempotent."""
+    return next((i for i in list_instances() if i.origin == origin), None)
 
 
 def upsert_instance(instance: Instance) -> Instance:
