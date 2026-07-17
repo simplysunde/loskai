@@ -63,7 +63,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /routes` | **All** instances (routed or not) annotated with `routed` + `synced` (in Caddy) + `upstream_healthy`. Route fields are null when unrouted. Display-only comparison — never auto-corrects. |
+| `GET /routes` | **All** instances (routed or not) annotated with `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin` links (so the UI can find a container's or Network service's route). Route fields are null when unrouted. Display-only comparison — never auto-corrects. |
 | `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s. |
 | `GET /caddyfile` | A complete, runnable Caddyfile rendered from the instance list (`text/plain`). `400` if `base_domain` is unset. |
 | `GET /health` | `{ status, server?, mode: "docker"\|"lan"\|null }`. |

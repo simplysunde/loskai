@@ -31,8 +31,8 @@ Your service (any IP:port on the LAN)
 ```
 
 Any service on your LAN gets a clean HTTPS name. You configure it in one place —
-Loskai's Assign URL form — and it sets up both the Caddy route and the AdGuard
-DNS rewrite in a single action.
+the Routing tab's **Add route** picker — and it sets up both the Caddy route and the
+AdGuard DNS rewrite in a single action.
 
 ---
 
@@ -113,7 +113,9 @@ view both read.
   "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
   "upstream":  "192.168.10.100:3000",  // host:port — chosen at assign time
   "upstream_tls": false,         // true = dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
-  "container": "grafana",        // container name/id (docker type only; null for external)
+  "container": "grafana",        // container name/id — links a docker instance to live data
+  "origin":    null,             // "adguard"|"gateway"|"caddy" — links an external instance to a
+                                 //   built-in Network service; null for a plain LAN target
   "dns_answer": "192.168.10.101", // Caddy IP last written to AdGuard for this name
                                  //   (null = no rewrite pushed; used to clean up on IP change)
   "private":   false             // true = hide from the public dashboard (still fully managed)
@@ -121,8 +123,12 @@ view both read.
 ```
 
 - **Docker instance** — backed by a real container; `container` links it to live data.
-- **External ("dummy") instance** — Proxmox, a NAS, any `IP:port`. No `container`,
-  just an `upstream`.
+- **External instance** — Proxmox, a NAS, any `IP:port`, or a built-in Network service.
+  No `container`, just an `upstream`; a Network service also carries an `origin` marker so
+  its panel can recognise its own route.
+- **`container` and `origin` are the idempotency keys** — re-routing the same container or
+  Network service edits its existing instance instead of creating a duplicate (mirrors of
+  each other: `get_by_container` / `get_by_origin`).
 - An instance may exist **without** a subdomain (tracked but not exposed). A *route* is
   exactly an instance that *has* a subdomain; the routing view lists **all** instances
   (routed or not) and lets you assign/clear routes per row.
@@ -140,29 +146,23 @@ view both read.
   live from the Docker socket and **joined in at display time** via `container`. This
   keeps the store from ever drifting out of sync with reality.
 
-**How instances are created:**
-- **Semi-automatically, from the Docker Manager** — "Assign URL" on a container creates /
-  updates its `docker` instance + route, pre-filled with a suggested subdomain (the
-  container name) **and a reachable upstream** — `<service>:<port>` derived from the Docker
-  socket (the container-side of its published port; resolves via Docker DNS when Caddy
-  shares the network). **One instance per container** (a container assign is idempotent —
-  it changes that container's URL, never creates a duplicate); a *second* route to the same
-  service is a separate `external` instance. The URL is editable in place from either tab
-  ("Change URL"). Assignment is never automatic — a container with no assigned URL simply
-  shows live in the Docker Manager with no route.
-- **Manually** — added through the UI, either a docker instance or an external one.
-- **Seeded** — on first run, if `ADGUARD_URL` is set to a valid target and no AdGuard
-  instance exists yet, one is created: an `external` instance pointing at that IP:port,
-  defaulting to the `adguard` subdomain so its route is created out of the box (replacing
-  the old hand-written Caddyfile route). Seeding is **create-if-absent, once** — after that
-  the AdGuard instance is a completely ordinary `external` instance: rename its subdomain,
-  edit its upstream, or delete it, and the change sticks (it is never re-asserted on later
-  boots). Loskai's own UI needs no seeding: it is a normal container on the Docker host,
-  discovered as a plain `docker` instance like any other — no special-casing.
+**How routes are created — one surface.** All route creation happens in the Routing tab's
+**Add route** picker; the Docker and Network tabs never create routes (they only *display*
+routed state). The picker chooses a source, which pre-fills the subdomain + upstream:
+- **Container** — an *unrouted* Docker container → a `docker` instance linked by `container`,
+  pre-filled with a suggested subdomain (the container name) **and a reachable upstream** —
+  `<service>:<port>` from the Docker socket (the container-side of its published port; resolves
+  via Docker DNS when Caddy shares the network).
+- **Network service** — a built-in service (AdGuard / Gateway / Caddy cert page) → an `external`
+  instance carrying an `origin` marker, pre-filled from the service's configured URL.
+- **External** — any bare `IP:port` LAN target (Proxmox, a NAS) → a plain `external` instance.
 
-Both paths write to the same list, and Caddy routes + the Caddyfile export are both
-rendered from it. Because Loskai and AdGuard are ordinary instances, they carry no
-reserved status — the normal subdomain-uniqueness rule prevents collisions.
+Routed containers/services **drop out of the picker** (they're managed as rows). Re-routing a
+container or service is **idempotent** — it edits that instance via `container`/`origin`, never
+a duplicate; a *second* route to one service is a separate `external` instance. Editing an
+existing route is per-row ("Change URL"). Everything writes to the same list, from which Caddy
+routes + the Caddyfile export are rendered. Loskai and AdGuard are ordinary instances with no
+reserved status — the subdomain-uniqueness rule prevents collisions.
 
 ### How the instance list connects the modules
 
@@ -173,8 +173,8 @@ runtime dependency. The graceful-degradation guarantees (each module still works
 
 | Module | Relationship to the instance list |
 |---|---|
-| **Docker Manager** | Surfaces each container as a `docker` instance (live data joined via `container`); creating a service or assigning a URL writes an instance |
-| **Caddy Routing** | Reads instances that have a `subdomain` and pushes them as routes; owns that projection. External instances need no container at all |
+| **Docker Manager** | Surfaces each container as a `docker` instance (live data joined via `container`); a routed container shows its FQDN inline. Routing itself is created in the Routing tab, not here |
+| **Caddy Routing** | The single route-creation surface (the **Add route** picker). Reads instances that have a `subdomain` and pushes them as routes; owns that projection. External instances need no container at all |
 | **AdGuard DNS** | For each instance-with-subdomain, best-effort creates the matching DNS rewrite; reads rewrites back from AdGuard to show which instances are in sync |
 | **WireGuard** | None — a standalone status card, not part of the instance model |
 
@@ -210,8 +210,9 @@ dependency on Caddy, AdGuard, or WireGuard.
 
 Each container surfaces as a `docker` **instance** (see
 [Core Data Model](#core-data-model--instances)): the live container data is joined to
-its instance record by `container`, so a container's assigned subdomain shows inline and
-"Assign URL" here writes the same instance the Caddy module routes from.
+its instance record by `container`, so a routed container's FQDN shows inline (as a link).
+Routing a container is done from the Routing tab's **Add route** picker (Container source),
+not here — this module is container management only.
 
 ### Features
 
@@ -221,8 +222,9 @@ its instance record by `container`, so a container's assigned subdomain shows in
 - Remove container (with confirmation)
 - View live logs (streaming, last N lines)
 - View container environment variables (read-only)
-- Assigned URL shown inline if one exists (from the container's instance `subdomain`)
-- "Assign URL" action on any container — creates/updates its `docker` instance and routes it
+- Routed URL shown inline (as an `https://<sub>.<domain>` link) when the container is routed —
+  joined from its instance `subdomain`. Routing is created in the Routing tab's **Add route**
+  picker (Container source), which lists unrouted containers
 
 **Stack Manager**
 
@@ -407,7 +409,7 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 
 **Route List**
 - Every instance in a clean table — routed rows show route/DNS status, unrouted rows offer
-  "Assign". Per-row actions depend on type: remove-route (keep instance) for any routed
+  "Change URL". Per-row actions depend on type: remove-route (keep instance) for any routed
   row; delete for external instances; docker instances can't be deleted (see Core Data Model)
 - Each row: subdomain → upstream (host:port, optionally HTTPS), synced + live + DNS status
 - **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
@@ -419,7 +421,10 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   AdGuard rewrites (adds missing, migrates stale, sweeps orphaned); the one-click recovery
   + refresh action
 
-**Assign URL**
+**Add route** (the single route-creation surface — a source picker over one assign form)
+- Source selector `[ Container | Network service | External ]` — pick an *unrouted* container
+  or built-in service (pre-fills subdomain + upstream), or enter an external target by hand.
+  Routed items are filtered out. Submitting posts `container` / `origin` / neither to `/api/assign`.
 - Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
   (lowercase letters, digits, hyphens; must be unique)
 - Domain suffix auto-filled from the global `BASE_DOMAIN` setting (e.g. `example.no`)
@@ -479,7 +484,7 @@ The backend client is identical in both cases — it just hits whatever URL is c
 On startup, config.py logs which mode is active.
 
 The frontend reads the resolved mode from `GET /api/caddy/health` and adjusts the
-upstream input hint in the Assign URL modal accordingly:
+upstream input hint in the Add route form accordingly:
 - Docker mode → "e.g. grafana:3000"
 - LAN mode → "e.g. 192.168.10.100:3000"
 
@@ -517,7 +522,7 @@ documented in [`docs/caddy-api.md`](docs/caddy-api.md).
 
 The Caddy module is **read + push only**. Assigning or clearing a subdomain is a
 cross-module action and lives at `POST` / `DELETE /api/assign` (see
-[The "Assign URL" Action](#the-assign-url-action--cross-module-coordination)) — the Caddy
+[The Assign Action](#the-assign-action--cross-module-coordination)) — the Caddy
 module never writes a single route on its own.
 
 ```
@@ -584,7 +589,7 @@ stays.)
 **Rewrite List**
 - List existing DNS rewrites so you can see which routed instances are in sync
 - Delete a rewrite if needed
-- Rewrites are primarily created automatically via the Assign URL action —
+- Rewrites are primarily created automatically via the assign action —
   manual add is available but not the main flow
 
 **Sync with the instance list**
@@ -660,10 +665,11 @@ GET  /api/wireguard/status       is dashboard reachable? returns { reachable: bo
 
 ---
 
-## The "Assign URL" Action — Cross-Module Coordination
+## The Assign Action — Cross-Module Coordination
 
-This is the one place where modules coordinate. When a user assigns a URL
-(from either the Docker Manager or the Caddy module), this happens:
+This is the one place where modules coordinate. When a user adds a route (via the Routing
+tab's **Add route** picker, `POST /api/assign`), this happens — the flow is identical whether
+the source was a container, a Network service, or an external target:
 
 ```
 User: enters prefix "grafana" → upstream 192.168.10.100:3000
@@ -800,7 +806,8 @@ frontend/src/
 │   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
 │   │   │                       route-sync + DNS-rewrite status, per-row actions,
 │   │   │                       private toggle; "Sync" for recovery
-│   │   ├── AssignModal.tsx     prefix + upstream form → POST /api/assign
+│   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/assign
+│   │   ├── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
 │   │   └── CaddyfileExport.tsx download / copy-to-clipboard Caddyfile
 │   ├── network/            Gateway / AdGuard / Caddy service panels
 │   │   ├── ServicePanel.tsx    status + link-out + Assign header, config body

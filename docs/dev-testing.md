@@ -54,9 +54,10 @@ npm run dev        # Vite on http://localhost:5173, proxies /api/* -> :8000
 
 Open <http://localhost:5173> and log in with `LOSKAI_PASSWORD`.
 
-- **Routing tab** — Caddy and AdGuard should both show healthy. Click **Assign URL**,
-  e.g. prefix `test`, upstream `127.0.0.1:8000`. Loskai pushes the Caddy route and adds
-  the AdGuard rewrite.
+- **Routing tab** — Caddy and AdGuard should both show healthy. Click **Add route** → the
+  **External** source, e.g. prefix `test`, upstream `127.0.0.1:8000`. (The **Container** and
+  **Network service** sources pre-fill from a live container / a configured service.) Loskai
+  pushes the Caddy route and adds the AdGuard rewrite.
 - **Verify it landed:**
   ```bash
   curl -s http://127.0.0.1:2019/config/apps/http/servers    # the route is in Caddy

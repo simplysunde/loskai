@@ -37,7 +37,10 @@ every module reads. A Docker container and an external LAN service (NAS, Proxmox
 `IP:port`) are the same struct with a different `type`. **A route is not stored separately —
 it is simply an instance that has a `subdomain`.** Runtime container state (status/CPU/RAM)
 is never persisted; it is read live from the Docker socket and joined at display time via
-the `container` field, so the store cannot drift from reality.
+the `container` field, so the store cannot drift from reality. Two link fields are the
+idempotency keys: `container` (a docker instance ↔ its container) and `origin` (an external
+instance ↔ a built-in Network service: `adguard`/`gateway`/`caddy`) — re-routing either edits
+its existing instance rather than making a duplicate (`get_by_container`/`get_by_origin`).
 
 **`client.py` (I/O) vs pure logic is a hard seam — keep it.** Thin `client.py` wrappers do
 only HTTP/socket calls; all decision logic (reconcile, route/Caddyfile builders, answer-IP
@@ -48,6 +51,14 @@ derivation) lives in pure functions. This is what makes the logic testable witho
 instance's subdomain, pushes the Caddy route (**required** — aborts+rolls back on failure),
 then writes the AdGuard rewrite (**best-effort** — warns, never fails the assign). The Caddy
 and AdGuard modules never write on their own; they are read + push only.
+
+**Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
+`AddRouteModal`) — the single surface, with three sources (Container / Network service /
+External) that pre-fill and post to `/api/assign` with `container` / `origin` / neither. The
+**Docker and Network tabs display routed state but never create routes** (a routed container
+links to its FQDN; a Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
+on the Routing table edits an existing route (passes `instance_id`). This is what prevents a
+co-located infra container from being double-routed from competing tabs.
 
 **Security is enforced on the API, never the frontend.** Single admin password (no accounts),
 hashed, `HttpOnly` session cookie. Middleware gates **every `/api/*` except `GET /api/dashboard`**.
