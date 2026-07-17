@@ -21,12 +21,14 @@ Docker-style "Assign URL".
 - **Data-integrity fix:** `caddy_host_ip` is now validated as a bare IP (422 otherwise). A
   stray `http://127.0.0.1` had leaked in and was being written as the answer for *every*
   AdGuard rewrite (unresolvable). Frontend also strips scheme/port defensively.
-- **Per-service Assign:** AdGuard, Gateway, and Caddy (the cert page) get a pre-filled
-  "Assign URL" → `POST /api/assign` → external instance, reusing `AssignModal`.
+- **Per-service Assign:** AdGuard, Gateway, and Caddy (the cert page) get a pre-filled Assign
+  → `POST /api/assign` → external instance, reusing `AssignModal`. Lives as a link-icon button
+  in each panel header next to the link-out.
 - Key files: `pages/Network.tsx`, `pages/Settings.tsx`, `components/network/*`,
-  `components/shared/SettingsFields.tsx`, `shared/settings.py`, `config.py`
-- Tests: 144 backend (+4 validation) + 19 Vitest. **Unverified in-sandbox:** the rendered tab
-  + the assign reachability (upstream derived from a service URL may need editing for Caddy).
+  `components/shared/{SettingsFields,InlineSettingsFields}.tsx`, `shared/settings.py`, `config.py`
+- Tests: 143 backend (+3 net: `caddy_host_ip` validation) + 19 Vitest. **Unverified in-sandbox:**
+  the rendered tab + assign reachability (upstream derived from a service URL may need editing
+  for Caddy).
 
 ## 2026-07-17 — Phase 10a: certificate onboarding (internal-CA)
 
