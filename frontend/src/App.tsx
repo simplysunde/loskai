@@ -6,9 +6,9 @@ import { Layout } from "./components/shared/Layout";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { Network } from "./pages/Network";
 import { Routing } from "./pages/Routing";
 import { Settings } from "./pages/Settings";
-import { WireGuard } from "./pages/WireGuard";
 
 // The Docker page pulls in xterm (~half the bundle). Load it only when that tab is
 // opened so the initial JS chunk stays small.
@@ -51,10 +51,10 @@ export default function App() {
           }
         />
         <Route
-          path="/vpn"
+          path="/network"
           element={
             <RequireAuth>
-              <WireGuard />
+              <Network />
             </RequireAuth>
           }
         />
