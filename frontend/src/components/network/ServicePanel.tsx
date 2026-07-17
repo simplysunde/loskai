@@ -45,6 +45,7 @@ export function ServicePanel({
         </div>
         <StatusBadge status={status} label={STATUS_LABEL[status]} />
         <div className="flex shrink-0 items-center gap-2">
+          {action}
           <a
             href={linkUrl ?? undefined}
             target="_blank"
@@ -57,7 +58,6 @@ export function ServicePanel({
           >
             {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
           </a>
-          {action}
         </div>
       </div>
 
