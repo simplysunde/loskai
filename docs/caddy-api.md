@@ -156,8 +156,9 @@ For clarity, endpoints Loskai deliberately does **not** call:
 - `PATCH /id/<id>` — editing is done as delete-then-add (endpoint #4), so PATCH is unused.
 - `PUT /config/...` (insert-at-index) — not needed; specific-host routes are
   order-independent, so append is always sufficient.
-- `POST /adapt` — Loskai renders its Caddyfile export from its own instance list, not by
-  round-tripping through Caddy (there is no JSON → Caddyfile converter anyway).
+- `POST /adapt` — unused; Loskai manages routes as JSON via the config endpoints and no
+  longer renders a Caddyfile at all (that export was removed — the bootstrap Caddyfile ships
+  in the repo instead).
 - Cert / PKI endpoints (`GET /pki/...`) — confirmed dead end for our cert. The PKI
   endpoints cover only Caddy's internal `local` CA (returning PEM blobs, no structured
   expiry), and the public wildcard cert is never exposed at `/config` or `/pki`. The

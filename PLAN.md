@@ -161,7 +161,7 @@ Routed containers/services **drop out of the picker** (they're managed as rows).
 container or service is **idempotent** — it edits that instance via `container`/`origin`, never
 a duplicate; a *second* route to one service is a separate `external` instance. Editing an
 existing route is per-row ("Change URL"). Everything writes to the same list, from which Caddy
-routes + the Caddyfile export are rendered. Loskai and AdGuard are ordinary instances with no
+routes are pushed. Loskai and AdGuard are ordinary instances with no
 reserved status — the subdomain-uniqueness rule prevents collisions.
 
 ### How the instance list connects the modules
@@ -453,14 +453,10 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 - Read-only view of the current Caddy JSON config
 - Useful for debugging
 
-**Caddyfile Export**
-- Generates a complete, runnable Caddyfile from the instance list (every instance
-  that has a subdomain)
-- Rendered from Loskai's own model, NOT from Caddy's JSON — Caddy adapts
-  Caddyfile → JSON but has no JSON → Caddyfile converter
-- Includes the wildcard TLS block + `admin` block (templated from `BASE_DOMAIN`),
-  so the output is directly usable — e.g. to bootstrap the co-located / all-in-one setups
-- Available as a file download or copy-to-clipboard
+> **Caddyfile export was removed** — it duplicated the JSON config export (`GET /api/export`,
+> instances + rewrites) and the Sync backstop, and the bootstrap Caddyfile now ships as a
+> ready-made file in the repo for the Docker / LXC install path. Loskai no longer renders a
+> Caddyfile from the instance list.
 
 ### Independence
 - Requires only: Caddy Admin API reachable at `CADDY_ADMIN_URL` (default: `http://192.168.10.101:2019`) + the local instance list
@@ -528,7 +524,6 @@ module never writes a single route on its own.
 ```
 GET  /api/caddy/routes           list instances that have a subdomain (the route table)
 POST /api/caddy/push             re-push all routes from the instance list to Caddy
-GET  /api/caddy/caddyfile        export complete runnable Caddyfile (text/plain)
 GET  /api/caddy/health           caddy status + mode (`docker` | `lan`)
 GET  /api/caddy/upstreams        upstream health from caddy
 ```
@@ -807,8 +802,7 @@ frontend/src/
 │   │   │                       route-sync + DNS-rewrite status, per-row actions,
 │   │   │                       private toggle; "Sync" for recovery
 │   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/assign
-│   │   ├── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
-│   │   └── CaddyfileExport.tsx download / copy-to-clipboard Caddyfile
+│   │   └── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
 │   ├── network/            Gateway / AdGuard / Caddy service panels
 │   │   ├── ServicePanel.tsx    status + link-out + Assign header, config body
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance

@@ -1,6 +1,6 @@
 """Caddy module HTTP surface — read + push only (never assigns a route itself)."""
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 
 from ...shared import health as health_registry
 from ...shared import settings as settings_store
@@ -34,18 +34,6 @@ async def push() -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"pushed": results}
-
-
-@router.get("/caddyfile")
-def caddyfile() -> Response:
-    from ...shared import instances as instances_store
-
-    base = settings_store.value("base_domain")
-    try:
-        text = service.render_caddyfile(instances_store.list_instances(), base)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    return Response(content=text, media_type="text/plain")
 
 
 @router.get("/health")

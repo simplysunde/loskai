@@ -7,7 +7,6 @@ import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AdGuardStatus } from "../components/routing/AdGuardStatus";
 import { AssignModal } from "../components/routing/AssignModal";
-import { CaddyfileExport } from "../components/routing/CaddyfileExport";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { ModuleStatus } from "../components/shared/ModuleStatus";
@@ -297,10 +296,6 @@ export function Routing() {
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />
       )}
-
-      <div className="mt-6">
-        <CaddyfileExport />
-      </div>
 
       <AssignModal
         key={`${assignTarget?.id ?? "new"}:${assignOpen}`}
