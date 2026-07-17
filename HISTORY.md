@@ -1,18 +1,14 @@
 # Loskai — History
 
-## 2026-07-18 — Cleanup: drop the Caddyfile export + uniform deletion
+## 2026-07-18 — Cleanup: drop the Caddyfile export
 
-Two simplifications after the Phase 11 consolidation:
-- **Removed the Caddyfile export** (UI `CaddyfileExport`, `GET /api/caddy/caddyfile`, and the
-  `render_caddyfile` renderer + its 3 tests). It duplicated the JSON config export
-  (`GET /api/export`) and the Sync backstop, and the bootstrap Caddyfile already ships in the
-  repo (`./Caddyfile` for LXC, `./caddy/Caddyfile` co-located, `./dev/Caddyfile`) — those are
-  cert-only, routes are pushed at runtime, so a dynamic full-Caddyfile render earned nothing.
-- **Uniform instance deletion** — dropped the "docker instances can't be deleted (409)" guard
-  (backend + frontend disabled-state). Since containers no longer auto-create instances, a
-  deleted docker instance just loses its route/record, leaves the container untouched, and is
-  re-routable via Add route.
-- Tests: 141 backend (−3 render) + 19 Vitest.
+**Removed the Caddyfile export** (UI `CaddyfileExport`, `GET /api/caddy/caddyfile`, and the
+`render_caddyfile` renderer + its 3 tests). It duplicated the JSON config export
+(`GET /api/export`) and the Sync backstop, and the bootstrap Caddyfile already ships in the
+repo (`./Caddyfile` for LXC, `./caddy/Caddyfile` co-located, `./dev/Caddyfile`) — those are
+cert-only, routes are pushed at runtime, so a dynamic full-Caddyfile render earned nothing.
+Tests: 141 backend (−3 render) + 19 Vitest. (Uniform instance deletion, same day-ish, is
+noted under the Phase 11 entry below.)
 
 ## 2026-07-17 — Phase 11: one route-creation surface
 
