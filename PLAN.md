@@ -763,8 +763,14 @@ a main "library" content area, with contextual action buttons per item.
   frontend unifies them.)
 - **Network tab** = the infrastructure services Loskai works with — the WireGuard **Gateway**,
   **AdGuard** (DNS), and **Caddy** (TLS + the cert-onboarding link). Per service: health +
-  link-out + its URL/credential config (moved here from the Settings page — one source of
-  truth) + a Docker-style "Assign URL". **Docker tab** = containers + stacks + wizard.
+  config (moved here from the Settings page — one source of truth) + a link-out that prefers
+  the **HTTPS route** when the service is routed (linked by an `origin` marker on the instance).
+  **Docker tab** = containers + stacks + wizard; a routed container shows its FQDN as a link.
+- **Route creation is centralised in the Routing tab.** Its **Add route** picker chooses a
+  source — an unrouted **Container**, a built-in **Network service**, or a new **External**
+  target — pre-fills the prefix + upstream, and creates the instance (linked by `container` /
+  `origin` / neither). The Docker and Network tabs *display* routed state but never create
+  routes, so a service can't be double-routed from competing surfaces.
 - **Hybrid card/table aesthetic**: card grid for the Dashboard and service launchers (library
   feel); dense tables where live stats must be scannable (container/stack lists, the routing
   table).

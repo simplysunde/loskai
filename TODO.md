@@ -323,10 +323,12 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
 _One creation surface: the Routing tab's **Add route** picker (Container / Network service / External). The Docker + Network tabs *display* routed state but no longer create routes — killing the competing-assign overlap when infra runs as containers. Routed sources drop out of the picker._
 
 **Stage A — backend link + Routing "Add route" picker**
-- [ ] Instance gains an `origin` marker (network-service link, mirroring `container`): `get_by_origin`, `assign()` dedups by it + accepts it, `AssignBody.origin`. Include `origin` in the caddy `/routes` rows. Tests.
-- [ ] Routing **Add route** modal — source selector `[ Container | Network service | External ]`; Container/Network lists show only *unrouted* items (pre-fill subdomain + upstream); External is the current blank form. Submit → `/api/assign` with `container` / `origin` / neither.
+- [x] Instance gains an `origin` marker (network-service link, mirroring `container`): `get_by_origin`, `assign()` dedups by it + accepts it, `AssignBody.origin`. `origin` + `container` in the caddy `/routes` rows. +1 test
+- [x] Routing **Add route** modal (`AddRouteModal`) — source selector `[ Container | Network | External ]`; Container/Network lists show only *unrouted* items (pre-fill subdomain + upstream); External is the manual form. Submit → `/api/assign` with `container` / `origin` / neither
 
 **Stage B — strip Assign from Docker/Network + routed-state display**
-- [ ] Docker tab: remove the Assign action; container subdomain badge → link to `https://<sub>.<domain>`.
-- [ ] Network tab: remove per-panel Assign; link-out prefers `https://<sub>.<domain>` when routed (found by `origin`). **Caddy cert page keeps the by-IP HTTP link** (exception — first-timers can't trust the cert yet).
-- [ ] Docs: PLAN (creation surface), HISTORY, api.md (`origin` on assign).
+- [x] Docker tab: Assign action removed; routed container subdomain badge → link to `https://<sub>.<domain>`
+- [x] Network tab: per-panel Assign removed; link-out prefers `https://<sub>.<domain>` when routed (by `origin`) + "Routed at … · manage in Routing" hint. **Caddy cert page keeps the by-IP HTTP link** (exception)
+- [x] Docs: PLAN (creation surface), HISTORY, api.md (`origin` on assign)
+
+**Phase 11 complete.** _Unverified in-sandbox (no Docker/live services): the rendered Add-route picker, the routed-state links on Docker/Network tabs. Smoke-test on device._

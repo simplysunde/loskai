@@ -54,7 +54,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, upstream_tls? }`. Validates the single-label prefix + `host:port` upstream + uniqueness, sets the subdomain, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**). Returns `{ caddy, adguard: ok\|error\|skipped, url, instance_id, warning }`. `container` present → targets that container's existing instance (idempotent — no duplicate) or a new linked `docker` instance; otherwise `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox). |
+| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, origin?, upstream_tls? }`. Validates the single-label prefix + `host:port` upstream + uniqueness, sets the subdomain, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**). Returns `{ caddy, adguard: ok\|error\|skipped, url, instance_id, warning }`. `container` → targets that container's existing instance (idempotent) or a new linked `docker` instance; `origin` → same idempotent link for a built-in network service (AdGuard/Gateway/Caddy) as an `external` instance; otherwise plain `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox). |
 | `DELETE /api/assign/{instance_id}` | The mirror: clears the subdomain, deletes the Caddy route (required), best-effort removes the rewrite. The instance survives. |
 
 ---

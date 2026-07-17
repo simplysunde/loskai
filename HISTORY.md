@@ -1,5 +1,32 @@
 # Loskai — History
 
+## 2026-07-17 — Phase 11: one route-creation surface
+
+Consolidated all route creation into the Routing tab, resolving the overlap where a service
+running as a container could be routed from two competing "Assign" surfaces (Docker tab by
+container, Network tab by service). The Docker and Network tabs now only *display* routed
+state.
+
+- **`origin` marker** on the instance — the network-service analogue of `container`: assign
+  dedups on it (`get_by_origin`), so re-routing a built-in service edits the same instance.
+  `AssignBody.origin`, and `origin`/`container` surfaced in the caddy `/routes` rows.
+- **Routing "Add route" picker** (`AddRouteModal`) — a source selector `[ Container | Network
+  | External ]`. Container/Network lists show only *unrouted* items (routed ones drop out,
+  since they're managed as rows) and pre-fill prefix + upstream; External is the manual form.
+- **Docker tab:** Assign action removed; a routed container's subdomain badge is now a link to
+  `https://<sub>.<domain>`.
+- **Network tab:** per-panel Assign removed; the link-out prefers `https://<sub>.<domain>` when
+  the service is routed (matched by `origin`), with a "Routed at … · manage in Routing" hint.
+  The **Caddy cert page keeps its by-IP HTTP link** (first-timers can't trust the cert yet).
+- Why it's clean: one creation surface means no competing entry points; when infra runs as
+  containers (dev rig) they may appear under both the Container and Network picker sources, but
+  the subdomain-unique guard still prevents real duplicates.
+- Key files: `shared/{instances,assign}.py`, `modules/caddy/service.py`,
+  `components/routing/AddRouteModal.tsx`, `pages/{Routing,Docker,Network}.tsx`,
+  `components/docker/ContainerList.tsx`
+- Tests: 144 backend (+1 origin idempotency) + 19 Vitest. **Unverified in-sandbox:** the
+  rendered picker + routed-state links (no Docker/live services here).
+
 ## 2026-07-17 — Phase 10b: Network tab
 
 Repurposed the thin VPN tab into a service-oriented **Network tab** (`/network`) covering the
