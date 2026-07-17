@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Lock, Plus, Router, Shield } from "lucide-react";
+import { Check, Copy, Link2, Lock, Router, Shield } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
@@ -199,7 +199,7 @@ function AssignButton({ onClick }: { onClick: () => void }) {
       title="Assign a URL"
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
     >
-      <Plus className="h-3.5 w-3.5" /> Assign
+      <Link2 className="h-3.5 w-3.5" /> Assign
     </button>
   );
 }
