@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 
 from ..config import settings as env
 from . import store
@@ -27,6 +27,7 @@ CONFIGURABLE_KEYS = [
     "wireguard_dashboard_url",
     "base_domain",
     "caddy_host_ip",
+    "caddy_setup_url",
     "recipes_repo_url",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
@@ -77,6 +78,22 @@ def get_view() -> dict[str, Any]:
     return view
 
 
+def _validate(key: str, val: Any) -> None:
+    """Reject values that would corrupt downstream use. Raises ValueError (→ 422)."""
+    if key == "caddy_host_ip":
+        # This becomes the answer for every AdGuard rewrite, so it must be a bare IP —
+        # a scheme or port (e.g. 'http://10.0.0.5') produces unresolvable rewrites.
+        try:
+            ip_address(str(val).strip())
+        except ValueError:
+            raise ValueError(
+                "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
+            )
+    elif key == "caddy_setup_url":
+        if not str(val).startswith(("http://", "https://")):
+            raise ValueError("Certificate setup URL must start with http:// or https://")
+
+
 def update(payload: dict[str, Any]) -> dict[str, Any]:
     """Persist stored settings. Env-sourced and non-configurable keys are ignored."""
     stored = _read_stored()
@@ -88,6 +105,7 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
         if val in (None, ""):
             stored.pop(key, None)
         else:
+            _validate(key, val)
             stored[key] = val
     _write_stored(stored)
     return get_view()
@@ -139,4 +157,7 @@ def get_settings() -> dict[str, Any]:
 
 @router.put("/settings")
 def put_settings(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    return update(payload)
+    try:
+        return update(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))

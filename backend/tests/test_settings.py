@@ -61,3 +61,28 @@ def test_derive_caddy_host_ip_hostname_needs_explicit(monkeypatch):
     assert s.derive_caddy_host_ip() is None
     monkeypatch.setattr(config.settings, "caddy_host_ip", "192.168.10.100")
     assert s.derive_caddy_host_ip() == "192.168.10.100"
+
+
+# --- caddy_host_ip / caddy_setup_url validation (update() raises ValueError → 422) ---
+
+
+def test_caddy_host_ip_rejects_scheme():
+    with pytest.raises(ValueError):
+        s.update({"caddy_host_ip": "http://192.168.10.100"})
+
+
+def test_caddy_host_ip_rejects_port():
+    with pytest.raises(ValueError):
+        s.update({"caddy_host_ip": "192.168.10.100:80"})
+
+
+def test_caddy_host_ip_accepts_bare_ip():
+    s.update({"caddy_host_ip": "192.168.10.100"})
+    assert s.value("caddy_host_ip") == "192.168.10.100"
+
+
+def test_caddy_setup_url_requires_scheme():
+    with pytest.raises(ValueError):
+        s.update({"caddy_setup_url": "192.168.10.100:8081"})
+    s.update({"caddy_setup_url": "http://192.168.10.100:8081/"})
+    assert s.value("caddy_setup_url") == "http://192.168.10.100:8081/"
