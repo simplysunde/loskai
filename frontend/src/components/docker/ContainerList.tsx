@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Link2,
   Loader2,
   Play,
   RotateCw,
@@ -28,14 +27,14 @@ export interface Container {
 }
 
 export function ContainerList({
+  baseDomain,
   onLogs,
   onTerminal,
-  onAssign,
   onRemove,
 }: {
+  baseDomain: string | null;
   onLogs: (c: Container) => void;
   onTerminal: (c: Container) => void;
-  onAssign: (c: Container) => void;
   onRemove: (c: Container) => void;
 }) {
   const qc = useQueryClient();
@@ -91,11 +90,21 @@ export function ContainerList({
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 font-medium text-slate-100">
                     {c.name}
-                    {c.subdomain && (
-                      <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300">
-                        {c.subdomain}
-                      </span>
-                    )}
+                    {c.subdomain &&
+                      (baseDomain ? (
+                        <a
+                          href={`https://${c.subdomain}.${baseDomain}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300 hover:bg-teal-500/25"
+                        >
+                          {c.subdomain}.{baseDomain}
+                        </a>
+                      ) : (
+                        <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300">
+                          {c.subdomain}
+                        </span>
+                      ))}
                   </div>
                   <div className="font-mono text-xs text-slate-500">{c.image}</div>
                 </td>
@@ -130,9 +139,6 @@ export function ContainerList({
                     </Act>
                     <Act title="Terminal" onClick={() => onTerminal(c)} disabled={!running}>
                       <TerminalSquare className="h-3.5 w-3.5" />
-                    </Act>
-                    <Act title={c.subdomain ? "Change URL" : "Assign URL"} onClick={() => onAssign(c)}>
-                      <Link2 className="h-3.5 w-3.5" />
                     </Act>
                     <Act title="Remove" danger onClick={() => onRemove(c)}>
                       <Trash2 className="h-3.5 w-3.5" />

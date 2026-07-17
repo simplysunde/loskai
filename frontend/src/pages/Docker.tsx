@@ -4,7 +4,6 @@ import { FilePlus2, PackagePlus } from "lucide-react";
 
 import { api } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
-import { AssignModal } from "../components/routing/AssignModal";
 import {
   ContainerList,
   type Container,
@@ -20,15 +19,6 @@ import { ModuleStatus } from "../components/shared/ModuleStatus";
 
 type Tab = "containers" | "stacks";
 
-// A suggested subdomain for a container: its current one, else its name, cleaned to a
-// valid single DNS label. The user can still edit it before assigning.
-function suggestPrefix(c: Container): string {
-  return (c.subdomain ?? c.name)
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export function Docker() {
   const qc = useQueryClient();
   const health = useHealth();
@@ -37,8 +27,6 @@ export function Docker() {
   // Modal state.
   const [logsFor, setLogsFor] = useState<Container | null>(null);
   const [terminalFor, setTerminalFor] = useState<Container | null>(null);
-  const [assignFor, setAssignFor] = useState<Container | null>(null);
-  const [assignError, setAssignError] = useState<string | null>(null);
   const [removeContainer, setRemoveContainer] = useState<Container | null>(null);
   const [stackEditor, setStackEditor] = useState<{ name: string | null } | null>(null);
   const [deleteStack, setDeleteStack] = useState<string | null>(null);
@@ -49,19 +37,6 @@ export function Docker() {
     queryFn: () => api.get<{ base_domain?: { value: string | null } }>("/api/settings"),
   });
   const baseDomain = settings.data?.base_domain?.value ?? null;
-  const mode = health.data?.caddy?.mode ?? null;
-
-  const assign = useMutation({
-    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
-      api.post("/api/assign", { ...p, container: assignFor?.name, name: assignFor?.name }),
-    onSuccess: () => {
-      setAssignFor(null);
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
-      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-    onError: (e) => setAssignError(e instanceof Error ? e.message : "Assign failed"),
-  });
 
   const removeMut = useMutation({
     mutationFn: (c: Container) => api.del(`/api/docker/containers/${c.id}`),
@@ -120,12 +95,9 @@ export function Docker() {
 
       {tab === "containers" ? (
         <ContainerList
+          baseDomain={baseDomain}
           onLogs={setLogsFor}
           onTerminal={setTerminalFor}
-          onAssign={(c) => {
-            setAssignError(null);
-            setAssignFor(c);
-          }}
           onRemove={setRemoveContainer}
         />
       ) : (
@@ -138,19 +110,6 @@ export function Docker() {
         <StackEditor name={stackEditor.name} onClose={() => setStackEditor(null)} />
       )}
       {wizardOpen && <InstallWizard onClose={() => setWizardOpen(false)} />}
-
-      <AssignModal
-        key={assignFor?.id ?? "none"}
-        open={assignFor !== null}
-        baseDomain={baseDomain}
-        mode={mode}
-        pending={assign.isPending}
-        error={assignError}
-        initialPrefix={assignFor ? suggestPrefix(assignFor) : ""}
-        initialUpstream={assignFor?.suggested_upstream ?? ""}
-        onSubmit={(p) => assign.mutate(p)}
-        onClose={() => setAssignFor(null)}
-      />
 
       <ConfirmDialog
         open={removeContainer !== null}
