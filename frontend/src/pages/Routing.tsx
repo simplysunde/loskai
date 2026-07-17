@@ -4,6 +4,7 @@ import { AlertTriangle, Loader2, Plus, RefreshCw, Trash2, Unplug } from "lucide-
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
+import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AdGuardStatus } from "../components/routing/AdGuardStatus";
 import { AssignModal } from "../components/routing/AssignModal";
 import { CaddyfileExport } from "../components/routing/CaddyfileExport";
@@ -38,7 +39,8 @@ export function Routing() {
   const qc = useQueryClient();
   const health = useHealth();
   const [assignOpen, setAssignOpen] = useState(false);
-  const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // null = new instance
+  const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // for editing an existing route
+  const [addOpen, setAddOpen] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
@@ -68,6 +70,9 @@ export function Routing() {
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const mode = health.data?.caddy?.mode ?? null;
   const consistency = health.data?.consistency ?? [];
+  const routedOrigins = new Set(
+    (routes.data ?? []).filter((r) => r.origin && r.routed).map((r) => r.origin as string),
+  );
 
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const rows: RouteRow[] = (routes.data ?? []).map((r) => {
@@ -97,6 +102,18 @@ export function Routing() {
       invalidate();
     },
     onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
+  });
+
+  // Create a route from the "Add route" picker (container / network service / external).
+  const addRoute = useMutation({
+    mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/assign", r),
+    onSuccess: (data) => {
+      setAddOpen(false);
+      setResult(data);
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+      invalidate();
+    },
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Add route failed"),
   });
 
   // Remove the route (Caddy + DNS), keep the instance.
@@ -174,10 +191,13 @@ export function Routing() {
         </div>
         <div className="flex shrink-0 gap-2">
           <button
-            onClick={() => openAssign(null)}
+            onClick={() => {
+              setAssignError(null);
+              setAddOpen(true);
+            }}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
-            <Plus className="h-4 w-4" /> Assign URL
+            <Plus className="h-4 w-4" /> Add route
           </button>
           <button
             onClick={() => push.mutate()}
@@ -293,6 +313,18 @@ export function Routing() {
         initialTls={assignTarget?.upstream_tls ?? false}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}
+      />
+
+      <AddRouteModal
+        key={addOpen ? "add-open" : "add-closed"}
+        open={addOpen}
+        baseDomain={baseDomain}
+        mode={mode}
+        pending={addRoute.isPending}
+        error={assignError}
+        routedOrigins={routedOrigins}
+        onSubmit={(r) => addRoute.mutate(r)}
+        onClose={() => setAddOpen(false)}
       />
 
       <ConfirmDialog

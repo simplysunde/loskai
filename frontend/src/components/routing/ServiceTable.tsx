@@ -11,6 +11,8 @@ export interface RouteRow {
   upstream: string | null;
   upstream_tls?: boolean;
   private: boolean;
+  container?: string | null;
+  origin?: string | null;
   routed: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
