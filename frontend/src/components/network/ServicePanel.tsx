@@ -21,6 +21,7 @@ export function ServicePanel({
   status,
   linkUrl,
   linkLabel,
+  action,
   children,
 }: {
   icon: ReactNode;
@@ -29,6 +30,7 @@ export function ServicePanel({
   status: ModuleState;
   linkUrl?: string | null;
   linkLabel: string;
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -42,18 +44,21 @@ export function ServicePanel({
           <div className="truncate text-xs text-slate-500">{subtitle}</div>
         </div>
         <StatusBadge status={status} label={STATUS_LABEL[status]} />
-        <a
-          href={linkUrl ?? undefined}
-          target="_blank"
-          rel="noreferrer"
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
-            linkUrl
-              ? "border-slate-700 text-slate-200 hover:bg-slate-800"
-              : "pointer-events-none border-slate-800 text-slate-600"
-          }`}
-        >
-          {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={linkUrl ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
+              linkUrl
+                ? "border-slate-700 text-slate-200 hover:bg-slate-800"
+                : "pointer-events-none border-slate-800 text-slate-600"
+            }`}
+          >
+            {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          {action}
+        </div>
       </div>
 
       {children && <div className="mt-4">{children}</div>}

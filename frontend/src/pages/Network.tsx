@@ -99,17 +99,19 @@ export function Network() {
           status={h?.wireguard?.status ?? "unconfigured"}
           linkUrl={h?.wireguard?.url}
           linkLabel="Open"
+          action={
+            <AssignButton
+              onClick={() =>
+                openAssign({
+                  name: "Gateway",
+                  prefix: "wg",
+                  upstream: urlToUpstream(s?.wireguard_dashboard_url?.value),
+                })
+              }
+            />
+          }
         >
           <InlineSettingsFields fields={GATEWAY_FIELDS} />
-          <AssignRow
-            onClick={() =>
-              openAssign({
-                name: "Gateway",
-                prefix: "wg",
-                upstream: urlToUpstream(s?.wireguard_dashboard_url?.value),
-              })
-            }
-          />
           <div className="mt-4">
             <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
           </div>
@@ -122,17 +124,19 @@ export function Network() {
           status={h?.adguard?.status ?? "unconfigured"}
           linkUrl={h?.adguard?.url}
           linkLabel="Open"
+          action={
+            <AssignButton
+              onClick={() =>
+                openAssign({
+                  name: "AdGuard",
+                  prefix: "adguard",
+                  upstream: urlToUpstream(s?.adguard_url?.value),
+                })
+              }
+            />
+          }
         >
           <InlineSettingsFields fields={ADGUARD_FIELDS} />
-          <AssignRow
-            onClick={() =>
-              openAssign({
-                name: "AdGuard",
-                prefix: "adguard",
-                upstream: urlToUpstream(s?.adguard_url?.value),
-              })
-            }
-          />
           {h?.adguard?.answer_ip && (
             <p className="mt-3 text-xs text-slate-500">
               Names resolve to{" "}
@@ -148,17 +152,8 @@ export function Network() {
           status={h?.caddy?.status ?? "unconfigured"}
           linkUrl={certUrl}
           linkLabel="Cert page"
-        >
-          <InlineSettingsFields fields={CADDY_FIELDS} />
-          <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
-            <p className="text-xs text-slate-400">
-              Install Caddy's root CA on a LAN device once and every{" "}
-              <span className="font-mono text-slate-300">*.domain</span> name is trusted.
-              Share the by-IP link, or assign it a name:
-            </p>
-            <CopyLink url={certUrl} />
-            <AssignRow
-              label="Assign a name"
+          action={
+            <AssignButton
               onClick={() =>
                 openAssign({
                   name: "Certificate page",
@@ -167,6 +162,16 @@ export function Network() {
                 })
               }
             />
+          }
+        >
+          <InlineSettingsFields fields={CADDY_FIELDS} />
+          <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
+            <p className="text-xs text-slate-400">
+              Install Caddy's root CA on a LAN device once and every{" "}
+              <span className="font-mono text-slate-300">*.domain</span> name is trusted.
+              Share the by-IP link below, or assign it a name above.
+            </p>
+            <CopyLink url={certUrl} />
           </div>
         </ServicePanel>
       </div>
@@ -187,13 +192,14 @@ export function Network() {
   );
 }
 
-function AssignRow({ onClick, label = "Assign URL" }: { onClick: () => void; label?: string }) {
+function AssignButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+      title="Assign a URL"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
     >
-      <Plus className="h-3.5 w-3.5" /> {label}
+      <Plus className="h-3.5 w-3.5" /> Assign
     </button>
   );
 }
