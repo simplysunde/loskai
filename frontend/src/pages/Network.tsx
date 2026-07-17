@@ -25,7 +25,7 @@ export function Network() {
         </p>
       </header>
 
-      <div className="grid items-start gap-4 md:grid-cols-2">
+      <div className="max-w-2xl space-y-4">
         <ServicePanel
           icon={<Shield className="h-5 w-5" />}
           name="AdGuard"
