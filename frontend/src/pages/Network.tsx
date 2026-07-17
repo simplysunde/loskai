@@ -7,7 +7,8 @@ import { useHealth } from "../lib/useHealth";
 import { AssignModal } from "../components/routing/AssignModal";
 import { PeerDnsReminder } from "../components/network/PeerDnsReminder";
 import { ServicePanel } from "../components/network/ServicePanel";
-import { SettingsFields, type SettingsView } from "../components/shared/SettingsFields";
+import { InlineSettingsFields } from "../components/shared/InlineSettingsFields";
+import type { SettingsView } from "../components/shared/SettingsFields";
 
 const GATEWAY_FIELDS = [
   { key: "wireguard_dashboard_url", label: "Dashboard URL", hint: "http://…:51821" },
@@ -101,7 +102,7 @@ export function Network() {
           linkUrl={h?.wireguard?.url}
           linkLabel="Open"
         >
-          <SettingsFields fields={GATEWAY_FIELDS} />
+          <InlineSettingsFields fields={GATEWAY_FIELDS} />
           <AssignRow
             onClick={() =>
               openAssign({
@@ -124,7 +125,7 @@ export function Network() {
           linkUrl={h?.adguard?.url}
           linkLabel="Open"
         >
-          <SettingsFields fields={ADGUARD_FIELDS} />
+          <InlineSettingsFields fields={ADGUARD_FIELDS} />
           <AssignRow
             onClick={() =>
               openAssign({
@@ -150,7 +151,7 @@ export function Network() {
           linkUrl={certUrl}
           linkLabel="Cert page"
         >
-          <SettingsFields fields={CADDY_FIELDS} />
+          <InlineSettingsFields fields={CADDY_FIELDS} />
           <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
             <p className="text-xs text-slate-400">
               Install Caddy's root CA on a LAN device once and every{" "}
