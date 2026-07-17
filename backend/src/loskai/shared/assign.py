@@ -234,17 +234,13 @@ async def purge_instance(
 async def delete_instance(
     caddy_client, adguard_client, instance_id: str, *, base_domain: str | None
 ) -> dict:
-    """Fully delete an instance. Docker instances are container-backed and can't be
-    deleted (remove their route instead); external instances are pure route definitions,
-    so we clear the route + rewrite (if any) and drop the record. Orphaned docker
-    instances (container gone) are cleaned up via the Docker module, not here."""
+    """Fully delete any instance — clear its route + rewrite (if any) and drop the record.
+    Type-agnostic: deleting a docker instance removes the route but leaves the container
+    untouched (it just becomes an unrouted container again, re-routable via Add route).
+    Since containers no longer auto-create instances, a deleted docker record won't reappear."""
     inst = instances_store.get_instance(instance_id)
     if inst is None:
         raise AssignError(404, f"instance '{instance_id}' not found")
-    if inst.type == "docker":
-        raise AssignError(
-            409, "can't delete a container-backed instance — remove its route instead"
-        )
     return await purge_instance(caddy_client, adguard_client, inst, base_domain=base_domain)
 
 

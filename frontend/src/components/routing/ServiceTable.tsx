@@ -22,10 +22,9 @@ export interface RouteRow {
 }
 
 // One row per instance (routed or not). Routed rows show route/DNS status, private, and
-// "remove route". Unrouted rows show "assign". External instances can be deleted outright;
-// docker instances show the delete icon disabled (with a tooltip) since they're
-// container-backed — their route is removed here, the instance via the Docker tab. Missing
-// or stale DNS rewrites are fixed globally via the Sync button, not per row.
+// "remove route". Unrouted rows offer "Change URL". Any instance can be deleted (docker
+// included — the route + record go, the container is untouched and re-routable via Add
+// route). Missing or stale DNS rewrites are fixed globally via the Sync button, not per row.
 export function ServiceTable({
   rows,
   onAssign,
@@ -153,13 +152,8 @@ export function ServiceTable({
                     {onDelete && (
                       <IconButton
                         busy={actionBusyId === row.id}
-                        disabled={row.type === "docker"}
-                        title={
-                          row.type === "docker"
-                            ? "Container-backed — remove its container to delete it"
-                            : "Delete instance"
-                        }
-                        danger={row.type !== "docker"}
+                        title="Delete instance"
+                        danger
                         onClick={() => onDelete(row)}
                         icon={<Trash2 className="h-3.5 w-3.5" />}
                       />

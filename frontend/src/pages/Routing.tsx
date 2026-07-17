@@ -33,8 +33,9 @@ interface AssignResult {
 }
 
 // Unified routing view. Lists every instance (routed or not). Routed rows manage the
-// Caddy route + DNS rewrite; unrouted rows can be assigned. External instances can be
-// deleted outright; docker instances (container-backed) can only have their route removed.
+// Caddy route + DNS rewrite; per-row "Change URL" edits an existing route. Any instance can
+// be removed (route only) or deleted (route + record) — deleting a docker instance leaves
+// its container alone. New routes are created via the "Add route" picker.
 export function Routing() {
   const qc = useQueryClient();
   const health = useHealth();
@@ -125,7 +126,7 @@ export function Routing() {
     },
   });
 
-  // Delete an external instance entirely (docker instances 409 on the backend).
+  // Delete an instance entirely (route + rewrite + record) — any type.
   const deleteInstance = useMutation({
     mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}`),
     onSuccess: () => {

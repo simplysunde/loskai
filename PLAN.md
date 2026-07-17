@@ -132,11 +132,11 @@ view both read.
 - An instance may exist **without** a subdomain (tracked but not exposed). A *route* is
   exactly an instance that *has* a subdomain; the routing view lists **all** instances
   (routed or not) and lets you assign/clear routes per row.
-- **Deletion is type-aware.** Clearing a route (unassign) keeps the instance. An
-  **external** instance is a pure route definition, so it can be deleted outright
-  (`DELETE /api/instances/{id}` → route + rewrite + record). A **docker** instance is
-  container-backed and cannot be deleted (that endpoint returns 409) — you remove its
-  route; the container itself lives in the Docker Manager.
+- **Deletion is uniform.** Clearing a route (unassign) keeps the instance; deleting
+  (`DELETE /api/instances/{id}` → route + rewrite + record) removes it. Any type can be
+  deleted — a deleted **docker** instance leaves the container untouched (it becomes an
+  unrouted container, re-routable from the Add route picker). Since containers no longer
+  auto-create instances, the record won't silently reappear.
 
 **What is stored vs. live:**
 - The instance list holds only **intent** — subdomain, upstream, and external targets.
@@ -409,8 +409,8 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 
 **Route List**
 - Every instance in a clean table — routed rows show route/DNS status, unrouted rows offer
-  "Change URL". Per-row actions depend on type: remove-route (keep instance) for any routed
-  row; delete for external instances; docker instances can't be deleted (see Core Data Model)
+  "Change URL". Per-row actions: remove-route (keep the instance) for any routed row; delete
+  (route + record) for any instance — a deleted docker instance leaves its container alone
 - Each row: subdomain → upstream (host:port, optionally HTTPS), synced + live + DNS status
 - **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
   instance's `@id` against them. Present = synced; missing = not pushed (offer "Sync").
@@ -703,8 +703,8 @@ Result shown to user:
 Manager) is the exact mirror: clear the instance's `subdomain` and save, delete the Caddy
 route (`DELETE /id/<id>`, required), then best-effort remove the AdGuard rewrite. The
 instance itself survives — it just no longer has a route. To remove the instance entirely,
-`DELETE /api/instances/{id}` (external only; docker instances 409 — see Core Data Model),
-which runs this same clear-route step first and then drops the record.
+`DELETE /api/instances/{id}` (any type — see Core Data Model), which runs this same
+clear-route step first and then drops the record.
 
 ---
 

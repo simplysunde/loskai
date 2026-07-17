@@ -33,7 +33,7 @@ test("renders the DNS column states", () => {
   expect(screen.getByText("conflict")).toBeInTheDocument();
 });
 
-test("routed docker row: remove-route + private, but no delete", () => {
+test("routed docker row: remove-route, private, and delete are all available", () => {
   const onRemoveRoute = vi.fn();
   const onTogglePrivate = vi.fn();
   const onDelete = vi.fn();
@@ -49,8 +49,9 @@ test("routed docker row: remove-route + private, but no delete", () => {
   expect(onRemoveRoute).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole("button", { name: "Public on dashboard" }));
   expect(onTogglePrivate).toHaveBeenCalledOnce();
-  // docker instances can't be deleted
-  expect(screen.queryByRole("button", { name: "Delete instance" })).toBeNull();
+  // docker instances can now be deleted like any other
+  fireEvent.click(screen.getByRole("button", { name: "Delete instance" }));
+  expect(onDelete).toHaveBeenCalledOnce();
 });
 
 test("routed row offers Change URL in place", () => {

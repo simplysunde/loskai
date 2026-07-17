@@ -287,14 +287,15 @@ async def test_delete_unrouted_external_instance():
     assert instances_store.get_instance("old") is None
 
 
-async def test_cannot_delete_docker_instance():
+async def test_delete_docker_instance_removes_record():
+    # A docker instance can now be deleted like any other — the route/record go, the
+    # container is untouched (it just becomes unrouted, re-routable via Add route).
     instances_store.upsert_instance(
         Instance(id="grafana", name="Grafana", type="docker", container="grafana", subdomain="graf")
     )
-    with pytest.raises(AssignError) as exc:
-        await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "grafana", base_domain=BASE)
-    assert exc.value.status_code == 409
-    assert instances_store.get_instance("grafana") is not None  # still there
+    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "grafana", base_domain=BASE)
+    assert result["deleted"] is True
+    assert instances_store.get_instance("grafana") is None  # gone
 
 
 async def test_unassign_caddy_failure_rolls_back():

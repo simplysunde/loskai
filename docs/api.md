@@ -48,7 +48,7 @@ app is running — this document is the human-readable overview.
 |---|---|
 | `GET /api/instances` | The full instance list (the shared spine). |
 | `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. |
-| `DELETE /api/instances/{id}` | Fully delete an instance: removes its route + rewrite (if any), then the record. **External only** — a docker (container-backed) instance returns `409` (remove its route via `DELETE /api/assign/{id}` instead). |
+| `DELETE /api/instances/{id}` | Fully delete an instance: removes its route + rewrite (if any), then the record. Works for **any** type — deleting a docker instance leaves the container untouched (it becomes an unrouted container, re-routable via Add route). |
 
 ### Assign (the one cross-module action)
 

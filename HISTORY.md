@@ -21,6 +21,11 @@ state.
 - Why it's clean: one creation surface means no competing entry points; when infra runs as
   containers (dev rig) they may appear under both the Container and Network picker sources, but
   the subdomain-unique guard still prevents real duplicates.
+- **Follow-up:** deletion is now uniform — the old "docker instances can't be deleted (409)"
+  guard was dropped. Since containers no longer auto-create instances, deleting a docker
+  instance just drops the route + record (the container is untouched, re-routable via Add
+  route) and won't silently reappear. Backend guard + frontend disabled-state + the
+  no-delete test all removed.
 - Key files: `shared/{instances,assign}.py`, `modules/caddy/service.py`,
   `components/routing/AddRouteModal.tsx`, `pages/{Routing,Docker,Network}.tsx`,
   `components/docker/ContainerList.tsx`
