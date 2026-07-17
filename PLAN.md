@@ -753,7 +753,7 @@ backend/src/loskai/
 **Layout & design philosophy** (Lutris-inspired): a **persistent left sidebar** shell +
 a main "library" content area, with contextual action buttons per item.
 
-- **Sidebar**: `Dashboard · Docker · Routing · VPN · Settings`. Always visible; the Dashboard
+- **Sidebar**: `Dashboard · Docker · Routing · Network · Settings`. Always visible; the Dashboard
   is the first item, and clicking an admin item when not logged in prompts the security
   screen. (The sidebar being visible is UX only — the API is the real gate.)
 - **Routing tab merges Caddy + AdGuard into one view.** An assign writes both a Caddy route
@@ -761,11 +761,14 @@ a main "library" content area, with contextual action buttons per item.
   FQDN, upstream, route-sync status, and DNS-rewrite status inline, with per-row actions —
   instead of two tabs to cross-reference. (The *backends* stay independent modules; only the
   frontend unifies them.)
-- **VPN tab** = the WireGuard reachability card. **Docker tab** = containers + stacks + wizard.
+- **Network tab** = the infrastructure services Loskai works with — the WireGuard **Gateway**,
+  **AdGuard** (DNS), and **Caddy** (TLS + the cert-onboarding link). Per service: health +
+  link-out + its URL/credential config (moved here from the Settings page — one source of
+  truth) + a Docker-style "Assign URL". **Docker tab** = containers + stacks + wizard.
 - **Hybrid card/table aesthetic**: card grid for the Dashboard and service launchers (library
   feel); dense tables where live stats must be scannable (container/stack lists, the routing
   table).
-- Routes: `/` (Dashboard) · `/login` · `/docker` · `/routing` · `/vpn` · `/settings`.
+- Routes: `/` (Dashboard) · `/login` · `/docker` · `/routing` · `/network` · `/settings`.
 
 ```
 frontend/src/
@@ -776,8 +779,8 @@ frontend/src/
 │   ├── Login.tsx            the security screen — single-password form
 │   ├── Docker.tsx           ─┐ admin tabs — behind the session gate (Phase 8)
 │   ├── Routing.tsx           │ unified Caddy + AdGuard: one row per service
-│   ├── WireGuard.tsx         │ "VPN" tab — reachability card
-│   └── Settings.tsx         ─┘
+│   ├── Network.tsx           │ Gateway / AdGuard / Caddy panels + service config
+│   └── Settings.tsx         ─┘ app-wide settings + backup
 ├── components/
 │   ├── shared/
 │   │   ├── StatusBadge.tsx

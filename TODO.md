@@ -309,8 +309,9 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
   - **AdGuard (DNS)** — status + Open-AdGuard link + answer-IP note
   - **Gateway** (WireGuard) — remote-access gateway; carries the peer-DNS reminder (`PeerDnsReminder`)
   - **Caddy (TLS / cert setup)** — **option C:** derived `http://<caddy_host_ip>/` link (from `adguard.answer_ip`) + copy-to-share. Not an instance, not a Dashboard card
-- [ ] Per-panel **editable URL field** — move service-URL config **UI** out of Settings into the panels (same `settings.json` keys — single source, no new store): `caddy_admin_url`, `caddy_host_ip`, `adguard_url`, `adguard_user`, `adguard_password`, `wireguard_dashboard_url`
-- [ ] Settings slims to app/security: `base_domain`, `recipes_repo_url`, `stacks_dir` (env), admin password
-- [ ] Per-service **pre-filled "Assign URL"** (mirror the Docker flow): suggested subdomain + upstream derived from the service's configured URL → `POST /api/assign` → external instance
+- [x] Per-panel **editable URL fields** — service-URL config moved out of Settings into the panels via a reusable `SettingsFields` (partial PUT, same `settings.json` keys, single source): Gateway `wireguard_dashboard_url`; AdGuard `adguard_url`/`adguard_user`/`adguard_password`; Caddy `caddy_admin_url`/`caddy_host_ip`/`caddy_setup_url`
+- [x] Settings slims to app/security: `base_domain`, `recipes_repo_url`, `stacks_dir` (env) + backup export
+- [x] **New `caddy_setup_url`** setting — overrides the derived cert link (needed when Caddy's `:80` is port-remapped, e.g. dev's `8081:80`); Caddy panel link + copy use it. **Validated `caddy_host_ip`** must be a bare IP (a stray `http://…` corrupted every AdGuard answer) → 422
+- [x] Per-service **pre-filled "Assign URL"** on AdGuard + Gateway (upstream derived from the service URL) → `POST /api/assign` → external instance, reusing `AssignModal`
 - [ ] _(Optional, later — no work now)_ a public friendly `setup.<BASE_DOMAIN>` is just an ordinary external instance with upstream `<caddy-ip>:80` (Caddy proxies to its own file_server); being routed/owned it's sweep-safe, and the HTTPS cert chicken-egg is accepted (first-timers use the by-IP link)
-- [ ] Update PLAN.md (Network restructure + internal-CA mode) and HISTORY.md when built
+- [x] Update PLAN.md (Network restructure) and HISTORY.md
