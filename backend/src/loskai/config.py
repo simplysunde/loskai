@@ -19,10 +19,9 @@ class Settings(BaseSettings):
     adguard_password: str | None = None
     wireguard_dashboard_url: str | None = None
     base_domain: str | None = None
-    # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted.
+    # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted. Also the
+    # host of the by-IP cert-onboarding link (http://<caddy_host_ip>/).
     caddy_host_ip: str | None = None
-    # Override for the cert-onboarding page URL; defaults to http://<caddy_host_ip>/ (:80).
-    caddy_setup_url: str | None = None
     # Public git repo the install wizard syncs recipes from.
     recipes_repo_url: str | None = None
 

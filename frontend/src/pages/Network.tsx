@@ -21,7 +21,6 @@ const ADGUARD_FIELDS = [
 const CADDY_FIELDS = [
   { key: "caddy_admin_url", label: "Admin URL", hint: "http://…:2019" },
   { key: "caddy_host_ip", label: "LAN IP", hint: "bare IP, e.g. 192.168.10.100" },
-  { key: "caddy_setup_url", label: "Certificate setup URL", hint: "defaults to http://<LAN IP>/" },
 ];
 
 // A service URL → a bare host:port upstream for the assign form (Caddy dials it). "" when
@@ -58,14 +57,13 @@ export function Network() {
   const mode = h?.caddy?.mode ?? null;
 
   // AdGuard's answer IP *is* the Caddy host IP; the cert page is served there over plain
-  // HTTP by IP. Strip any stray scheme/port so we never emit `http://http://…`. An explicit
-  // caddy_setup_url wins (needed when the port is remapped, e.g. dev's 8081:80).
+  // HTTP on :80 (prod-shaped). Strip any stray scheme/port so we never emit `http://http://…`.
+  // For a shareable HTTPS name, assign a setup.<domain> instance (the Caddy panel's Assign).
   const caddyHost = (h?.adguard?.answer_ip ?? "")
     .replace(/^\w+:\/\//, "")
     .split("/")[0]
     .split(":")[0];
-  const derived = caddyHost ? `http://${caddyHost}/` : null;
-  const certUrl = s?.caddy_setup_url?.value || derived;
+  const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
   const assign = useMutation({
     mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
@@ -156,9 +154,19 @@ export function Network() {
             <p className="text-xs text-slate-400">
               Install Caddy's root CA on a LAN device once and every{" "}
               <span className="font-mono text-slate-300">*.domain</span> name is trusted.
-              Share the link:
+              Share the by-IP link, or assign it a name:
             </p>
             <CopyLink url={certUrl} />
+            <AssignRow
+              label="Assign a name"
+              onClick={() =>
+                openAssign({
+                  name: "Certificate page",
+                  prefix: "setup",
+                  upstream: caddyHost ? `${caddyHost}:80` : "",
+                })
+              }
+            />
           </div>
         </ServicePanel>
       </div>
@@ -179,13 +187,13 @@ export function Network() {
   );
 }
 
-function AssignRow({ onClick }: { onClick: () => void }) {
+function AssignRow({ onClick, label = "Assign URL" }: { onClick: () => void; label?: string }) {
   return (
     <button
       onClick={onClick}
       className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
     >
-      <Plus className="h-3.5 w-3.5" /> Assign URL
+      <Plus className="h-3.5 w-3.5" /> {label}
     </button>
   );
 }

@@ -27,7 +27,6 @@ CONFIGURABLE_KEYS = [
     "wireguard_dashboard_url",
     "base_domain",
     "caddy_host_ip",
-    "caddy_setup_url",
     "recipes_repo_url",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
@@ -89,9 +88,6 @@ def _validate(key: str, val: Any) -> None:
             raise ValueError(
                 "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
             )
-    elif key == "caddy_setup_url":
-        if not str(val).startswith(("http://", "https://")):
-            raise ValueError("Certificate setup URL must start with http:// or https://")
 
 
 def update(payload: dict[str, Any]) -> dict[str, Any]:

@@ -10,16 +10,19 @@ Docker-style "Assign URL".
 - **Restructure:** `/vpn` → `/network`; retired `pages/WireGuard.tsx` + `WireGuardCard`.
   Reusable `ServicePanel` (header/status/compact link-out) + `PeerDnsReminder`.
 - **Settings migration:** service URLs/credentials moved out of the Settings page into the
-  panels via a reusable `SettingsFields` (partial PUT, same `settings.json` keys — single
-  source of truth). Settings slimmed to base domain / recipes repo / stacks dir + backup.
-- **Certificate link:** the Caddy panel derives `http://<caddy-ip>/` from `adguard.answer_ip`,
-  overridable by a new **`caddy_setup_url`** setting — needed wherever Caddy's `:80` is
-  port-remapped (dev's `8081:80`), since the derived `:80` link can't be reached there.
+  panels as **inline auto-saving fields** (`InlineSettingsFields` — commit on blur/Enter,
+  partial PUT, same `settings.json` keys, single source of truth). Settings slimmed to base
+  domain / recipes repo / stacks dir + backup.
+- **Certificate link:** the Caddy panel derives the by-IP link `http://<caddy-ip>/` (:80,
+  prod-shaped) from the bare `caddy_host_ip`. For a shareable HTTPS name you **assign a
+  `setup.<domain>` instance** (Caddy panel's Assign, upstream `<caddy-ip>:80` — Caddy proxies
+  to its own file server) rather than a config field. (An earlier `caddy_setup_url` override
+  was added then removed in favour of this instance-based approach — one fewer field.)
 - **Data-integrity fix:** `caddy_host_ip` is now validated as a bare IP (422 otherwise). A
   stray `http://127.0.0.1` had leaked in and was being written as the answer for *every*
   AdGuard rewrite (unresolvable). Frontend also strips scheme/port defensively.
-- **Per-service Assign:** AdGuard + Gateway get a pre-filled "Assign URL" (upstream from the
-  service URL) → `POST /api/assign` → external instance, reusing `AssignModal`.
+- **Per-service Assign:** AdGuard, Gateway, and Caddy (the cert page) get a pre-filled
+  "Assign URL" → `POST /api/assign` → external instance, reusing `AssignModal`.
 - Key files: `pages/Network.tsx`, `pages/Settings.tsx`, `components/network/*`,
   `components/shared/SettingsFields.tsx`, `shared/settings.py`, `config.py`
 - Tests: 144 backend (+4 validation) + 19 Vitest. **Unverified in-sandbox:** the rendered tab
