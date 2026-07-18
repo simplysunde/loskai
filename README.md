@@ -18,15 +18,16 @@ Open `http://<docker-host>:8080`, set the admin password on first run, then use 
 Routing tab to assign clean HTTPS names to your services. One image serves the API and
 the built UI on **:8080**.
 
-- **Preferred setup** (`docker-compose.yml`): Loskai on the Docker host; Caddy + AdGuard
+- **Preferred setup** (`compose.yml`): Loskai on the Docker host; Caddy + AdGuard
   run natively on a separate box (LXC 101). Provision that box with
   [`scripts/create-lxc101.sh`](scripts/create-lxc101.sh) (run from the Proxmox shell).
-- **All-in-Docker** (`docker-compose.colocated.yml`): Loskai + Caddy + AdGuard as
+- **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as
   containers on one host — for setups without Proxmox. Set `CADDY_HOST_IP` to the host's
-  LAN IP. Mind the port notes at the top of that file (AdGuard `:53` vs `systemd-resolved`).
+  LAN IP. Mind the port notes (AdGuard `:53` vs `systemd-resolved`).
 
 The Docker socket is mounted read-write (root-equivalent) — Loskai should be the only
-container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out.
+container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out. See
+[deployment.md](docs/deployment.md) for the full env-var and volume reference.
 
 ## Develop
 
@@ -54,6 +55,7 @@ Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:80
 
 ## Documentation
 
+- [Deploying the container](docs/deployment.md) — env-var reference, volumes and the same-path/`LOSKAI_DATA_DIR` coupling, the two layouts, and cold start.
 - [Running locally against Caddy + AdGuard containers](docs/dev-testing.md) — dev walkthrough.
 - [Loskai internal API](docs/api.md) — the endpoints the frontend consumes (a human-readable overview of the live `/docs`).
 - [Migrating an existing project into a Loskai stack](docs/migration.md) — how (and when) to adopt an existing Docker Compose project into the Stack Manager.

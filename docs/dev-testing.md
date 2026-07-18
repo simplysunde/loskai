@@ -8,11 +8,11 @@ point it at. No domain, ACME token, or Proxmox needed — Caddy uses its interna
 ## 1. Start the Caddy + AdGuard rig
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f compose.dev.yml up -d
 ```
 
 This publishes Caddy's admin API on **:2019** and AdGuard on **:3000** (see
-`docker-compose.dev.yml` for the port map).
+`compose.dev.yml` for the port map).
 
 ## 2. Finish AdGuard's first-run setup
 
@@ -70,8 +70,8 @@ Open <http://localhost:5173> and log in with `LOSKAI_PASSWORD`.
 ## 6. Tear down
 
 ```bash
-docker compose -f docker-compose.dev.yml down       # keep AdGuard config + Caddy certs
-docker compose -f docker-compose.dev.yml down -v     # wipe them too
+docker compose -f compose.dev.yml down       # keep AdGuard config + Caddy certs
+docker compose -f compose.dev.yml down -v     # wipe them too
 ```
 
 ## Notes
@@ -125,8 +125,8 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 
 To use this for real, on your LAN with a real domain:
 
-1. **Real domain + wildcard cert.** Use the production `docker-compose.yml` /
-   `docker-compose.colocated.yml` (or the LXC script), where Caddy obtains a real
+1. **Real domain + wildcard cert.** Use the production `compose.yml` /
+   `compose.colocated.yml` (or the LXC script), where Caddy obtains a real
    `*.BASE_DOMAIN` cert via DNS challenge — so Caddy **does** need `BASE_DOMAIN` (and the
    DNS-provider token) in its own env, and must agree with Loskai's.
 2. **Publish AdGuard's DNS port** (`:53`) on the LAN and free the host resolver if needed.

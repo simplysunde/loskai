@@ -1,0 +1,26 @@
+# Preferred setup: Loskai on the Docker host; Caddy + AdGuard native on LXC 101 over the LAN.
+# See docs/deployment.md for env vars, the STACKS_DIR same-path mount, the settings-volume
+# coupling, and cold start. Copy .env.example to .env first.
+
+services:
+  loskai:
+    build: .
+    image: loskai:latest # `docker compose build` tags it here
+    container_name: loskai
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      - ./loskai-settings:/opt/loskai
+    environment:
+      - CADDY_ADMIN_URL=${CADDY_ADMIN_URL:-http://192.168.10.101:2019}
+      - ADGUARD_URL=${ADGUARD_URL:-http://192.168.10.101:3000}
+      - ADGUARD_USER=${ADGUARD_USER:-}
+      - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
+      - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
+      - BASE_DOMAIN=${BASE_DOMAIN:-}
+      - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
+    restart: unless-stopped

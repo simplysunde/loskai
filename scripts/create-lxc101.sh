@@ -127,5 +127,5 @@ Next steps:
   2. Open AdGuard setup at http://${CT_IP%%/*}:3000 and finish first-time config.
   3. Firewall Caddy's admin API: allow :2019 only from the Docker host.
   4. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP%%/*}:2019
-     and ADGUARD_URL=http://${CT_IP%%/*}:3000, then bring up docker-compose.yml.
+     and ADGUARD_URL=http://${CT_IP%%/*}:3000, then bring up compose.yml.
 NEXT

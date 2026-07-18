@@ -2,7 +2,7 @@
 # runs on the host via uv + vite, NOT here). Uses Caddy's internal CA — no domain or
 # ACME/DNS token needed.
 #
-#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f compose.dev.yml up -d
 #
 # Then set on the dev backend:  CADDY_ADMIN_URL=http://127.0.0.1:2019
 #                               ADGUARD_URL=http://127.0.0.1:3000

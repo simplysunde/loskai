@@ -961,7 +961,7 @@ The preferred setup runs Caddy natively on LXC 101 alongside AdGuard. Two simple
 alternatives exist and will have their own install instructions:
 
 - **Co-located (all-in-Docker)** — Caddy *and* AdGuard run as Docker containers on the
-  Docker host alongside Loskai (`docker-compose.colocated.yml`), for setups without a
+  Docker host alongside Loskai (`compose.colocated.yml`), for setups without a
   separate LXC 101. The Tier-3 test rig is a disposable variant of this same stack.
 - **All-in-one** — AdGuard, Caddy, and Loskai all on a single LXC (native services on one box)
 
@@ -1034,7 +1034,7 @@ values are shown as read-only in the UI with a "set via environment" indicator �
 cannot be overridden from the UI.
 
 ```yaml
-# docker-compose.yml (settings volume)
+# compose.yml (settings volume)
 volumes:
   - ./loskai-settings:/opt/loskai
 ```
@@ -1205,7 +1205,7 @@ network. That seam is a testability requirement, held strictly everywhere.
   using the shapes from `docs/*-api.md`; assert the *request* Loskai builds and that it
   *parses* responses right, including the designed edges (delete-by-exact-pair, 404-ignored,
   `401`=reachable). These guard the API contracts against drift.
-- **Tier 3 — disposable integration rig.** `docker-compose.test.yml` spins up throwaway Caddy
+- **Tier 3 — disposable integration rig.** `compose.test.yml` spins up throwaway Caddy
   + AdGuard containers (a slim variant of the co-located stack) with Caddy `tls internal` (no
   ACME/DNS token — tests exercise the *APIs*, not browser TLS), ephemeral volumes, seeded and
   torn down per run. A few tests push a real route/rewrite and assert it lands. The Docker/
@@ -1216,7 +1216,7 @@ network. That seam is a testability requirement, held strictly everywhere.
   `pytest` + `vitest` on every push and marks the commit pass/fail; a one-time `act_runner`
   registered on the Forgejo instance executes it. Portable to GitHub unchanged.
 
-The all-in-Docker **co-located deployment** (`docker-compose.colocated.yml`: Loskai + Caddy
+The all-in-Docker **co-located deployment** (`compose.colocated.yml`: Loskai + Caddy
 + AdGuard as containers) doubles as the basis for the Tier-3 rig — and is itself a real
 alternative to the Proxmox/LXC topology for anyone not running Proxmox.
 

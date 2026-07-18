@@ -164,8 +164,8 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 
 **Loskai container**
 - [x] `Dockerfile` — multi-stage build. Stage 1 (node:20-alpine) builds the frontend; stage 2 (**python:3.12-slim-bookworm**, pinned so the Docker apt repo matches) installs deps with `uv` in two steps (deps cached, then the project), adds `git` + Docker CLI + Compose v2 plugin, copies dist to `./static`, serves on :8080. `+ .dockerignore`
-- [x] `docker-compose.yml` — preferred setup (Loskai on the Docker host, Caddy/AdGuard over the LAN); `loskai-settings` volume; same-path `${STACKS_DIR}:${STACKS_DIR}` mount + socket
-- [x] `docker-compose.colocated.yml` — all-in-Docker alternative (Loskai + Caddy + AdGuard as containers); port-conflict notes + required `CADDY_HOST_IP`; named volumes for caddy/adguard state
+- [x] `compose.yml` — preferred setup (Loskai on the Docker host, Caddy/AdGuard over the LAN); `loskai-settings` volume; same-path `${STACKS_DIR}:${STACKS_DIR}` mount + socket
+- [x] `compose.colocated.yml` — all-in-Docker alternative (Loskai + Caddy + AdGuard as containers); port-conflict notes + required `CADDY_HOST_IP`; named volumes for caddy/adguard state
 - [x] `Caddyfile` — cert-only reference for native LXC 101 Caddy (admin + wildcard, no routes)
 - [x] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy container built with the DNS plugin)
 - [x] README updated with build/run/deploy + develop instructions
@@ -266,7 +266,7 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 - [x] WireGuard client: any HTTP response (incl. 401/403) = reachable
 
 **Tier 3 — disposable integration rig** _(deferred by choice — manual smoke test suffices)_
-- [ ] `docker-compose.test.yml` — throwaway Caddy + AdGuard containers (a slim variant of the co-located stack): Caddy `tls internal` (no ACME/DNS token), ephemeral volumes, seeded before each run, torn down after
+- [ ] `compose.test.yml` — throwaway Caddy + AdGuard containers (a slim variant of the co-located stack): Caddy `tls internal` (no ACME/DNS token), ephemeral volumes, seeded before each run, torn down after
 - [ ] A handful of integration tests that push a route to the rig Caddy and a rewrite to the rig AdGuard, asserting they land — plus a documented manual smoke checklist for the Docker/`compose` side (too host-bound to rig)
 
 **CI — Forgejo Actions** _(deferred by choice — not needed while validating manually)_
@@ -292,12 +292,12 @@ _Ship first — standalone, low-risk, doesn't touch the Loskai app. Caddy serves
 
 - [x] Move `setup.html` → `caddy/setup/index.html` (bilingual NO/EN, OS-detecting)
 - [x] Bootstrap Caddyfile (`dev/Caddyfile`): a **`:80` HTTP site** (reachable by IP — deliberately not HTTPS, to dodge the untrusted-cert chicken-and-egg): `handle /caddy-root.crt` → `file_server` from `/data/caddy/pki/authorities/local/root.crt` (+ `Content-Type`); default `handle` → `/srv/setup`
-- [x] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (`docker-compose.dev.yml`; PKI path already in `/data`)
+- [x] Mount `caddy/setup:/srv/setup:ro` in the Caddy service (`compose.dev.yml`; PKI path already in `/data`)
 - [x] **Access is by-IP only** — `http://<caddy-ip>/` (dev: `http://localhost:8081/`). No `setup.<domain>` rewrite. Friendly name deferred (see 10b note)
 - [x] **Hardened server-discovery** (was "verify") — the `:80` site is a 2nd Caddy server; `next(iter(servers))` could pick it and break route pushes. `service.select_server_name` now picks the routing server by its `:443` listener (fallback: has-routes, then first). +5 tests
 - [x] `docs/certificate-setup.md` — the Caddyfile block, the mount, by-IP access (dev + prod), and how one internal root trusts all `*.BASE_DOMAIN` leaves
 - [x] Noted the `home.lan` strings are the base domain (documented; leave / parameterize later)
-- [ ] **Live smoke (user — needs Docker):** `docker compose -f docker-compose.dev.yml up -d`, then `http://localhost:8081/` serves the page and `/caddy-root.crt` downloads the root; confirm Loskai still pushes routes (Caddy card healthy, an assign lands). Not verifiable in-sandbox
+- [ ] **Live smoke (user — needs Docker):** `docker compose -f compose.dev.yml up -d`, then `http://localhost:8081/` serves the page and `/caddy-root.crt` downloads the root; confirm Loskai still pushes routes (Caddy card healthy, an assign lands). Not verifiable in-sandbox
 
 _Invariants: no cert material in Loskai; the `:80` site has no `@id` so Sync never touches it; unrelated to the deferred Cert-Status (expiry) item._
 

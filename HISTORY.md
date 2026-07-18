@@ -1,5 +1,22 @@
 # Loskai — History
 
+## 2026-07-18 — Rename compose files to `compose.*`; add deployment doc
+
+**Renamed the three deployment compose files** to Docker's current convention:
+`docker-compose.yml` → `compose.yml`, `.colocated` and `.dev` likewise (via `git mv`, so
+history follows). This also removes a "do as I say, not as I do" gap — Loskai's own stack
+scanner already prefers `compose.yml` and `migration.md` tells users to rename their stacks
+to it. Managed-stack references (`stacks.py`, `migration.md`) were left untouched — they're
+about users' stacks, not our files.
+
+**Extracted the compose comments into `docs/deployment.md`** — a "running the container"
+reference: the env-var table (user-facing vs image-internal), the `STACKS_DIR` same-path
+mount rationale, the settings-volume / `LOSKAI_DATA_DIR` coupling (change the host side
+freely; change the container side only in lockstep or state is lost), the co-located port
+notes, and cold start. The compose files now carry only a lean header pointing there.
+- Key files: `compose.yml`, `compose.colocated.yml`, `compose.dev.yml`, `docs/deployment.md`
+- Ref updates: `README.md`, `docs/dev-testing.md`, `scripts/create-lxc101.sh`, `PLAN.md`, `TODO.md`
+
 ## 2026-07-18 — Cleanup: drop the Caddyfile export
 
 **Removed the Caddyfile export** (UI `CaddyfileExport`, `GET /api/caddy/caddyfile`, and the
