@@ -16,15 +16,45 @@
 
 set -euo pipefail
 
+# --- Proxmox autodetection ---
+# Detect the host's bridge/storage/template instead of hardcoding vmbr0 / local-lvm / a pinned
+# template (which goes stale). Every result falls back to a safe default and is still
+# overridable via the matching env var below.
+
+# The bridge the host itself uses (its default-route interface) — the LAN bridge on a normal
+# single-NIC Proxmox box.
+detect_bridge() {
+	local dev
+	dev="$(ip -o route show default 2>/dev/null | awk '{print $5; exit}')"
+	case "$dev" in vmbr*) echo "$dev" ;; *) echo vmbr0 ;; esac
+}
+
+# First active storage supporting a content type ($1: rootdir = CT rootfs, vztmpl = templates);
+# $2 is the fallback if none is found.
+detect_storage() {
+	local s
+	s="$(pvesm status --content "$1" 2>/dev/null | awk 'NR>1 && $3=="active"{print $1; exit}')"
+	echo "${s:-$2}"
+}
+
+# Newest debian-12-standard template: one already downloaded to $1, else the latest in the
+# catalog, else a known-good pin.
+detect_template() {
+	local t
+	t="$(pveam list "$1" 2>/dev/null | awk '{print $1}' | sed 's|.*/||' | grep '^debian-12-standard' | sort -V | tail -1)"
+	[ -z "$t" ] && t="$(pveam available --section system 2>/dev/null | awk '{print $2}' | grep '^debian-12-standard' | sort -V | tail -1)"
+	echo "${t:-debian-12-standard_12.7-1_amd64.tar.zst}"
+}
+
 # --- Configuration (override via environment) ---
 CTID="${CTID:-$(pvesh get /cluster/nextid)}" # next free VMID unless overridden
 CT_HOSTNAME="${CT_HOSTNAME:-adguard}"
-CT_BRIDGE="${CT_BRIDGE:-vmbr0}"
+CT_BRIDGE="${CT_BRIDGE:-$(detect_bridge)}"
 CT_MEMORY="${CT_MEMORY:-512}"
 CT_DISK="${CT_DISK:-4}"
-CT_STORAGE="${CT_STORAGE:-local-lvm}"
-TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
-TEMPLATE="${TEMPLATE:-debian-12-standard_12.7-1_amd64.tar.zst}"
+CT_STORAGE="${CT_STORAGE:-$(detect_storage rootdir local-lvm)}"
+TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
+TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
@@ -43,6 +73,8 @@ if pct status "$CTID" &>/dev/null; then
 	echo "Container $CTID already exists — aborting." >&2
 	exit 1
 fi
+
+log "Using bridge=$CT_BRIDGE, ct-storage=$CT_STORAGE, template=$TEMPLATE_STORAGE:$TEMPLATE"
 
 # --- Ensure the template is present ---
 if ! pveam list "$TEMPLATE_STORAGE" | grep -q "$TEMPLATE"; then

@@ -29,9 +29,10 @@ BASE=http://<your-forge>/sunde/Loskai/raw/branch/main   # swap to the GitHub raw
 curl -fsSL $BASE/scripts/create-adguard-lxc.sh | bash
 ```
 
-This creates an unprivileged Debian LXC, installs AdGuard, and prints its DHCP IP. To override
-a default, put the env var on the **`bash` side** of the pipe (before `curl` it sets the var
-for `curl`, not the script):
+This creates an unprivileged Debian LXC, installs AdGuard, and prints its DHCP IP. The bridge,
+storage, and Debian template are **autodetected** from the host (and echoed before creation);
+override any guess by putting the env var on the **`bash` side** of the pipe — before `curl`
+it would set the var for `curl`, not the script:
 
 ```bash
 curl -fsSL $BASE/scripts/create-adguard-lxc.sh | CTID=110 CT_BRIDGE=vmbr0 bash
