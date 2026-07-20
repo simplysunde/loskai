@@ -89,10 +89,12 @@ require_storage_content() { # $1=storage  $2=content (rootdir|vztmpl)
 	}
 }
 
-# Unprivileged containers need a root subuid/subgid mapping; add it if the host lacks one.
+# Unprivileged containers need a root subuid/subgid mapping. Proxmox ships this by default, so
+# this only adds the standard range on a host that has *no* root mapping at all — it never
+# touches an existing one (guard on '^root:', not the exact line, so we can't add a 2nd range).
 ensure_subid_maps() {
-	grep -q '^root:100000:65536$' /etc/subuid || echo 'root:100000:65536' >>/etc/subuid
-	grep -q '^root:100000:65536$' /etc/subgid || echo 'root:100000:65536' >>/etc/subgid
+	grep -q '^root:' /etc/subuid || echo 'root:100000:65536' >>/etc/subuid
+	grep -q '^root:' /etc/subgid || echo 'root:100000:65536' >>/etc/subgid
 }
 
 # Download a template, retrying a few times (transient mirror/network hiccups).
