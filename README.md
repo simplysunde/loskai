@@ -18,6 +18,18 @@ Open `http://<docker-host>:8080`, set the admin password on first run, then use 
 Routing tab to assign clean HTTPS names to your services. One image serves the API and
 the built UI on **:8080**.
 
+### Updating
+
+Pull the latest source and rebuild in one step:
+
+```bash
+bash scripts/deploy.sh        # git pull --ff-only && docker compose up -d --build
+```
+
+`docker compose up -d` on its own reuses the existing `loskai:latest` image and would
+skip your new code — always `--build` after a pull. The script does that for you (and
+honours `COMPOSE_FILE=compose.colocated.yml` for the co-located layout).
+
 - **Preferred setup** (`compose.yml`): Loskai on the Docker host; Caddy and AdGuard
   run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS down).
   Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
