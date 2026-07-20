@@ -1,10 +1,11 @@
 # Certificate onboarding (internal-CA mode)
 
-When Caddy runs with its **internal CA** (`local_certs` / `tls internal`) instead of
-public ACME certs, it signs every `*.BASE_DOMAIN` name with its own root. Browsers don't
-trust that root, so LAN devices get a cert warning until they install it **once**. This
-page is a small onboarding site — served by Caddy itself — that hands out the root and
-walks a user through installing it (Windows / macOS / Linux / Firefox, auto-detected).
+Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls internal`) —
+Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS
+token required (public ACME certs are a possible future alternative, not the current path).
+Browsers don't trust that root, so LAN devices get a cert warning until they install it
+**once**. This page is a small onboarding site — served by Caddy itself — that hands out the
+root and walks a user through installing it (Windows / macOS / Linux / Firefox, auto-detected).
 
 Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted, including
 ones you add later — one internal root signs all the per-name leaves.
@@ -51,7 +52,7 @@ it (it has no `@id`).
 ## Reaching it
 
 - **Dev:** <http://localhost:8081/> (compose maps `8081:80`).
-- **Prod (LXC 101):** `http://<caddy-lxc-ip>/` — hand this URL to any new device once.
+- **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/` — hand this URL to any new device once.
 
   In prod, scope the site to the LXC IP so it doesn't shadow the automatic HTTP→HTTPS
   redirects for your real names:

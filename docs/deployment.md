@@ -21,10 +21,12 @@ Routing tab to assign HTTPS names to your services.
 
 Two compose files, same image:
 
-- **`compose.yml` — preferred.** Loskai runs on the Docker host; Caddy + AdGuard run
-  natively on a separate box (LXC 101), reached over the LAN. Provision that box with
-  [`scripts/create-lxc101.sh`](../scripts/create-lxc101.sh) (run from the Proxmox shell).
-  `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
+- **`compose.yml` — preferred.** Loskai runs on the Docker host; Caddy and AdGuard run
+  natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS down),
+  reached over the LAN. Provision them with
+  [`scripts/create-caddy-lxc.sh`](../scripts/create-caddy-lxc.sh) and
+  [`scripts/create-adguard-lxc.sh`](../scripts/create-adguard-lxc.sh) (run from the Proxmox
+  shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
 - **`compose.colocated.yml` — all-in-Docker.** Loskai + Caddy + AdGuard as containers on
   one host, for setups without Proxmox. Here `CADDY_ADMIN_URL` is a hostname
   (`http://caddy:2019`), so you **must** set `CADDY_HOST_IP` to the host's LAN IP (where

@@ -77,9 +77,9 @@ docker compose -f compose.dev.yml down -v     # wipe them too
 ## Notes
 
 - **`BASE_DOMAIN` is a Loskai-only setting in dev** — set it via the env above *or* on the
-  Settings page in the UI. The dev Caddy uses an internal CA (a per-name cert on demand), so
-  it doesn't need the domain. (Production is different: the real wildcard cert requires Caddy
-  to know `BASE_DOMAIN` too.)
+  Settings page in the UI. Caddy's internal CA (a per-name cert on demand) doesn't need the
+  domain — the same as the default production setup. (Only the future public-ACME path would
+  require Caddy itself to know `BASE_DOMAIN`, for the DNS-challenge wildcard.)
 - **`CADDY_HOST_IP` isn't needed** here: `CADDY_ADMIN_URL` uses an IP (`127.0.0.1`), so the
   DNS-rewrite answer IP derives from it automatically.
 - **Full name resolution** (actually browsing `https://test.lvh.me`) would need AdGuard's
@@ -123,12 +123,13 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 
 ## Going live (beyond the local test)
 
-To use this for real, on your LAN with a real domain:
+To use this for real on your LAN:
 
-1. **Real domain + wildcard cert.** Use the production `compose.yml` /
-   `compose.colocated.yml` (or the LXC script), where Caddy obtains a real
-   `*.BASE_DOMAIN` cert via DNS challenge — so Caddy **does** need `BASE_DOMAIN` (and the
-   DNS-provider token) in its own env, and must agree with Loskai's.
+1. **TLS.** By default production uses the same internal CA as dev — deploy the production
+   `compose.yml` / `compose.colocated.yml` (or the LXC script) and install Caddy's root on
+   each device once via the [onboarding page](certificate-setup.md). *(Future option: swap
+   to a real domain + public `*.BASE_DOMAIN` cert via DNS challenge — then Caddy also needs
+   `BASE_DOMAIN` and the DNS-provider token in its own env, agreeing with Loskai's.)*
 2. **Publish AdGuard's DNS port** (`:53`) on the LAN and free the host resolver if needed.
 3. **Point devices at AdGuard for DNS** — set your router's DHCP to hand out the AdGuard
    IP, so every device uses it and the rewrites (`name.BASE_DOMAIN → Caddy LAN IP`) take

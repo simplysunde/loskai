@@ -1,16 +1,47 @@
-# Caddyfile for the co-located Caddy container. Same shape as the LXC 101 reference:
-# admin endpoint + wildcard cert only. Loskai pushes every specific-host route at runtime
-# via the Admin API (reached as caddy:2019 on the internal Docker network).
+# Caddyfile for the co-located Caddy container. Same shape as the native Caddy LXC reference: admin
+# endpoint, TLS setup, and the certificate-onboarding page — no routes. Loskai pushes every
+# specific-host route at runtime via the Admin API (reached as caddy:2019 on the internal
+# Docker network).
+#
+# Default TLS is Caddy's internal CA (local_certs) — no real domain or ACME/DNS token needed.
+# The onboarding page (served on :80, published by compose.colocated.yml) lets LAN devices
+# trust the internal root once. For the public-ACME alternative, see the bottom of this file
+# (and swap caddy/Dockerfile to the xcaddy build).
 
 {
 	# Internal to the Docker network — Loskai reaches this as caddy:2019. Not published.
 	admin 0.0.0.0:2019
+	local_certs   # Caddy is its own CA — issues an internal cert per name on demand
 }
 
-# Wildcard cert via DNS challenge. Token comes from the caddy service's environment
-# (DUCKDNS_TOKEN in docker-compose.colocated.yml). Swap the provider to match your domain.
+# Issue an internal cert for each *.{$BASE_DOMAIN} name on demand. No handlers -> cert only.
 *.{$BASE_DOMAIN} {
-	tls {
-		dns duckdns {env.DUCKDNS_TOKEN}
+	tls internal
+}
+
+# Certificate-onboarding page on :80 — plain HTTP so a LAN device can install the internal
+# root before it's trusted. The static page is baked into the image at /srv/setup by
+# caddy/Dockerfile; /data is the caddy-data volume.
+:80 {
+	handle /caddy-root.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	handle {
+		root * /srv/setup
+		file_server
 	}
 }
+
+# --- Future: public ACME certs instead of the internal CA ---------------------------------
+# Replace `local_certs` above + this whole `:80` block with a DNS-challenge wildcard, and
+# switch caddy/Dockerfile to the xcaddy build so the caddy-dns plugin is present. Token comes
+# from the caddy service's environment (DUCKDNS_TOKEN in compose.colocated.yml).
+#
+# *.{$BASE_DOMAIN} {
+# 	tls {
+# 		dns duckdns {env.DUCKDNS_TOKEN}   # swap provider to match your domain
+# 	}
+# }

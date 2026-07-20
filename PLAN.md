@@ -41,20 +41,27 @@ AdGuard DNS rewrite in a single action.
 ```
 Proxmox Host
 │
-├── LXC 101 — Network Services                 192.168.10.101
-│   Runs: AdGuard Home (DNS) + Caddy (reverse proxy)  ← preferred setup
-│   Ports: :53 (DNS), :3000 (AdGuard UI + API)
-│          :80/:443 (Caddy), :2019 (Caddy Admin API — firewalled to LXC 103 only)
+├── LXC — AdGuard Home (DNS)          ← Network Services
+│   Ports: :53 (DNS), :3000 (web UI + REST API)
 │
-├── LXC 102 — WireGuard                        192.168.10.102
+├── LXC — Caddy (reverse proxy)       ← Network Services
+│   Ports: :80/:443 (HTTP/HTTPS), :2019 (Admin API — firewalled to the Docker host only)
+│
+├── LXC — WireGuard
 │   Runs: WireGuard + wg-easy or wg-dashboard
 │   Ports: :51820/udp (WireGuard), :51821 (dashboard)
 │
-└── LXC 103 (or VM) — Docker Host              192.168.10.100
+└── LXC (or VM) — Docker Host
     Runs: Docker Engine
     └── loskai      ← the thing we are building
     └── your app containers  ← grafana, nextcloud, etc.
 ```
+
+AdGuard and Caddy are **separate LXCs** (not one box): rebuilding or restarting Caddy — the
+component Loskai constantly reconfigures — must never take LAN DNS down with it. The
+provisioning scripts (`scripts/create-adguard-lxc.sh`, `scripts/create-caddy-lxc.sh`)
+auto-pick the container ID and come up on DHCP; you assign static leases afterwards. The IPs
+shown elsewhere in this doc are illustrative examples.
 
 ---
 
@@ -93,7 +100,7 @@ Internally it is split into four modules. Each module has:
          │                  │                  │
          ▼                  ▼                  ▼
   Docker Socket       Caddy :2019      AdGuard :3000
-  (same host)       (LXC 101 LAN)    (LXC 101 LAN)
+  (same host)       (Caddy LXC LAN)  (AdGuard LXC LAN)
 ```
 
 ---
@@ -432,7 +439,7 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
 - Single-label only — keeps every name under the one `*.BASE_DOMAIN` wildcard cert
   (`app.team.example.no` would need a separate `*.team.example.no` cert, which the
   wildcard does not cover)
-- Upstream: any `host:port` reachable from LXC 101 — LAN IP + exposed port (a bare
+- Upstream: any `host:port` reachable from the Caddy LXC — LAN IP + exposed port (a bare
   `host:port`, no scheme/path; validated on assign). A "Backend speaks HTTPS" toggle sets
   `upstream_tls` for TLS-only backends (see below)
   - Docker container: `192.168.10.100:3000`  (port must be exposed on the host)
@@ -444,10 +451,10 @@ AdGuard, WireGuard, or the Docker module (external instances need no Docker at a
   if AdGuard is unhealthy — the name won't resolve on the LAN until the rewrite is added,
   so retry when AdGuard is back)
 
-> **Certificate Status is deferred** — out of current scope. Caddy's Admin API does not
-> expose the public wildcard cert's expiry (the PKI endpoints cover only Caddy's internal
-> `local` CA), and Caddy auto-renews anyway, so this is low-urgency. When revisited it will
-> be implemented as a TLS probe, not via the Admin API — see [Future Ideas](#future-ideas).
+> **Certificate Status is deferred** — out of current scope. With the default internal CA,
+> Caddy's PKI endpoints *do* expose the `local` CA's expiry, and Caddy auto-renews anyway, so
+> this is low-urgency. When revisited it will be implemented as a TLS probe (method-independent,
+> so it also covers a future public-ACME cert), not via the Admin API — see [Future Ideas](#future-ideas).
 
 **Raw Config View**
 - Read-only view of the current Caddy JSON config
@@ -846,10 +853,10 @@ CMD ["uv", "run", "uvicorn", "loskai.main:app", "--host", "0.0.0.0", "--port", "
 
 ---
 
-## Docker Compose (LXC 103 — Docker Host)
+## Docker Compose (Docker Host)
 
-Caddy is not a Docker container in the preferred setup — it runs natively on LXC 101.
-Only Loskai and your app containers run here.
+Caddy is not a Docker container in the preferred setup — it runs natively on its own LXC
+(with AdGuard on a separate one). Only Loskai and your app containers run here.
 
 ```yaml
 services:
@@ -867,48 +874,59 @@ services:
       - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
       - ./loskai-settings:/opt/loskai   # persists settings.json + instances.json
     environment:
-      # Caddy — LXC 101 over LAN (port 2019 firewalled to this host only)
+      # Caddy — its own LXC over LAN (port 2019 firewalled to this host only)
       - CADDY_ADMIN_URL=http://192.168.10.101:2019
 
-      # AdGuard — LXC 101 over LAN
-      - ADGUARD_URL=http://192.168.10.101:3000
+      # AdGuard — its own LXC over LAN
+      - ADGUARD_URL=http://192.168.10.102:3000
       - ADGUARD_USER=${ADGUARD_USER}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD}
 
-      # WireGuard dashboard — LXC 102 over LAN (optional, no auth required)
-      - WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
+      # WireGuard dashboard — its own LXC over LAN (optional, no auth required)
+      - WIREGUARD_DASHBOARD_URL=http://192.168.10.103:51821
 
       # General (optional — can be set in UI settings page instead)
       - BASE_DOMAIN=${BASE_DOMAIN}          # e.g. example.no
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD}   # guards the admin UI (or set at first run)
       # Must equal the bind mount above so Loskai scans the same path that's mounted
       - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
-      # Note: the ACME/DNS-challenge token (DuckDNS, Cloudflare, …) lives on LXC 101
-      # in Caddy's environment — Loskai never needs it
+      # Note: any ACME/DNS-challenge token lives on the Caddy LXC in Caddy's environment
+      # — Loskai never needs it (and the default internal-CA mode needs no token at all)
     restart: unless-stopped
 ```
 
 ---
 
-## Caddy Setup (runs natively on LXC 101)
+## Caddy Setup (runs natively on its own LXC)
 
-### HTTPS and the wildcard cert — out of scope for the app
+### TLS and certificates — out of scope for the app
 
-Loskai only needs to know the `BASE_DOMAIN` string (e.g. `example.no`). *How* the
-wildcard `*.BASE_DOMAIN` cert is obtained is a one-time LXC 101 infrastructure step and
-has no impact on Loskai's application code — Caddy's Admin API works identically
-regardless of the cert method.
+Loskai only needs to know the `BASE_DOMAIN` string (e.g. `example.no`). *How* Caddy
+obtains a cert for each `*.BASE_DOMAIN` name is a one-time Caddy-host concern with no
+impact on Loskai's application code — Caddy's Admin API works identically regardless of
+the cert method, and Loskai handles zero certificate material either way.
 
-The ACME DNS challenge provider depends on your domain:
-- `example.no` and other real domains → your registrar's DNS or Cloudflare, etc.
-- a free `*.duckdns.org` name → the DuckDNS plugin
+**Default — Caddy's internal CA.** Caddy runs with `local_certs` and signs every
+`*.BASE_DOMAIN` name with its own root: no real domain, no ACME/DNS token, no external
+dependency. LAN devices install that root **once** via the certificate-onboarding page
+(plain-HTTP on `:80` — see [`docs/certificate-setup.md`](docs/certificate-setup.md)); after
+that every current and future `*.BASE_DOMAIN` name is trusted. This is the mode Loskai
+targets today, in **both dev and production** — stock Caddy is enough, no xcaddy build needed.
 
-Either way Caddy must be built with the matching `caddy-dns` plugin (via xcaddy) and
-given that provider's API token in its own environment on LXC 101. The LXC helper script
-(`scripts/create-lxc101.sh`, Phase 7) handles the xcaddy build and Caddyfile. During
-development, a plain HTTP Caddyfile is sufficient.
+> **Future — public ACME certs.** Swapping to publicly-trusted certs (Let's Encrypt /
+> ZeroSSL via a DNS challenge) is a possible later option: it drops the one-time root
+> install but adds a real domain, an xcaddy build with the matching `caddy-dns` plugin, and
+> a DNS-provider token in Caddy's environment on the Caddy LXC. The provider depends on the domain
+> (registrar DNS / Cloudflare for a real domain; the DuckDNS plugin for a `*.duckdns.org`
+> name). Because Loskai is cert-agnostic, adopting it is a Caddyfile change only, with no
+> application-code impact. Deferred until/unless it is pursued.
 
-### Install (for reference — handled by the Phase 7 LXC script)
+### Install (for reference — handled by the Phase 7 Caddy LXC script, `create-caddy-lxc.sh`)
+
+The default internal-CA mode needs only **stock Caddy** (`local_certs` is built in) — no
+xcaddy, no plugins. The xcaddy build below is required **only** for the future public-ACME
+path, to bake in the matching `caddy-dns` plugin:
+
 ```bash
 # Build Caddy with your DNS provider's plugin via xcaddy (DuckDNS shown as one example)
 apt install -y debian-keyring debian-archive-keyring apt-transport-https
@@ -926,27 +944,46 @@ autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](docs/c
 
 ### Caddyfile (bootstrap only — all routes come from Loskai via the Admin API)
 
-The bootstrap Caddyfile defines **no routes at all** — only the admin endpoint and the
-wildcard cert. The wildcard site block exists solely to obtain the `*.BASE_DOMAIN` cert; it
-has no handlers, so it is not a routing catch-all. Every route, including Loskai's own UI
-and AdGuard, is a specific-host route pushed at runtime from the instance list — they are
-all flat siblings reusing this one cert.
+The bootstrap Caddyfile defines **no routes at all** — only the admin endpoint, the TLS
+setup, and the certificate-onboarding page. Every route, including Loskai's own UI and
+AdGuard, is a specific-host route pushed at runtime from the instance list — all flat
+siblings reusing the same internal cert.
 
 ```caddyfile
 {
     admin 0.0.0.0:2019          # firewalled — only the Docker host (192.168.10.100) can reach this
+    local_certs                 # Caddy is its own CA — no real domain or ACME/DNS token needed
 }
 
-# Obtain the wildcard *.BASE_DOMAIN cert once, via DNS challenge. No handlers → cert only.
+# Issue an internal cert per *.BASE_DOMAIN name on demand. No handlers → cert only.
 *.{$BASE_DOMAIN} {
-    tls {
-        dns duckdns {env.DUCKDNS_TOKEN}   # swap provider + token to match your domain
+    tls internal
+}
+
+# Certificate-onboarding page on :80 — lets a LAN device install the internal root once,
+# reachable by IP before that root is trusted. Full block in docs/certificate-setup.md.
+:80 {
+    handle /caddy-root.crt {
+        root * /data/caddy/pki/authorities/local
+        rewrite * /root.crt
+        header Content-Type application/x-x509-ca-cert
+        file_server
     }
+    handle { root * /srv/setup; file_server }
 }
 
 # No routes here. Loskai pushes every specific-host route (loskai, adguard,
-# grafana, …) at runtime via the Admin API, each reusing the wildcard cert above.
+# grafana, …) at runtime via the Admin API, each reusing the internal cert above.
 ```
+
+> **Future (public ACME).** To use publicly-trusted certs instead, drop `local_certs` and
+> the onboarding `:80` block and obtain a wildcard via DNS challenge (needs the xcaddy build
+> above + the provider token in Caddy's env):
+> ```caddyfile
+> *.{$BASE_DOMAIN} {
+>     tls { dns duckdns {env.DUCKDNS_TOKEN} }   # swap provider + token to match your domain
+> }
+> ```
 
 > **Cold-start recovery.** On a brand-new Caddy with an empty autosave, no routes exist yet,
 > so `loskai.{$BASE_DOMAIN}` doesn't resolve. Reach Loskai directly at
@@ -957,12 +994,12 @@ all flat siblings reusing this one cert.
 
 ## Alternative Setups
 
-The preferred setup runs Caddy natively on LXC 101 alongside AdGuard. Two simpler
+The preferred setup runs Caddy and AdGuard as two separate native LXCs. Two simpler
 alternatives exist and will have their own install instructions:
 
 - **Co-located (all-in-Docker)** — Caddy *and* AdGuard run as Docker containers on the
-  Docker host alongside Loskai (`compose.colocated.yml`), for setups without a
-  separate LXC 101. The Tier-3 test rig is a disposable variant of this same stack.
+  Docker host alongside Loskai (`compose.colocated.yml`), for setups without the separate
+  network-services LXCs. The Tier-3 test rig is a disposable variant of this same stack.
 - **All-in-one** — AdGuard, Caddy, and Loskai all on a single LXC (native services on one box)
 
 ### Co-located port notes
@@ -1020,8 +1057,9 @@ file only and is shown read-only in the UI; see the table below.)
 | Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 
-The ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on
-LXC 101 — Loskai never needs it. In the co-located alternative (Caddy as Docker
+Any ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on the
+Caddy LXC — Loskai never needs it (and the default internal-CA mode needs none). In the
+co-located alternative (Caddy as Docker
 container), it would be passed to the Caddy container, not to Loskai. **No env var
 is required by Loskai itself** — everything can be configured via the settings page
 on first run.
@@ -1043,10 +1081,10 @@ volumes:
 ```jsonc
 {
   "caddy_admin_url": "http://192.168.10.101:2019",
-  "adguard_url": "http://192.168.10.101:3000",
+  "adguard_url": "http://192.168.10.102:3000",
   "adguard_user": "admin",
   "adguard_password": "...",
-  "wireguard_dashboard_url": "http://192.168.10.102:51821",
+  "wireguard_dashboard_url": "http://192.168.10.103:51821",
   "base_domain": "example.no",
   "caddy_host_ip": "192.168.10.101",
   "recipes_repo_url": "https://github.com/you/loskai-recipes",
@@ -1062,7 +1100,7 @@ PUT  /api/settings        update stored settings (env-sourced values ignored)
 
 ### .env.example (all optional — configure here or in the UI settings page)
 ```bash
-# The ACME/DNS-challenge token is set on LXC 101 (Caddy's environment), not here
+# Any ACME/DNS-challenge token is set on the Caddy LXC (Caddy's environment), not here
 
 BASE_DOMAIN=example.no
 LOSKAI_PASSWORD=changeme     # guards the admin UI; or set it at first run
@@ -1117,7 +1155,7 @@ TODO.md is the authoritative source for what to build and in what order.
 | Failure | Impact | Mitigation |
 |---|---|---|
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
-| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on LXC 101 — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Sync" rebuilds from `instances.json` only if the autosave itself is lost |
+| Caddy crashes | HTTPS stops | Caddy runs as a systemd service on its own LXC — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Sync" rebuilds from `instances.json` only if the autosave itself is lost |
 | Loskai container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
 | Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
@@ -1171,12 +1209,12 @@ actual guard.
 
 ### Infrastructure boundaries
 
-- **Caddy Admin API** — port 2019 on LXC 101 must be firewalled so only LXC 103
-  (192.168.10.100) can reach it. Never expose it to the wider network.
+- **Caddy Admin API** — port 2019 on the Caddy LXC must be firewalled so only the Docker
+  host can reach it. Never expose it to the wider network.
 - **Docker socket** — mounted read-write (required for container management). Loskai should
   be the only container with socket access.
-- **AdGuard API** — port 3000 on LXC 101. A Proxmox firewall rule so only LXC 103's IP can
-  reach it.
+- **AdGuard API** — port 3000 on the AdGuard LXC. A Proxmox firewall rule so only the Docker
+  host's IP can reach it.
 - **Reachability** — Loskai is only served on the LAN via `loskai.{BASE_DOMAIN}` over
   HTTPS; remote access is through WireGuard, never a public port.
 - **Secrets** — service credentials and `LOSKAI_PASSWORD` live in `.env` (or the settings
@@ -1225,12 +1263,12 @@ alternative to the Proxmox/LXC topology for anyone not running Proxmox.
 ## Future Ideas
 
 - **Uptime monitoring** — ping each upstream and record response time history
-- **Certificate Status** — surface the wildcard cert's expiry, issuer, and days remaining.
-  Caddy's Admin API can't provide this (PKI endpoints cover only the internal `local` CA,
-  not the public ACME cert), so implement it as a **TLS probe**: open a TLS connection to a
-  routed name (e.g. `loskai.{BASE_DOMAIN}:443`), read the served certificate's `notAfter`
-  and issuer via Python's `ssl`. Host-independent, no Admin API dependency, reflects the
-  live cert. Deferred until the core modules are done and functional.
+- **Certificate Status** — surface each cert's expiry, issuer, and days remaining. With the
+  default internal CA the `local` CA's expiry is readable from Caddy's PKI endpoints; a future
+  public-ACME cert is not. To cover both uniformly, implement it as a **TLS probe**: open a
+  TLS connection to a routed name (e.g. `loskai.{BASE_DOMAIN}:443`), read the served
+  certificate's `notAfter` and issuer via Python's `ssl`. Host-independent, no Admin API
+  dependency, reflects the live cert. Deferred until the core modules are done and functional.
 - **Notification module** — alert on container crash, cert expiry, AdGuard outage
 - **Multi-host** — lightweight read-only agent on a second Docker host,
   aggregated into the same dashboard

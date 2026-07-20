@@ -1,6 +1,51 @@
 # Loskai — History
 
-## 2026-07-18 — Rename compose files to `compose.*`; add deployment doc
+## 2026-07-20 — Internal CA as default; split AdGuard + Caddy into two LXCs
+
+**Realigned the TLS/certificate story in the docs** so the internal CA (`local_certs` /
+`tls internal`) is the default in **both dev and production**, and public ACME certs
+(Let's Encrypt / ZeroSSL via DNS challenge) are framed as a possible future path, not the
+production baseline. The previous docs presented ACME as the production default and internal
+CA as a dev-only convenience — inverted relative to the actual direction. This is a
+docs-only change: because Loskai is cert-agnostic (it holds zero certificate material and
+only needs the `BASE_DOMAIN` string), the choice lives entirely in the Caddyfile, so no
+application code moves. Also noted that Certificate Status (deferred) becomes easier under
+the internal CA — its expiry is readable from Caddy's PKI endpoints — while the TLS-probe
+approach stays as the method-independent implementation.
+
+**Reconciled the bootstrap configs to match.** Both reference Caddyfiles (`Caddyfile` native
+LXC, `caddy/Caddyfile` co-located) now default to `local_certs` + `tls internal` + the `:80`
+onboarding block, with the ACME wildcard demoted to a commented alternative. `caddy/Dockerfile`
+switched from the xcaddy plugin build to stock `caddy:2` and now bakes the onboarding page in
+(`COPY setup/ /srv/setup/`); `compose.colocated.yml` comments out `DUCKDNS_TOKEN` (ACME-only)
+and publishes `:80` for the onboarding page.
+
+**Split the combined Network-Services LXC into two — AdGuard and Caddy on separate boxes.**
+This walks back the earlier "LXC 101 = AdGuard + Caddy together" model (`PLAN.md` infra
+diagram, firewall notes, compose examples all updated). Reason: AdGuard *is* the LAN's DNS
+resolver, while Caddy is the component Loskai constantly reconfigures at runtime and that gets
+rebuilt during dev — sharing a fault/restart domain means a Caddy misconfig or teardown takes
+name resolution down LAN-wide. Separate LXCs isolate that. `scripts/create-lxc101.sh` was
+replaced by `scripts/create-adguard-lxc.sh` + `scripts/create-caddy-lxc.sh`. Both auto-pick
+the container ID (`pvesh get /cluster/nextid`) and come up on DHCP (static IPs assigned
+afterwards), per the user's provisioning workflow, and enable `unattended-upgrades` for
+OS security patching (Debian's default security-only origins, so app versions aren't
+auto-bumped). The Caddy script installs Caddy from the
+**official Cloudsmith apt repo**, runs it **as root** (dropping the `caddy` user /
+`CAP_NET_BIND_SERVICE` ceremony — the unprivileged LXC is the security boundary), defaults to
+`TLS_MODE=internal` (`local_certs` + `tls internal` + a minimal `:80` onboarding page, data
+dir pinned via `XDG_DATA_HOME=/var/lib/caddy` so the `/caddy-root.crt` path is deterministic),
+and adds the DNS plugin via `caddy add-package` when `TLS_MODE=acme`.
+
+- Key files: `PLAN.md` (Caddy Setup section, infra diagram, firewall/resilience notes, both
+  Certificate Status notes), `docs/certificate-setup.md`, `docs/dev-testing.md`,
+  `docs/deployment.md`, `README.md`, `TODO.md`, `compose.yml`, `Caddyfile`, `caddy/Caddyfile`,
+  `caddy/Dockerfile`, `compose.colocated.yml`, `scripts/create-adguard-lxc.sh`,
+  `scripts/create-caddy-lxc.sh` (replacing `scripts/create-lxc101.sh`)
+- The full 565-line auto-detecting onboarding page (`caddy/setup/index.html`) is used by the
+  Docker builds; the native Caddy LXC script writes a minimal placeholder and points to the repo copy.
+
+## 2026-07-18 — Deployment config cleanup: compose rename, deploy doc, opt-in .env
 
 **Renamed the three deployment compose files** to Docker's current convention:
 `docker-compose.yml` → `compose.yml`, `.colocated` and `.dev` likewise (via `git mv`, so
@@ -14,7 +59,17 @@ reference: the env-var table (user-facing vs image-internal), the `STACKS_DIR` s
 mount rationale, the settings-volume / `LOSKAI_DATA_DIR` coupling (change the host side
 freely; change the container side only in lockstep or state is lost), the co-located port
 notes, and cold start. The compose files now carry only a lean header pointing there.
-- Key files: `compose.yml`, `compose.colocated.yml`, `compose.dev.yml`, `docs/deployment.md`
+
+**Fixed `RECIPES_REPO_URL` never reaching the container** — it lived in `.env.example` and
+`config.py` but wasn't forwarded in either compose file's `loskai` environment, so the env
+override silently did nothing. Now passed through in both (intended to become an image-baked
+default later, with env/UI as the override).
+
+**Made `.env.example` fully opt-in** — every value is optional, so they now ship commented:
+copying to `.env` yields an all-unset config that boots and is configured in the UI, rather
+than baking in example IPs/passwords. Reordered so `STACKS_DIR` leads and `CADDY_HOST_IP`
+sits with `CADDY_ADMIN_URL`.
+- Key files: `compose.yml`, `compose.colocated.yml`, `compose.dev.yml`, `docs/deployment.md`, `.env.example`
 - Ref updates: `README.md`, `docs/dev-testing.md`, `scripts/create-lxc101.sh`, `PLAN.md`, `TODO.md`
 
 ## 2026-07-18 — Cleanup: drop the Caddyfile export

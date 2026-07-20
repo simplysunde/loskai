@@ -18,9 +18,10 @@ Open `http://<docker-host>:8080`, set the admin password on first run, then use 
 Routing tab to assign clean HTTPS names to your services. One image serves the API and
 the built UI on **:8080**.
 
-- **Preferred setup** (`compose.yml`): Loskai on the Docker host; Caddy + AdGuard
-  run natively on a separate box (LXC 101). Provision that box with
-  [`scripts/create-lxc101.sh`](scripts/create-lxc101.sh) (run from the Proxmox shell).
+- **Preferred setup** (`compose.yml`): Loskai on the Docker host; Caddy and AdGuard
+  run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS down).
+  Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
+  [`scripts/create-adguard-lxc.sh`](scripts/create-adguard-lxc.sh) (run from the Proxmox shell).
 - **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as
   containers on one host — for setups without Proxmox. Set `CADDY_HOST_IP` to the host's
   LAN IP. Mind the port notes (AdGuard `:53` vs `systemd-resolved`).

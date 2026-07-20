@@ -11,7 +11,7 @@
 - [x] Add frontend **dev** deps: `vitest` + `@testing-library/react` (with jsdom + jest-dom for the DOM env + matchers)
 - [x] Configure Vite dev proxy: `/api/*` → `http://localhost:8000` (`ws: true` for the later container-exec socket)
   - Note: backend runs on `:8000` in dev (Vite proxies to it); the production container serves on `:8080`
-- [x] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `LOSKAI_PASSWORD` guards the admin UI (or set at first run). The ACME/DNS-challenge token belongs to Caddy on LXC 101, not Loskai
+- [x] Create `.env.example` — all vars optional; `BASE_DOMAIN` (e.g. `example.no`) is the domain; `LOSKAI_PASSWORD` guards the admin UI (or set at first run). any ACME/DNS-challenge token belongs to Caddy on its LXC, not Loskai
 - [x] Create `HISTORY.md`
 
 ---
@@ -156,17 +156,17 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
 ## Phase 7 — Deployment
 
 **Infrastructure scripts**
-- [x] `scripts/create-lxc101.sh` — Proxmox host script (run from Proxmox shell via `bash create-lxc101.sh`)
-  - Creates + starts a Debian LXC (configurable ID/memory/disk/network), provisions via `pct exec`
-  - Installs AdGuard Home (official installer)
-  - Installs Caddy via the **official custom-build download** (prebuilt binary with the DNS plugin — simpler/more reliable than xcaddy+Go for an untested script), drops the cert-only `Caddyfile`, adds a `caddy.service` unit (`run --resume`)
-  - Prints next steps (set the DNS token, finish AdGuard setup, firewall :2019). Bash syntax-checked; can't be run outside Proxmox
+- [x] `scripts/create-adguard-lxc.sh` + `scripts/create-caddy-lxc.sh` — two Proxmox host scripts (run from the Proxmox shell). Split so rebuilding Caddy never takes LAN DNS down
+  - Each creates + starts a Debian LXC and provisions via `pct exec`; container ID auto-picked (`pvesh get /cluster/nextid`), IP via DHCP (static assigned afterwards) — all env-overridable
+  - AdGuard script: installs AdGuard Home (official installer)
+  - Caddy script: installs Caddy from the **official Cloudsmith apt repo**, runs it **as root** (`--resume`), defaults to the **internal CA** (`local_certs` + `tls internal` + `:80` onboarding page); `TLS_MODE=acme` adds the DNS plugin via `caddy add-package` for the public-wildcard path
+  - Each prints next steps (finish AdGuard setup / install the root cert, firewall :3000 / :2019). Bash syntax-checked; can't be run outside Proxmox
 
 **Loskai container**
 - [x] `Dockerfile` — multi-stage build. Stage 1 (node:20-alpine) builds the frontend; stage 2 (**python:3.12-slim-bookworm**, pinned so the Docker apt repo matches) installs deps with `uv` in two steps (deps cached, then the project), adds `git` + Docker CLI + Compose v2 plugin, copies dist to `./static`, serves on :8080. `+ .dockerignore`
 - [x] `compose.yml` — preferred setup (Loskai on the Docker host, Caddy/AdGuard over the LAN); `loskai-settings` volume; same-path `${STACKS_DIR}:${STACKS_DIR}` mount + socket
 - [x] `compose.colocated.yml` — all-in-Docker alternative (Loskai + Caddy + AdGuard as containers); port-conflict notes + required `CADDY_HOST_IP`; named volumes for caddy/adguard state
-- [x] `Caddyfile` — cert-only reference for native LXC 101 Caddy (admin + wildcard, no routes)
+- [x] `Caddyfile` — cert-only reference for the native Caddy LXC (admin + internal CA + onboarding, no routes)
 - [x] `caddy/Dockerfile` + `caddy/Caddyfile` — for the co-located alternative (Caddy container built with the DNS plugin)
 - [x] README updated with build/run/deploy + develop instructions
 - [x] Verify: **Docker daemon unavailable in this environment** — replicated the image contents instead: `uv sync --frozen --no-dev` (prod install, dev deps removed) + the exact container CMD serves the SPA + gated API on :8080 with all four modules reporting; compose YAML + LXC script parse. Actual `docker build`/`docker compose up` must run on a real host

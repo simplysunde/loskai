@@ -5,15 +5,17 @@
 
 services:
   caddy:
-    build: ./caddy # xcaddy build with your DNS provider's plugin
+    build: ./caddy # stock Caddy + internal CA by default; see caddy/Dockerfile for the ACME build
     container_name: caddy
     ports:
-      - "80:80"
+      - "80:80" # certificate-onboarding page (install the internal root once per device)
       - "443:443"
       # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
-      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-} # DNS-challenge token (swap provider to match your domain)
+      # DUCKDNS_TOKEN is only needed for the future public-ACME path (see caddy/Caddyfile +
+      # caddy/Dockerfile). The default internal CA needs no token — leave this commented.
+      #- DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
     volumes:
       - caddy-data:/data # certs + the autosaved config (survives restarts)
       - caddy-config:/config
