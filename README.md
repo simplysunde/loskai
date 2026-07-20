@@ -69,6 +69,7 @@ Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:80
 ## Documentation
 
 - [Install guide (start here)](docs/install.md) — step-by-step for the preferred layout: AdGuard + Caddy LXCs on Proxmox, then Loskai in Docker.
+- [Authoring an LXC provisioning script](docs/lxc-script-authoring.md) — the pattern, safety invariants, and a copy-paste skeleton for adding new `create-<service>-lxc.sh` scripts.
 - [Deploying the container](docs/deployment.md) — env-var reference, volumes and the same-path/`LOSKAI_DATA_DIR` coupling, the two layouts, and cold start.
 - [Running locally against Caddy + AdGuard containers](docs/dev-testing.md) — dev walkthrough.
 - [Loskai internal API](docs/api.md) — the endpoints the frontend consumes (a human-readable overview of the live `/docs`).
