@@ -13,8 +13,10 @@
 # across restarts from Caddy's autosaved config.
 #
 # The container ID is auto-picked (next free VMID) and the IP comes from DHCP; assign a static
-# lease/IP afterwards. Override anything via env, e.g.:
-#   CTID=111 BASE_DOMAIN=example.no bash create-caddy-lxc.sh
+# lease/IP afterwards. Override anything via env, e.g. (point at a private forge for the
+# Caddyfile fetch — see REPO_RAW_BASE below):
+#   CTID=111 REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main \
+#     bash create-caddy-lxc.sh
 #
 # TLS mode (default: internal CA — no domain or DNS token needed):
 #   TLS_MODE=internal  → Caddy is its own CA (local_certs). LAN devices install the root once
@@ -36,15 +38,17 @@ CT_DISK="${CT_DISK:-4}"
 CT_STORAGE="${CT_STORAGE:-local-lvm}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
 TEMPLATE="${TEMPLATE:-debian-12-standard_12.7-1_amd64.tar.zst}"
+# Only ACME mode needs your real domain (for the DNS-challenge wildcard cert). Internal mode
+# uses a fixed *.localhost placeholder — the domain is a Loskai setting, never Caddy's.
 BASE_DOMAIN="${BASE_DOMAIN:-example.no}"
 # TLS mode: 'internal' (Caddy's own CA, the default) or 'acme' (public DNS-challenge wildcard).
 TLS_MODE="${TLS_MODE:-internal}"
 # ACME only — the caddy-dns plugin matching your domain's DNS provider (DuckDNS shown as default).
 CADDY_DNS_PLUGIN="${CADDY_DNS_PLUGIN:-github.com/caddy-dns/duckdns}"
-
-# Caddy stores its PKI + autosaved config here (pinned via XDG_DATA_HOME in the systemd unit
-# below, so the onboarding page's /caddy-root.crt path is deterministic).
-CADDY_DATA_DIR="/var/lib/caddy/caddy"
+# Raw base URL of the Loskai repo. Internal mode fetches caddy/Caddyfile + the onboarding page
+# from here, so this LXC and the co-located container share ONE config (no drift). Override for
+# a private forge, e.g. REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main
+REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/sunde/Loskai/main}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
@@ -137,57 +141,31 @@ if [ "$TLS_MODE" = acme ]; then
 }
 CADDYFILE
 else
+	# Internal mode reuses the SAME config as the co-located container: fetch caddy/Caddyfile
+	# and the onboarding page from the repo (single source of truth, no inline duplicate). The
+	# Caddyfile expects Caddy's data at /data/caddy and the page at /srv/setup — both satisfied
+	# by XDG_DATA_HOME=/data in the systemd unit below and this mkdir. It uses *.{$BASE_DOMAIN},
+	# fed the fixed 'localhost' placeholder (see UNIT_BASE_DOMAIN); local_certs signs every real
+	# name Loskai pushes on demand regardless.
+	log "Fetching Caddyfile + onboarding page from $REPO_RAW_BASE"
 	pct exec "$CTID" -- mkdir -p /srv/setup
-	pct exec "$CTID" -- bash -c "cat > /etc/caddy/Caddyfile" <<CADDYFILE
-{
-	admin 0.0.0.0:2019
-	local_certs
-}
-
-# Internal cert per *.\$BASE_DOMAIN name on demand. No handlers -> cert only.
-*.{\$BASE_DOMAIN} {
-	tls internal
-}
-
-# Certificate-onboarding page on :80 (plain HTTP, reachable by IP before the root is trusted).
-:80 {
-	handle /caddy-root.crt {
-		root * ${CADDY_DATA_DIR}/pki/authorities/local
-		rewrite * /root.crt
-		header Content-Type application/x-x509-ca-cert
-		file_server
-	}
-	handle {
-		root * /srv/setup
-		file_server
-	}
-}
-CADDYFILE
-
-	# Minimal onboarding page. The full auto-detecting page lives at caddy/setup/index.html in
-	# the repo — copy it into the container's /srv/setup to replace this placeholder.
-	pct exec "$CTID" -- bash -c "cat > /srv/setup/index.html" <<HTML
-<!doctype html>
-<meta charset="utf-8">
-<title>Install the local CA</title>
-<h1>Trust this network's certificate</h1>
-<p><a href="/caddy-root.crt">Download the root certificate</a>, then install it as a trusted
-authority for identifying websites. After that, every <code>*.$BASE_DOMAIN</code> name on this
-LAN is trusted in your browser. One-time, per device.</p>
-HTML
+	pct exec "$CTID" -- bash -euo pipefail -c "
+		curl -fsSL '$REPO_RAW_BASE/caddy/Caddyfile' -o /etc/caddy/Caddyfile
+		curl -fsSL '$REPO_RAW_BASE/caddy/setup/index.html' -o /srv/setup/index.html
+	"
 fi
 
 # --- systemd unit: run as root with --resume; XDG_DATA_HOME pins the data dir ---
 # Root is fine here — the unprivileged LXC is the security boundary, and it drops the caddy
-# user / CAP_NET_BIND_SERVICE ceremony. XDG_DATA_HOME pins Caddy's data dir to $CADDY_DATA_DIR,
-# matching the onboarding PKI path above.
+# user / CAP_NET_BIND_SERVICE ceremony. XDG_DATA_HOME pins Caddy's data dir to /data/caddy,
+# matching the /data/caddy/pki path the fetched Caddyfile serves the root cert from.
 pct exec "$CTID" -- bash -c "cat > /etc/systemd/system/caddy.service" <<'UNIT'
 [Unit]
 Description=Caddy
 After=network.target
 
 [Service]
-Environment=XDG_DATA_HOME=/var/lib/caddy
+Environment=XDG_DATA_HOME=/data
 Environment=BASE_DOMAIN=__BASE_DOMAIN__
 __TOKEN_LINE__
 ExecStart=/usr/bin/caddy run --environ --resume --config /etc/caddy/Caddyfile
@@ -198,7 +176,10 @@ Restart=on-failure
 WantedBy=multi-user.target
 UNIT
 
-pct exec "$CTID" -- sed -i "s/__BASE_DOMAIN__/$BASE_DOMAIN/" /etc/systemd/system/caddy.service
+# Internal mode feeds a fixed *.localhost placeholder (domain is Loskai's, not Caddy's); ACME
+# mode needs the real domain for its DNS-challenge wildcard.
+if [ "$TLS_MODE" = acme ]; then UNIT_BASE_DOMAIN="$BASE_DOMAIN"; else UNIT_BASE_DOMAIN="localhost"; fi
+pct exec "$CTID" -- sed -i "s/__BASE_DOMAIN__/$UNIT_BASE_DOMAIN/" /etc/systemd/system/caddy.service
 if [ "$TLS_MODE" = acme ]; then
 	# ACME needs the DNS-provider token in Caddy's environment (set to a placeholder here).
 	pct exec "$CTID" -- sed -i "s|__TOKEN_LINE__|Environment=DUCKDNS_TOKEN=changeme|" /etc/systemd/system/caddy.service
@@ -233,10 +214,9 @@ else
 Caddy is up on DHCP IP: ${CT_IP_ADDR}  (assign it a static lease/IP next).
 
 Next steps (Caddy, TLS_MODE=internal — Caddy is its own CA):
-  1. On each LAN device, open http://${CT_IP_ADDR}/ and install the root certificate
-     (or fetch it directly at http://${CT_IP_ADDR}/caddy-root.crt). One-time, per device.
-     The richer auto-detecting page lives at caddy/setup/index.html in the repo — copy it
-     into the container's /srv/setup to replace the minimal placeholder.
+  1. On each LAN device, open http://${CT_IP_ADDR}/ and follow the onboarding page to install
+     the root certificate (or fetch it directly at http://${CT_IP_ADDR}/caddy-root.crt).
+     One-time, per device — after that every name under your domain is trusted.
   2. Firewall Caddy's admin API: allow :2019 only from the Docker host (where Loskai runs).
   3. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019.
 NEXT
