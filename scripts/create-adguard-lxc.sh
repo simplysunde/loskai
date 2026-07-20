@@ -50,6 +50,7 @@ detect_template() {
 CTID="${CTID:-$(pvesh get /cluster/nextid)}" # next free VMID unless overridden
 CT_HOSTNAME="${CT_HOSTNAME:-adguard}"
 CT_BRIDGE="${CT_BRIDGE:-$(detect_bridge)}"
+CT_CORES="${CT_CORES:-1}"
 CT_MEMORY="${CT_MEMORY:-512}"
 CT_DISK="${CT_DISK:-4}"
 CT_STORAGE="${CT_STORAGE:-$(detect_storage rootdir local-lvm)}"
@@ -69,6 +70,81 @@ container_ip() {
 	echo ""
 }
 
+# --- Preflight / creation hardening (fail fast, tolerate transient hiccups) ---
+
+# Abort with a clear message if the chosen bridge doesn't exist — a wrong CT_BRIDGE otherwise
+# surfaces as a cryptic pct error only after the template download.
+require_bridge() {
+	ip link show dev "$CT_BRIDGE" &>/dev/null || {
+		echo "Bridge '$CT_BRIDGE' not found. Set CT_BRIDGE= to an existing bridge (see 'ip link')." >&2
+		exit 1
+	}
+}
+
+# Abort early if a storage can't hold the content we intend to put on it.
+require_storage_content() { # $1=storage  $2=content (rootdir|vztmpl)
+	pvesm status --content "$2" 2>/dev/null | awk 'NR>1{print $1}' | grep -qx "$1" || {
+		echo "Storage '$1' does not support '$2' content. Override the matching *_STORAGE=." >&2
+		exit 1
+	}
+}
+
+# Unprivileged containers need a root subuid/subgid mapping; add it if the host lacks one.
+ensure_subid_maps() {
+	grep -q '^root:100000:65536$' /etc/subuid || echo 'root:100000:65536' >>/etc/subuid
+	grep -q '^root:100000:65536$' /etc/subgid || echo 'root:100000:65536' >>/etc/subgid
+}
+
+# Download a template, retrying a few times (transient mirror/network hiccups).
+download_template() { # $1=storage  $2=template
+	local attempt
+	for attempt in 1 2 3; do
+		pveam download "$1" "$2" && return 0
+		echo "Template download attempt $attempt/3 failed; retrying..." >&2
+		sleep $((attempt * 3))
+	done
+	echo "Failed to download template '$2' after 3 attempts." >&2
+	exit 1
+}
+
+# Create the container, retrying with the next free VMID if the ID was claimed between
+# selection and creation (a race on busy/clustered hosts). Updates the global CTID.
+create_container() {
+	local attempt out
+	for attempt in 1 2 3; do
+		if out="$(pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE" \
+			--hostname "$CT_HOSTNAME" \
+			--cores "$CT_CORES" --memory "$CT_MEMORY" \
+			--rootfs "$CT_STORAGE:$CT_DISK" \
+			--net0 "name=eth0,bridge=$CT_BRIDGE,ip=dhcp" \
+			--features nesting=1 \
+			--unprivileged 1 \
+			--onboot 1 2>&1)"; then
+			return 0
+		fi
+		if grep -qiE 'already exists|already in use' <<<"$out"; then
+			CTID="$(pvesh get /cluster/nextid)"
+			echo "Container ID was already in use; retrying with $CTID" >&2
+			continue
+		fi
+		echo "$out" >&2
+		exit 1
+	done
+	echo "Could not create container after 3 attempts." >&2
+	exit 1
+}
+
+# Wait for the container to reach 'running', then for its network, before running apt inside
+# it. A blind sleep races DHCP/boot on slower hosts and makes apt fail intermittently.
+wait_for_ready() {
+	local i
+	for i in $(seq 1 30); do
+		pct status "$CTID" 2>/dev/null | grep -q 'status: running' && break
+		sleep 1
+	done
+	[ -n "$(container_ip)" ] || echo "Warning: container has no IP yet; continuing." >&2
+}
+
 if pct status "$CTID" &>/dev/null; then
 	echo "Container $CTID already exists — aborting." >&2
 	exit 1
@@ -76,26 +152,25 @@ fi
 
 log "Using bridge=$CT_BRIDGE, ct-storage=$CT_STORAGE, template=$TEMPLATE_STORAGE:$TEMPLATE"
 
+# --- Preflight: fail fast on a bad bridge/storage before creating anything ---
+require_bridge
+require_storage_content "$CT_STORAGE" rootdir
+require_storage_content "$TEMPLATE_STORAGE" vztmpl
+ensure_subid_maps
+
 # --- Ensure the template is present ---
 if ! pveam list "$TEMPLATE_STORAGE" | grep -q "$TEMPLATE"; then
 	log "Downloading template $TEMPLATE"
 	pveam update
-	pveam download "$TEMPLATE_STORAGE" "$TEMPLATE"
+	download_template "$TEMPLATE_STORAGE" "$TEMPLATE"
 fi
 
 # --- Create + start the container (DHCP; pin a static lease afterwards) ---
 log "Creating LXC $CTID ($CT_HOSTNAME) on $CT_BRIDGE (DHCP)"
-pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE" \
-	--hostname "$CT_HOSTNAME" \
-	--cores 1 --memory "$CT_MEMORY" \
-	--rootfs "$CT_STORAGE:$CT_DISK" \
-	--net0 "name=eth0,bridge=$CT_BRIDGE,ip=dhcp" \
-	--features nesting=1 \
-	--unprivileged 1 \
-	--onboot 1
+create_container
 
 pct start "$CTID"
-sleep 5 # let the network (DHCP) come up before apt
+wait_for_ready # wait for 'running' + network before apt (replaces a blind sleep)
 
 # --- Install AdGuard Home (official installer — runs as root, enables the service) ---
 log "Installing AdGuard Home inside the container"
