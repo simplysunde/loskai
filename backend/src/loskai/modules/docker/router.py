@@ -19,6 +19,7 @@ from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ..adguard.client import adguard
 from ..caddy.client import caddy
+from ..caddy.service import caddy_mode
 from . import logic
 from . import recipes as recipes_mod
 from . import stacks as stacks_mod
@@ -53,7 +54,10 @@ def _docker_call(fn, *args):
 
 @router.get("/containers")
 def containers() -> list[dict]:
-    return _docker_call(docker_client.list_containers)
+    # Topology drives the pre-filled upstream: a Docker name in co-located mode, none in
+    # split-LXC (lan) mode where Caddy can't resolve container names.
+    mode = caddy_mode(settings_store.value("caddy_admin_url"))
+    return _docker_call(docker_client.list_containers, True, mode)
 
 
 @router.post("/containers/{container_id}/start")

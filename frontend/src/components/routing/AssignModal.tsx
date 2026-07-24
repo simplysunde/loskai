@@ -39,6 +39,10 @@ export function AssignModal({
   const upstreamOk = isValidUpstream(upstream);
   const upstreamHint =
     mode === "docker" ? "e.g. grafana:3000" : "e.g. 192.168.10.100:3000";
+  const upstreamHelp =
+    mode === "docker"
+      ? "A container name:port on the Docker network — Caddy resolves it there."
+      : "Must be reachable from the Caddy host: a LAN IP:port. Container names and localhost won't resolve from a separate Caddy LXC.";
   const fqdn = assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN");
   const canSubmit = prefixOk && upstreamOk && !pending;
 
@@ -84,6 +88,7 @@ export function AssignModal({
             placeholder={upstreamHint}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
+          <span className="mt-1 block text-xs text-slate-500">{upstreamHelp}</span>
           {upstream && !upstreamOk && (
             <span className="mt-1 block text-xs text-rose-400">
               Use host:port — no scheme (http://) or path.

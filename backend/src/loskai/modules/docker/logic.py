@@ -121,10 +121,19 @@ def suggested_container_port(ports: dict | None) -> str | None:
     return None
 
 
-def suggested_upstream(container_name: str, service: str | None, ports: dict | None) -> str | None:
-    """A reachable upstream for a co-located container: `<service-or-name>:<port>`. The
-    name resolves to the container's network IP via Docker DNS (robust across restarts) as
-    long as Caddy shares the network. None when the port can't be determined."""
+def suggested_upstream(
+    container_name: str, service: str | None, ports: dict | None, mode: str | None = None
+) -> str | None:
+    """A reachable upstream to pre-fill the assign form, best-effort.
+
+    In `docker` mode (Caddy shares the Docker network) this is `<service-or-name>:<port>` —
+    the name resolves to the container's network IP via Docker DNS (robust across restarts).
+    In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so such an
+    upstream would 502; we return None there rather than pre-fill a broken value (the user
+    supplies the Docker host's LAN IP + the published host port). None also when the port is
+    ambiguous. `mode` unset falls back to the docker-name form (co-located default)."""
+    if mode == "lan":
+        return None
     port = suggested_container_port(ports)
     if not port:
         return None

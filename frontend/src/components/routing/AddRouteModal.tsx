@@ -134,6 +134,10 @@ export function AddRouteModal({
   const upstreamOk = isValidUpstream(upstream);
   const canSubmit = prefixOk && upstreamOk && !pending;
   const upstreamHint = mode === "docker" ? "e.g. grafana:3000" : "e.g. 192.168.10.100:3000";
+  const upstreamHelp =
+    mode === "docker"
+      ? "A container name:port on the Docker network — Caddy resolves it there."
+      : "Must be reachable from the Caddy host: a LAN IP:port. Container names and localhost won't resolve from a separate Caddy LXC.";
   const fqdn = assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN");
 
   return (
@@ -191,6 +195,7 @@ export function AddRouteModal({
             placeholder={upstreamHint}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
+          <span className="mt-1 block text-xs text-slate-500">{upstreamHelp}</span>
         </label>
         <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
           <input type="checkbox" checked={tls} onChange={(e) => setTls(e.target.checked)} />

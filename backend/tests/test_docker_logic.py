@@ -94,6 +94,14 @@ def test_suggested_upstream_uses_service_name():
     # No compose service -> container name.
     assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}) == "myapp:8080"
     assert logic.suggested_upstream("x", "x", {}) is None
+    # Explicit docker mode matches the default.
+    assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}, "docker") == "myapp:8080"
+
+
+def test_suggested_upstream_none_in_lan_mode():
+    # Split-LXC: Caddy can't resolve container names, so a name would 502 — don't pre-fill it.
+    ports = {"3000/tcp": [{"HostPort": "3000"}]}
+    assert logic.suggested_upstream("grafana", "grafana", ports, "lan") is None
 
 
 def test_quick_commands_generic_and_specific():

@@ -44,7 +44,7 @@ class DockerClient:
             return {"status": "unreachable", "detail": describe_error(exc)}
         return {"status": "healthy"}
 
-    def list_containers(self, with_stats: bool = True) -> list[dict]:
+    def list_containers(self, with_stats: bool = True, mode: str | None = None) -> list[dict]:
         client = self._get()
         instances = instances_store.list_instances()
         out: list[dict] = []
@@ -61,12 +61,14 @@ class DockerClient:
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
                 "subdomain": logic.subdomain_for(c.name, instances),
-                # A reachable upstream to pre-fill the assign form (Caddy dials it by name
-                # on the shared Docker network).
+                # A reachable upstream to pre-fill the assign form. In docker mode Caddy dials
+                # it by name on the shared network; in lan mode this is None (a name would
+                # 502 from Caddy's separate LXC) — see logic.suggested_upstream.
                 "suggested_upstream": logic.suggested_upstream(
                     c.name,
                     labels.get("com.docker.compose.service"),
                     (attrs.get("NetworkSettings") or {}).get("Ports"),
+                    mode,
                 ),
                 "cpu": None,
                 "mem": None,
