@@ -27,6 +27,7 @@ CONFIGURABLE_KEYS = [
     "wireguard_dashboard_url",
     "base_domain",
     "caddy_host_ip",
+    "host_ip",
     "recipes_repo_url",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
@@ -87,6 +88,14 @@ def _validate(key: str, val: Any) -> None:
         except ValueError:
             raise ValueError(
                 "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
+            )
+    if key == "host_ip":
+        # Prefixed onto a published port to form a container upstream, so it must be a bare IP.
+        try:
+            ip_address(str(val).strip())
+        except ValueError:
+            raise ValueError(
+                "Host IP must be a bare IP address (e.g. 192.168.10.50) — no scheme or port"
             )
 
 

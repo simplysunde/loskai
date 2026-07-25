@@ -35,6 +35,10 @@ must be reachable *from that box* — a **LAN `IP:port`**. These do **not** work
 Use the **Docker host's LAN IP + the container's published host port** (e.g.
 `192.168.10.50:8096`), and make sure the container actually publishes it (`ports: - "8096:8096"`).
 
+> **Tip:** set **`HOST_IP`** (Settings → *Docker Host LAN IP*, or the env var) once and Loskai
+> auto-fills this `<host_ip>:<published-port>` when you route a container — no need to type it
+> per service. (A container published to a *specific* IP is detected automatically.)
+
 > In the **all-in-Docker** (co-located) layout it's the opposite — Caddy shares the Docker
 > network, so a `name:port` like `grafana:3000` is correct. Loskai's Add-Route hint follows
 > the detected mode (LAN IP vs Docker name); trust the hint for your topology.

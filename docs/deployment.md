@@ -60,6 +60,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 | `STACKS_DIR` | Host path for Docker compose stacks. Also drives a bind mount — see [Volumes](#volumes). |
 | `RECIPES_REPO_URL` | Public git repo the install wizard syncs recipes from. Unset = empty state. |
 | `CADDY_HOST_IP` | The IP DNS rewrites resolve to (where Caddy listens on `:443`). Only needed when `CADDY_ADMIN_URL` is a hostname; otherwise derived from it. |
+| `HOST_IP` | This Docker host's LAN IP. In split-LXC mode, auto-fills container route upstreams as `<host_ip>:<published-port>` (Caddy can't resolve container names from its own LXC). Optional; the upstream is left blank without it. |
 
 Two things Loskai deliberately **never** takes: the ACME/DNS-challenge token (that lives
 with Caddy) and private-registry credentials (`docker login` is a host precondition).

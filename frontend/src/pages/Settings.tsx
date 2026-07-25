@@ -9,6 +9,11 @@ import { SettingsFields, type FieldDef } from "../components/shared/SettingsFiel
 // in the Network tab; this page keeps the app-level knobs + backup.
 const APP_FIELDS: FieldDef[] = [
   { key: "base_domain", label: "Base Domain", hint: "e.g. example.no" },
+  {
+    key: "host_ip",
+    label: "Docker Host LAN IP",
+    hint: "auto-fills container upstreams in split-LXC mode, e.g. 192.168.10.50",
+  },
   { key: "recipes_repo_url", label: "Recipes Repo URL" },
   { key: "stacks_dir", label: "Stacks Directory", hint: "set in the compose file" },
 ];

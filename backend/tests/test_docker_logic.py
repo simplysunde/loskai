@@ -98,10 +98,33 @@ def test_suggested_upstream_uses_service_name():
     assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}, "docker") == "myapp:8080"
 
 
-def test_suggested_upstream_none_in_lan_mode():
-    # Split-LXC: Caddy can't resolve container names, so a name would 502 — don't pre-fill it.
-    ports = {"3000/tcp": [{"HostPort": "3000"}]}
-    assert logic.suggested_upstream("grafana", "grafana", ports, "lan") is None
+def test_suggested_upstream_lan_mode_uses_host_ip_and_published_port():
+    # Split-LXC: Caddy dials the Docker host's LAN IP + the *published host* port, never the
+    # container name (which would 502).
+    ports = {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, "lan", "192.168.10.50") == (
+        "192.168.10.50:8096"
+    )
+    # A concrete published bind IP wins over the configured host_ip (no setting needed).
+    concrete = {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}
+    assert logic.suggested_upstream("pve", None, concrete, "lan", None) == "192.168.10.9:8006"
+    # No host_ip and only 0.0.0.0 bindings -> can't infer a LAN IP -> blank for the user.
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, "lan", None) is None
+    # Ambiguous (several published ports) -> None even with a host_ip.
+    two = {"80/tcp": [{"HostPort": "80"}], "443/tcp": [{"HostPort": "443"}]}
+    assert logic.suggested_upstream("web", None, two, "lan", "192.168.10.50") is None
+
+
+def test_published_host_binding():
+    assert logic.published_host_binding({"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}) == (
+        None,
+        "8096",
+    )
+    assert logic.published_host_binding(
+        {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}
+    ) == ("192.168.10.9", "8006")
+    assert logic.published_host_binding({"53/tcp": None}) is None  # nothing published
+    assert logic.published_host_binding(None) is None
 
 
 def test_quick_commands_generic_and_specific():

@@ -1,5 +1,25 @@
 # Loskai — History
 
+## 2026-07-26 — Topology-aware route upstreams + `HOST_IP` auto-fill
+
+**Fixed the split-LXC 502 trap.** Picking a container in the Add-Route/Assign flow pre-filled
+its upstream as a Docker `name:port`, which only resolves when Caddy shares the Docker network
+(co-located mode). In the preferred split-LXC layout Caddy runs on its own box and can't
+resolve container names, so every container route 502'd until the user manually swapped in a
+LAN `IP:port`. `suggested_upstream` is now topology-aware (via `caddy_mode`): docker mode keeps
+`name:port`; lan mode builds `<host_ip>:<published-host-port>`.
+
+**Added the `HOST_IP` setting** (env `HOST_IP` + Settings → *Docker Host LAN IP*, mirroring
+`caddy_host_ip`). A bridged Loskai container can't detect its own host's LAN IP, so it's set
+once and used to auto-fill lan-mode container upstreams. A container published to a *concrete*
+IP is detected automatically (no setting needed); otherwise the field stays blank with
+mode-aware help text. Both route modals now explain the rule inline.
+- Key files: `backend/src/loskai/modules/docker/{logic,client,router}.py`,
+  `backend/src/loskai/shared/settings.py`, `config.py`,
+  `frontend/src/components/routing/{AddRouteModal,AssignModal}.tsx`, `pages/Settings.tsx`
+- New docs: `docs/troubleshooting.md` (502 / redirect-loop / DNS / cert / VPN triage);
+  `docs/lxc-script-authoring.md` (reference for new `create-<service>-lxc.sh` scripts).
+
 ## 2026-07-20 — Internal CA as default; split AdGuard + Caddy into two LXCs
 
 **Realigned the TLS/certificate story in the docs** so the internal CA (`local_certs` /

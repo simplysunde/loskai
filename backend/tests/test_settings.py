@@ -79,3 +79,15 @@ def test_caddy_host_ip_rejects_port():
 def test_caddy_host_ip_accepts_bare_ip():
     s.update({"caddy_host_ip": "192.168.10.100"})
     assert s.value("caddy_host_ip") == "192.168.10.100"
+
+
+def test_host_ip_rejects_scheme_or_port():
+    with pytest.raises(ValueError):
+        s.update({"host_ip": "http://192.168.10.50"})
+    with pytest.raises(ValueError):
+        s.update({"host_ip": "192.168.10.50:8080"})
+
+
+def test_host_ip_accepts_bare_ip():
+    s.update({"host_ip": "192.168.10.50"})
+    assert s.value("host_ip") == "192.168.10.50"

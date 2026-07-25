@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted. Also the
     # host of the by-IP cert-onboarding link (http://<caddy_host_ip>/).
     caddy_host_ip: str | None = None
+    # This Docker host's LAN IP. In split-LXC mode Caddy can't resolve container names, so
+    # container routes need <host_ip>:<published-port>; a bridged container can't detect its
+    # own host IP, so it's set here once and used to auto-fill those upstreams.
+    host_ip: str | None = None
     # Public git repo the install wizard syncs recipes from.
     recipes_repo_url: str | None = None
 

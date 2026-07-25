@@ -44,7 +44,9 @@ class DockerClient:
             return {"status": "unreachable", "detail": describe_error(exc)}
         return {"status": "healthy"}
 
-    def list_containers(self, with_stats: bool = True, mode: str | None = None) -> list[dict]:
+    def list_containers(
+        self, with_stats: bool = True, mode: str | None = None, host_ip: str | None = None
+    ) -> list[dict]:
         client = self._get()
         instances = instances_store.list_instances()
         out: list[dict] = []
@@ -69,6 +71,7 @@ class DockerClient:
                     labels.get("com.docker.compose.service"),
                     (attrs.get("NetworkSettings") or {}).get("Ports"),
                     mode,
+                    host_ip,
                 ),
                 "cpu": None,
                 "mem": None,

@@ -121,19 +121,52 @@ def suggested_container_port(ports: dict | None) -> str | None:
     return None
 
 
+def published_host_binding(ports: dict | None) -> tuple[str | None, str] | None:
+    """The single published host binding as `(host_ip, host_port)`, or None when there
+    isn't exactly one published port. `host_ip` is the concrete bind address when the port
+    was published to a specific IP, else None (a `0.0.0.0`/`::`/empty HostIp means
+    "all interfaces" — no single LAN IP to infer). `ports` is docker-py's
+    NetworkSettings.Ports, e.g. {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}."""
+    p = ports or {}
+    published = [bindings for bindings in p.values() if bindings]
+    if len(published) != 1:
+        return None
+    binding = published[0][0]  # first binding of the sole published port (IPv4 entry)
+    host_port = binding.get("HostPort")
+    if not host_port:
+        return None
+    host_ip = binding.get("HostIp")
+    if host_ip in (None, "", "0.0.0.0", "::"):
+        host_ip = None
+    return host_ip, host_port
+
+
 def suggested_upstream(
-    container_name: str, service: str | None, ports: dict | None, mode: str | None = None
+    container_name: str,
+    service: str | None,
+    ports: dict | None,
+    mode: str | None = None,
+    host_ip: str | None = None,
 ) -> str | None:
     """A reachable upstream to pre-fill the assign form, best-effort.
 
     In `docker` mode (Caddy shares the Docker network) this is `<service-or-name>:<port>` —
     the name resolves to the container's network IP via Docker DNS (robust across restarts).
-    In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so such an
-    upstream would 502; we return None there rather than pre-fill a broken value (the user
-    supplies the Docker host's LAN IP + the published host port). None also when the port is
-    ambiguous. `mode` unset falls back to the docker-name form (co-located default)."""
+
+    In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so it needs
+    the Docker host's LAN IP + the *published host port*: `<host_ip>:<host_port>`. The host IP
+    comes from the container's own binding when it was published to a concrete IP, else from
+    the configured `host_ip` (a bridged Loskai can't detect its host's LAN IP). None when
+    neither is available or the port is ambiguous — the user then fills it in.
+
+    `mode` unset falls back to the docker-name form (co-located default)."""
     if mode == "lan":
-        return None
+        binding = published_host_binding(ports)
+        if binding is None:
+            return None
+        bind_ip, host_port = binding
+        ip = bind_ip or host_ip
+        return f"{ip}:{host_port}" if ip else None
     port = suggested_container_port(ports)
     if not port:
         return None
