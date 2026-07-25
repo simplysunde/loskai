@@ -14,12 +14,15 @@ services:
       - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
       - ./loskai-settings:/opt/loskai
     environment:
-      - CADDY_ADMIN_URL=${CADDY_ADMIN_URL:-http://192.168.10.101:2019}
-      - ADGUARD_URL=${ADGUARD_URL:-http://192.168.10.101:3000}
+      - CADDY_ADMIN_URL=${CADDY_ADMIN_URL:-}
+      - ADGUARD_URL=${ADGUARD_URL:-}
       - ADGUARD_USER=${ADGUARD_USER:-}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
       - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
       - BASE_DOMAIN=${BASE_DOMAIN:-}
+      # This Docker host's LAN IP — auto-fills container route upstreams as <host_ip>:<port>
+      # (Caddy on its own LXC can't resolve container names). Optional; blank = fill in per route.
+      - HOST_IP=${HOST_IP:-}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
       - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
       - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
