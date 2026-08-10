@@ -1,5 +1,27 @@
 # Loskai — History
 
+## 2026-08-10 — Plan/TODO discrepancy pass + `.env.example` cleanup
+
+**Doc drift review.** Compared PLAN.md/TODO.md against the actual repo (git wasn't available
+mid-session, so this was done by reading HISTORY.md + the real file tree rather than `git log`)
+and found three stale spots: CLAUDE.md still described the repo as planning-stage with no
+`backend/`/`frontend/`, even though all four modules are built through Phase 11; PLAN.md's
+settings table and `.env.example` block never got `HOST_IP` added alongside `CADDY_HOST_IP`
+(missed in the 2026-07-26 entry above); and TODO.md referenced `render_caddyfile()` in three
+places as if it still existed, though it was removed 2026-07-18. Fixed all three.
+
+**Also surfaced:** the Phase 12 section (internal-CA trust-onboarding fixes) and the Backlog
+list had been sitting in `TODO.md`'s working tree, uncommitted, since before this pass — split
+into its own commit ahead of the doc fixes so the two unrelated changes don't share history.
+
+**`.env.example` trimmed.** Its per-variable comments duplicated `docs/deployment.md`'s
+existing environment-variables table (added 2026-07-18) — two places to keep in sync for the
+same information. Cut each comment to one line and pointed the file header at the doc instead.
+Confirmed no variable is actually required (`config.py` gives every field a default; the app
+boots with nothing set and is configured in-app), so no required/optional split was added.
+- Key files: `CLAUDE.md`, `PLAN.md`, `TODO.md`, `.env.example`
+- Verified: doc-only + comment changes, no code touched; nothing to run
+
 ## 2026-07-26 — Topology-aware route upstreams + `HOST_IP` auto-fill
 
 **Fixed the split-LXC 502 trap.** Picking a container in the Add-Route/Assign flow pre-filled
