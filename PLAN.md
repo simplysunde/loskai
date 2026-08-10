@@ -1056,6 +1056,7 @@ file only and is shown read-only in the UI; see the table below.)
 | Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL Loskai syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
 | Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
+| Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. In split-LXC mode (Caddy on its own LXC, so it can't resolve container names) a container route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container — a bridged container can't detect its own host's IP |
 
 Any ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on the
 Caddy LXC — Loskai never needs it (and the default internal-CA mode needs none). In the
@@ -1112,6 +1113,7 @@ WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 STACKS_DIR=/opt/stacks
 # RECIPES_REPO_URL=https://github.com/you/loskai-recipes   # public repo the install wizard syncs recipes from
 # CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
+# HOST_IP=192.168.10.100         # this Docker host's LAN IP, for auto-filled container-route upstreams in split-LXC mode
 ```
 
 Different deployment setups are supported via different compose files.

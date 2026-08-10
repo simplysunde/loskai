@@ -4,18 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-**This repo is planning-stage — there is no code yet.** No `backend/` or `frontend/`
-directories exist; Phase 1 in `TODO.md` scaffolds them. The authoritative sources are:
+All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
+`backend/` and `frontend/` are real, working code. Phases 1–11 in `TODO.md` are done;
+Phase 12 (internal-CA trust-onboarding fixes) is in progress — check `TODO.md` for the
+current unchecked items before assuming something is missing. The authoritative sources are:
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
-- **`TODO.md`** — the authoritative build order (phased checklist). Build in phase order.
+- **`TODO.md`** — the authoritative build order (phased checklist) and current work-in-progress.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/*.md`** — API contracts. Read the relevant one before touching that integration:
   `caddy-api.md`, `adguard-api.md` (external API subsets Loskai calls), `recipe-schema.md`
   (the install-wizard manifest format), `migration.md`.
 
-## Intended commands (once Phase 1 scaffolds them)
+## Commands
 
 Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vite (in `frontend/`).
 

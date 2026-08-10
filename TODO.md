@@ -21,7 +21,7 @@
   - Reads env vars on startup (highest priority)
   - Falls back to `settings.json` at `/opt/loskai/settings.json`
   - Returns each value with source: `"env"` | `"stored"` | `"unset"`
-  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
+  - Manages: `caddy_admin_url`, `adguard_url`/`user`/`password`, `wireguard_dashboard_url`, `base_domain`, `caddy_host_ip` (optional — DNS-rewrite answer IP; derived from `caddy_admin_url` host when omitted), `host_ip` (optional — this Docker host's LAN IP, added 2026-07-26 for split-LXC container-route upstream autofill), `recipes_repo_url` (optional — public git repo the install wizard syncs recipes from)
   - `stacks_dir` is **env-only** (drives the compose bind mount) — read from env, defaults to `/opt/stacks`, never written to `settings.json`; surfaced read-only on the settings page
   - `admin_password_hash` — set from `LOSKAI_PASSWORD` (env) or at first run, stored **hashed** (argon2/bcrypt); **never** returned by `GET /api/settings`
 - [x] `backend/src/loskai/shared/instances.py` — instance list at `/opt/loskai/instances.json`
@@ -59,7 +59,7 @@
 - [x] `modules/caddy/service.py` — read + push only; owns the projection, not assignment
   - `list_with_sync()` — instances that have a subdomain, each annotated with synced (`@id` present in `list_live_routes()`) + live (`upstreams()`) status; read-only comparison, never auto-corrects
   - `push_all()` — push every instance that has a subdomain to Caddy (recovery / one-click resync). Only touches routes whose `@id` matches an instance — leaves any human-added route with a non-instance `@id` alone
-  - `render_caddyfile()` — generate a complete, runnable Caddyfile from the instances that have a subdomain (TLS + admin block templated from `base_domain`)
+  - ~~`render_caddyfile()`~~ — generated a complete, runnable Caddyfile from the instances that have a subdomain; **removed 2026-07-18** (duplicated the JSON config export + Sync backstop, see HISTORY.md)
   - Note: assigning / clearing a subdomain lives in `shared/assign.py` (Phase 6), not here — the Caddy module never writes a single route on its own
 - [x] `modules/caddy/router.py` — FastAPI APIRouter at `/api/caddy` (read + push only); registers the caddy health checker with the aggregate poller
   - `GET /api/caddy/routes` — instances that have a subdomain, annotated with synced + live status
@@ -282,7 +282,7 @@ _Tiers 1 & 2 are written **alongside each module** as it's built (pytest is set 
 - [x] ~~Container label auto-discovery~~ — built then **removed** (auto-assigning routes from compose labels wasn't wanted). Replaced by the semi-automatic Docker-tab flow: "Assign URL" on a container is pre-filled with a suggested subdomain and is idempotent (one instance per container, no duplicates); a second route to one service is a separate external instance
 - [x] Orphaned-route cleanup — flag routes whose upstream container no longer exists and offer one-click delete. `logic.orphaned_instances` (pure) + `GET/DELETE /api/docker/orphans`; the delete re-verifies the container is gone (409 otherwise) then reuses `assign.purge_instance` for cross-module teardown. Rose banner on the Routing page with per-item Delete
 - [x] **Upstream validation** — reject an upstream that carries a scheme or path (e.g. `https://host:8006/`) and require a bare `host:port`; the assign flow stored it verbatim into Caddy's `dial`, so a URL produced a malformed, non-connecting route (found during local testing). Done: `validate_upstream` in `assign.py` (422 on scheme/path/missing-or-bad-port) + `isValidUpstream` in `AssignModal`
-- [x] **HTTPS / TLS upstreams** — done: instance gains `upstream_tls`; `build_route` + `render_caddyfile` emit a `reverse_proxy` `transport http { tls tls_insecure_skip_verify }` when set; the Assign form has a "Backend speaks HTTPS" checkbox and the routing table shows an `https` tag. Proxmox (HTTPS-only, self-signed on :8006) can now be proxied
+- [x] **HTTPS / TLS upstreams** — done: instance gains `upstream_tls`; `build_route` (and, at the time, `render_caddyfile` — since removed, see Phase 3) emits a `reverse_proxy` `transport http { tls tls_insecure_skip_verify }` when set; the Assign form has a "Backend speaks HTTPS" checkbox and the routing table shows an `https` tag. Proxmox (HTTPS-only, self-signed on :8006) can now be proxied
 - [x] **Code-split the Docker route / xterm** — done: `React.lazy` + `Suspense` in `App.tsx` splits the ~670 kB single chunk into `index` (~310 kB) + `Docker` (~365 kB, xterm), so xterm only loads when that tab opens. Vite size warning gone
 
 ---
@@ -382,7 +382,7 @@ paid either way. Every case here disappears under the Backlog's real-domain path
       teardown needs the extra id, not extra plumbing
 - [ ] `http`-only must **not** land in the `:443` server at all — absence there is what stops
       Caddy attempting a cert for that name
-- [ ] `render_caddyfile`: emit `http://name`, `https://name`, or both, per scheme
+- [ ] ~~`render_caddyfile`: emit `http://name`, `https://name`, or both, per scheme~~ — moot, `render_caddyfile` was removed 2026-07-18 (no Caddyfile export exists to update)
 - [ ] Frontend: scheme select in `AddRouteModal` + `AssignModal`, scheme tag in
       `ServiceTable`, editable on an existing route. Label it as the CA-less-client escape
       hatch, not a speed option
