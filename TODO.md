@@ -332,3 +332,84 @@ _One creation surface: the Routing tab's **Add route** picker (Container / Netwo
 - [x] Docs: PLAN (creation surface), HISTORY, api.md (`origin` on assign)
 
 **Phase 11 complete.** _Unverified in-sandbox (no Docker/live services): the rendered Add-route picker, the routed-state links on Docker/Network tabs. Smoke-test on device._
+
+---
+
+## Phase 12 — Internal-CA trust onboarding fixes
+_Decision (2026-08-03): the internal CA on a made-up TLD (`*.sunde`) stays. Using a real
+owned domain with a DNS-01 wildcard — which would make every device trust the certs with
+zero install — is recorded as a **future path, deliberately not scheduled** (see Backlog).
+Everything here exists because that choice is deferred._
+
+**12a — Fix the trust-install page** (`caddy/setup/index.html`) — the live defect
+- [ ] **Linux instructions are Debian-only and fail on Fedora/Nobara.** The page (`:441-453`)
+      treats Linux as one platform and prints `/usr/local/share/ca-certificates/` +
+      `update-ca-certificates`; neither exists on Fedora, so the copy-paste silently does
+      nothing. Split into **Debian/Ubuntu · Fedora/RHEL · Arch** with a small distro selector
+      (the user-agent can't reveal the distro — pick, don't guess)
+  - Fedora/RHEL: `/etc/pki/ca-trust/source/anchors/` + `sudo update-ca-trust`
+  - Arch: `/etc/ca-certificates/trust-source/anchors/` + `sudo update-ca-trust`
+- [ ] **Add Chrome/Chromium on Linux** — reads its own NSS store, ignores the system store
+      entirely (the second reason the cert appeared not to work):
+      `certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Caddy Local" -i caddy-root.crt`
+- [ ] Firefox: offer `security.enterprise_roots.enabled` alongside the manual-import note
+- [ ] Add a **verify step** so a failed install is visible immediately rather than at the
+      next browser warning
+- [ ] Keep bilingual NO/EN, static page, no new dependencies
+- [ ] Verify on device: Nobara + Firefox + Chromium all trust a `*.sunde` route after
+      following the page
+
+**12b — Per-route scheme toggle (HTTPS / both / HTTP)** — _approved 2026-08-03_
+_Exists **only** for clients that cannot hold a custom root CA: dumb devices (TVs,
+Chromecast/DLNA, printers, IoT), other **containers** calling the service by name (the root
+would have to be baked into someone else's image), and scripts/automation. **Not** a
+performance feature — TLS overhead on a LAN is unmeasurable; any latency is the proxy hop,
+paid either way. Every case here disappears under the Backlog's real-domain path._
+- [ ] Instance gains `scheme: "https" | "both" | "http"`, default `https`. **One enum, not
+      two booleans** — two checkboxes admit an invalid both-off state; three values can't
+- [ ] `build_route` / `push_route`: `https`+`both` push to the `:443` server as today;
+      `both`+`http` additionally push a host-matched route to the **`:80` server**
+  - **Must insert at index 0** (`PUT /config/apps/http/servers/{s}/routes/0`), not append:
+    the `:80` server's cert-setup site ends in a **catch-all** (an appended route would never
+    match), and Caddy's automatic-HTTPS redirect routes live there too and would otherwise
+    win over the plain-HTTP route
+  - `select_server_name` currently *excludes* `:80` by design (`service.py:45-57`) — needs a
+    second selector for the HTTP server rather than loosening the existing one
+  - Never disturb the setup site's own catch-all (it has no `@id`; Sync must keep ignoring it)
+- [ ] **`both` means two Caddy routes for one instance** → a second `@id` (`<id>-http`).
+      Update `list_with_sync` (both must be present to read as synced), `push_all`, and
+      delete/unassign (tear down both). Deleting by `/id/<id>` is server-agnostic, so
+      teardown needs the extra id, not extra plumbing
+- [ ] `http`-only must **not** land in the `:443` server at all — absence there is what stops
+      Caddy attempting a cert for that name
+- [ ] `render_caddyfile`: emit `http://name`, `https://name`, or both, per scheme
+- [ ] Frontend: scheme select in `AddRouteModal` + `AssignModal`, scheme tag in
+      `ServiceTable`, editable on an existing route. Label it as the CA-less-client escape
+      hatch, not a speed option
+- [ ] AdGuard is unaffected — same answer IP either way
+- [ ] Tests: Tier-1 `build_route`/Caddyfile per scheme + two-id sync/teardown; Tier-2 the
+      insert-at-0 request shape
+
+**12c — Caddy as ACME server for HTTPS-native backends** _(config + docs, no Loskai code)_
+- [ ] Document running Caddy's `acme_server` backed by the existing internal CA, and pointing
+      **Proxmox's built-in ACME client** at it. Proxmox then serves a leaf signed by the root
+      LAN devices already trust — so `:8006` is trusted **directly**, not only through the
+      proxy, and Caddy's backend leg verifies cleanly with no pinning
+- [ ] Keep `tls_insecure_skip_verify` (the Phase 9 `upstream_tls` behaviour) as the default.
+      **Decided against** building per-instance backend-CA pinning (`tls_trusted_ca_certs` +
+      `tls_server_name`): it would add CA-upload and server-name-override config surface to
+      buy little — an attacker able to MITM the Caddy→backend hop is already inside the LAN
+
+---
+
+## Backlog / Future ideas
+- **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
+  zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the
+  names resolve on the LAN via AdGuard rewrites). Dissolves Phase 12 entirely, including the
+  whole onboarding page. **Not scheduled** — deliberate decision to keep the homelab off the
+  owned domain for now. Precondition when revisited: DNS hosted somewhere with an API Caddy
+  has a plugin for (one.com almost certainly isn't; a subdomain can be NS-delegated, or
+  `_acme-challenge` CNAME'd to an acme-dns instance, without moving the registrar)
+- Tier-3 integration rig + Forgejo CI (Phase 8b) — deferred by choice
+- `CertStatus.tsx` cert expiry (Phase 3) — under the internal CA this is readable from
+  Caddy's PKI endpoints; TLS probe stays the method-independent approach
