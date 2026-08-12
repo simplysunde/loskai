@@ -25,22 +25,31 @@ Open <http://localhost:3000>. In the wizard:
 
 ## 3. Start the Loskai backend (terminal 1)
 
-pydantic-settings reads process env, so export the config before launching:
+`config.py` reads a `.env` at the **repo root** (resolved from `config.py`'s own
+location, so it's found regardless of which directory you run `uv run` from). Create
+one there — it's gitignored, never committed:
 
 ```bash
-export CADDY_ADMIN_URL=http://127.0.0.1:2019     # an IP host -> DNS answer IP auto-derives
-export ADGUARD_URL=http://127.0.0.1:3000
-export ADGUARD_USER=admin                        # what you set in step 2
-export ADGUARD_PASSWORD=changeme                 # what you set in step 2
-export BASE_DOMAIN=lvh.me                         # *.lvh.me resolves to 127.0.0.1 — handy
-export LOSKAI_PASSWORD=devpass                    # or set it at first run in the UI
+# .env at the repo root
+CADDY_ADMIN_URL=http://127.0.0.1:2019     # an IP host -> DNS answer IP auto-derives
+ADGUARD_URL=http://127.0.0.1:3000
+ADGUARD_USER=admin                        # what you set in step 2
+ADGUARD_PASSWORD=changeme                 # what you set in step 2
+BASE_DOMAIN=lvh.me                        # *.lvh.me resolves to 127.0.0.1 — handy
+LOSKAI_PASSWORD=devpass                   # or set it at first run in the UI
 # Writable state dir — the default /opt/loskai is the prod path and isn't writable in dev.
-export LOSKAI_DATA_DIR="$HOME/loskai-data"; mkdir -p "$LOSKAI_DATA_DIR"
-export STACKS_DIR="$HOME/loskai-stacks"; mkdir -p "$STACKS_DIR"
+LOSKAI_DATA_DIR=/home/you/loskai-data
+STACKS_DIR=/home/you/loskai-stacks
+```
 
+```bash
+mkdir -p "$(grep LOSKAI_DATA_DIR .env | cut -d= -f2)" "$(grep STACKS_DIR .env | cut -d= -f2)"
 cd backend
 uv run uvicorn loskai.main:app --reload --port 8000
 ```
+
+Exporting the same variables in your shell instead works too (env vars still take
+priority over `.env`) — handy for CI or a one-off override without touching the file.
 
 ## 4. Start the frontend (terminal 2)
 
@@ -86,8 +95,6 @@ docker compose -f compose.dev.yml down -v     # wipe them too
   DNS port published (uncomment it in the compose, on a free host port) with your resolver
   pointed at it, plus Caddy's internal CA trusted — beyond a basic integration test.
   Verifying the route/rewrite landed (above) confirms the wiring.
-- Prefer not to export each time? Put the block in a file and `set -a; source it; set +a`
-  before running uvicorn (don't commit it — it holds the AdGuard password).
 
 ## Actually browsing a routed service
 
@@ -114,7 +121,7 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 
 | Symptom | Cause / fix |
 |---|---|
-| Backend startup `PermissionError: '/opt/loskai'` | `LOSKAI_DATA_DIR` unset → defaulted to the prod path. Export it (step 3). |
+| Backend startup `PermissionError: '/opt/loskai'` | `LOSKAI_DATA_DIR` unset → defaulted to the prod path. Set it in `.env` or export it (step 3). |
 | `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The dev Caddyfile's `*.localhost` placeholder creates one — recreate Caddy (`up -d`). |
 | Browser "can't establish a connection" | Wrong port — use `:8443` (https) / `:8081` (http), not the defaults. |
 | **502 Bad Gateway** | Caddy matched the route but can't reach the upstream. Use the container **service name** (`adguard:3000`) or a **LAN IP**, never `localhost`. Re-assign (delete + assign). |

@@ -1,5 +1,37 @@
 # Loskai — History
 
+## 2026-08-12 — `.env` support for local `uv run` dev
+
+**Fixed `.env` being silently ignored outside Docker.** `config.py` never told
+pydantic-settings to read a dotenv file (`SettingsConfigDict` had no `env_file` key), so a
+`.env` sitting in the repo did nothing for a bare `uv run uvicorn` — only real exported
+shell env vars were ever read. Production was never affected (the Dockerfile never copies
+a `.env` into the image; `docker compose` injects real env vars directly), but dev had no
+working `.env` path at all, only the `export VAR=...` block `docs/dev-testing.md` walked
+through.
+
+Added `env_file` to `Settings.model_config`, anchored to `config.py`'s own location
+(`Path(__file__).resolve().parents[3] / ".env"`) rather than the process's working
+directory, so it finds the repo-root `.env` regardless of which directory `uv run
+uvicorn` is launched from — the user's own case: running from `backend/`.
+
+**Surfaced a real test-isolation gap.** `config.settings` is a module-level singleton, so
+once it started reading a real `.env`, the whole backend test suite silently depended on
+whatever happened to be in the developer's local file — caught live when a real
+`LOSKAI_PASSWORD` broke the first-run-setup test (the app no longer believed it was a
+fresh install). Added `backend/tests/conftest.py`: an autouse fixture that resets every
+`Settings` field to its no-`.env` value before each test, so the suite stays hermetic no
+matter what's on disk.
+
+Also updated `docs/dev-testing.md`'s step 3 to lead with the `.env` file (matching how the
+production path already works) instead of only the `export` block; export still works as
+an override/CI path since env vars still outrank `.env`.
+
+- Key files: `backend/src/loskai/config.py`, `backend/tests/conftest.py` (new),
+  `docs/dev-testing.md`
+- Verified: 163 backend tests pass; live server boots via `uv run uvicorn` and
+  `GET /api/auth/status` confirms `.env`'s `LOSKAI_PASSWORD` is actually picked up
+
 ## 2026-08-12 — Phase 13: DNS-only routing mode
 
 Added a second `route_mode` to the instance model — `"dns_only"` alongside the existing
