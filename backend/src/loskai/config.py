@@ -5,12 +5,26 @@ UI on first run. `settings.py` merges these env values (highest priority) with
 `settings.json` (stored) to produce the resolved, source-tagged view.
 """
 
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Anchored to this file rather than the process CWD, so `uv run uvicorn` finds the
+# repo-root .env regardless of which directory it's launched from (e.g. backend/).
+# In the built image this resolves to a path that never exists (no .env ships there —
+# see Dockerfile), which is harmless: pydantic-settings silently skips a missing
+# env_file and production gets its config from real env vars via compose either way.
+_REPO_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra="ignore",
+        env_file=_REPO_ROOT_ENV,
+        env_file_encoding="utf-8",
+    )
 
     # --- Service connections (also settable via settings.json / the UI) ---
     caddy_admin_url: str | None = None
