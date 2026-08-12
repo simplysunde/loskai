@@ -4,14 +4,23 @@ import { Container as ContainerIcon, Globe, Loader2, Network } from "lucide-reac
 
 import { api } from "../../lib/api";
 import { useHealth } from "../../lib/useHealth";
-import { assembleFqdn, isValidPrefix, isValidUpstream } from "../../lib/validation";
+import {
+  assembleFqdn,
+  isValidDnsOnlyPrefix,
+  isValidDnsTarget,
+  isValidPrefix,
+  isValidUpstream,
+} from "../../lib/validation";
 import type { SettingsView } from "../shared/SettingsFields";
+
+type RouteMode = "proxy" | "dns_only";
 
 // The route payload the parent posts to /api/assign.
 export interface NewRoute {
   prefix: string;
   upstream: string;
   upstream_tls: boolean;
+  route_mode: RouteMode;
   container?: string;
   origin?: string;
   name?: string;
@@ -72,6 +81,7 @@ export function AddRouteModal({
   onClose: () => void;
 }) {
   const [source, setSource] = useState<Source>("container");
+  const [routeMode, setRouteMode] = useState<RouteMode>("proxy");
   const [prefix, setPrefix] = useState("");
   const [upstream, setUpstream] = useState("");
   const [tls, setTls] = useState(false);
@@ -110,6 +120,7 @@ export function AddRouteModal({
 
   const reset = (next: Source) => {
     setSource(next);
+    setRouteMode("proxy"); // Container/Network always imply proxy; External defaults to it too
     setPrefix("");
     setUpstream("");
     setTls(false);
@@ -130,12 +141,18 @@ export function AddRouteModal({
     setPicked(s.origin);
   };
 
-  const prefixOk = isValidPrefix(prefix);
-  const upstreamOk = isValidUpstream(upstream);
+  const isDnsOnly = source === "external" && routeMode === "dns_only";
+  const prefixOk = isDnsOnly ? isValidDnsOnlyPrefix(prefix) : isValidPrefix(prefix);
+  const upstreamOk = isDnsOnly ? isValidDnsTarget(upstream) : isValidUpstream(upstream);
   const canSubmit = prefixOk && upstreamOk && !pending;
-  const upstreamHint = mode === "docker" ? "e.g. grafana:3000" : "e.g. 192.168.10.100:3000";
-  const upstreamHelp =
-    mode === "docker"
+  const upstreamHint = isDnsOnly
+    ? "e.g. 192.168.10.55"
+    : mode === "docker"
+      ? "e.g. grafana:3000"
+      : "e.g. 192.168.10.100:3000";
+  const upstreamHelp = isDnsOnly
+    ? "A bare LAN IP — DNS resolves the name straight to this address, no proxy, no TLS."
+    : mode === "docker"
       ? "A container name:port on the Docker network — Caddy resolves it there."
       : "Must be reachable from the Caddy host: a LAN IP:port. Container names and localhost won't resolve from a separate Caddy LXC.";
   const fqdn = assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN");
@@ -175,20 +192,34 @@ export function AddRouteModal({
           </PickList>
         )}
         {source === "external" && (
-          <p className="mt-3 text-xs text-slate-500">A LAN service by address — fill in a name and its host:port below.</p>
+          <>
+            <p className="mt-3 text-xs text-slate-500">A LAN service by address — fill in a name and its host:port below.</p>
+            <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
+              <SourceTab active={routeMode === "proxy"} onClick={() => setRouteMode("proxy")} icon={null}>
+                Proxied
+              </SourceTab>
+              <SourceTab active={routeMode === "dns_only"} onClick={() => setRouteMode("dns_only")} icon={null}>
+                DNS-only
+              </SourceTab>
+            </div>
+          </>
         )}
 
         <label className="mt-4 block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">Subdomain prefix</span>
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            {isDnsOnly ? "Hostname (dots allowed)" : "Subdomain prefix"}
+          </span>
           <input
             value={prefix}
             onChange={(e) => setPrefix(e.target.value)}
-            placeholder="grafana"
+            placeholder={isDnsOnly ? "rack1.vm3" : "grafana"}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
         </label>
         <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">Upstream (host:port)</span>
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            {isDnsOnly ? "Machine IP" : "Upstream (host:port)"}
+          </span>
           <input
             value={upstream}
             onChange={(e) => setUpstream(e.target.value)}
@@ -197,13 +228,15 @@ export function AddRouteModal({
           />
           <span className="mt-1 block text-xs text-slate-500">{upstreamHelp}</span>
         </label>
-        <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-          <input type="checkbox" checked={tls} onChange={(e) => setTls(e.target.checked)} />
-          Backend speaks HTTPS (skip cert verification)
-        </label>
+        {!isDnsOnly && (
+          <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+            <input type="checkbox" checked={tls} onChange={(e) => setTls(e.target.checked)} />
+            Backend speaks HTTPS (skip cert verification)
+          </label>
+        )}
 
         <p className="mt-4 text-xs text-slate-500">
-          → <span className="font-mono text-slate-300">https://{fqdn}</span>
+          → <span className="font-mono text-slate-300">{isDnsOnly ? fqdn : `https://${fqdn}`}</span>
         </p>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
@@ -213,7 +246,15 @@ export function AddRouteModal({
           </button>
           <button
             disabled={!canSubmit}
-            onClick={() => onSubmit({ prefix, upstream: upstream.trim(), upstream_tls: tls, ...link })}
+            onClick={() =>
+              onSubmit({
+                prefix,
+                upstream: upstream.trim(),
+                upstream_tls: isDnsOnly ? false : tls,
+                route_mode: isDnsOnly ? "dns_only" : "proxy",
+                ...link,
+              })
+            }
             className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}

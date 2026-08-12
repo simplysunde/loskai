@@ -305,3 +305,112 @@ async def test_unassign_caddy_failure_rolls_back():
     with pytest.raises(AssignError):
         await assign.unassign(FakeCaddy(fail=True), FakeAdGuard(), "nas", base_domain=BASE)
     assert instances_store.get_instance("nas").subdomain == "nas"  # restored
+
+
+# --- DNS-only mode: no Caddy, AdGuard answer = the instance's own IP ---
+
+
+def test_validate_prefix_dns_only_allows_multi_label():
+    assign.validate_prefix("rack1.vm3", route_mode="dns_only")
+    assign.validate_prefix("vm1", route_mode="dns_only")
+    with pytest.raises(AssignError):
+        assign.validate_prefix("Has.Upper", route_mode="dns_only")
+
+
+def test_validate_upstream_dns_only_requires_bare_ip():
+    assign.validate_upstream("192.168.10.55", route_mode="dns_only")
+    for bad in ["192.168.10.55:22", "not-an-ip", "192.168.10.55/24", ""]:
+        with pytest.raises(AssignError):
+            assign.validate_upstream(bad, route_mode="dns_only")
+
+
+async def test_assign_dns_only_skips_caddy():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.assign(
+        caddy, ag, prefix="vm1", upstream="192.168.10.55",
+        base_domain=BASE, current_ip=IP, route_mode="dns_only",
+    )
+    assert result["caddy"] == "skipped"
+    assert result["url"] == "vm1.example.no"  # no https:// — no TLS involved
+    assert caddy.pushed == []  # no Caddy route ever pushed
+
+
+async def test_assign_dns_only_writes_own_ip_as_adguard_answer():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.assign(
+        caddy, ag, prefix="vm1", upstream="192.168.10.55",
+        base_domain=BASE, current_ip=IP, route_mode="dns_only",
+    )
+    assert result["adguard"] == "ok"
+    assert ag.added == [("vm1.example.no", "192.168.10.55")]  # own IP, not the shared current_ip
+    inst = instances_store.get_instance("vm1")
+    assert inst.dns_answer == "192.168.10.55"
+
+
+async def test_assign_dns_only_allows_multi_label_prefix():
+    result = await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="rack1.vm3", upstream="192.168.10.60",
+        base_domain=BASE, current_ip=IP, route_mode="dns_only",
+    )
+    assert result["url"] == "rack1.vm3.example.no"
+
+
+async def test_assign_proxy_still_rejects_multi_label_and_bare_ip():
+    with pytest.raises(AssignError):
+        await assign.assign(
+            FakeCaddy(), FakeAdGuard(), prefix="rack1.vm3", upstream="192.168.10.60:80",
+            base_domain=BASE, current_ip=IP,
+        )
+    with pytest.raises(AssignError):
+        await assign.assign(
+            FakeCaddy(), FakeAdGuard(), prefix="vm1", upstream="192.168.10.55",
+            base_domain=BASE, current_ip=IP,
+        )
+
+
+async def test_unassign_dns_only_deletes_own_answer():
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only", dns_answer="192.168.10.55")
+    )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.unassign(caddy, ag, "vm1", base_domain=BASE)
+
+    assert result["cleared"] is True
+    assert caddy.deleted == ["vm1"]  # harmless no-op delete, already 404-safe
+    assert ag.deleted == [("vm1.example.no", "192.168.10.55")]
+
+
+async def test_mode_switch_proxy_to_dns_only_tears_down_caddy_route():
+    instances_store.upsert_instance(
+        Instance(id="box", name="box", type="external", subdomain="box",
+                 upstream="192.168.10.70:80", route_mode="proxy", dns_answer=IP)
+    )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.assign(
+        caddy, ag, instance_id="box", prefix="box", upstream="192.168.10.70",
+        base_domain=BASE, current_ip=IP, route_mode="dns_only",
+    )
+    assert result["caddy"] == "skipped"
+    assert caddy.deleted == ["box"]  # stale proxy route torn down
+    assert caddy.pushed == []
+    assert ag.added == [("box.example.no", "192.168.10.70")]  # now answers with its own IP
+    inst = instances_store.get_instance("box")
+    assert inst.route_mode == "dns_only" and inst.dns_answer == "192.168.10.70"
+
+
+async def test_mode_switch_dns_only_to_proxy_creates_caddy_route():
+    instances_store.upsert_instance(
+        Instance(id="box", name="box", type="external", subdomain="box",
+                 upstream="192.168.10.70", route_mode="dns_only", dns_answer="192.168.10.70")
+    )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.assign(
+        caddy, ag, instance_id="box", prefix="box", upstream="192.168.10.70:8080",
+        base_domain=BASE, current_ip=IP, route_mode="proxy",
+    )
+    assert result["caddy"] == "ok"
+    assert caddy.pushed == ["box"]
+    assert ag.added == [("box.example.no", IP)]  # now answers with the shared Caddy IP
+    inst = instances_store.get_instance("box")
+    assert inst.route_mode == "proxy" and inst.dns_answer == IP

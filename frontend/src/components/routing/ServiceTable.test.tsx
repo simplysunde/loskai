@@ -80,3 +80,26 @@ test("external routed row can be deleted; unrouted row shows Assign", () => {
   fireEvent.click(screen.getByRole("button", { name: "Assign a URL" }));
   expect(onAssign).toHaveBeenCalledOnce();
 });
+
+test("a dns_only row shows a dns-only tag and dashes for Route/Live", () => {
+  render(
+    <ServiceTable
+      rows={[
+        row({
+          id: "vm1", name: "vm1", type: "external", subdomain: "vm1", fqdn: "vm1.example.no",
+          upstream: "192.168.10.55", route_mode: "dns_only", synced: null, upstream_healthy: null,
+        }),
+      ]}
+    />,
+  );
+  expect(screen.getByText("dns-only")).toBeInTheDocument();
+  // Route + Live cells both render the dash placeholder — two "—" in the row.
+  expect(screen.getAllByText("—")).toHaveLength(2);
+});
+
+test("a proxy row with known sync/health state shows real badges, not dashes", () => {
+  render(<ServiceTable rows={[row({ route_mode: "proxy" })]} />);
+  expect(screen.getByText("synced")).toBeInTheDocument();
+  expect(screen.getByText("up")).toBeInTheDocument();
+  expect(screen.queryByText("dns-only")).not.toBeInTheDocument();
+});

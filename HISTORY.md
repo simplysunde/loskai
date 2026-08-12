@@ -1,5 +1,66 @@
 # Loskai — History
 
+## 2026-08-12 — Phase 13: DNS-only routing mode
+
+Added a second `route_mode` to the instance model — `"dns_only"` alongside the existing
+(now-default) `"proxy"` — so a raw machine or VM can get a clean hostname (a plain AdGuard
+A-record straight to its own IP) without going through Caddy at all. Motivation: Caddy's
+`reverse_proxy` is HTTP(S)-shaped (one hostname → one backend port), while naming a machine
+is protocol-agnostic (SSH, RDP, whatever) — not everyone wants HTTPS on their own LAN.
+Considered and rejected: a dedicated new tab, and just pointing people at AdGuard's own UI —
+both would have split "things Loskai named" across two inventories, undermining the
+instance-model's whole point. This is a third mode on the same instance/Routing-table
+instead.
+
+Built twice: the first pass hit an unrelated dev-environment problem (the frontend's file
+watcher stuck in a reload loop from an unreliable filesystem, not from this code — confirmed
+by reverting to a clean baseline and observing the loop persisted with zero of these changes
+in the tree; a machine reboot fixed it) and was rolled back to the last commit before
+redoing it. The second pass went file-by-file with a fresh read before every edit and a test
+run after each one, specifically to avoid a mistake from the first attempt: `Write`-ing over
+`ServiceTable.test.tsx` without reading it first, silently dropping 4 pre-existing tests
+(caught via `git diff --stat` and fixed before it shipped). This time every touched file was
+read fresh immediately before editing and diffed after, so nothing pre-existing was at risk.
+
+- **Backend**: `assign()` Step 1 now branches — `proxy` pushes a Caddy route as before,
+  `dns_only` calls the already-404-safe `delete_route` instead (a no-op normally, and what
+  tears down a stale route on a proxy→dns_only mode switch). Step 2's AdGuard answer comes
+  from a new `target_answer()` helper: the shared Caddy IP for `proxy`, the instance's own
+  `upstream` (now a bare IP, not `host:port`, for `dns_only`) otherwise. `unassign()` needed
+  **zero changes** — both its steps were already mode-agnostic
+- **AdGuard reconcile** (the trickiest part): `plan_reconcile`, `dns_status_rows`, and
+  `reconcile` all moved from one global `current_ip` to per-instance `target_answer`.
+  `is_loskai_domain` relaxed from single-label to any label(s) under `base_domain`, since
+  `dns_only` names can be multi-label (`rack1.vm3` — no wildcard-cert constraint applies
+  with no TLS involved). The orphan sweep widened to match either the shared Caddy IP or any
+  currently-routed instance's own `dns_answer`, so `dns_only` leftovers get swept too — a
+  deliberate, slightly wider blast radius, documented in `docs/adguard-api.md`.
+  `reconcile()`'s `CADDY_HOST_IP` requirement is now conditional: only raised when a `proxy`
+  instance is actually routed, so an all-`dns_only` LAN needs no Caddy IP configured at all
+  (a visible behavior change from the old unconditional check)
+- **Caddy module**: `push_all` skips `dns_only` instances outright (not an error — just N/A);
+  `list_with_sync` reports `synced`/`upstream_healthy: null` for them (renders as a dash)
+  while `routed`/`fqdn` stay populated (a `dns_only` instance does have a subdomain, just no
+  Caddy projection)
+- **Frontend**: a Proxied/DNS-only toggle in `AddRouteModal` (External source only — a
+  container's own IP isn't a meaningful DNS target) and `AssignModal` (gated by a new
+  `allowDnsOnly` prop, hidden for `docker`-type rows). `ServiceTable` gained a "dns-only" tag
+  pill and dashes in place of Route/Live status for those rows. New `isValidDnsOnlyPrefix`
+  (dotted labels) and `isValidDnsTarget` (bare IPv4 — IPv6 explicitly out of scope for v1)
+- Key files: `shared/{assign,instances}.py`, `modules/adguard/service.py`,
+  `modules/caddy/service.py`, `components/routing/{AddRouteModal,AssignModal,ServiceTable}.tsx`,
+  `lib/validation.ts`
+- **Tests**: 163 backend (was 145 — 3 existing `test_adguard_reconcile.py` tests updated for
+  the relaxed `is_loskai_domain`/conditional-`current_ip` behavior, rest new), 25 frontend
+  (was 19). `tsc -b`, `vite build`, `oxlint` all clean
+- **Unverified in-sandbox** (no real Caddy/AdGuard here): the actual mode-switch route
+  teardown/creation and the per-instance AdGuard answer, end to end. Smoke-test on device
+  per the TODO.md Phase 13 checklist
+- **Sandbox note, not app-related**: this session had neither `uv` nor `node` on `PATH` (the
+  checked-out `.venv`/`node_modules` pointed at binaries from a different machine); installed
+  both locally (`~/.local/bin`, `~/.local/node`) to actually run the test suites rather than
+  claim they passed
+
 ## 2026-08-10 — Plan/TODO discrepancy pass + `.env.example` cleanup
 
 **Doc drift review.** Compared PLAN.md/TODO.md against the actual repo (git wasn't available

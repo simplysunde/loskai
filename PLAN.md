@@ -118,7 +118,9 @@ view both read.
   "name":      "Grafana",        // display name
   "type":      "docker",         // "docker" | "external"
   "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
-  "upstream":  "192.168.10.100:3000",  // host:port — chosen at assign time
+  "route_mode": "proxy",         // "proxy" (default, Caddy+AdGuard) | "dns_only" (AdGuard only —
+                                 //   see "DNS-only routing" below)
+  "upstream":  "192.168.10.100:3000",  // host:port (proxy) or a bare IP (dns_only) — chosen at assign time
   "upstream_tls": false,         // true = dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
   "container": "grafana",        // container name/id — links a docker instance to live data
   "origin":    null,             // "adguard"|"gateway"|"caddy" — links an external instance to a
@@ -170,6 +172,33 @@ a duplicate; a *second* route to one service is a separate `external` instance. 
 existing route is per-row ("Change URL"). Everything writes to the same list, from which Caddy
 routes are pushed. Loskai and AdGuard are ordinary instances with no
 reserved status — the subdomain-uniqueness rule prevents collisions.
+
+### DNS-only routing — decoupling AdGuard from Caddy
+
+Not every named thing on the LAN is an HTTP(S) service. Giving a raw machine or VM a clean
+hostname (`vm1.example.no` for SSH, RDP, or some arbitrary port) doesn't need a reverse
+proxy — Caddy's `reverse_proxy` is HTTP(S)-shaped (one hostname → one backend port), while
+host-level naming is protocol-agnostic. Rather than build a second, parallel surface for
+this (a dedicated tab, or just pointing people at AdGuard's own UI), it is a second
+**`route_mode`** on the same instance: `"proxy"` (default) is everything above; `"dns_only"`
+skips Caddy entirely.
+
+- **No Caddy route is pushed or expected** for a `dns_only` instance — `push_all`,
+  `list_with_sync`'s synced/live columns, and the routing table's Route/Live columns all
+  treat it as not-applicable, not "missing."
+- **`upstream` *is* the AdGuard answer.** A `dns_only` instance's `upstream` is a bare IPv4
+  address (not `host:port` — there's no dial, no port to speak of), and that address is
+  exactly what AdGuard resolves the name to. No separate answer-IP field is needed.
+- **No single-label constraint.** The single-DNS-label rule on `proxy` subdomains exists
+  only to keep every name under the one `*.BASE_DOMAIN` wildcard cert — irrelevant with no
+  TLS/Caddy involved, so `dns_only` prefixes may be dot-separated (`rack1.vm3`).
+- **The orphan sweep is widened accordingly**: it matches a leftover rewrite against either
+  the shared Caddy IP or any currently-routed instance's own `dns_answer`, so `dns_only`
+  leftovers get cleaned up the same way proxy ones do. This is a deliberate, slightly wider
+  blast radius than the old single-IP-only sweep — see [docs/adguard-api.md](docs/adguard-api.md).
+- **v1 scope**: the Routing UI only offers the dns_only toggle for `external`-type
+  instances (a container's own IP is rarely the point — this is a frontend-only
+  restriction, not a backend one) and only accepts bare IPv4 (no IPv6 yet).
 
 ### How the instance list connects the modules
 
@@ -411,6 +440,9 @@ Manage all reverse proxy routes. A route is just an **instance** with a `subdoma
 list and pushes those to Caddy via the Admin API. It can route any instance, whether
 backed by a container or an external LAN target, so it has zero runtime dependency on
 AdGuard, WireGuard, or the Docker module (external instances need no Docker at all).
+An instance with `route_mode: "dns_only"` (see [DNS-only routing](#dns-only-routing--decoupling-adguard-from-caddy))
+is excluded from this module's projection entirely — it has a subdomain but no Caddy
+route, so it never appears in `push_all` or the live-sync check.
 
 ### Features
 
@@ -569,8 +601,11 @@ relevant to Loskai: keeping DNS rewrites in sync with the routed instances (thos
 ### Model
 One explicit rewrite per routed instance (`grafana.example.no → <caddy-ip>`), no
 `*.BASE_DOMAIN` catch-all — an unassigned name just falls through to public DNS. The
-answer is the Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when
-that's a hostname), the same for every rewrite. Every write is a single add or exact-pair
+answer depends on the instance's `route_mode`: for `proxy` (the default) it's the shared
+Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when that's a
+hostname), the same for every proxy rewrite; for `dns_only` it's that instance's own
+`upstream` IP instead — see [DNS-only routing](#dns-only-routing--decoupling-adguard-from-caddy).
+Every write is a single add or exact-pair
 delete (the API has no bulk op), so **manually-added rewrites are never touched** — a
 hand-added entry on the same domain is surfaced as a conflict, not overwritten. Each
 instance records the answer Loskai last wrote for it (`dns_answer`), so if the Caddy IP
@@ -707,6 +742,14 @@ route (`DELETE /id/<id>`, required), then best-effort remove the AdGuard rewrite
 instance itself survives — it just no longer has a route. To remove the instance entirely,
 `DELETE /api/instances/{id}` (any type — see Core Data Model), which runs this same
 clear-route step first and then drops the record.
+
+**`route_mode: "dns_only"` variant.** Same `POST /api/assign`, one extra field
+(`"route_mode": "dns_only"`), and Step 1 inverts: instead of pushing a route, Loskai
+deletes any Caddy route that might exist for that `@id` (idempotent — a no-op the first
+time, and what tears down a stale route on a proxy→dns_only mode switch). Step 2's answer
+is the instance's own `upstream` IP, not the shared Caddy IP. Result: `caddy: "skipped"`,
+`adguard: "ok"`, and a bare-hostname `url` (no `https://` — there's no TLS). Clearing works
+identically (the Caddy delete is still called, still harmless when nothing was ever pushed).
 
 ---
 

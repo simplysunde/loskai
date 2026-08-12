@@ -7,6 +7,7 @@ export interface RouteRow {
   name: string;
   type: "docker" | "external";
   subdomain: string | null;
+  route_mode?: "proxy" | "dns_only";
   fqdn: string | null;
   upstream: string | null;
   upstream_tls?: boolean;
@@ -88,9 +89,14 @@ export function ServiceTable({
                     https
                   </span>
                 )}
+                {row.route_mode === "dns_only" && (
+                  <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
+                    dns-only
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3">
-                {!row.routed ? (
+                {!row.routed || row.route_mode === "dns_only" ? (
                   <Dash />
                 ) : row.synced === null ? (
                   <StatusBadge status="unknown" label="unknown" />
@@ -101,7 +107,7 @@ export function ServiceTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                {!row.routed || row.upstream_healthy === null ? (
+                {!row.routed || row.route_mode === "dns_only" || row.upstream_healthy === null ? (
                   <Dash />
                 ) : row.upstream_healthy ? (
                   <StatusBadge status="healthy" label="up" />

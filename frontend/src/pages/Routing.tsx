@@ -94,8 +94,12 @@ export function Routing() {
   });
 
   const assign = useMutation({
-    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
-      api.post<AssignResult>("/api/assign", { ...p, instance_id: assignTarget?.id ?? undefined }),
+    mutationFn: (p: {
+      prefix: string;
+      upstream: string;
+      upstream_tls: boolean;
+      route_mode: "proxy" | "dns_only";
+    }) => api.post<AssignResult>("/api/assign", { ...p, instance_id: assignTarget?.id ?? undefined }),
     onSuccess: (data) => {
       setAssignOpen(false);
       setResult(data);
@@ -307,6 +311,8 @@ export function Routing() {
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
         initialUpstream={assignTarget?.upstream ?? ""}
         initialTls={assignTarget?.upstream_tls ?? false}
+        initialRouteMode={assignTarget?.route_mode ?? "proxy"}
+        allowDnsOnly={assignTarget?.type !== "docker"}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}
       />

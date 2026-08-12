@@ -97,6 +97,26 @@ def test_dns_status_unknown_without_answer_ip():
     assert rows[0]["present"] is None
 
 
+def dns_only(id_, sub, upstream, dns_answer=None):
+    return Instance(id=id_, name=id_, type="external", subdomain=sub,
+                     upstream=upstream, route_mode="dns_only", dns_answer=dns_answer)
+
+
+def test_plan_reconcile_mixed_batch_targets_per_instance_answer():
+    # A proxy instance targets the shared current_ip; a dns_only instance targets its own IP.
+    routed = [inst("grafana", "grafana"), dns_only("vm1", "vm1", "192.168.10.55")]
+    plan = service.plan_reconcile(routed, [], BASE, IP)
+    assert set(plan.adds) == {("grafana.example.no", IP), ("vm1.example.no", "192.168.10.55")}
+
+
+def test_dns_status_rows_dns_only_independent_of_current_ip():
+    # A dns_only row can report present/missing even with no current_ip configured at all.
+    existing = [rw("vm1.example.no", "192.168.10.55")]
+    rows = service.dns_status_rows([dns_only("vm1", "vm1", "192.168.10.55")], existing, BASE, None)
+    assert rows[0]["present"] is True
+    assert rows[0]["target"] == "192.168.10.55"
+
+
 # --- Orchestration (executor) with a fake client ---
 
 
@@ -147,9 +167,40 @@ async def test_reconcile_migrates_orphan_on_ip_change(data_dir):
     assert instances_store.get_instance("grafana").dns_answer == new
 
 
-async def test_reconcile_requires_answer_ip(data_dir):
+async def test_reconcile_requires_answer_ip_for_proxy_instance(data_dir):
+    # current_ip is only required when a `proxy` instance is actually routed.
+    instances_store.upsert_instance(inst("grafana", "grafana"))
     with pytest.raises(ValueError):
         await service.reconcile(FakeClient([]), BASE, None)
+
+
+async def test_reconcile_persists_dns_answer_per_mode_in_mixed_run(data_dir):
+    instances_store.upsert_instance(inst("grafana", "grafana"))
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only")
+    )
+    client = FakeClient(existing=[])
+
+    await service.reconcile(client, BASE, IP)
+
+    assert instances_store.get_instance("grafana").dns_answer == IP
+    assert instances_store.get_instance("vm1").dns_answer == "192.168.10.55"
+
+
+async def test_reconcile_no_answer_ip_needed_when_dns_only_only(data_dir):
+    # A LAN made entirely of dns_only instances needs no CADDY_HOST_IP at all.
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only")
+    )
+    client = FakeClient(existing=[])
+
+    result = await service.reconcile(client, BASE, None)
+
+    assert client.added == [("vm1.example.no", "192.168.10.55")]
+    assert result["added"] == ["vm1.example.no"]
+    assert instances_store.get_instance("vm1").dns_answer == "192.168.10.55"
 
 
 # --- consistency_warnings (the /api/health drift check) ---
@@ -205,13 +256,29 @@ def test_sweep_skips_foreign_answer():
 
 
 def test_sweep_skips_domain_outside_base():
-    existing = [rw("nas.local", IP), rw("deep.sub.example.no", IP)]
+    existing = [rw("nas.local", IP)]
     plan = service.plan_reconcile([], existing, BASE, IP)
-    assert plan.sweeps == []  # wrong suffix / not a single label
+    assert plan.sweeps == []  # wrong suffix — not Loskai's base domain at all
+
+
+def test_sweep_matches_multi_label_domain():
+    # dns_only names can be multi-label; the sweep must still catch their orphans.
+    existing = [rw("deep.sub.example.no", IP)]
+    plan = service.plan_reconcile([], existing, BASE, IP)
+    assert plan.sweeps == [("deep.sub.example.no", IP)]
+
+
+def test_sweep_matches_dns_only_instances_own_answer():
+    # A dns_only instance's own IP (not the shared current_ip) is also a known Loskai
+    # answer, so an orphan pointing at it gets swept even with no shared current_ip.
+    routed = [dns_only("vm1", "vm1", "192.168.10.55", dns_answer="192.168.10.55")]
+    existing = [rw("old-vm1.example.no", "192.168.10.55")]  # renamed away, delete failed
+    plan = service.plan_reconcile(routed, existing, BASE, None)
+    assert plan.sweeps == [("old-vm1.example.no", "192.168.10.55")]
 
 
 def test_is_loskai_domain():
     assert service.is_loskai_domain("grafana.example.no", BASE)
     assert not service.is_loskai_domain("example.no", BASE)
-    assert not service.is_loskai_domain("a.b.example.no", BASE)
+    assert service.is_loskai_domain("a.b.example.no", BASE)  # dns_only multi-label names
     assert not service.is_loskai_domain("grafana.other.no", BASE)

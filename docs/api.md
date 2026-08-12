@@ -54,7 +54,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, origin?, upstream_tls? }`. Validates the single-label prefix + `host:port` upstream + uniqueness, sets the subdomain, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**). Returns `{ caddy, adguard: ok\|error\|skipped, url, instance_id, warning }`. `container` → targets that container's existing instance (idempotent) or a new linked `docker` instance; `origin` → same idempotent link for a built-in network service (AdGuard/Gateway/Caddy) as an `external` instance; otherwise plain `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox). |
+| `POST /api/assign` | Body `{ prefix, upstream, instance_id?, name?, container?, origin?, upstream_tls?, route_mode? }`. `route_mode` (default `"proxy"`): `"proxy"` validates a single-label prefix + `host:port` upstream, pushes the Caddy route (**required**), and writes the AdGuard rewrite (**best-effort**, answer = the shared Caddy IP); `"dns_only"` validates a dot-allowed prefix + bare IPv4 upstream, pushes **no Caddy route** (any stale one from a prior `proxy` assign is torn down), and writes the AdGuard rewrite with the instance's own `upstream` as the answer. Returns `{ caddy: ok\|skipped, adguard: ok\|error\|skipped, url, instance_id, warning }` — `url` has no `https://` scheme for `dns_only`. `container` → targets that container's existing instance (idempotent) or a new linked `docker` instance; `origin` → same idempotent link for a built-in network service (AdGuard/Gateway/Caddy) as an `external` instance; otherwise plain `external`. `upstream_tls: true` → dial the backend over HTTPS with cert verification off (e.g. Proxmox); ignored for `dns_only`. |
 | `DELETE /api/assign/{instance_id}` | The mirror: clears the subdomain, deletes the Caddy route (required), best-effort removes the rewrite. The instance survives. |
 
 ---
@@ -63,8 +63,8 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /routes` | **All** instances (routed or not) annotated with `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin` links (so the UI can find a container's or Network service's route). Route fields are null when unrouted. Display-only comparison — never auto-corrects. |
-| `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s. |
+| `GET /routes` | **All** instances (routed or not) annotated with `route_mode`, `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin` links (so the UI can find a container's or Network service's route). Route fields are null when unrouted **or** `route_mode: "dns_only"` (no Caddy route exists for those — not "missing"). Display-only comparison — never auto-corrects. |
+| `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s; skips `dns_only` instances (nothing to push). |
 | `GET /health` | `{ status, server?, mode: "docker"\|"lan"\|null }`. |
 | `GET /upstreams` | Upstream liveness from Caddy. |
 
@@ -81,7 +81,7 @@ External contract: [caddy-api.md](caddy-api.md).
 | `POST /rewrites` | Body `{ domain, answer }` — add a rewrite. |
 | `DELETE /rewrites` | Body `{ domain, answer }` — delete by **exact pair** (protects hand-added rewrites). |
 | `GET /status` | Per-instance DNS status: `{ answer_ip, instances: [{ id, domain, present, conflict }] }` — powers the routing table's DNS column. |
-| `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites, **sweep** orphaned `<label>.<base>` rewrites that point at the Caddy IP but no live route owns (reclaims Loskai leftovers from a failed offline teardown), and report conflicts. Returns `{ added, deleted, swept, conflicts, errors }`. `400` if no answer IP, `502` if AdGuard is down. |
+| `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites per instance (answer = the shared Caddy IP for `proxy`, the instance's own IP for `dns_only`), **sweep** orphaned rewrites in the `{base_domain}` namespace whose answer is one Loskai is known to have written (the shared Caddy IP, or any currently-routed instance's own `dns_answer` — reclaims leftovers from a failed offline teardown, `proxy` or `dns_only`), and report conflicts. Returns `{ added, deleted, swept, conflicts, errors }`. `400` if no answer IP **and** a `proxy` instance is routed (an all-`dns_only` LAN needs none), `502` if AdGuard is down. |
 
 External contract: [adguard-api.md](adguard-api.md).
 

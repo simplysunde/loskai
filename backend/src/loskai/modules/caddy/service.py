@@ -1,8 +1,10 @@
 """Caddy module logic — pure builders + read/push orchestration.
 
 The Caddy module is **read + push only**: it never assigns or clears a subdomain (that
-is `shared/assign.py`, Phase 6). It owns the projection "instances with a subdomain →
-Caddy routes" and a display-only sync comparison that never auto-corrects.
+is `shared/assign.py`, Phase 6). It owns the projection "instances with a subdomain and
+`route_mode: "proxy"` → Caddy routes" and a display-only sync comparison that never
+auto-corrects. `route_mode: "dns_only"` instances have a subdomain but are excluded from
+this projection entirely — they resolve via AdGuard alone, never through Caddy.
 """
 
 from ipaddress import ip_address
@@ -94,7 +96,9 @@ def build_route(instance: Instance, base_domain: str) -> dict:
 async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[dict]:
     """Every instance (routed or not) annotated with `routed` + synced (@id present in
     Caddy) + live upstream status. The routing view manages all instances, so unrouted
-    ones appear here too (with null route fields). Read-only — never auto-corrects."""
+    ones appear here too (with null route fields). A `route_mode: "dns_only"` instance is
+    `routed` (it has a subdomain) but `synced`/`upstream_healthy` stay null — it has no
+    Caddy route at all, so neither concept applies. Read-only — never auto-corrects."""
     instances = instances_store.list_instances()
 
     live_ids: set[str] | None
@@ -114,12 +118,13 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
     rows: list[dict] = []
     for inst in instances:
         routed = inst.subdomain is not None
+        is_proxy = routed and inst.route_mode == "proxy"
         fqdn = assemble_fqdn(inst.subdomain, base_domain) if routed and base_domain else None
-        if not routed or live_ids is None:
+        if not is_proxy or live_ids is None:
             synced = None
         else:
             synced = inst.id in live_ids
-        if not routed or upstream_fails is None or inst.upstream is None:
+        if not is_proxy or upstream_fails is None or inst.upstream is None:
             upstream_healthy = None
         else:
             upstream_healthy = inst.upstream in upstream_fails and upstream_fails[inst.upstream] == 0
@@ -129,6 +134,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "name": inst.name,
                 "type": inst.type,
                 "subdomain": inst.subdomain,
+                "route_mode": inst.route_mode,
                 "fqdn": fqdn,
                 "upstream": inst.upstream,
                 "upstream_tls": inst.upstream_tls,
@@ -152,11 +158,14 @@ async def upsert_route(client: CaddyClient, instance: Instance, base_domain: str
 
 async def push_all(client: CaddyClient, base_domain: str | None) -> list[dict]:
     """Rebuild every route from the instance list (recovery backstop). Only touches
-    routes whose @id matches an instance — human-added routes are left alone."""
+    routes whose @id matches an instance — human-added routes are left alone. Skips
+    `dns_only` instances entirely — they have no Caddy route to push."""
     if not base_domain:
         raise ValueError("base_domain is not set")
     results: list[dict] = []
     for inst in instances_store.list_routed():
+        if inst.route_mode != "proxy":
+            continue
         try:
             await upsert_route(client, inst, base_domain)
             results.append({"id": inst.id, "status": "ok"})

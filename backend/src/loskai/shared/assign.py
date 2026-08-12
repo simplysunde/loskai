@@ -6,20 +6,27 @@ writer.
 
 Order (see PLAN, "The Assign URL Action"):
   Step 0 — persist intent on the instance (durable record).
-  Step 1 — Caddy route (REQUIRED). On failure: roll back and abort.
-  Step 2 — AdGuard rewrite (BEST EFFORT). On failure: warn, never fail the assign.
+  Step 1 — Caddy route (REQUIRED for `route_mode: "proxy"`). On failure: roll back and abort.
+           For `route_mode: "dns_only"` this instead tears down any stale Caddy route
+           (idempotent) — no route is ever pushed for a dns_only instance.
+  Step 2 — AdGuard rewrite (BEST EFFORT). Answer is the shared Caddy LAN IP for `proxy`,
+           or the instance's own `upstream` IP for `dns_only` (see `adguard.service.target_answer`).
+           On failure: warn, never fail the assign.
 
 `assign` / `unassign` take the two clients as arguments so they can be driven with fakes
 in tests; the router passes the process singletons.
 """
 
 import re
+from ipaddress import ip_address
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..modules.adguard.client import AdGuardError, adguard
+from ..modules.adguard.service import target_answer
 from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
 from . import instances as instances_store
@@ -37,19 +44,42 @@ class AssignError(Exception):
         super().__init__(detail)
 
 
-def validate_prefix(prefix: str) -> None:
-    if not prefix or len(prefix) > 63 or not _LABEL.match(prefix):
+def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "proxy") -> None:
+    """`proxy` stays a single DNS label (keeps every name under the one `*.BASE_DOMAIN`
+    wildcard cert). `dns_only` has no cert involved, so dot-separated multi-label names
+    are allowed — each label still has to be a valid DNS label on its own."""
+    if not prefix:
+        raise AssignError(422, "prefix is required")
+    if route_mode == "dns_only":
+        labels = prefix.split(".")
+        if len(prefix) > 253 or not all(_LABEL.match(label) for label in labels):
+            raise AssignError(
+                422,
+                "Each dot-separated label must be lowercase letters, digits, hyphens",
+            )
+        return
+    if len(prefix) > 63 or not _LABEL.match(prefix):
         raise AssignError(
             422,
             "Subdomain must be a single DNS label (lowercase letters, digits, hyphens)",
         )
 
 
-def validate_upstream(upstream: str) -> None:
-    """The upstream goes verbatim into Caddy's `dial`, which wants a bare host:port — a
-    scheme or path produces a malformed, non-connecting route. Reject those early."""
+def validate_upstream(upstream: str, route_mode: Literal["proxy", "dns_only"] = "proxy") -> None:
+    """`proxy`: the upstream goes verbatim into Caddy's `dial`, which wants a bare
+    host:port — a scheme or path produces a malformed, non-connecting route. `dns_only`:
+    the upstream IS the AdGuard answer, so it must be a bare IPv4 address — no port, no
+    scheme (IPv6 is out of scope for now, same as `settings.py`'s `caddy_host_ip`/`host_ip`)."""
     if not upstream:
         raise AssignError(422, "upstream is required")
+    if route_mode == "dns_only":
+        if ":" in upstream:
+            raise AssignError(422, "DNS-only target must be a bare IPv4 address — no port")
+        try:
+            ip_address(upstream)
+        except ValueError:
+            raise AssignError(422, f"DNS-only target must be a valid IP address: {upstream!r}")
+        return
     if "://" in upstream or "/" in upstream or any(c.isspace() for c in upstream):
         raise AssignError(
             422,
@@ -82,12 +112,13 @@ async def assign(
     container: str | None = None,
     origin: str | None = None,
     upstream_tls: bool = False,
+    route_mode: Literal["proxy", "dns_only"] = "proxy",
 ) -> dict:
-    validate_prefix(prefix)
+    validate_prefix(prefix, route_mode)
     if not base_domain:
         raise AssignError(400, "base_domain is not set — configure it in Settings")
     upstream = upstream.strip()
-    validate_upstream(upstream)
+    validate_upstream(upstream, route_mode)
 
     existing = instances_store.get_instance(instance_id) if instance_id else None
     if instance_id and existing is None:
@@ -109,7 +140,10 @@ async def assign(
     if existing:
         prev: Instance | None = existing.model_copy(deep=True)
         inst = existing.model_copy(
-            update={"subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls}
+            update={
+                "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
+                "route_mode": route_mode,
+            }
         )
     else:
         if instances_store.get_instance(prefix) is not None:
@@ -121,7 +155,7 @@ async def assign(
             id=prefix, name=name or prefix,
             type="docker" if container else "external",
             container=container, origin=origin, subdomain=prefix, upstream=upstream,
-            upstream_tls=upstream_tls,
+            upstream_tls=upstream_tls, route_mode=route_mode,
         )
 
     old_domain = (
@@ -135,20 +169,27 @@ async def assign(
     # Step 0 — persist intent.
     instances_store.upsert_instance(inst)
 
-    # Step 1 — Caddy route (required). Roll back on failure.
+    # Step 1 — Caddy (required for proxy). Roll back on failure.
     try:
-        await caddy_service.upsert_route(caddy_client, inst, base_domain)
+        if inst.route_mode == "proxy":
+            await caddy_service.upsert_route(caddy_client, inst, base_domain)
+        else:
+            # dns_only: no Caddy route should exist. Tear down any stale one from a prior
+            # proxy assignment (idempotent — delete_route already ignores 404).
+            await caddy_client.delete_route(inst.id)
     except (httpx.HTTPError, CaddyError, ValueError) as exc:
         if created_new:
             instances_store.delete_instance(inst.id)
         else:
             instances_store.upsert_instance(prev)  # type: ignore[arg-type]
-        raise AssignError(502, f"Caddy route failed: {describe_error(exc)}")
+        raise AssignError(502, f"Caddy step failed: {describe_error(exc)}")
 
-    # Step 2 — AdGuard rewrite (best effort).
+    # Step 2 — AdGuard rewrite (best effort). Answer is the shared Caddy IP for proxy,
+    # or the instance's own upstream IP for dns_only.
+    answer = target_answer(inst, current_ip)
     adguard_status = "skipped"
     warning: str | None = None
-    if not current_ip:
+    if not answer:
         warning = "No Caddy answer IP (set CADDY_HOST_IP in Docker mode) — DNS rewrite skipped."
     elif adguard_client.base_url() is None:
         warning = "AdGuard is not configured — DNS rewrite skipped."
@@ -160,8 +201,8 @@ async def assign(
                     await adguard_client.delete_rewrite(old_domain, old_answer)
                 except (httpx.HTTPError, AdGuardError):
                     pass
-            await adguard_client.add_rewrite(domain, current_ip)
-            inst = inst.model_copy(update={"dns_answer": current_ip})
+            await adguard_client.add_rewrite(domain, answer)
+            inst = inst.model_copy(update={"dns_answer": answer})
             instances_store.upsert_instance(inst)
             adguard_status = "ok"
         except (httpx.HTTPError, AdGuardError) as exc:
@@ -172,9 +213,9 @@ async def assign(
             )
 
     return {
-        "caddy": "ok",
+        "caddy": "ok" if inst.route_mode == "proxy" else "skipped",
         "adguard": adguard_status,
-        "url": f"https://{domain}",
+        "url": f"https://{domain}" if inst.route_mode == "proxy" else domain,
         "instance_id": inst.id,
         "warning": warning,
     }
@@ -257,6 +298,7 @@ class AssignBody(BaseModel):
     container: str | None = None
     origin: str | None = None
     upstream_tls: bool = False
+    route_mode: Literal["proxy", "dns_only"] = "proxy"
 
 
 @router.post("/assign")
@@ -270,6 +312,7 @@ async def post_assign(body: AssignBody) -> dict:
             instance_id=body.instance_id, name=body.name, container=body.container,
             origin=body.origin,
             upstream_tls=body.upstream_tls,
+            route_mode=body.route_mode,
             base_domain=base, current_ip=current_ip,
         )
     except AssignError as exc:

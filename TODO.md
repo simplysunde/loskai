@@ -402,6 +402,72 @@ paid either way. Every case here disappears under the Backlog's real-domain path
 
 ---
 
+## Phase 13 — DNS-only routing mode
+_Decouples AdGuard from Caddy for raw host naming (VMs, NAS, any LAN machine) that doesn't
+want or need an HTTP(S) reverse proxy — Caddy's `reverse_proxy` is HTTP(S)-shaped, host
+naming is protocol-agnostic. Kept inside the existing instance/Routing-table model rather
+than a new tab or AdGuard's own UI, so there is still one inventory of named things. See
+PLAN.md "DNS-only routing" and `docs/adguard-api.md`._
+
+**Stage A — `route_mode` field + `assign()`/`unassign()` branching**
+- [x] `Instance` gains `route_mode: "proxy" | "dns_only" = "proxy"` (`shared/instances.py`)
+- [x] `assign.py`: `validate_prefix`/`validate_upstream` take `route_mode` — `dns_only`
+      allows dot-separated multi-label prefixes (no wildcard-cert constraint applies) and
+      requires a bare IPv4 upstream (`ipaddress.ip_address`, mirrors `caddy_host_ip`/`host_ip`)
+- [x] `assign()` Step 1 branches: `proxy` → `upsert_route` (unchanged); `dns_only` →
+      `delete_route` (idempotent — tears down a stale route on a proxy→dns_only switch, a
+      no-op otherwise). Step 2's answer is `target_answer(inst, current_ip)` — the instance's
+      own upstream for `dns_only`, the shared IP for `proxy`. Fixed the `url` field to drop
+      `https://` for `dns_only` (no TLS at all) and `caddy: "skipped"` in the response
+- [x] `unassign()` needed **no changes** — both steps were already mode-agnostic (Caddy
+      delete is 404-safe; AdGuard delete already used the instance's own `dns_answer`)
+- [x] `AssignBody`/`post_assign` pass `route_mode` through; defaults to `"proxy"` (backward
+      compatible — every existing instance/request without the field behaves unchanged)
+
+**Stage B — per-instance answer IP in AdGuard reconcile**
+- [x] `target_answer(instance, current_ip)` — the one helper every AdGuard function now
+      routes through instead of the single global `current_ip`
+- [x] `is_loskai_domain` relaxed from single-label to any non-empty label(s) under
+      `base_domain`, so `dns_only` multi-label names are recognised for the orphan sweep
+- [x] `plan_reconcile`: per-instance target (not one global IP); skips a `proxy` instance
+      with no derivable `current_ip`; orphan sweep widened to match either the shared IP or
+      any currently-routed instance's own `dns_answer` (covers `dns_only` leftovers)
+- [x] `dns_status_rows`/`consistency_warnings`: per-instance target, so a `dns_only` row
+      reports present/missing independent of whether `CADDY_HOST_IP` is configured at all
+- [x] `reconcile()`: `current_ip` is only required when a `proxy` instance is actually
+      routed — a LAN made entirely of `dns_only` instances needs no `CADDY_HOST_IP` at all
+      (a visible behavior change from the old unconditional requirement — noted in HISTORY)
+
+**Stage C — `push_all`/`list_with_sync` filtering (Caddy module)**
+- [x] `push_all` skips non-`proxy` instances entirely (no error entry — just N/A)
+- [x] `list_with_sync`: `synced`/`upstream_healthy` are `null` (renders as a dash, not
+      "unknown"/"not pushed") for `dns_only` rows; `routed`/`fqdn` unaffected — a `dns_only`
+      instance still has a subdomain, just no Caddy projection. Row gains `route_mode`
+
+**Stage D — frontend toggle + `ServiceTable` rendering**
+- [x] `frontend/src/lib/validation.ts`: `isValidDnsOnlyPrefix` (dotted labels) +
+      `isValidDnsTarget` (bare IPv4, no port, IPv6 out of scope for v1)
+- [x] `AddRouteModal`: Proxied/DNS-only toggle, External source only (Container/Network
+      always imply proxy); swaps the upstream field's label/hint/validator and drops the
+      `https://` prefix from the live preview when DNS-only
+- [x] `AssignModal`: same toggle behind a new `allowDnsOnly` prop, wired in `Routing.tsx` as
+      `assignTarget?.type !== "docker"` (v1 scope: the toggle is hidden for container-backed
+      rows — a frontend-only restriction, not a backend one)
+- [x] `ServiceTable`: `RouteRow` gains `route_mode`; a "dns-only" tag pill in the Upstream
+      column (same visual precedent as the `https` tag); Route/Live columns render a dash
+      for `dns_only` rows instead of "unknown"/"not pushed"
+- [x] Tests: new dns_only coverage across `test_assign.py`, `test_caddy_logic.py`, and
+      `test_adguard_reconcile.py` (3 existing reconcile tests also updated for the relaxed
+      `is_loskai_domain` + conditional `current_ip` behavior) — 163 backend total (was 145).
+      Frontend: new coverage in `validation.test.ts`, `AssignModal.test.tsx`,
+      `ServiceTable.test.tsx` — 25 total (was 19). `tsc -b`, `vite build`, `oxlint` all clean
+- [ ] **Live smoke (user — needs a real Caddy/AdGuard):** assign a `dns_only` instance,
+      confirm no Caddy route appears in `GET /config/...`, confirm the AdGuard rewrite
+      resolves to the raw IP; flip it to `proxy` and confirm a Caddy route appears while the
+      rewrite answer moves to the shared Caddy IP. Not verifiable in-sandbox (no daemon)
+
+---
+
 ## Backlog / Future ideas
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the

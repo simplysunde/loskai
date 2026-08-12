@@ -2,8 +2,17 @@
 
 import pytest
 
+from loskai import config
 from loskai.modules.caddy import service
+from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
+
+BASE = "example.no"
+
+
+@pytest.fixture(autouse=True)
+def data_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 def test_assemble_fqdn():
@@ -86,3 +95,70 @@ def test_select_server_falls_back_to_first():
 def test_select_server_raises_when_empty():
     with pytest.raises(service.CaddyError):
         service.select_server_name({})
+
+
+# --- list_with_sync / push_all: dns_only instances are excluded from the Caddy projection ---
+
+
+class FakeClient:
+    def __init__(self, live_ids=(), fails_map=None):
+        self._live_ids = set(live_ids)
+        self._fails_map = fails_map or {}
+        self.pushed: list[str] = []
+        self.deleted: list[str] = []
+
+    async def list_live_routes(self):
+        return [{"@id": i} for i in self._live_ids]
+
+    async def upstreams(self):
+        return [{"address": addr, "fails": fails} for addr, fails in self._fails_map.items()]
+
+    async def delete_route(self, route_id):
+        self.deleted.append(route_id)
+
+    async def push_route(self, route):
+        self.pushed.append(route["@id"])
+
+
+async def test_list_with_sync_dns_only_row_is_na_for_route_and_live():
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only")
+    )
+    rows = await service.list_with_sync(FakeClient(live_ids=[], fails_map={}), BASE)
+    row = rows[0]
+    assert row["route_mode"] == "dns_only"
+    assert row["routed"] is True  # has a subdomain
+    assert row["fqdn"] == "vm1.example.no"
+    assert row["synced"] is None  # N/A — no Caddy route exists to be synced
+    assert row["upstream_healthy"] is None  # N/A — Caddy never proxies this upstream
+
+
+async def test_list_with_sync_proxy_row_unaffected():
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker",
+                 subdomain="grafana", upstream="192.168.10.100:3000")
+    )
+    rows = await service.list_with_sync(
+        FakeClient(live_ids=["grafana"], fails_map={"192.168.10.100:3000": 0}), BASE
+    )
+    row = rows[0]
+    assert row["route_mode"] == "proxy"
+    assert row["synced"] is True
+    assert row["upstream_healthy"] is True
+
+
+async def test_push_all_skips_dns_only_instances():
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker",
+                 subdomain="grafana", upstream="192.168.10.100:3000")
+    )
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only")
+    )
+    client = FakeClient()
+    results = await service.push_all(client, BASE)
+
+    assert client.pushed == ["grafana"]  # only the proxy instance is pushed
+    assert [r["id"] for r in results] == ["grafana"]  # dns_only isn't even reported

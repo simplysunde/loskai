@@ -21,7 +21,9 @@ class Instance(BaseModel):
     name: str  # display name
     type: Literal["docker", "external"]
     subdomain: str | None = None  # null = tracked, no route assigned
-    upstream: str | None = None  # host:port — chosen at assign time
+    route_mode: Literal["proxy", "dns_only"] = "proxy"  # proxy = Caddy+AdGuard (default);
+    # dns_only = AdGuard rewrite straight to `upstream`, no Caddy route, no TLS
+    upstream: str | None = None  # host:port (proxy) or a bare IP (dns_only) — chosen at assign time
     upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
     container: str | None = None  # container name/id (docker type only)
     origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
@@ -80,7 +82,9 @@ def delete_instance(instance_id: str) -> bool:
 
 
 def list_routed() -> list[Instance]:
-    """The route table = exactly the instances that have a subdomain."""
+    """The route table = exactly the instances that have a subdomain — mode-agnostic (both
+    `proxy` and `dns_only` instances are "routed"; callers that only care about Caddy routes
+    filter to `route_mode == "proxy"` themselves)."""
     return [i for i in list_instances() if i.subdomain]
 
 

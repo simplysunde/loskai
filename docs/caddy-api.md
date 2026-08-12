@@ -92,8 +92,12 @@ The `POST …/push` operation behind the UI's **Sync** button (which also runs t
 reconcile). Backstop for when Caddy has lost its config (fresh instance, wiped autosave).
 Rebuilds the full route set from Loskai's instance list. Two equivalent strategies:
 
-- **Per route:** `POST …/routes` for each instance that has a subdomain. Idempotent by
-  `@id` — re-pushing an existing route replaces it rather than duplicating.
+- **Per route:** `POST …/routes` for each instance that has a subdomain **and**
+  `route_mode: "proxy"`. Idempotent by `@id` — re-pushing an existing route replaces it
+  rather than duplicating. A `dns_only` instance has a subdomain but is skipped entirely —
+  it never has a Caddy route to begin with (see PLAN.md's
+  ["DNS-only routing"](../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), which
+  is also why it never appears in `GET .../routes` / the raw config below.
 - **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
   everything at once. Prefer the per-route loop so any human-added route with a non-instance
   `@id` is left untouched (see [Ownership](#ownership--what-loskai-manages)).

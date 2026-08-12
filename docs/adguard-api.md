@@ -41,21 +41,31 @@ Two things follow from this that shape the whole module:
 handle to address one by. `POST /control/rewrite/delete` takes the *full entry back*, not
 a key. So to delete a rewrite Loskai must reproduce both fields exactly.
 
-**2. `answer` is one shared value across all rewrites: the reverse-proxy (Caddy) IP.** DNS
-only resolves a *name to an address* — it does not know about ports. The `answer` is
-consumed by **LAN clients** (a browser resolving `grafana.example.no`), not by AdGuard
-itself — AdGuard never connects to Caddy. So every routed name must resolve to the one IP
-where Caddy listens for `:443`; the client then connects there and Caddy reverse-proxies
-to each instance's real `host:port` upstream. The rewrite's `answer` is therefore **not**
-the instance's upstream — it is the same Caddy LAN IP for every rewrite. Because it is
-served to other machines it must be a **LAN IP, never `localhost`/`127.0.0.1`**, even when
-AdGuard and Caddy are co-located on one box.
+**2. `answer` depends on the instance's `route_mode`.** For a `proxy` instance (the
+default — a Caddy-routed HTTP(S) service), `answer` is one shared value across *all* proxy
+rewrites: the reverse-proxy (Caddy) IP. DNS only resolves a *name to an address* — it does
+not know about ports. The `answer` is consumed by **LAN clients** (a browser resolving
+`grafana.example.no`), not by AdGuard itself — AdGuard never connects to Caddy. So every
+proxy-routed name must resolve to the one IP where Caddy listens for `:443`; the client
+then connects there and Caddy reverse-proxies to each instance's real `host:port` upstream.
+The rewrite's `answer` is therefore **not** the instance's upstream — it is the same Caddy
+LAN IP for every proxy rewrite. Because it is served to other machines it must be a
+**LAN IP, never `localhost`/`127.0.0.1`**, even when AdGuard and Caddy are co-located on
+one box.
 
-**Where the answer IP comes from:** it is derived from the host of `CADDY_ADMIN_URL`
+For a **`dns_only`** instance (no Caddy involved — see PLAN.md's
+["DNS-only routing"](../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), there is
+no reverse proxy to point at: `answer` is that instance's own `upstream`, which is itself a
+bare IP (not `host:port`). Each `dns_only` instance can have a *different* answer — the
+"one shared value" rule above only ever applied to proxy instances.
+
+**Where the proxy answer IP comes from:** it is derived from the host of `CADDY_ADMIN_URL`
 (`http://192.168.10.101:2019` → `192.168.10.101`) — the Caddy admin host *is* the Caddy
 host, so no separate setting is needed for the normal (LAN) deployment. The one exception
 is the Docker co-located mode where `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`):
 a hostname yields no client-usable LAN IP, so that case falls back to an explicit setting.
+None of this applies to `dns_only` instances, which need no `CADDY_HOST_IP` at all — a LAN
+made entirely of `dns_only` names can leave it unset.
 
 **There is no wildcard DNS rewrite.** Loskai creates **one explicit rewrite per routed
 instance** and nothing catch-all. A name you have not assigned simply does not resolve
@@ -105,8 +115,8 @@ Content-Type: application/json
 { "domain": "grafana.example.no", "answer": "192.168.10.101" }
 ```
 
-Used by the assign flow (Step 2). `answer` is the shared Caddy IP, not the instance
-upstream. Re-adding an identical entry is harmless.
+Used by the assign flow (Step 2). `answer` is the shared Caddy IP for a `proxy` instance,
+or that instance's own `upstream` for `dns_only`. Re-adding an identical entry is harmless.
 
 ### 4. Delete a rewrite
 
@@ -166,12 +176,21 @@ instance's stored `dns_answer` differs from `currentIP`, deletes the stale
 answer matches **neither** `currentIP` **nor** the instance's stored `dns_answer` is a
 manual rewrite: reconcile leaves it and reports a conflict, never overwrites it.
 
-**Orphan sweep** (part of reconcile): a rewrite that points at `currentIP`, sits in the
-`<single-label>.{BASE_DOMAIN}` namespace, and is owned by **no** routed instance is a
-Loskai leftover — typically from a remove/delete whose best-effort DNS delete failed while
-AdGuard was down. Reconcile deletes these. The `answer == currentIP` + base-domain-shape
-guard is what keeps the sweep off any hand-added rewrite (a different answer, or a name
-outside the `<label>.{BASE_DOMAIN}` form, is never touched). Reported as `swept`.
+**Orphan sweep** (part of reconcile): a rewrite that sits in the `{BASE_DOMAIN}` namespace
+and is owned by **no** routed instance is a Loskai leftover — typically from a
+remove/delete whose best-effort DNS delete failed while AdGuard was down — *if* its answer
+is one Loskai is known to have written: either the shared `currentIP` (proxy instances), or
+any currently-routed instance's own `dns_answer` (covers `dns_only` leftovers too, since
+those don't share one IP). Reconcile deletes these. Reported as `swept`.
+
+The domain-shape check used to require a *single* label (`<label>.{BASE_DOMAIN}`), which
+alone guaranteed a multi-label name was never Loskai's. Since `dns_only` instances can now
+have dot-separated names (`rack1.vm3.{BASE_DOMAIN}`), that shape check was relaxed to any
+non-empty label(s) under `{BASE_DOMAIN}` — so the **answer-match check above is now the
+sole safety net** against sweeping a hand-added rewrite. This is a deliberate, slightly
+wider blast radius than before: the residual risk is a hand-added rewrite that happens to
+share both a `{BASE_DOMAIN}`-suffixed name *and* the exact IP of some other live instance —
+narrow, but no longer impossible the way it was under the old single-label-only rule.
 
 Reconcile is best-effort and only ever touches answers Loskai itself wrote.
 

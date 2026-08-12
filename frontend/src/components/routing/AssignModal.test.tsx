@@ -44,6 +44,7 @@ test("Assign is disabled until prefix and upstream are valid", () => {
     prefix: "grafana",
     upstream: "192.168.10.100:3000",
     upstream_tls: false,
+    route_mode: "proxy",
   });
 });
 
@@ -61,6 +62,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
     prefix: "proxmox",
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
+    route_mode: "proxy",
   });
 });
 
@@ -82,5 +84,6 @@ test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {
     prefix: "proxmox",
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
+    route_mode: "proxy",
   });
 });
