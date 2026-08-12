@@ -65,8 +65,8 @@ export function Network() {
       <div className="max-w-2xl space-y-4">
         <ServicePanel
           icon={<Router className="h-5 w-5" />}
-          name="Gateway"
-          subtitle="WireGuard remote access"
+          name="WireGuard"
+          subtitle="Remote access"
           status={h?.wireguard?.status ?? "unconfigured"}
           linkUrl={gatewayRoute ? `https://${gatewayRoute.fqdn}` : h?.wireguard?.url}
           linkLabel="Open"

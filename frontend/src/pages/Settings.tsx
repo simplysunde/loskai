@@ -5,7 +5,7 @@ import { Download, Loader2 } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { SettingsFields, type FieldDef } from "../components/shared/SettingsFields";
 
-// App-wide settings. Per-service config (AdGuard, Gateway, Caddy URLs/credentials) lives
+// App-wide settings. Per-service config (AdGuard, WireGuard, Caddy URLs/credentials) lives
 // in the Network tab; this page keeps the app-level knobs + backup.
 const APP_FIELDS: FieldDef[] = [
   { key: "base_domain", label: "Base Domain", hint: "e.g. example.no" },

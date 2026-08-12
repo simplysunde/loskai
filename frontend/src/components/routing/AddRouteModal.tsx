@@ -39,7 +39,7 @@ interface ContainerRow {
 // Built-in network services, in picker order. Caddy's cert page proxies to Caddy's own :80.
 const NETWORK_SERVICES = [
   { origin: "adguard", name: "AdGuard", prefix: "adguard", urlKey: "adguard_url" },
-  { origin: "gateway", name: "Gateway", prefix: "wg", urlKey: "wireguard_dashboard_url" },
+  { origin: "gateway", name: "WireGuard", prefix: "wg", urlKey: "wireguard_dashboard_url" },
   { origin: "caddy", name: "Certificate page", prefix: "setup", urlKey: null },
 ] as const;
 

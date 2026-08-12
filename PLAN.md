@@ -162,7 +162,7 @@ routed state). The picker chooses a source, which pre-fills the subdomain + upst
   pre-filled with a suggested subdomain (the container name) **and a reachable upstream** —
   `<service>:<port>` from the Docker socket (the container-side of its published port; resolves
   via Docker DNS when Caddy shares the network).
-- **Network service** — a built-in service (AdGuard / Gateway / Caddy cert page) → an `external`
+- **Network service** — a built-in service (AdGuard / WireGuard / Caddy cert page) → an `external`
   instance carrying an `origin` marker, pre-filled from the service's configured URL.
 - **External** — any bare `IP:port` LAN target (Proxmox, a NAS) → a plain `external` instance.
 
@@ -812,7 +812,7 @@ a main "library" content area, with contextual action buttons per item.
   FQDN, upstream, route-sync status, and DNS-rewrite status inline, with per-row actions —
   instead of two tabs to cross-reference. (The *backends* stay independent modules; only the
   frontend unifies them.)
-- **Network tab** = the infrastructure services Loskai works with — the WireGuard **Gateway**,
+- **Network tab** = the infrastructure services Loskai works with — **WireGuard**,
   **AdGuard** (DNS), and **Caddy** (TLS + the cert-onboarding link). Per service: health +
   config (moved here from the Settings page — one source of truth) + a link-out that prefers
   the **HTTPS route** when the service is routed (linked by an `origin` marker on the instance).
@@ -836,7 +836,7 @@ frontend/src/
 │   ├── Login.tsx            the security screen — single-password form
 │   ├── Docker.tsx           ─┐ admin tabs — behind the session gate (Phase 8)
 │   ├── Routing.tsx           │ unified Caddy + AdGuard: one row per service
-│   ├── Network.tsx           │ Gateway / AdGuard / Caddy panels + service config
+│   ├── Network.tsx           │ WireGuard / AdGuard / Caddy panels + service config
 │   └── Settings.tsx         ─┘ app-wide settings + backup
 ├── components/
 │   ├── shared/
@@ -853,7 +853,7 @@ frontend/src/
 │   │   │                       private toggle; "Sync" for recovery
 │   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/assign
 │   │   └── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
-│   ├── network/            Gateway / AdGuard / Caddy service panels
+│   ├── network/            WireGuard / AdGuard / Caddy service panels
 │   │   ├── ServicePanel.tsx    status + link-out + Assign header, config body
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance
 │   └── docker/              Phase 8
