@@ -195,8 +195,12 @@ async def assign(
         warning = "AdGuard is not configured — DNS rewrite skipped."
     else:
         try:
-            # On a rename the old-domain rewrite is orphaned (keyed by domain, not @id).
-            if old_domain and old_domain != domain and old_answer:
+            # The old (domain, answer) pair is orphaned — and must be cleaned up before
+            # adding the new one — whenever either half is about to change: a rename
+            # (domain differs) or a mode switch / IP change (same domain, new answer).
+            # Rewrites are keyed by the pair, not an @id, so leaving the old one behind
+            # means two answers for the same domain until the next Sync.
+            if old_domain and old_answer and (old_domain != domain or old_answer != answer):
                 try:
                     await adguard_client.delete_rewrite(old_domain, old_answer)
                 except (httpx.HTTPError, AdGuardError):

@@ -395,6 +395,9 @@ async def test_mode_switch_proxy_to_dns_only_tears_down_caddy_route():
     assert caddy.deleted == ["box"]  # stale proxy route torn down
     assert caddy.pushed == []
     assert ag.added == [("box.example.no", "192.168.10.70")]  # now answers with its own IP
+    # The old rewrite (same domain, shared Caddy IP) must be cleaned up too, or AdGuard
+    # ends up with two answers for "box.example.no" — the bug this test now guards against.
+    assert ag.deleted == [("box.example.no", IP)]
     inst = instances_store.get_instance("box")
     assert inst.route_mode == "dns_only" and inst.dns_answer == "192.168.10.70"
 
@@ -412,5 +415,25 @@ async def test_mode_switch_dns_only_to_proxy_creates_caddy_route():
     assert result["caddy"] == "ok"
     assert caddy.pushed == ["box"]
     assert ag.added == [("box.example.no", IP)]  # now answers with the shared Caddy IP
+    # The old rewrite (same domain, the instance's own IP) must be cleaned up too.
+    assert ag.deleted == [("box.example.no", "192.168.10.70")]
     inst = instances_store.get_instance("box")
     assert inst.route_mode == "proxy" and inst.dns_answer == IP
+
+
+async def test_dns_only_reassign_to_new_ip_cleans_up_old_rewrite():
+    # Same bug class, no mode switch involved: repointing a dns_only instance to a new
+    # IP, same subdomain, must delete the stale (domain, old-IP) rewrite too.
+    instances_store.upsert_instance(
+        Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
+                 upstream="192.168.10.55", route_mode="dns_only", dns_answer="192.168.10.55")
+    )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    result = await assign.assign(
+        caddy, ag, instance_id="vm1", prefix="vm1", upstream="192.168.10.60",
+        base_domain=BASE, current_ip=IP, route_mode="dns_only",
+    )
+    assert result["adguard"] == "ok"
+    assert ag.added == [("vm1.example.no", "192.168.10.60")]
+    assert ag.deleted == [("vm1.example.no", "192.168.10.55")]
+    assert instances_store.get_instance("vm1").dns_answer == "192.168.10.60"

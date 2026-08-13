@@ -146,19 +146,26 @@ entry on the same domain" (leave, warn).
 
 ### 5. Edit a rewrite — delete-then-add
 
-Editing (e.g. a subdomain rename) is **delete-then-add**, not an in-place update:
+Editing (a subdomain rename, or a `dns_only` instance's own answer changing — a mode
+switch, or just repointing it to a new IP) is **delete-then-add**, not an in-place update:
 
 ```
-POST /control/rewrite/delete   { old domain, answer }   # ignore failure — may not exist
-POST /control/rewrite/add      { new domain, answer }
+POST /control/rewrite/delete   { old domain, old answer }   # ignore failure — may not exist
+POST /control/rewrite/add      { new domain, new answer }
 ```
 
 AdGuard *does* offer `PUT /control/rewrite/update` (`{ target, update }` pair), but
 Loskai does not use it: delete-then-add is a single convergent code path that reuses the
 same add call as everything else, mirrors the Caddy module's editing model, and is
-idempotent. Because `answer` is constant, an edit is really just swapping the `domain`.
-The brief gap between delete and add is irrelevant — it is a config change the user just
-initiated, and it only affects the name being renamed.
+idempotent. The delete only fires when the *pair* is actually about to change — a rename
+(domain differs), a `proxy`↔`dns_only` mode switch or an in-place IP change for `dns_only`
+(same domain, answer differs), or both at once. Skip it (add is a no-op re-add) when
+neither half changed. Getting this condition right matters: rewrites are keyed by the
+`(domain, answer)` pair, not an ID, so missing a case where the answer changed — as
+opposed to only checking the domain — leaves the old pair behind, and the domain now
+resolves to two different IPs until the next Sync. The brief gap between delete and add
+is irrelevant — it is a config change the user just initiated, and it only affects the
+name being edited.
 
 ### 6. Sync / reconcile with the instance list
 

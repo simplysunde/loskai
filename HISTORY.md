@@ -1,5 +1,37 @@
 # Loskai — History
 
+## 2026-08-13 — Fixed a stale AdGuard rewrite left behind on mode switch
+
+**Bug**: assigning a `proxy` route then switching it to `dns_only` (or back, or just
+repointing a `dns_only` instance to a new IP) left the *old* AdGuard rewrite in place
+instead of replacing it — the domain ended up with two answers in AdGuard, a real
+conflict, until the next Sync cleaned it up. Reported by the user live: "a conflict
+occurs if we set a route, and then change it to dns only. the first dns rewrite is not
+deleted and another is created."
+
+Root cause: `assign()`'s Step 2 only deleted the previous `(domain, answer)` pair when
+the **domain** changed (a rename) — `if old_domain and old_domain != domain and
+old_answer`. A mode switch (or an in-place `dns_only` IP change) keeps the domain the
+same but changes the **answer**, so that condition never fired and the stale pair was
+never cleaned up. This was a known gap from Phase 13's own design notes ("mode switch...
+relies on reconcile to clean up the stale old-answer pair, not on assign() itself") that
+turned out to be the wrong call — leaving a domain resolving to two answers right after
+an explicit user action is a worse outcome than the Sync-backstop reasoning gave it
+credit for.
+
+Fixed by triggering the delete whenever *either* half of the pair is about to go stale:
+`if old_domain and old_answer and (old_domain != domain or old_answer != answer)`. Two
+existing Phase 13 tests (`test_mode_switch_proxy_to_dns_only_tears_down_caddy_route`,
+`test_mode_switch_dns_only_to_proxy_creates_caddy_route`) had only ever asserted
+`ag.added`, never `ag.deleted` — exactly the gap that let this ship. Added the missing
+assertions to both, plus a new test for the in-place `dns_only` IP-change case (same bug
+class, no mode switch involved).
+
+- Key files: `backend/src/loskai/shared/assign.py`, `backend/tests/test_assign.py`,
+  `docs/adguard-api.md` (its "Edit a rewrite" section previously assumed "answer is
+  constant," no longer true for `dns_only`)
+- Verified: 164 backend tests pass (was 163 — one new case added)
+
 ## 2026-08-12 — Phase 13: DNS-only routing mode + `.env` support for local dev
 
 Added a second `route_mode` to the instance model — `"dns_only"` alongside the existing
