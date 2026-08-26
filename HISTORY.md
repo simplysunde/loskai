@@ -1,5 +1,46 @@
 # Loskai — History
 
+## 2026-08-26 — Phase 14: the Network tab folded into a restructured Settings page
+
+Dissolved the standalone Network tab (built in Phase 10b) and rebuilt Settings as a
+Forgejo-style category page: a nested sidebar — `General · Network · Security` — over real
+child routes, so `/settings/network` is deep-linkable rather than a scroll position. The
+prompt was the Settings page having become thin while the Network tab carried three unrelated
+concerns per service; Forgejo's application-settings layout was the reference for the shape.
+
+The interesting decision was **not** moving the tab wholesale. Its contents were split by
+*kind* instead: configuration went to Settings > Network (fields-only, still auto-saving on
+blur, same `settings.json` keys), while the health + link-out for **AdGuard and Caddy** went to
+the **Routing tab** — Routing is what actually pushes their state, so a status pill belongs
+next to the thing it gates, not on a config page you visit twice a year. **WireGuard didn't
+follow**, and that asymmetry is the point: Loskai never writes to it, so it has no state worth
+monitoring in Routing and keeps a plain link-out beside its config field. Rejected alternatives:
+a flat single-page Settings (no room for the categories to grow) and keeping a primary-nav
+Network entry that deep-links into Settings (two doors into one page).
+
+Caddy was **promoted** from a problem-only `ModuleStatus` banner to a persistent pill, so its
+cert-onboarding link is always reachable instead of surfacing only when something breaks — that
+link is how a new LAN device gets told to trust the internal CA, which is a routine action, not
+an error path. `AdGuardStatus` generalised into `InfraStatusPill` to serve both; when a service
+has no URL yet the pill's link becomes **"Configure"** into `/settings/network`, which is what
+replaces the guidance the old unconfigured-state banner gave.
+
+- Key files: `frontend/src/pages/settings/` (new: `SettingsLayout`, `General`, `Network`,
+  `Security`), `frontend/src/components/routing/InfraStatusPill.tsx`,
+  `frontend/src/pages/Routing.tsx`, `frontend/src/App.tsx` (nested routes, one `RequireAuth`
+  around the shell), `frontend/src/components/shared/Layout.tsx`
+- Removed: `pages/Network.tsx`, `pages/Settings.tsx`, `components/network/ServicePanel.tsx`,
+  `components/routing/AdGuardStatus.tsx`. `PeerDnsReminder` moved to `components/settings/`
+- **No backend changes** — same `/api/settings` keys and partial-PUT contract throughout
+- Phase 11's invariant is untouched: route creation is still solely the Routing tab's
+  Add route picker, and its "Network service" source (by `origin`) still works
+- Found while writing the Security stub: `LOSKAI_PASSWORD` only *seeds* the password when no
+  hash exists (`auth.py:97`), so setting it on an existing install does nothing. The stub says
+  so, and points at removing `admin_password_hash` from `settings.json` instead
+- Verified: `tsc -b`, `oxlint`, `vite build` clean; 29 Vitest pass (was 25 — `ServicePanel`'s 2
+  removed, 6 added for `SettingsLayout` sub-nav and `InfraStatusPill`). Live UI smoke-test still
+  outstanding — the backend venv wasn't runnable in the dev sandbox
+
 ## 2026-08-13 — Fixed a stale AdGuard rewrite left behind on mode switch
 
 **Bug**: assigning a `proxy` route then switching it to `dns_only` (or back, or just

@@ -156,8 +156,8 @@ view both read.
   keeps the store from ever drifting out of sync with reality.
 
 **How routes are created — one surface.** All route creation happens in the Routing tab's
-**Add route** picker; the Docker and Network tabs never create routes (they only *display*
-routed state). The picker chooses a source, which pre-fills the subdomain + upstream:
+**Add route** picker; no other tab creates routes (the Docker tab only *displays* routed
+state). The picker chooses a source, which pre-fills the subdomain + upstream:
 - **Container** — an *unrouted* Docker container → a `docker` instance linked by `container`,
   pre-filled with a suggested subdomain (the container name) **and a reachable upstream** —
   `<service>:<port>` from the Docker socket (the container-side of its published port; resolves
@@ -804,7 +804,7 @@ backend/src/loskai/
 **Layout & design philosophy** (Lutris-inspired): a **persistent left sidebar** shell +
 a main "library" content area, with contextual action buttons per item.
 
-- **Sidebar**: `Dashboard · Docker · Routing · Network · Settings`. Always visible; the Dashboard
+- **Sidebar**: `Dashboard · Docker · Routing · Settings`. Always visible; the Dashboard
   is the first item, and clicking an admin item when not logged in prompts the security
   screen. (The sidebar being visible is UX only — the API is the real gate.)
 - **Routing tab merges Caddy + AdGuard into one view.** An assign writes both a Caddy route
@@ -812,20 +812,27 @@ a main "library" content area, with contextual action buttons per item.
   FQDN, upstream, route-sync status, and DNS-rewrite status inline, with per-row actions —
   instead of two tabs to cross-reference. (The *backends* stay independent modules; only the
   frontend unifies them.)
-- **Network tab** = the infrastructure services Loskai works with — **WireGuard**,
-  **AdGuard** (DNS), and **Caddy** (TLS + the cert-onboarding link). Per service: health +
-  config (moved here from the Settings page — one source of truth) + a link-out that prefers
-  the **HTTPS route** when the service is routed (linked by an `origin` marker on the instance).
+- **Settings is a Forgejo-style category page**, not one flat form: a nested sidebar
+  (`General · Network · Security`) over real child routes, so a category is deep-linkable.
+  **General** = app-wide knobs + backup; **Network** = how Loskai reaches AdGuard, Caddy, and
+  WireGuard; **Security** = reserved for the admin password (no change-password endpoint yet).
+- **Configuration and live status are split by kind, not by service.** Settings > Network is
+  **fields-only** (auto-saving on blur); the health + link-out for **AdGuard** and **Caddy**
+  lives in the **Routing tab**, because Routing is what actually pushes their state — a status
+  pill belongs next to the thing it gates. **WireGuard is the exception**: Loskai never writes
+  to it, so it has no presence in Routing and keeps a plain link-out beside its config field.
+  (This replaced a standalone Network tab, which had bundled all three concerns per service.)
   **Docker tab** = containers + stacks + wizard; a routed container shows its FQDN as a link.
 - **Route creation is centralised in the Routing tab.** Its **Add route** picker chooses a
   source — an unrouted **Container**, a built-in **Network service**, or a new **External**
   target — pre-fills the prefix + upstream, and creates the instance (linked by `container` /
-  `origin` / neither). The Docker and Network tabs *display* routed state but never create
-  routes, so a service can't be double-routed from competing surfaces.
+  `origin` / neither). The Docker tab *displays* routed state but never creates routes, so a
+  service can't be double-routed from competing surfaces.
 - **Hybrid card/table aesthetic**: card grid for the Dashboard and service launchers (library
   feel); dense tables where live stats must be scannable (container/stack lists, the routing
   table).
-- Routes: `/` (Dashboard) · `/login` · `/docker` · `/routing` · `/network` · `/settings`.
+- Routes: `/` (Dashboard) · `/login` · `/docker` · `/routing` · `/settings` (+ its nested
+  `/settings/network` · `/settings/security`).
 
 ```
 frontend/src/
@@ -835,26 +842,30 @@ frontend/src/
 │   ├── Dashboard.tsx        public landing — grid of service cards (launcher)
 │   ├── Login.tsx            the security screen — single-password form
 │   ├── Docker.tsx           ─┐ admin tabs — behind the session gate (Phase 8)
-│   ├── Routing.tsx           │ unified Caddy + AdGuard: one row per service
-│   ├── Network.tsx           │ WireGuard / AdGuard / Caddy panels + service config
-│   └── Settings.tsx         ─┘ app-wide settings + backup
+│   ├── Routing.tsx          ─┘ unified Caddy + AdGuard: one row per service
+│   └── settings/            nested category routes under /settings
+│       ├── SettingsLayout.tsx  category sidebar + <Outlet/>; owns the page header
+│       ├── General.tsx         app-wide settings + backup export
+│       ├── Network.tsx         AdGuard / Caddy / WireGuard config fields only
+│       └── Security.tsx        stub — no change-password endpoint yet
 ├── components/
 │   ├── shared/
 │   │   ├── StatusBadge.tsx
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
 │   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
 │   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
-│   │   ├── SettingsFields.tsx       settings form (used by the Settings page)
-│   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (Network panels)
+│   │   ├── SettingsFields.tsx       settings form (Settings > General)
+│   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (Settings > Network)
 │   │   └── ConfirmDialog.tsx
 │   ├── routing/            unified Caddy + AdGuard view
 │   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
 │   │   │                       route-sync + DNS-rewrite status, per-row actions,
 │   │   │                       private toggle; "Sync" for recovery
+│   │   ├── InfraStatusPill.tsx AdGuard/Caddy health + link-out; falls back to a
+│   │   │                       "Configure" link into /settings/network when unset
 │   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/assign
 │   │   └── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
-│   ├── network/            WireGuard / AdGuard / Caddy service panels
-│   │   ├── ServicePanel.tsx    status + link-out + Assign header, config body
+│   ├── settings/
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance
 │   └── docker/              Phase 8
 │       ├── ContainerList.tsx

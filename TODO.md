@@ -527,7 +527,7 @@ changes**: same `/api/settings` keys, same partial-PUT contract._
 - [x] `components/network/` → `components/settings/`: move `PeerDnsReminder.tsx` + its test
       unchanged; delete `ServicePanel.tsx` + its test (no longer used anywhere)
 - [x] `tsc -b`, `vite build`, `oxlint`, `npm test` all clean
-- [ ] Update `PLAN.md` (sidebar list, the Network-tab paragraph, routes list, `frontend/src/`
+- [x] Update `PLAN.md` (sidebar list, the Network-tab paragraph, routes list, `frontend/src/`
       tree) + `HISTORY.md`
 - [ ] **Live smoke (user):** `/settings`, `/settings/network`, `/settings/security` render and
       the sub-nav highlights; `/network` gone from the sidebar; Routing shows both pills
