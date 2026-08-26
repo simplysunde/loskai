@@ -317,6 +317,10 @@ _Turn the thin VPN tab into a service-oriented Network tab: AdGuard, the WireGua
 
 **Phase 10 complete.** _Unverified in-sandbox (no Docker): the rendered Network tab, the cert-page instance assign, and per-service assign upstream reachability. Smoke-test on device._
 
+> **Superseded by Phase 14 (2026-08-26):** the Network tab this phase built no longer exists.
+> Its config fields moved to `Settings > Network` and its status/cert-page link moved to the
+> Routing tab. The per-service *assign* buttons were already removed in Phase 11.
+
 ---
 
 ## Phase 11 — Consolidate route creation into the Routing tab
@@ -332,6 +336,10 @@ _One creation surface: the Routing tab's **Add route** picker (Container / Netwo
 - [x] Docs: PLAN (creation surface), HISTORY, api.md (`origin` on assign)
 
 **Phase 11 complete.** _Unverified in-sandbox (no Docker/live services): the rendered Add-route picker, the routed-state links on Docker/Network tabs. Smoke-test on device._
+
+> **Amended by Phase 14 (2026-08-26):** Stage B's Network-tab routed-state display is gone with
+> the tab itself. The core result stands unchanged — route creation is still solely the Routing
+> tab's Add route picker, and its "Network service" source (by `origin`) is untouched.
 
 ---
 
@@ -465,6 +473,65 @@ PLAN.md "DNS-only routing" and `docs/adguard-api.md`._
       confirm no Caddy route appears in `GET /config/...`, confirm the AdGuard rewrite
       resolves to the raw IP; flip it to `proxy` and confirm a Caddy route appears while the
       rewrite answer moves to the shared Caddy IP. Not verifiable in-sandbox (no daemon)
+
+---
+
+## Phase 14 — Fold the Network tab into Settings
+_Decision (2026-08-26): the standalone Network tab is dissolved. Its per-service **config**
+moves into a restructured Settings page with a Forgejo-style nested sub-sidebar; its
+**operational status** moves to Routing. The split is not a straight relocation — it separates
+*configuration* from *live status*: AdGuard and Caddy are core to what Routing does (it pushes
+their state), while WireGuard is only a convenience link with no module health worth watching
+there. This walks back Phase 10b's "Network tab" and adjusts Phase 11 Stage B accordingly —
+route creation stays exactly where Phase 11 put it (the Routing tab's Add route picker)._
+
+_Locked-in shape: sidebar becomes `Dashboard · Docker · Routing · Settings`; Settings gains
+deep-linkable nested routes `/settings` (General) · `/settings/network` · `/settings/security`;
+Settings > Network is **fields-only** (auto-save on blur, unchanged) with one acknowledged
+exception — WireGuard keeps a small "Open" link since it has nowhere else to live. **No backend
+changes**: same `/api/settings` keys, same partial-PUT contract._
+
+**Stage A — nav + nested `/settings` routes**
+- [ ] `components/shared/Layout.tsx`: drop the `/network` entry from `NAV` and its `dotFor`
+      line (`/routing`'s `worst(caddy, adguard)` dot is untouched)
+- [ ] `App.tsx`: remove the `Network` import/route; add nested `/settings` routes — a
+      `SettingsLayout` wrapped **once** in `RequireAuth`, with `index` (General) + `network` +
+      `security` children
+
+**Stage B — `pages/settings/` split**
+- [ ] `pages/settings/SettingsLayout.tsx` — the narrow sub-sidebar (`NavLink`s, reusing
+      `Layout.tsx`'s active/inactive treatment) + `<Outlet/>`; owns the "Settings" `<h1>`
+- [ ] `pages/settings/General.tsx` — today's `pages/Settings.tsx` verbatim (`base_domain`,
+      `host_ip`, `recipes_repo_url`, `stacks_dir` + the Backup/export section), minus the `<h1>`
+- [ ] `pages/settings/Network.tsx` — three fields-only sections (AdGuard / WireGuard / Caddy)
+      reusing the existing `InlineSettingsFields` + field defs. **No** `ServicePanel`, status
+      badge, `RoutedHint`, or cert-page block. WireGuard section keeps its "Open" link-out +
+      `PeerDnsReminder`
+- [ ] `pages/settings/Security.tsx` — stub reserving the slot; note that admin-password change
+      is still unimplemented (no `POST /api/auth/change-password` — see Phase 3's deferred item)
+- [ ] Delete `pages/Settings.tsx` + `pages/Network.tsx`
+
+**Stage C — `InfraStatusPill` + Routing status strip**
+- [ ] `components/routing/InfraStatusPill.tsx` — generalize `AdGuardStatus.tsx` (icon, name,
+      `ModuleHealth`, url, link label, children for extra content); delete `AdGuardStatus.tsx`
+- [ ] Unconfigured services render an internal **"Configure →"** link to `/settings/network`
+      instead of a dead external link — this is what replaces the guidance the Caddy
+      `ModuleStatus` banner used to give
+- [ ] `pages/Routing.tsx`: replace the AdGuard pill + Caddy `ModuleStatus` banner with two
+      `InfraStatusPill`s. **Caddy is promoted** from problem-only to always-visible. AdGuard
+      keeps its "answers → `<ip>`" note; Caddy carries the by-IP cert link (derivation moved
+      from `pages/Network.tsx`) + a compact copy-to-clipboard button
+- [ ] `components/shared/ModuleStatus.tsx` itself is unchanged — Docker still uses it
+
+**Stage D — component moves, tests, docs**
+- [ ] `components/network/` → `components/settings/`: move `PeerDnsReminder.tsx` + its test
+      unchanged; delete `ServicePanel.tsx` + its test (no longer used anywhere)
+- [ ] `tsc -b`, `vite build`, `oxlint`, `npm test` all clean
+- [ ] Update `PLAN.md` (sidebar list, the Network-tab paragraph, routes list, `frontend/src/`
+      tree) + `HISTORY.md`
+- [ ] **Live smoke (user):** `/settings`, `/settings/network`, `/settings/security` render and
+      the sub-nav highlights; `/network` gone from the sidebar; Routing shows both pills
+      (healthy + unconfigured) and the cert-page copy button works
 
 ---
 
