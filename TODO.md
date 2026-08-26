@@ -492,41 +492,41 @@ exception — WireGuard keeps a small "Open" link since it has nowhere else to l
 changes**: same `/api/settings` keys, same partial-PUT contract._
 
 **Stage A — nav + nested `/settings` routes**
-- [ ] `components/shared/Layout.tsx`: drop the `/network` entry from `NAV` and its `dotFor`
+- [x] `components/shared/Layout.tsx`: drop the `/network` entry from `NAV` and its `dotFor`
       line (`/routing`'s `worst(caddy, adguard)` dot is untouched)
-- [ ] `App.tsx`: remove the `Network` import/route; add nested `/settings` routes — a
+- [x] `App.tsx`: remove the `Network` import/route; add nested `/settings` routes — a
       `SettingsLayout` wrapped **once** in `RequireAuth`, with `index` (General) + `network` +
       `security` children
 
 **Stage B — `pages/settings/` split**
-- [ ] `pages/settings/SettingsLayout.tsx` — the narrow sub-sidebar (`NavLink`s, reusing
+- [x] `pages/settings/SettingsLayout.tsx` — the narrow sub-sidebar (`NavLink`s, reusing
       `Layout.tsx`'s active/inactive treatment) + `<Outlet/>`; owns the "Settings" `<h1>`
-- [ ] `pages/settings/General.tsx` — today's `pages/Settings.tsx` verbatim (`base_domain`,
+- [x] `pages/settings/General.tsx` — today's `pages/Settings.tsx` verbatim (`base_domain`,
       `host_ip`, `recipes_repo_url`, `stacks_dir` + the Backup/export section), minus the `<h1>`
-- [ ] `pages/settings/Network.tsx` — three fields-only sections (AdGuard / WireGuard / Caddy)
+- [x] `pages/settings/Network.tsx` — three fields-only sections (AdGuard / WireGuard / Caddy)
       reusing the existing `InlineSettingsFields` + field defs. **No** `ServicePanel`, status
       badge, `RoutedHint`, or cert-page block. WireGuard section keeps its "Open" link-out +
       `PeerDnsReminder`
-- [ ] `pages/settings/Security.tsx` — stub reserving the slot; note that admin-password change
+- [x] `pages/settings/Security.tsx` — stub reserving the slot; note that admin-password change
       is still unimplemented (no `POST /api/auth/change-password` — see Phase 3's deferred item)
-- [ ] Delete `pages/Settings.tsx` + `pages/Network.tsx`
+- [x] Delete `pages/Settings.tsx` + `pages/Network.tsx`
 
 **Stage C — `InfraStatusPill` + Routing status strip**
-- [ ] `components/routing/InfraStatusPill.tsx` — generalize `AdGuardStatus.tsx` (icon, name,
+- [x] `components/routing/InfraStatusPill.tsx` — generalize `AdGuardStatus.tsx` (icon, name,
       `ModuleHealth`, url, link label, children for extra content); delete `AdGuardStatus.tsx`
-- [ ] Unconfigured services render an internal **"Configure →"** link to `/settings/network`
+- [x] Unconfigured services render an internal **"Configure →"** link to `/settings/network`
       instead of a dead external link — this is what replaces the guidance the Caddy
       `ModuleStatus` banner used to give
-- [ ] `pages/Routing.tsx`: replace the AdGuard pill + Caddy `ModuleStatus` banner with two
+- [x] `pages/Routing.tsx`: replace the AdGuard pill + Caddy `ModuleStatus` banner with two
       `InfraStatusPill`s. **Caddy is promoted** from problem-only to always-visible. AdGuard
       keeps its "answers → `<ip>`" note; Caddy carries the by-IP cert link (derivation moved
       from `pages/Network.tsx`) + a compact copy-to-clipboard button
-- [ ] `components/shared/ModuleStatus.tsx` itself is unchanged — Docker still uses it
+- [x] `components/shared/ModuleStatus.tsx` itself is unchanged — Docker still uses it
 
 **Stage D — component moves, tests, docs**
-- [ ] `components/network/` → `components/settings/`: move `PeerDnsReminder.tsx` + its test
+- [x] `components/network/` → `components/settings/`: move `PeerDnsReminder.tsx` + its test
       unchanged; delete `ServicePanel.tsx` + its test (no longer used anywhere)
-- [ ] `tsc -b`, `vite build`, `oxlint`, `npm test` all clean
+- [x] `tsc -b`, `vite build`, `oxlint`, `npm test` all clean
 - [ ] Update `PLAN.md` (sidebar list, the Network-tab paragraph, routes list, `frontend/src/`
       tree) + `HISTORY.md`
 - [ ] **Live smoke (user):** `/settings`, `/settings/network`, `/settings/security` render and

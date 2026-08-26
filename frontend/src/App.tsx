@@ -6,9 +6,11 @@ import { Layout } from "./components/shared/Layout";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
-import { Network } from "./pages/Network";
 import { Routing } from "./pages/Routing";
-import { Settings } from "./pages/Settings";
+import { General } from "./pages/settings/General";
+import { Network } from "./pages/settings/Network";
+import { Security } from "./pages/settings/Security";
+import { SettingsLayout } from "./pages/settings/SettingsLayout";
 
 // The Docker page pulls in xterm (~half the bundle). Load it only when that tab is
 // opened so the initial JS chunk stays small.
@@ -25,7 +27,8 @@ function PageFallback() {
 }
 
 // Public: / (Dashboard) + /login. Admin tabs sit behind RequireAuth (UX) — the API
-// middleware is the real gate. Docker (Phase 8) and VPN (Phase 5) are placeholders.
+// middleware is the real gate. /settings nests its categories as child routes, so the
+// guard wraps the shell once rather than each category.
 export default function App() {
   return (
     <Routes>
@@ -51,21 +54,17 @@ export default function App() {
           }
         />
         <Route
-          path="/network"
-          element={
-            <RequireAuth>
-              <Network />
-            </RequireAuth>
-          }
-        />
-        <Route
           path="/settings"
           element={
             <RequireAuth>
-              <Settings />
+              <SettingsLayout />
             </RequireAuth>
           }
-        />
+        >
+          <Route index element={<General />} />
+          <Route path="network" element={<Network />} />
+          <Route path="security" element={<Security />} />
+        </Route>
       </Route>
     </Routes>
   );

@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Plus, RefreshCw, Trash2, Unplug } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  Loader2,
+  Lock,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
+  Unplug,
+} from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
-import { AdGuardStatus } from "../components/routing/AdGuardStatus";
 import { AssignModal } from "../components/routing/AssignModal";
+import { InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
-import { ModuleStatus } from "../components/shared/ModuleStatus";
 
 interface DnsStatus {
   answer_ip: string | null;
@@ -67,9 +77,19 @@ export function Routing() {
     refetchInterval: 30_000,
   });
 
+  const h = health.data;
   const baseDomain = settings.data?.base_domain?.value ?? null;
-  const mode = health.data?.caddy?.mode ?? null;
-  const consistency = health.data?.consistency ?? [];
+  const mode = h?.caddy?.mode ?? null;
+  const consistency = h?.consistency ?? [];
+
+  // The cert-onboarding page is served by Caddy over plain HTTP on :80 at its LAN IP —
+  // deliberately by-IP and not behind the route, since its whole job is fixing the untrusted
+  // -cert warning. AdGuard's answer IP *is* the Caddy host, so it's the one source for both.
+  const caddyHost = (h?.adguard?.answer_ip ?? "")
+    .replace(/^\w+:\/\//, "")
+    .split("/")[0]
+    .split(":")[0];
+  const certUrl = caddyHost ? `http://${caddyHost}/` : null;
   const routedOrigins = new Set(
     (routes.data ?? []).filter((r) => r.origin && r.routed).map((r) => r.origin as string),
   );
@@ -216,8 +236,32 @@ export function Routing() {
       </header>
 
       <div className="mb-4 space-y-3">
-        <AdGuardStatus health={health.data?.adguard} />
-        <ModuleStatus name="Caddy" health={health.data?.caddy} />
+        <InfraStatusPill
+          icon={<Shield className="h-4 w-4" />}
+          name="AdGuard"
+          health={h?.adguard}
+          url={h?.adguard?.url}
+          linkLabel="Open AdGuard"
+        >
+          {h?.adguard?.answer_ip && (
+            <span className="shrink-0 text-xs text-slate-500">
+              answers → <span className="font-mono text-slate-400">{h.adguard.answer_ip}</span>
+            </span>
+          )}
+        </InfraStatusPill>
+
+        <InfraStatusPill
+          icon={<Lock className="h-4 w-4" />}
+          name="Caddy"
+          health={h?.caddy}
+          url={certUrl}
+          linkLabel="Cert page"
+          action={<CopyCertLink url={certUrl} />}
+        >
+          <span className="hidden shrink-0 text-xs text-slate-500 lg:inline">
+            share the cert page to trust <span className="font-mono">*.{baseDomain ?? "domain"}</span>
+          </span>
+        </InfraStatusPill>
         {syncNote && (
           <div className="rounded-lg border border-teal-600/40 bg-teal-500/10 px-3 py-2 text-sm text-teal-200">
             {syncNote}
@@ -355,5 +399,32 @@ export function Routing() {
         including its route and DNS rewrite. The service it points to isn't affected.
       </ConfirmDialog>
     </div>
+  );
+}
+
+// Copy the by-IP cert-page URL — the thing you paste to a phone or TV when onboarding it
+// onto the LAN, which is why this lives next to the link rather than in settings.
+function CopyCertLink({ url }: { url: string | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!url) return null;
+
+  return (
+    <button
+      type="button"
+      title={`Copy ${url}`}
+      onClick={() => {
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-emerald-400" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+      <span className="sr-only">Copy cert page link</span>
+    </button>
   );
 }
