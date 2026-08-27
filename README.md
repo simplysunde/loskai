@@ -44,25 +44,24 @@ container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out.
 
 ## Develop
 
-Backend (Python + FastAPI + [uv], in `backend/`):
+Backend is Python + FastAPI + [uv] (in `backend/`); frontend is React + TS + Vite (in
+`frontend/`). Both are driven from the repo root by the [Makefile](Makefile) — `make help`
+lists every target:
 
 ```bash
-cd backend
-uv run uvicorn loskai.main:app --reload --port 8000   # dev API on :8000
-uv run pytest                                          # tests
+make install-backend    # uv sync
+make install-frontend   # npm install
+
+make backend            # dev API on :8000 (uvicorn --reload)
+make frontend           # Vite on :5173, proxies /api/* -> :8000
+
+make test-backend       # pytest      (one test: cd backend && uv run pytest tests/test_x.py::test_name)
+make test-frontend      # vitest
 ```
 
-Frontend (React + TS + Vite, in `frontend/`):
-
-```bash
-cd frontend
-npm install
-npm run dev     # Vite on :5173, proxies /api/* -> :8000
-npm test        # Vitest
-npm run build   # -> dist/ (served by the backend in production)
-```
-
-Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:8080`.
+Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:8080`
+serving the API and the built bundle together. That bundle is
+`cd frontend && npm run build` (→ `dist/`); the image builds it for you.
 
 [uv]: https://docs.astral.sh/uv/
 
