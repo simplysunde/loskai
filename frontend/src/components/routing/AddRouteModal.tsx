@@ -223,10 +223,17 @@ export function AddRouteModal({
           </span>
           <input
             value={prefix}
-            onChange={(e) => setPrefix(e.target.value)}
+            onChange={(e) => setPrefix(e.target.value.toLowerCase())}
             placeholder={isDnsOnly ? "rack1.vm3" : "grafana"}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
+          {prefix && !prefixOk && (
+            <span className="mt-1 block text-xs text-rose-400">
+              {isDnsOnly
+                ? "Each dot-separated label: lowercase letters, digits, hyphens."
+                : "Single DNS label only: lowercase letters, digits, hyphens."}
+            </span>
+          )}
         </label>
         <label className="mt-3 block">
           <span className="mb-1 block text-xs font-medium text-slate-400">
@@ -239,6 +246,11 @@ export function AddRouteModal({
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
           <span className="mt-1 block text-xs text-slate-500">{upstreamHelp}</span>
+          {upstream && !upstreamOk && (
+            <span className="mt-1 block text-xs text-rose-400">
+              {isDnsOnly ? "A bare IPv4 address — no port." : "Use host:port — no scheme (http://) or path."}
+            </span>
+          )}
         </label>
         {!isDnsOnly && (
           <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">

@@ -6,6 +6,7 @@ import { Layout } from "./components/shared/Layout";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
 import { General } from "./pages/settings/General";
 import { Network } from "./pages/settings/Network";
@@ -28,7 +29,8 @@ function PageFallback() {
 
 // Public: / (Dashboard) + /login. Admin tabs sit behind RequireAuth (UX) — the API
 // middleware is the real gate. /settings nests its categories as child routes, so the
-// guard wraps the shell once rather than each category.
+// guard wraps the shell once rather than each category. The catch-all is inside
+// <Layout/> so a mistyped URL keeps the nav instead of rendering an empty pane.
 export default function App() {
   return (
     <Routes>
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="network" element={<Network />} />
           <Route path="security" element={<Security />} />
         </Route>
+        {/* Unmatched paths keep the chrome — the pane says what went wrong. */}
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );
