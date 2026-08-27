@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FilePlus2, PackagePlus } from "lucide-react";
 
 import { api } from "../lib/api";
+import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import {
   ContainerList,
@@ -34,7 +35,7 @@ export function Docker() {
 
   const settings = useQuery({
     queryKey: ["settings"],
-    queryFn: () => api.get<{ base_domain?: { value: string | null } }>("/api/settings"),
+    queryFn: () => api.get<SettingsView>("/api/settings"),
   });
   const baseDomain = settings.data?.base_domain?.value ?? null;
 

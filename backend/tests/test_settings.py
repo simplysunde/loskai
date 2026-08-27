@@ -91,3 +91,21 @@ def test_host_ip_rejects_scheme_or_port():
 def test_host_ip_accepts_bare_ip():
     s.update({"host_ip": "192.168.10.50"})
     assert s.value("host_ip") == "192.168.10.50"
+
+
+# Keys the Settings model deliberately keeps out of CONFIGURABLE_KEYS: they drive the
+# compose file or the process itself, so the UI must never write them (see config.py).
+ENV_ONLY_KEYS = {"stacks_dir", "loskai_password", "data_dir", "static_dir"}
+
+
+def test_configurable_keys_match_the_env_model():
+    """Settings keys are enumerated in three places — config.Settings, CONFIGURABLE_KEYS,
+    and the frontend *_FIELDS arrays. Forgetting the middle one silently makes a key
+    env-only and unwritable from the UI, with no failing test and a symptom that looks
+    like a frontend bug. Adding a genuinely env-only key means updating ENV_ONLY_KEYS
+    here — a deliberate act, which is the point."""
+    assert set(s.CONFIGURABLE_KEYS) | ENV_ONLY_KEYS == set(config.Settings.model_fields)
+
+
+def test_configurable_keys_are_unique():
+    assert len(s.CONFIGURABLE_KEYS) == len(set(s.CONFIGURABLE_KEYS))

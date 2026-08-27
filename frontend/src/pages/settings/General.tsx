@@ -3,10 +3,12 @@ import { useMutation } from "@tanstack/react-query";
 import { Download, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
-import { SettingsFields, type FieldDef } from "../../components/shared/SettingsFields";
+import type { FieldDef } from "../../lib/settings";
+import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 
 // App-wide knobs. Per-service config (AdGuard, WireGuard, Caddy) lives under
-// Settings > Network; this category keeps the app-level settings + backup.
+// Settings > Network; this category keeps the app-level settings + backup. Fields commit
+// on blur/Enter — the same model as every other settings category.
 const APP_FIELDS: FieldDef[] = [
   { key: "base_domain", label: "Base Domain", hint: "e.g. example.no" },
   {
@@ -40,7 +42,7 @@ export function General() {
 
   return (
     <div className="max-w-xl space-y-8">
-      <SettingsFields fields={APP_FIELDS} />
+      <InlineSettingsFields fields={APP_FIELDS} />
 
       <section className="border-t border-slate-800 pt-6">
         <h2 className="text-sm font-medium text-slate-300">Backup</h2>

@@ -1,14 +1,7 @@
 import { useState } from "react";
 
-import {
-  assembleFqdn,
-  isValidDnsOnlyPrefix,
-  isValidDnsTarget,
-  isValidPrefix,
-  isValidUpstream,
-} from "../../lib/validation";
-
-type RouteMode = "proxy" | "dns_only";
+import { RouteFields } from "./RouteFields";
+import { useRouteFields, type RouteMode } from "./useRouteFields";
 
 // Assign URL form: a single-label prefix + an upstream host:port, with the assembled
 // FQDN shown live, plus a Proxied/DNS-only mode toggle (external instances only — see
@@ -50,27 +43,19 @@ export function AssignModal({
   initialTls?: boolean;
   initialRouteMode?: RouteMode;
 }) {
-  const [prefix, setPrefix] = useState(initialPrefix);
-  const [upstream, setUpstream] = useState(initialUpstream);
-  const [tls, setTls] = useState(initialTls);
   const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
+  const isDnsOnly = allowDnsOnly && routeMode === "dns_only";
+  const fields = useRouteFields({
+    mode,
+    baseDomain,
+    isDnsOnly,
+    initialPrefix,
+    initialUpstream,
+    initialTls,
+  });
   if (!open) return null;
 
-  const isDnsOnly = allowDnsOnly && routeMode === "dns_only";
-  const prefixOk = isDnsOnly ? isValidDnsOnlyPrefix(prefix) : isValidPrefix(prefix);
-  const upstreamOk = isDnsOnly ? isValidDnsTarget(upstream) : isValidUpstream(upstream);
-  const upstreamHint = isDnsOnly
-    ? "e.g. 192.168.10.55"
-    : mode === "docker"
-      ? "e.g. grafana:3000"
-      : "e.g. 192.168.10.100:3000";
-  const upstreamHelp = isDnsOnly
-    ? "A bare LAN IP — DNS resolves the name straight to this address, no proxy, no TLS."
-    : mode === "docker"
-      ? "A container name:port on the Docker network — Caddy resolves it there."
-      : "Must be reachable from the Caddy host: a LAN IP:port. Container names and localhost won't resolve from a separate Caddy LXC.";
-  const fqdn = assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN");
-  const canSubmit = prefixOk && upstreamOk && !pending;
+  const canSubmit = fields.valid && !pending;
 
   return (
     <div
@@ -104,53 +89,22 @@ export function AssignModal({
           </div>
         )}
 
-        <label className="mt-4 block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">
-            {isDnsOnly ? "Hostname (dots allowed)" : "Subdomain prefix"}
-          </span>
-          <input
-            autoFocus
-            value={prefix}
-            onChange={(e) => setPrefix(e.target.value.toLowerCase())}
-            placeholder={isDnsOnly ? "rack1.vm3" : "grafana"}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
-          />
-          <span className="mt-1 block text-xs text-slate-500">
-            → <span className="text-teal-300">{fqdn}</span>
-          </span>
-          {prefix && !prefixOk && (
-            <span className="mt-1 block text-xs text-rose-400">
-              {isDnsOnly
-                ? "Each dot-separated label: lowercase letters, digits, hyphens."
-                : "Single DNS label only: lowercase letters, digits, hyphens."}
+        <RouteFields
+          fields={fields}
+          autoFocus
+          preview={
+            <span className="mt-1 block text-xs text-slate-500">
+              → <span className="text-teal-300">{fields.fqdn}</span>
             </span>
-          )}
-        </label>
-
-        <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">
-            {isDnsOnly ? "Machine IP" : "Upstream (host:port)"}
-          </span>
-          <input
-            value={upstream}
-            onChange={(e) => setUpstream(e.target.value)}
-            placeholder={upstreamHint}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
-          />
-          <span className="mt-1 block text-xs text-slate-500">{upstreamHelp}</span>
-          {upstream && !upstreamOk && (
-            <span className="mt-1 block text-xs text-rose-400">
-              {isDnsOnly ? "A bare IPv4 address — no port." : "Use host:port — no scheme (http://) or path."}
-            </span>
-          )}
-        </label>
+          }
+        />
 
         {!isDnsOnly && (
           <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
-              checked={tls}
-              onChange={(e) => setTls(e.target.checked)}
+              checked={fields.tls}
+              onChange={(e) => fields.setTls(e.target.checked)}
               className="mt-0.5 accent-teal-500"
             />
             <span>
@@ -173,14 +127,7 @@ export function AssignModal({
           </button>
           <button
             disabled={!canSubmit}
-            onClick={() =>
-              onSubmit({
-                prefix,
-                upstream: upstream.trim(),
-                upstream_tls: isDnsOnly ? false : tls,
-                route_mode: isDnsOnly ? "dns_only" : "proxy",
-              })
-            }
+            onClick={() => onSubmit(fields.payload())}
             className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             Assign

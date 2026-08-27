@@ -51,10 +51,4 @@ export const api = {
   // DELETE may carry a body — AdGuard's rewrite delete takes the whole (domain, answer).
   del: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
-  // Raw text — used for the Caddyfile export (text/plain, not JSON).
-  text: async (p: string): Promise<string> => {
-    const res = await fetch(p, { credentials: "same-origin" });
-    if (!res.ok) throw new ApiError(res.status, res.statusText);
-    return res.text();
-  },
 };

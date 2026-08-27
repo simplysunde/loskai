@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
-import type { FieldDef, SettingField, SettingsView } from "./SettingsFields";
+import type { FieldDef, SettingField, SettingsView } from "../../lib/settings";
 
 // Auto-saving settings fields: each field is always editable and commits on blur / Enter
 // (one key at a time, partial PUT) — no per-panel Save button. Env-sourced values stay

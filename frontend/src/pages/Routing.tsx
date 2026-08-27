@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
+import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
@@ -30,9 +31,6 @@ interface Orphan {
   name: string;
   container: string | null;
   subdomain: string | null;
-}
-interface SettingsView {
-  base_domain?: { value: string | null };
 }
 interface AssignResult {
   caddy: string;
