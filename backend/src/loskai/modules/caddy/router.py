@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from ...shared import health as health_registry
 from ...shared import settings as settings_store
 from . import service
-from .client import CaddyError, caddy
+from .client import caddy
 
 router = APIRouter(prefix="/api/caddy", tags=["caddy"])
 
@@ -35,15 +35,3 @@ async def push() -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"pushed": results}
 
-
-@router.get("/health")
-async def health() -> dict:
-    return await _health_payload()
-
-
-@router.get("/upstreams")
-async def upstreams() -> list[dict]:
-    try:
-        return await caddy.upstreams()
-    except CaddyError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))

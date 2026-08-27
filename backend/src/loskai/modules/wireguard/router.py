@@ -1,4 +1,6 @@
-"""WireGuard module HTTP surface — a single reachability status endpoint."""
+"""WireGuard module — reachability + the peer DNS hint, reported through the
+aggregate /api/health. The module has no routes of its own: Loskai never writes to
+WireGuard, so there is nothing to drive beyond the status the health poll carries."""
 
 from urllib.parse import urlparse
 
@@ -27,7 +29,3 @@ async def _health_payload() -> dict:
 # Register with the aggregate /api/health poller (import-time side effect).
 health_registry.register("wireguard", _health_payload)
 
-
-@router.get("/status")
-async def status() -> dict:
-    return await _health_payload()

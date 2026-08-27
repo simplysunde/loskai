@@ -112,11 +112,6 @@ def list_routed() -> list[Instance]:
 router = APIRouter(prefix="/api", tags=["instances"])
 
 
-@router.get("/instances")
-def get_instances() -> list[Instance]:
-    return list_instances()
-
-
 class InstancePatch(BaseModel):
     private: bool | None = None
     name: str | None = None

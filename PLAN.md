@@ -518,8 +518,8 @@ route, so it never appears in `push_all` or the live-sync check.
 The backend client is identical in both cases — it just hits whatever URL is configured.
 On startup, config.py logs which mode is active.
 
-The frontend reads the resolved mode from `GET /api/caddy/health` and adjusts the
-upstream input hint in the Add route form accordingly:
+The frontend reads the resolved mode from the aggregate `GET /api/health` (`caddy.mode`)
+and adjusts the upstream input hint in the Add route form accordingly:
 - Docker mode → "e.g. grafana:3000"
 - LAN mode → "e.g. 192.168.10.100:3000"
 
@@ -563,9 +563,10 @@ module never writes a single route on its own.
 ```
 GET  /api/caddy/routes           list instances that have a subdomain (the route table)
 POST /api/caddy/push             re-push all routes from the instance list to Caddy
-GET  /api/caddy/health           caddy status + mode (`docker` | `lan`)
-GET  /api/caddy/upstreams        upstream health from caddy
 ```
+Status + mode arrive in the aggregate `GET /api/health` as `caddy`; upstream liveness is
+joined into `/api/caddy/routes`. Neither has a route of its own (Phase 15 F16 removed the
+two that nothing called).
 
 ### Caddy Route JSON (what gets sent to Caddy Admin API)
 ```json
@@ -647,11 +648,14 @@ stays.)
 
 ### API Surface (internal)
 ```
-GET  /api/adguard/health         reachable (GET /control/status)
-GET  /api/adguard/rewrites       list DNS rewrites
-POST /api/adguard/rewrites       add rewrite (used by assign URL flow)
-DEL  /api/adguard/rewrites       delete rewrite (carries {domain, answer} — no ID exists)
+GET  /api/adguard/status         per-instance DNS status (the routing table's DNS column)
+POST /api/adguard/reconcile      ensure/migrate/sweep rewrites (the DNS half of Sync)
 ```
+Reachability arrives in the aggregate `GET /api/health` as `adguard`. The rewrite calls
+themselves (`list`/`add`/`delete` by exact `{domain, answer}` pair — no ID exists) stay in
+`client.py`, driven by assign and reconcile; Phase 15 F16 removed the HTTP handlers that
+exposed them directly, since nothing called them and every rewrite must go through the
+assign flow's ordering.
 
 ---
 
@@ -696,9 +700,10 @@ The most important feature is the link out.
 - No credentials needed, nothing to break
 
 ### API Surface (internal)
-```
-GET  /api/wireguard/status       is dashboard reachable? returns { reachable: bool, url: str }
-```
+
+None. `{ status, reachable, url, dns_hint }` arrives in the aggregate `GET /api/health` as
+`wireguard` — the module registers a health checker and nothing else (Phase 15 F16 removed
+the duplicate `GET /api/wireguard/status`, which no caller used).
 
 ---
 

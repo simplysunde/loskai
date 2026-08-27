@@ -1,7 +1,11 @@
-"""AdGuard module HTTP surface — health, rewrites (list/add/delete), status, reconcile."""
+"""AdGuard module HTTP surface — status + reconcile.
+
+The module health payload is served through the aggregate /api/health, not a route of
+its own, and rewrites are written only by the assign flow and reconcile — never
+directly over HTTP (see PLAN: the AdGuard module is read + push only)."""
 
 import httpx
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from ...shared import health as health_registry
 from ...shared import instances as instances_store
@@ -40,43 +44,6 @@ async def _consistency() -> list[dict]:
 
 
 health_registry.register_consistency(_consistency)
-
-
-@router.get("/health")
-async def health() -> dict:
-    return await _health_payload()
-
-
-@router.get("/rewrites")
-async def rewrites() -> list[dict]:
-    try:
-        return await adguard.list_rewrites()
-    except _UNREACHABLE as exc:
-        raise HTTPException(status_code=502, detail=describe_error(exc))
-
-
-@router.post("/rewrites")
-async def add_rewrite(payload: dict = Body(...)) -> dict:
-    domain, answer = payload.get("domain"), payload.get("answer")
-    if not domain or not answer:
-        raise HTTPException(status_code=422, detail="domain and answer are required")
-    try:
-        await adguard.add_rewrite(domain, answer)
-    except _UNREACHABLE as exc:
-        raise HTTPException(status_code=502, detail=describe_error(exc))
-    return {"status": "ok"}
-
-
-@router.delete("/rewrites")
-async def delete_rewrite(payload: dict = Body(...)) -> dict:
-    domain, answer = payload.get("domain"), payload.get("answer")
-    if not domain or not answer:
-        raise HTTPException(status_code=422, detail="domain and answer are required")
-    try:
-        await adguard.delete_rewrite(domain, answer)
-    except _UNREACHABLE as exc:
-        raise HTTPException(status_code=502, detail=describe_error(exc))
-    return {"status": "ok"}
 
 
 @router.get("/status")

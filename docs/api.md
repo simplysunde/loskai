@@ -46,7 +46,6 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/instances` | The full instance list (the shared spine). |
 | `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. |
 | `DELETE /api/instances/{id}` | Fully delete an instance: removes its route + rewrite (if any), then the record. Works for **any** type — deleting a docker instance leaves the container untouched (it becomes an unrouted container, re-routable via Add route). |
 
@@ -61,12 +60,12 @@ app is running — this document is the human-readable overview.
 
 ## Caddy — `/api/caddy` (read + push only; never assigns)
 
+Module status lives in the aggregate `GET /api/health`, not a per-module route.
+
 | Method & path | Purpose |
 |---|---|
 | `GET /routes` | **All** instances (routed or not) annotated with `route_mode`, `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin` links (so the UI can find a container's or Network service's route). Route fields are null when unrouted **or** `route_mode: "dns_only"` (no Caddy route exists for those — not "missing"). Display-only comparison — never auto-corrects. |
 | `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s; skips `dns_only` instances (nothing to push). |
-| `GET /health` | `{ status, server?, mode: "docker"\|"lan"\|null }`. |
-| `GET /upstreams` | Upstream liveness from Caddy. |
 
 External contract: [caddy-api.md](caddy-api.md).
 
@@ -74,12 +73,11 @@ External contract: [caddy-api.md](caddy-api.md).
 
 ## AdGuard — `/api/adguard`
 
+Module status lives in the aggregate `GET /api/health`. Rewrites are written by the
+assign flow and reconcile only — there is no direct rewrite endpoint.
+
 | Method & path | Purpose |
 |---|---|
-| `GET /health` | `{ status, running?, version?, answer_ip, url }`. |
-| `GET /rewrites` | Raw DNS rewrite list from AdGuard. |
-| `POST /rewrites` | Body `{ domain, answer }` — add a rewrite. |
-| `DELETE /rewrites` | Body `{ domain, answer }` — delete by **exact pair** (protects hand-added rewrites). |
 | `GET /status` | Per-instance DNS status: `{ answer_ip, instances: [{ id, domain, present, conflict }] }` — powers the routing table's DNS column. |
 | `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites per instance (answer = the shared Caddy IP for `proxy`, the instance's own IP for `dns_only`), **sweep** orphaned rewrites in the `{base_domain}` namespace whose answer is one Loskai is known to have written (the shared Caddy IP, or any currently-routed instance's own `dns_answer` — reclaims leftovers from a failed offline teardown, `proxy` or `dns_only`), and report conflicts. Returns `{ added, deleted, swept, conflicts, errors }`. `400` if no answer IP **and** a `proxy` instance is routed (an all-`dns_only` LAN needs none), `502` if AdGuard is down. |
 
@@ -87,11 +85,11 @@ External contract: [adguard-api.md](adguard-api.md).
 
 ---
 
-## WireGuard — `/api/wireguard`
+## WireGuard
 
-| Method & path | Purpose |
-|---|---|
-| `GET /status` | `{ status, reachable, url, dns_hint }`. Any HTTP response counts as reachable; `dns_hint` is the AdGuard IP for peer DNS. |
+No routes of its own — Loskai never writes to WireGuard. Its `{ status, reachable, url,
+dns_hint }` payload arrives in the aggregate `GET /api/health` (`dns_hint` is the AdGuard
+IP for peer DNS; any HTTP response counts as reachable).
 
 ---
 
