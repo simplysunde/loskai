@@ -1,5 +1,74 @@
 # Loskai — History
 
+## 2026-08-27 — Phase 15: audit cleanup
+
+Acted on a recursive audit of `backend/src` + `frontend/src` and the documentation
+structure: 20 findings, no new features. Four stages, six commits, each leaving the repo
+working. The audit itself came back mostly clean — no orphan files, one dead export, the
+`client.py`/pure-logic seam intact — so what follows is the shape of the drift a
+feature-complete app accumulates, not a rescue.
+
+**The one real bug was in the degradation invariant.** `/api/health` awaited each module's
+checker unguarded and in sequence, so a single module raising would 500 the endpoint and
+grey out all four cards — the exact opposite of "a module going unreachable greys out only
+its own card". It had never fired only because every checker happens to catch its own
+errors; the invariant was being upheld by luck, one module away from breaking. Each probe
+is now contained and the four run concurrently, with the concurrency pinned by a test that
+deadlocks if the awaits ever go back to being sequential.
+
+**Corrupt store files now fail differently on purpose.** A hand-edited `settings.json`
+raised `JSONDecodeError` through `settings.value()` — which nearly every router calls — so
+one bad character 500d every page without naming the file. The fix deliberately splits by
+file rather than "returning the default": `settings.json` **aborts startup** naming the
+path, because `password_set()` reads `admin_password_hash` from it and `POST
+/api/auth/setup` is public and only refuses once a hash exists — a silent `{}` fallback
+would turn a corrupt file into an unauthenticated admin takeover, and the next write would
+clobber whatever else was in there. `instances.json` skips and logs the unreadable
+*record*, since it carries display state only; but a whole-file parse error still raises,
+because reading an unparseable file as `[]` would let the next upsert erase every route.
+Forgejo's `app.ini` (hand-editable, refuses to boot when malformed) was the model.
+
+**The backend had no logging at all** — zero `logging` imports across the whole app. The
+best-effort AdGuard half of assign and a bare `pass` on a failed stale-rewrite delete were
+both defensible by design, but nothing was recorded anywhere, so an operator debugging a
+leftover rewrite had only a transient UI warning. That is the failure `ff0f167` was written
+to fix. Module loggers now record every swallowed exception; the two routine hot-path misses
+(Docker stats, exec socket teardown) log at `debug`.
+
+**Two components had drifted apart, and the drift had already caused a bug.** AssignModal
+and AddRouteModal each kept their own copy of the same field derivation — including the long
+split-LXC help string, character for character — and AddRouteModal's copy had quietly lost
+the prefix lowercasing and every validation hint. Typing `Grafana` left "Add route" disabled
+with nothing on screen to explain it, on the app's single route-creation surface, which had
+no test. So: test first, then the fix, then `useRouteFields()` + `RouteFields` to make the
+divergence impossible — in that order, so the tests covered the refactor. The same pattern
+appeared in settings: Phase 14 moved General across verbatim without migrating it, leaving
+two field components with different save models on one page. General is inline now and
+`SettingsFields` is gone.
+
+Also: a `path="*"` route (a mistyped URL rendered the chrome around a blank pane), six
+route handlers deleted that nothing called — the rewrite ones worth removing on their own
+merits, since they allowed a rewrite outside the assign flow that owns its ordering — and
+`TODO.md` cut from 67KB to 17KB by archiving the thirteen completed phases, against
+`CLAUDE.md`'s own warning that context fills fast.
+
+**Left open:** the backend suite could not be run in this environment at all (the venv is
+unreachable from the sandbox), so `test_health_registry.py`, `test_store_corruption.py` and
+the extended `test_settings.py` have never executed. `TODO.md` carries that plus the live
+smoke list.
+
+- Key files: `backend/src/loskai/shared/` (`health.py`, `store.py`, `settings.py`,
+  `instances.py`, `assign.py`), `backend/tests/test_health_registry.py` +
+  `test_store_corruption.py` (new), `frontend/src/components/routing/useRouteFields.ts` +
+  `RouteFields.tsx` (new), `frontend/src/lib/settings.ts` (new),
+  `frontend/src/pages/NotFound.tsx` (new), `docs/todo-archive.md` (new), `Makefile` (now
+  tracked)
+- Deleted: `frontend/src/components/shared/SettingsFields.tsx`, `api.text()`, and the six
+  uncalled route handlers (**handlers only** — every client method they wrapped still feeds
+  assign, reconcile, export or the routes table)
+- Out of scope by decision: F8 (both modals hand-roll chrome `Modal.tsx` provides) and F12
+  (`settings.value()` re-reads `settings.json` per key)
+
 ## 2026-08-26 — Phase 14: the Network tab folded into a restructured Settings page
 
 Dissolved the standalone Network tab (built in Phase 10b) and rebuilt Settings as a

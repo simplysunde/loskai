@@ -109,21 +109,23 @@ was nothing left to branch around._
       covering the most confusing moment a new user hits (the untrusted-cert warning)
 
 **Stage B — correctness**
-- [ ] F1 `health.py:47` — `result[name] = await checker()` is unguarded, so one raising module
+- [x] F1 `health.py:47` — `result[name] = await checker()` is unguarded, so one raising module
       500s `/api/health` and greys out **all four** cards, breaking the core degradation
       invariant. It holds today only because each checker happens to catch its own errors.
       Wrap each in try/except → `{"status": "unreachable", "detail": describe_error(exc)}`, and
       run them through `asyncio.gather` (four sequential awaits mean one slow service delays
       every other module's status). **Test:** register a deliberately raising checker, assert
-      the other three still report
-- [ ] F2 `AddRouteModal.tsx:206` — missing `.toLowerCase()` (`AssignModal.tsx:110` has it) and
+      the other three still report. Done, plus: the `consistency` hook is contained the same
+      way (same failure mode, same function), and the concurrency is pinned by a test that
+      deadlocks if the awaits ever go back to sequential
+- [x] F2 `AddRouteModal.tsx:206` — missing `.toLowerCase()` (`AssignModal.tsx:110` has it) and
       no validation hints at all, while `isValidPrefix` rejects uppercase. Typing `Grafana`
       leaves "Add route" disabled with nothing on screen explaining why. Only bites manual
       typing — `suggestPrefix` lowercases the pre-fill. Lowercase on change + port the
       `!prefixOk` / `!upstreamOk` messages across from `AssignModal`
-- [ ] D4 — add the `AddRouteModal` validation test alongside F2. 305 lines, the single
+- [x] D4 — add the `AddRouteModal` validation test alongside F2. 305 lines, the single
       route-creation surface, currently untested — which is exactly how F2 survived
-- [ ] F5 `store.py:16` + `instances.py:39` — corrupt or hand-edited JSON propagates
+- [x] F5 `store.py:16` + `instances.py:39` — corrupt or hand-edited JSON propagates
       `JSONDecodeError` / `ValidationError` up through `settings.value()`, which nearly every
       router calls, so one bad character 500s every page without naming the file. **Split the
       handling — do not "return the default" for settings.json:** `password_set()` reads
@@ -136,52 +138,62 @@ was nothing left to branch around._
       rather than booting on defaults — and Loskai actively invites hand-editing, since
       Settings > Security tells the user to remove `admin_password_hash` manually).
       **`instances.json` → log and skip the unreadable record**; it carries display state only,
-      and one bad row must not take the app down
-- [ ] F4 — no `logging` anywhere in the backend (zero imports). `assign.py:207` swallows a
+      and one bad row must not take the app down. Done as planned, with one refinement the plan
+      didn't specify: a *file*-level parse error in `instances.json` raises too (naming the
+      path). Only whole records degrade — reading an unparseable file as `[]` would let the
+      next upsert write a fresh file over every route
+- [x] F4 — no `logging` anywhere in the backend (zero imports). `assign.py:207` swallows a
       failed stale-rewrite delete with a bare `pass`, and the AdGuard half of assign is
       best-effort by design — both defensible, but nothing is recorded anywhere, so the
       operator debugging a leftover rewrite has only a transient UI warning. This is the exact
       failure mode `ff0f167` was written to fix. Add module loggers; `logger.warning` on every
-      swallowed exception and best-effort miss
-- [ ] F3 `App.tsx` — no `path="*"` route, so a mistyped URL renders the Layout chrome with a
+      swallowed exception and best-effort miss. Docker's per-poll stats miss and the exec
+      socket teardown log at `debug` instead — both are routine and sit in hot paths
+- [x] F3 `App.tsx` — no `path="*"` route, so a mistyped URL renders the Layout chrome with a
       blank pane (the backend SPA catch-all correctly serves `index.html`). Add a `NotFound`
       inside the `<Layout />` element so the nav stays and the pane explains itself
 
 **Stage C — consolidation**
-- [ ] F6 — two settings-field components with different save models now sit in one page:
+- [x] F6 — two settings-field components with different save models now sit in one page:
       General uses `SettingsFields` (explicit Save button), Network uses `InlineSettingsFields`
       (auto-save on blur — the Phase 14 decision). General was moved across verbatim and never
       migrated. Move it onto `InlineSettingsFields` and delete `SettingsFields`; rehome its
       three exported types (`FieldDef` / `SettingField` / `SettingsView` — `AddRouteModal`
       imports them too). Note `saveLabel` is a prop no caller passes, and the `seeded` flag
       stops the General form ever reflecting a sibling category's save
-- [ ] F7 — `AssignModal.tsx:56–70` and `AddRouteModal.tsx:137–152` duplicate `isDnsOnly`,
+- [x] F7 — `AssignModal.tsx:56–70` and `AddRouteModal.tsx:137–152` duplicate `isDnsOnly`,
       `prefixOk`, `upstreamOk`, `upstreamHint`, `upstreamHelp` and `fqdn` verbatim (~25 lines,
       including the long split-LXC help string character for character), plus near-identical
       field markup. This is the mechanism behind F2. Extract `useRouteFields()` for the
       derivation + a `RouteFields` component for the three inputs; each modal keeps its own
       chrome and submit payload. **Do this immediately after F2, while the divergence is fresh**
-- [ ] F9 `Routing.tsx:32` — a local `interface SettingsView { base_domain?: { value } }`
+      — done in that order, with D4's tests already in place to catch a regression in the move.
+      Split across two files (`useRouteFields.ts` + `RouteFields.tsx`): oxlint's fast-refresh
+      rule wants a component file to export only components
+- [x] F9 `Routing.tsx:32` — a local `interface SettingsView { base_domain?: { value } }`
       shadows the exported one, and both back the same `["settings"]` query key, so two
-      different types describe one cache entry. Import the real type, drop the local
-- [ ] F10 `lib/api.ts` — `api.text()` has zero call sites and its comment names a Caddyfile
+      different types describe one cache entry. Import the real type, drop the local.
+      `Docker.tsx:37` had an inline type on the same query for the same reason — also fixed
+- [x] F10 `lib/api.ts` — `api.text()` has zero call sites and its comment names a Caddyfile
       export endpoint that does not exist. Delete it (the only genuine orphan export in the
       frontend)
-- [ ] F11 — settings keys are enumerated in three places (`config.py`'s `Settings`,
+- [x] F11 — settings keys are enumerated in three places (`config.py`'s `Settings`,
       `settings.py`'s `CONFIGURABLE_KEYS`, the frontend `*_FIELDS` arrays). Forgetting the
       middle one silently makes a key env-only and unwritable from the UI, with no failing
       test and a symptom that looks like a frontend bug. Add a test asserting every
-      `CONFIGURABLE_KEYS` entry is a real attribute of the `Settings` model
+      `CONFIGURABLE_KEYS` entry is a real attribute of the `Settings` model — implemented as an
+      equality against the model's fields minus an explicit `ENV_ONLY_KEYS` set, so the reverse
+      drift (added to `Settings`, forgotten in `CONFIGURABLE_KEYS`) fails too
 - [ ] ~~F8~~ (both route modals hand-roll chrome `Modal.tsx` provides — needs a size prop) and
       ~~F12~~ (`settings.value()`/`resolve()` re-read settings.json per key;
       `derive_caddy_host_ip()` reads it twice per assign and per health poll) — **out of scope**,
       revisit only if Stages A–C land early
 
 **Stage D — housekeeping**
-- [ ] D3 — commit the `Makefile` (currently untracked, so it helps one checkout and drifts
+- [x] D3 — commit the `Makefile` (currently untracked, so it helps one checkout and drifts
       from the two files that *are* read) and point README's Develop section at
       `make backend` / `make test-backend`, so the commands have one source of truth
-- [ ] F16 — delete the six route handlers with no frontend caller: `GET /api/adguard/health`,
+- [x] F16 — delete the six route handlers with no frontend caller: `GET /api/adguard/health`,
       `GET`/`POST`/`DELETE /api/adguard/rewrites`, `GET /api/caddy/health`,
       `GET /api/caddy/upstreams`, `GET /api/wireguard/status`, `GET /api/instances`.
       **⚠ Delete the HTTP route handlers ONLY — every underlying client method stays.**
@@ -190,25 +202,38 @@ was nothing left to branch around._
       (`export.py:27`); `add_rewrite`/`delete_rewrite` feed assign (`assign.py:205,208,259`).
       Keep each module's `_health_payload` too — the aggregate `/api/health` registers it.
       No test references any of these routes, so the suite should be untouched. Remove their
-      rows from `docs/api.md` in the same commit
-- [ ] D1 — move completed Phases 1–13 out of `TODO.md` into `docs/todo-archive.md`, leaving
+      rows from `docs/api.md` in the same commit — and from `PLAN.md`'s per-module API
+      inventories, which listed all six (one line also claimed the frontend reads Caddy's mode
+      from `/api/caddy/health`; it has always read it from the aggregate health payload)
+- [x] D1 — move completed Phases 1–13 out of `TODO.md` into `docs/todo-archive.md`, leaving
       Now/Next/Backlog plus any live phase. ~196KB across PLAN + HISTORY + TODO is read at every
       session start per CLAUDE.md, against that same file's "context fills fast" warning; this
       reclaims ~50KB, is fully reversible, and matches the tiered structure CLAUDE.md already
       describes. Leave a pointer line at the top of TODO.md. **`HISTORY.md` and `PLAN.md` are
-      deliberately not touched** (decided 2026-08-27)
+      deliberately not touched** (decided 2026-08-27). Phase 14 stays alongside Phase 15 —
+      it is what this phase cleans up after. `CLAUDE.md`'s project-state paragraph was updated
+      in the same commit: it still claimed Phase 12 was in progress
 
 **Verification (each stage a commit that leaves the repo working)**
-- [ ] Frontend: `tsc -b`, `oxlint`, `vite build`, `vitest run` — note the sandbox needs
+- [x] Frontend: `tsc -b`, `oxlint`, `vite build`, `vitest run` — note the sandbox needs
       `export PATH="/home/sunde.guest/.local/node/bin:$PATH"` and direct entrypoints
       (`node ./node_modules/vitest/vitest.mjs run`), since the `.bin` shims are blocked
-- [ ] Backend: `uv run pytest`. **The backend cannot be started in the sandbox**
-      (`failed to canonicalize .../backend/.venv/bin/python3: Operation not permitted`), so
-      anything needing a live API is a user smoke test, not a claim
+- [ ] **Backend: `uv run pytest` — NOT RUN.** The sandbox couldn't reach the venv at all this
+      session (`failed to canonicalize .../backend/.venv/bin/python3: Operation not permitted`,
+      with and without the sandbox), so the three new/extended test files
+      (`test_health_registry.py`, `test_store_corruption.py`, `test_settings.py`) have never
+      executed. Only `python3 -m py_compile` was run over `backend/src` + the new tests. **Run
+      this first.**
 - [ ] **Live smoke (user):** Add route rejects/normalises a typed capital (F2); a mistyped URL
       shows the NotFound pane (F3); Settings > General saves on blur with no Save button (F6);
       a deliberately corrupted `settings.json` refuses startup with the path in the message,
-      and a corrupted `instances.json` boots with the bad row skipped (F5)
+      and a corrupted `instances.json` boots with the bad row skipped (F5); Routing still loads
+      and Sync still works after F16 removed six handlers; the Add route > Network list shows
+      the `Settings › Network` link when a service has no URL set (F14)
+
+**Stages A–D landed 2026-08-27** (six commits on `phase-15-audit-cleanup`). Frontend checks
+pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). The phase
+is **not** closed: the backend suite and the live smoke list above are outstanding.
 
 ---
 
