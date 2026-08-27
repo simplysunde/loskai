@@ -19,7 +19,7 @@ export interface FieldDef {
 
 // A self-contained editable form for a subset of settings keys. Reads the shared
 // /api/settings query and saves only its own keys (partial PUT), so several instances
-// (the Settings page + each Network panel) can coexist. Env-sourced values are read-only.
+// can coexist on one page. Env-sourced values are read-only.
 export function SettingsFields({
   fields,
   saveLabel = "Save",

@@ -1,7 +1,7 @@
 """Aggregate health — GET /api/health.
 
-Each module registers its own async health check as it is built (Phases 3–5, 8);
-until then a module reports `unconfigured`. A single module going unreachable never
+Each module's router registers its own async health check at import; a module with no
+registered checker reports `unconfigured`. A single module going unreachable never
 affects the others. Docker additionally carries `stacks_dir_ok` so the UI can tell a
 broken compose mount apart from a genuinely empty Stack Manager.
 """
@@ -18,7 +18,7 @@ HealthStatus = Literal["healthy", "degraded", "unreachable", "unconfigured"]
 MODULES = ["caddy", "adguard", "wireguard", "docker"]
 
 # Module name -> async checker returning at least {"status": HealthStatus}.
-# Populated by each module's router as it is built.
+# Populated by each module's router at import time.
 _checkers: dict[str, Callable[[], Awaitable[dict]]] = {}
 
 # Optional cross-module consistency check (registered by the AdGuard router). Kept as a
@@ -49,11 +49,12 @@ async def health() -> dict:
         if checker is not None:
             result[name] = await checker()
         else:
+            # Defensive: main.py imports all four module routers, so every name in
+            # MODULES has a checker by the time a request lands here.
             result[name] = {
                 "status": "unconfigured",
-                "detail": "health check wired in a later phase",
+                "detail": "no health check registered",
             }
-    # Cheap and honest even before the Docker module exists.
     result["docker"]["stacks_dir_ok"] = os.path.isdir(env.stacks_dir)
     # Cross-module drift (routed but no DNS rewrite / manual conflict). Self-degrading.
     result["consistency"] = await _consistency() if _consistency is not None else []

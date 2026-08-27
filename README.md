@@ -69,6 +69,7 @@ Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:80
 ## Documentation
 
 - [Install guide (start here)](docs/install.md) — step-by-step for the preferred layout: AdGuard + Caddy LXCs on Proxmox, then Loskai in Docker.
+- [Certificate onboarding](docs/certificate-setup.md) — why LAN devices see an untrusted-cert warning under the internal CA, and the onboarding page that hands out the root.
 - [Authoring an LXC provisioning script](docs/lxc-script-authoring.md) — the pattern, safety invariants, and a copy-paste skeleton for adding new `create-<service>-lxc.sh` scripts.
 - [Troubleshooting](docs/troubleshooting.md) — 502s, redirect loops, DNS/cert/VPN issues; the split-LXC upstream rule (use a LAN IP:port, not a container name).
 - [Deploying the container](docs/deployment.md) — env-var reference, volumes and the same-path/`LOSKAI_DATA_DIR` coupling, the two layouts, and cold start.

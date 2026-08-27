@@ -2,8 +2,8 @@
 
 One process serves the API and (in production) the built React bundle. The auth
 middleware gates every `/api/*` except the login flow + public dashboard; the static
-SPA is served unauthenticated. Module routers (caddy, adguard, wireguard, docker) are
-registered here as each phase adds them.
+SPA is served unauthenticated. All four module routers (caddy, adguard, wireguard,
+docker) are registered here.
 """
 
 from contextlib import asynccontextmanager

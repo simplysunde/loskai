@@ -553,26 +553,28 @@ degrades (reasoning below); **F16** deletes the unused routes rather than docume
 **D1** archives completed TODO phases only — `HISTORY.md` and `PLAN.md` are left alone for now;
 **D3** commits the Makefile. F8 and F12 are explicitly out of scope unless the rest lands early._
 
-_**Branch: not yet decided.** Phase 14 is three unpushed commits on `restructure-settings`
-awaiting its live smoke test. This plan commit lands there (TODO.md already carries Phase 14);
-where the *implementation* branches from is the first thing to settle in the new session._
+_**Branch (settled 2026-08-27): `phase-15-audit-cleanup`, off `main`.** Phase 14 passed its
+smoke test and landed on `main` (`restructure-settings` points at the same commit), so there
+was nothing left to branch around._
 
 **Stage A — stale text (no behaviour change, no test churn)**
-- [ ] F13 `CLAUDE.md:60` — "Docker **and Network** tabs display routed state but never create
+- [x] F13 `CLAUDE.md:60` — "Docker **and Network** tabs display routed state but never create
       routes" → Docker only. Phase 14 dissolved the Network tab. Highest value in the phase:
       this file is read as ground truth at the start of every session, so the wrong fact keeps
       propagating into new work (`PLAN.md` was corrected; this was missed)
-- [ ] F14 `AddRouteModal.tsx:190` — user-visible copy `"set its URL in the Network tab"` →
+- [x] F14 `AddRouteModal.tsx:190` — user-visible copy `"set its URL in the Network tab"` →
       Settings > Network, ideally a link to `/settings/network` (the destination
       `InfraStatusPill` already established for "not configured"). Same file `:63` — the header
       comment "the Docker/Network tabs no longer assign" is stale the same way
-- [ ] F15 — sweep comments narrating a finished build: `main.py:6` ("as each phase adds them"),
+- [x] F15 — sweep comments narrating a finished build: `main.py:6` ("as each phase adds them"),
       `health.py:3` ("Phases 3–5, 8"), `SettingsFields.tsx:22` ("each Network panel"),
       `SettingsLayout.tsx:6` (claims `ModuleStatus` deep-links to `/settings/network` — it links
       to `/settings`, which is *correct*, since its unconfigured case is `stacks_dir` under
-      General). Also delete `health.py:52`'s `"health check wired in a later phase"` fallback —
-      unreachable now that all four modules register
-- [ ] D2 — add `docs/certificate-setup.md` to the README Documentation list. The only doc
+      General). `health.py:52`'s `"health check wired in a later phase"` string is gone, but the
+      `else` branch itself was **kept** (now an accurate `"no health check registered"` + a note
+      that it is defensive): deleting it would leave `result["docker"]["stacks_dir_ok"]` to
+      `KeyError` on a partially-imported app — the opposite of what F1 is about. F1 revisits it
+- [x] D2 — add `docs/certificate-setup.md` to the README Documentation list. The only doc
       missing from it, despite being linked from install/dev-testing/troubleshooting and
       covering the most confusing moment a new user hits (the untrusted-cert warning)
 

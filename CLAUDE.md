@@ -57,8 +57,8 @@ and AdGuard modules never write on their own; they are read + push only.
 **Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
 `AddRouteModal`) — the single surface, with three sources (Container / Network service /
 External) that pre-fill and post to `/api/assign` with `container` / `origin` / neither. The
-**Docker and Network tabs display routed state but never create routes** (a routed container
-links to its FQDN; a Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
+**Docker tab displays routed state but never creates routes** (a routed container links to
+its FQDN; a Settings > Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`). This is what prevents a
 co-located infra container from being double-routed from competing tabs.
 

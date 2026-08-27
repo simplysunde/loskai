@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Container as ContainerIcon, Globe, Loader2, Network } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useHealth } from "../../lib/useHealth";
@@ -60,7 +61,7 @@ function suggestPrefix(name: string): string {
 // "Add route" picker: choose a source (an unrouted Container, a built-in Network service,
 // or a fresh External target), which pre-fills the prefix + upstream; the fields stay
 // editable. Routed containers/services are filtered out (they're managed as rows). This is
-// the single route-creation surface — the Docker/Network tabs no longer assign.
+// the single route-creation surface — the Docker tab no longer assigns.
 export function AddRouteModal({
   open,
   baseDomain,
@@ -185,11 +186,22 @@ export function AddRouteModal({
           </PickList>
         )}
         {source === "network" && (
-          <PickList empty="All services are routed.">
-            {networkItems.map((s) => (
-              <PickItem key={s.origin} active={picked === s.origin} onClick={() => pickNetwork(s)} title={s.name} sub={s.upstream || "set its URL in the Network tab"} />
-            ))}
-          </PickList>
+          <>
+            <PickList empty="All services are routed.">
+              {networkItems.map((s) => (
+                <PickItem key={s.origin} active={picked === s.origin} onClick={() => pickNetwork(s)} title={s.name} sub={s.upstream || "no URL set — see below"} />
+              ))}
+            </PickList>
+            {networkItems.some((s) => !s.upstream) && (
+              <p className="mt-2 text-xs text-slate-500">
+                A service with no URL set gets one in{" "}
+                <Link to="/settings/network" className="underline underline-offset-2 hover:text-slate-300">
+                  Settings &rsaquo; Network
+                </Link>
+                .
+              </p>
+            )}
+          </>
         )}
         {source === "external" && (
           <>
