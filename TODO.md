@@ -529,9 +529,13 @@ changes**: same `/api/settings` keys, same partial-PUT contract._
 - [x] `tsc -b`, `vite build`, `oxlint`, `npm test` all clean
 - [x] Update `PLAN.md` (sidebar list, the Network-tab paragraph, routes list, `frontend/src/`
       tree) + `HISTORY.md`
-- [ ] **Live smoke (user):** `/settings`, `/settings/network`, `/settings/security` render and
+- [x] **Live smoke (user):** `/settings`, `/settings/network`, `/settings/security` render and
       the sub-nav highlights; `/network` gone from the sidebar; Routing shows both pills
       (healthy + unconfigured) and the cert-page copy button works
+
+**Phase 14 complete.** _Smoke-tested on device 2026-08-27: all seven checks pass, including the
+deep-link into `/settings/network`, auto-save on blur, and the unconfigured AdGuard pill falling
+back to the internal "Configure" link against a real health payload rather than a mocked one._
 
 ---
 

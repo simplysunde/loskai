@@ -38,8 +38,9 @@ replaces the guidance the old unconfigured-state banner gave.
   hash exists (`auth.py:97`), so setting it on an existing install does nothing. The stub says
   so, and points at removing `admin_password_hash` from `settings.json` instead
 - Verified: `tsc -b`, `oxlint`, `vite build` clean; 29 Vitest pass (was 25 — `ServicePanel`'s 2
-  removed, 6 added for `SettingsLayout` sub-nav and `InfraStatusPill`). Live UI smoke-test still
-  outstanding — the backend venv wasn't runnable in the dev sandbox
+  removed, 6 added for `SettingsLayout` sub-nav and `InfraStatusPill`). Smoke-tested on device
+  2026-08-27 — sub-nav highlighting, the `/settings/network` deep link, auto-save on blur, both
+  Routing pills, and the unconfigured "Configure" fallback all behave against a live backend
 
 ## 2026-08-13 — Fixed a stale AdGuard rewrite left behind on mode switch
 
