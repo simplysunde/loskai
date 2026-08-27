@@ -7,6 +7,7 @@ BaseHTTPMiddleware doesn't cover WS connections, and this is a root shell.
 
 import asyncio
 import json
+import logging
 
 from docker.errors import NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
@@ -27,6 +28,8 @@ from .client import DOCKER_ERRORS, describe_error, docker_client
 from .quick_commands import quick_commands_for
 from .recipes import RecipeError
 from .stacks import StackError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/docker", tags=["docker"])
 
@@ -212,8 +215,9 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
         inp.cancel()
         try:
             raw.close()
-        except OSError:
-            pass
+        except OSError as exc:
+            # The peer usually closed first — teardown detail, not an operator problem.
+            logger.debug("exec socket close failed: %s", exc)
         await websocket.close()
 
 

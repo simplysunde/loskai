@@ -6,6 +6,7 @@ SPA is served unauthenticated. All four module routers (caddy, adguard, wireguar
 docker) are registered here.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -21,8 +22,22 @@ from .shared import assign, auth, dashboard, export, health, instances
 from .shared import settings as settings_module
 
 
+# Module loggers (`logging.getLogger(__name__)`) propagate to root, and uvicorn
+# configures only its own loggers — without a root handler every warning would land on
+# logging.lastResort with no timestamp, level or module name. basicConfig is a no-op if
+# a handler is already installed, so this never fights a host that configured logging.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # A settings.json that exists but doesn't parse aborts startup here rather than
+    # booting on defaults — an empty dict would mean "no admin password set", which
+    # re-opens the public first-run setup route. See settings.verify_readable.
+    settings_module.verify_readable()
     # Seed the admin password from LOSKAI_PASSWORD once, if provided.
     auth.ensure_seeded()
     yield
@@ -31,7 +46,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Loskai", lifespan=lifespan)
 app.add_middleware(auth.AuthMiddleware)
 
-# Shared routers. Module routers are added by their phases.
+# Shared routers first, then the four module routers.
 app.include_router(auth.router)
 app.include_router(settings_module.router)
 app.include_router(health.router)

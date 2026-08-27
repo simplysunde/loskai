@@ -13,12 +13,23 @@ from pathlib import Path
 from typing import Any
 
 
+class CorruptStoreError(RuntimeError):
+    """A store file exists but doesn't parse. Always names the path: both files are
+    documented as hand-editable, so the operator needs to know *which* one to fix."""
+
+
 def read_json(path: str | Path, default: Any) -> Any:
     p = Path(path)
     if not p.exists():
         return default
-    with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with p.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        # Never silently fall back to `default` here — an existing-but-unreadable file
+        # is not the same as an absent one, and the callers' recovery differs (see
+        # settings.verify_readable and instances.list_instances).
+        raise CorruptStoreError(f"{p} is not valid JSON: {exc}") from exc
 
 
 def write_json(path: str | Path, data: Any) -> None:

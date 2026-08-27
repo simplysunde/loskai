@@ -4,6 +4,7 @@ Thin wrapper: it fetches raw data and calls `logic` for all computation (stats m
 joins). Requires the socket mounted at /var/run/docker.sock.
 """
 
+import logging
 from collections.abc import Iterator
 
 import docker
@@ -16,6 +17,8 @@ from . import logic
 # docker-py surfaces a down daemon as either a DockerException or a raw requests/OS error;
 # callers catch this tuple to degrade gracefully instead of 500ing.
 DOCKER_ERRORS = (DockerException, RequestException, OSError)
+
+logger = logging.getLogger(__name__)
 
 
 def describe_error(exc: Exception) -> str:
@@ -81,8 +84,10 @@ class DockerClient:
                     stats = c.stats(stream=False)
                     summary["cpu"] = logic.compute_cpu_percent(stats)
                     summary["mem"] = logic.compute_memory(stats)
-                except DOCKER_ERRORS:
-                    pass
+                except DOCKER_ERRORS as exc:
+                    # Debug, not warning: a container exiting mid-poll trips this on a
+                    # loop over every container, and the row still renders (cpu/mem null).
+                    logger.debug("stats unavailable for %s: %s", c.name, exc)
             out.append(summary)
         return out
 

@@ -17,6 +17,7 @@ Order (see PLAN, "The Assign URL Action"):
 in tests; the router passes the process singletons.
 """
 
+import logging
 import re
 from ipaddress import ip_address
 from typing import Literal
@@ -32,6 +33,8 @@ from ..modules.caddy.client import CaddyError, caddy, describe_error
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
+
+logger = logging.getLogger(__name__)
 
 # A single DNS label: lowercase letters, digits, hyphens; not leading/trailing hyphen.
 _LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
@@ -203,14 +206,22 @@ async def assign(
             if old_domain and old_answer and (old_domain != domain or old_answer != answer):
                 try:
                     await adguard_client.delete_rewrite(old_domain, old_answer)
-                except (httpx.HTTPError, AdGuardError):
-                    pass
+                except (httpx.HTTPError, AdGuardError) as exc:
+                    # Best effort: the assign still succeeds, but the stale pair may
+                    # linger until the next Sync, so leave a trace for whoever finds it.
+                    logger.warning(
+                        "stale rewrite %s -> %s not deleted: %s",
+                        old_domain, old_answer, describe_error(exc),
+                    )
             await adguard_client.add_rewrite(domain, answer)
             inst = inst.model_copy(update={"dns_answer": answer})
             instances_store.upsert_instance(inst)
             adguard_status = "ok"
         except (httpx.HTTPError, AdGuardError) as exc:
             adguard_status = "error"
+            logger.warning(
+                "rewrite %s -> %s failed, route kept: %s", domain, answer, describe_error(exc)
+            )
             warning = (
                 f"Route created, but the DNS rewrite failed — {describe_error(exc)}. "
                 "The name won't resolve on the LAN until it's added; retry when AdGuard is reachable."
@@ -258,8 +269,12 @@ async def unassign(
         try:
             await adguard_client.delete_rewrite(old_domain, old_answer)
             adguard_status = "ok"
-        except (httpx.HTTPError, AdGuardError):
+        except (httpx.HTTPError, AdGuardError) as exc:
             adguard_status = "error"
+            logger.warning(
+                "rewrite %s -> %s not deleted on unassign: %s",
+                old_domain, old_answer, describe_error(exc),
+            )
 
     return {"caddy": "ok", "adguard": adguard_status, "cleared": True, "instance_id": inst.id}
 

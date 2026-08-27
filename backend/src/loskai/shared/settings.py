@@ -39,7 +39,22 @@ def _path() -> Path:
 
 
 def _read_stored() -> dict[str, Any]:
-    return store.read_json(_path(), {})
+    stored = store.read_json(_path(), {})
+    if not isinstance(stored, dict):
+        raise store.CorruptStoreError(f"{_path()} must contain a JSON object")
+    return stored
+
+
+def verify_readable() -> None:
+    """Fail fast at startup when settings.json exists but doesn't parse.
+
+    Deliberately *not* a fall back to an empty dict: `auth.password_set()` reads
+    `admin_password_hash` from here, and `POST /api/auth/setup` is public and only
+    refuses once a hash exists — so a silent default would re-open first-run setup on a
+    configured install, and the first write would clobber every other stored key.
+    Raises `store.CorruptStoreError` (naming the path) — startup then aborts.
+    """
+    _read_stored()
 
 
 def _write_stored(data: dict[str, Any]) -> None:

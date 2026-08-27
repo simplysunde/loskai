@@ -11,6 +11,7 @@ entry (safe to delete) from a *manual* entry on the same domain (leave + warn).
 The orchestration functions apply a plan through the client.
 """
 
+import logging
 from dataclasses import dataclass, field
 
 import httpx
@@ -18,6 +19,8 @@ import httpx
 from ...shared import instances as instances_store
 from ...shared.instances import Instance
 from .client import AdGuardClient, AdGuardError, describe_error
+
+logger = logging.getLogger(__name__)
 
 
 def rewrite_domain(instance: Instance, base_domain: str) -> str:
@@ -257,21 +260,30 @@ async def reconcile(
             added.append(domain)
             ensured.add(domain)
         except (httpx.HTTPError, AdGuardError) as exc:
+            logger.warning(
+                "reconcile: add %s -> %s failed: %s", domain, answer, describe_error(exc)
+            )
             errors.append({"domain": domain, "op": "add", "detail": describe_error(exc)})
 
     for domain, answer in plan.deletes:
         try:
             await client.delete_rewrite(domain, answer)  # best-effort
             deleted.append(domain)
-        except (httpx.HTTPError, AdGuardError):
-            pass  # may already be gone — harmless
+        except (httpx.HTTPError, AdGuardError) as exc:
+            # May already be gone — harmless, but not silent: an unreported miss here is
+            # exactly how a stale rewrite outlives the route it belonged to.
+            logger.warning(
+                "reconcile: delete %s -> %s failed: %s", domain, answer, describe_error(exc)
+            )
 
     for domain, answer in plan.sweeps:
         try:
             await client.delete_rewrite(domain, answer)  # best-effort
             swept.append(domain)
-        except (httpx.HTTPError, AdGuardError):
-            pass
+        except (httpx.HTTPError, AdGuardError) as exc:
+            logger.warning(
+                "reconcile: sweep %s -> %s failed: %s", domain, answer, describe_error(exc)
+            )
 
     # Persist dns_answer for instances whose name now resolves to their target.
     for inst in routed:

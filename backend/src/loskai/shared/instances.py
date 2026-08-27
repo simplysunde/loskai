@@ -6,14 +6,17 @@ A Docker container and an external LAN service are the same struct with a differ
 read live from the Docker socket and joined at display time via `container`.
 """
 
+import logging
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from ..config import settings
 from . import store
+
+logger = logging.getLogger(__name__)
 
 
 class Instance(BaseModel):
@@ -36,7 +39,25 @@ def _path() -> Path:
 
 
 def list_instances() -> list[Instance]:
-    return [Instance(**item) for item in store.read_json(_path(), [])]
+    """Records that don't parse are logged and skipped.
+
+    Unlike settings.json (which fails startup — see `settings.verify_readable`), this
+    file carries display state only, so one hand-edited row must not take the app down.
+    A *file*-level parse error still raises `store.CorruptStoreError`: an unreadable
+    file is not an empty one, and returning [] would let the next write erase it.
+    """
+    raw = store.read_json(_path(), [])
+    if not isinstance(raw, list):
+        raise store.CorruptStoreError(f"{_path()} must contain a JSON array")
+    records: list[Instance] = []
+    for item in raw:
+        try:
+            records.append(Instance(**item))
+        except (ValidationError, TypeError) as exc:
+            logger.warning(
+                "skipping unreadable record in %s: %s (record: %r)", _path(), exc, item
+            )
+    return records
 
 
 def _save(instances: list[Instance]) -> None:
