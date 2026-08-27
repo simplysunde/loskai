@@ -5,12 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 1–11 in `TODO.md` are done;
-Phase 12 (internal-CA trust-onboarding fixes) is in progress — check `TODO.md` for the
-current unchecked items before assuming something is missing. The authoritative sources are:
+`backend/` and `frontend/` are real, working code. Phases 1–14 are done; Phase 15 (audit
+cleanup) is the live one — check `TODO.md` for the current unchecked items before assuming
+something is missing. The authoritative sources are:
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
-- **`TODO.md`** — the authoritative build order (phased checklist) and current work-in-progress.
+- **`TODO.md`** — the live phase + backlog. Completed phases 1–13 moved to
+  `docs/todo-archive.md` (2026-08-27); look there for how a finished thing was built.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/*.md`** — API contracts. Read the relevant one before touching that integration:
@@ -92,4 +93,5 @@ must replay except the AdGuard password; its *own* admin password is stored only
 ## Module build order
 
 Caddy → AdGuard → WireGuard → Docker (Docker is the most complex, built last). Tiers 1–2
-tests are written *alongside* each module (see `TODO.md` Phase 8b for the full test strategy).
+tests are written *alongside* each module (see `docs/todo-archive.md` Phase 8b for the full
+test strategy).
