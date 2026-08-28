@@ -27,6 +27,9 @@ clobber whatever else was in there. `instances.json` skips and logs the unreadab
 *record*, since it carries display state only; but a whole-file parse error still raises,
 because reading an unparseable file as `[]` would let the next upsert erase every route.
 Forgejo's `app.ini` (hand-editable, refuses to boot when malformed) was the model.
+The atomic write was also missing an `fsync` before its rename, so a power cut could
+commit the rename with the data still in cache — the one way the app could produce a
+zero-length file on its own rather than being handed one.
 
 **The backend had no logging at all** — zero `logging` imports across the whole app. The
 best-effort AdGuard half of assign and a bare `pass` on a failed stale-rewrite delete were

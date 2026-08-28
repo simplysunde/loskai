@@ -41,6 +41,13 @@ def write_json(path: str | Path, data: Any) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
             f.write("\n")
+            # Get the bytes on disk *before* the rename. Without this, a power cut can
+            # commit the rename while the data blocks are still in cache, leaving a
+            # zero-length file that refuses to parse. Not fsyncing the directory too is
+            # deliberate: that would only make the newest write survive a crash, and
+            # losing one settings change is fine — losing the file is not.
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, p)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
