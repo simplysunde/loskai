@@ -9,8 +9,18 @@ a `tmp_path` without touching real paths.
 import json
 import os
 import tempfile
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+# Serialises every read-modify-write below. Writers rewrite the whole file, so two
+# interleaved cycles silently discard one side's change — and the writers span both
+# execution contexts FastAPI uses: sync handlers in the threadpool (PUT /api/settings,
+# PATCH /api/instances) and async ones on the event loop (assign, reconcile). That rules
+# out an asyncio lock. Reads stay lock-free: the atomic rename in write_json means a
+# reader sees the whole old file or the whole new one, never a mix.
+_write_lock = threading.Lock()
 
 
 class CorruptStoreError(RuntimeError):
@@ -52,3 +62,16 @@ def write_json(path: str | Path, data: Any) -> None:
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+
+
+def update_json(path: str | Path, default: Any, mutate: Callable[[Any], Any]) -> Any:
+    """Read → mutate → write as one unit. The only supported way to change a store file.
+
+    `mutate` receives the parsed contents (or `default` when the file is absent) and
+    returns what to write. It must stay pure and must not touch the store itself — it
+    runs holding `_write_lock`, which is not re-entrant.
+    """
+    with _write_lock:
+        data = mutate(read_json(path, default))
+        write_json(path, data)
+        return data

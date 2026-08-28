@@ -29,7 +29,12 @@ because reading an unparseable file as `[]` would let the next upsert erase ever
 Forgejo's `app.ini` (hand-editable, refuses to boot when malformed) was the model.
 The atomic write was also missing an `fsync` before its rename, so a power cut could
 commit the rename with the data still in cache — the one way the app could produce a
-zero-length file on its own rather than being handed one.
+zero-length file on its own rather than being handed one. And every writer rewrote the
+whole file after a separate read, from *both* contexts FastAPI runs handlers in, so two
+overlapping saves discarded one side's change; `store.update_json()` now serialises them
+under a `threading.Lock` and is the only remaining write path. The costly case there was
+never settings — it was a dropped instance record, which leaves a Caddy route and a DNS
+rewrite live but with nothing left in the store to manage them from.
 
 **The backend had no logging at all** — zero `logging` imports across the whole app. The
 best-effort AdGuard half of assign and a bare `pass` on a failed stale-rewrite delete were

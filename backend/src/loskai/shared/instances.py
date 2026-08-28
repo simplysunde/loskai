@@ -7,8 +7,9 @@ read live from the Docker socket and joined at display time via `container`.
 """
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ValidationError
@@ -38,15 +39,14 @@ def _path() -> Path:
     return Path(settings.data_dir) / "instances.json"
 
 
-def list_instances() -> list[Instance]:
-    """Records that don't parse are logged and skipped.
+def _records(raw: Any) -> list[Instance]:
+    """Parse the stored array. Records that don't parse are logged and skipped.
 
     Unlike settings.json (which fails startup — see `settings.verify_readable`), this
     file carries display state only, so one hand-edited row must not take the app down.
     A *file*-level parse error still raises `store.CorruptStoreError`: an unreadable
     file is not an empty one, and returning [] would let the next write erase it.
     """
-    raw = store.read_json(_path(), [])
     if not isinstance(raw, list):
         raise store.CorruptStoreError(f"{_path()} must contain a JSON array")
     records: list[Instance] = []
@@ -60,8 +60,17 @@ def list_instances() -> list[Instance]:
     return records
 
 
-def _save(instances: list[Instance]) -> None:
-    store.write_json(_path(), [i.model_dump() for i in instances])
+def list_instances() -> list[Instance]:
+    return _records(store.read_json(_path(), []))
+
+
+def _update(mutate: Callable[[list[Instance]], list[Instance]]) -> None:
+    """The one write path for instances.json — read-modify-write under the store lock.
+    Without it, an assign or reconcile on the event loop and a PATCH in the threadpool
+    can each write back a list missing the other's record."""
+    store.update_json(
+        _path(), [], lambda raw: [i.model_dump() for i in mutate(_records(raw))]
+    )
 
 
 def get_instance(instance_id: str) -> Instance | None:
@@ -82,24 +91,29 @@ def get_by_origin(origin: str) -> Instance | None:
 
 def upsert_instance(instance: Instance) -> Instance:
     """Insert or replace by `id` — the one write path (create and edit converge here)."""
-    instances = list_instances()
-    for idx, existing in enumerate(instances):
-        if existing.id == instance.id:
-            instances[idx] = instance
-            break
-    else:
-        instances.append(instance)
-    _save(instances)
+
+    def replace(instances: list[Instance]) -> list[Instance]:
+        for idx, existing in enumerate(instances):
+            if existing.id == instance.id:
+                instances[idx] = instance
+                return instances
+        return [*instances, instance]
+
+    _update(replace)
     return instance
 
 
 def delete_instance(instance_id: str) -> bool:
-    instances = list_instances()
-    remaining = [i for i in instances if i.id != instance_id]
-    if len(remaining) == len(instances):
-        return False
-    _save(remaining)
-    return True
+    deleted = False
+
+    def remove(instances: list[Instance]) -> list[Instance]:
+        nonlocal deleted
+        remaining = [i for i in instances if i.id != instance_id]
+        deleted = len(remaining) != len(instances)
+        return remaining
+
+    _update(remove)
+    return deleted
 
 
 def list_routed() -> list[Instance]:

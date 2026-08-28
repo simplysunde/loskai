@@ -6,6 +6,7 @@ env-set values read-only. The admin password is stored only as a hash and is nev
 returned by the settings API.
 """
 
+from collections.abc import Callable
 from ipaddress import ip_address
 from pathlib import Path
 from typing import Any, Literal
@@ -38,11 +39,14 @@ def _path() -> Path:
     return Path(env.data_dir) / "settings.json"
 
 
-def _read_stored() -> dict[str, Any]:
-    stored = store.read_json(_path(), {})
-    if not isinstance(stored, dict):
+def _as_object(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
         raise store.CorruptStoreError(f"{_path()} must contain a JSON object")
-    return stored
+    return raw
+
+
+def _read_stored() -> dict[str, Any]:
+    return _as_object(store.read_json(_path(), {}))
 
 
 def verify_readable() -> None:
@@ -57,8 +61,10 @@ def verify_readable() -> None:
     _read_stored()
 
 
-def _write_stored(data: dict[str, Any]) -> None:
-    store.write_json(_path(), data)
+def _update_stored(mutate: Callable[[dict[str, Any]], dict[str, Any]]) -> None:
+    """The one write path for settings.json — read-modify-write under the store lock, so
+    two saves in flight can't each write back a dict missing the other's key."""
+    store.update_json(_path(), {}, lambda raw: mutate(_as_object(raw)))
 
 
 def _resolve(key: str, stored: dict[str, Any]) -> tuple[Any, Source]:
@@ -116,18 +122,21 @@ def _validate(key: str, val: Any) -> None:
 
 def update(payload: dict[str, Any]) -> dict[str, Any]:
     """Persist stored settings. Env-sourced and non-configurable keys are ignored."""
-    stored = _read_stored()
-    for key, val in payload.items():
-        if key not in CONFIGURABLE_KEYS:
-            continue
-        if _resolve(key, stored)[1] == "env":
-            continue  # env wins — never override from the UI
-        if val in (None, ""):
-            stored.pop(key, None)
-        else:
-            _validate(key, val)
-            stored[key] = val
-    _write_stored(stored)
+
+    def apply(stored: dict[str, Any]) -> dict[str, Any]:
+        for key, val in payload.items():
+            if key not in CONFIGURABLE_KEYS:
+                continue
+            if _resolve(key, stored)[1] == "env":
+                continue  # env wins — never override from the UI
+            if val in (None, ""):
+                stored.pop(key, None)
+            else:
+                _validate(key, val)  # raises before anything is written
+                stored[key] = val
+        return stored
+
+    _update_stored(apply)
     return get_view()
 
 
@@ -139,9 +148,7 @@ def admin_password_hash() -> str | None:
 
 
 def set_admin_password_hash(hashed: str) -> None:
-    stored = _read_stored()
-    stored["admin_password_hash"] = hashed
-    _write_stored(stored)
+    _update_stored(lambda stored: {**stored, "admin_password_hash": hashed})
 
 
 # --- Answer-IP derivation (used by the AdGuard rewrite / assign flow) ---

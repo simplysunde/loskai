@@ -214,16 +214,38 @@ was nothing left to branch around._
       it is what this phase cleans up after. `CLAUDE.md`'s project-state paragraph was updated
       in the same commit: it still claimed Phase 12 was in progress
 
+**Follow-ups — durability of the flat store** (2026-08-28, not part of the original 20
+findings; both surfaced from reviewing F5's blast radius)
+- [x] `write_json` renamed its temp file over the target without an `fsync`, so a power cut
+      could commit the rename with the data still in cache — a zero-length `settings.json`
+      that then refuses to boot. This was the only way the app could produce a corrupt store
+      file itself rather than being handed one by a hand-edit. The containing directory is
+      deliberately **not** fsynced: that only decides whether the newest write survives a
+      crash, and losing one settings change is fine where losing the file is not
+- [x] Every writer rewrote the whole file after a separate read, and the writers span both
+      execution contexts FastAPI uses — sync handlers in the threadpool (`PUT /api/settings`,
+      `PATCH /api/instances`) and async ones on the event loop (assign, reconcile) — so two
+      overlapping cycles silently discarded one side's change. A settings key reverting in the
+      UI is annoying; a dropped **instance record** leaves its Caddy route + DNS rewrite live
+      but unmanageable, since `instances.json` is the spine both are rebuilt from. Fixed with
+      `store.update_json()` (read → mutate → write under one `threading.Lock`, which is what
+      the two-context split rules an `asyncio.Lock` out of); `_save`/`_write_stored` are gone,
+      so no unlocked write path is left to add a caller to. Reads stay lock-free — the atomic
+      rename already gives a reader the whole old file or the whole new one. **Single-process
+      only:** adding `--workers` to the image's `CMD` would need `flock` instead
+
 **Verification (each stage a commit that leaves the repo working)**
 - [x] Frontend: `tsc -b`, `oxlint`, `vite build`, `vitest run` — note the sandbox needs
       `export PATH="/home/sunde.guest/.local/node/bin:$PATH"` and direct entrypoints
       (`node ./node_modules/vitest/vitest.mjs run`), since the `.bin` shims are blocked
 - [ ] **Backend: `uv run pytest` — NOT RUN.** The sandbox couldn't reach the venv at all this
       session (`failed to canonicalize .../backend/.venv/bin/python3: Operation not permitted`,
-      with and without the sandbox), so the three new/extended test files
-      (`test_health_registry.py`, `test_store_corruption.py`, `test_settings.py`) have never
-      executed. Only `python3 -m py_compile` was run over `backend/src` + the new tests. **Run
-      this first.**
+      with and without the sandbox), so the four new/extended test files
+      (`test_health_registry.py`, `test_store_corruption.py`, `test_store_concurrency.py`,
+      `test_settings.py`) have never executed under pytest. Only `python3 -m py_compile` was
+      run over `backend/src` + the new tests. `store.py` is stdlib-only, so the lock and the
+      atomic write *were* exercised directly with real threads outside pytest (both keys
+      survive with the lock; one is lost with it removed). **Run pytest first.**
 - [ ] **Live smoke (user):** Add route rejects/normalises a typed capital (F2); a mistyped URL
       shows the NotFound pane (F3); Settings > General saves on blur with no Save button (F6);
       a deliberately corrupted `settings.json` refuses startup with the path in the message,
