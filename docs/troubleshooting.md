@@ -39,9 +39,17 @@ Use the **Docker host's LAN IP + the container's published host port** (e.g.
 > auto-fills this `<host_ip>:<published-port>` when you route a container — no need to type it
 > per service. (A container published to a *specific* IP is detected automatically.)
 
-> In the **all-in-Docker** (co-located) layout it's the opposite — Caddy shares the Docker
-> network, so a `name:port` like `grafana:3000` is correct. Loskai's Add-Route hint follows
-> the detected mode (LAN IP vs Docker name); trust the hint for your topology.
+> **When Caddy itself runs as a container**, a `name:port` upstream resolves **only** for
+> containers on a Docker network Caddy is actually attached to. Compose isolates every project
+> on its own `<project>_default`, so Caddy reaches the containers in *its own* compose file and
+> not the stacks Loskai manages — those are separate projects. For a managed stack, either use
+> the Docker host's LAN IP + published port as above, or attach Caddy and the target to a
+> shared network yourself.
+>
+> Loskai's Add-Route hint infers this from whether `CADDY_ADMIN_URL` is an IP or a hostname, so
+> in these layouts it can suggest a `name:port` that doesn't resolve (`TODO.md` Phase 16 replaces
+> the guess with real network detection). Until then, confirm with the test below rather than
+> trusting the hint. See [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable).
 
 **The decisive test** — run it *from inside the Caddy LXC*; it separates config from plumbing:
 
