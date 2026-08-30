@@ -267,6 +267,12 @@ is **not** closed: the backend suite and the live smoke list above are outstandi
   owned domain for now. Precondition when revisited: DNS hosted somewhere with an API Caddy
   has a plugin for (one.com almost certainly isn't; a subdomain can be NS-delegated, or
   `_acme-challenge` CNAME'd to an acme-dns instance, without moving the registrar)
+- **Store read amplification** (twin of Phase 15's deferred F12, noted 2026-08-29): every
+  `get_instance` / `get_by_container` / `get_by_origin` / `list_routed` re-reads and re-parses
+  the whole `instances.json`, so one assign reads the file several times over — ten call sites
+  app-wide, six inside `instances.py` itself. Same shape as F12's per-key `settings.json`
+  reads. A request-scoped read is the fix; changing the *storage format* is not (JSON is the
+  right choice while the app is the writer and the file stays a human-readable recovery record)
 - Tier-3 integration rig + Forgejo CI (Phase 8b) — deferred by choice
 - `CertStatus.tsx` cert expiry (Phase 3) — under the internal CA this is readable from
   Caddy's PKI endpoints; TLS probe stays the method-independent approach
