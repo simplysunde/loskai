@@ -3,7 +3,7 @@
 **Now:** Phase 15 — audit cleanup (below).
 **Next:** Phase 16 — support all four deployment topologies (below).
 **Also queued:** Phase 17 — documentation restructure (below); independent of 16.
-Phases 1–13 are complete and live in [`docs/todo-archive.md`](docs/todo-archive.md);
+Phases 1–13 are complete and live in [`docs/todo-archive.md`](todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
 
 ---
@@ -266,7 +266,7 @@ is **not** closed: the backend suite and the live smoke list above are outstandi
 _Origin (2026-08-30): a review of what Loskai can actually be deployed onto, prompted by the
 question "would AdGuard separate + Caddy & Loskai in one Docker stack be better than the
 current two options?". Comparing the layouts on **port ownership** produced
-[`docs/topologies.md`](docs/topologies.md) (landed with this phase write-up) and surfaced one
+[`docs/topologies.md`](docs/guides/topologies.md) (landed with this phase write-up) and surfaced one
 real defect. Two layouts ship today (A split-LXC, B all-in-Docker); two are wanted (C split
 DNS, D single all-in-one container)._
 
@@ -326,10 +326,10 @@ for no port benefit at all. Stage A is load-bearing for every other stage and la
 - [ ] Declare a shared `loskai-edge` network Caddy attaches to, so a managed stack can join it
       and be routed **without publishing a host port** — the one capability no other layout has
 - [ ] Document joining a stack to `loskai-edge` (external network stanza) in
-      [`docs/topologies.md`](docs/topologies.md) and [`docs/migration.md`](docs/migration.md);
+      [`docs/topologies.md`](docs/guides/topologies.md) and [`docs/migration.md`](docs/guides/migration.md);
       consider surfacing "joined to the edge network" in the Docker tab
 - [ ] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
-- [ ] [`docs/install.md`](docs/install.md) currently walks through layout A only. Since C is
+- [ ] [`docs/install.md`](docs/guides/install.md) currently walks through layout A only. Since C is
       the recommended path for anyone without Proxmox, it needs its own walkthrough —
       AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1
 

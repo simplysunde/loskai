@@ -1,8 +1,8 @@
 # Authoring a `create-<service>-lxc.sh` script
 
 A reference for writing new Proxmox LXC provisioning scripts in the style of
-[`scripts/create-adguard-lxc.sh`](../scripts/create-adguard-lxc.sh) and
-[`scripts/create-caddy-lxc.sh`](../scripts/create-caddy-lxc.sh). Use it when a service
+[`scripts/create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) and
+[`scripts/create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh). Use it when a service
 should run **natively in its own LXC** rather than as a Docker container (LAN DNS, a TLS
 proxy, a VPN endpoint — anything you want isolated from the Docker host or surviving a
 Docker rebuild).
@@ -260,7 +260,7 @@ NEXT
 - [ ] "Next steps" footer reports the IP + firewall + the Loskai env var.
 - [ ] Header comment documents purpose, run command, and env overrides.
 - [ ] `bash -n scripts/create-<service>-lxc.sh` passes.
-- [ ] Added to [`docs/install.md`](install.md) if it's part of the standard setup.
+- [ ] Added to [`docs/install.md`](../guides/install.md) if it's part of the standard setup.
 
 ---
 

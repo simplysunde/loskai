@@ -109,7 +109,7 @@ assign must be reachable **from inside the Caddy container**:
 Caddy serves an internal cert, so the browser will warn it's untrusted (expected). To make
 it trusted, open the **certificate onboarding page** at <http://localhost:8081/> — it
 detects your OS and walks you through installing Caddy's root CA. See
-[certificate-setup.md](certificate-setup.md).
+[certificate-setup.md](../guides/certificate-setup.md).
 
 Or extract the dev root CA by hand and import it into your browser's Authorities:
 
@@ -134,7 +134,7 @@ To use this for real on your LAN:
 
 1. **TLS.** By default production uses the same internal CA as dev — deploy the production
    `compose.yml` / `compose.colocated.yml` (or the LXC script) and install Caddy's root on
-   each device once via the [onboarding page](certificate-setup.md). *(Future option: swap
+   each device once via the [onboarding page](../guides/certificate-setup.md). *(Future option: swap
    to a real domain + public `*.BASE_DOMAIN` cert via DNS challenge — then Caddy also needs
    `BASE_DOMAIN` and the DNS-provider token in its own env, agreeing with Loskai's.)*
 2. **Publish AdGuard's DNS port** (`:53`) on the LAN and free the host resolver if needed.

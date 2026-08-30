@@ -54,7 +54,7 @@ LAN IP for every proxy rewrite. Because it is served to other machines it must b
 one box.
 
 For a **`dns_only`** instance (no Caddy involved — see PLAN.md's
-["DNS-only routing"](../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), there is
+["DNS-only routing"](../../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), there is
 no reverse proxy to point at: `answer` is that instance's own `upstream`, which is itself a
 bare IP (not `host:port`). Each `dns_only` instance can have a *different* answer — the
 "one shared value" rule above only ever applied to proxy instances.

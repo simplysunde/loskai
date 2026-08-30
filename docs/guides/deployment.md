@@ -4,7 +4,7 @@ Loskai ships as a single image: one FastAPI process serves the API **and** the b
 React UI on **:8080**. This doc is the reference for deploying it — the environment
 variables it reads, the volumes it needs, and the two supported layouts. For a local dev
 setup (Loskai on the host via `uv` + Vite, throwaway Caddy/AdGuard containers), see
-[dev-testing.md](dev-testing.md) instead.
+[dev-testing.md](../contributing/dev-testing.md) instead.
 
 ## Quick start
 
@@ -24,8 +24,8 @@ Two compose files, same image:
 - **`compose.yml` — recommended with Proxmox.** Loskai runs on the Docker host; Caddy and
   AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
   down), reached over the LAN. Provision them with
-  [`scripts/create-caddy-lxc.sh`](../scripts/create-caddy-lxc.sh) and
-  [`scripts/create-adguard-lxc.sh`](../scripts/create-adguard-lxc.sh) (run from the Proxmox
+  [`scripts/create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh) and
+  [`scripts/create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) (run from the Proxmox
   shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
 - **`compose.colocated.yml` — all-in-Docker.** Loskai + Caddy + AdGuard as containers on
   one host, with no second machine at all. Supported, but see the recommendation below.

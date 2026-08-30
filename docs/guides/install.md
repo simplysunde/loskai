@@ -70,7 +70,7 @@ token). It carries no routes; Loskai pushes them at runtime.
 > **You don't set your domain here.** In internal-CA mode Caddy signs each name on demand and
 > never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3). For public certs
 > instead, run with `TLS_MODE=acme BASE_DOMAIN=example.no` + a `caddy-dns` plugin (only that
-> mode needs the domain here); see the header of [`create-caddy-lxc.sh`](../scripts/create-caddy-lxc.sh).
+> mode needs the domain here); see the header of [`create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh).
 
 Then:
 
@@ -126,7 +126,7 @@ docker compose up -d --build
    that's why you reached the UI by IP. Click **"Push all"** to seed routes and DNS rewrites.
 4. **Routing** tab → **Add route** to assign your first `https://service.example.no`.
 
-To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../README.md#updating)).
+To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../../README.md#updating)).
 
 ---
 

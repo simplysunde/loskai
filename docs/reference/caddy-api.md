@@ -17,7 +17,7 @@ block; each route is an independent sibling matching a single host. This is what
 `@id` endpoints below idempotent — one `@id`, one route, add/replace/delete by that key.
 
 The server name (`srv0` in a stock Caddyfile adaptation) is **discovered at startup**, not
-hardcoded — see [Server name discovery](#server-name-discovery).
+hardcoded — see [Discover the server name](#1-discover-the-server-name).
 
 ---
 
@@ -96,7 +96,7 @@ Rebuilds the full route set from Loskai's instance list. Two equivalent strategi
   `route_mode: "proxy"`. Idempotent by `@id` — re-pushing an existing route replaces it
   rather than duplicating. A `dns_only` instance has a subdomain but is skipped entirely —
   it never has a Caddy route to begin with (see PLAN.md's
-  ["DNS-only routing"](../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), which
+  ["DNS-only routing"](../../PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), which
   is also why it never appears in `GET .../routes` / the raw config below.
 - **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
   everything at once. Prefer the per-route loop so any human-added route with a non-instance

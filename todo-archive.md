@@ -1,6 +1,6 @@
 # Loskai — TODO archive
 
-Completed phases, moved out of [`TODO.md`](../TODO.md) on 2026-08-27 (Phase 15, D1) to
+Completed phases, moved out of [`TODO.md`](TODO.md) on 2026-08-27 (Phase 15, D1) to
 keep the file that is read at every session start small. Nothing here is live work — it is
 the checklist as it was ticked off, kept because several items record *why* a thing was
 built the way it was. `HISTORY.md` remains the narrative record; this is the checklist.
@@ -102,7 +102,7 @@ built the way it was. `HISTORY.md` remains the narrative record; this is the che
 ---
 
 ## Phase 4 — AdGuard Module
-_Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
+_Contract: [docs/adguard-api.md](docs/reference/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
 **Backend**
 - [x] `modules/adguard/client.py` — async httpx wrapper for AdGuard `/control` API (Basic Auth)
   - `health()` — `GET /control/status`, reachable + `running`
@@ -196,7 +196,7 @@ _Contract: [docs/adguard-api.md](docs/adguard-api.md). Explicit per-instance rew
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
-- [x] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/recipe-schema.md) (authored by hand/AI, no authoring UI)
+- [x] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/reference/recipe-schema.md) (authored by hand/AI, no authoring UI)
   - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/loskai/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
   - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
