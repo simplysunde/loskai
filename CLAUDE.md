@@ -6,17 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 1–14 are done; Phase 15 (audit
-cleanup) is the live one — check `TODO.md` for the current unchecked items before assuming
-something is missing. The authoritative sources are:
+cleanup) is the live one, with 16 (deployment topologies) and 17 (this doc restructure)
+queued — check `TODO.md` for the current unchecked items before assuming something is
+missing. The authoritative sources are:
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases 1–13 moved to
-  `docs/todo-archive.md` (2026-08-27); look there for how a finished thing was built.
+  `todo-archive.md` at the repo root (2026-08-27); look there for how a finished thing was built.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
-- **`docs/*.md`** — API contracts. Read the relevant one before touching that integration:
-  `caddy-api.md`, `adguard-api.md` (external API subsets Loskai calls), `recipe-schema.md`
-  (the install-wizard manifest format), `migration.md`.
+- **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
+  Start there when you don't know which page you need.
+
+### Which doc answers which question
+
+- **`docs/reference/`** — contracts. Read the relevant one **before** touching that
+  integration; each documents constraints that are not obvious from the code.
+  `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
+  `api.md` is Loskai's own 36 routes; `recipe-schema.md` is the install-wizard manifest.
+- **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
+  deployment layout (A split-LXC · B all-in-Docker · C split DNS · D single container; only
+  **A and C are recommended**). `deployment.md` is the env-var/volume reference,
+  `install.md` the walkthrough, `certificate-setup.md` the internal-CA onboarding,
+  `migration.md` stack adoption, `troubleshooting.md` symptom-indexed triage.
+- **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
+  (adding a `create-<service>-lxc.sh`).
+
+Facts about an external API belong in `docs/reference/`; if a guide and a reference page
+disagree, the reference page wins. Topology facts belong in `guides/topologies.md` — that
+duplication is what Phase 17 removed.
 
 ## Commands
 

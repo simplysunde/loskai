@@ -6,7 +6,8 @@ DNS down. You end up with clean `https://service.yourdomain` names, assigned fro
 
 Do the steps in order — Loskai needs both LXCs reachable, so build them first.
 
-> No Proxmox? Skip to [All-in-Docker](#alternative-all-in-docker) at the bottom.
+> No Proxmox? See [No Proxmox?](#no-proxmox) at the bottom for the recommended layout
+> and what is runnable today.
 
 ---
 
@@ -130,13 +131,20 @@ To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../../REA
 
 ---
 
-## Alternative: all-in-Docker
+## No Proxmox?
 
-No Proxmox? Run Loskai, Caddy, and AdGuard as three containers with `compose.colocated.yml`:
+This guide covers layout **A** (two LXCs), which is the recommendation *if you run Proxmox*.
+Without it, the recommended layout is **C — split DNS**: AdGuard on any small always-on box
+(a Raspberry Pi is ideal), with Caddy and Loskai together in Docker on your main host.
+Layout C is not shipping yet (see `TODO.md` Phase 16), so today the runnable non-Proxmox
+option is **B, all-in-Docker**: Loskai, Caddy and AdGuard as three containers via
+`compose.colocated.yml`.
 
 - Set `CADDY_HOST_IP` to the host's LAN IP (Caddy's admin URL is a hostname here, so the
   answer IP can't be derived).
 - Mind the ports — free `:53` from `systemd-resolved`, keep AdGuard off `80`/`443`.
+- Steps 3–4 are otherwise the same
+  (`COMPOSE_FILE=compose.colocated.yml bash scripts/deploy.sh` to update).
 
-Full port notes: [deployment.md](deployment.md#layouts). Steps 3–4 are otherwise the same
-(`COMPOSE_FILE=compose.colocated.yml bash scripts/deploy.sh` to update).
+Before committing to a layout, read [topologies.md](topologies.md#which-one-should-i-run) —
+it compares all four on port ownership and explains why B is supported but not recommended.

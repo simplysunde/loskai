@@ -1053,37 +1053,18 @@ siblings reusing the same internal cert.
 
 ## Alternative Setups
 
-The preferred setup runs Caddy and AdGuard as two separate native LXCs. Two simpler
-alternatives exist and will have their own install instructions:
+The preferred setup runs Caddy and AdGuard as two separate native LXCs (layout **A**). Three
+alternatives exist, differing in how many machines they use and which ports end up contested:
+**B** all-in-Docker, **C** split DNS (AdGuard on its own small box, Caddy + Loskai together in
+Docker), and **D** a single all-in-one container.
 
-- **Co-located (all-in-Docker)** — Caddy *and* AdGuard run as Docker containers on the
-  Docker host alongside Loskai (`compose.colocated.yml`), for setups without the separate
-  network-services LXCs. The Tier-3 test rig is a disposable variant of this same stack.
-- **All-in-one** — AdGuard, Caddy, and Loskai all on a single LXC (native services on one box)
+**Only A and C are recommended** — A wherever Proxmox is available, C everywhere else.
 
-### Co-located port notes
-
-The three Loskai services do **not** conflict with each other — Docker containers only
-contend for ports they *publish to the host*, and container-to-container traffic (Loskai →
-`caddy:2019`, Loskai → `adguard:3000`) stays on the internal network. The only conflicts
-are with the **host OS**, and there are two:
-
-| Service | Host-published | Internal-only |
-|---|---|---|
-| Caddy | `80`, `443` (entry point) | `2019` (admin — Loskai reaches it as `caddy:2019`) |
-| AdGuard | `53/tcp+udp` (DNS) | `3000` (UI/API — via `adguard:3000` or proxied through Caddy) |
-| Loskai | `8080` (optional — usually reached through Caddy) | — |
-
-1. **AdGuard `:53` vs the host resolver.** Most Linux hosts run `systemd-resolved` on port
-   53, so AdGuard can't bind it. Free port 53 (disable/reconfigure `systemd-resolved`) or
-   bind AdGuard's 53 to a specific host IP. This is the classic AdGuard-in-Docker gotcha.
-2. **Keep AdGuard off `80`/`443`.** AdGuard's admin defaults to `:3000` (fine), but don't
-   point its setup at 80/443 or enable DNS-over-HTTPS on 443 — those belong to Caddy. Let
-   Caddy terminate TLS and reverse-proxy the AdGuard UI instead.
-
-In this mode `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so the DNS-rewrite answer
-IP comes from **`CADDY_HOST_IP`** — the Docker host's LAN IP, which is where Caddy's published
-`:443` actually lives for LAN clients. (This is exactly the case `CADDY_HOST_IP` exists for.)
+The full comparison — which ports each layout contests, which admin channels it leaves on the
+LAN, and the reasoning behind that recommendation — is
+[docs/guides/topologies.md](docs/guides/topologies.md). It is the single source of truth for
+topology; this section deliberately carries only the summary, because the same port table
+previously lived here, in `deployment.md` and in `topologies.md`, and the copies drifted.
 
 ---
 
@@ -1218,7 +1199,7 @@ TODO.md is the authoritative source for what to build and in what order.
 | AdGuard LXC down | DNS stops resolving | `1.1.1.1` fallback configured manually in wg-dashboard peer DNS; AdGuard module shows unreachable |
 | Caddy crashes | HTTPS stops | Caddy runs as a systemd service on its own LXC — auto-restarts with `--resume`, restoring all routes from its autosave with no action needed; "Sync" rebuilds from `instances.json` only if the autosave itself is lost |
 | Loskai container crashes | Can't manage; all services keep running | `restart: unless-stopped`; Caddy + AdGuard are unaffected |
-| Docker host reboots | Brief outage on LXC 103 | `restart: unless-stopped` on all containers |
+| Docker host reboots | Loskai and every managed container restart; under layout A, DNS and HTTPS stay up throughout (Caddy and AdGuard are on their own boxes) | `restart: unless-stopped` on all containers |
 | WireGuard LXC down | Remote access lost; LAN still works | Separate LXC isolates blast radius |
 
 **Core property:** Loskai is never in the data path.

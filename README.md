@@ -73,15 +73,17 @@ serving the API and the built bundle together. That bundle is
 
 ## Documentation
 
-- [Install guide (start here)](docs/guides/install.md) — step-by-step for the preferred layout: AdGuard + Caddy LXCs on Proxmox, then Loskai in Docker.
-- [Certificate onboarding](docs/guides/certificate-setup.md) — why LAN devices see an untrusted-cert warning under the internal CA, and the onboarding page that hands out the root.
-- [Authoring an LXC provisioning script](docs/contributing/lxc-script-authoring.md) — the pattern, safety invariants, and a copy-paste skeleton for adding new `create-<service>-lxc.sh` scripts.
-- [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS/cert/VPN issues; the split-LXC upstream rule (use a LAN IP:port, not a container name).
-- [Deploying the container](docs/guides/deployment.md) — env-var reference, volumes and the same-path/`LOSKAI_DATA_DIR` coupling, the two layouts, and cold start.
-- [Deployment topologies and port ownership](docs/guides/topologies.md) — the four ways to lay AdGuard/Caddy/Loskai out across machines, which ports each layout contests, and which admin channels it leaves on the LAN.
-- [Running locally against Caddy + AdGuard containers](docs/contributing/dev-testing.md) — dev walkthrough.
-- [Loskai internal API](docs/reference/api.md) — the endpoints the frontend consumes (a human-readable overview of the live `/docs`).
-- [Migrating an existing project into a Loskai stack](docs/guides/migration.md) — how (and when) to adopt an existing Docker Compose project into the Stack Manager.
-- [Caddy Admin API endpoints Loskai uses](docs/reference/caddy-api.md) — the exact subset of the Caddy API the routing module calls, and why.
-- [AdGuard Home REST API endpoints Loskai uses](docs/reference/adguard-api.md) — the DNS-rewrite subset of the AdGuard API the DNS module calls, and why.
-- [Install-wizard recipe schema](docs/reference/recipe-schema.md) — the `recipe.yml` manifest format the Docker module validates, the recipe folder layout, and the raw-stack alternative.
+**[Full documentation index →](docs/README.md)** — grouped into guides, reference and
+contributing, each page labelled with when to read it.
+
+The four most people need:
+
+- [Install guide](docs/guides/install.md) — start here. Step by step for the recommended
+  Proxmox layout: AdGuard + Caddy LXCs, then Loskai in Docker.
+- [Topologies](docs/guides/topologies.md) — read *before* installing if you're unsure where
+  each piece should run. Compares the four layouts and recommends two.
+- [Deploying the container](docs/guides/deployment.md) — env vars, volumes, cold start.
+- [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS, certs, VPN.
+
+Architecture and direction live at the repo root: [`PLAN.md`](PLAN.md), [`TODO.md`](TODO.md),
+[`HISTORY.md`](HISTORY.md).

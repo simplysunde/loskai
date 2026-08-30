@@ -2,7 +2,7 @@
 
 **Now:** Phase 15 — audit cleanup (below).
 **Next:** Phase 16 — support all four deployment topologies (below).
-**Also queued:** Phase 17 — documentation restructure (below); independent of 16.
+Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
 Phases 1–13 are complete and live in [`docs/todo-archive.md`](todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
 
@@ -400,44 +400,52 @@ repo root beside `TODO.md`/`HISTORY.md`. Every move uses `git mv` so history fol
 2026-07-18 compose rename did._
 
 **Stage A — the move**
-- [ ] `git mv` into `docs/guides/` — `install`, `topologies`, `deployment`, `certificate-setup`,
+- [x] `git mv` into `docs/guides/` — `install`, `topologies`, `deployment`, `certificate-setup`,
       `migration`, `troubleshooting`
-- [ ] `git mv` into `docs/reference/` — `api`, `caddy-api`, `adguard-api`, `recipe-schema`
-- [ ] `git mv` into `docs/contributing/` — `dev-testing`, `lxc-script-authoring`
-- [ ] `git mv docs/todo-archive.md todo-archive.md`
-- [ ] Rewrite every cross-reference for the new depths (`../reference/x.md`, `../../PLAN.md`).
+- [x] `git mv` into `docs/reference/` — `api`, `caddy-api`, `adguard-api`, `recipe-schema`
+- [x] `git mv` into `docs/contributing/` — `dev-testing`, `lxc-script-authoring`
+- [x] `git mv docs/todo-archive.md todo-archive.md`
+- [x] Rewrite every cross-reference for the new depths (`../reference/x.md`, `../../PLAN.md`).
       ~40 links across 16 files, including `PLAN.md`, `TODO.md`, `HISTORY.md` and `README.md`
-- [ ] Fix the three pre-existing broken links found in the audit
+- [x] Fix the three pre-existing broken links found in the audit
 
 **Stage B — `docs/README.md`, the index**
-- [ ] Task-oriented entry points ("I want to install it" / "…route a service" / "…change the
+- [x] Task-oriented entry points ("I want to install it" / "…route a service" / "…change the
       code" / "…know what an endpoint returns") above the file listing — the wiki front page
-- [ ] One line per doc saying **when to read it**, not what it contains
-- [ ] Note which docs are contracts with external APIs (read before touching that integration)
+- [x] One line per doc saying **when to read it**, not what it contains
+- [x] Note which docs are contracts with external APIs (read before touching that integration)
       and which describe Loskai's own behaviour
 
 **Stage C — prune duplication and staleness**
-- [ ] `PLAN.md` "Alternative Setups" + "Co-located port notes" (`:1054`–`:1085`) → a short
+- [x] `PLAN.md` "Alternative Setups" + "Co-located port notes" (`:1054`–`:1085`) → a short
       pointer to `docs/guides/topologies.md`, which now carries the full four-way comparison
-- [ ] `PLAN.md:1057` — drop the fifth "all-in-one LXC" layout, or fold it into topologies.md as
+- [x] `PLAN.md:1057` — drop the fifth "all-in-one LXC" layout, or fold it into topologies.md as
       a documented variant. It is currently a loose end referenced nowhere else
-- [ ] `PLAN.md` — "Network tab" → Settings > Network (Phase 14); "LXC 103" → the current split
-- [ ] `docs/guides/install.md` "Alternative: all-in-Docker" — predates the A/C recommendation and
+- [x] `PLAN.md` — "Network tab" → Settings > Network (Phase 14); "LXC 103" → the current split
+- [x] `docs/guides/install.md` "Alternative: all-in-Docker" — predates the A/C recommendation and
       still frames all-in-Docker as *the* non-Proxmox answer
-- [ ] `docs/guides/deployment.md` "Co-located port notes" — keep the operational note, drop what
+- [x] `docs/guides/deployment.md` "Co-located port notes" — keep the operational note, drop what
       `topologies.md` now says better
 
 **Stage D — make the map usable by a fresh session**
-- [ ] `CLAUDE.md` — replace the 4-doc list with the new structure and point at `docs/README.md`
+- [x] `CLAUDE.md` — replace the 4-doc list with the new structure and point at `docs/README.md`
       as the entry point. This is what makes the restructure pay off for future sessions
-- [ ] `README.md` — the Documentation list becomes a short pointer to `docs/README.md` plus the
+- [x] `README.md` — the Documentation list becomes a short pointer to `docs/README.md` plus the
       three or four links a new user actually needs, not all 13
 
 **Verification**
-- [ ] Link + anchor checker clean across every `.md` (the audit's script, extended for the
+- [x] Link + anchor checker clean across every `.md` (the audit's script, extended for the
       nested depths)
-- [ ] `git log --follow` resolves through each move
-- [ ] Every doc reachable from `docs/README.md`; no orphans
+- [x] `git log --follow` resolves through each move
+- [x] Every doc reachable from `docs/README.md`; no orphans
+
+**Phase 17 landed 2026-08-30** (three commits). 13 docs moved into `guides/` · `reference/` ·
+`contributing/` with `git mv`; 40 cross-references rewritten; `docs/README.md` added as the
+index. Link + anchor checker reports **0 broken** across all 17 markdown files, all 13 docs are
+reachable from the index with no orphans, and `git log --follow` resolves through every move
+(`todo-archive.md` keeps 72 commits of history). Four broken links fixed along the way — the
+three the audit found, plus one `#alternative-all-in-docker` self-link the checker caught after
+`install.md`'s heading was renamed.
 
 ---
 

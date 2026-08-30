@@ -45,8 +45,9 @@ why — is in [topologies.md](topologies.md).
 
 ### Co-located port notes
 
-Only host-published ports can conflict; container-to-container traffic stays internal.
-See [topologies.md](topologies.md#the-comparison) for the same analysis across every layout.
+Two host-port conflicts to clear before `up -d` in the all-in-Docker layout. For *why* these
+are the only two, and which ports each of the four layouts contests, see
+[topologies.md](topologies.md#the-comparison).
 
 - **AdGuard `:53` vs the host resolver** — most Linux hosts run `systemd-resolved` on `53`.
   Free it (disable/reconfigure `systemd-resolved`) or bind AdGuard's `53` to a host IP.

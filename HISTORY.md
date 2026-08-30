@@ -1,5 +1,45 @@
 # Loskai — History
 
+## 2026-08-30 — Documentation restructure + deployment-topology analysis
+
+**Compared the deployment layouts on port ownership** rather than on where each component
+sits, which is what made the question answerable. Contention exists only where two things
+publish on the same host, or where a container wants a port the host already owns — so the
+three components never contend with each other, and the only genuinely contested port is
+AdGuard's `53` against the host resolver. New `docs/guides/topologies.md` carries the
+four-way comparison (A split-LXC · B all-in-Docker · C split DNS · D single container).
+
+**Only A and C are recommended.** A wherever Proxmox is available; C — AdGuard on a small
+always-on box such as a Raspberry Pi, Caddy + Loskai together in Docker — everywhere else.
+C is both the better architecture and the friendlier one to operate: the DNS box is set up
+once and never touched, everything iterated on stays in one compose stack. That leaves B
+with no reason to exist (it pays a `53` conflict and a shared DNS fault domain for nothing
+C doesn't already give), and D is packaging convenience that fixes no port conflict at all.
+Both stay supported and documented as not recommended. C and D are **not built** — Phase 16.
+
+**The analysis surfaced two defects, recorded in Phase 16.** `caddy_mode` decides the route
+upstream by asking whether `CADDY_ADMIN_URL`'s host is an IP, as a proxy for whether Caddy
+can resolve a container's name — false whenever Caddy is a container beside managed stacks,
+since Compose isolates each project on its own network and nothing creates a shared one. And
+`derive_caddy_host_ip` has no loopback guard, so a loopback admin URL makes every DNS rewrite
+answer `127.0.0.1`. A false claim in `troubleshooting.md` that followed from the first was
+corrected immediately rather than waiting for the phase.
+
+**Restructured the docs by audience** (Phase 17). Thirteen flat files with no index became
+`guides/` (running it) · `reference/` (contracts) · `contributing/` (changing it), with
+`docs/README.md` as a task-indexed front page. Driven by an audit of all 16 markdown files:
+the docs were individually accurate but structurally unnavigable, and `CLAUDE.md` named only
+4 of 13 — so a fresh session could not see most of them. Duplication was pruned to one owner
+per fact: the port table had drifted across three files, and `PLAN.md` still named a fifth
+layout no other doc knew about.
+
+- Key files: `docs/README.md`, `docs/{guides,reference,contributing}/`, `CLAUDE.md`,
+  `README.md`, `PLAN.md` (Alternative Setups, Resilience Summary), `todo-archive.md` (moved
+  out of `docs/`), `TODO.md` (Phases 16 + 17)
+- Verified: link + anchor checker 0 broken across 17 files; all 13 docs reachable from the
+  index, no orphans; `git log --follow` resolves through every `git mv`
+- `docs/reference/api.md` audited clean — all 36 backend routes covered
+
 ## 2026-08-27 — Phase 15: audit cleanup
 
 Acted on a recursive audit of `backend/src` + `frontend/src` and the documentation
