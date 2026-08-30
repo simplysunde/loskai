@@ -419,8 +419,12 @@ repo root beside `TODO.md`/`HISTORY.md`. Every move uses `git mv` so history fol
 **Stage C — prune duplication and staleness**
 - [x] `PLAN.md` "Alternative Setups" + "Co-located port notes" (`:1054`–`:1085`) → a short
       pointer to `docs/guides/topologies.md`, which now carries the full four-way comparison
-- [x] `PLAN.md:1057` — drop the fifth "all-in-one LXC" layout, or fold it into topologies.md as
-      a documented variant. It is currently a loose end referenced nowhere else
+- [x] `PLAN.md:1057` — the fifth "all-in-one LXC" layout was a loose end referenced nowhere
+      else. **Folded into `topologies.md` as a documented variant** (2026-08-30), not dropped:
+      it is not a peer of A–D (D's shape, A's mechanism), and on ports it is the best-behaved
+      arrangement of all — but `docker.from_env()` (`modules/docker/client.py:34`) defaults to
+      the local socket, so Loskai on its own LXC strands the Docker module unless the Docker
+      API is exposed over TCP. Documented, explicitly not supported
 - [x] `PLAN.md` — "Network tab" → Settings > Network (Phase 14); "LXC 103" → the current split
 - [x] `docs/guides/install.md` "Alternative: all-in-Docker" — predates the A/C recommendation and
       still frames all-in-Docker as *the* non-Proxmox answer

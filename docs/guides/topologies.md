@@ -68,6 +68,9 @@ maintain by hand.
 | stack ports | **every routed service must publish** | must publish | *can stay unpublished* | must publish |
 | Restart blast radius | one component | one container | one container | **all three** |
 
+A fifth arrangement — all three as native services on **one LXC** — is a variant rather than a
+peer of these four; see [A variant: all-in-one LXC](#a-variant-all-in-one-lxc).
+
 Three things follow from that table.
 
 **Merging processes does not solve the port problem.** Layout D eliminates contention
@@ -172,6 +175,44 @@ advantage, and it does not outweigh:
 (`http://127.0.0.1:2019`) parses as an IP, so the answer IP derives to `127.0.0.1` and every
 AdGuard rewrite resolves the service to the *client's own* loopback. Set `CADDY_HOST_IP` to
 the host's LAN IP explicitly.
+
+## A variant: all-in-one LXC
+
+AdGuard, Caddy and Loskai as three **native systemd services on a single Proxmox LXC** — no
+Docker involved in running Loskai itself.
+
+It is not in the comparison table because it isn't a peer of A–D: it has **D**'s shape (one
+box, one namespace) built with **A**'s mechanism (native services on an LXC). On ports alone
+it is the best-behaved arrangement here:
+
+- One network namespace, on a box dedicated to these three services — so `2019` and `3000`
+  stay on loopback and never reach the LAN, and `53`, `80`, `443` and `8080` have nothing to
+  compete with.
+- **No `systemd-resolved` fight.** A stock Debian LXC doesn't run it, which is why neither
+  [`create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) nor
+  [`create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh) has to free `:53`, while the
+  Docker layouts both do.
+- Caddy restarts don't touch a separate DNS box — but only because there isn't one. The
+  fault domain is shared, exactly as in D.
+
+**The catch is the Docker module, and it is decisive.** Loskai's Docker client calls
+`docker.from_env()` (`modules/docker/client.py:34`), which defaults to the local
+`/var/run/docker.sock`. On its own LXC, Loskai is not on the Docker host, so the Docker tab,
+the Stack Manager and the install wizard have no daemon to reach. Making them work means:
+
+- `DOCKER_HOST=tcp://<docker-host>:2375` — publishing a **root-equivalent, unauthenticated**
+  Docker API onto the LAN. The TLS port (`2376`) needs client certificates, and Loskai has no
+  setting for them.
+- `STACKS_DIR` present at an **identical path on both machines**, because `docker compose`
+  hands bind paths to the daemon that executes them — which would now be a *remote* daemon
+  resolving against a different filesystem. See
+  [deployment.md](deployment.md#stacks_dir--why-the-same-path-on-both-sides).
+
+So this variant runs the routing half of Loskai (Caddy + AdGuard + assign) perfectly well and
+gives up the Docker half, unless you accept exposing the Docker API. **It is documented, not
+supported** — nothing in the repo builds it. If you want everything on one box, prefer **D**,
+which keeps the Docker socket local; if you want native LXC services, prefer **A**, where
+Loskai sits on the Docker host where its socket is.
 
 ## Docker service names are not automatically resolvable
 

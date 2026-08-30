@@ -1062,9 +1062,11 @@ Docker), and **D** a single all-in-one container.
 
 The full comparison — which ports each layout contests, which admin channels it leaves on the
 LAN, and the reasoning behind that recommendation — is
-[docs/guides/topologies.md](docs/guides/topologies.md). It is the single source of truth for
-topology; this section deliberately carries only the summary, because the same port table
-previously lived here, in `deployment.md` and in `topologies.md`, and the copies drifted.
+[docs/guides/topologies.md](docs/guides/topologies.md), which also documents the **all-in-one
+LXC** variant (all three as native services on one box — good on ports, but it strands the
+Docker module on the wrong machine). That page is the single source of truth for topology;
+this section deliberately carries only the summary, because the same port table previously
+lived here, in `deployment.md` and in `topologies.md`, and the copies drifted.
 
 ---
 
