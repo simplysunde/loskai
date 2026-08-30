@@ -21,21 +21,27 @@ Routing tab to assign HTTPS names to your services.
 
 Two compose files, same image:
 
-- **`compose.yml` — preferred.** Loskai runs on the Docker host; Caddy and AdGuard run
-  natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS down),
-  reached over the LAN. Provision them with
+- **`compose.yml` — recommended with Proxmox.** Loskai runs on the Docker host; Caddy and
+  AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
+  down), reached over the LAN. Provision them with
   [`scripts/create-caddy-lxc.sh`](../scripts/create-caddy-lxc.sh) and
   [`scripts/create-adguard-lxc.sh`](../scripts/create-adguard-lxc.sh) (run from the Proxmox
   shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
 - **`compose.colocated.yml` — all-in-Docker.** Loskai + Caddy + AdGuard as containers on
-  one host, for setups without Proxmox. Here `CADDY_ADMIN_URL` is a hostname
-  (`http://caddy:2019`), so you **must** set `CADDY_HOST_IP` to the host's LAN IP (where
-  Caddy's published `:443` actually lives for LAN clients).
+  one host, with no second machine at all. Supported, but see the recommendation below.
+  Here `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so you **must** set
+  `CADDY_HOST_IP` to the host's LAN IP (where Caddy's published `:443` actually lives for
+  LAN clients).
 
-Two more layouts are planned — **split DNS** (AdGuard on its own box, Caddy + Loskai
-together in Docker) and a **single all-in-one container**. For the full comparison of all
-four, including which ports each one contests and which admin channels it leaves on the LAN,
-see [topologies.md](topologies.md).
+Two more are planned: **split DNS** (AdGuard on its own small box — a Raspberry Pi or
+similar — with Caddy + Loskai together in Docker) and a **single all-in-one container**.
+
+**Only two layouts are recommended.** Use `compose.yml` if you run Proxmox; use split DNS
+otherwise — it is the friendlier setup for most people, since the DNS box is configured once
+and everything you iterate on stays in one compose stack. All-in-Docker and the all-in-one
+container are supported but carry costs that neither recommended layout has. The full
+comparison — which ports each layout contests, which admin channels it leaves on the LAN, and
+why — is in [topologies.md](topologies.md).
 
 ### Co-located port notes
 

@@ -285,13 +285,16 @@ _Findings that drive the stages below:_
   with each other; the only contested port is AdGuard's `53` against the host resolver, which
   is host-vs-container and survives the merge. D's value is packaging convenience, not ports._
 
-_Decisions taken up front: **C is promoted over B** as the recommended non-Proxmox layout (it
-keeps DNS in its own fault domain, keeps `2019` off the LAN, and is the only layout where
-routing a service can leave a host port unpublished) — B stays supported, not recommended.
-**D ships as an explicitly-labelled convenience tier**, not a recommendation: it reverses the
-2026-07-20 fault-domain split and puts the root-equivalent Docker socket in one blast radius
-with DNS and TLS. **A stays preferred wherever Proxmox is available.** Stage A is load-bearing
-for every other stage and lands first._
+_Decisions taken up front (2026-08-30): **only A and C are recommended; all four are
+supported.** **A is the pick wherever Proxmox is available** — widest fault isolation, and an
+LXC costs nothing but disk. **C is the pick everywhere else, and is the friendliest layout to
+operate**: AdGuard goes on any small always-on box (a Raspberry Pi is the natural fit, as is a
+mini-PC or NAS), gets configured once and is never touched again, while everything you iterate
+on stays behind one `docker compose` on the main host. **B and D stay supported but are
+documented as not recommended** — B puts DNS back in the Docker host's fault domain and fights
+`systemd-resolved` for `53` while gaining nothing C doesn't have; D reverses the 2026-07-20
+split outright and puts the root-equivalent Docker socket in one blast radius with DNS and TLS,
+for no port benefit at all. Stage A is load-bearing for every other stage and lands first._
 
 **Stage A — replace the topology heuristic with real network detection**
 - [ ] Add a thin `client.py` call for a container's attached networks (I/O only — the
@@ -306,9 +309,12 @@ for every other stage and lands first._
 - [ ] `caddy_mode` currently also feeds `/api/caddy/status`'s `mode` and the two route modals'
       hint text (`AddRouteModal`/`AssignModal`). Decide whether it stays as a display-level
       summary or is replaced by a per-container hint, then update the frontend copy to match
-- [ ] Fix `docs/troubleshooting.md:42` — "In the all-in-Docker (co-located) layout ... Caddy
+- [x] Fix `docs/troubleshooting.md:42` — "In the all-in-Docker (co-located) layout ... Caddy
       shares the Docker network, so a `name:port` like `grafana:3000` is correct" is **false**
-      for every managed stack. It is only true inside Caddy's own compose project
+      for every managed stack; it is only true inside Caddy's own compose project. **Landed
+      2026-08-30**, ahead of the rest of the phase — the claim was actively misleading and
+      `docs/topologies.md` contradicted it. The replacement also drops "trust the hint for your
+      topology", which is bad advice until Stage A lands
 - [ ] Extend `tests/test_caddy_logic.py:22` (`test_caddy_mode`) — it pins only the IP and
       hostname cases; loopback is uncovered
 
@@ -322,6 +328,9 @@ for every other stage and lands first._
       [`docs/topologies.md`](docs/topologies.md) and [`docs/migration.md`](docs/migration.md);
       consider surfacing "joined to the edge network" in the Docker tab
 - [ ] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
+- [ ] [`docs/install.md`](docs/install.md) currently walks through layout A only. Since C is
+      the recommended path for anyone without Proxmox, it needs its own walkthrough —
+      AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1
 
 **Stage C — loopback guard on the answer IP**
 - [ ] `derive_caddy_host_ip` must not return a loopback address; when `CADDY_ADMIN_URL`'s host

@@ -30,13 +30,19 @@ bash scripts/deploy.sh        # git pull --ff-only && docker compose up -d --bui
 skip your new code — always `--build` after a pull. The script does that for you (and
 honours `COMPOSE_FILE=compose.colocated.yml` for the co-located layout).
 
-- **Preferred setup** (`compose.yml`): Loskai on the Docker host; Caddy and AdGuard
-  run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS down).
-  Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
+- **With Proxmox — recommended** (`compose.yml`): Loskai on the Docker host; Caddy and
+  AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
+  down). Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
   [`scripts/create-adguard-lxc.sh`](scripts/create-adguard-lxc.sh) (run from the Proxmox shell).
-- **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as
-  containers on one host — for setups without Proxmox. Set `CADDY_HOST_IP` to the host's
-  LAN IP. Mind the port notes (AdGuard `:53` vs `systemd-resolved`).
+- **Without Proxmox — recommended** (*planned*): **split DNS** — AdGuard on any small
+  always-on box (a Raspberry Pi is ideal), Caddy and Loskai together in Docker on your main
+  host. The DNS box is set up once and left alone; everything else is one compose stack.
+- **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as containers on one
+  host, with no second machine. Supported, but AdGuard's `:53` then fights `systemd-resolved`
+  — see the port notes. Set `CADDY_HOST_IP` to the host's LAN IP.
+
+All four layouts, and the port trade-offs behind these recommendations, are compared in
+[topologies.md](docs/topologies.md).
 
 The Docker socket is mounted read-write (root-equivalent) — Loskai should be the only
 container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out. See
