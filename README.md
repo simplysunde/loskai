@@ -72,6 +72,7 @@ serving the API and the built bundle together. That bundle is
 - [Authoring an LXC provisioning script](docs/lxc-script-authoring.md) — the pattern, safety invariants, and a copy-paste skeleton for adding new `create-<service>-lxc.sh` scripts.
 - [Troubleshooting](docs/troubleshooting.md) — 502s, redirect loops, DNS/cert/VPN issues; the split-LXC upstream rule (use a LAN IP:port, not a container name).
 - [Deploying the container](docs/deployment.md) — env-var reference, volumes and the same-path/`LOSKAI_DATA_DIR` coupling, the two layouts, and cold start.
+- [Deployment topologies and port ownership](docs/topologies.md) — the four ways to lay AdGuard/Caddy/Loskai out across machines, which ports each layout contests, and which admin channels it leaves on the LAN.
 - [Running locally against Caddy + AdGuard containers](docs/dev-testing.md) — dev walkthrough.
 - [Loskai internal API](docs/api.md) — the endpoints the frontend consumes (a human-readable overview of the live `/docs`).
 - [Migrating an existing project into a Loskai stack](docs/migration.md) — how (and when) to adopt an existing Docker Compose project into the Stack Manager.

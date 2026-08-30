@@ -1,6 +1,7 @@
 # Loskai — TODO
 
 **Now:** Phase 15 — audit cleanup (below).
+**Next:** Phase 16 — support all four deployment topologies (below).
 Phases 1–13 are complete and live in [`docs/todo-archive.md`](docs/todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
 
@@ -256,6 +257,93 @@ findings; both surfaced from reviewing F5's blast radius)
 **Stages A–D landed 2026-08-27** (six commits on `phase-15-audit-cleanup`). Frontend checks
 pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). The phase
 is **not** closed: the backend suite and the live smoke list above are outstanding.
+
+---
+
+## Phase 16 — Support all four deployment topologies
+
+_Origin (2026-08-30): a review of what Loskai can actually be deployed onto, prompted by the
+question "would AdGuard separate + Caddy & Loskai in one Docker stack be better than the
+current two options?". Comparing the layouts on **port ownership** produced
+[`docs/topologies.md`](docs/topologies.md) (landed with this phase write-up) and surfaced one
+real defect. Two layouts ship today (A split-LXC, B all-in-Docker); two are wanted (C split
+DNS, D single all-in-one container)._
+
+_Findings that drive the stages below:_
+- _**The upstream prefill is wrong in layout B today.** `caddy_mode` (`modules/caddy/service.py:27`)
+  decides topology by asking "is `CADDY_ADMIN_URL`'s host an IP?" as a proxy for "can Caddy
+  resolve this container's name?". Those diverge whenever Caddy is a container next to managed
+  stacks: Compose puts every project on its own `<project>_default`, so Caddy resolves only
+  `adguard`/`loskai` (its own project) — never a managed stack. `grep network compose*.yml`
+  returns nothing; no shared network is created anywhere. This is the 2026-07-26 split-LXC 502
+  trap in the other direction, and it blocks C and D as well as breaking B._
+- _**Layout D silently derives a loopback answer IP.** `derive_caddy_host_ip`
+  (`shared/settings.py:157`) has no loopback guard, so `CADDY_ADMIN_URL=http://127.0.0.1:2019`
+  yields `127.0.0.1` as the DNS-rewrite answer and every LAN client resolves the service to
+  itself. `localhost` instead flips `caddy_mode` to `docker` and derives nothing._
+- _**Merging processes does not solve any port conflict.** The three components never contend
+  with each other; the only contested port is AdGuard's `53` against the host resolver, which
+  is host-vs-container and survives the merge. D's value is packaging convenience, not ports._
+
+_Decisions taken up front: **C is promoted over B** as the recommended non-Proxmox layout (it
+keeps DNS in its own fault domain, keeps `2019` off the LAN, and is the only layout where
+routing a service can leave a host port unpublished) — B stays supported, not recommended.
+**D ships as an explicitly-labelled convenience tier**, not a recommendation: it reverses the
+2026-07-20 fault-domain split and puts the root-equivalent Docker socket in one blast radius
+with DNS and TLS. **A stays preferred wherever Proxmox is available.** Stage A is load-bearing
+for every other stage and lands first._
+
+**Stage A — replace the topology heuristic with real network detection**
+- [ ] Add a thin `client.py` call for a container's attached networks (I/O only — the
+      `client.py`/pure-logic seam is a hard invariant). Loskai already holds the Docker socket,
+      so no new setting or permission is needed
+- [ ] New pure function: given Caddy's networks and the target container's networks, an
+      upstream is `name:port` when they intersect, else `<host_ip>:<published_port>`. This is
+      **per-container**, not per-deployment — which is the actual fix. Unit-test it directly
+- [ ] Rewire `suggested_upstream` (`modules/docker/logic.py:144`) onto it; keep the current
+      `mode` behaviour as the fallback for when Caddy's container can't be identified (external
+      Caddy on an LXC — layout A, where the answer is always `<host_ip>:<published_port>`)
+- [ ] `caddy_mode` currently also feeds `/api/caddy/status`'s `mode` and the two route modals'
+      hint text (`AddRouteModal`/`AssignModal`). Decide whether it stays as a display-level
+      summary or is replaced by a per-container hint, then update the frontend copy to match
+- [ ] Fix `docs/troubleshooting.md:42` — "In the all-in-Docker (co-located) layout ... Caddy
+      shares the Docker network, so a `name:port` like `grafana:3000` is correct" is **false**
+      for every managed stack. It is only true inside Caddy's own compose project
+- [ ] Extend `tests/test_caddy_logic.py:22` (`test_caddy_mode`) — it pins only the IP and
+      hostname cases; loopback is uncovered
+
+**Stage B — layout C: shared edge network + its own compose file**
+- [ ] `compose.caddy-loskai.yml` — Caddy + Loskai on the Docker host, AdGuard external.
+      `CADDY_ADMIN_URL=http://caddy:2019` (never published), `ADGUARD_URL` a LAN IP,
+      `CADDY_HOST_IP` required
+- [ ] Declare a shared `loskai-edge` network Caddy attaches to, so a managed stack can join it
+      and be routed **without publishing a host port** — the one capability no other layout has
+- [ ] Document joining a stack to `loskai-edge` (external network stanza) in
+      [`docs/topologies.md`](docs/topologies.md) and [`docs/migration.md`](docs/migration.md);
+      consider surfacing "joined to the edge network" in the Docker tab
+- [ ] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
+
+**Stage C — loopback guard on the answer IP**
+- [ ] `derive_caddy_host_ip` must not return a loopback address; when `CADDY_ADMIN_URL`'s host
+      is loopback, require an explicit `CADDY_HOST_IP` and surface a clear settings error rather
+      than writing rewrites that resolve to the client itself
+- [ ] Mirror the check in `shared/settings.py`'s `caddy_host_ip` validation (it currently
+      rejects a scheme/port but accepts `127.0.0.1`)
+- [ ] Tests for both; this is the defect that makes layout D unusable by default
+
+**Stage D — layout D: the all-in-one image**
+- [ ] Separate Dockerfile/target — the shipped image stays single-process (`CMD` is `uvicorn`)
+      and must not grow a supervisor for the sake of a convenience tier
+- [ ] Supervisor (s6-overlay) running AdGuard + Caddy + Loskai; only `53`, `80`, `443`, `8080`
+      published — `2019` and `3000` stay pure-loopback
+- [ ] `CADDY_HOST_IP` **required** here (Stage C enforces it), and the `53` vs `systemd-resolved`
+      note applies unchanged — the merge does not fix it
+- [ ] Label it in the docs as the convenience tier with its trade-offs stated, per the decision above
+
+**Verification**
+- [ ] `uv run pytest` + `npm test`
+- [ ] **Live smoke (user):** in layout B or C, routing a *managed stack* container pre-fills a
+      reachable upstream (the Stage A fix) and the route returns 200, not 502
 
 ---
 

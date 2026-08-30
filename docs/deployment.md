@@ -32,9 +32,15 @@ Two compose files, same image:
   (`http://caddy:2019`), so you **must** set `CADDY_HOST_IP` to the host's LAN IP (where
   Caddy's published `:443` actually lives for LAN clients).
 
+Two more layouts are planned — **split DNS** (AdGuard on its own box, Caddy + Loskai
+together in Docker) and a **single all-in-one container**. For the full comparison of all
+four, including which ports each one contests and which admin channels it leaves on the LAN,
+see [topologies.md](topologies.md).
+
 ### Co-located port notes
 
 Only host-published ports can conflict; container-to-container traffic stays internal.
+See [topologies.md](topologies.md#the-comparison) for the same analysis across every layout.
 
 - **AdGuard `:53` vs the host resolver** — most Linux hosts run `systemd-resolved` on `53`.
   Free it (disable/reconfigure `systemd-resolved`) or bind AdGuard's `53` to a host IP.
