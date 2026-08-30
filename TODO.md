@@ -2,6 +2,7 @@
 
 **Now:** Phase 15 — audit cleanup (below).
 **Next:** Phase 16 — support all four deployment topologies (below).
+**Also queued:** Phase 17 — documentation restructure (below); independent of 16.
 Phases 1–13 are complete and live in [`docs/todo-archive.md`](docs/todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
 
@@ -353,6 +354,90 @@ for no port benefit at all. Stage A is load-bearing for every other stage and la
 - [ ] `uv run pytest` + `npm test`
 - [ ] **Live smoke (user):** in layout B or C, routing a *managed stack* container pre-fills a
       reachable upstream (the Stage A fix) and the route returns 200, not 502
+
+---
+
+## Phase 17 — Documentation restructure
+
+_Origin (2026-08-30): a full audit of all 16 markdown files (5,275 lines) against the current
+code and project direction. The docs are individually accurate but structurally flat — 13 files
+in one `docs/` namespace with no index, no audience segmentation, and the only map being an
+unordered list in `README.md`. Findings below; `docs/api.md` came back **clean** (all 36 backend
+routes covered — `api.md:103` documents start/stop/restart in one row, which is why a naive
+count reads 34)._
+
+_Findings:_
+- _**No entry point.** No `docs/README.md`. A reader — or a fresh session — has to guess which
+  of 13 files answers their question._
+- _**No segmentation.** Operator guides, API contracts and contributor docs share one flat
+  namespace with no naming or grouping convention._
+- _**`CLAUDE.md`'s doc map names 4 of 13** (`caddy-api`, `adguard-api`, `recipe-schema`,
+  `migration`). `topologies`, `deployment`, `troubleshooting`, `install`, `certificate-setup`,
+  `api`, `dev-testing` and `lxc-script-authoring` are invisible to a session reading only
+  `CLAUDE.md` — the single highest-value fix in this phase, for the same reason F13 was in
+  Phase 15._
+- _**Port-conflict content is in three places** — `PLAN.md:1054` ("Alternative Setups" + its own
+  co-located port table), `docs/deployment.md` ("Co-located port notes"), and
+  `docs/topologies.md`. PLAN's copy is now the least complete **and contradicts** the 2026-08-30
+  A/C recommendation._
+- _**`PLAN.md:1057` names a fifth topology** ("All-in-one — AdGuard, Caddy, and Loskai all on a
+  single LXC") that appears in no other doc and is absent from the four-way comparison._
+- _**Stale in `PLAN.md`:** the "Network tab" (dissolved by Phase 14) and "LXC 103" in the
+  Resilience Summary (pre-split numbering; the two-LXC split landed 2026-07-20)._
+- _**`docs/todo-archive.md` is 480 lines / 50KB of project tracking** sitting in `docs/` — the
+  second-largest file there, and not documentation._
+- _**Three pre-existing broken links:** `todo-archive.md:105` and `:199` link `docs/adguard-api.md`
+  / `docs/recipe-schema.md` from *inside* `docs/`; `caddy-api.md:20` links `#server-name-discovery`
+  but the heading is `### 1. Discover the server name`._
+
+_Decisions taken up front (2026-08-30, all three confirmed by the user): **nested by audience**
+(`guides/` · `reference/` · `contributing/`) over flat-plus-index — clearest segmentation, reads
+best on GitHub, and the repo is small enough that the one-time link churn is cheap. **PLAN.md is
+pruned of duplication only** — the port table and Alternative Setups become a pointer; the
+architecture sections (data model, modules, assign) are not touched, per the global rule that
+PLAN.md changes only when direction shifts. **`todo-archive.md` moves out of `docs/`** to the
+repo root beside `TODO.md`/`HISTORY.md`. Every move uses `git mv` so history follows, as the
+2026-07-18 compose rename did._
+
+**Stage A — the move**
+- [ ] `git mv` into `docs/guides/` — `install`, `topologies`, `deployment`, `certificate-setup`,
+      `migration`, `troubleshooting`
+- [ ] `git mv` into `docs/reference/` — `api`, `caddy-api`, `adguard-api`, `recipe-schema`
+- [ ] `git mv` into `docs/contributing/` — `dev-testing`, `lxc-script-authoring`
+- [ ] `git mv docs/todo-archive.md todo-archive.md`
+- [ ] Rewrite every cross-reference for the new depths (`../reference/x.md`, `../../PLAN.md`).
+      ~40 links across 16 files, including `PLAN.md`, `TODO.md`, `HISTORY.md` and `README.md`
+- [ ] Fix the three pre-existing broken links found in the audit
+
+**Stage B — `docs/README.md`, the index**
+- [ ] Task-oriented entry points ("I want to install it" / "…route a service" / "…change the
+      code" / "…know what an endpoint returns") above the file listing — the wiki front page
+- [ ] One line per doc saying **when to read it**, not what it contains
+- [ ] Note which docs are contracts with external APIs (read before touching that integration)
+      and which describe Loskai's own behaviour
+
+**Stage C — prune duplication and staleness**
+- [ ] `PLAN.md` "Alternative Setups" + "Co-located port notes" (`:1054`–`:1085`) → a short
+      pointer to `docs/guides/topologies.md`, which now carries the full four-way comparison
+- [ ] `PLAN.md:1057` — drop the fifth "all-in-one LXC" layout, or fold it into topologies.md as
+      a documented variant. It is currently a loose end referenced nowhere else
+- [ ] `PLAN.md` — "Network tab" → Settings > Network (Phase 14); "LXC 103" → the current split
+- [ ] `docs/guides/install.md` "Alternative: all-in-Docker" — predates the A/C recommendation and
+      still frames all-in-Docker as *the* non-Proxmox answer
+- [ ] `docs/guides/deployment.md` "Co-located port notes" — keep the operational note, drop what
+      `topologies.md` now says better
+
+**Stage D — make the map usable by a fresh session**
+- [ ] `CLAUDE.md` — replace the 4-doc list with the new structure and point at `docs/README.md`
+      as the entry point. This is what makes the restructure pay off for future sessions
+- [ ] `README.md` — the Documentation list becomes a short pointer to `docs/README.md` plus the
+      three or four links a new user actually needs, not all 13
+
+**Verification**
+- [ ] Link + anchor checker clean across every `.md` (the audit's script, extended for the
+      nested depths)
+- [ ] `git log --follow` resolves through each move
+- [ ] Every doc reachable from `docs/README.md`; no orphans
 
 ---
 
