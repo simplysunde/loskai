@@ -248,16 +248,35 @@ findings; both surfaced from reviewing F5's blast radius)
       run over `backend/src` + the new tests. `store.py` is stdlib-only, so the lock and the
       atomic write *were* exercised directly with real threads outside pytest (both keys
       survive with the lock; one is lost with it removed). **Run pytest first.**
-- [ ] **Live smoke (user):** Add route rejects/normalises a typed capital (F2); a mistyped URL
-      shows the NotFound pane (F3); Settings > General saves on blur with no Save button (F6);
-      a deliberately corrupted `settings.json` refuses startup with the path in the message,
-      and a corrupted `instances.json` boots with the bad row skipped (F5); Routing still loads
-      and Sync still works after F16 removed six handlers; the Add route > Network list shows
-      the `Settings › Network` link when a service has no URL set (F14)
+- [x] **Live smoke (user) — five of six confirmed on real hardware 2026-08-31:** Add route
+      rejects/normalises a typed capital (F2); a mistyped URL shows the NotFound pane (F3);
+      Settings > General saves on blur with no Save button (F6); Routing still loads and Sync
+      still works after F16 removed six handlers; the Add route > Network list shows the
+      `Settings › Network` link when a service has no URL set (F14)
+- [ ] **Live smoke, F5 remainder.** A corrupted **file** was tested and behaved correctly —
+      `CorruptStoreError` raised and named the path, and `/api/health` stayed **200** with the
+      failure contained to one checker (F1 working as designed). Two paths still unrun:
+      (a) `settings.json` refusing startup with the path in the message; (b) the *record*-skip
+      path, which needs **valid JSON containing one schema-invalid row** — a syntax error breaks
+      the file and correctly raises instead, which is what the first attempt hit
+- [ ] **F5 follow-up — `CorruptStoreError` never reaches the operator** (found by the
+      2026-08-31 smoke test). The error is raised in three places and **caught nowhere**;
+      `main.py` has no exception handler. `/api/health` survives only because F1 wraps its
+      checkers individually. Everything else 500s with an empty body: `shared/dashboard.py:19`
+      (**`GET /api/dashboard`** — the public, unauthenticated launcher), the Routing and Docker
+      tabs, `shared/export.py:36`, and every path in `shared/assign.py`. The defect is that
+      `CorruptStoreError`'s own docstring promises it "always names the path … the operator
+      needs to know *which* one to fix" — and that path only ever reaches the server log, so
+      the operator whose file is broken sees a dead launcher and no reason why. Fix: a FastAPI
+      exception handler returning `{"detail": str(exc)}`, the error shape `docs/reference/api.md`
+      already documents and the frontend already renders. Raising behaviour is unchanged —
+      this is surfacing only, and does not cover making the UI *recover*
 
 **Stages A–D landed 2026-08-27** (six commits on `phase-15-audit-cleanup`). Frontend checks
-pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). The phase
-is **not** closed: the backend suite and the live smoke list above are outstanding.
+pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). Five of
+the six live-smoke checks were confirmed on real hardware 2026-08-31. The phase is **not**
+closed: the backend suite has still never run, the F5 remainder is outstanding, and the smoke
+test exposed a new surfacing defect (above).
 
 ---
 
