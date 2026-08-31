@@ -44,6 +44,10 @@ Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vit
 - Frontend dev server: `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`)
 - Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
 - Frontend tests: `npm test` (Vitest)
+- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — broken links, dead
+  heading anchors, and pages under `docs/` not reachable from `docs/README.md`. Run it
+  after moving, renaming or adding any `.md`; link depth is easy to get wrong now that
+  `docs/` is nested.
 - **Production** serves on `:8080` — one FastAPI process serves the API *and* the built
   React bundle as static files (single container, single port). Dev is two servers; prod is one.
 

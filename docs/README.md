@@ -72,5 +72,9 @@ are not obvious from the code.
 - **Guides describe Loskai's behaviour; reference pages describe contracts.** If a fact
   about an external API appears in a guide, the reference page is the source of truth.
 - Every page states **when to read it** at the top, not just what it contains.
+- **These conventions are enforced.** `bash scripts/check-docs.sh` (or `make check-docs`)
+  fails on a broken link, a dead heading anchor, or a page here that this index doesn't
+  reach. Adding a page means adding it above — an unlisted page is a failure, not an
+  oversight.
 - Layouts are named consistently across all pages — **A** split-LXC, **B** all-in-Docker,
   **C** split DNS, **D** single container. [topologies.md](guides/topologies.md) defines them.

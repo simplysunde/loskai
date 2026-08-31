@@ -442,6 +442,10 @@ repo root beside `TODO.md`/`HISTORY.md`. Every move uses `git mv` so history fol
       nested depths)
 - [x] `git log --follow` resolves through each move
 - [x] Every doc reachable from `docs/README.md`; no orphans
+- [x] **`scripts/check-docs.sh` + `make check-docs`** (added 2026-08-31) — the checks above were
+      one-off scripts that vanished with the session, so "0 broken, no orphans" was a claim
+      about a moment rather than a property of the repo. Now enforceable and CI-gateable
+      (exits non-zero). Verified against all three failure modes plus the code-fence exemption
 
 **Phase 17 landed 2026-08-30** (three commits). 13 docs moved into `guides/` · `reference/` ·
 `contributing/` with `git mv`; 40 cross-references rewritten; `docs/README.md` added as the

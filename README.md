@@ -63,6 +63,8 @@ make frontend           # Vite on :5173, proxies /api/* -> :8000
 
 make test-backend       # pytest      (one test: cd backend && uv run pytest tests/test_x.py::test_name)
 make test-frontend      # vitest
+
+make check-docs         # doc links, anchors and orphans (see docs/README.md)
 ```
 
 Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:8080`

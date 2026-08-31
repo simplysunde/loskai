@@ -1,4 +1,4 @@
-.PHONY: help backend frontend install-backend install-frontend test-backend test-frontend
+.PHONY: help backend frontend install-backend install-frontend test-backend test-frontend check-docs
 
 help:
 	@echo "make backend           - start backend dev server (uvicorn, :8000)"
@@ -7,6 +7,7 @@ help:
 	@echo "make install-frontend  - npm install"
 	@echo "make test-backend      - uv run pytest"
 	@echo "make test-frontend     - npm test"
+	@echo "make check-docs        - validate doc links, anchors and orphans"
 
 backend:
 	cd backend && uv run uvicorn loskai.main:app --reload --port 8000
@@ -25,3 +26,6 @@ test-backend:
 
 test-frontend:
 	cd frontend && npm test
+
+check-docs:
+	bash scripts/check-docs.sh
