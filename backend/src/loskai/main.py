@@ -10,7 +10,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from .config import settings
@@ -20,6 +20,7 @@ from .modules.docker import router as docker_router
 from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, export, health, instances
 from .shared import settings as settings_module
+from .shared.store import CorruptStoreError
 
 
 # Module loggers (`logging.getLogger(__name__)`) propagate to root, and uvicorn
@@ -30,6 +31,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -45,6 +48,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Loskai", lifespan=lifespan)
 app.add_middleware(auth.AuthMiddleware)
+
+
+@app.exception_handler(CorruptStoreError)
+async def corrupt_store(request: Request, exc: CorruptStoreError) -> JSONResponse:
+    """Surface a broken store file to whoever hit it, naming the path.
+
+    Both store files are documented as hand-editable, so this is an operator error with
+    an operator fix — but the message only ever reached the server log, leaving a dead
+    public dashboard and no reason why. Handling it here also means uvicorn no longer
+    prints the traceback, so log it explicitly.
+
+    Startup corruption is a separate path: `settings.verify_readable` aborts the boot
+    (see the lifespan above). This is for a file edited while the app is running.
+    """
+    logger.error("corrupt store file: %s", exc, exc_info=True)
+    return JSONResponse({"detail": str(exc)}, status_code=500)
 
 # Shared routers first, then the four module routers.
 app.include_router(auth.router)

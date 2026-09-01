@@ -13,7 +13,9 @@ app is running — this document is the human-readable overview.
   `HttpOnly` cookie. The frontend redirects to `/login` on any `401`.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
   `400` bad input, `401` no session, `404` not found, `409` conflict, `422` validation,
-  `502` an upstream (Caddy/AdGuard/Docker) is unreachable.
+  `500` a store file exists but doesn't parse (the message names the path — see
+  [Deployment → data volume](../guides/deployment.md)), `502` an upstream
+  (Caddy/AdGuard/Docker) is unreachable.
 - **Degradation.** A module being unreachable never fails an unrelated call; read
   endpoints return `null`/`unknown` fields rather than erroring.
 

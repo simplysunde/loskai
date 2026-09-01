@@ -240,14 +240,14 @@ findings; both surfaced from reviewing F5's blast radius)
 - [x] Frontend: `tsc -b`, `oxlint`, `vite build`, `vitest run` — note the sandbox needs
       `export PATH="/home/sunde.guest/.local/node/bin:$PATH"` and direct entrypoints
       (`node ./node_modules/vitest/vitest.mjs run`), since the `.bin` shims are blocked
-- [ ] **Backend: `uv run pytest` — NOT RUN.** The sandbox couldn't reach the venv at all this
-      session (`failed to canonicalize .../backend/.venv/bin/python3: Operation not permitted`,
-      with and without the sandbox), so the four new/extended test files
-      (`test_health_registry.py`, `test_store_corruption.py`, `test_store_concurrency.py`,
-      `test_settings.py`) have never executed under pytest. Only `python3 -m py_compile` was
-      run over `backend/src` + the new tests. `store.py` is stdlib-only, so the lock and the
-      atomic write *were* exercised directly with real threads outside pytest (both keys
-      survive with the lock; one is lost with it removed). **Run pytest first.**
+- [x] **Backend: `pytest` — 181 passed (2026-08-31).** Includes all 30 tests in the four
+      files that had never executed (`test_health_registry.py`, `test_store_corruption.py`,
+      `test_store_concurrency.py`, `test_settings.py`). `uv run pytest` still fails in the
+      sandbox (`failed to canonicalize .../backend/.venv/bin/python3: Operation not
+      permitted`) because uv resolves the venv's interpreter symlink; the venv's
+      `site-packages` is readable, so invoking the uv-managed interpreter directly works:
+      `PYTHONPATH=".venv/lib/python3.12/site-packages:src"
+      ~/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12 -m pytest`
 - [x] **Live smoke (user) — five of six confirmed on real hardware 2026-08-31:** Add route
       rejects/normalises a typed capital (F2); a mistyped URL shows the NotFound pane (F3);
       Settings > General saves on blur with no Save button (F6); Routing still loads and Sync
@@ -259,24 +259,32 @@ findings; both surfaced from reviewing F5's blast radius)
       (a) `settings.json` refusing startup with the path in the message; (b) the *record*-skip
       path, which needs **valid JSON containing one schema-invalid row** — a syntax error breaks
       the file and correctly raises instead, which is what the first attempt hit
-- [ ] **F5 follow-up — `CorruptStoreError` never reaches the operator** (found by the
-      2026-08-31 smoke test). The error is raised in three places and **caught nowhere**;
-      `main.py` has no exception handler. `/api/health` survives only because F1 wraps its
-      checkers individually. Everything else 500s with an empty body: `shared/dashboard.py:19`
+- [x] **F5 follow-up — `CorruptStoreError` never reaches the operator** (found by the
+      2026-08-31 smoke test). The error was raised in three places and **caught nowhere**;
+      `main.py` had no exception handler. `/api/health` survived only because F1 wraps its
+      checkers individually. Everything else 500'd with an empty body: `shared/dashboard.py:19`
       (**`GET /api/dashboard`** — the public, unauthenticated launcher), the Routing and Docker
-      tabs, `shared/export.py:36`, and every path in `shared/assign.py`. The defect is that
+      tabs, `shared/export.py:36`, and every path in `shared/assign.py`. The defect was that
       `CorruptStoreError`'s own docstring promises it "always names the path … the operator
-      needs to know *which* one to fix" — and that path only ever reaches the server log, so
-      the operator whose file is broken sees a dead launcher and no reason why. Fix: a FastAPI
-      exception handler returning `{"detail": str(exc)}`, the error shape `docs/reference/api.md`
-      already documents and the frontend already renders. Raising behaviour is unchanged —
-      this is surfacing only, and does not cover making the UI *recover*
+      needs to know *which* one to fix" — and that path only ever reached the server log, so
+      the operator whose file is broken saw a dead launcher and no reason why. **Fixed
+      2026-08-31**: an `@app.exception_handler(CorruptStoreError)` in `main.py` returning
+      `{"detail": str(exc)}` at `500`, the error shape `docs/reference/api.md` documents and
+      the frontend already renders. It also `logger.error`s explicitly — handling the
+      exception stops uvicorn printing the traceback, and losing the server-side record would
+      have traded one blind spot for another. Raising behaviour is unchanged, and startup
+      corruption still aborts the boot via `verify_readable`. Four tests in
+      `test_corrupt_store_response.py` (public dashboard, an authed route, the log, and the
+      untouched happy path); the three defect-specific ones were confirmed to fail with the
+      handler commented out. **Does not cover making the UI *recover*** — the tabs still show
+      an error state, they just now say which file to fix
 
 **Stages A–D landed 2026-08-27** (six commits on `phase-15-audit-cleanup`). Frontend checks
-pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). Five of
-the six live-smoke checks were confirmed on real hardware 2026-08-31. The phase is **not**
-closed: the backend suite has still never run, the F5 remainder is outstanding, and the smoke
-test exposed a new surfacing defect (above).
+pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). Backend:
+185 pytest tests pass (2026-08-31 — first run at 181, plus 4 for the F5 follow-up). Five of
+the six live-smoke checks were confirmed on real hardware 2026-08-31, and the surfacing
+defect that smoke test exposed is fixed. The phase is **not** closed: the F5 live-smoke
+remainder (above) still needs real hardware.
 
 ---
 
