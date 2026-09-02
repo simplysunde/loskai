@@ -859,8 +859,7 @@ frontend/src/
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
 │   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
 │   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
-│   │   ├── SettingsFields.tsx       settings form (Settings > General)
-│   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (Settings > Network)
+│   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (both Settings pages)
 │   │   └── ConfirmDialog.tsx
 │   ├── routing/            unified Caddy + AdGuard view
 │   │   ├── ServiceTable.tsx    one row per routed service: FQDN, upstream,
