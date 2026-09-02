@@ -383,12 +383,26 @@ arrangement where Caddy is addressed over loopback hits it — the all-in-one LX
 construction, and a co-located B stack the moment someone sets `CADDY_ADMIN_URL=http://127.0.0.1:2019`
 instead of `http://caddy:2019`. It fails silently and looks like a DNS problem, which is the
 worst combination; the general warning now sits in `topologies.md` under "The ports in play"._
-- [ ] `derive_caddy_host_ip` must not return a loopback address; when `CADDY_ADMIN_URL`'s host
-      is loopback, require an explicit `CADDY_HOST_IP` and surface a clear settings error rather
-      than writing rewrites that resolve to the client itself
-- [ ] Mirror the check in `shared/settings.py`'s `caddy_host_ip` validation (it currently
-      rejects a scheme/port but accepts `127.0.0.1`)
-- [ ] Tests for both
+- [x] `derive_caddy_host_ip` must not return a loopback address; when `CADDY_ADMIN_URL`'s host
+      is loopback, require an explicit `CADDY_HOST_IP` rather than writing rewrites that
+      resolve to the client itself. Done via `_reject_loopback()`, applied to **both** sources
+      — the explicit `CADDY_HOST_IP` as well as the derived admin-URL host, because env values
+      never pass through `_validate` and that is the only place an env-set `127.0.0.1` is
+      caught. It returns `None` and logs a warning rather than raising: `None` is the same
+      state as an unset answer IP, which every caller already handles (rewrite skipped, UI
+      shows it unconfigured), whereas raising would fail an `/api/health` poll and an assign
+      over what is a configuration problem, not a runtime one
+- [x] Mirror the check in `shared/settings.py`'s `caddy_host_ip` validation (it currently
+      rejects a scheme/port but accepts `127.0.0.1`) — now raises `ValueError` → 422 with a
+      message naming the fix, and `_validate` still runs before the store is touched, so a
+      rejected value can't clobber a working one
+- [x] Tests for both — 9 added to `test_settings.py` (IPv4 + IPv6 loopback, `127.0.1.9`, the
+      env path, the documented recovery, two over-rejection guards, and the no-clobber case).
+      The 7 defect-specific ones were confirmed to fail with the guard stubbed out
+- [x] Docs: `deployment.md`'s `CADDY_HOST_IP` row states the constraint, and the
+      `topologies.md` warning now says the value is *refused* rather than merely inadvisable.
+      No frontend change needed — `answer_ip: null` was already handled (`?? ""` plus a
+      conditional render), since hostname mode has always produced it
 
 **Verification**
 - [ ] `pytest` + `npm test`

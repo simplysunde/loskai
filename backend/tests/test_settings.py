@@ -63,6 +63,40 @@ def test_derive_caddy_host_ip_hostname_needs_explicit(monkeypatch):
     assert s.derive_caddy_host_ip() == "192.168.10.100"
 
 
+# --- The answer IP is never loopback (Phase 16 Stage C) ---
+#
+# AdGuard hands the answer to every LAN client, so 127.0.0.1 resolves the routed service
+# to whichever machine asked. It surfaces as a refused connection, never as a DNS error.
+
+
+@pytest.mark.parametrize("admin_url", ["http://127.0.0.1:2019", "http://[::1]:2019"])
+def test_derive_drops_loopback_from_the_admin_url(monkeypatch, admin_url, caplog):
+    monkeypatch.setattr(config.settings, "caddy_admin_url", admin_url)
+    assert s.derive_caddy_host_ip() is None
+    assert "loopback" in caplog.text  # dropped, but never silently
+
+
+def test_derive_drops_loopback_from_an_explicit_env_value(monkeypatch):
+    """CADDY_HOST_IP from the environment never passes through `_validate`, so the guard
+    has to sit in the derivation too — this is the only path that catches it."""
+    monkeypatch.setattr(config.settings, "caddy_host_ip", "127.0.0.1")
+    assert s.derive_caddy_host_ip() is None
+
+
+def test_derive_prefers_an_explicit_lan_ip_over_a_loopback_admin_url(monkeypatch):
+    """The documented recovery: a loopback admin URL is fine as long as CADDY_HOST_IP
+    names an address other machines can reach."""
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://127.0.0.1:2019")
+    monkeypatch.setattr(config.settings, "caddy_host_ip", "192.168.10.100")
+    assert s.derive_caddy_host_ip() == "192.168.10.100"
+
+
+def test_derive_still_returns_a_real_lan_ip(monkeypatch):
+    """Regression guard: the loopback check must not reject ordinary private addresses."""
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://10.0.0.5:2019")
+    assert s.derive_caddy_host_ip() == "10.0.0.5"
+
+
 # --- caddy_host_ip / caddy_setup_url validation (update() raises ValueError → 422) ---
 
 
@@ -78,6 +112,23 @@ def test_caddy_host_ip_rejects_port():
 
 def test_caddy_host_ip_accepts_bare_ip():
     s.update({"caddy_host_ip": "192.168.10.100"})
+    assert s.value("caddy_host_ip") == "192.168.10.100"
+
+
+@pytest.mark.parametrize("addr", ["127.0.0.1", "127.0.1.9", "::1"])
+def test_caddy_host_ip_rejects_loopback(addr):
+    """A bare IP, so the existing check passes it — but unusable as a rewrite answer."""
+    with pytest.raises(ValueError) as excinfo:
+        s.update({"caddy_host_ip": addr})
+    assert "loopback" in str(excinfo.value)
+
+
+def test_rejected_loopback_is_not_written(monkeypatch):
+    """`_validate` runs before the store is touched, so a rejected value must not
+    clobber a working one."""
+    s.update({"caddy_host_ip": "192.168.10.100"})
+    with pytest.raises(ValueError):
+        s.update({"caddy_host_ip": "127.0.0.1"})
     assert s.value("caddy_host_ip") == "192.168.10.100"
 
 
