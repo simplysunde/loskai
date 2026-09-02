@@ -5,10 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 1–14 are done; Phase 15 (audit
-cleanup) is the live one, with 16 (deployment topologies) and 17 (this doc restructure)
-queued — check `TODO.md` for the current unchecked items before assuming something is
-missing. The authoritative sources are:
+`backend/` and `frontend/` are real, working code. Phases 1–14 and 17 are done.
+
+**Phase 16 — ship layout C, fix upstream detection — is the live one.** Stage C (the
+loopback guard on the DNS answer IP) landed 2026-09-02; Stages A and B are open, and A
+(per-container network detection) is load-bearing for the rest. Phase 15 (audit cleanup) is
+code-complete with one item left that needs real hardware, so it is waiting on Sunde rather
+than on code. **Check `TODO.md` for the current unchecked items before assuming something is
+missing** — and note that a completed phase's write-up describes the repo *as it was then*;
+only the Now/Next tiers describe today. The authoritative sources are:
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases 1–13 moved to
@@ -23,7 +28,8 @@ missing. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own 36 routes; `recipe-schema.md` is the install-wizard manifest.
+  `api.md` is Loskai's own API surface — 36 HTTP routes plus the exec WebSocket;
+  `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B all-in-Docker · C split DNS; **A and C recommended, B the
   supported alternative**. A merged single-container layout and an all-in-one LXC are recorded
@@ -88,10 +94,16 @@ on the Routing table edits an existing route (passes `instance_id`). This is wha
 co-located infra container from being double-routed from competing tabs.
 
 **Security is enforced on the API, never the frontend.** Single admin password (no accounts),
-hashed, `HttpOnly` session cookie. Middleware gates **every `/api/*` except `GET /api/dashboard`**.
+hashed, `HttpOnly` session cookie. Middleware gates **every `/api/*` except `GET /api/dashboard`
+and the login flow** — `GET /api/auth/status`, `POST /api/login`, `POST /api/logout`,
+`POST /api/auth/setup` (you can't authenticate if login itself requires auth). That set is
+`PUBLIC_ROUTES` in `shared/auth.py`. **One route sits outside the middleware entirely:** the
+container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) — WebSockets never traverse the
+HTTP middleware, so it checks the session cookie itself and closes with 1008 if it fails. It
+opens a root shell; never add a second WS route without repeating that check.
 The entire React bundle is served *unauthenticated* — it's just static JS; `RequireAuth` only
 decides what renders. **Never gate the static files or SPA routes** — the lock is 100% on the API.
-The public Dashboard is a launcher; the admin tabs (Docker, Routing, VPN, Settings) sit behind
+The public Dashboard is a launcher; the admin tabs (Docker, Routing, Settings) sit behind
 login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
 independent modules.
 
@@ -117,5 +129,5 @@ must replay except the AdGuard password; its *own* admin password is stored only
 ## Module build order
 
 Caddy → AdGuard → WireGuard → Docker (Docker is the most complex, built last). Tiers 1–2
-tests are written *alongside* each module (see `docs/todo-archive.md` Phase 8b for the full
+tests are written *alongside* each module (see `todo-archive.md` Phase 8b for the full
 test strategy).

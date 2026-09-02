@@ -1,9 +1,11 @@
 # Loskai — TODO
 
-**Now:** Phase 15 — audit cleanup (below).
-**Next:** Phase 16 — ship layout C and make upstream detection topology-correct (below).
+**Now:** Phase 16 — ship layout C and make upstream detection topology-correct (below).
+Stage C landed 2026-09-02; Stages A and B are open, and A is load-bearing for B.
+**Waiting on hardware:** Phase 15 (audit cleanup) is code-complete — its last item is a live
+smoke test only Sunde can run (below).
 Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
-Phases 1–13 are complete and live in [`docs/todo-archive.md`](todo-archive.md);
+Phases 1–13 are complete and live in [`todo-archive.md`](todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
 
 ---
