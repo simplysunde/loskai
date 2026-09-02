@@ -343,18 +343,60 @@ the point of choice rather than buried. C beats it on every axis except needing 
 device. Stage A is load-bearing for every other stage and lands first._
 
 **Stage A — replace the topology heuristic with real network detection**
-- [ ] Add a thin `client.py` call for a container's attached networks (I/O only — the
-      `client.py`/pure-logic seam is a hard invariant). Loskai already holds the Docker socket,
-      so no new setting or permission is needed
-- [ ] New pure function: given Caddy's networks and the target container's networks, an
-      upstream is `name:port` when they intersect, else `<host_ip>:<published_port>`. This is
-      **per-container**, not per-deployment — which is the actual fix. Unit-test it directly
-- [ ] Rewire `suggested_upstream` (`modules/docker/logic.py:144`) onto it; keep the current
-      `mode` behaviour as the fallback for when Caddy's container can't be identified (external
-      Caddy on an LXC — layout A, where the answer is always `<host_ip>:<published_port>`)
-- [ ] `caddy_mode` currently also feeds `/api/caddy/status`'s `mode` and the two route modals'
-      hint text (`AddRouteModal`/`AssignModal`). Decide whether it stays as a display-level
-      summary or is replaced by a per-container hint, then update the frontend copy to match
+
+_Plan written 2026-09-02. The defect: `caddy_mode` answers "is `CADDY_ADMIN_URL`'s host an
+IP?" — a **per-deployment** answer to a **per-container** question. `suggested_upstream`
+(`modules/docker/logic.py:144`) branches on it, so in layout B every container gets
+`name:port`, which resolves only inside Caddy's own compose project. Routing a managed stack
+pre-fills a name Caddy cannot resolve → 502._
+
+_**The replacement:** does Caddy's container share a Docker network with the target
+container? Intersect → `name:port`. No intersection → `<host_ip>:<published_port>`._
+
+_**Identifying Caddy's container — no new setting.** `CADDY_ADMIN_URL`'s hostname is the key:
+`http://caddy:2019` → `caddy`. That is how Loskai itself reaches Caddy, so it is by
+construction a container name or network alias Loskai can resolve. An IP host (layout A) means
+Caddy is off-box, so there is nothing to look up and the fallback applies._
+
+_**Data is already in hand.** `NetworkSettings.Networks` keys sit in the `attrs` that
+`list_containers` already reads per container, so the target side costs nothing. Only Caddy's
+own networks need a lookup — **once per request, not per container**._
+
+**Decisions to take before coding** (each changes the result, so settle them first):
+- [ ] **D1 — fallback when Caddy's container can't be identified but `mode == "docker"`**
+      (hostname admin URL, no container matches it). Keep today's `name:port`, or prefer
+      `<host_ip>:<published_port>`? _Recommend the latter:_ `name:port` only works in the
+      narrow shared-network case and is precisely the guess that 502s, while the published-port
+      form works from anywhere Caddy might be. Cost: it changes the pre-fill for anyone whose
+      Caddy is in the target's compose project under an alias the hostname didn't match
+- [ ] **D2 — `network_mode: host`.** Such a container's `Networks` is `{"host"}`, so *two*
+      host-network containers would "intersect" and wrongly get `name:port` — there is no
+      Docker DNS on host networking. **`host` must be excluded from the intersection**, and
+      when Caddy is on it the answer is `<host_ip>:<published_port>`. This is a bug the naive
+      set-intersection introduces; it does not exist today
+- [ ] **D3 — what becomes of `caddy_mode`.** It still feeds `/api/caddy/status`'s `mode`
+      (`caddy/router.py:15`) and the modals' hint copy via `useRouteFields.ts:61,66`
+      ("e.g. grafana:3000" vs "e.g. 192.168.10.100:3000"). Either (a) keep `mode` as a coarse
+      display summary and soften the copy so it stops asserting a per-container fact, or
+      (b) return a per-container hint next to `suggested_upstream` and drop `mode` from the
+      modals. _Recommend (a) for this stage_ — (b) touches the health payload and both modals
+      for a hint the pre-fill already answers correctly
+
+**The work, in order** (pure logic first — it needs no Docker socket, so it is fully testable
+here; the I/O wiring lands after):
+- [ ] `modules/docker/logic.py` — new pure function taking Caddy's networks + the target's
+      networks + `service`/`container_name`/`ports`/`host_ip`, returning the upstream. Honour
+      D2's `host` exclusion. Unit-test directly: intersecting, disjoint, `host` on either side,
+      Caddy unknown (`None`), no published port, ambiguous multi-port
+- [ ] Rewire `suggested_upstream` onto it, keeping `mode` only as the D1 fallback
+- [ ] `modules/docker/client.py` — `container_networks(name)` (I/O only, returns `None` when no
+      such container — the `client.py`/pure-logic seam is a hard invariant); read each
+      container's own networks from the `attrs` already fetched in `list_containers`
+- [ ] `modules/docker/router.py:62` — resolve Caddy's networks once per request from
+      `CADDY_ADMIN_URL`'s hostname and pass them down beside the existing `mode`/`host_ip`
+- [ ] Frontend copy per D3
+- [ ] `tests/test_docker_logic.py` — the cases above; `tests/test_docker_client.py` — that
+      Caddy's networks are fetched once, not per container
 - [x] Fix `docs/troubleshooting.md:42` — "In the all-in-Docker (co-located) layout ... Caddy
       shares the Docker network, so a `name:port` like `grafana:3000` is correct" is **false**
       for every managed stack; it is only true inside Caddy's own compose project. **Landed
