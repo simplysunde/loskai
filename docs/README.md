@@ -34,7 +34,7 @@ Operating Loskai. Read in roughly this order the first time.
 | Page | When to read it |
 |---|---|
 | [install.md](guides/install.md) | Setting Loskai up from nothing. Walks the recommended Proxmox layout end to end — both LXCs, then the container. Start here. |
-| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the four layouts on port ownership and says which two are actually recommended. |
+| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which two are recommended, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
 | [migration.md](guides/migration.md) | Moving an existing Docker Compose project under Loskai's Stack Manager — and when not to bother. |

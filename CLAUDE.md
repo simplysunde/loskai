@@ -25,10 +25,12 @@ missing. The authoritative sources are:
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
   `api.md` is Loskai's own 36 routes; `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
-  deployment layout (A split-LXC · B all-in-Docker · C split DNS · D single container; only
-  **A and C are recommended**). `deployment.md` is the env-var/volume reference,
-  `install.md` the walkthrough, `certificate-setup.md` the internal-CA onboarding,
-  `migration.md` stack adoption, `troubleshooting.md` symptom-indexed triage.
+  deployment layout (A split-LXC · B all-in-Docker · C split DNS; **A and C recommended, B the
+  supported alternative**. A merged single-container layout and an all-in-one LXC are recorded
+  there as documented-but-unsupported — don't re-propose either). `deployment.md` is the
+  env-var/volume reference, `install.md` the walkthrough, `certificate-setup.md` the
+  internal-CA onboarding, `migration.md` stack adoption, `troubleshooting.md`
+  symptom-indexed triage.
 - **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
   (adding a `create-<service>-lxc.sh`).
 

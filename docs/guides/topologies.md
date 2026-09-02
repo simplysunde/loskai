@@ -10,7 +10,7 @@ For the env vars, volumes and cold start of whichever layout you pick, see
 
 ## Which one should I run?
 
-Two layouts are worth recommending, and which one depends on what hardware you already have:
+Two layouts are recommended, and which one depends on what hardware you already have:
 
 - **Running Proxmox? Use [A — split LXC](#a--split-lxc-composeyml).** AdGuard and Caddy each
   get their own container, giving the widest fault isolation and zero port contention. This is
@@ -21,11 +21,15 @@ Two layouts are worth recommending, and which one depends on what hardware you a
   the friendliest setup to actually operate: the Pi does one job and never needs touching, and
   everything you *do* touch is one `docker compose` command away.
 
-The other two are supported but not recommended, and the table below shows why.
-[B — all-in-Docker](#b--all-in-docker-composecolocatedyml) puts AdGuard on the Docker host,
-where its `53` fights the host resolver, and gains nothing over C for the trouble.
-[D — single container](#d--single-container-adguard--caddy--loskai-in-one-image) is a
-packaging convenience that fixes no port conflict and gives up independent restarts.
+**[B — all-in-Docker](#b--all-in-docker-composecolocatedyml) is the supported alternative**,
+and the right pick when a second box genuinely isn't an option: it needs no extra hardware,
+ships today, and keeps Caddy's admin API off the LAN. Its caveats are real and worth reading
+before you commit — AdGuard's `53` fights the host resolver, DNS shares a fault domain with
+everything else on the Docker host, and `name:port` upstreams don't resolve for managed
+stacks. If you can add one small always-on box, C removes the first two of those.
+
+A fourth arrangement — merging all three components into a single container — was considered
+and **rejected**; see [Considered and not supported](#considered-and-not-supported).
 
 ## The framing: contention is only at the host-published layer
 
@@ -53,30 +57,37 @@ and which ports are *forced* to become LAN-visible?
 Any layout that keeps it off the wire removes a firewall rule you would otherwise have to
 maintain by hand.
 
+**Never leave `CADDY_ADMIN_URL` as a loopback address on a box that serves LAN clients.**
+`http://127.0.0.1:2019` parses as an IP, so Loskai derives `127.0.0.1` as the DNS-rewrite
+answer and every client resolves the routed service to *its own* loopback. Wherever Caddy is
+addressed over loopback, set `CADDY_HOST_IP` to the host's LAN IP explicitly.
+
 ## The comparison
 
-| | A: split LXC | B: all-in-Docker | C: split DNS | D: single container |
-|---|---|---|---|---|
-| **Recommended** | **yes — with Proxmox** | no | **yes — the default otherwise** | no |
-| Status | shipping (`compose.yml`) | shipping (`compose.colocated.yml`) | planned | planned |
-| Boxes needed | 3 (2 LXCs + Docker host) | 1 | 2 (small DNS box + Docker host) | 1 |
-| `53` | own box, clean | **fights `systemd-resolved`** | own box, clean | **fights `systemd-resolved`** |
-| `80`/`443` | own box | Docker host | Docker host | Docker host |
-| `2019` | **LAN-exposed, needs a firewall rule** | internal | internal | internal |
-| `3000` | LAN-exposed | published for first-run | own box | internal |
-| `8080` | Docker host | Docker host | Docker host | Docker host |
-| stack ports | **every routed service must publish** | must publish | *can stay unpublished* | must publish |
-| Restart blast radius | one component | one container | one container | **all three** |
+| | A: split LXC | B: all-in-Docker | C: split DNS |
+|---|---|---|---|
+| **Verdict** | **recommended — with Proxmox** | supported alternative | **recommended — otherwise** |
+| Status | shipping (`compose.yml`) | shipping (`compose.colocated.yml`) | planned |
+| Boxes needed | 3 (2 LXCs + Docker host) | 1 | 2 (small DNS box + Docker host) |
+| `53` | own box, clean | **fights `systemd-resolved`** | own box, clean |
+| `80`/`443` | own box | Docker host | Docker host |
+| `2019` | **LAN-exposed, needs a firewall rule** | internal | internal |
+| `3000` | LAN-exposed | published for first-run | own box |
+| `8080` | Docker host | Docker host | Docker host |
+| stack ports | **every routed service must publish** | must publish | *can stay unpublished* |
+| Restart blast radius | one component | one container | one container |
 
-A fifth arrangement — all three as native services on **one LXC** — is a variant rather than a
-peer of these four; see [A variant: all-in-one LXC](#a-variant-all-in-one-lxc).
+Two further arrangements are documented but **not supported** — all three as native services
+on **one LXC**, and all three merged into **one container**. Both, and why neither is built,
+are in [Considered and not supported](#considered-and-not-supported).
 
 Three things follow from that table.
 
-**Merging processes does not solve the port problem.** Layout D eliminates contention
-*between* the three components — but they never contended in the first place. The only
-genuinely contested port is `53` against the host's resolver, and that is a host-vs-container
-conflict. It survives the merge untouched.
+**Merging processes does not solve the port problem.** Collapsing the three components into
+one container eliminates contention *between* them — but they never contended in the first
+place. The only genuinely contested port is `53` against the host's resolver, and that is a
+host-vs-container conflict. It survives the merge untouched. This is the core reason the
+single-container arrangement was rejected rather than built.
 
 **A's one real cost is `2019` on the LAN.** In split-LXC, Caddy's admin API is reachable
 from the LAN and protected only by a firewall rule maintained outside the app. Every layout
@@ -112,8 +123,9 @@ rebuild takes name resolution down LAN-wide.
 
 ### B — All-in-Docker (`compose.colocated.yml`)
 
-> **Supported, but not recommended.** Shipping today. Prefer C: it costs one small extra box
-> and removes this layout's only real problem.
+> **The supported alternative.** Shipping today, and the layout to choose when one box is all
+> you have. If you can add a second, C costs one small device and removes two of the three
+> caveats below.
 
 All three as containers on one host.
 
@@ -150,40 +162,47 @@ protecting (DNS in its own fault domain) without asking for a hypervisor.
   consuming one, because Caddy can reach unpublished containers over a shared network.
 - **Cost:** Caddy's availability is coupled to the Docker host — but not to DNS, which was the
   real concern behind the split.
-- **Cost:** one more physical device than B or D. That device can be very small.
+- **Cost:** one more physical device than B. That device can be very small, and it is the
+  only thing C asks for that B doesn't.
 
-Strictly better than B on every axis: B's sole advantage over A (internal `2019`) is one C
-also has, without B's `53` cost.
+That one device is the whole difference: on every other axis C dominates B — B's sole
+advantage over A (internal `2019`) is one C also has, without B's `53` cost or its shared
+DNS fault domain. Which is why B stays supported rather than recommended.
 
-### D — Single container: AdGuard + Caddy + Loskai in one image
+## Considered and not supported
 
-> **Supported, but not recommended.** Planned — see `TODO.md` Phase 16. Reach for it to try
-> Loskai on one box with nothing else set up, not to run it long-term.
+Two arrangements come up often enough to be worth recording — with the reasoning for why
+neither is built, so the question doesn't have to be re-litigated. Nothing in the repo ships
+either one.
 
-One network namespace, so `2019`, `3000` and `8080` are all pure-loopback and never
-published — the strongest isolation of the admin channels. That is the whole of its
-advantage, and it does not outweigh:
+### Merging all three into one container
 
-- It does **not** fix the `53` conflict, which is the only port that actually bites.
+AdGuard, Caddy and Loskai under a supervisor in a single image. One network namespace, so
+`2019`, `3000` and `8080` are all pure-loopback and never published — the strongest isolation
+of the admin channels of anything here. **That is the whole of its advantage**, and it does
+not outweigh:
+
+- It does **not** fix the `53` conflict, which is the only port that actually bites — see
+  [The comparison](#the-comparison).
 - It reverses the fault-domain split deliberately: a Caddy misconfig or restart takes LAN
   DNS down with it, and no component can be updated without restarting the other two.
 - Loskai holds the Docker socket (root-equivalent). In one container that puts DNS, TLS and
   root-equivalent host access in a single blast radius.
-- The image is single-process today (`CMD` is `uvicorn`); this layout needs a supervisor.
+- The shipped image is single-process by design (`CMD` is `uvicorn`). This needs s6-overlay
+  or similar, and that cost lands on the one image everyone else runs.
 
-**`CADDY_ADMIN_URL` must not be left to derive the answer IP here.** A loopback admin URL
-(`http://127.0.0.1:2019`) parses as an IP, so the answer IP derives to `127.0.0.1` and every
-AdGuard rewrite resolves the service to the *client's own* loopback. Set `CADDY_HOST_IP` to
-the host's LAN IP explicitly.
+**Rejected 2026-09-02.** Packaging convenience is a real want, but **B** already answers "one
+box, nothing else set up" while keeping the three components independently restartable. If
+you want everything on one machine, run B.
 
-## A variant: all-in-one LXC
+### All-in-one LXC
 
 AdGuard, Caddy and Loskai as three **native systemd services on a single Proxmox LXC** — no
 Docker involved in running Loskai itself.
 
-It is not in the comparison table because it isn't a peer of A–D: it has **D**'s shape (one
-box, one namespace) built with **A**'s mechanism (native services on an LXC). On ports alone
-it is the best-behaved arrangement here:
+It is not in the comparison table because it isn't a peer of A–C: it has the merged
+arrangement's shape (one box, one namespace) built with **A**'s mechanism (native services on
+an LXC). On ports alone it is the best-behaved arrangement here:
 
 - One network namespace, on a box dedicated to these three services — so `2019` and `3000`
   stay on loopback and never reach the LAN, and `53`, `80`, `443` and `8080` have nothing to
@@ -193,7 +212,7 @@ it is the best-behaved arrangement here:
   [`create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh) has to free `:53`, while the
   Docker layouts both do.
 - Caddy restarts don't touch a separate DNS box — but only because there isn't one. The
-  fault domain is shared, exactly as in D.
+  fault domain is shared, exactly as in the merged container above.
 
 **The catch is the Docker module, and it is decisive.** Loskai's Docker client calls
 `docker.from_env()` (`modules/docker/client.py:34`), which defaults to the local
@@ -210,8 +229,8 @@ the Stack Manager and the install wizard have no daemon to reach. Making them wo
 
 So this variant runs the routing half of Loskai (Caddy + AdGuard + assign) perfectly well and
 gives up the Docker half, unless you accept exposing the Docker API. **It is documented, not
-supported** — nothing in the repo builds it. If you want everything on one box, prefer **D**,
-which keeps the Docker socket local; if you want native LXC services, prefer **A**, where
+supported** — nothing in the repo builds it. If you want everything on one box, prefer **B**,
+which keeps the Docker socket local and ships today; if you want native LXC services, prefer **A**, where
 Loskai sits on the Docker host where its socket is.
 
 ## Docker service names are not automatically resolvable

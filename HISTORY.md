@@ -1,5 +1,38 @@
 # Loskai — History
 
+## 2026-09-02 — Topologies cut to three; the merged container is rejected
+
+**Phase 16 was "support all four deployment topologies"; it is now "ship layout C, fix
+upstream detection".** Layout D — AdGuard, Caddy and Loskai merged into one supervised
+container — is rejected rather than deferred. The 2026-08-30 analysis had already established
+the decisive fact and stopped short of acting on it: merging processes fixes no port conflict,
+because the three components never contend with each other and the one genuinely contested
+port (`53` against the host resolver) is host-vs-container and survives the merge. Set against
+that non-benefit, D collapses DNS, TLS and the root-equivalent Docker socket into a single
+blast radius, gives up independent restarts, and forces s6-overlay onto the single-process
+image every other layout runs. B already answers "one box, nothing else set up".
+
+**The recommendation is now three-tier instead of two-and-two:** A and C recommended, **B the
+supported alternative** rather than a discouraged one. Calling B "not recommended" alongside
+an unbuilt D was the wrong shape — B ships today, keeps `2019` off the wire, and is the honest
+answer when a second box isn't available. Its caveats are stated at the point of choice
+instead.
+
+The rejection reasoning is kept, not deleted, in `topologies.md` under **Considered and not
+supported**, beside the all-in-one LXC variant that got the same treatment on 2026-08-30. The
+precedent is deliberate: an unbuilt layout with no recorded reason comes back as a proposal.
+
+One finding outlived its layout. The missing loopback guard on `derive_caddy_host_ip` was
+written up as "the defect that makes layout D unusable by default", but it is a settings
+validation gap, not a D-specific one — any arrangement addressing Caddy over loopback derives
+`127.0.0.1` as the DNS answer and points every client at itself. Phase 16 Stage C keeps it,
+re-justified, and `topologies.md` now carries the warning topology-independently under "The
+ports in play".
+
+- Key files: `docs/guides/topologies.md` (four-way comparison → three), `TODO.md` (Phase 16
+  rescoped, Stage D deleted), `PLAN.md`, `README.md`, `CLAUDE.md`
+- Decided with Sunde; D removed from the comparison table, its reasoning retained
+
 ## 2026-08-30 — Documentation restructure + deployment-topology analysis
 
 **Compared the deployment layouts on port ownership** rather than on where each component

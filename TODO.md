@@ -1,7 +1,7 @@
 # Loskai — TODO
 
 **Now:** Phase 15 — audit cleanup (below).
-**Next:** Phase 16 — support all four deployment topologies (below).
+**Next:** Phase 16 — ship layout C and make upstream detection topology-correct (below).
 Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
 Phases 1–13 are complete and live in [`docs/todo-archive.md`](todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
@@ -288,14 +288,25 @@ remainder (above) still needs real hardware.
 
 ---
 
-## Phase 16 — Support all four deployment topologies
+## Phase 16 — Ship layout C, fix upstream detection
 
 _Origin (2026-08-30): a review of what Loskai can actually be deployed onto, prompted by the
 question "would AdGuard separate + Caddy & Loskai in one Docker stack be better than the
 current two options?". Comparing the layouts on **port ownership** produced
 [`docs/topologies.md`](docs/guides/topologies.md) (landed with this phase write-up) and surfaced one
-real defect. Two layouts ship today (A split-LXC, B all-in-Docker); two are wanted (C split
-DNS, D single all-in-one container)._
+real defect. Two layouts ship today (A split-LXC, B all-in-Docker); **C** (split DNS) is the
+one to build._
+
+_**Rescoped 2026-09-02.** The phase was "support all four topologies". Layout D — all three
+components merged into one container — is **rejected**, not deferred: it fixes no port
+conflict (the only contested port is `53` against the host resolver, which is host-vs-container
+and survives the merge), it puts DNS, TLS and the root-equivalent Docker socket in one blast
+radius, and it would grow a supervisor onto the single-process image everyone else runs. B
+already answers "one box, nothing else set up" without any of that. The reasoning is kept in
+[`topologies.md` → Considered and not supported](docs/guides/topologies.md#considered-and-not-supported)
+so it doesn't come back open. **The recommendation is now three-tier: A and C recommended, B
+the supported alternative with its caveats stated, D rejected.** Stage D is deleted; Stages
+A–C are unchanged in substance._
 
 _Findings that drive the stages below:_
 - _**The upstream prefill is wrong in layout B today.** `caddy_mode` (`modules/caddy/service.py:27`)
@@ -304,25 +315,30 @@ _Findings that drive the stages below:_
   stacks: Compose puts every project on its own `<project>_default`, so Caddy resolves only
   `adguard`/`loskai` (its own project) — never a managed stack. `grep network compose*.yml`
   returns nothing; no shared network is created anywhere. This is the 2026-07-26 split-LXC 502
-  trap in the other direction, and it blocks C and D as well as breaking B._
-- _**Layout D silently derives a loopback answer IP.** `derive_caddy_host_ip`
-  (`shared/settings.py:157`) has no loopback guard, so `CADDY_ADMIN_URL=http://127.0.0.1:2019`
-  yields `127.0.0.1` as the DNS-rewrite answer and every LAN client resolves the service to
-  itself. `localhost` instead flips `caddy_mode` to `docker` and derives nothing._
+  trap in the other direction, and it blocks C as well as breaking B._
+- _**A loopback `CADDY_ADMIN_URL` silently derives a loopback answer IP.**
+  `derive_caddy_host_ip` (`shared/settings.py:157`) has no loopback guard, so
+  `CADDY_ADMIN_URL=http://127.0.0.1:2019` yields `127.0.0.1` as the DNS-rewrite answer and
+  every LAN client resolves the service to itself. `localhost` instead flips `caddy_mode` to
+  `docker` and derives nothing. Found while analysing the merged-container layout, but it is
+  **not specific to it** — it is an unvalidated setting that misfires in any arrangement where
+  Caddy is addressed over loopback, including the all-in-one LXC variant._
 - _**Merging processes does not solve any port conflict.** The three components never contend
   with each other; the only contested port is AdGuard's `53` against the host resolver, which
-  is host-vs-container and survives the merge. D's value is packaging convenience, not ports._
+  is host-vs-container and survives the merge. This is what turned the merged container from a
+  planned layout into a rejected one._
 
-_Decisions taken up front (2026-08-30): **only A and C are recommended; all four are
-supported.** **A is the pick wherever Proxmox is available** — widest fault isolation, and an
-LXC costs nothing but disk. **C is the pick everywhere else, and is the friendliest layout to
-operate**: AdGuard goes on any small always-on box (a Raspberry Pi is the natural fit, as is a
-mini-PC or NAS), gets configured once and is never touched again, while everything you iterate
-on stays behind one `docker compose` on the main host. **B and D stay supported but are
-documented as not recommended** — B puts DNS back in the Docker host's fault domain and fights
-`systemd-resolved` for `53` while gaining nothing C doesn't have; D reverses the 2026-07-20
-split outright and puts the root-equivalent Docker socket in one blast radius with DNS and TLS,
-for no port benefit at all. Stage A is load-bearing for every other stage and lands first._
+_Decisions (2026-08-30, rescoped 2026-09-02): **A and C recommended, B the supported
+alternative, D rejected.** **A is the pick wherever Proxmox is available** — widest fault
+isolation, and an LXC costs nothing but disk. **C is the pick everywhere else, and is the
+friendliest layout to operate**: AdGuard goes on any small always-on box (a Raspberry Pi is
+the natural fit, as is a mini-PC or NAS), gets configured once and is never touched again,
+while everything you iterate on stays behind one `docker compose` on the main host. **B stays
+fully supported and is the honest answer when a second box isn't available** — it ships today
+and keeps `2019` off the wire; its caveats (AdGuard's `53` vs `systemd-resolved`, DNS in the
+Docker host's fault domain, `name:port` not resolving for managed stacks) are documented at
+the point of choice rather than buried. C beats it on every axis except needing one more
+device. Stage A is load-bearing for every other stage and lands first._
 
 **Stage A — replace the topology heuristic with real network detection**
 - [ ] Add a thin `client.py` call for a container's attached networks (I/O only — the
@@ -361,24 +377,22 @@ for no port benefit at all. Stage A is load-bearing for every other stage and la
       AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1
 
 **Stage C — loopback guard on the answer IP**
+_Kept after the D rescope, and re-justified: this was written up as "the defect that makes
+layout D unusable", but it is a **settings-validation gap**, not a D-specific one. Any
+arrangement where Caddy is addressed over loopback hits it — the all-in-one LXC variant by
+construction, and a co-located B stack the moment someone sets `CADDY_ADMIN_URL=http://127.0.0.1:2019`
+instead of `http://caddy:2019`. It fails silently and looks like a DNS problem, which is the
+worst combination; the general warning now sits in `topologies.md` under "The ports in play"._
 - [ ] `derive_caddy_host_ip` must not return a loopback address; when `CADDY_ADMIN_URL`'s host
       is loopback, require an explicit `CADDY_HOST_IP` and surface a clear settings error rather
       than writing rewrites that resolve to the client itself
 - [ ] Mirror the check in `shared/settings.py`'s `caddy_host_ip` validation (it currently
       rejects a scheme/port but accepts `127.0.0.1`)
-- [ ] Tests for both; this is the defect that makes layout D unusable by default
-
-**Stage D — layout D: the all-in-one image**
-- [ ] Separate Dockerfile/target — the shipped image stays single-process (`CMD` is `uvicorn`)
-      and must not grow a supervisor for the sake of a convenience tier
-- [ ] Supervisor (s6-overlay) running AdGuard + Caddy + Loskai; only `53`, `80`, `443`, `8080`
-      published — `2019` and `3000` stay pure-loopback
-- [ ] `CADDY_HOST_IP` **required** here (Stage C enforces it), and the `53` vs `systemd-resolved`
-      note applies unchanged — the merge does not fix it
-- [ ] Label it in the docs as the convenience tier with its trade-offs stated, per the decision above
+- [ ] Tests for both
 
 **Verification**
-- [ ] `uv run pytest` + `npm test`
+- [ ] `pytest` + `npm test`
+- [ ] `bash scripts/check-docs.sh`
 - [ ] **Live smoke (user):** in layout B or C, routing a *managed stack* container pre-fills a
       reachable upstream (the Stage A fix) and the route returns 200, not 502
 

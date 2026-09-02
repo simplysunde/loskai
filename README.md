@@ -41,8 +41,8 @@ honours `COMPOSE_FILE=compose.colocated.yml` for the co-located layout).
   host, with no second machine. Supported, but AdGuard's `:53` then fights `systemd-resolved`
   — see the port notes. Set `CADDY_HOST_IP` to the host's LAN IP.
 
-All four layouts, and the port trade-offs behind these recommendations, are compared in
-[topologies.md](docs/guides/topologies.md).
+The three supported layouts, and the port trade-offs behind these recommendations, are
+compared in [topologies.md](docs/guides/topologies.md).
 
 The Docker socket is mounted read-write (root-equivalent) — Loskai should be the only
 container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out. See
@@ -83,7 +83,7 @@ The four most people need:
 - [Install guide](docs/guides/install.md) — start here. Step by step for the recommended
   Proxmox layout: AdGuard + Caddy LXCs, then Loskai in Docker.
 - [Topologies](docs/guides/topologies.md) — read *before* installing if you're unsure where
-  each piece should run. Compares the four layouts and recommends two.
+  each piece should run. Compares the three layouts and recommends two.
 - [Deploying the container](docs/guides/deployment.md) — env vars, volumes, cold start.
 - [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS, certs, VPN.
 

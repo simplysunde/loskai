@@ -46,7 +46,7 @@ why — is in [topologies.md](topologies.md).
 ### Co-located port notes
 
 Two host-port conflicts to clear before `up -d` in the all-in-Docker layout. For *why* these
-are the only two, and which ports each of the four layouts contests, see
+are the only two, and which ports each layout contests, see
 [topologies.md](topologies.md#the-comparison).
 
 - **AdGuard `:53` vs the host resolver** — most Linux hosts run `systemd-resolved` on `53`.

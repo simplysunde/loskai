@@ -1053,20 +1053,29 @@ siblings reusing the same internal cert.
 
 ## Alternative Setups
 
-The preferred setup runs Caddy and AdGuard as two separate native LXCs (layout **A**). Three
+The preferred setup runs Caddy and AdGuard as two separate native LXCs (layout **A**). Two
 alternatives exist, differing in how many machines they use and which ports end up contested:
-**B** all-in-Docker, **C** split DNS (AdGuard on its own small box, Caddy + Loskai together in
-Docker), and **D** a single all-in-one container.
+**B** all-in-Docker, and **C** split DNS (AdGuard on its own small box, Caddy + Loskai
+together in Docker).
 
-**Only A and C are recommended** — A wherever Proxmox is available, C everywhere else.
+**A and C are recommended** — A wherever Proxmox is available, C everywhere else. **B is the
+supported alternative** for a single box, with its caveats (`53` vs the host resolver, DNS in
+the Docker host's fault domain) stated at the point of choice.
+
+A fourth layout — all three components merged into **one container** — was specified and then
+**rejected** (2026-09-02): it fixes no port conflict, since the only contested port is `53`
+against the host resolver and that survives the merge, while collapsing DNS, TLS and the
+root-equivalent Docker socket into one blast radius and forcing a supervisor onto the
+otherwise single-process image.
 
 The full comparison — which ports each layout contests, which admin channels it leaves on the
 LAN, and the reasoning behind that recommendation — is
-[docs/guides/topologies.md](docs/guides/topologies.md), which also documents the **all-in-one
-LXC** variant (all three as native services on one box — good on ports, but it strands the
-Docker module on the wrong machine). That page is the single source of truth for topology;
-this section deliberately carries only the summary, because the same port table previously
-lived here, in `deployment.md` and in `topologies.md`, and the copies drifted.
+[docs/guides/topologies.md](docs/guides/topologies.md), which also records the two documented
+but unsupported arrangements: the merged container above, and the **all-in-one LXC** variant
+(all three as native services on one box — good on ports, but it strands the Docker module on
+the wrong machine). That page is the single source of truth for topology; this section
+deliberately carries only the summary, because the same port table previously lived here, in
+`deployment.md` and in `topologies.md`, and the copies drifted.
 
 ---
 
