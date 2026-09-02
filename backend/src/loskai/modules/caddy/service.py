@@ -64,7 +64,7 @@ def select_server_name(servers: dict) -> str:
 
 
 def build_route(instance: Instance, base_domain: str) -> dict:
-    """The Caddy route JSON for an instance (see docs/caddy-api.md §2). Flat, keyed by
+    """The Caddy route JSON for an instance (see docs/reference/caddy-api.md §2). Flat, keyed by
     @id = instance id, matching one specific host."""
     if not instance.subdomain:
         raise ValueError(f"instance {instance.id} has no subdomain")
@@ -150,7 +150,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
 
 
 async def upsert_route(client: CaddyClient, instance: Instance, base_domain: str) -> None:
-    """Delete-then-add — the single convergent path (docs/caddy-api.md §4). Idempotent
+    """Delete-then-add — the single convergent path (docs/reference/caddy-api.md §4). Idempotent
     by @id, so re-pushing never duplicates."""
     await client.delete_route(instance.id)  # ignores 404
     await client.push_route(build_route(instance, base_domain))

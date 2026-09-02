@@ -1,6 +1,6 @@
 """Tier-2: Caddy client contract — request shapes + designed edges, HTTP mocked.
 
-Mocks the Admin API responses from docs/caddy-api.md and asserts the *requests* the
+Mocks the Admin API responses from docs/reference/caddy-api.md and asserts the *requests* the
 client builds. Never tests httpx itself.
 """
 

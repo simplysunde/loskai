@@ -1,5 +1,5 @@
 # All-in-Docker alternative (no Proxmox/LXC): Loskai + Caddy + AdGuard as containers on one
-# host. Also the basis for the Tier-3 test rig. See docs/deployment.md for env vars, the
+# host. Also the basis for the Tier-3 test rig. See docs/guides/deployment.md for env vars, the
 # co-located port notes (AdGuard :53 vs the host resolver), and why CADDY_HOST_IP is
 # required here. Copy .env.example to .env first.
 

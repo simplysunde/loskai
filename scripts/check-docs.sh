@@ -3,10 +3,13 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Three checks, all of which have caught real breakage:
+# Four checks, all of which have caught real breakage:
 #   1. Relative links that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
+#   4. docs/ paths cited from source and config (comments in .py, compose files, .env.example)
+#      that no longer resolve. Phase 17's move left 11 of these, and checks 1-3 could not see
+#      them because they only ever read .md files.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -21,7 +24,7 @@ cd "$(dirname "$0")/.."
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
-log "Checking documentation links, anchors and orphans"
+log "Checking documentation links, anchors, orphans and source citations"
 
 python3 - <<'PY'
 import os
@@ -90,13 +93,34 @@ orphans = sorted(docs - seen)
 for o in orphans:
     problems.append(f"  {o}: not reachable from {INDEX} — add it to the index")
 
+# Source and config cite docs by path in comments ("see docs/guides/deployment.md"). Those
+# are pointers a reader follows, and nothing above reads them — .md files are the only input
+# to checks 1-3. Restricted to docs/ paths: a bare filename in prose is not a path.
+SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".yml", ".yaml", ".sh", ".toml"}
+SOURCE_NAMES = {"Dockerfile", "Makefile", ".env.example"}
+cited = 0
+for p in sorted(pathlib.Path(".").rglob("*")):
+    if SKIP_DIRS & set(p.parts) or not p.is_file():
+        continue
+    if p.suffix not in SOURCE_SUFFIXES and p.name not in SOURCE_NAMES:
+        continue
+    try:
+        text = p.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        continue
+    for ref in re.findall(r"docs/[\w./-]+\.md", text):
+        cited += 1
+        if not pathlib.Path(ref).exists():
+            problems.append(f"  {p.as_posix()}: cites a doc that moved or is gone -> {ref}")
+
 print(f"scanned {len(files)} markdown files")
 print(f"docs reachable from the index: {len(docs & seen)}/{len(docs)}")
+print(f"docs cited from source and config: {cited}")
 if problems:
     print(f"\n{len(problems)} problem(s):")
     print("\n".join(problems))
     sys.exit(1)
-print("\nno broken links, anchors or orphans")
+print("\nno broken links, anchors, orphans or stale source citations")
 PY
 
 log "Docs OK"

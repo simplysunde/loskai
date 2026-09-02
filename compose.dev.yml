@@ -6,7 +6,7 @@
 #
 # Then set on the dev backend:  CADDY_ADMIN_URL=http://127.0.0.1:2019
 #                               ADGUARD_URL=http://127.0.0.1:3000
-# See docs/dev-testing.md for the full walkthrough.
+# See docs/contributing/dev-testing.md for the full walkthrough.
 
 services:
   caddy:

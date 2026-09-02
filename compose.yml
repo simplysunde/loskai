@@ -1,5 +1,5 @@
 # Preferred setup: Loskai on the Docker host; Caddy and AdGuard native on two separate LXCs over the LAN.
-# See docs/deployment.md for env vars, the STACKS_DIR same-path mount, the settings-volume
+# See docs/guides/deployment.md for env vars, the STACKS_DIR same-path mount, the settings-volume
 # coupling, and cold start. Copy .env.example to .env first.
 
 services:

@@ -2,7 +2,7 @@
 
 Two sources merged into one list: the synced public repo cache (canonical) and a local
 dir in the settings volume. On a name clash the repo wins; the shadowed local copy is
-flagged, not dropped. See docs/recipe-schema.md — the contract recipes are authored
+flagged, not dropped. See docs/reference/recipe-schema.md — the contract recipes are authored
 against.
 
 Validation + the merge are pure/filesystem (unit-tested). Sync (git) and install

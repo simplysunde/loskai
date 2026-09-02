@@ -1,4 +1,4 @@
-"""AdGuard Home REST client — thin HTTP I/O only (see docs/adguard-api.md).
+"""AdGuard Home REST client — thin HTTP I/O only (see docs/reference/adguard-api.md).
 
 Loskai touches exactly one feature area — DNS rewrites — plus a status probe. All
 reconcile decision logic lives in `service.py`; this file only talks to `/control`.
