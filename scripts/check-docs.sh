@@ -123,4 +123,84 @@ if problems:
 print("\nno broken links, anchors, orphans or stale source citations")
 PY
 
+log "Checking CLAUDE.md's enumerations against the code"
+
+python3 - <<'PY'
+import pathlib
+import re
+import sys
+
+# CLAUDE.md is read as ground truth at the start of every session, so a wrong fact here
+# propagates into new work — which is why Phase 15 rated the same class of error (F13) the
+# highest-value finding in that audit. Four had still accumulated by 2026-09-02: a stale
+# phase status, a nav tab that no longer exists, an incomplete list of public routes, and a
+# moved archive path.
+#
+# Most prose can't be verified mechanically. But every one of those four was an
+# *enumeration* — a list or count that the code also enumerates — and those can be pinned.
+# This checks only that class. A wrong sentence elsewhere still needs a human read.
+
+claude = pathlib.Path("CLAUDE.md").read_text()
+problems = []
+
+
+def listed(pattern: str) -> list[str] | None:
+    """The comma-separated items inside a parenthesised claim, or None if absent."""
+    m = re.search(pattern, claude)
+    if not m:
+        return None
+    return [i.strip(" `*") for i in re.split(r",| and ", m.group(1)) if i.strip(" `*")]
+
+
+# 1. The four module names, against backend/src/loskai/modules/.
+mods = sorted(
+    d.name for d in pathlib.Path("backend/src/loskai/modules").iterdir()
+    if d.is_dir() and not d.name.startswith("__")
+)
+claimed = listed(r"modules \(([^)]*)\)")
+if claimed is None:
+    problems.append("  CLAUDE.md: no 'modules (...)' list found — did the wording change?")
+elif sorted(c.lower() for c in claimed) != mods:
+    problems.append(f"  CLAUDE.md: modules {claimed} != {mods} on disk")
+
+# 2. The admin tab list, against NAV in the frontend layout. Dashboard is excluded — it is
+#    the public launcher, not an admin tab.
+layout = pathlib.Path("frontend/src/components/shared/Layout.tsx").read_text()
+nav_block = re.search(r"const NAV = \[(.*?)\] as const", layout, re.S)
+nav = [l for l in re.findall(r'label:\s*"([^"]+)"', nav_block.group(1) if nav_block else "")]
+tabs = listed(r"admin tabs \(([^)]*)\)")
+if not nav:
+    problems.append("  Layout.tsx: could not parse NAV — the check needs updating")
+elif tabs is None:
+    problems.append("  CLAUDE.md: no 'admin tabs (...)' list found — did the wording change?")
+elif tabs != [n for n in nav if n != "Dashboard"]:
+    problems.append(f"  CLAUDE.md: admin tabs {tabs} != NAV {nav} (minus Dashboard)")
+
+# 3. The HTTP route count. Drifts the moment a route is added — the WebSocket is counted
+#    separately because CLAUDE.md names it separately.
+routes = 0
+for f in pathlib.Path("backend/src/loskai").rglob("*.py"):
+    routes += len(re.findall(r"@router\.(?:get|post|put|patch|delete)\(", f.read_text()))
+m = re.search(r"(\d+) HTTP routes", claude)
+if not m:
+    problems.append("  CLAUDE.md: no 'N HTTP routes' claim found — did the wording change?")
+elif int(m.group(1)) != routes:
+    problems.append(f"  CLAUDE.md: claims {m.group(1)} HTTP routes, code has {routes}")
+
+# 4. Every unauthenticated route named. This is the security boundary; an omission here
+#    reads as "that route is gated" when it isn't.
+auth = pathlib.Path("backend/src/loskai/shared/auth.py").read_text()
+pub = re.search(r"PUBLIC_ROUTES = \{(.*?)\}", auth, re.S)
+for verb, path in re.findall(r'\("(\w+)",\s*"([^"]+)"\)', pub.group(1) if pub else ""):
+    if f"{verb} {path}" not in claude:
+        problems.append(f"  CLAUDE.md: public route {verb} {path} is not named in the security section")
+
+print(f"modules: {len(mods)} · admin tabs: {len(nav) - 1} · HTTP routes: {routes}")
+if problems:
+    print(f"\n{len(problems)} problem(s):")
+    print("\n".join(problems))
+    sys.exit(1)
+print("\nCLAUDE.md's enumerations match the code")
+PY
+
 log "Docs OK"

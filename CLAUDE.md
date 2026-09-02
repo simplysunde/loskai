@@ -53,9 +53,12 @@ Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vit
 - Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
 - Frontend tests: `npm test` (Vitest)
 - Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — broken links, dead
-  heading anchors, and pages under `docs/` not reachable from `docs/README.md`. Run it
-  after moving, renaming or adding any `.md`; link depth is easy to get wrong now that
-  `docs/` is nested.
+  heading anchors, pages under `docs/` not reachable from `docs/README.md`, `docs/` paths
+  cited from source and config that no longer resolve, and **this file's enumerations
+  against the code** (module names, admin tabs, HTTP route count, public routes). Run it
+  after moving, renaming or adding any `.md`, after adding a route or a nav tab, and after
+  editing the lists in this file. Link depth is easy to get wrong now that `docs/` is
+  nested, and the enumerations here drift silently — four had by 2026-09-02.
 - **Production** serves on `:8080` — one FastAPI process serves the API *and* the built
   React bundle as static files (single container, single port). Dev is two servers; prod is one.
 
