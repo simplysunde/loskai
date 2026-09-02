@@ -113,15 +113,22 @@ def _validate(key: str, val: Any) -> None:
             raise ValueError(
                 "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
             )
-        # AdGuard hands this answer to every LAN client, so a loopback address points
-        # each one at *itself* rather than at Caddy. It fails as a connection refused or
-        # a stray local service, never as a DNS error, which is why it has to be caught
-        # here rather than debugged later. See derive_caddy_host_ip.
+        # AdGuard hands this answer to every LAN client, so it has to name a host those
+        # clients can open a connection to. Two bare IPs pass the parse above and cannot:
+        # loopback points each client at itself, and the unspecified address is a bind
+        # wildcard rather than a destination. Both fail as a refused connection, never as
+        # a DNS error, which is why they are caught here. See derive_caddy_host_ip.
         if parsed.is_loopback:
             raise ValueError(
                 "Caddy LAN IP must be an address other machines can reach — a loopback "
                 "address (e.g. 127.0.0.1) makes every client resolve the service to "
                 "itself. Use the host's LAN IP (e.g. 192.168.10.100)"
+            )
+        if parsed.is_unspecified:
+            raise ValueError(
+                "Caddy LAN IP must be a specific address — 0.0.0.0 (and ::) means 'any "
+                "interface', which is something to listen on, not something to connect "
+                "to. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
     if key == "host_ip":
         # Prefixed onto a published port to form a container upstream, so it must be a bare IP.
@@ -167,21 +174,29 @@ def set_admin_password_hash(hashed: str) -> None:
 # --- Answer-IP derivation (used by the AdGuard rewrite / assign flow) ---
 
 
-def _reject_loopback(candidate: str, source: str) -> str | None:
-    """Drop an answer IP no other machine can reach, else pass it through.
+def _usable_answer_ip(candidate: str, source: str) -> str | None:
+    """Drop an answer IP no LAN client can connect to, else pass it through.
 
-    Only loopback is judged here — whether the value is a well-formed IP at all is
-    `_validate`'s job, and a value that doesn't parse is left alone so this stays a
-    single-purpose guard.
+    Two parse as valid IPs but are not destinations: loopback (every client resolves the
+    service to itself) and the unspecified address `0.0.0.0` / `::` (a bind wildcard —
+    "any interface" is a thing to listen on, not to reach). Whether the value is a
+    well-formed IP at all is `_validate`'s job; one that doesn't parse is passed through
+    so this stays a single-purpose guard.
     """
     try:
         parsed = ip_address(str(candidate).strip())
     except ValueError:
         return candidate
-    if parsed.is_loopback:
+    reason = (
+        "loopback" if parsed.is_loopback
+        else "unspecified" if parsed.is_unspecified
+        else None
+    )
+    if reason:
         logger.warning(
-            "ignoring loopback answer IP %s from %s — set CADDY_HOST_IP to the host's "
-            "LAN IP, or every client resolves routed services to itself",
+            "ignoring %s answer IP %s from %s — set CADDY_HOST_IP to the host's LAN IP, "
+            "or routed services resolve to nothing a client can reach",
+            reason,
             candidate,
             source,
         )
@@ -194,8 +209,9 @@ def derive_caddy_host_ip() -> str | None:
     CADDY_ADMIN_URL when that host is an IP. A hostname (Docker mode) returns None —
     CADDY_HOST_IP must be set explicitly there.
 
-    **Never returns a loopback address**, from either source. AdGuard hands the answer to
-    every LAN client, so `127.0.0.1` makes each one resolve the routed service to itself.
+    **Never returns a loopback or unspecified address**, from either source. AdGuard hands
+    the answer to every LAN client, so `127.0.0.1` makes each one resolve the routed service
+    to itself and `0.0.0.0` names no host at all.
     `_validate` blocks that on the way in, but only for the UI: `CADDY_HOST_IP` can also
     arrive from the environment, which never passes through validation, and the derived
     path picks it up silently from a loopback `CADDY_ADMIN_URL`.
@@ -207,7 +223,7 @@ def derive_caddy_host_ip() -> str | None:
     """
     explicit = value("caddy_host_ip")
     if explicit:
-        return _reject_loopback(explicit, "CADDY_HOST_IP")
+        return _usable_answer_ip(explicit, "CADDY_HOST_IP")
     admin = value("caddy_admin_url")
     if not admin:
         return None
@@ -218,7 +234,7 @@ def derive_caddy_host_ip() -> str | None:
         ip_address(host)
     except ValueError:
         return None
-    return _reject_loopback(host, "CADDY_ADMIN_URL")
+    return _usable_answer_ip(host, "CADDY_ADMIN_URL")
 
 
 router = APIRouter(prefix="/api", tags=["settings"])

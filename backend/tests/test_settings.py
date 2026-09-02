@@ -63,23 +63,28 @@ def test_derive_caddy_host_ip_hostname_needs_explicit(monkeypatch):
     assert s.derive_caddy_host_ip() == "192.168.10.100"
 
 
-# --- The answer IP is never loopback (Phase 16 Stage C) ---
+# --- The answer IP is always something a client can connect to (Phase 16 Stage C) ---
 #
-# AdGuard hands the answer to every LAN client, so 127.0.0.1 resolves the routed service
-# to whichever machine asked. It surfaces as a refused connection, never as a DNS error.
+# AdGuard hands the answer to every LAN client. 127.0.0.1 resolves the service to whichever
+# machine asked; 0.0.0.0 is a bind wildcard and names no host. Both surface as a refused
+# connection, never as a DNS error.
 
 
-@pytest.mark.parametrize("admin_url", ["http://127.0.0.1:2019", "http://[::1]:2019"])
-def test_derive_drops_loopback_from_the_admin_url(monkeypatch, admin_url, caplog):
+@pytest.mark.parametrize(
+    "admin_url",
+    ["http://127.0.0.1:2019", "http://[::1]:2019", "http://0.0.0.0:2019"],
+)
+def test_derive_drops_an_unusable_answer_from_the_admin_url(monkeypatch, admin_url, caplog):
     monkeypatch.setattr(config.settings, "caddy_admin_url", admin_url)
     assert s.derive_caddy_host_ip() is None
-    assert "loopback" in caplog.text  # dropped, but never silently
+    assert "answer IP" in caplog.text  # dropped, but never silently
 
 
-def test_derive_drops_loopback_from_an_explicit_env_value(monkeypatch):
+@pytest.mark.parametrize("addr", ["127.0.0.1", "0.0.0.0"])
+def test_derive_drops_an_unusable_explicit_env_value(monkeypatch, addr):
     """CADDY_HOST_IP from the environment never passes through `_validate`, so the guard
     has to sit in the derivation too — this is the only path that catches it."""
-    monkeypatch.setattr(config.settings, "caddy_host_ip", "127.0.0.1")
+    monkeypatch.setattr(config.settings, "caddy_host_ip", addr)
     assert s.derive_caddy_host_ip() is None
 
 
@@ -121,6 +126,15 @@ def test_caddy_host_ip_rejects_loopback(addr):
     with pytest.raises(ValueError) as excinfo:
         s.update({"caddy_host_ip": addr})
     assert "loopback" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("addr", ["0.0.0.0", "::"])
+def test_caddy_host_ip_rejects_the_unspecified_address(addr):
+    """Same shape as loopback: parses as a bare IP, reaches nothing. The message has to
+    say something different, though — 'loopback' would not describe 0.0.0.0."""
+    with pytest.raises(ValueError) as excinfo:
+        s.update({"caddy_host_ip": addr})
+    assert "any interface" in str(excinfo.value)
 
 
 def test_rejected_loopback_is_not_written(monkeypatch):

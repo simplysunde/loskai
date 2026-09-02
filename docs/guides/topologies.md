@@ -57,12 +57,12 @@ and which ports are *forced* to become LAN-visible?
 Any layout that keeps it off the wire removes a firewall rule you would otherwise have to
 maintain by hand.
 
-**A loopback `CADDY_ADMIN_URL` cannot supply the answer IP.** `http://127.0.0.1:2019` parses
-as an IP, so it would otherwise derive `127.0.0.1` as the DNS-rewrite answer and every client
-would resolve the routed service to *its own* loopback. Loskai refuses to use a loopback
-answer from either source, so wherever Caddy is addressed over loopback you must set
-`CADDY_HOST_IP` to the host's LAN IP — until you do, routed services get no DNS rewrite and
-the Routing tab reports the answer IP as unconfigured.
+**A loopback or wildcard `CADDY_ADMIN_URL` cannot supply the answer IP.** `http://127.0.0.1:2019`
+parses as an IP, so it would otherwise derive `127.0.0.1` as the DNS-rewrite answer and every
+client would resolve the routed service to *its own* loopback; `0.0.0.0` is a bind wildcard and
+names no host at all. Loskai refuses both from either source, so wherever Caddy is addressed
+that way you must set `CADDY_HOST_IP` to the host's LAN IP — until you do, routed services get
+no DNS rewrite and the Routing tab reports the answer IP as unconfigured.
 
 ## The comparison
 

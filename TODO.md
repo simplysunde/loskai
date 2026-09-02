@@ -398,9 +398,14 @@ worst combination; the general warning now sits in `topologies.md` under "The po
       rejects a scheme/port but accepts `127.0.0.1`) — now raises `ValueError` → 422 with a
       message naming the fix, and `_validate` still runs before the store is touched, so a
       rejected value can't clobber a working one
-- [x] Tests for both — 9 added to `test_settings.py` (IPv4 + IPv6 loopback, `127.0.1.9`, the
-      env path, the documented recovery, two over-rejection guards, and the no-clobber case).
-      The 7 defect-specific ones were confirmed to fail with the guard stubbed out
+- [x] Tests for both — 13 in `test_settings.py` (IPv4 + IPv6 loopback, `127.0.1.9`, `0.0.0.0`,
+      `::`, the env path, the documented recovery, two over-rejection guards, and the
+      no-clobber case). Each defect-specific one was confirmed to fail with its guard stubbed out
+- [x] **Widened beyond the original scope (2026-09-02):** the unspecified address `0.0.0.0` /
+      `::` fails identically — it parses as a bare IP, passes the existing check, and names no
+      host, so a rewrite pointing at it resolves to nothing connectable. Same guard, a separate
+      branch with its own message, since "loopback" does not describe `0.0.0.0`. The helper is
+      now `_usable_answer_ip()` rather than `_reject_loopback()`
 - [x] Docs: `deployment.md`'s `CADDY_HOST_IP` row states the constraint, and the
       `topologies.md` warning now says the value is *refused* rather than merely inadvisable.
       No frontend change needed — `answer_ip: null` was already handled (`?? ""` plus a
