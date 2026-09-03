@@ -101,7 +101,7 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 | Method & path | Purpose |
 |---|---|
-| `GET /containers` | Live list: `[{ id, name, image, status, uptime, ports, subdomain, suggested_upstream, cpu, mem }]`. `subdomain` is joined from the instance; `suggested_upstream` is a reachable `<service>:<port>` derived from the socket to pre-fill the assign form. |
+| `GET /containers` | Live list: `[{ id, name, image, status, uptime, ports, subdomain, upstream_mode, suggested_upstream, cpu, mem }]`. `subdomain` is joined from the instance. `upstream_mode` is `docker` when Caddy's container shares a Docker network with this one (so it can be dialled by name) or `lan` otherwise — decided per container, and `lan` whenever Caddy isn't a container this daemon can see. `suggested_upstream` is the pre-fill that follows from it: `<service>:<port>` for `docker`, `<host_ip>:<published_port>` for `lan`, `null` when neither can be determined. |
 | `POST /containers/{id}/start` · `/stop` · `/restart` | Lifecycle control. |
 | `DELETE /containers/{id}` | Force-remove the container. |
 | `GET /orphans` | Docker instances whose linked container was removed: `[{ id, name, container, subdomain }]`. `[]` when the daemon is down (an unreachable socket must not make live instances look orphaned). |

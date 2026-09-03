@@ -46,10 +46,11 @@ Use the **Docker host's LAN IP + the container's published host port** (e.g.
 > the Docker host's LAN IP + published port as above, or attach Caddy and the target to a
 > shared network yourself.
 >
-> Loskai's Add-Route hint infers this from whether `CADDY_ADMIN_URL` is an IP or a hostname, so
-> in these layouts it can suggest a `name:port` that doesn't resolve (`TODO.md` Phase 16 replaces
-> the guess with real network detection). Until then, confirm with the test below rather than
-> trusting the hint. See [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable).
+> Loskai's Add-Route hint checks whether Caddy's container and the target actually share a
+> Docker network, so it suggests `name:port` only where that resolves and the host's published
+> port everywhere else. A 502 here therefore points at the plumbing rather than the hint —
+> confirm with the test below. See
+> [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable).
 
 **The decisive test** — run it *from inside the Caddy LXC*; it separates config from plumbing:
 

@@ -342,7 +342,7 @@ Docker host's fault domain, `name:port` not resolving for managed stacks) are do
 the point of choice rather than buried. C beats it on every axis except needing one more
 device. Stage A is load-bearing for every other stage and lands first._
 
-**Stage A — replace the topology heuristic with real network detection**
+**Stage A — replace the topology heuristic with real network detection** — **done 2026-09-03**
 
 _Plan written 2026-09-02. The defect: `caddy_mode` answers "is `CADDY_ADMIN_URL`'s host an
 IP?" — a **per-deployment** answer to a **per-container** question. `suggested_upstream`
@@ -372,7 +372,7 @@ _**Data is already in hand.** `NetworkSettings.Networks` keys sit in the `attrs`
 own networks need a lookup — **once per request, not per container**._
 
 **Decisions to take before coding** (each changes the result, so settle them first):
-- [ ] **D1 — fallback when Caddy's container can't be identified but `mode == "docker"`**
+- [x] **D1 — fallback when Caddy's container can't be identified but `mode == "docker"`**
       (hostname admin URL, no container matches it). Keep today's `name:port`, or prefer
       `<host_ip>:<published_port>`? _Recommend the latter:_ `name:port` only works in the
       narrow shared-network case and is precisely the guess that 502s, while the published-port
@@ -381,12 +381,12 @@ own networks need a lookup — **once per request, not per container**._
       neither its name, its compose service label, nor any network alias. The remaining real
       case is "Caddy is not a container on this host at all" (a DNS name pointing off-box),
       where `<host_ip>:<published_port>` is simply correct, not a guess
-- [ ] **D2 — `network_mode: host`.** Such a container's `Networks` is `{"host"}`, so *two*
+- [x] **D2 — `network_mode: host`.** _Settled: excluded (with `none`) before intersecting._ Such a container's `Networks` is `{"host"}`, so *two*
       host-network containers would "intersect" and wrongly get `name:port` — there is no
       Docker DNS on host networking. **`host` must be excluded from the intersection**, and
       when Caddy is on it the answer is `<host_ip>:<published_port>`. This is a bug the naive
       set-intersection introduces; it does not exist today
-- [ ] **D3 — what becomes of `caddy_mode`.** It still feeds `/api/caddy/status`'s `mode`
+- [x] **D3 — what becomes of `caddy_mode`.** _Settled: option (b), per-container._ It still feeds `/api/caddy/status`'s `mode`
       (`caddy/router.py:15`) and the modals' hint copy via `useRouteFields.ts:61,66`
       ("e.g. grafana:3000" vs "e.g. 192.168.10.100:3000"). Either (a) keep `mode` as a coarse
       display summary and soften the copy so it stops asserting a per-container fact, or
@@ -396,29 +396,38 @@ own networks need a lookup — **once per request, not per container**._
 
 **The work, in order** (pure logic first — it needs no Docker socket, so it is fully testable
 here; the I/O wiring lands after):
-- [ ] `modules/docker/logic.py` — new pure function taking Caddy's networks + the target's
+- [x] `modules/docker/logic.py` — new pure function taking Caddy's networks + the target's
       networks + `service`/`container_name`/`ports`/`host_ip`, returning the upstream. Honour
       D2's `host` exclusion. Unit-test directly: intersecting, disjoint, `host` on either side,
       Caddy unknown (`None`), no published port, ambiguous multi-port
-- [ ] Rewire `suggested_upstream` onto it, keeping `mode` only as the D1 fallback
-- [ ] `modules/docker/client.py` — `container_networks(hostname)` (I/O only, returns `None`
+- [x] `suggested_upstream` needed **no rewiring** — it already formats whichever mode it is
+      handed, so the decision moved into `upstream_mode()` beside it and its existing tests
+      still describe it unchanged. `mode` as a parameter is gone from the call path: an
+      unresolvable Caddy resolves to `lan` directly, so there was nothing left for it to do
+- [x] `modules/docker/client.py` — `_caddy_networks(containers, hostname)` (I/O only, returns `None`
       when nothing matches — the `client.py`/pure-logic seam is a hard invariant), resolving via
       the three keys above; read each container's own networks from the `attrs` already fetched
       in `list_containers`. **Unit-test the three-key match**, especially the alias case: it is
       the one the shipped compose file's pinned `container_name` hides
-- [ ] `modules/docker/router.py:62` — resolve Caddy's networks once per request from
+- [x] `modules/docker/router.py:62` — resolve Caddy's networks once per request from
       `CADDY_ADMIN_URL`'s hostname and pass them down beside the existing `mode`/`host_ip`
-- [ ] Frontend copy per D3
-- [ ] `tests/test_docker_logic.py` — the cases above; `tests/test_docker_client.py` — that
-      Caddy's networks are fetched once, not per container
+- [x] Frontend per D3 — the picked container answers for itself in `AddRouteModal`;
+      `Routing.tsx` does the same for the edit modal by looking the row's container up in a
+      query that shares `AddRouteModal`'s key. Non-container sources keep `caddy.mode`, which
+      is its remaining honest use. The `lan` help text no longer blames "a separate Caddy LXC" —
+      the reason is per-container now and often has nothing to do with an LXC
+- [x] `tests/test_docker_logic.py` (6) + `tests/test_docker_client.py` (5, incl. the alias
+      match and the one-API-call guard) + 3 Vitest tests for the hint. Each was confirmed to
+      fail on its own defect
 - [x] Fix `docs/troubleshooting.md:42` — "In the all-in-Docker (co-located) layout ... Caddy
       shares the Docker network, so a `name:port` like `grafana:3000` is correct" is **false**
       for every managed stack; it is only true inside Caddy's own compose project. **Landed
       2026-08-30**, ahead of the rest of the phase — the claim was actively misleading and
       `docs/topologies.md` contradicted it. The replacement also drops "trust the hint for your
       topology", which is bad advice until Stage A lands
-- [ ] Extend `tests/test_caddy_logic.py:22` (`test_caddy_mode`) — it pins only the IP and
-      hostname cases; loopback is uncovered
+- [x] Extend `tests/test_caddy_logic.py:22` (`test_caddy_mode`) — loopback and `localhost`
+      now pinned. `caddy_mode` survives **only** as `/api/caddy/status`'s display summary and
+      as the fallback for non-container route sources; it decides no upstream any more
 
 **Stage B — layout C: shared edge network + its own compose file**
 - [ ] `compose.caddy-loskai.yml` — Caddy + Loskai on the Docker host, AdGuard external.

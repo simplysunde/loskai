@@ -23,6 +23,13 @@ def test_caddy_mode():
     assert service.caddy_mode("http://192.168.10.101:2019") == "lan"
     assert service.caddy_mode("http://caddy:2019") == "docker"
     assert service.caddy_mode(None) is None
+    # Loopback is an IP, so it reads as `lan` — correct for what this now is, a coarse
+    # display summary for /api/caddy/status. It no longer decides any upstream: that is
+    # per-container in docker.logic.upstream_mode, and a loopback CADDY_ADMIN_URL is
+    # separately refused as a DNS answer (shared.settings._usable_answer_ip).
+    assert service.caddy_mode("http://127.0.0.1:2019") == "lan"
+    assert service.caddy_mode("http://[::1]:2019") == "lan"
+    assert service.caddy_mode("http://localhost:2019") == "docker"  # a hostname, not an IP
 
 
 def test_build_route_matches_contract():

@@ -237,20 +237,27 @@ Loskai sits on the Docker host where its socket is.
 
 ## Docker service names are not automatically resolvable
 
-Loskai pre-fills a route's upstream based on the detected topology: a LAN `IP:port` when
-`CADDY_ADMIN_URL`'s host is an IP, a Docker `name:port` when it is a hostname.
+**Compose isolates every project.** Each stack gets its own `<project>_default` network, so a
+containerised Caddy resolves the names in **its own** compose project and nowhere else — never
+a stack Loskai manages, which is a separate project. A `name:port` upstream for such a
+container does not resolve, and the route returns 502.
 
-That heuristic answers *"is Caddy addressed by IP?"* as a proxy for *"can Caddy resolve this
-container's name?"* — and the two diverge whenever Caddy is a container sitting alongside
-managed stacks:
+**Loskai now detects this per container** rather than guessing per deployment. It finds Caddy's
+container from `CADDY_ADMIN_URL`'s hostname (matching the container name, the compose service
+label, or a network alias) and compares its networks with the target's:
 
-- Docker Compose puts each project on its own `<project>_default` network.
-- Caddy can therefore resolve only the containers in **its own** compose project.
-- Every stack Loskai manages is a **separate** project, so `name:port` does not resolve for
-  exactly the containers you are most likely to route.
+- **Sharing a network** → the upstream is pre-filled as `name:port`, which Docker's embedded
+  DNS resolves.
+- **Not sharing one** → `<host_ip>:<published_port>`, which works from anywhere.
+- **Caddy not found here** — an IP `CADDY_ADMIN_URL`, or a hostname pointing off-box — is
+  treated as "not reachable by name", so the published port is used. That is correct for
+  layout A, where Caddy is on its own LXC.
 
-Until this is fixed (see `TODO.md` Phase 16), in layouts B and C use the Docker host's LAN IP
-plus the container's **published** host port, or attach Caddy and the target to a shared
-Docker network yourself. The decisive test is in
-[troubleshooting.md](troubleshooting.md#502-bad-gateway) — `curl` the upstream from where
-Caddy actually runs.
+`network_mode: host` never counts as shared: host networking has no embedded DNS, so a name
+would not resolve there even though both sides report the same "network".
+
+The practical consequence is that **routing a container without publishing a host port only
+works if it shares a network with Caddy** — which is what layout C's `loskai-edge` network is
+for. When a route still 502s, the decisive test is in
+[troubleshooting.md](troubleshooting.md#502-bad-gateway) — `curl` the upstream from where Caddy
+actually runs.
