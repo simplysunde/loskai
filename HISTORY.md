@@ -1,5 +1,41 @@
 # Loskai — History
 
+## 2026-09-03 — Upstreams are detected per container, not per deployment
+
+**Phase 16 Stage A.** `caddy_mode` asked "is `CADDY_ADMIN_URL`'s host an IP?" and applied that
+one answer to every container — a per-deployment answer to a per-container question. The two
+diverge precisely where it matters: Compose isolates every project on its own
+`<project>_default`, so a co-located Caddy resolves names in its own project and nowhere else.
+Every managed stack got a `name:port` pre-fill that could not resolve, and the route returned
+502. This was the 2026-07-26 split-LXC trap running in the other direction.
+
+The heuristic is replaced by the fact it stood in for: **do Caddy and the target share a
+network Docker's embedded DNS serves?** Caddy's container is found from `CADDY_ADMIN_URL`'s
+hostname, matched against the container name, the compose service label, **and network
+aliases** — the third is load-bearing, because `compose.colocated.yml` pins
+`container_name: caddy` and hides the general case, where a stack that omits it gets
+`<project>-caddy-1` and `caddy` survives only as an alias. The lookup happens inside the
+container list already fetched, so a request still costs one Docker API call.
+
+Two decisions shaped it. `host` and `none` are subtracted before intersecting: two containers
+on `network_mode: host` both report `{"host"}`, which a plain intersection would call "shared"
+even though host networking has no embedded DNS — a bug the fix would have introduced rather
+than one it inherited. And an unresolvable Caddy falls to the published-port form, never to
+the name form: it means Caddy is not a container this daemon can see, and guessing a name
+there is the exact failure being fixed.
+
+The hint copy moved with it. It branched on the same deployment-wide value, so it explained
+the pre-fill using a fact that was no longer true of the container in front of you; the picked
+container now answers for itself. `caddy_mode` survives only as `/api/caddy/status`'s display
+summary and as the fallback for route sources that have no container.
+
+- Key files: `modules/docker/logic.py` (`upstream_mode`, `shares_docker_network`,
+  `matches_hostname`), `modules/docker/client.py`, `modules/docker/router.py`,
+  `components/routing/AddRouteModal.tsx`, `pages/Routing.tsx`
+- 209 backend + 38 frontend tests; each new test confirmed to fail on its own defect
+- Sets up Stage B: layout C's `loskai-edge` network is exactly the shared-network case the
+  detection now rewards
+
 ## 2026-09-02 — Topologies cut to three; the merged container is rejected
 
 **Phase 16 was "support all four deployment topologies"; it is now "ship layout C, fix

@@ -26,7 +26,13 @@ def assemble_fqdn(subdomain: str, base_domain: str) -> str:
 
 def caddy_mode(admin_url: str | None) -> str | None:
     """`lan` if the admin URL host is an IP, `docker` if a hostname, None if unset.
-    Drives the frontend's upstream-input hint."""
+
+    A coarse, deployment-wide summary for `/api/caddy/status`. It **does not decide any
+    upstream**: Phase 16 Stage A replaced that with per-container network detection
+    (`modules/docker/logic.upstream_mode`), because this answer diverges from "can Caddy
+    resolve this container's name?" exactly where it matters. The frontend still uses it as
+    the hint fallback for route sources that have no container — Network service and
+    External."""
     if not admin_url:
         return None
     host = urlparse(admin_url).hostname

@@ -518,10 +518,19 @@ route, so it never appears in `push_all` or the live-sync check.
 The backend client is identical in both cases — it just hits whatever URL is configured.
 On startup, config.py logs which mode is active.
 
-The frontend reads the resolved mode from the aggregate `GET /api/health` (`caddy.mode`)
-and adjusts the upstream input hint in the Add route form accordingly:
-- Docker mode → "e.g. grafana:3000"
-- LAN mode → "e.g. 192.168.10.100:3000"
+The table above is the *deployment* summary, surfaced as `caddy.mode`. It is **not** how a
+route's upstream is chosen: since Phase 16 Stage A that is decided **per container**, by
+asking whether Caddy's container and the target share a Docker network
+(`modules/docker/logic.upstream_mode`). The two answers diverge whenever Caddy is a container
+beside managed stacks — Compose isolates every project — which is what made the old
+mode-driven hint suggest names that could not resolve.
+
+The Add route form therefore takes its hint from the picked container's own `upstream_mode`:
+- shares a network with Caddy → "e.g. grafana:3000"
+- does not → "e.g. 192.168.10.100:3000"
+
+`caddy.mode` remains the fallback for the sources that have no container (Network service,
+External).
 
 ### How Routes Are Stored — derived from the instance list
 

@@ -25,8 +25,9 @@ Two layouts are recommended, and which one depends on what hardware you already 
 and the right pick when a second box genuinely isn't an option: it needs no extra hardware,
 ships today, and keeps Caddy's admin API off the LAN. Its caveats are real and worth reading
 before you commit — AdGuard's `53` fights the host resolver, DNS shares a fault domain with
-everything else on the Docker host, and `name:port` upstreams don't resolve for managed
-stacks. If you can add one small always-on box, C removes the first two of those.
+everything else on the Docker host, and every managed stack must publish a host port to be
+routable, since Compose keeps it off Caddy's network. If you can add one small always-on box,
+C removes all three.
 
 A fourth arrangement — merging all three components into a single container — was considered
 and **rejected**; see [Considered and not supported](#considered-and-not-supported).
@@ -140,8 +141,10 @@ explicitly — see [deployment.md](deployment.md#environment-variables).
   AdGuard's `3000` is published for first-run setup, a common collision.
 - **Cost:** DNS shares a fault domain with everything else on the Docker host — the exact
   coupling the two-LXC split was introduced to avoid.
-- **Caveat:** see [Docker service names are not automatically resolvable](#docker-service-names-are-not-automatically-resolvable)
-  — `name:port` upstreams only work for containers in Caddy's own compose project.
+- **Caveat:** a `name:port` upstream works only for containers in Caddy's own compose
+  project, so a managed stack must publish a host port unless you attach it to a shared
+  network. Loskai detects which applies per container — see
+  [Docker service names are not automatically resolvable](#docker-service-names-are-not-automatically-resolvable).
 
 ### C — Split DNS: AdGuard separate, Caddy + Loskai together
 
