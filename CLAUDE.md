@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 1–14 and 17 are done.
 
-**Phase 16 — ship layout C, fix upstream detection — is the live one.** Stage C (the
-loopback guard on the DNS answer IP) landed 2026-09-02; Stages A and B are open, and A
-(per-container network detection) is load-bearing for the rest. Phase 15 (audit cleanup) is
+**Phase 16 — ship layout C, fix upstream detection — is the live one.** Stage A
+(per-container upstream detection) and Stage C (the loopback guard on the DNS answer IP)
+have landed; **Stage B — layout C's compose file and the shared `loskai-edge` network — is
+what's left**. Phase 15 (audit cleanup) is
 code-complete with one item left that needs real hardware, so it is waiting on Sunde rather
 than on code. **Check `TODO.md` for the current unchecked items before assuming something is
 missing** — and note that a completed phase's write-up describes the repo *as it was then*;

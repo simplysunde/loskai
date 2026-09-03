@@ -1,7 +1,10 @@
 # Loskai — TODO
 
 **Now:** Phase 16 — ship layout C and make upstream detection topology-correct (below).
-Stage C landed 2026-09-02; Stages A and B are open, and A is load-bearing for B.
+Stages A and C are done (2026-09-03 / 2026-09-02). **Stage B is all that remains** —
+`compose.caddy-loskai.yml` + the shared `loskai-edge` network, which Stage A's per-container
+detection now rewards: a stack joined to that network gets a `name:port` upstream and needs
+no published host port.
 **Waiting on hardware:** Phase 15 (audit cleanup) is code-complete — its last item is a live
 smoke test only Sunde can run (below).
 Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
