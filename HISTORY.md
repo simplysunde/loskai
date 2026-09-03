@@ -1,5 +1,33 @@
 # Loskai — History
 
+## 2026-09-03 — CLAUDE.md pinned to the code; the docs checker grows to five checks
+
+An audit of `CLAUDE.md` against the code found **four wrong facts**, each of which had been
+read as ground truth at the start of every session: a `VPN` admin tab that Phase 14
+dissolved, a security boundary that named only `GET /api/dashboard` when `PUBLIC_ROUTES`
+also carries the four login-flow routes, a `docs/todo-archive.md` path Phase 17 moved, and a
+phase status two phases behind. This is the failure Phase 15 rated highest-value as F13, back
+again — the file that propagates hardest is also the one nothing checks.
+
+Most prose cannot be verified mechanically, but **every one of those four was an enumeration
+the code also enumerates**, and those can be pinned. `scripts/check-docs.sh` gained two
+checks: `docs/` paths cited from source and config (Phase 17's move left 11 dead pointers in
+compose files, `.env.example` and three module clients — invisible to a checker that only
+read `.md`), and `CLAUDE.md`'s enumerations against the code (module names vs the package,
+admin tabs vs `NAV`, the HTTP route count vs the decorators, public routes vs
+`PUBLIC_ROUTES`). A missing anchor phrase is itself reported: a check that silently passes
+once its wording changes is worse than none.
+
+A later full audit added a fifth check and found six more stale paths, all sitting in a
+link's *display text* while the target was already correct — check 1 validates where a link
+points, never what it claims to point at, so they had survived every previous clean run.
+
+- Key files: `scripts/check-docs.sh` (3 checks → 5), `CLAUDE.md`, `PLAN.md`
+- Also fixed: `PLAN.md`'s backend tree omitted `service.py`, `logic.py`, `store.py` and
+  `export.py` — it documented the I/O half of an architecture whose point is the I/O/logic split
+- **No CI, by choice** (Forgejo Actions stays in the backlog), so `CLAUDE.md` now carries a
+  "Before you finish" block naming the three commands and why the docs one matters most
+
 ## 2026-09-03 — Upstreams are detected per container, not per deployment
 
 **Phase 16 Stage A.** `caddy_mode` asked "is `CADDY_ADMIN_URL`'s host an IP?" and applied that
@@ -35,6 +63,37 @@ summary and as the fallback for route sources that have no container.
 - 209 backend + 38 frontend tests; each new test confirmed to fail on its own defect
 - Sets up Stage B: layout C's `loskai-edge` network is exactly the shared-network case the
   detection now rewards
+
+## 2026-09-02 — Two silent boundary failures: corrupt store files and loopback answer IPs
+
+**`CorruptStoreError` reached nobody.** It was raised in three places and caught in none, and
+`main.py` had no exception handler — so a hand-edited store file returned a bare 500 from
+every reader except `/api/health`, which survived only because Phase 15's F1 wraps its
+checkers individually. That included `GET /api/dashboard`, the public launcher every user
+lands on. The error's own docstring promised it "always names the path … the operator needs
+to know *which* one to fix", and that path only ever reached the server log. Found by the
+2026-08-31 smoke test; fixed with an app-wide handler returning `{"detail": str(exc)}` at
+500, the shape `api.md` documents and the frontend already unwraps. It logs at error level
+too — handling the exception is what stops uvicorn printing the traceback, and dropping the
+server-side record would trade one blind spot for another.
+
+**The DNS answer IP was never validated as reachable.** `derive_caddy_host_ip` returned
+whatever it found, so `CADDY_ADMIN_URL=http://127.0.0.1:2019` derived `127.0.0.1` as the
+answer for every AdGuard rewrite — and AdGuard hands that to every LAN client, so each one
+resolved the routed service to *itself*. `0.0.0.0` and `::` fail the same way for a different
+reason: a bind wildcard is something to listen on, not to connect to. Both now refused, from
+the explicit `CADDY_HOST_IP` as well as the derived host, because an env value never passes
+through `_validate` and the derivation is the only place it can still be caught.
+
+The guard **drops to `None` rather than raising**: that is the same state an unset answer IP
+already produces and every caller handles, whereas raising would fail a health poll and an
+assign over what is a configuration problem. Both failures share a shape — they surface as a
+refused connection, never as a DNS or server error, which is what made them expensive.
+
+- Key files: `main.py`, `shared/settings.py` (`_usable_answer_ip`), `docs/reference/api.md`
+- Phase 16 Stage C, re-justified after layout D was rejected: this was written up as
+  "the defect that makes layout D unusable", but it is a settings-validation gap that any
+  loopback-addressed Caddy hits
 
 ## 2026-09-02 — Topologies cut to three; the merged container is rejected
 
