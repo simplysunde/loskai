@@ -260,7 +260,7 @@ NEXT
 - [ ] "Next steps" footer reports the IP + firewall + the Loskai env var.
 - [ ] Header comment documents purpose, run command, and env overrides.
 - [ ] `bash -n scripts/create-<service>-lxc.sh` passes.
-- [ ] Added to [`docs/install.md`](../guides/install.md) if it's part of the standard setup.
+- [ ] Added to [`docs/guides/install.md`](../guides/install.md) if it's part of the standard setup.
 
 ---
 

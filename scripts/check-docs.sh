@@ -10,6 +10,10 @@
 #   4. docs/ paths cited from source and config (comments in .py, compose files, .env.example)
 #      that no longer resolve. Phase 17's move left 11 of these, and checks 1-3 could not see
 #      them because they only ever read .md files.
+#   5. docs/ paths *written out* in the current-state docs — in prose, backticks, or a link's
+#      display text. Check 1 validates where a link points, not what it claims to point at, so
+#      a link labelled with a pre-move path passed while displaying one that 404s. Five of
+#      those survived Phase 17 in PLAN.md and lxc-script-authoring.md.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -113,9 +117,20 @@ for p in sorted(pathlib.Path(".").rglob("*")):
         if not pathlib.Path(ref).exists():
             problems.append(f"  {p.as_posix()}: cites a doc that moved or is gone -> {ref}")
 
+# Paths written out in the docs that describe the repo as it is now. TODO.md and HISTORY.md
+# are excluded on purpose: they are chronological records, and a completed phase naming the
+# path a file had at the time is correct, not stale.
+CURRENT_STATE = [f for f in bodies if f.startswith("docs/") or f in ("README.md", "CLAUDE.md", "PLAN.md")]
+written = 0
+for f in CURRENT_STATE:
+    for ref in set(re.findall(r"docs/[\w./-]+\.md", bodies[f])):
+        written += 1
+        if not pathlib.Path(ref).exists():
+            problems.append(f"  {f}: names a doc path that does not resolve -> {ref}")
+
 print(f"scanned {len(files)} markdown files")
 print(f"docs reachable from the index: {len(docs & seen)}/{len(docs)}")
-print(f"docs cited from source and config: {cited}")
+print(f"docs cited from source and config: {cited} · written out in the docs: {written}")
 if problems:
     print(f"\n{len(problems)} problem(s):")
     print("\n".join(problems))

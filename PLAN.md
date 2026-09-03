@@ -195,7 +195,7 @@ skips Caddy entirely.
 - **The orphan sweep is widened accordingly**: it matches a leftover rewrite against either
   the shared Caddy IP or any currently-routed instance's own `dns_answer`, so `dns_only`
   leftovers get cleaned up the same way proxy ones do. This is a deliberate, slightly wider
-  blast radius than the old single-IP-only sweep — see [docs/adguard-api.md](docs/reference/adguard-api.md).
+  blast radius than the old single-IP-only sweep — see [docs/reference/adguard-api.md](docs/reference/adguard-api.md).
 - **v1 scope**: the Routing UI only offers the dns_only toggle for `external`-type
   instances (a container's own IP is rarely the point — this is a frontend-only
   restriction, not a backend one) and only accepts bare IPv4 (no IPv6 yet).
@@ -313,7 +313,7 @@ daemon; it invents no new deployment method.
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
   code. A malformed recipe fails validation and is skipped; it can't push Loskai outside
   its three known install paths.
-- The `recipe.yml` schema is documented in [docs/recipe-schema.md](docs/reference/recipe-schema.md) —
+- The `recipe.yml` schema is documented in [docs/reference/recipe-schema.md](docs/reference/recipe-schema.md) —
   the contract to author against (by hand or with an AI coder); there is no authoring UI.
 - **One folder per recipe** (same shape in either source):
   - `recipe.yml` — the manifest: `type`, display name, the `.env` question schema (`env:` —
@@ -538,7 +538,7 @@ Routes are not stored as their own thing. A route is simply an **instance** (see
 [Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
 Caddy live config is a **projection** of "every instance with a subdomain" — Loskai
 pushes those to Caddy via the Admin API by `id` (= Caddy `@id`). The exact endpoints are
-documented in [`docs/caddy-api.md`](docs/reference/caddy-api.md).
+documented in [`docs/reference/caddy-api.md`](docs/reference/caddy-api.md).
 
 - **Flat sibling routes.** Each route is an independent top-level entry in the server's
   `routes` array, matching a single specific host (`grafana.example.no`) and keyed by
@@ -621,7 +621,7 @@ hand-added entry on the same domain is surfaced as a conflict, not overwritten. 
 instance records the answer Loskai last wrote for it (`dns_answer`), so if the Caddy IP
 ever changes a re-push deletes each instance's old entry and re-adds the new one — cleaning
 its own orphans while leaving anything it never set alone. Rationale and edge cases are in
-[docs/adguard-api.md](docs/reference/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
+[docs/reference/adguard-api.md](docs/reference/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
 stays.)
 
 ### Features
@@ -781,23 +781,28 @@ identically (the Caddy delete is still called, still harmless when nothing was e
 backend/src/loskai/
 ├── main.py                  FastAPI app, registers routers, serves static files last
 ├── config.py                pydantic-settings: validates all env vars on startup
-├── modules/
+├── modules/                 each: client.py does I/O, service.py/logic.py decides — the seam
 │   ├── caddy/
 │   │   ├── client.py        httpx wrapper for Caddy Admin API
+│   │   ├── service.py       pure route/Caddyfile builders + sync comparison; read + push only
 │   │   └── router.py        FastAPI APIRouter
 │   ├── adguard/
 │   │   ├── client.py        httpx wrapper for AdGuard REST API
+│   │   ├── service.py       pure rewrite projection + reconcile/consistency comparison
 │   │   └── router.py
 │   ├── wireguard/
 │   │   ├── client.py        simple reachability check
-│   │   └── router.py
+│   │   └── router.py        no routes of its own — registers a health checker + the peer DNS hint
 │   └── docker/              Phase 8
 │       ├── client.py        docker-py wrapper
+│       ├── logic.py         pure: port/upstream derivation, per-container upstream_mode, joins
 │       ├── stacks.py        directory-based stack manager
 │       ├── recipes.py       recipe engine: sync + validate + install (recipes live in an external repo)
 │       ├── quick_commands.py  image-name → preset terminal commands map
 │       └── router.py
 └── shared/
+    ├── store.py             atomic JSON read/write + the lock — the only I/O seam for the
+    │                        flat store; every writer goes through update_json
     ├── health.py            GET /api/health — polls all module clients
     ├── auth.py              login + session middleware — gates every /api/* except
     │                        the public dashboard endpoint (see Security & Access)
@@ -805,7 +810,8 @@ backend/src/loskai/
     │                        routed services (name, url, icon) for the launcher
     ├── assign.py            POST/DELETE /api/assign — assign & clear a subdomain;
     │                        Caddy required, AdGuard best-effort, both directions
-    ├── instances.py        read/write instances.json — the instance list (route intent)
+    ├── export.py            GET /api/export — the backup bundle (settings + instances)
+    ├── instances.py         read/write instances.json — the instance list (route intent)
     └── settings.py          read/write settings.json, merge with env vars, priority chain
 ```
 
@@ -976,7 +982,7 @@ the cert method, and Loskai handles zero certificate material either way.
 **Default — Caddy's internal CA.** Caddy runs with `local_certs` and signs every
 `*.BASE_DOMAIN` name with its own root: no real domain, no ACME/DNS token, no external
 dependency. LAN devices install that root **once** via the certificate-onboarding page
-(plain-HTTP on `:80` — see [`docs/certificate-setup.md`](docs/guides/certificate-setup.md)); after
+(plain-HTTP on `:80` — see [`docs/guides/certificate-setup.md`](docs/guides/certificate-setup.md)); after
 that every current and future `*.BASE_DOMAIN` name is trusted. This is the mode Loskai
 targets today, in **both dev and production** — stock Caddy is enough, no xcaddy build needed.
 
@@ -1007,7 +1013,7 @@ Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy a
 its full config to disk after every Admin API change, `--resume` restores every route on
 restart with no action from Loskai — this is the normal reboot path. "Sync"
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
-autosave is gone (fresh Caddy, wiped data dir). See [`docs/caddy-api.md`](docs/reference/caddy-api.md).
+autosave is gone (fresh Caddy, wiped data dir). See [`docs/reference/caddy-api.md`](docs/reference/caddy-api.md).
 
 ### Caddyfile (bootstrap only — all routes come from Loskai via the Admin API)
 
@@ -1028,7 +1034,7 @@ siblings reusing the same internal cert.
 }
 
 # Certificate-onboarding page on :80 — lets a LAN device install the internal root once,
-# reachable by IP before that root is trusted. Full block in docs/certificate-setup.md.
+# reachable by IP before that root is trusted. Full block in docs/guides/certificate-setup.md.
 :80 {
     handle /caddy-root.crt {
         root * /data/caddy/pki/authorities/local

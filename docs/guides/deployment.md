@@ -33,15 +33,15 @@ Two compose files, same image:
   `CADDY_HOST_IP` to the host's LAN IP (where Caddy's published `:443` actually lives for
   LAN clients).
 
-Two more are planned: **split DNS** (AdGuard on its own small box — a Raspberry Pi or
-similar — with Caddy + Loskai together in Docker) and a **single all-in-one container**.
+One more is planned: **split DNS** (AdGuard on its own small box — a Raspberry Pi or
+similar — with Caddy + Loskai together in Docker).
 
-**Only two layouts are recommended.** Use `compose.yml` if you run Proxmox; use split DNS
+**Two layouts are recommended.** Use `compose.yml` if you run Proxmox; use split DNS
 otherwise — it is the friendlier setup for most people, since the DNS box is configured once
-and everything you iterate on stays in one compose stack. All-in-Docker and the all-in-one
-container are supported but carry costs that neither recommended layout has. The full
-comparison — which ports each layout contests, which admin channels it leaves on the LAN, and
-why — is in [topologies.md](topologies.md).
+and everything you iterate on stays in one compose stack. All-in-Docker remains fully
+supported and is the right answer when a second box isn't an option; its costs are stated at
+the point of choice. The full comparison — which ports each layout contests, which admin
+channels it leaves on the LAN, and why — is in [topologies.md](topologies.md).
 
 ### Co-located port notes
 
