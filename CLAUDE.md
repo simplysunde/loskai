@@ -53,15 +53,33 @@ Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vit
 - Frontend dev server: `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`)
 - Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
 - Frontend tests: `npm test` (Vitest)
-- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — broken links, dead
-  heading anchors, pages under `docs/` not reachable from `docs/README.md`, `docs/` paths
-  cited from source and config that no longer resolve, and **this file's enumerations
-  against the code** (module names, admin tabs, HTTP route count, public routes). Run it
-  after moving, renaming or adding any `.md`, after adding a route or a nav tab, and after
-  editing the lists in this file. Link depth is easy to get wrong now that `docs/` is
-  nested, and the enumerations here drift silently — four had by 2026-09-02.
+- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — **five checks:** broken
+  links; dead heading anchors; pages under `docs/` unreachable from `docs/README.md`;
+  `docs/` paths cited from source and config that no longer resolve; `docs/` paths written
+  out in the current-state docs (prose, backticks, or a link's *display text* — check 1
+  validates where a link points, never what it claims to); and **this file's enumerations
+  against the code** (module names, admin tabs, HTTP route count, public routes).
 - **Production** serves on `:8080` — one FastAPI process serves the API *and* the built
   React bundle as static files (single container, single port). Dev is two servers; prod is one.
+
+### Before you finish
+
+There is **no CI** — deliberately (Forgejo Actions is in the backlog, `PLAN.md`). Nothing runs
+these for you, so run all three before reporting work done, and paste the real output:
+
+```
+cd backend && uv run pytest        # or: make test-backend
+cd frontend && npm test            # or: make test-frontend
+bash scripts/check-docs.sh         # or: make check-docs
+```
+
+`check-docs.sh` is the one that is easy to skip and the one that catches the most, because
+**documentation drift is this project's recurring failure**, not broken code. On 2026-09-02
+an audit found four wrong facts in this very file — a dissolved nav tab, an incomplete list
+of public routes, a moved archive path, a stale phase status — each of which had been
+silently propagating into new work. Run it after moving/renaming any `.md`, after adding a
+route or a nav tab, and after editing the enumerated lists here. When something it checks
+changes, fix the doc **in the same commit as the behaviour**, not afterwards.
 
 ## Architecture — the load-bearing ideas
 
