@@ -355,8 +355,17 @@ container? Intersect → `name:port`. No intersection → `<host_ip>:<published_
 
 _**Identifying Caddy's container — no new setting.** `CADDY_ADMIN_URL`'s hostname is the key:
 `http://caddy:2019` → `caddy`. That is how Loskai itself reaches Caddy, so it is by
-construction a container name or network alias Loskai can resolve. An IP host (layout A) means
-Caddy is off-box, so there is nothing to look up and the fallback applies._
+construction a name Docker can resolve. An IP host (layout A) means Caddy is off-box, so there
+is nothing to look up and the fallback applies._
+
+_**Match on three keys, not just the container name** (revised 2026-09-03). `compose.colocated.yml:9`
+pins `container_name: caddy`, so name-matching works for the shipped stack — but a
+user-authored stack that omits `container_name` gets `<project>-caddy-1`, and `caddy` is then
+only a **network alias**. Name-only matching would miss the exact case Stage B is about. All
+three keys are already in the `attrs` `list_containers` reads, so this costs nothing:_
+1. _the container name (`c.name`)_
+2. _the `com.docker.compose.service` label — already read as `service` for the upstream form_
+3. _`NetworkSettings.Networks[*].Aliases`, where Compose puts the service name_
 
 _**Data is already in hand.** `NetworkSettings.Networks` keys sit in the `attrs` that
 `list_containers` already reads per container, so the target side costs nothing. Only Caddy's
@@ -367,8 +376,11 @@ own networks need a lookup — **once per request, not per container**._
       (hostname admin URL, no container matches it). Keep today's `name:port`, or prefer
       `<host_ip>:<published_port>`? _Recommend the latter:_ `name:port` only works in the
       narrow shared-network case and is precisely the guess that 502s, while the published-port
-      form works from anywhere Caddy might be. Cost: it changes the pre-fill for anyone whose
-      Caddy is in the target's compose project under an alias the hostname didn't match
+      form works from anywhere Caddy might be. **With three-key matching this is nearly
+      unreachable** — it needs a Caddy that is a container Loskai can see but matches on
+      neither its name, its compose service label, nor any network alias. The remaining real
+      case is "Caddy is not a container on this host at all" (a DNS name pointing off-box),
+      where `<host_ip>:<published_port>` is simply correct, not a guess
 - [ ] **D2 — `network_mode: host`.** Such a container's `Networks` is `{"host"}`, so *two*
       host-network containers would "intersect" and wrongly get `name:port` — there is no
       Docker DNS on host networking. **`host` must be excluded from the intersection**, and
@@ -389,9 +401,11 @@ here; the I/O wiring lands after):
       D2's `host` exclusion. Unit-test directly: intersecting, disjoint, `host` on either side,
       Caddy unknown (`None`), no published port, ambiguous multi-port
 - [ ] Rewire `suggested_upstream` onto it, keeping `mode` only as the D1 fallback
-- [ ] `modules/docker/client.py` — `container_networks(name)` (I/O only, returns `None` when no
-      such container — the `client.py`/pure-logic seam is a hard invariant); read each
-      container's own networks from the `attrs` already fetched in `list_containers`
+- [ ] `modules/docker/client.py` — `container_networks(hostname)` (I/O only, returns `None`
+      when nothing matches — the `client.py`/pure-logic seam is a hard invariant), resolving via
+      the three keys above; read each container's own networks from the `attrs` already fetched
+      in `list_containers`. **Unit-test the three-key match**, especially the alias case: it is
+      the one the shipped compose file's pinned `container_name` hides
 - [ ] `modules/docker/router.py:62` — resolve Caddy's networks once per request from
       `CADDY_ADMIN_URL`'s hostname and pass them down beside the existing `mode`/`host_ip`
 - [ ] Frontend copy per D3
