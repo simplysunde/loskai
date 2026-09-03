@@ -74,6 +74,16 @@ export function Routing() {
     queryFn: () => api.get<Orphan[]>("/api/docker/orphans"),
     refetchInterval: 30_000,
   });
+  // Only for the upstream hint when editing a docker route: the container knows how Caddy
+  // reaches it. Shares AddRouteModal's query key, so React Query serves both from one
+  // fetch; `retry: false` keeps a down Docker daemon from blocking this page.
+  const containers = useQuery({
+    queryKey: ["docker-containers"],
+    queryFn: () => api.get<{ name: string; upstream_mode?: "docker" | "lan" | null }[]>(
+      "/api/docker/containers",
+    ),
+    retry: false,
+  });
 
   const h = health.data;
   const baseDomain = settings.data?.base_domain?.value ?? null;
@@ -83,6 +93,11 @@ export function Routing() {
   // The cert-onboarding page is served by Caddy over plain HTTP on :80 at its LAN IP —
   // deliberately by-IP and not behind the route, since its whole job is fixing the untrusted
   // -cert warning. AdGuard's answer IP *is* the Caddy host, so it's the one source for both.
+  // Per-container where the row is a container, else the deployment-wide summary — the
+  // Network-service and External rows have no container to ask.
+  const assignMode =
+    containers.data?.find((c) => c.name === assignTarget?.container)?.upstream_mode ?? mode;
+
   const caddyHost = (h?.adguard?.answer_ip ?? "")
     .replace(/^\w+:\/\//, "")
     .split("/")[0]
@@ -347,7 +362,7 @@ export function Routing() {
         key={`${assignTarget?.id ?? "new"}:${assignOpen}`}
         open={assignOpen}
         baseDomain={baseDomain}
-        mode={mode}
+        mode={assignMode}
         pending={assign.isPending}
         error={assignError}
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}

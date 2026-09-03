@@ -28,6 +28,9 @@ interface ContainerRow {
   image: string;
   subdomain: string | null;
   suggested_upstream: string | null;
+  // How Caddy must dial *this* container, decided backend-side from the networks the two
+  // share. Optional so a cached payload from before Phase 16 Stage A still renders.
+  upstream_mode?: "docker" | "lan" | null;
 }
 
 // Built-in network services, in picker order. Caddy's cert page proxies to Caddy's own :80.
@@ -79,7 +82,10 @@ export function AddRouteModal({
   const [link, setLink] = useState<{ container?: string; origin?: string; name?: string }>({});
   const [picked, setPicked] = useState<string | null>(null);
   const isDnsOnly = source === "external" && routeMode === "dns_only";
-  const fields = useRouteFields({ mode, baseDomain, isDnsOnly });
+  // A picked container answers the hint for itself; `mode` is the deployment-wide
+  // fallback, used by the Network-service and External sources, which have no container.
+  const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
+  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain, isDnsOnly });
 
   const containers = useQuery({
     queryKey: ["docker-containers"],
@@ -117,9 +123,11 @@ export function AddRouteModal({
     fields.set({ prefix: "", upstream: "", tls: false });
     setLink({});
     setPicked(null);
+    setPickedMode(null);
   };
 
   const pickContainer = (c: ContainerRow) => {
+    setPickedMode(c.upstream_mode ?? null);
     fields.set({ prefix: suggestPrefix(c.name), upstream: c.suggested_upstream ?? "" });
     setLink({ container: c.name, name: c.name });
     setPicked(c.id);

@@ -64,8 +64,8 @@ export function useRouteFields({
     upstreamHelp: isDnsOnly
       ? "A bare LAN IP — DNS resolves the name straight to this address, no proxy, no TLS."
       : mode === "docker"
-        ? "A container name:port on the Docker network — Caddy resolves it there."
-        : "Must be reachable from the Caddy host: a LAN IP:port. Container names and localhost won't resolve from a separate Caddy LXC.",
+        ? "Caddy shares a Docker network with this container, so it can dial it by name."
+        : "Must be reachable from wherever Caddy runs — a LAN IP:port. A container name resolves only if Caddy shares a Docker network with it.",
     // What both modals post to /api/assign; AddRouteModal spreads its link fields on top.
     payload: () => ({
       prefix,

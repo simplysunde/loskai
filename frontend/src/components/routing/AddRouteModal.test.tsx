@@ -35,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  RESPONSES["/api/docker/containers"] = [];
 });
 
 function renderModal(overrides = {}) {
@@ -138,4 +139,74 @@ test("DNS-only mode validates a bare IP and submits dns_only", () => {
     upstream_tls: false,
     route_mode: "dns_only",
   });
+});
+
+
+// --- The upstream hint is the container's, not the deployment's (Phase 16 Stage A) ---
+
+function renderPicker() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <AddRouteModal
+          open
+          baseDomain="example.no"
+          // Deployment-wide mode says "docker" — a hostname admin URL. Before Stage A this
+          // alone decided the hint, so every container was told to use name:port.
+          mode="docker"
+          routedOrigins={new Set()}
+          onSubmit={vi.fn()}
+          onClose={() => {}}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+const CONTAINERS = [
+  {
+    id: "a", name: "grafana", image: "grafana/img", subdomain: null,
+    suggested_upstream: "grafana:3000", upstream_mode: "docker",
+  },
+  {
+    // A managed stack: its own compose project, so Caddy cannot resolve the name.
+    id: "b", name: "sonarr", image: "sonarr/img", subdomain: null,
+    suggested_upstream: "192.168.10.50:8989", upstream_mode: "lan",
+  },
+];
+
+test("a container on Caddy's network is hinted by name", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("grafana"));
+
+  expect(screen.getByPlaceholderText("e.g. grafana:3000")).toHaveValue("grafana:3000");
+});
+
+test("a container off Caddy's network is hinted by host IP, despite docker mode", async () => {
+  // The regression this whole stage exists to stop: the deployment says "docker", but this
+  // container is on another compose network, so name:port would 502.
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("sonarr"));
+
+  expect(screen.getByPlaceholderText("e.g. 192.168.10.100:3000")).toHaveValue(
+    "192.168.10.50:8989",
+  );
+});
+
+test("switching source clears the container's mode", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("sonarr")); // lan
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+
+  // Back to the deployment-wide "docker" hint — a stale lan hint would misdescribe it.
+  expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
 });
