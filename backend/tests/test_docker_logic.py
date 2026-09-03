@@ -155,3 +155,64 @@ def test_orphaned_instances_ignores_external_and_containerless():
         Instance(id="bare", name="B", type="docker"),  # no container linked
     ]
     assert logic.orphaned_instances(instances, set()) == []
+
+
+# --- Per-container upstream mode (Phase 16 Stage A) ---
+#
+# The defect this replaces: caddy_mode answered "is CADDY_ADMIN_URL's host an IP?" once per
+# deployment, so in the co-located layout every container got name:port — including managed
+# stacks, which Compose isolates on their own <project>_default where Caddy cannot resolve
+# them. The route then 502s.
+
+
+def test_shares_network_only_when_a_resolving_network_is_common():
+    # Caddy's own compose project — resolvable by name.
+    assert logic.shares_docker_network({"loskai_default"}, {"loskai_default"}) is True
+    # A managed stack on its own project network — the case that 502s today.
+    assert logic.shares_docker_network({"loskai_default"}, {"media_default"}) is False
+    # A stack deliberately joined to the shared edge network (Phase 16 Stage B).
+    assert logic.shares_docker_network(
+        {"loskai_default", "loskai-edge"}, {"media_default", "loskai-edge"}
+    ) is True
+
+
+def test_host_networking_is_never_treated_as_shared():
+    """D2: two containers on network_mode: host both report {"host"}, so a plain
+    intersection would call that shared — but host networking has no embedded DNS, so
+    name:port would not resolve. They are reachable at the published host port instead."""
+    assert logic.shares_docker_network({"host"}, {"host"}) is False
+    assert logic.shares_docker_network({"host"}, {"media_default"}) is False
+    assert logic.shares_docker_network({"loskai_default"}, {"host"}) is False
+    # `none` (no networking at all) is excluded on the same grounds.
+    assert logic.shares_docker_network({"none"}, {"none"}) is False
+
+
+def test_unknown_caddy_shares_nothing():
+    """Caddy isn't a container this daemon can see — an external LXC, or a hostname
+    pointing off-box. Either way there is no shared network to find."""
+    assert logic.shares_docker_network(None, {"media_default"}) is False
+    assert logic.shares_docker_network({"loskai_default"}, None) is False
+
+
+def test_upstream_mode_is_per_container():
+    """One deployment, two containers, two different correct answers — which is precisely
+    what a single deployment-wide `mode` could not express."""
+    caddy = {"loskai_default"}
+    assert logic.upstream_mode(caddy, {"loskai_default"}) == "docker"
+    assert logic.upstream_mode(caddy, {"media_default"}) == "lan"
+
+
+def test_unknown_caddy_falls_back_to_lan_not_the_name_form():
+    """The fallback direction matters: guessing name:port for an unreachable Caddy is the
+    exact failure being fixed, while the published host port works from anywhere."""
+    assert logic.upstream_mode(None, {"media_default"}) == "lan"
+
+
+def test_upstream_mode_feeds_suggested_upstream_end_to_end():
+    ports = {"3000/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3000"}]}
+    shared = logic.upstream_mode({"edge"}, {"edge"})
+    assert logic.suggested_upstream("stack-grafana-1", "grafana", ports, shared) == "grafana:3000"
+    isolated = logic.upstream_mode({"loskai_default"}, {"media_default"})
+    assert logic.suggested_upstream(
+        "stack-grafana-1", "grafana", ports, isolated, "192.168.10.50"
+    ) == "192.168.10.50:3000"

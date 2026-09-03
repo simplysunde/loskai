@@ -141,6 +141,51 @@ def published_host_binding(ports: dict | None) -> tuple[str | None, str] | None:
     return host_ip, host_port
 
 
+# Networks that carry no embedded DNS, so sharing one proves nothing about name resolution.
+# `host` puts a container in the host's own namespace; `none` disables networking outright.
+NON_RESOLVING_NETWORKS = frozenset({"host", "none"})
+
+
+def shares_docker_network(
+    caddy_networks: set[str] | None, container_networks: set[str] | None
+) -> bool:
+    """Whether Caddy can dial this container by name — i.e. they share a network Docker's
+    embedded DNS actually serves.
+
+    `host` and `none` are subtracted rather than intersected. Two containers on
+    `network_mode: host` both report `{"host"}`, and a plain intersection would read that as
+    "shared" — but host networking has no embedded DNS, so `name:port` would not resolve.
+    Those containers are still reachable at the host's published port, which is what the
+    `lan` form gives.
+
+    An unknown Caddy (`None`) shares nothing: it is not a container this daemon can see.
+    """
+    if caddy_networks is None:
+        return False
+    return bool(
+        (caddy_networks - NON_RESOLVING_NETWORKS)
+        & ((container_networks or set()) - NON_RESOLVING_NETWORKS)
+    )
+
+
+def upstream_mode(
+    caddy_networks: set[str] | None, container_networks: set[str] | None
+) -> str:
+    """How Caddy has to dial one container: `docker` (by name) or `lan` (published port).
+
+    This is the Phase 16 Stage A fix. It replaces `caddy_mode`, which answered "is
+    CADDY_ADMIN_URL's host an IP?" — a *per-deployment* answer to a *per-container*
+    question. The two diverge whenever Caddy is a container beside managed stacks: Compose
+    isolates every project on its own `<project>_default`, so Caddy resolves names in its
+    own project and nowhere else, and a `name:port` pre-filled for a managed stack 502s.
+
+    An unresolvable Caddy falls to `lan`, never to the name form. It means Caddy is not a
+    container this daemon can see — an external LXC, or a hostname pointing off-box — and in
+    every one of those cases the published host port is the reachable answer.
+    """
+    return "docker" if shares_docker_network(caddy_networks, container_networks) else "lan"
+
+
 def suggested_upstream(
     container_name: str,
     service: str | None,
