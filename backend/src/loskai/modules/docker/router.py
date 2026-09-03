@@ -8,6 +8,7 @@ BaseHTTPMiddleware doesn't cover WS connections, and this is a root shell.
 import asyncio
 import json
 import logging
+from urllib.parse import urlparse
 
 from docker.errors import NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
@@ -20,7 +21,6 @@ from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ..adguard.client import adguard
 from ..caddy.client import caddy
-from ..caddy.service import caddy_mode
 from . import logic
 from . import recipes as recipes_mod
 from . import stacks as stacks_mod
@@ -57,11 +57,12 @@ def _docker_call(fn, *args):
 
 @router.get("/containers")
 def containers() -> list[dict]:
-    # Topology drives the pre-filled upstream: a Docker name in co-located mode, or
-    # <host_ip>:<published-port> in split-LXC (lan) mode where Caddy can't resolve names.
-    mode = caddy_mode(settings_store.value("caddy_admin_url"))
+    # The pre-filled upstream is decided per container, from the networks it and Caddy
+    # actually share (logic.upstream_mode). CADDY_ADMIN_URL's hostname is how Caddy's
+    # container is found; an IP host matches nothing, which is correct — Caddy is off-box.
+    caddy_host = urlparse(settings_store.value("caddy_admin_url") or "").hostname
     host_ip = settings_store.value("host_ip")
-    return _docker_call(docker_client.list_containers, True, mode, host_ip)
+    return _docker_call(docker_client.list_containers, True, caddy_host, host_ip)
 
 
 @router.post("/containers/{container_id}/start")

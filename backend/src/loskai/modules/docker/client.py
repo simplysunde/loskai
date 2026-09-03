@@ -48,16 +48,25 @@ class DockerClient:
         return {"status": "healthy"}
 
     def list_containers(
-        self, with_stats: bool = True, mode: str | None = None, host_ip: str | None = None
+        self,
+        with_stats: bool = True,
+        caddy_host: str | None = None,
+        host_ip: str | None = None,
     ) -> list[dict]:
         client = self._get()
         instances = instances_store.list_instances()
+        containers = client.containers.list(all=True)
+        # Find Caddy in the list we already have — one API call for the whole request, not
+        # a lookup per container. `caddy_host` is CADDY_ADMIN_URL's hostname; None when
+        # Caddy is addressed by IP (it is off-box, so there is nothing here to match).
+        caddy_nets = self._caddy_networks(containers, caddy_host)
         out: list[dict] = []
-        for c in client.containers.list(all=True):
+        for c in containers:
             attrs = c.attrs
             state = attrs.get("State", {})
             running = c.status == "running"
             labels = c.labels or {}
+            upstream_mode = logic.upstream_mode(caddy_nets, logic.container_networks(attrs))
             summary = {
                 "id": c.id[:12],
                 "name": c.name,
@@ -66,14 +75,15 @@ class DockerClient:
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
                 "subdomain": logic.subdomain_for(c.name, instances),
-                # A reachable upstream to pre-fill the assign form. In docker mode Caddy dials
-                # it by name on the shared network; in lan mode this is None (a name would
-                # 502 from Caddy's separate LXC) — see logic.suggested_upstream.
+                # How Caddy has to dial *this* container, decided from the networks the
+                # two actually share — not from a deployment-wide guess. See
+                # logic.upstream_mode; the frontend uses it for the upstream hint copy.
+                "upstream_mode": upstream_mode,
                 "suggested_upstream": logic.suggested_upstream(
                     c.name,
                     labels.get("com.docker.compose.service"),
                     (attrs.get("NetworkSettings") or {}).get("Ports"),
-                    mode,
+                    upstream_mode,
                     host_ip,
                 ),
                 "cpu": None,
@@ -90,6 +100,21 @@ class DockerClient:
                     logger.debug("stats unavailable for %s: %s", c.name, exc)
             out.append(summary)
         return out
+
+    @staticmethod
+    def _caddy_networks(containers: list, caddy_host: str | None) -> set[str] | None:
+        """Caddy's attached networks, or None when no container answers to `caddy_host`.
+
+        None is the honest answer for layout A (Caddy on its own LXC) and for any hostname
+        pointing off-box — logic.upstream_mode reads it as "not reachable by name".
+        """
+        if not caddy_host:
+            return None
+        for c in containers:
+            service = (c.labels or {}).get("com.docker.compose.service")
+            if logic.matches_hostname(caddy_host, c.name, service, c.attrs):
+                return logic.container_networks(c.attrs)
+        return None
 
     def container_names(self) -> set[str]:
         """Every container name present on the host (running or stopped). A name absent

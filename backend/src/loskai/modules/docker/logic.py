@@ -146,6 +146,41 @@ def published_host_binding(ports: dict | None) -> tuple[str | None, str] | None:
 NON_RESOLVING_NETWORKS = frozenset({"host", "none"})
 
 
+def container_networks(attrs: dict | None) -> set[str]:
+    """Network names a container is attached to, from docker-py's NetworkSettings."""
+    return set(((attrs or {}).get("NetworkSettings") or {}).get("Networks") or {})
+
+
+def network_aliases(attrs: dict | None) -> set[str]:
+    """Every DNS alias the container answers to on any of its networks. Compose puts the
+    service name here, which is what a `<project>-<service>-1` container is reachable as."""
+    nets = ((attrs or {}).get("NetworkSettings") or {}).get("Networks") or {}
+    out: set[str] = set()
+    for cfg in nets.values():
+        out.update((cfg or {}).get("Aliases") or [])
+    return out
+
+
+def matches_hostname(
+    hostname: str | None, name: str, service: str | None, attrs: dict | None
+) -> bool:
+    """Whether this container is the one a hostname addresses — used to find Caddy from
+    `CADDY_ADMIN_URL`.
+
+    Three keys, because the container name alone is not enough. `compose.colocated.yml`
+    pins `container_name: caddy`, but a stack that omits it gets `<project>-caddy-1` and
+    `caddy` survives only as a network alias — which is precisely the layout Stage B is
+    for. The compose service label is checked too, since that is what the alias is derived
+    from and it is already read for the upstream form.
+    """
+    if not hostname:
+        return False
+    h = hostname.lower()
+    if name.lower() == h or (service or "").lower() == h:
+        return True
+    return h in {a.lower() for a in network_aliases(attrs)}
+
+
 def shares_docker_network(
     caddy_networks: set[str] | None, container_networks: set[str] | None
 ) -> bool:
