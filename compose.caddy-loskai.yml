@@ -1,0 +1,87 @@
+# Split-DNS layout (B): Caddy + Loskai here on the Docker host, AdGuard on its own small
+# always-on box over the LAN. The recommended layout without Proxmox — see
+# docs/guides/topologies.md for why, and docs/guides/deployment.md for env vars and volumes.
+# Set AdGuard up on the other box first, then copy .env.example to .env and fill in
+# ADGUARD_URL (its LAN IP) and CADDY_HOST_IP (this host's LAN IP). Walkthrough:
+# docs/guides/install.md#no-proxmox-install-layout-b--split-dns
+#
+#   docker compose -f compose.caddy-loskai.yml up -d --build     # first run
+#   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh # pull + rebuild later
+
+services:
+  caddy:
+    build: ./caddy # stock Caddy + internal CA by default; see caddy/Dockerfile for the ACME build
+    container_name: caddy
+    ports:
+      - "80:80" # certificate-onboarding page (install the internal root once per device)
+      - "443:443"
+      # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
+    environment:
+      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
+      # DUCKDNS_TOKEN is only needed for the future public-ACME path (see caddy/Caddyfile +
+      # caddy/Dockerfile). The default internal CA needs no token — leave this commented.
+      #- DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
+    volumes:
+      - caddy-data:/data # certs + the autosaved config (survives restarts)
+      - caddy-config:/config
+    networks:
+      - default # Loskai reaches the admin API over this one
+      - loskai-edge # and managed stacks join this one to be routed — see below
+    restart: unless-stopped
+
+  loskai:
+    build: .
+    image: loskai:latest
+    container_name: loskai
+    depends_on:
+      - caddy
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      - ./loskai-settings:/opt/loskai
+    environment:
+      - CADDY_ADMIN_URL=http://caddy:2019
+      # AdGuard runs on the other box, so these are a LAN address and its credentials —
+      # not a container name. Optional: leave unset and fill them in from Settings > Network.
+      - ADGUARD_URL=${ADGUARD_URL:-}
+      - ADGUARD_USER=${ADGUARD_USER:-}
+      - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
+      - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
+      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
+      - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
+      # Required in this mode: Caddy's admin URL is a hostname, so the DNS answer IP can't
+      # be derived from it. This host's LAN IP, where Caddy's :443 is published.
+      - CADDY_HOST_IP=${CADDY_HOST_IP:?set CADDY_HOST_IP to this host's LAN IP}
+      # The same address in this layout — Caddy runs here. It fills the upstream for a
+      # container that is *not* on loskai-edge, as <host_ip>:<published-port>.
+      - HOST_IP=${HOST_IP:-}
+    restart: unless-stopped
+
+networks:
+  # Declared only because `caddy` names it explicitly above — same project-scoped network
+  # Compose would have created implicitly. It is what Loskai reaches caddy:2019 over.
+  default:
+
+  # The shared edge network, and the one thing no other layout can do: a managed stack that
+  # joins it is reachable from Caddy by service name, so it never has to publish a host port.
+  # Loskai detects that per container and pre-fills `name:port` instead of an IP.
+  #
+  # `name:` pins the real network name — Compose would otherwise prefix the project — which
+  # is what lets a stack in another project attach to it:
+  #
+  #   networks:
+  #     loskai-edge:
+  #       external: true
+  #
+  # Compose creates it with this stack, so bring this stack up before one that declares it
+  # external. See docs/guides/topologies.md for the full stanza.
+  loskai-edge:
+    name: loskai-edge
+
+volumes:
+  caddy-data:
+  caddy-config:

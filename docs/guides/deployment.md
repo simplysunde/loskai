@@ -19,7 +19,7 @@ Routing tab to assign HTTPS names to your services.
 
 ## Layouts
 
-Two compose files, same image:
+Three compose files, same image:
 
 - **`compose.yml` — recommended with Proxmox.** Loskai runs on the Docker host; Caddy and
   AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
@@ -27,21 +27,25 @@ Two compose files, same image:
   [`scripts/create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh) and
   [`scripts/create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) (run from the Proxmox
   shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
+- **`compose.caddy-loskai.yml` — recommended without Proxmox.** Split DNS: Caddy + Loskai as
+  containers on the Docker host, AdGuard on its own small always-on box (a Raspberry Pi or
+  similar) reached over the LAN. `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so
+  you **must** set `CADDY_HOST_IP` to this host's LAN IP. It declares the shared
+  [`loskai-edge` network](topologies.md#routing-a-container-without-publishing-a-port), which
+  lets a managed stack be routed without publishing a host port.
 - **`compose.colocated.yml` — all-in-Docker.** Loskai + Caddy + AdGuard as containers on
   one host, with no second machine at all. Supported, but see the recommendation below.
   Here `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so you **must** set
   `CADDY_HOST_IP` to the host's LAN IP (where Caddy's published `:443` actually lives for
   LAN clients).
 
-One more is planned: **split DNS** (AdGuard on its own small box — a Raspberry Pi or
-similar — with Caddy + Loskai together in Docker).
-
-**Two layouts are recommended.** Use `compose.yml` if you run Proxmox; use split DNS
-otherwise — it is the friendlier setup for most people, since the DNS box is configured once
-and everything you iterate on stays in one compose stack. All-in-Docker remains fully
-supported and is the right answer when a second box isn't an option; its costs are stated at
-the point of choice. The full comparison — which ports each layout contests, which admin
-channels it leaves on the LAN, and why — is in [topologies.md](topologies.md).
+**Two layouts are recommended.** Use `compose.yml` if you run Proxmox; use
+`compose.caddy-loskai.yml` otherwise — it is the friendlier setup for most people, since the
+DNS box is configured once and everything you iterate on stays in one compose stack.
+All-in-Docker remains fully supported and is the right answer when a second box isn't an
+option; its costs are stated at the point of choice. The full comparison — which ports each
+layout contests, which admin channels it leaves on the LAN, and why — is in
+[topologies.md](topologies.md).
 
 ### Co-located port notes
 
@@ -73,7 +77,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 | `STACKS_DIR` | Host path for Docker compose stacks. Also drives a bind mount — see [Volumes](#volumes). |
 | `RECIPES_REPO_URL` | Public git repo the install wizard syncs recipes from. Unset = empty state. |
 | `CADDY_HOST_IP` | The IP DNS rewrites resolve to (where Caddy listens on `:443`). Only needed when `CADDY_ADMIN_URL` is a hostname or loopback; otherwise derived from it. **Must be an address other machines can reach** — a loopback (`127.0.0.1`, `::1`) or unspecified (`0.0.0.0`, `::`) value is rejected from the UI and ignored from the environment, since AdGuard hands the answer to every client. |
-| `HOST_IP` | This Docker host's LAN IP. In split-LXC mode, auto-fills container route upstreams as `<host_ip>:<published-port>` (Caddy can't resolve container names from its own LXC). Optional; the upstream is left blank without it. |
+| `HOST_IP` | This Docker host's LAN IP. Auto-fills a container's route upstream as `<host_ip>:<published-port>` whenever Caddy can't reach that container by name — always in split-LXC, and per container in the other two (see [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable)). Optional; the upstream is left blank without it. In split DNS and all-in-Docker this is the same address as `CADDY_HOST_IP`. |
 
 Two things Loskai deliberately **never** takes: the ACME/DNS-challenge token (that lives
 with Caddy) and private-registry credentials (`docker login` is a host precondition).

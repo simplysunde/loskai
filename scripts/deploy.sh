@@ -7,8 +7,9 @@
 # `docker compose up -d` reuses the existing `loskai:latest` image and would silently
 # skip your new code, so this script always passes `--build` — that's the whole point.
 #
-# Override the compose file (e.g. the co-located stack) via env:
-#   COMPOSE_FILE=compose.colocated.yml bash scripts/deploy.sh
+# Defaults to compose.yml (split LXC). Override for either other layout via env:
+#   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh   # split DNS
+#   COMPOSE_FILE=compose.colocated.yml    bash scripts/deploy.sh   # all-in-Docker
 
 set -euo pipefail
 

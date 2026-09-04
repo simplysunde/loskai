@@ -1,5 +1,102 @@
 # Loskai — History
 
+## 2026-09-04 — The layout letters now carry the recommendation; the all-in-one LXC is gone
+
+**B and C swap: A split-LXC (three-way) · B split DNS (two-way) · C all-in-Docker (one box).**
+The letters had been recording the order the layouts were *thought of*, not an order a reader
+can use. Split DNS was added last, so it got `C` — and every page then had to say "A and C are
+recommended, B is the supported alternative", a sentence you have to read twice to extract a
+recommendation from. Ordered by how much each layout splits, the letters carry the
+recommendation themselves and the degradation is monotonic: each step down merges one more
+component onto the Docker host.
+
+What separates C from B is also stated more honestly now. It was written up as a list of costs
+alongside two wins, which undersold the one that actually bites: **C is the only layout that
+needs the host reconfigured before it will start**, because AdGuard's `53` has to be taken from
+`systemd-resolved` by hand. That is a different kind of cost from "DNS shares a fault domain",
+and it belongs at the point of choice.
+
+**The all-in-one LXC is deleted rather than kept as documented-but-unsupported.** It was never
+an option: Loskai's Docker client dials the local socket, so on its own LXC it loses the Docker
+tab, the Stack Manager and the install wizard unless you publish a root-equivalent Docker API
+onto the LAN. Recording it under "Considered and not supported" put it one reading away from
+looking like a choice, which is the opposite of what that section is for. The **merged single
+container** stays recorded there — that one really does get proposed, and the 2026-09-02
+reasoning is what stops it coming back.
+
+Older entries in this file and in `todo-archive.md` keep the letters they were written with,
+including Phase 16's own text — they record what was decided when, and renumbering them would
+make the record agree with today at the price of being false about then. Three current-state
+places say so explicitly (`docs/README.md`'s conventions line, `CLAUDE.md`'s topology summary,
+the note under `TODO.md`'s **Now**): a letter written before today is the pre-swap one.
+
+- Key files: `docs/guides/topologies.md` (sections reordered A → B → C, every table cell moved
+  with its column, All-in-one LXC removed), `docs/guides/install.md` (`C1–C3` → `B1–B3`),
+  `docs/guides/migration.md`, `docs/README.md`, `PLAN.md`, `CLAUDE.md`,
+  `compose.caddy-loskai.yml`
+- Anchors moved with their headings; `check-docs.sh` is what proves no link was left behind
+
+## 2026-09-04 — Split DNS ships, and the edge network is the whole point of it
+
+**Phase 16 Stage B.** Split DNS — AdGuard on its own small always-on box, Caddy and Loskai
+together in Docker on the main host — has been the recommended layout for anyone without
+Proxmox since 2026-08-30, and the only one that didn't exist. It ships as
+`compose.caddy-loskai.yml`.
+
+Most of that file is assembly, deliberately: the Caddy service and the required
+`CADDY_HOST_IP` come from `compose.colocated.yml`, the optional `ADGUARD_*` env from
+`compose.yml`. Split DNS **is** split-LXC's off-box AdGuard with all-in-Docker's
+co-located Caddy, and writing it as
+anything more inventive would have been a third dialect of the same two halves.
+
+What is genuinely new is one network. **`loskai-edge` is the reason the layout is worth
+having:** Caddy attaches to it alongside the project default, so any stack that joins it is
+reachable by service name and a routed container never has to publish a host port — the one
+capability no other layout has. Two details decide whether that works in practice. It is
+declared with an explicit `name:`, because Compose otherwise prefixes the project and leaves
+no stable name for another stack to attach to. And it is created *by* the Loskai stack rather
+than by hand, so standing C up remains a single `docker compose up -d` with no
+`network create` precondition — at the cost of an ordering rule (the Loskai stack first),
+which is the cheaper of the two things to document.
+
+**Stage A is what makes it pay off with no further code.** The per-container detection sees
+the shared network and pre-fills `name:port` by itself; `matches_hostname` was already written
+for this layout, matching a `<project>-caddy-1` container by its `caddy` alias. That is also
+why the one *optional* item on the stage — a "joined to the edge network" badge in the Docker
+tab — was not built. The Add route modal already states the fact where the user acts on it
+("Caddy shares a Docker network with this container, so it can dial it by name"), so a badge
+would be a second surface carrying no new information.
+
+The docs cost more than the compose file. `install.md` gained a second walkthrough rather than
+a fork at step 1: split DNS is three steps to split-LXC's four, since Caddy comes up inside
+the stack, and only
+the first-run step is shared — a fork would have carried two paths through four sections to
+converge at the end. And `deployment.md` still opened with "Two compose files, same image",
+with a `HOST_IP` row describing the variable as split-LXC-only — a claim **Stage A had already
+outdated** and split DNS makes actively harmful, since such a user reads it, concludes the variable
+isn't theirs, and gets a blank upstream for every container not on the edge network. The
+env-var reference had to move in the same commit as the layout, which is the rule this project
+keeps relearning.
+
+The same sweep turned up a worse one. `PLAN.md`'s "Co-located vs External Mode" table still
+said `http://caddy:2019` means *"Container names work: `grafana:3000`"* — unqualified, in the
+architecture reference, which is the 502 stated as a fact. Stage A had replaced that claim in
+the code and in `troubleshooting.md` but never swept `PLAN.md`; it took the stage that ships
+the layout the sentence misdescribes to notice. It now says what the mode actually decides
+(where Caddy runs, whether `2019` reaches the LAN) with the per-container derivation below it,
+minus a second dead sentence promising that `config.py` logs the active mode — nothing does.
+
+- Key files: `compose.caddy-loskai.yml` (new), `docs/guides/topologies.md` (the
+  external-network stanzas), `docs/guides/migration.md` (dropping `ports:` after a migration),
+  `docs/guides/install.md` (C1–C3), `docs/guides/deployment.md`, `README.md`, `.env.example`,
+  `scripts/deploy.sh`
+- `check-docs.sh` clean. `pytest`/`npm test` **not run** — neither toolchain exists in the
+  current sandbox (no `uv`, no venv, no npm). The stage executed no statement (compose, shell
+  and docs, plus one comment in `config.py`), so no suite is implicated, but both are still
+  unrun since Stage A
+- Left open on purpose: `topologies.md` still calls C *planned* in its comparison table and
+  section blockquote — a follow-up pass, since the file was being edited by hand at the time
+
 ## 2026-09-03 — CLAUDE.md pinned to the code; the docs checker grows to five checks
 
 An audit of `CLAUDE.md` against the code found **four wrong facts**, each of which had been

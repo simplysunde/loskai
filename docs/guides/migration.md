@@ -83,6 +83,26 @@ mv /opt/stacks/immich/docker-compose.yml /opt/stacks/immich/compose.yml
 
 ---
 
+## Optional — stop publishing host ports (split DNS)
+
+If you run [layout B](topologies.md#b--split-dns-adguard-separate-caddy--loskai-together),
+Caddy is a container on this host, so a migrated stack can be routed **without publishing a
+host port at all**: join it to the shared `loskai-edge` network and delete its `ports:`.
+A migration is the natural moment — the stack is already down and you already have the
+compose file open. The stanzas are in
+[topologies.md](topologies.md#routing-a-container-without-publishing-a-port).
+
+Two things to expect:
+
+- **The service stops answering on `<host-ip>:<port>`.** Anything bookmarked there, or any
+  other tool dialling it directly, breaks — after this it is reachable only through its
+  HTTPS route (and from containers on the same network).
+- **An existing route needs repointing.** A route created before the move holds
+  `<host_ip>:<published-port>` as its upstream, which no longer resolves. Use **Change URL**
+  on the Routing tab and set it to `<service>:<port>`.
+
+---
+
 ## Why absolute paths are the thing to watch
 
 Bind-mount paths are the only part of a compose project that cares *where the folder lives*:

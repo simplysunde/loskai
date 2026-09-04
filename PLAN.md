@@ -510,13 +510,21 @@ route, so it never appears in `push_all` or the live-sync check.
 
 `CADDY_ADMIN_URL` determines the mode — no other config needed:
 
-| `CADDY_ADMIN_URL` value | Mode | Upstream format |
+| `CADDY_ADMIN_URL` value | Mode | What it means |
 |---|---|---|
-| `http://caddy:2019` | Docker network (co-located) | Container names work: `grafana:3000` |
-| `http://192.168.10.101:2019` | LAN IP (preferred/external) | LAN IP required: `192.168.10.100:3000` |
+| `http://caddy:2019` | Docker network (co-located) | Caddy is a container on this host; its admin API never reaches the LAN |
+| `http://192.168.10.101:2019` | LAN IP (preferred/external) | Caddy is off-box, on its own LXC |
 
 The backend client is identical in both cases — it just hits whatever URL is configured.
-On startup, config.py logs which mode is active.
+
+**The mode does not decide the upstream format** — it used to, and that was a *per-deployment*
+answer to a *per-container* question (Phase 16 Stage A). Compose isolates every project, so a
+co-located Caddy resolves names in its own project and nowhere else; `grafana:3000` pre-filled
+for a managed stack 502s. The form is now derived per container from whether Caddy and the
+target actually share a network Docker's embedded DNS serves (`logic.upstream_mode`): sharing
+one gives `name:port`, otherwise `<host_ip>:<published-port>`. `caddy_mode` survives only as
+`/api/caddy/status`'s display summary and as the fallback for route sources that have no
+container at all.
 
 The table above is the *deployment* summary, surfaced as `caddy.mode`. It is **not** how a
 route's upstream is chosen: since Phase 16 Stage A that is decided **per container**, by
@@ -1067,14 +1075,15 @@ siblings reusing the same internal cert.
 
 ## Alternative Setups
 
-The preferred setup runs Caddy and AdGuard as two separate native LXCs (layout **A**). Two
-alternatives exist, differing in how many machines they use and which ports end up contested:
-**B** all-in-Docker, and **C** split DNS (AdGuard on its own small box, Caddy + Loskai
-together in Docker).
+The preferred setup runs Caddy and AdGuard as two separate native LXCs (layout **A**, the
+three-way split). Two alternatives exist, differing in how many machines they use and which
+ports end up contested: **B** split DNS (the two-way split — AdGuard on its own small box,
+Caddy + Loskai together in Docker), and **C** all-in-Docker (one box).
 
-**A and C are recommended** — A wherever Proxmox is available, C everywhere else. **B is the
-supported alternative** for a single box, with its caveats (`53` vs the host resolver, DNS in
-the Docker host's fault domain) stated at the point of choice.
+**A and B are recommended** — A wherever Proxmox is available, B everywhere else. **C is the
+supported alternative** for a single box, and the only layout that needs the host reconfigured
+before it starts (`53` vs the host resolver); that and DNS sharing the Docker host's fault
+domain are stated at the point of choice.
 
 A fourth layout — all three components merged into **one container** — was specified and then
 **rejected** (2026-09-02): it fixes no port conflict, since the only contested port is `53`
@@ -1084,10 +1093,9 @@ otherwise single-process image.
 
 The full comparison — which ports each layout contests, which admin channels it leaves on the
 LAN, and the reasoning behind that recommendation — is
-[docs/guides/topologies.md](docs/guides/topologies.md), which also records the two documented
-but unsupported arrangements: the merged container above, and the **all-in-one LXC** variant
-(all three as native services on one box — good on ports, but it strands the Docker module on
-the wrong machine). That page is the single source of truth for topology; this section
+[docs/guides/topologies.md](docs/guides/topologies.md), which also records the merged container
+above as the one considered-and-rejected arrangement. That page is the single source of truth
+for topology; this section
 deliberately carries only the summary, because the same port table previously lived here, in
 `deployment.md` and in `topologies.md`, and the copies drifted.
 
@@ -1121,7 +1129,7 @@ file only and is shown read-only in the UI; see the table below.)
 | Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL Loskai syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
 | Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
-| Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. In split-LXC mode (Caddy on its own LXC, so it can't resolve container names) a container route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container — a bridged container can't detect its own host's IP |
+| Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in split-LXC, and per container in the two layouts where Caddy is a container here — a route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container, since a bridged container can't detect its own host's IP. Same address as `CADDY_HOST_IP` whenever Caddy runs on this host |
 
 Any ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on the
 Caddy LXC — Loskai never needs it (and the default internal-CA mode needs none). In the

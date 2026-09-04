@@ -1,10 +1,17 @@
 # Loskai — TODO
 
-**Now:** Phase 16 — ship layout C and make upstream detection topology-correct (below).
-Stages A and C are done (2026-09-03 / 2026-09-02). **Stage B is all that remains** —
-`compose.caddy-loskai.yml` + the shared `loskai-edge` network, which Stage A's per-container
-detection now rewards: a stack joined to that network gets a `name:port` upstream and needs
-no published host port.
+**Now:** Phase 16 — ship split DNS and make upstream detection topology-correct (below).
+All three stages have landed (B 2026-09-04, A 2026-09-03, C 2026-09-02): split DNS ships as
+`compose.caddy-loskai.yml` with the shared `loskai-edge` network, which Stage A's
+per-container detection rewards — a stack joined to it gets a `name:port` upstream and needs
+no published host port. **What's left is verification, not building:** `pytest` + `npm test`
+(unrun since Stage A — neither toolchain exists in the current sandbox) and the live smoke
+only Sunde can run.
+
+> **Layout letters were reassigned 2026-09-04** — **A** split-LXC (three-way) · **B** split DNS
+> (two-way) · **C** all-in-Docker (one box). Phase 16's text below was written before the swap
+> and calls split DNS *C* and all-in-Docker *B* throughout; it is left as written, since it
+> records work as it was done. Current-state docs use the new letters.
 **Waiting on hardware:** Phase 15 (audit cleanup) is code-complete — its last item is a live
 smoke test only Sunde can run (below).
 Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
@@ -433,18 +440,106 @@ here; the I/O wiring lands after):
       as the fallback for non-container route sources; it decides no upstream any more
 
 **Stage B — layout C: shared edge network + its own compose file**
-- [ ] `compose.caddy-loskai.yml` — Caddy + Loskai on the Docker host, AdGuard external.
+- [x] `compose.caddy-loskai.yml` — Caddy + Loskai on the Docker host, AdGuard external.
       `CADDY_ADMIN_URL=http://caddy:2019` (never published), `ADGUARD_URL` a LAN IP,
-      `CADDY_HOST_IP` required
-- [ ] Declare a shared `loskai-edge` network Caddy attaches to, so a managed stack can join it
-      and be routed **without publishing a host port** — the one capability no other layout has
-- [ ] Document joining a stack to `loskai-edge` (external network stanza) in
-      [`docs/topologies.md`](docs/guides/topologies.md) and [`docs/migration.md`](docs/guides/migration.md);
-      consider surfacing "joined to the edge network" in the Docker tab
-- [ ] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
-- [ ] [`docs/install.md`](docs/guides/install.md) currently walks through layout A only. Since C is
+      `CADDY_HOST_IP` required. It is C's two halves taken from the files that already ship
+      them: the Caddy service and `CADDY_HOST_IP:?` come from `compose.colocated.yml`, the
+      optional `ADGUARD_*` env from `compose.yml`, since AdGuard is off-box in both A and C.
+      `HOST_IP` is passed too — the *same* address as `CADDY_HOST_IP` in this layout, and what
+      fills the upstream for a container that is **not** on the edge network. Left as two vars
+      rather than defaulting one to the other: nested compose interpolation is unverifiable
+      without a daemon (there is none in the dev sandbox), and the settings layer has no
+      cross-key derivation to mirror
+- [x] Declare a shared `loskai-edge` network Caddy attaches to, so a managed stack can join it
+      and be routed **without publishing a host port** — the one capability no other layout has.
+      Declared with an explicit `name: loskai-edge` (Compose would otherwise prefix the project,
+      leaving nothing stable for another stack to name) and created *by this stack*, so
+      `docker compose up -d` stays a single command with no `network create` precondition.
+      Caddy gets `networks: [default, loskai-edge]` — `default` is what Loskai reaches
+      `caddy:2019` over; Loskai itself stays off the edge network, which is for Caddy→backend
+      traffic only
+- [x] Document joining a stack to `loskai-edge` (external network stanza) in
+      [`docs/topologies.md`](docs/guides/topologies.md) and [`docs/migration.md`](docs/guides/migration.md).
+      topologies.md gets the stanzas + the four things that bite (keep `default` in the
+      service's list or it loses its siblings; `external: true` means the Loskai stack comes up
+      first; the port must still be discoverable; the mechanism is not C-exclusive).
+      migration.md gets it as an optional post-migration step — the natural moment, since the
+      stack is already down — with the two consequences of dropping `ports:` (nothing answers
+      on `<host-ip>:<port>` any more, and an existing route needs **Change URL** to repoint)
+- [x] ~~Consider surfacing "joined to the edge network" in the Docker tab~~ — **not built.**
+      Stage A already surfaces the fact where it is actionable: the Add route modal pre-fills
+      `name:port` and says *"Caddy shares a Docker network with this container, so it can dial
+      it by name"* (`useRouteFields.ts:66`). A Docker-tab badge would be a second surface for a
+      fact the user only acts on in the first, so it is a new UI element carrying no new
+      information. Revisit only if the edge network turns out to need *managing* from Loskai
+      (joining/leaving a stack), which is a different feature
+- [x] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
+- [x] [`docs/install.md`](docs/guides/install.md) currently walks through layout A only. Since C is
       the recommended path for anyone without Proxmox, it needs its own walkthrough —
-      AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1
+      AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1.
+      **Own walkthrough, not a split at step 1:** C is three steps to A's four (Caddy comes up
+      inside the stack, so there is no second box to build) and only the first-run step is
+      shared, so a fork at step 1 would have carried two paths through four sections to
+      converge at the end. The old "No Proxmox?" pointer section is replaced by C1/C2/C3, which
+      reuse A's Step 1 post-setup list and Step 4 by link rather than restating them, and B
+      keeps a short paragraph at the end as the no-second-box answer
+- [x] **[`topologies.md`](docs/guides/topologies.md) described C as unbuilt** — the comparison
+      table's `Status` row said `planned` and the section blockquote said "Planned — see
+      `TODO.md` Phase 16". Done in the follow-up pass below, which also settled the
+      half-finished lead-in above "Three things follow from that table"
+- [x] **Not on the checklist, found while writing it:** `deployment.md` opened with "Two
+      compose files, same image" and called split DNS *planned* — it is the env-var reference,
+      so it had to gain C's row in the same commit. Its `HOST_IP` row also still described the
+      variable as split-LXC-only, which **Stage A outdated** and layout C makes actively
+      misleading (someone reading it in C concludes the variable is not for them, and gets
+      blank upstreams for every unpublished container). Same fix in `.env.example`'s
+      `HOST_IP`/`CADDY_ADMIN_URL`/`CADDY_HOST_IP` comments, `config.py:39`'s definition-site
+      comment, and `docs/README.md`'s install.md row
+- [x] **Worse, same sweep: `PLAN.md`'s "Co-located vs External Mode" table still asserted the
+      claim Stage A deleted** — `http://caddy:2019` → *"Container names work: `grafana:3000`"*,
+      unqualified, in the architecture reference. That is the 502 verbatim. Rewritten so the
+      table says what the mode *does* mean (where Caddy runs, whether `2019` reaches the LAN)
+      with the per-container derivation stated below it. Dropped a second false sentence
+      alongside — "On startup, config.py logs which mode is active"; nothing logs it, and
+      `config.py` isn't in `shared/` either. Stage A landed the behaviour and its own docs but
+      never swept `PLAN.md`, which is why the pass that ships the layout it misdescribes is the
+      one that caught it
+
+**Stage B follow-up (2026-09-04) — the letters now match the recommendation**
+
+_Decision (Sunde): **B and C swap**, and the all-in-one LXC is deleted outright. The letters had
+become a record of the order the layouts were thought of rather than an ordering a reader can
+use: split DNS was the second recommendation but the third letter, so every page had to say
+"A and C are recommended, B is the alternative" — a sentence that has to be read twice. Ordering
+them by how much they split (**A** three-way · **B** two-way · **C** one box) makes the letters
+carry the recommendation, and the degradation is monotonic: each step down merges one more thing
+onto the Docker host. The all-in-one LXC goes because it was never an option — it was recorded
+as "documented but unsupported" when the real answer is that it strands the Docker module on the
+wrong machine, so nobody should reach for it; keeping a section for it invited exactly the
+re-litigation the section was meant to prevent. The **merged single container** stays recorded
+as rejected, since that one does get proposed._
+- [x] `topologies.md` — swapped in the two recommendation bullets, the comparison table (every
+      row's cells reordered, not just the headers), the three "follows from that table"
+      paragraphs, and both layout sections, which also swap *position* so the page reads A → B →
+      C. C's `53` cost is now stated as **work required before the stack starts**, which is what
+      actually separates it from B. Deleted the All-in-one LXC section entire; "Considered and
+      not supported" is now one arrangement, not two
+- [x] Same swap in `install.md` (heading, the intro pointer, `C1/C2/C3` → `B1/B2/B3`, and the
+      no-second-box tail), `migration.md`, `docs/README.md`'s conventions line, `PLAN.md`'s
+      Alternative Setups, `CLAUDE.md`, and `compose.caddy-loskai.yml`'s header. Every anchor
+      moved with its heading — `check-docs.sh` is what proves none were missed
+- [x] **The swap is recorded in three places a reader lands on**, because the letters are load
+      bearing in prose that can't be mechanically checked: `docs/README.md`'s conventions line,
+      `CLAUDE.md`'s topology summary, and the note under this file's **Now** header. Each says
+      the same thing — a letter in an entry written before 2026-09-04 is the pre-swap one
+- [x] **Not renumbered on purpose:** `HISTORY.md`'s older entries, `todo-archive.md`, and
+      Phase 16's own text above. They record what was decided when, under the names used at the
+      time; rewriting them would make the record agree with today at the cost of making it false
+      about then, and the dense rationale in Stage A/C is exactly where a careless letter swap
+      would introduce a wrong claim. The pointer note is the alternative. The **one** exception
+      is the same-day "Split DNS ships" entry, which was written hours before the swap and now
+      names the layouts instead of lettering them — leaving a dead letter in an entry about the
+      very layout being relettered is confusion with no historical value
 
 **Stage C — loopback guard on the answer IP**
 _Kept after the D rescope, and re-justified: this was written up as "the defect that makes
@@ -480,8 +575,14 @@ worst combination; the general warning now sits in `topologies.md` under "The po
       conditional render), since hostname mode has always produced it
 
 **Verification**
-- [ ] `pytest` + `npm test`
-- [ ] `bash scripts/check-docs.sh`
+- [ ] `pytest` + `npm test` — **not run for Stage B, and not runnable in the current sandbox**:
+      no `uv`, no `backend/.venv`, no node/npm. The stage executed no statement — compose,
+      shell and docs, plus one comment in `config.py` — so neither suite is implicated, but
+      both are still unrun since Stage A's 209 + 38. Run them before closing the phase
+- [x] `bash scripts/check-docs.sh` — clean after Stage B: 21 markdown files, 13/13 docs
+      reachable, 17 source/config citations and 12 written-out paths resolving, and both new
+      anchors (`#routing-a-container-without-publishing-a-port`,
+      `#no-proxmox-install-layout-c--split-dns`) valid
 - [ ] **Live smoke (user):** in layout B or C, routing a *managed stack* container pre-fills a
       reachable upstream (the Stage A fix) and the route returns 200, not 502
 

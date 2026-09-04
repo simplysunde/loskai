@@ -28,18 +28,21 @@ bash scripts/deploy.sh        # git pull --ff-only && docker compose up -d --bui
 
 `docker compose up -d` on its own reuses the existing `loskai:latest` image and would
 skip your new code — always `--build` after a pull. The script does that for you (and
-honours `COMPOSE_FILE=compose.colocated.yml` for the co-located layout).
+honours `COMPOSE_FILE=` for the other two layouts below).
 
 - **With Proxmox — recommended** (`compose.yml`): Loskai on the Docker host; Caddy and
   AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
   down). Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
   [`scripts/create-adguard-lxc.sh`](scripts/create-adguard-lxc.sh) (run from the Proxmox shell).
-- **Without Proxmox — recommended** (*planned*): **split DNS** — AdGuard on any small
-  always-on box (a Raspberry Pi is ideal), Caddy and Loskai together in Docker on your main
-  host. The DNS box is set up once and left alone; everything else is one compose stack.
+- **Without Proxmox — recommended** (`compose.caddy-loskai.yml`): **split DNS** — AdGuard on
+  any small always-on box (a Raspberry Pi is ideal), Caddy and Loskai together in Docker on
+  your main host. The DNS box is set up once and left alone; everything else is one compose
+  stack. Set `CADDY_HOST_IP` to the host's LAN IP. It is also the only layout where a routed
+  container needn't publish a host port — join it to the shared `loskai-edge` network instead.
 - **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as containers on one
-  host, with no second machine. Supported, but AdGuard's `:53` then fights `systemd-resolved`
-  — see the port notes. Set `CADDY_HOST_IP` to the host's LAN IP.
+  host, with no second machine. Supported, and the only layout that needs the host
+  reconfigured before it starts — AdGuard's `:53` fights `systemd-resolved`, so free that port
+  first. Set `CADDY_HOST_IP` to the host's LAN IP.
 
 The three supported layouts, and the port trade-offs behind these recommendations, are
 compared in [topologies.md](docs/guides/topologies.md).

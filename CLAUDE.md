@@ -7,10 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 1–14 and 17 are done.
 
-**Phase 16 — ship layout C, fix upstream detection — is the live one.** Stage A
-(per-container upstream detection) and Stage C (the loopback guard on the DNS answer IP)
-have landed; **Stage B — layout C's compose file and the shared `loskai-edge` network — is
-what's left**. Phase 15 (audit cleanup) is
+**Phase 16 — ship split DNS, fix upstream detection — is the live one, and all three stages
+have landed** (Stage B: `compose.caddy-loskai.yml` + the shared `loskai-edge` network; Stage A:
+per-container upstream detection; Stage C: the loopback guard on the DNS answer IP). Note the
+phase text predates the 2026-09-04 relettering and calls split DNS *layout C*. **What's open is
+verification, not building** — `pytest`/`npm test` unrun since Stage A, and a live smoke only
+Sunde can run. Phase 15 (audit cleanup) is
 code-complete with one item left that needs real hardware, so it is waiting on Sunde rather
 than on code. **Check `TODO.md` for the current unchecked items before assuming something is
 missing** — and note that a completed phase's write-up describes the repo *as it was then*;
@@ -32,9 +34,12 @@ only the Now/Next tiers describe today. The authoritative sources are:
   `api.md` is Loskai's own API surface — 36 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
-  deployment layout (A split-LXC · B all-in-Docker · C split DNS; **A and C recommended, B the
-  supported alternative**. A merged single-container layout and an all-in-one LXC are recorded
-  there as documented-but-unsupported — don't re-propose either). `deployment.md` is the
+  deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
+  supported alternative** — all three ship. **The letters were reassigned 2026-09-04**, split
+  DNS B↔C all-in-Docker, so a letter in an older `HISTORY.md`/`TODO.md` entry is the pre-swap
+  one. A merged single-container layout is recorded there as considered-and-rejected — don't
+  re-propose it; the all-in-one *LXC* variant was deleted the same day, as it was never a real
+  option). `deployment.md` is the
   env-var/volume reference, `install.md` the walkthrough, `certificate-setup.md` the
   internal-CA onboarding, `migration.md` stack adoption, `troubleshooting.md`
   symptom-indexed triage.

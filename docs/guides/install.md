@@ -1,13 +1,15 @@
-# Install guide — AdGuard + Caddy LXCs + Docker Loskai
+# Install guide — AdGuard + Caddy + Loskai
 
-The **preferred layout**: AdGuard Home and Caddy each in their own Proxmox LXC, with Loskai
-in Docker driving both over the LAN. Splitting them means rebuilding Caddy never takes LAN
-DNS down. You end up with clean `https://service.yourdomain` names, assigned from Loskai's UI.
+Steps 1–4 walk the **preferred layout** (**A**): AdGuard Home and Caddy each in their own
+Proxmox LXC, with Loskai in Docker driving both over the LAN. Splitting them means rebuilding
+Caddy never takes LAN DNS down. You end up with clean `https://service.yourdomain` names,
+assigned from Loskai's UI.
 
 Do the steps in order — Loskai needs both LXCs reachable, so build them first.
 
-> No Proxmox? See [No Proxmox?](#no-proxmox) at the bottom for the recommended layout
-> and what is runnable today.
+> No Proxmox? Skip to [layout B — split DNS](#no-proxmox-install-layout-b--split-dns) at the
+> bottom: AdGuard on any small always-on box, Caddy and Loskai together in one compose stack.
+> It is the recommendation without a hypervisor, and it is a complete walkthrough of its own.
 
 ---
 
@@ -131,20 +133,98 @@ To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../../REA
 
 ---
 
-## No Proxmox?
+## No Proxmox? Install layout B — split DNS
 
-This guide covers layout **A** (two LXCs), which is the recommendation *if you run Proxmox*.
-Without it, the recommended layout is **C — split DNS**: AdGuard on any small always-on box
-(a Raspberry Pi is ideal), with Caddy and Loskai together in Docker on your main host.
-Layout C is not shipping yet (see `TODO.md` Phase 16), so today the runnable non-Proxmox
-option is **B, all-in-Docker**: Loskai, Caddy and AdGuard as three containers via
-`compose.colocated.yml`.
+Steps 1–4 above are layout **A** (the three-way split), the recommendation *if you run
+Proxmox*. Without it, the recommended layout is **B — split DNS**, the two-way split: AdGuard
+on any small always-on box, with Caddy and Loskai together in Docker on your main host. It is
+three steps instead of four — Caddy comes up inside the compose stack, so there is no separate
+Caddy box to build.
 
-- Set `CADDY_HOST_IP` to the host's LAN IP (Caddy's admin URL is a hostname here, so the
-  answer IP can't be derived).
-- Mind the ports — free `:53` from `systemd-resolved`, keep AdGuard off `80`/`443`.
-- Steps 3–4 are otherwise the same
-  (`COMPOSE_FILE=compose.colocated.yml bash scripts/deploy.sh` to update).
+You need one small always-on machine for DNS: a Raspberry Pi, an old mini-PC or thin client,
+or a NAS that can run one container. It gets set up once and then left alone.
 
-Before committing to a layout, read [topologies.md](topologies.md#which-one-should-i-run) —
-it compares all four on port ownership and explains why B is supported but not recommended.
+### B1 — AdGuard Home on the DNS box
+
+Install AdGuard Home on that machine — either natively (its own installer script, per
+[AdGuard's documentation](https://github.com/AdguardTeam/AdGuardHome#getting-started)) or as
+a container:
+
+```yaml
+services:
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    network_mode: host # simplest way to own :53 on a box that does nothing else
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+    restart: unless-stopped
+```
+
+Then, exactly as in [Step 1](#step-1--adguard-home-lxc-lan-dns):
+
+1. **Pin a static IP** — a DHCP reservation, so its address never changes.
+2. **Finish setup** — open `http://<adguard-ip>:3000`, set the admin user/password, enable
+   the DNS server on `:53`.
+3. **Firewall the API** — allow `:3000` only from the Docker host.
+4. **Point your LAN at it** — set your router/DHCP's DNS to the AdGuard IP.
+
+Keep the IP, user and password — Loskai needs all three next.
+
+### B2 — Caddy + Loskai on the Docker host
+
+```bash
+git clone http://<your-forge>/sunde/Loskai.git
+cd Loskai
+cp .env.example .env
+```
+
+Edit `.env`. There is **no `CADDY_ADMIN_URL`** here — the compose file pins it to
+`http://caddy:2019`, which never leaves the Docker network:
+
+```ini
+BASE_DOMAIN=example.no
+ADGUARD_URL=http://<adguard-ip>:3000
+ADGUARD_USER=admin
+ADGUARD_PASSWORD=<the-adguard-password>
+CADDY_HOST_IP=<docker-host-lan-ip>
+HOST_IP=<docker-host-lan-ip>
+STACKS_DIR=/opt/stacks
+```
+
+`CADDY_HOST_IP` is **required** in this layout: Caddy's admin URL is a hostname, so the
+DNS-rewrite answer IP can't be derived from it — it is this host's LAN IP, where Caddy's
+`:443` is published. `HOST_IP` is the same address, and fills in route upstreams for
+containers Caddy can't reach by name. Then:
+
+```bash
+docker compose -f compose.caddy-loskai.yml up -d --build
+```
+
+**Trust the root cert** — on each device open `http://<docker-host>/` and follow the page
+(Caddy publishes `:80` here, so it's the Docker host rather than a Caddy LXC). One-time per
+device; see [certificate-setup.md](certificate-setup.md).
+
+### B3 — First run
+
+Identical to [Step 4](#step-4--first-run) — the dashboard cards, the "Push all" cold start,
+and the first route all behave the same. To update later:
+
+```bash
+COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh
+```
+
+One capability this layout adds: a container **joined to the shared `loskai-edge` network**
+is routable without publishing a host port at all — see
+[topologies.md](topologies.md#routing-a-container-without-publishing-a-port).
+
+### Or, with no second box at all
+
+**C — all-in-Docker** (`compose.colocated.yml`) runs AdGuard, Caddy and Loskai as three
+containers on the Docker host. Supported, and the honest answer when a second machine isn't an
+option — but it is the only layout that needs the host reconfigured before it will start:
+**clear `:53` first**, since most Linux hosts run `systemd-resolved` on it. Then use B2 above
+with `compose.colocated.yml`, dropping `ADGUARD_URL` (that file points at the AdGuard
+container). [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
+ownership and states C's costs at the point of choice.
