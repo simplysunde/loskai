@@ -90,10 +90,10 @@ minus a second dead sentence promising that `config.py` logs the active mode —
   external-network stanzas), `docs/guides/migration.md` (dropping `ports:` after a migration),
   `docs/guides/install.md` (C1–C3), `docs/guides/deployment.md`, `README.md`, `.env.example`,
   `scripts/deploy.sh`
-- `check-docs.sh` clean. `pytest`/`npm test` **not run** — neither toolchain exists in the
-  current sandbox (no `uv`, no venv, no npm). The stage executed no statement (compose, shell
-  and docs, plus one comment in `config.py`), so no suite is implicated, but both are still
-  unrun since Stage A
+- `check-docs.sh` clean; `pytest` 209 and `npm test` 38 pass, unchanged from Stage A — the
+  expected result, since the stage executed no statement (compose, shell and docs, plus one
+  comment in `config.py`). Running them at all meant first installing `uv` and node into
+  `~/.local` on the dev VM, which had neither
 - Left open on purpose: `topologies.md` still calls C *planned* in its comparison table and
   section blockquote — a follow-up pass, since the file was being edited by hand at the time
 

@@ -4,9 +4,10 @@
 All three stages have landed (B 2026-09-04, A 2026-09-03, C 2026-09-02): split DNS ships as
 `compose.caddy-loskai.yml` with the shared `loskai-edge` network, which Stage A's
 per-container detection rewards — a stack joined to it gets a `name:port` upstream and needs
-no published host port. **What's left is verification, not building:** `pytest` + `npm test`
-(unrun since Stage A — neither toolchain exists in the current sandbox) and the live smoke
-only Sunde can run.
+no published host port. `pytest` (209) + `npm test` (38) + `check-docs.sh` all pass.
+**One thing stands between Phase 16 and closed:** the live smoke, which only Sunde can run —
+route a *managed stack* container in split DNS or all-in-Docker and confirm the pre-filled
+upstream is reachable (200, not 502).
 
 > **Layout letters were reassigned 2026-09-04** — **A** split-LXC (three-way) · **B** split DNS
 > (two-way) · **C** all-in-Docker (one box). Phase 16's text below was written before the swap
@@ -575,10 +576,13 @@ worst combination; the general warning now sits in `topologies.md` under "The po
       conditional render), since hostname mode has always produced it
 
 **Verification**
-- [ ] `pytest` + `npm test` — **not run for Stage B, and not runnable in the current sandbox**:
-      no `uv`, no `backend/.venv`, no node/npm. The stage executed no statement — compose,
-      shell and docs, plus one comment in `config.py` — so neither suite is implicated, but
-      both are still unrun since Stage A's 209 + 38. Run them before closing the phase
+- [x] `pytest` + `npm test` — **209 backend + 38 frontend pass (2026-09-04)**, matching Stage A
+      exactly, which is the expected result: the stage executed no statement (compose, shell and
+      docs, plus one comment in `config.py`). Neither suite could run at first — the dev VM had
+      no `uv` and no node — so both were installed under `~/.local` (uv 0.12.9; node 24.20.0
+      symlinked into `~/.local/bin`, which `.profile` already puts on `PATH`), then
+      `uv sync` + `npm install`. `uv run pytest` works here; the interpreter-symlink workaround
+      recorded under Phase 15 was specific to the other sandbox
 - [x] `bash scripts/check-docs.sh` — clean after Stage B: 21 markdown files, 13/13 docs
       reachable, 17 source/config citations and 12 written-out paths resolving, and both new
       anchors (`#routing-a-container-without-publishing-a-port`,

@@ -10,9 +10,9 @@ All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-compl
 **Phase 16 — ship split DNS, fix upstream detection — is the live one, and all three stages
 have landed** (Stage B: `compose.caddy-loskai.yml` + the shared `loskai-edge` network; Stage A:
 per-container upstream detection; Stage C: the loopback guard on the DNS answer IP). Note the
-phase text predates the 2026-09-04 relettering and calls split DNS *layout C*. **What's open is
-verification, not building** — `pytest`/`npm test` unrun since Stage A, and a live smoke only
-Sunde can run. Phase 15 (audit cleanup) is
+phase text predates the 2026-09-04 relettering and calls split DNS *layout C*. All three checks
+pass (209 + 38 + docs); **the one thing left is a live smoke only Sunde can run**. Phase 15
+(audit cleanup) is
 code-complete with one item left that needs real hardware, so it is waiting on Sunde rather
 than on code. **Check `TODO.md` for the current unchecked items before assuming something is
 missing** — and note that a completed phase's write-up describes the repo *as it was then*;
