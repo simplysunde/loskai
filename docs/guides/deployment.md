@@ -142,13 +142,12 @@ so a normal (differing host/container) bind mount is correct and same-path is un
 #### Upgrading from `/opt/loskai`
 
 The in-container path was `/opt/loskai` and the host side was `./loskai-settings` before
-2026-09-05. Pulling a newer image without moving the directory would point the app at an
-unmounted `/data`: it would find no `settings.json`, conclude it was a **fresh install**,
-re-open the *public* first-run setup route, and write the replacement state into the
-container layer for the next recreate to discard.
+2026-09-05. Nothing reads the old directory any more, so an install that updates without
+moving it comes up as a **fresh install** — first-run setup, no routes — with the old
+state still sitting untouched in `loskai-settings/`.
 
-Loskai **refuses to start** in that state rather than choosing which half to lose, and the
-error names both directories. The migration is one command from the project directory:
+`scripts/deploy.sh` checks for this right after the `git pull` that swaps the compose
+file, and stops with the command to run. Migrating by hand, from the project directory:
 
 ```bash
 mv loskai-settings/* data/ && rmdir loskai-settings && docker compose up -d
@@ -159,9 +158,11 @@ and `mv loskai-settings data` would nest it at `data/loskai-settings/` where the
 can't see it. `rmdir` refusing to remove the old directory means something was left behind
 (a dotfile) — check before deleting it by hand.
 
-Or keep the old location by setting `LOSKAI_DATA_DIR=/opt/loskai` and leaving the mount
-as it was. Either satisfies the guard; a fresh install and an already-moved one both start
-untouched.
+Or keep the old location by setting `LOSKAI_DATA_DIR=/opt/loskai` **and** restoring the
+`./loskai-settings:/opt/loskai` mount. Both, or neither — the coupling above is the whole
+point: the value and the mount's right side have to agree, and nothing checks that for
+you. If they drift, Loskai writes to an unmounted path inside the container and that state
+is discarded on the next recreate.
 
 ## Cold start
 

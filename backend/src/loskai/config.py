@@ -60,8 +60,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# Where `data_dir` defaulted before 2026-09-05. Referenced only by the startup guard in
-# `shared/settings.py`, which refuses to boot when an install's state is still here while
-# the app has been pointed somewhere empty.
-LEGACY_DATA_DIR = "/opt/loskai"

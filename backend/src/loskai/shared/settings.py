@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Body, HTTPException
 
-from ..config import LEGACY_DATA_DIR, settings as env
+from ..config import settings as env
 from . import store
 
 logger = logging.getLogger(__name__)
@@ -62,50 +62,6 @@ def verify_readable() -> None:
     Raises `store.CorruptStoreError` (naming the path) — startup then aborts.
     """
     _read_stored()
-
-
-class StrandedStateError(RuntimeError):
-    """An install's state sits at the pre-`/data` location while the app has been pointed
-    somewhere else. Always names **both** directories: the fix is a one-line move, but
-    only if the operator is told which two are involved."""
-
-
-def verify_data_dir() -> None:
-    """Fail fast when the data directory moved out from under an existing install.
-
-    `data_dir` defaulted to `/opt/loskai` before 2026-09-05. An install that updates
-    without moving its volume points the app at a `/data` nothing is mounted on. The app
-    then finds no `settings.json`, concludes it is a fresh install, and re-opens the
-    **public** first-run setup route — while writing the new state into the container's
-    writable layer, which the next recreate discards. Silent data loss and an
-    unauthenticated setup screen at the same time.
-
-    Refusing to start is the only safe answer, because booting either way loses
-    something. **Must run before `auth.ensure_seeded()`** (see `main.lifespan`): that
-    writes `settings.json` when `LOSKAI_PASSWORD` is set, which would create one at the
-    empty new path and mask the stranded state permanently.
-    """
-    configured = Path(env.data_dir)
-    legacy = Path(LEGACY_DATA_DIR)
-    # Someone who deliberately pinned the old path is not stranded, they are configured.
-    if configured == legacy:
-        return
-    # Real state where we're looking: nothing to warn about, migrated or fresh-and-used.
-    if (configured / "settings.json").exists():
-        return
-    # Nothing at the old path either: a genuinely new install. Proceed.
-    if not (legacy / "settings.json").exists():
-        return
-    raise StrandedStateError(
-        f"{configured} has no settings.json but {legacy} does — that is where Loskai's "
-        f"data directory used to live, and nothing appears to be mounted at "
-        f"{configured}. Starting now would look like a fresh install: the public "
-        f"first-run setup would re-open and the new state would be lost on the next "
-        f"container recreate. Move the old directory's *contents* across (with the "
-        f"shipped compose files, from the project directory: "
-        f"`mv loskai-settings/* data/ && rmdir loskai-settings`) — note ./data already exists, so moving the directory itself would "
-        f"just nest it. Or set LOSKAI_DATA_DIR={legacy} to keep using the old one."
-    )
 
 
 def _update_stored(mutate: Callable[[dict[str, Any]], dict[str, Any]]) -> None:
