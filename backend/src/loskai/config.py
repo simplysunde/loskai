@@ -15,7 +15,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # In the built image this resolves to a path that never exists (no .env ships there —
 # see Dockerfile), which is harmless: pydantic-settings silently skips a missing
 # env_file and production gets its config from real env vars via compose either way.
-_REPO_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT_ENV = _REPO_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -45,8 +46,13 @@ class Settings(BaseSettings):
     recipes_repo_url: str | None = None
 
     # --- Env-only settings (never written to settings.json) ---
-    # Drives the compose bind mount, so it lives in the compose/env only.
-    stacks_dir: str = "/opt/stacks"
+    # Drives the compose bind mount, so it lives in the compose/env only. The default is
+    # the repo's own `stacks/` (anchored like `_REPO_ROOT_ENV`, not the process CWD), which
+    # is what makes `make backend` work with nothing set. Every compose file passes this
+    # explicitly, so in a container the default only shows up when something is misconfigured
+    # — and `/app/stacks` being unmounted surfaces as `stacks_dir_ok: false` rather than
+    # silently scanning the wrong place.
+    stacks_dir: str = str(_REPO_ROOT / "stacks")
     # Seeds the admin password hash at first run; only ever stored hashed.
     loskai_password: str | None = None
     # Where settings.json + instances.json + the session secret live — and `recipes/`,

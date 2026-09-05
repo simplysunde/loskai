@@ -35,7 +35,8 @@ restart by hand, and want to manage from the browser instead.
 
 ## Migrating a project
 
-Example — adopting a project at `/opt/immich` into a `STACKS_DIR` of `/opt/stacks`.
+Example — adopting a project at `/opt/immich` into a `STACKS_DIR` of `~/loskai/stacks`
+(the default: `stacks/` beside the compose file).
 
 **1. Stop the stack first.** Always bring it down before moving or copying anything, so
 the data is at rest and you capture a consistent copy — a database copied mid-write can
@@ -50,10 +51,10 @@ docker compose -f /opt/immich/docker-compose.yml down
 
 ```bash
 # Option A — move: clean relocation, nothing left behind
-mv /opt/immich /opt/stacks/immich
+mv /opt/immich ~/loskai/stacks/immich
 
 # Option B — copy: leaves the original in place as a fallback (uses extra disk)
-cp -r /opt/immich /opt/stacks/immich
+cp -r /opt/immich ~/loskai/stacks/immich
 ```
 
 Keep the name (`immich`). Compose derives the project name from the folder name; keeping it
@@ -76,7 +77,7 @@ That decision is the only real work in a migration.
 **`compose.yml`**. If the project ships `docker-compose.yml`, rename it:
 
 ```bash
-mv /opt/stacks/immich/docker-compose.yml /opt/stacks/immich/compose.yml
+mv ~/loskai/stacks/immich/docker-compose.yml ~/loskai/stacks/immich/compose.yml
 ```
 
 **5. Start it from Loskai.** The stack now appears in the Stack Manager — hit **up**.

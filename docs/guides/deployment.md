@@ -74,7 +74,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 | `ADGUARD_USER` | AdGuard basic-auth user. |
 | `ADGUARD_PASSWORD` | AdGuard basic-auth password. |
 | `WIREGUARD_DASHBOARD_URL` | WireGuard dashboard (wg-easy / wg-dashboard). Optional, no auth. |
-| `STACKS_DIR` | Host path for Docker compose stacks. Also drives a bind mount — see [Volumes](#volumes). |
+| `STACKS_DIR` | Host path for Docker compose stacks. Defaults to `./stacks` beside the compose file. Also drives a bind mount, at the **same path inside the container** — see [Volumes](#volumes). |
 | `RECIPES_REPO_URL` | Public git repo the install wizard syncs recipes from. Unset = empty state. |
 | `CADDY_HOST_IP` | The IP DNS rewrites resolve to (where Caddy listens on `:443`). Only needed when `CADDY_ADMIN_URL` is a hostname or loopback; otherwise derived from it. **Must be an address other machines can reach** — a loopback (`127.0.0.1`, `::1`) or unspecified (`0.0.0.0`, `::`) value is rejected from the UI and ignored from the environment, since AdGuard hands the answer to every client. |
 | `HOST_IP` | This Docker host's LAN IP. Auto-fills a container's route upstream as `<host_ip>:<published-port>` whenever Caddy can't reach that container by name — always in split-LXC, and per container in the other two (see [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable)). Optional; the upstream is left blank without it. In split DNS and all-in-Docker this is the same address as `CADDY_HOST_IP`. |
@@ -98,7 +98,7 @@ Three mounts on the `loskai` service:
 
 ```yaml
 - /var/run/docker.sock:/var/run/docker.sock          # host Docker socket (root-equivalent)
-- ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}   # managed stacks — SAME path in and out
+- ${STACKS_DIR:-${PWD}/stacks}:${STACKS_DIR:-${PWD}/stacks}   # managed stacks — SAME path in and out
 - ./data:/data                                       # Loskai's own state
 ```
 
@@ -118,6 +118,31 @@ env var (the path the code scans), and the two must always match.
 
 This is also why `STACKS_DIR` is the one path variable that belongs in `.env`/compose
 yet must never be edited in the UI — it's structurally tied to the mount.
+
+**The path inside the container therefore mirrors the host's.** With the compose file at
+`~/loskai`, stacks live at `~/loskai/stacks` on the host *and* at `~/loskai/stacks` inside
+the container. That looks odd and is correct: mounting them at a tidy `/stacks` instead is
+exactly what breaks, because a managed stack's `./library:/uploads` would then be handed
+to the host daemon as `/stacks/<name>/library` — a path at the host's filesystem root,
+which the daemon creates as root while your data goes somewhere you didn't choose.
+
+#### Run compose from the project directory
+
+The default is `${PWD}/stacks`, and `${PWD}` is the **shell's** working directory, not the
+compose file's. Compose has no interpolation variable for the project directory, so this
+is the only way to express "beside this file".
+
+Run from the project directory and it resolves as intended; `scripts/deploy.sh` `cd`s
+there first, so the scripted path is safe. Invoke it from somewhere else —
+`docker compose -f ~/loskai/compose.yml up -d` from your home directory, or a systemd unit
+with no `WorkingDirectory=` — and stacks point at `<that directory>/stacks` instead. The
+Stack Manager then shows an empty list rather than an error, because the directory does
+exist; Docker created it.
+
+Set `STACKS_DIR` to an absolute path in `.env` to pin it and stop caring where compose is
+invoked from. Note this affects **only** `STACKS_DIR`: `./data` is resolved by Compose
+against the project directory, so the state volume is correct no matter where you run it
+from. The difference is the price of the same-path rule.
 
 ### State volume — the `LOSKAI_DATA_DIR` coupling
 

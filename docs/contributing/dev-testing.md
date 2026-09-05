@@ -40,11 +40,11 @@ LOSKAI_PASSWORD=devpass                   # or set it at first run in the UI
 # Writable state dir — the default /data is the in-container path and isn't writable when
 # the backend runs directly on your machine.
 LOSKAI_DATA_DIR=/home/you/loskai-data
-STACKS_DIR=/home/you/loskai-stacks
+# STACKS_DIR is NOT needed here: it defaults to the repo's own stacks/, which is tracked.
 ```
 
 ```bash
-mkdir -p "$(grep LOSKAI_DATA_DIR .env | cut -d= -f2)" "$(grep STACKS_DIR .env | cut -d= -f2)"
+mkdir -p "$(grep LOSKAI_DATA_DIR .env | cut -d= -f2)"
 cd backend
 uv run uvicorn loskai.main:app --reload --port 8000
 ```

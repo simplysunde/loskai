@@ -39,7 +39,17 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      # Managed stacks — the SAME path on both sides, deliberately. Loskai runs
+      # `docker compose` inside this container but the daemon is on the host, so a
+      # managed stack's relative binds (./data:/data) are resolved against the path the
+      # container sees and then handed to the host daemon. Differing paths would put
+      # every managed stack's volumes somewhere that doesn't exist on the host.
+      # Default is ./stacks beside this file — which is why compose must be run FROM
+      # this directory (${PWD}); `deploy.sh` cd's here first. Running it with `-f` from
+      # somewhere else, or from a systemd unit with no WorkingDirectory, would point
+      # stacks at <that directory>/stacks instead. Set STACKS_DIR to an absolute path
+      # to pin it and stop caring where you invoke compose from.
+      - ${STACKS_DIR:-${PWD}/stacks}:${STACKS_DIR:-${PWD}/stacks}
       - ./data:/data # Loskai's own state: settings.json, instances.json, recipes/
     environment:
       - CADDY_ADMIN_URL=http://caddy:2019
@@ -51,7 +61,7 @@ services:
       - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
-      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
       - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
       # Required in this mode: Caddy's admin URL is a hostname, so the DNS answer IP can't
       # be derived from it. This host's LAN IP, where Caddy's :443 is published.

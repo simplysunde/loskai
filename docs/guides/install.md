@@ -107,7 +107,7 @@ CADDY_ADMIN_URL=http://<caddy-ip>:2019
 ADGUARD_URL=http://<adguard-ip>:3000
 ADGUARD_USER=admin
 ADGUARD_PASSWORD=<the-adguard-password>
-STACKS_DIR=/opt/stacks
+#STACKS_DIR=/srv/stacks   # optional — defaults to ./stacks beside the compose file
 ```
 
 `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it — no `CADDY_HOST_IP`
@@ -190,7 +190,7 @@ ADGUARD_USER=admin
 ADGUARD_PASSWORD=<the-adguard-password>
 CADDY_HOST_IP=<docker-host-lan-ip>
 HOST_IP=<docker-host-lan-ip>
-STACKS_DIR=/opt/stacks
+#STACKS_DIR=/srv/stacks   # optional — defaults to ./stacks beside the compose file
 ```
 
 `CADDY_HOST_IP` is **required** in this layout: Caddy's admin URL is a hostname, so the

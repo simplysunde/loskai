@@ -269,7 +269,8 @@ compose by hand, minus the SSH. It runs the real `docker compose` CLI against th
 daemon; it invents no new deployment method.
 
 - **One directory, one variable.** Loskai watches exactly one directory, `STACKS_DIR`
-  (default `/opt/stacks`). Every immediate subdirectory with a `compose.yml` is a stack.
+  (default `./stacks`, beside the compose file). Every immediate subdirectory with a
+  `compose.yml` is a stack.
   There is no separate "manual" vs "managed" location — a stack is *managed* purely by
   virtue of living in `STACKS_DIR`.
 - **The filesystem is the only source of truth.** Loskai keeps no database of stacks.
@@ -956,7 +957,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Same path inside and out — the compose CLI hands bind paths to the host daemon,
       # so in-container path must equal host path or stack volumes land in the wrong place
-      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
+      - ${STACKS_DIR:-${PWD}/stacks}:${STACKS_DIR:-${PWD}/stacks}
       - ./data:/data   # persists settings.json + instances.json + recipes/
     environment:
       # Caddy — its own LXC over LAN (port 2019 firewalled to this host only)
@@ -974,7 +975,7 @@ services:
       - BASE_DOMAIN=${BASE_DOMAIN}          # e.g. example.no
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD}   # guards the admin UI (or set at first run)
       # Must equal the bind mount above so Loskai scans the same path that's mounted
-      - STACKS_DIR=${STACKS_DIR:-/opt/stacks}
+      - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
       # Note: any ACME/DNS-challenge token lives on the Caddy LXC in Caddy's environment
       # — Loskai never needs it (and the default internal-CA mode needs no token at all)
     restart: unless-stopped
@@ -1128,7 +1129,7 @@ file only and is shown read-only in the UI; see the table below.)
 | AdGuard username | `ADGUARD_USER` | Basic auth username |
 | AdGuard password | `ADGUARD_PASSWORD` | Basic auth password |
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
-| Stacks directory | `STACKS_DIR` | Host path for Docker stacks, e.g. `/opt/stacks`. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
+| Stacks directory | `STACKS_DIR` | Host path for Docker stacks; defaults to `./stacks` beside the compose file. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
 | Recipes repo | `RECIPES_REPO_URL` | Optional. Public git URL Loskai syncs install-wizard recipes from, cached in the settings volume. Unset = the wizard shows an empty state prompting you to set it |
 | Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
@@ -1187,7 +1188,7 @@ ADGUARD_URL=http://192.168.10.101:3000
 ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
-STACKS_DIR=/opt/stacks
+#STACKS_DIR=/srv/stacks   # optional — defaults to ./stacks
 # RECIPES_REPO_URL=https://github.com/you/loskai-recipes   # public repo the install wizard syncs recipes from
 # CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
 # HOST_IP=192.168.10.100         # this Docker host's LAN IP, for auto-filled container-route upstreams in split-LXC mode
