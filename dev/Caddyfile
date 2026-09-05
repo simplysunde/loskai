@@ -7,6 +7,14 @@
 # BASE_DOMAIN — set that wherever you like (Loskai's UI or the backend env); Caddy doesn't
 # need it here.
 #
+# DO NOT set BASE_DOMAIN=localhost to "line them up". A site block with no handlers adapts
+# to a `"terminal": true` route with nothing to handle the request, and the adapter puts it
+# first — so every route Loskai pushes for a name it matches is shadowed and Caddy answers
+# an empty 200 instead of proxying. Keeping this placeholder *different* from BASE_DOMAIN is
+# what makes the dev rig work, and it is the reason that defect survived to 2026-09-05 in
+# the co-located Caddyfile, where BASE_DOMAIN really is substituted here. See
+# docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200.
+#
 # (Production differs: the real wildcard `*.BASE_DOMAIN` cert is obtained via DNS challenge,
 # so there Caddy DOES need BASE_DOMAIN in its own env — see the root Caddyfile + PLAN.md.)
 

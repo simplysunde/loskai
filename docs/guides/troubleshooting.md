@@ -9,12 +9,49 @@ Quickest triage — a name that's routed but failing almost always falls into on
 
 | Symptom | Layer | Jump to |
 |---|---|---|
+| **Blank page, `200` with an empty body** | route shadowed | [Empty 200](#a-blank-page-or-an-empty-200) |
 | **502 Bad Gateway** | upstream unreachable | [502](#502-bad-gateway) |
 | **Redirect loop** ("redirecting in a way that will never complete") | upstream scheme | [Redirect loop](#redirect-loop-on-an-https-only-backend) |
 | Name doesn't resolve at all | DNS | [Won't resolve](#a-name-doesnt-resolve) |
 | Cert warning / "not secure" | TLS trust | [Cert warning](#certificate-warning) |
 | VPN clients ignore AdGuard | routing | [VPN DNS](#vpn-clients-arent-using-adguard) |
 | A dashboard card is greyed out | reachability | [Greyed card](#a-module-card-is-greyed-out) |
+
+---
+
+## A blank page, or an empty 200
+
+The name resolves, the cert is trusted, and Caddy answers **`200` with `content-length: 0`**
+and no `Via` header. Nothing is broken downstream: **your route never ran.** Something ahead
+of it in Caddy's `routes` array matched first and terminated.
+
+The usual something is the Caddyfile's own `*.{$BASE_DOMAIN}` block. It exists only so Caddy
+issues the wildcard cert, and a site block with no handlers adapts to a **`"terminal": true`
+route with nothing to handle the request** — which the Caddyfile adapter places first. Any
+route sitting behind it that it also matches is dead.
+
+**Three responses from the same Caddy tell the three cases apart:**
+
+| Response | Meaning |
+|---|---|
+| `200`, empty body, no `Via` | route shadowed — it never ran |
+| `502`, empty body | route ran; Caddy couldn't reach the upstream ([502](#502-bad-gateway)) |
+| TLS handshake failure (`curl` exit 35) | no route and no cert for that name at all |
+
+**Check the order directly:**
+
+```
+curl -s http://<caddy>:2019/config/apps/http/servers/srv0/routes | jq '[.[] | {id: ."@id", host: .match[0].host, terminal}]'
+```
+
+Every route Loskai pushes must come **before** any `terminal` entry that matches its host.
+Loskai has inserted at the head since 2026-09-05 (`PUT …/routes/0`); builds before that
+appended, so **every route was shadowed** wherever Caddy ran with the real `BASE_DOMAIN` in
+that block — the co-located and split-DNS layouts, and split-LXC in `acme` mode. Update, then
+re-push from **Routing → Sync**.
+
+A name under `BASE_DOMAIN` that you have *not* routed answers the same empty `200`, from the
+same block. That one is expected.
 
 ---
 
