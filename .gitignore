@@ -219,7 +219,16 @@ __marimo__/
 .streamlit/secrets.toml
 
 
-# Loskai's own state volume. `compose.colocated.yml` and `compose.caddy-loskai.yml` bind
-# ./loskai-settings into the container, so running the stack from a clone drops the admin
-# password hash and the session secret here. Already in .dockerignore; it belongs here too.
+# Loskai's own state and the managed stacks. Both directories are **tracked** (each holds a
+# .gitkeep) so a fresh clone has them already owned by the user running it: Docker creates a
+# missing bind source as root:root 755, and `data/recipes/` is a folder you are meant to drop
+# recipes into by hand. Their *contents* are local state — the admin password hash, the
+# session secret, and whatever stacks this host manages — so none of it is committed.
+data/*
+!data/.gitkeep
+stacks/*
+!stacks/.gitkeep
+
+# Legacy name for the state volume, before it moved to ./data. Kept ignored so an install
+# that predates the move doesn't show an untracked directory while it is being migrated.
 loskai-settings/

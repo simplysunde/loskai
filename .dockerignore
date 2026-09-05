@@ -8,7 +8,8 @@
 **/.pytest_cache
 **/.mypy_cache
 frontend/coverage
-loskai-settings
+data
+stacks
 .git
 .github
 .forgejo
