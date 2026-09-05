@@ -101,9 +101,10 @@ def verify_data_dir() -> None:
         f"data directory used to live, and nothing appears to be mounted at "
         f"{configured}. Starting now would look like a fresh install: the public "
         f"first-run setup would re-open and the new state would be lost on the next "
-        f"container recreate. Move the old directory to the new location (with the "
-        f"shipped compose files: `mv loskai-settings data`), or set "
-        f"LOSKAI_DATA_DIR={legacy} to keep using the old one."
+        f"container recreate. Move the old directory's *contents* across (with the "
+        f"shipped compose files, from the project directory: "
+        f"`mv loskai-settings/* data/ && rmdir loskai-settings`) — note ./data already exists, so moving the directory itself would "
+        f"just nest it. Or set LOSKAI_DATA_DIR={legacy} to keep using the old one."
     )
 
 

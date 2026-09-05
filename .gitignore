@@ -226,6 +226,12 @@ __marimo__/
 # session secret, and whatever stacks this host manages — so none of it is committed.
 data/*
 !data/.gitkeep
+# recipes/ ships too: it is the folder you drop hand-written recipes into, and it is only
+# discoverable if it's already there. Loskai never creates it (it only scans it), so
+# without this Docker would — as root, which is precisely what stops you writing to it.
+!data/recipes/
+data/recipes/*
+!data/recipes/.gitkeep
 stacks/*
 !stacks/.gitkeep
 

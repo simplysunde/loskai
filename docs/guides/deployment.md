@@ -151,8 +151,13 @@ Loskai **refuses to start** in that state rather than choosing which half to los
 error names both directories. The migration is one command from the project directory:
 
 ```bash
-mv loskai-settings data && docker compose up -d
+mv loskai-settings/* data/ && rmdir loskai-settings && docker compose up -d
 ```
+
+Move the **contents**, not the directory: `data/` ships in the repo, so it already exists
+and `mv loskai-settings data` would nest it at `data/loskai-settings/` where the app still
+can't see it. `rmdir` refusing to remove the old directory means something was left behind
+(a dotfile) — check before deleting it by hand.
 
 Or keep the old location by setting `LOSKAI_DATA_DIR=/opt/loskai` and leaving the mount
 as it was. Either satisfies the guard; a fresh install and an already-moved one both start

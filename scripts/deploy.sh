@@ -28,6 +28,28 @@ fi
 log "Pulling latest source"
 git pull --ff-only
 
+# The state volume moved from ./loskai-settings:/opt/loskai to ./data:/data on 2026-09-05.
+# The pull above is what swaps the compose file, so this is the moment it bites. Loskai's
+# own startup guard cannot see this case — the new compose does not mount the old path, so
+# from inside the container there is nothing to find, and it would come up as a *fresh
+# install* with the public first-run setup open and every route missing. Nothing is
+# destroyed (the old directory is untouched and the new one is mounted), but the fix
+# should happen before the surprise, not after it.
+if [ -f loskai-settings/settings.json ] && [ ! -f data/settings.json ]; then
+	cat >&2 <<-'MIGRATE'
+		Loskai's state directory moved: ./loskai-settings -> ./data (mounted at /data).
+		Your existing state is still in ./loskai-settings and has not been touched.
+
+		Move it, then re-run this script:
+
+		    mv loskai-settings/* data/ && rmdir loskai-settings
+
+		Or keep the old location by setting LOSKAI_DATA_DIR=/opt/loskai in .env and
+		restoring the ./loskai-settings:/opt/loskai mount in your compose file.
+	MIGRATE
+	exit 1
+fi
+
 log "Building + deploying ($COMPOSE_FILE)"
 docker compose -f "$COMPOSE_FILE" up -d --build
 
