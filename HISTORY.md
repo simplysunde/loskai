@@ -42,8 +42,32 @@ would have closed with every route in every co-located deployment silently broke
 
 Split-LXC in `internal` mode escapes all of this, by accident: `create-caddy-lxc.sh` feeds the
 unit `BASE_DOMAIN=localhost` as a placeholder, so its wildcard block is `*.localhost` and
-matches nothing. `acme` mode has the real domain and the same defect. That is a code reading —
-there is no Proxmox here to test it on.
+matches nothing. `acme` mode has the real domain and the same defect.
+
+**Measured later the same day, not left as a reading.** Sunde opened up a live split-LXC Caddy,
+and it is the clearest possible demonstration: one server holding a terminal `*.localhost` at
+index 0, eight Loskai-pushed routes appended behind it, all serving real bodies (`forgejo.sunde`
+14264 bytes, `proxmox.sunde` 2657) — while `foo.localhost` on the very same Caddy returns the
+empty `200`. The bug and the escape, side by side.
+
+**That comparison is also the answer to "how did this last fourteen phases".** Every environment
+Loskai had ever actually been run against carries the placeholder — split-LXC internal, and the
+dev rig, whose `dev/Caddyfile` picks `*.localhost` for the same cert-on-demand reason and
+explains the choice in a comment. The real `BASE_DOMAIN` only ever reaches that block in the two
+configs nobody had brought up. It was not that the bug was subtle; it was that the only places
+it could fire were the places nobody had run. The sharp edge is that a developer who sets
+`BASE_DOMAIN=localhost` in the dev rig — which the old comment openly invited — reproduces it in
+dev. `dev/Caddyfile` now says not to, and says why.
+
+**Layout A got its first live run out of the same session.** `compose.yml` had never been
+brought up either. Pointed at that Caddy with no `CADDY_HOST_IP` — which is how the file ships —
+`select_server_name` discovered `srv0` from a real two-server config, every container fell to
+`lan` with `<host_ip>:<published_port>` (Stage A's D1 decision, live), and the answer IP was
+*derived* from the admin URL as `192.168.10.177`, correctly Caddy's address rather than the
+Docker host's. The proxy worked across two machines. Most usefully, head-insertion was shown
+harmless on a populated config: the new route took index 0, the nine existing entries shifted
+down intact, all six reachable ones answered byte-for-byte what they had before, and unassigning
+left the config identical to the baseline captured before the first write.
 
 **What the smoke did confirm, and it confirmed a lot.** Stage A's per-container upstream
 detection is right in both directions against a real daemon: a container in its own compose
@@ -64,7 +88,9 @@ mistake.
 
 - Key files: `backend/src/loskai/modules/caddy/client.py` (`push_route`),
   `backend/tests/test_caddy_client.py` (+1, 209 → 210),
-  `docs/reference/caddy-api.md` (§2 and *Not used* both rewritten), `PLAN.md`
+  `docs/reference/caddy-api.md` (§2 and *Not used* both rewritten), `PLAN.md`,
+  `docs/guides/troubleshooting.md` (the empty-200 symptom, with the three-way signature),
+  `dev/Caddyfile` (don't set `BASE_DOMAIN=localhost`)
 - The unrouted-name empty `200` — same wildcard block, different symptom — is in the backlog,
   deliberately not fixed alongside
 

@@ -662,8 +662,21 @@ and all-in-Docker, always. Split-LXC in `acme` mode too — its inline Caddyfile
 handler-less `*.{$BASE_DOMAIN}` block (`create-caddy-lxc.sh:264`). **Split-LXC in `internal`
 mode escapes by accident**, and only by accident: the script feeds the unit
 `BASE_DOMAIN=localhost` as a placeholder (`UNIT_BASE_DOMAIN`, `create-caddy-lxc.sh:308`), so the
-block is `*.localhost` and matches nothing Loskai routes. That is a code reading, not a test —
-there is no Proxmox here to run it on._
+block is `*.localhost` and matches nothing Loskai routes._
+
+_**The escape was measured, not just read (2026-09-05, later the same day).** Sunde's live
+split-LXC Caddy was checked directly: `srv0` holds a terminal `*.localhost` at index 0 with
+**eight** Loskai-pushed routes appended behind it, and they serve real bodies —
+`forgejo.sunde` 14264 bytes, `proxmox.sunde` 2657. Same server, `foo.localhost` returns the
+empty `200`. The bug and the escape side by side on one Caddy._
+
+_**And that is why this survived fourteen phases.** Every environment Loskai had ever actually
+been run against carries the placeholder: split-LXC internal via `UNIT_BASE_DOMAIN`, **and the
+dev rig**, whose `dev/Caddyfile` uses `*.localhost` for the same cert-on-demand reason and
+says so in a comment. The real domain only ever reaches that block in the two configs nobody
+had run. **The trap that follows:** a developer who sets `BASE_DOMAIN=localhost` in the dev rig
+— a natural choice the old comment invited — reproduces the defect in dev. `dev/Caddyfile` now
+says not to._
 
 _**Why no test caught it.** Every layer was individually right: the route JSON was correct, the
 upstream was correct and reachable, `@id` addressing worked, `list_live_routes` found the route,
@@ -695,6 +708,33 @@ Caddy holding a real Caddyfile-adapted config._
       (so Caddy's autosaved config could not mask it) and through Loskai's own assign path rather
       than a hand-inserted route: `HTTP 200`, 300 bytes, `Via: 1.1 Caddy`, on both the `lan` and
       `docker` upstream forms
+- [x] `docs/guides/troubleshooting.md` — new **"A blank page, or an empty 200"** section, first
+      in the triage table because it is the one symptom that reads as success. Carries the
+      three-way signature measured on a real Caddy (empty `200` = shadowed · `502` = route ran,
+      upstream unreachable · TLS handshake failure = no route at all), the `jq` one-liner that
+      shows the ordering, and the note that anyone on a pre-2026-09-05 build should update and
+      re-push from **Routing → Sync**
+
+**Layout A live smoke (2026-09-05) — the recommended layout, also never run before**
+
+_Sunde offered a real split-LXC Caddy (`192.168.10.177`, native `:443`, nine routes already in
+it), so `compose.yml` — the layout A compose file, itself never brought up — was pointed at it
+with `CADDY_ADMIN_URL=http://192.168.10.177:2019` and **no `CADDY_HOST_IP`**, which is how that
+file ships. Everything held:_
+- _`server: srv0` **discovered** from a genuine two-server config (`srv0` `:443`, `srv1` `:80`
+  onboarding) — `select_server_name` skipping the `:80` server had only ever been unit-tested_
+- _`mode: lan` and **every** container pre-filled `<host_ip>:<published_port>`, which is Stage A's
+  D1 decision executing live: an IP admin URL means Caddy is not a container this daemon can
+  see, so the name form is never offered_
+- _`answer_ip: 192.168.10.177` **derived from the admin URL host** — the other branch of Stage C,
+  the one `compose.yml` depends on by not passing `CADDY_HOST_IP` at all. It correctly answers
+  Caddy's IP, not the Docker host's_
+- _End to end across two machines: their Caddy dialled back to this VM and returned `HTTP 200`,
+  306 bytes, `Via: 1.1 Caddy`, `RemoteAddr: 192.168.10.177`_
+- _**Head-insertion verified non-destructive against a populated config.** The route landed at
+  index 0; the nine existing entries shifted down one, order and `@id`s intact, and all six
+  reachable ones answered **byte-for-byte** what they had before the push. On unassign the
+  whole config compared **identical to the baseline** taken before any write_
 
 ---
 
