@@ -218,3 +218,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+
+# Loskai's own state volume. `compose.colocated.yml` and `compose.caddy-loskai.yml` bind
+# ./loskai-settings into the container, so running the stack from a clone drops the admin
+# password hash and the session secret here. Already in .dockerignore; it belongs here too.
+loskai-settings/
