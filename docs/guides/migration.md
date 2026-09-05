@@ -6,7 +6,8 @@ the source of truth — Loskai keeps no separate database — so "adopting" an e
 Docker Compose project is essentially just getting its folder into `STACKS_DIR`.
 
 This guide covers how to do that, and — just as importantly — when to leave a project
-exactly where it is.
+exactly where it is. It also covers the reverse direction:
+[moving Loskai itself](#moving-loskai-itself) to a new path or a new machine.
 
 ---
 
@@ -115,6 +116,73 @@ Bind-mount paths are the only part of a compose project that cares *where the fo
   They keep working, but the data is now decoupled from the folder — which is fine as long
   as you *know* that's the case. That's why the one instruction that matters is: check for
   absolute paths and decide whether to repoint them.
+
+---
+
+## Moving Loskai itself
+
+Different question from the one above: not adopting a project, but relocating the whole
+install. All of Loskai's own state lives in two directories beside the compose file —
+`data/` (settings, instances, session secret, hand-added recipes) and `stacks/` (the
+managed stacks). There is no database and nothing in `/opt`.
+
+### To a new path on the same machine — safe
+
+Stop everything, move the directory, bring it back up:
+
+```bash
+docker compose down
+mv ~/loskai /srv/loskai
+cd /srv/loskai && docker compose up -d
+```
+
+Nothing needs editing. `STACKS_DIR` defaults to `./stacks` beside the compose file, so it
+re-resolves at the new location and the same-path mount still holds. Verified end to end
+on a stack carrying both a relative bind and a named volume:
+
+| | before | after |
+|---|---|---|
+| relative bind | `<old>/stacks/demo/payload` | `<new>/stacks/demo/payload` |
+| named volume | `demo_dbdata` | `demo_dbdata` |
+
+Both kept their data. The bind follows because it resolves against the compose file; the
+named volume reattaches because Compose derives the project name from the **stack
+directory's basename**, which the move didn't change.
+
+> **Don't rename a stack's directory.** That basename *is* the project name. Renaming
+> `immich/` to `photos/` orphans the `immich_*` volumes and Compose creates empty
+> `photos_*` ones — the stack comes up looking healthy with no data. Move the folder
+> anywhere you like; leave its name alone.
+
+### To a new machine — three things bite
+
+**1. Named volumes do not travel.** They live in `/var/lib/docker/volumes/`, not in
+`stacks/`, so `mv`-ing the folders carries the compose files and every *relative* bind
+while silently leaving the databases behind. Most real stacks keep Postgres in a named
+volume, so the stack comes up healthy and empty. Migrate them explicitly:
+
+```bash
+# on the old machine, per volume
+docker run --rm -v immich_dbdata:/from -v "$PWD":/to alpine tar czf /to/immich_dbdata.tgz -C /from .
+# on the new one, after `docker compose up -d` has created the empty volume
+docker run --rm -v immich_dbdata:/to -v "$PWD":/from alpine tar xzf /from/immich_dbdata.tgz -C /to
+```
+
+Or convert those stacks to relative binds first, so the data lives inside `stacks/` and
+moves with everything else.
+
+**2. Stored upstreams pin the old host IP.** Each instance records its upstream verbatim
+in `data/instances.json`, e.g. `192.168.10.220:8081`, and `host_ip` / `caddy_host_ip` sit
+in `data/settings.json`. On a machine with a different LAN IP all of them are wrong and
+every route returns a `502`. Fix `host_ip` and `caddy_host_ip` in **Settings → Network**
+first, then repoint each route with **Change URL** on the Routing tab — there is no bulk
+re-derive. Containers reachable by name (split DNS, on `loskai-edge`) are unaffected;
+they were never pinned to an address.
+
+**3. `.env` is in neither directory.** It sits beside the compose file, not inside `data/`
+or `stacks/`. Most settings live in `settings.json` and travel with `data/`, but the
+env-only ones — `STACKS_DIR`, `LOSKAI_PASSWORD`, `LOSKAI_DATA_DIR` — do not. Copy `.env`
+across too, or re-enter what you need.
 
 ---
 

@@ -39,10 +39,9 @@ only the Now/Next tiers describe today. The authoritative sources are:
   DNS B↔C all-in-Docker, so a letter in an older `HISTORY.md`/`TODO.md` entry is the pre-swap
   one. A merged single-container layout is recorded there as considered-and-rejected — don't
   re-propose it; the all-in-one *LXC* variant was deleted the same day, as it was never a real
-  option). `deployment.md` is the
-  env-var/volume reference, `install.md` the walkthrough, `certificate-setup.md` the
-  internal-CA onboarding, `migration.md` stack adoption, `troubleshooting.md`
-  symptom-indexed triage.
+  option). `deployment.md` is the env-var/volume reference, `install.md` the walkthrough,
+  `certificate-setup.md` the internal-CA onboarding, `migration.md` stack adoption *and*
+  relocating Loskai itself, `troubleshooting.md` symptom-indexed triage.
 - **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
   (adding a `create-<service>-lxc.sh`).
 
@@ -143,6 +142,10 @@ must replay except the AdGuard password; its *own* admin password is stored only
 - **`STACKS_DIR` must be bind-mounted at the *same path* in and out** (`${STACKS_DIR}:${STACKS_DIR}`)
   **and** passed into the container env — the compose CLI hands bind paths to the host daemon,
   so the in-container scan path must equal the mount. It is env/compose-only, never UI-editable.
+  Since 2026-09-05 it defaults to **`${PWD}/stacks`** (was `/opt/stacks`), so compose must be
+  run from the project directory; `deploy.sh` `cd`s there. Loskai's own state is `./data:/data`
+  (was `./loskai-settings:/opt/loskai`) — **nothing lives in `/opt` any more**, and both
+  directories are tracked with a `.gitkeep` so Docker can't create them root-owned.
 - **AdGuard rewrites are deleted by the exact `(domain, answer)` pair, never by domain** — this
   is what protects hand-added rewrites. There is **no wildcard DNS rewrite**: one explicit
   rewrite per routed instance. (Caddy's wildcard *TLS cert* is a separate, unrelated concern.)

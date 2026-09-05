@@ -1,8 +1,13 @@
 # Loskai — TODO
 
-**Now:** nothing. **Phase 16 closed 2026-09-05** and **Phase 15 with it** — the live smokes
-both ran, on the dev VM, against a real Docker daemon. `pytest` (210) + `npm test` (38) +
-`check-docs.sh` all pass. Pick the next item from the backlog at the bottom of this file.
+**Now:** nothing. **Phases 15, 16 and 18 all closed 2026-09-05.** 15 and 16 on live smokes
+against a real Docker daemon (the first time this project had ever been *run*); 18 is the
+path restructure that came out of it. `pytest` (210) + `npm test` (38) + `check-docs.sh` all
+pass. Pick the next item from the backlog at the bottom of this file.
+
+**Nothing lives in `/opt` any more** (Phase 18, below). State is `./data:/data`, stacks default
+to `./stacks` beside the compose file, both directories are tracked with a `.gitkeep`, and a
+fresh `git clone` + `docker compose up -d` works with no `.env` and no `sudo`.
 
 **The Phase 16 smoke found a defect, and it is fixed** (`caddy/client.py` `push_route`,
 2026-09-05). Every route Loskai pushed was **dead** in any layout where Caddy runs from
@@ -835,6 +840,100 @@ reachable from the index with no orphans, and `git log --follow` resolves throug
 (`todo-archive.md` keeps 72 commits of history). Four broken links fixed along the way — the
 three the audit found, plus one `#alternative-all-in-docker` self-link the checker caught after
 `install.md`'s heading was renamed.
+
+---
+
+## Phase 18 — Get Loskai's paths out of `/opt`
+
+_Origin (2026-09-05, immediately after the Phase 16 smoke): running the thing for real
+surfaced the friction. `STACKS_DIR` defaulted to `/opt/stacks` and `LOSKAI_DATA_DIR` to
+`/opt/loskai` — both need root to create, so the smoke had to point them elsewhere before it
+could start. `dev-testing.md` carried a troubleshooting row for `PermissionError: '/opt/loskai'`,
+and `.env.example` shipped `STACKS_DIR=/opt/stacks` with no `LOSKAI_DATA_DIR` line at all, so
+copying it and running `make backend` hit that error by construction. The default was right for
+exactly one of the three contexts it is used in — a container running as root — and wrong for
+the two a person actually touches._
+
+_**Decisions (Sunde, 2026-09-05).** Keep the same-path invariant rather than lifting it with
+`--project-directory`; default both paths beside the compose file; env vars stay as pure
+overrides. On the container's filesystem looking odd: "i dont care how the file system inside
+the docker container looks as long as it works and makes it simple for the end user — if that
+requires that the paths on host and docker container mirror each other then that is what we
+will do."_
+
+**What shipped**
+- [x] **`./data:/data`** replaces `./loskai-settings:/opt/loskai` in all three compose files;
+      `config.py`'s `data_dir` default follows. `LOSKAI_DATA_DIR` stays an override, and dev
+      sets it (the in-container path isn't writable from the host) — `.env.example` now says so
+- [x] **`STACKS_DIR` defaults to `${PWD}/stacks`**, was `/opt/stacks`. `config.py`'s own default
+      is anchored to the repo the way `_REPO_ROOT_ENV` already was, so `make backend` works with
+      nothing set. **`config.py:49` was deliberately left alone in the first pass** and only
+      changed once every other `/opt/stacks` was gone — the code default fires only when nothing
+      set it, so it is a last-resort value, not a deployment default
+- [x] **`data/`, `data/recipes/` and `stacks/` are tracked** (a `.gitkeep` each), because Docker
+      creates a missing bind source as `root:root 755` — measured, not assumed. Without them a
+      fresh clone gets root-owned directories and `data/recipes/`, the folder recipes are
+      *hand-added* to, needs `sudo` for every write. That was already true before this phase
+- [x] `deploy.sh` checks for a stranded `loskai-settings/` right after the `git pull` that swaps
+      the compose file, and stops with the command to run
+- [x] Docs: `deployment.md` (env table, Volumes, the same-path section + a new *run compose from
+      the project directory* subsection, and *Upgrading from `/opt/loskai`*), `migration.md`
+      (a new **Moving Loskai itself** section), `install.md`, `dev-testing.md`,
+      `recipe-schema.md`, `.env.example`, `PLAN.md`, `docs/README.md`, `CLAUDE.md`
+
+**Walked back within the same session — an in-app startup guard**
+
+_Built, tested, then deleted. `verify_data_dir()` refused to boot when state was stranded at
+`/opt/loskai`. It worked, it had five tests (including one pinning that it ran **before**
+`auth.ensure_seeded()`, which writes `settings.json` and would otherwise mask the stranding),
+and it needed a `conftest.py` patch so a developer with a real `/opt/loskai` didn't fail every
+test that starts the app. **137 lines.**_
+
+_Sunde: "would a missing settings.json indicate a first run? So we would need to set the password
+again and redo the settings, not the end of the world … I dont think we need to gate keep so
+much, the important part are that it works and gives a massege if something is wrong."_
+
+_Right, and the measurement backs it: the destructive case (old mount kept, `/data` unmounted,
+writes going to the container layer) needs a locally-modified compose file to survive
+`git pull --ff-only`. The case that will actually happen is a fresh install with the old state
+untouched on disk — recoverable, and caught host-side by `deploy.sh`. **Refusing to boot is the
+convention for data stores** (Postgres on a `PGDATA` version mismatch, Elasticsearch on an
+incompatible data dir) where a wrong guess destroys something irreplaceable; Loskai's state is
+re-enterable, and the routes themselves live in Caddy keyed by `@id`, so even the instance list
+is readable back out of Caddy's config. Wrong category for that machinery._
+
+**Verification** — the three checks, plus live runs, because this is exactly the class of thing
+static checks miss:
+- [x] `pytest` (210) + `npm test` (38) + `check-docs.sh`
+- [x] **Fresh `git clone`, no `.env`, `docker compose up -d`** — boots, `/api/dashboard` 200, the
+      UI serves, first-run setup works, state lands in the clone's own `data/`. A hand-written
+      recipe dropped into `data/recipes/` as a normal user (no `sudo`, no container access, no
+      restart) is picked up as `source: local`
+- [x] **The same-path rule proven through Loskai**, not just in `compose config`: a managed stack
+      with `./payload:/payload`, started via `POST /api/docker/stacks/demo/action`, produced
+      `Source=<clone>/stacks/demo/payload` — the correct *host* path — and no stray `/stacks` at
+      the host root
+- [x] **A relocation, end to end.** `mv` the whole install to a new path and bring it up: the
+      relative bind followed (`<old>/…/payload` → `<new>/…/payload`), the named volume reattached
+      (`demo_dbdata`, since the project name is the stack directory's basename), both kept their
+      data, and Loskai still knew its admin password and rediscovered the stack. Written up in
+      `migration.md` along with the three things that *don't* survive a move to a new **machine**
+- [x] The migration command in the docs was **wrong on the first pass** and the live run caught
+      it: `mv loskai-settings data` nests the state at `data/loskai-settings/` because `data/`
+      now always exists. It is `mv loskai-settings/* data/ && rmdir loskai-settings`
+
+**Known sharp edge, accepted and documented**
+
+_The default is `${PWD}/stacks` because **Compose has no interpolation variable for the project
+directory** — verified: `COMPOSE_PROJECT_NAME` resolves correctly even via `-f` from elsewhere,
+but no path variable exists. So compose must be run from the project directory; `deploy.sh`
+`cd`s there first. Run it from somewhere else and stacks point at `<that directory>/stacks`,
+which the Stack Manager shows as an empty list rather than an error, because Docker created the
+directory. Setting `STACKS_DIR` to an absolute path pins it. This affects **only** `STACKS_DIR`:
+`./data` is resolved by Compose against the project directory, so state is correct from
+anywhere. That asymmetry is the price of same-path, and lifting it needs the
+`--project-directory` + `--env-file` pair (measured to work, and to fail **silently** on a
+stack's `.env` if the two ever drift) — considered and not taken._
 
 ---
 

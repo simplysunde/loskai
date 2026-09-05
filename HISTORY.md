@@ -1,5 +1,82 @@
 # Loskai — History
 
+## 2026-09-05 — Nothing lives in `/opt` any more
+
+Running Loskai for the first time (above) had a second consequence beyond the route bug: it
+showed how much friction the paths carried. `STACKS_DIR` defaulted to `/opt/stacks` and
+`LOSKAI_DATA_DIR` to `/opt/loskai`, both of which need root to create, so the smoke could not
+start until both were pointed somewhere else. That was not a discovery so much as an
+admission — `dev-testing.md` already carried a troubleshooting row for
+`PermissionError: '/opt/loskai'`, and `.env.example` shipped `STACKS_DIR=/opt/stacks` with no
+`LOSKAI_DATA_DIR` line at all, so copying it and running `make backend` produced that error by
+construction. The default was correct for exactly one of the three contexts it is used in, a
+container running as root, and wrong for the two a person actually touches.
+
+State is now `./data:/data` and stacks default to `./stacks` beside the compose file. Both
+directories are tracked with a `.gitkeep`, which matters more than it looks: Docker creates a
+missing bind source as `root:root`, so without them a fresh clone gets root-owned directories
+and `data/recipes/` — the folder recipes are *hand-added* to — needs `sudo` for every write.
+That was already true before this change; shipping the directories is what fixes it.
+
+**The same-path rule stays, and the reasoning was put to Sunde plainly** because the obvious
+improvement is to mount stacks at a tidy `/stacks` and it is the one thing that cannot work.
+Loskai runs `docker compose` inside its container while the daemon is on the host, so a managed
+stack's `./library:/uploads` is resolved against the container's view and then handed to the
+host daemon. Mounted at `/stacks`, that becomes `/stacks/immich/library` — a path at the host's
+filesystem root, which the daemon creates as root while the data goes somewhere nobody chose.
+Demonstrated rather than asserted, and the answer was the right one: *"i dont care how the file
+system inside the docker container looks as long as it works and makes it simple for the end
+user — if that requires that the paths on host and docker container mirror each other then that
+is what we will do."*
+
+**An in-app startup guard was built, tested, and then deleted in the same session.** It refused
+to boot when state was stranded at the old path. It worked; it had five tests, one of them
+pinning that it ran *before* `auth.ensure_seeded()`, which writes `settings.json` and would
+otherwise have masked the very state it was checking for. It also needed a `conftest.py` patch
+so that a developer with a real `/opt/loskai` on disk didn't fail every test that starts the
+app. 137 lines.
+
+Sunde pushed back: a missing `settings.json` does mean a first run, and redoing the settings is
+not the end of the world. That is right, and the measurements agreed. The destructive case — old
+mount kept, `/data` unmounted, writes going to the container's writable layer — needs a
+locally-modified compose file to survive `git pull --ff-only`. The case that will actually
+happen is a fresh install with the old state sitting untouched on disk, which is recoverable and
+is caught host-side by `deploy.sh` right after the pull that swaps the compose file. Refusing to
+boot is the convention for *data stores*, where a wrong guess destroys something irreplaceable;
+Loskai's state is re-enterable, and the routes themselves live in Caddy keyed by `@id`, so even
+the instance list can be read back out of Caddy's config. Wrong category for that machinery. The
+guard is gone and `deploy.sh` carries the migration.
+
+**Two things only the live runs caught.** The migration command in the docs and in the guard's
+own error message was wrong — `mv loskai-settings data` nests the state at
+`data/loskai-settings/`, because `data/` now always exists. And the guard could not see the
+common upgrade at all: the new compose file does not mount the old path, so from inside the
+container there is nothing to find. Both were found by running it, neither by the tests.
+
+The one sharp edge that remains is documented rather than fixed. The default is `${PWD}/stacks`
+because Compose has no interpolation variable for the project directory — `COMPOSE_PROJECT_NAME`
+resolves correctly even via `-f` from elsewhere, but no path variable exists. So compose must be
+run from the project directory. Run it from elsewhere and stacks point at `<that
+directory>/stacks`, which the Stack Manager shows as an empty list rather than an error, because
+Docker created it. `./data` is immune, since Compose resolves relative binds against the project
+directory; only the same-path variable is invocation-sensitive. Lifting that needs
+`--project-directory` paired with `--env-file` — measured to work, and measured to ignore a
+stack's `.env` **silently** if the two ever drift, which is the failure shape this session spent
+its morning removing. Considered and not taken.
+
+Relocation was tested rather than reasoned about, and is now written up in `migration.md`:
+moving the whole install to a new path works untouched (relative binds follow the folder, named
+volumes reattach because the project name is the stack directory's basename), while a move to a
+new *machine* silently leaves named volumes behind, pins every stored upstream to the old host
+IP, and doesn't carry `.env`.
+
+- Key files: `backend/src/loskai/config.py`, the three compose files, `.gitignore`,
+  `.dockerignore`, `scripts/deploy.sh`, `data/.gitkeep`, `data/recipes/.gitkeep`,
+  `stacks/.gitkeep`, `docs/guides/deployment.md`, `docs/guides/migration.md`,
+  `docs/guides/install.md`, `docs/contributing/dev-testing.md`,
+  `docs/reference/recipe-schema.md`, `.env.example`, `PLAN.md`, `CLAUDE.md`
+- Full checklist and the decisions behind it: `TODO.md` Phase 18
+
 ## 2026-09-05 — The first time Loskai was actually run, and it had never routed anything
 
 Phases 15 and 16 both closed on live smokes today, on the dev VM, against a real Docker
