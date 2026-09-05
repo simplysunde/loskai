@@ -1,5 +1,73 @@
 # Loskai — History
 
+## 2026-09-05 — The first time Loskai was actually run, and it had never routed anything
+
+Phases 15 and 16 both closed on live smokes today, on the dev VM, against a real Docker
+daemon. Everything before this was unit tests and static validation: nothing in this project
+had ever been *run*. That distinction turned out to be the whole story.
+
+**The Phase 16 smoke passed on the first curl, and the pass was false.** The checklist asked
+for "200, not 502". The first request returned `HTTP 200` — with `content-length: 0` and no
+`Via` header. The backend served 166 bytes when dialled directly; through Caddy it served
+nothing. The route was not proxying at all, and had never been proxying.
+
+`caddy/Caddyfile` declares `*.{$BASE_DOMAIN} { tls internal }` purely so Caddy issues the
+wildcard cert. A site block with no handlers adapts to a route with `"terminal": true`, and
+the adapter puts it first in `srv0.routes`. It matches every name Loskai routes.
+`push_route` used `POST …/routes`, which appends — so every route Loskai pushed landed
+*behind* a terminal matcher and was dead on arrival. The fix is `PUT …/routes/0`.
+
+Three things about this are worth keeping.
+
+**It failed as a success.** Not a 502, not a timeout — a 200 with an empty body. Every
+individual layer was correct: the route JSON, the upstream, `@id` addressing, `list_live_routes`
+finding it. `/api/caddy/routes` reported `synced: true` **and** `upstream_healthy: true` the
+entire time it was broken. The defect lived only in the *position* of a correct object inside
+an array whose first element Loskai does not own — which no test that mocks the Caddy client
+can see, and mocking the client is what all of them do. The `client.py`/pure-logic seam is
+still the right architecture; this is simply the class of bug that sits outside it.
+
+**The docs did not merely miss it — they argued for it.** Four places asserted append order
+was safe, `docs/reference/caddy-api.md` twice (once in §2, once listing `PUT` under *Not
+used*: "not needed; specific-host routes are order-independent, so append is always
+sufficient"). The reasoning was half right: Loskai's own routes *are* disjoint from each
+other. It never asked what else was in the array. A confidently-argued wrong invariant in a
+reference page is worse than an absent one, because it is what a later session reads before
+deciding not to check. This project's stated recurring failure is documentation drift; this
+was documentation that was wrong on the day it was written.
+
+**The checkbox would have been green.** "200, not 502" was the criterion, and a 200 came back.
+Had the smoke been run to satisfy the checklist rather than to see what happened, the phase
+would have closed with every route in every co-located deployment silently broken.
+
+Split-LXC in `internal` mode escapes all of this, by accident: `create-caddy-lxc.sh` feeds the
+unit `BASE_DOMAIN=localhost` as a placeholder, so its wildcard block is `*.localhost` and
+matches nothing. `acme` mode has the real domain and the same defect. That is a code reading —
+there is no Proxmox here to test it on.
+
+**What the smoke did confirm, and it confirmed a lot.** Stage A's per-container upstream
+detection is right in both directions against a real daemon: a container in its own compose
+project resolved to `lan` / `192.168.10.220:8081`, and the same container joined to
+`loskai-edge` with no published port at all resolved to `docker` / `web:80` — via the compose
+*service* label, since the container is `whoami-web-1` and `web` survives only as a network
+alias, which is exactly the three-key match Stage A was revised for. Stage B's documented
+consumer stanza worked verbatim. Stage C's guard derived a real LAN answer IP. AdGuard left
+unset degraded exactly as designed — `caddy: ok, adguard: skipped` with a warning, assign
+unaffected. All of that was correct before today and is now known to be, rather than believed.
+
+Phase 15's F5 remainder ran the same afternoon: a truncated `settings.json` aborted startup
+naming the path (`CorruptStoreError: /opt/loskai/settings.json is not valid JSON: …`, exit 3,
+a visible crash loop rather than a half-running app), and an `instances.json` that was valid
+JSON with one schema-invalid row dropped only that row and kept the public dashboard at 200.
+The 2026-08-27 decision to split those two behaviours by file holds up under a real operator
+mistake.
+
+- Key files: `backend/src/loskai/modules/caddy/client.py` (`push_route`),
+  `backend/tests/test_caddy_client.py` (+1, 209 → 210),
+  `docs/reference/caddy-api.md` (§2 and *Not used* both rewritten), `PLAN.md`
+- The unrouted-name empty `200` — same wildcard block, different symptom — is in the backlog,
+  deliberately not fixed alongside
+
 ## 2026-09-04 — The layout letters now carry the recommendation; the all-in-one LXC is gone
 
 **B and C swap: A split-LXC (three-way) · B split DNS (two-way) · C all-in-Docker (one box).**

@@ -1,20 +1,26 @@
 # Loskai — TODO
 
-**Now:** Phase 16 — ship split DNS and make upstream detection topology-correct (below).
-All three stages have landed (B 2026-09-04, A 2026-09-03, C 2026-09-02): split DNS ships as
-`compose.caddy-loskai.yml` with the shared `loskai-edge` network, which Stage A's
-per-container detection rewards — a stack joined to it gets a `name:port` upstream and needs
-no published host port. `pytest` (209) + `npm test` (38) + `check-docs.sh` all pass.
-**One thing stands between Phase 16 and closed:** the live smoke, which only Sunde can run —
-route a *managed stack* container in split DNS or all-in-Docker and confirm the pre-filled
-upstream is reachable (200, not 502).
+**Now:** nothing. **Phase 16 closed 2026-09-05** and **Phase 15 with it** — the live smokes
+both ran, on the dev VM, against a real Docker daemon. `pytest` (210) + `npm test` (38) +
+`check-docs.sh` all pass. Pick the next item from the backlog at the bottom of this file.
+
+**The Phase 16 smoke found a defect, and it is fixed** (`caddy/client.py` `push_route`,
+2026-09-05). Every route Loskai pushed was **dead** in any layout where Caddy runs from
+`caddy/Caddyfile` with the real `BASE_DOMAIN` — split DNS and all-in-Docker always, split-LXC
+in `acme` mode. The Caddyfile's `*.{$BASE_DOMAIN}` block, which exists only so Caddy issues
+the wildcard cert, compiles to a **handler-less route with `"terminal": true`** placed first,
+and it matches every name Loskai routes. `POST …/routes` appends, so the pushed route sat
+behind it and never ran. **It failed as an empty `200`, not a `502`** — which is why 209 unit
+and contract tests never saw it, why `/api/caddy/routes` reported `synced: true` and
+`upstream_healthy: true` throughout, and why this phase's own pass criterion ("200, not 502")
+would have been read as a pass. The fix is `PUT …/routes/0` — insert at the head. Full write-up
+under Phase 16's Verification block.
 
 > **Layout letters were reassigned 2026-09-04** — **A** split-LXC (three-way) · **B** split DNS
 > (two-way) · **C** all-in-Docker (one box). Phase 16's text below was written before the swap
 > and calls split DNS *C* and all-in-Docker *B* throughout; it is left as written, since it
 > records work as it was done. Current-state docs use the new letters.
-**Waiting on hardware:** Phase 15 (audit cleanup) is code-complete — its last item is a live
-smoke test only Sunde can run (below).
+Phase 15 (audit cleanup) is **done** — its F5 live-smoke remainder ran 2026-09-05 (below).
 Phase 17 (documentation restructure) is **done** — landed 2026-08-30.
 Phases 1–13 are complete and live in [`todo-archive.md`](todo-archive.md);
 `HISTORY.md` carries the narrative of what was built and why.
@@ -266,12 +272,24 @@ findings; both surfaced from reviewing F5's blast radius)
       Settings > General saves on blur with no Save button (F6); Routing still loads and Sync
       still works after F16 removed six handlers; the Add route > Network list shows the
       `Settings › Network` link when a service has no URL set (F14)
-- [ ] **Live smoke, F5 remainder.** A corrupted **file** was tested and behaved correctly —
-      `CorruptStoreError` raised and named the path, and `/api/health` stayed **200** with the
-      failure contained to one checker (F1 working as designed). Two paths still unrun:
-      (a) `settings.json` refusing startup with the path in the message; (b) the *record*-skip
-      path, which needs **valid JSON containing one schema-invalid row** — a syntax error breaks
-      the file and correctly raises instead, which is what the first attempt hit
+- [x] **Live smoke, F5 remainder — both paths ran 2026-09-05** on the dev VM, against the
+      real container (`/opt/loskai` bind-mounted, files hand-edited as root the way an operator
+      would). A corrupted **file** had already been tested 2026-08-31. The two remaining paths:
+      **(a) `settings.json` refuses startup, naming the path.** Truncated it mid-object; the
+      container aborted with `CorruptStoreError: /opt/loskai/settings.json is not valid JSON:
+      Expecting property name enclosed in double quotes: line 1 column 32 (char 31)` followed by
+      `Application startup failed. Exiting.` — exit code 3, no listener on `:8080`, and
+      `restart: unless-stopped` turned it into a visible crash loop (`RestartCount=8`) rather
+      than a half-running app. Restoring the file brought it back on the next start with
+      `RestartCount=0`, so the documented recovery is real.
+      **(b) the record-skip path.** Appended `{"id":"bad-row","name":"Broken","type":"not-a-valid-type"}`
+      to a *valid* `instances.json` — valid JSON, one schema-invalid row, which is the shape the
+      first attempt failed to produce. Only that row was dropped: `GET /api/caddy/routes` and
+      `GET /api/export` both returned the one good instance, `GET /api/dashboard` stayed **200**,
+      the live route kept serving, and the log carried
+      `WARNING loskai.shared.instances: skipping unreadable record in /opt/loskai/instances.json`
+      naming the file and the record. The split settled 2026-08-27 — settings fails loud,
+      instances degrades — behaves exactly as specified
 - [x] **F5 follow-up — `CorruptStoreError` never reaches the operator** (found by the
       2026-08-31 smoke test). The error was raised in three places and **caught nowhere**;
       `main.py` had no exception handler. `/api/health` survived only because F1 wraps its
@@ -296,8 +314,8 @@ findings; both surfaced from reviewing F5's blast radius)
 pass — `tsc -b`, `oxlint`, `vite build`, 35 Vitest tests across 9 files (was 29/7). Backend:
 185 pytest tests pass (2026-08-31 — first run at 181, plus 4 for the F5 follow-up). Five of
 the six live-smoke checks were confirmed on real hardware 2026-08-31, and the surfacing
-defect that smoke test exposed is fixed. The phase is **not** closed: the F5 live-smoke
-remainder (above) still needs real hardware.
+defect that smoke test exposed is fixed. **Phase 15 is closed 2026-09-05** — the F5 live-smoke
+remainder ran on the dev VM once it had Docker, and both paths behaved as designed.
 
 ---
 
@@ -583,12 +601,100 @@ worst combination; the general warning now sits in `topologies.md` under "The po
       symlinked into `~/.local/bin`, which `.profile` already puts on `PATH`), then
       `uv sync` + `npm install`. `uv run pytest` works here; the interpreter-symlink workaround
       recorded under Phase 15 was specific to the other sandbox
+- [x] **`docker compose config` on all four compose files (2026-09-04)** — Docker went onto the
+      dev VM after Stage B shipped, so `compose.caddy-loskai.yml` was written and committed
+      without ever being parsed by a real Compose. It validates, and the two things that were
+      guesses are confirmed: `networks: [default, loskai-edge]` resolves with `default`
+      implicitly defined, and `name: loskai-edge` keeps the network **unprefixed**
+      (`loskai_default` beside a bare `loskai-edge`) — which is the whole mechanism, since a
+      prefixed name is not one another stack could attach to. The documented consumer stanza
+      renders correctly too (external, unprefixed, the consumer's own `default` still
+      project-scoped). Note this needs no daemon access — `config` interpolates locally
 - [x] `bash scripts/check-docs.sh` — clean after Stage B: 21 markdown files, 13/13 docs
       reachable, 17 source/config citations and 12 written-out paths resolving, and both new
       anchors (`#routing-a-container-without-publishing-a-port`,
       `#no-proxmox-install-layout-c--split-dns`) valid
-- [ ] **Live smoke (user):** in layout B or C, routing a *managed stack* container pre-fills a
-      reachable upstream (the Stage A fix) and the route returns 200, not 502
+- [x] **Live smoke — ran 2026-09-05 on the dev VM**, split DNS (`compose.caddy-loskai.yml`,
+      `BASE_DOMAIN=smoke.test`, `CADDY_HOST_IP`/`HOST_IP` the VM's `192.168.10.220`) with
+      **`ADGUARD_URL` deliberately unset**, which sidesteps `:53` vs `systemd-resolved` entirely
+      and doubles as a graceful-degradation check. The routed target was a throwaway
+      `traefik/whoami` stack in its own compose project under `STACKS_DIR`, run both ways:
+      - **Disjoint networks** (`whoami_default` only, published `8081:80`) → `upstream_mode: lan`,
+        `suggested_upstream: 192.168.10.220:8081`. **This is the Stage A fix doing its job:** the
+        old heuristic asked "is `CADDY_ADMIN_URL`'s host an IP?", and here it is `caddy`, so every
+        container would have been pre-filled `web:80` — a name resolvable only inside Caddy's own
+        project. That is the 502 the phase was written about
+      - **Joined to `loskai-edge`, no published port at all** → `upstream_mode: docker`,
+        `suggested_upstream: web:80`, and Caddy dialled it over the edge network (the proxied
+        response's `RemoteAddr` was Caddy's edge-network address). The documented consumer stanza
+        (`external: true`, `default` kept in the service's list) worked verbatim. This is the
+        capability nothing else has, and it had no runtime verification before today
+      `POST /api/assign` returned `caddy: ok, adguard: skipped` with the warning
+      `"AdGuard is not configured — DNS rewrite skipped."` both times — best-effort AdGuard
+      behaving as specified. `/api/health` reported Caddy `healthy` with `server: srv0`
+      *discovered*, and `answer_ip: 192.168.10.220` (Stage C's guard passing a non-loopback value).
+      `POST /api/caddy/push` twice in a row left exactly one route, still at the head, still
+      serving — delete-then-add is idempotent under head-insertion too.
+      **Both prefilled upstreams were correct, and both routes still returned an empty page.**
+      See the defect below — it is why this checkbox took a full session rather than a curl
+
+**The defect the smoke found — every pushed route was dead (fixed 2026-09-05)**
+
+_This is the one a green checkbox would have buried. `curl` returned **`HTTP 200`** on the
+first try, which is literally what this phase's checklist asked for — but with
+`content-length: 0` and no `Via: Caddy` header. The backend served 166 bytes directly on
+`:8081`; through Caddy it was 0. The route was not proxying; **the 200 came from something
+else entirely.**_
+
+_**Cause.** `caddy/Caddyfile` declares `*.{$BASE_DOMAIN} { tls internal }` so Caddy issues the
+wildcard cert. A site block with no handlers compiles to `{"match":[{"host":["*.smoke.test"]}],
+"terminal": true}`, and the Caddyfile adapter puts it **first** in `srv0.routes`. It matches
+every name Loskai routes and terminates evaluation, returning an empty 200.
+`client.push_route` used `POST …/routes`, which **appends** — so every route Loskai has ever
+pushed in this layout landed behind it and never ran._
+
+_**Proven, not inferred.** Same route object, same upstream, moved to index 0 by hand via the
+admin API: 300 bytes of whoami output and `Via: 1.1 Caddy`. Appended: empty 200. Both ways,
+twice, on both the `lan` and `docker` upstream forms._
+
+_**Blast radius.** Anywhere Caddy runs `caddy/Caddyfile` with the real `BASE_DOMAIN`: split DNS
+and all-in-Docker, always. Split-LXC in `acme` mode too — its inline Caddyfile has the same
+handler-less `*.{$BASE_DOMAIN}` block (`create-caddy-lxc.sh:264`). **Split-LXC in `internal`
+mode escapes by accident**, and only by accident: the script feeds the unit
+`BASE_DOMAIN=localhost` as a placeholder (`UNIT_BASE_DOMAIN`, `create-caddy-lxc.sh:308`), so the
+block is `*.localhost` and matches nothing Loskai routes. That is a code reading, not a test —
+there is no Proxmox here to run it on._
+
+_**Why no test caught it.** Every layer was individually right: the route JSON was correct, the
+upstream was correct and reachable, `@id` addressing worked, `list_live_routes` found the route,
+so `/api/caddy/routes` reported `synced: true` **and** `upstream_healthy: true`. The bug lives
+only in the *position* of a correct object inside an array Loskai does not own the first element
+of — invisible to any test that mocks the Caddy client, which is all of them. It needed a real
+Caddy holding a real Caddyfile-adapted config._
+
+- [x] `modules/caddy/client.py` — `push_route` now `PUT …/routes/0` (insert at head) instead of
+      `POST …/routes` (append). Verified against the live admin API that `PUT` at index 0 is also
+      a plain insert on an **empty** array, so there is no first-route special case. Ordering
+      among Loskai's own routes stays irrelevant — they match single specific hosts and really
+      are disjoint from each other; the only ordering that ever mattered is "ahead of the
+      wildcard"
+- [x] Two tests in `test_caddy_client.py` — the updated verb/path assertion and
+      `test_push_route_inserts_at_head_not_appends`, which pins the `/routes/0` **path** rather
+      than just the verb, since the verb alone would pass against `PUT …/routes`. Both confirmed
+      to fail with `POST …/routes` restored (backend 209 → 210)
+- [x] **The contract docs asserted the opposite, in four places**, and that is the real reason
+      this shipped: `docs/reference/caddy-api.md` §2 ("append order does not matter — sibling
+      routes with disjoint hosts are order-independent") and its *Not used* list ("`PUT
+      /config/...` (insert-at-index) — not needed; ... append is always sufficient"), plus
+      `PLAN.md`'s "Specific hosts are disjoint, so append order never matters" and its
+      `POST …/routes` route-identity line. The reasoning was half right — Loskai's routes *are*
+      disjoint from each other — and it never asked what else was in the array. All four now
+      state the constraint and name the wildcard block as the reason; `POST …/routes` moved into
+      *Not used* with a note that it is the obvious call and the wrong one
+- [x] Re-smoked end to end **after** rebuilding the image, from a fresh `docker compose down -v`
+      (so Caddy's autosaved config could not mask it) and through Loskai's own assign path rather
+      than a hand-inserted route: `HTTP 200`, 300 bytes, `Via: 1.1 Caddy`, on both the `lan` and
+      `docker` upstream forms
 
 ---
 
@@ -693,6 +799,16 @@ three the audit found, plus one `#alternative-all-in-docker` self-link the check
 ---
 
 ## Backlog / Future ideas
+- **An unrouted name under `BASE_DOMAIN` answers an empty `200`** (found alongside the
+  2026-09-05 route-ordering defect, deliberately **not** fixed with it — it is the same
+  wildcard block but a different symptom, and the fix that mattered was the one that made real
+  routes work). `curl https://nothing.<base-domain>/` returns `200` with `content-length: 0`
+  from the Caddyfile's terminal `*.{$BASE_DOMAIN}` block. A typo'd or not-yet-assigned name
+  looks like a blank page rather than an error, which is the same "fails as a success" shape
+  that hid the route bug for so long. Fix is a catch-all `respond 404` **after** the wildcard
+  block in `caddy/Caddyfile` (it must stay ahead of nothing and behind everything Loskai
+  pushes, which head-insertion now guarantees). Worth a `troubleshooting.md` symptom entry
+  either way — anyone on a build from before 2026-09-05 hits the empty 200 on a *real* route
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the
   names resolve on the LAN via AdGuard rewrites). Dissolves Phase 12 entirely, including the
