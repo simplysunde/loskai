@@ -58,10 +58,23 @@ class CaddyClient:
             return r.json() or []
 
     async def push_route(self, route: dict) -> None:
-        """POST a route object (built by service.build_route) — appends by @id."""
+        """Insert a route object (built by service.build_route) at the **head** of the
+        server's routes array.
+
+        Not an append. The bootstrap Caddyfile's `*.{$BASE_DOMAIN}` block — which exists
+        only to make Caddy issue the wildcard cert — compiles to a handler-less route with
+        `"terminal": true`, and the Caddyfile adapter puts it first. It matches every name
+        Loskai routes, so an appended route is never reached: Caddy answers the wildcard's
+        empty 200 instead of proxying. That fails as a *success*, which is why unit and
+        contract tests never saw it and the 2026-09-05 live smoke did.
+
+        `PUT .../routes/0` inserts ahead of it (and is a plain insert on an empty array).
+        Ordering among Loskai's own routes stays irrelevant — those match single specific
+        hosts and really are disjoint from each other.
+        """
         server = await self.server_name()
         async with self._client() as c:
-            r = await c.post(f"/config/apps/http/servers/{server}/routes", json=route)
+            r = await c.put(f"/config/apps/http/servers/{server}/routes/0", json=route)
             r.raise_for_status()
 
     async def delete_route(self, route_id: str) -> None:

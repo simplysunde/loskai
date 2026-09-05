@@ -551,11 +551,14 @@ documented in [`docs/reference/caddy-api.md`](docs/reference/caddy-api.md).
 - **Flat sibling routes.** Each route is an independent top-level entry in the server's
   `routes` array, matching a single specific host (`grafana.example.no`) and keyed by
   `@id`. No nesting under a wildcard site block — the wildcard exists only for the cert.
-  Specific hosts are disjoint, so append order never matters.
+  Loskai's routes are disjoint from each other, so their relative order never matters —
+  but they must all sit **ahead of** that wildcard block, which the Caddyfile compiles to a
+  handler-less `terminal` route matching every name under `BASE_DOMAIN`. Behind it a route
+  is dead and Caddy answers an empty `200`, so pushes insert at the head.
 - A route exists when an instance has a subdomain; it's gone when the subdomain is
   cleared or the instance is deleted. There is no enable/disable state — routes are binary.
 - **Route identity:** the instance `id` is used verbatim as Caddy's `@id`. Add is
-  `POST …/routes`, delete is `DELETE /id/<id>`, and **editing an existing route is just
+  `PUT …/routes/0`, delete is `DELETE /id/<id>`, and **editing an existing route is just
   delete-then-add** (not `PATCH`) — one code path that always converges, and re-pushing
   never creates duplicates.
 - **Persistence is automatic.** Caddy autosaves its full config to disk after *every* API

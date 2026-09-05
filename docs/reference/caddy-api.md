@@ -35,12 +35,12 @@ Returns the servers object; Loskai reads its single key (e.g. `srv0`) and caches
 ### 2. Add / assign a route
 
 ```
-POST /config/apps/http/servers/<server>/routes
+PUT /config/apps/http/servers/<server>/routes/0
 Content-Type: application/json
 ```
 
-The `routes` destination is an array, so **POST appends**. Body is one route object
-carrying its `@id`:
+`PUT` at index `0` **inserts at the head** of the `routes` array (and is a plain insert
+when the array is empty). Body is one route object carrying its `@id`:
 
 ```json
 {
@@ -58,8 +58,15 @@ carrying its `@id`:
 }
 ```
 
-Because the host is a single specific name (never a wildcard), append order does not
-matter — sibling routes with disjoint hosts are order-independent.
+**Order matters, and this is why it is `PUT …/0` and not `POST …/routes` (which appends).**
+Loskai's own routes really are order-independent — each matches one specific host, so they
+are disjoint from each other. But they are not the only entries in the array: the bootstrap
+Caddyfile's `*.{$BASE_DOMAIN}` block, which exists only so Caddy issues the wildcard cert,
+compiles to a **handler-less route with `"terminal": true`** and the Caddyfile adapter puts
+it first. It matches every name Loskai routes. An appended route therefore never runs —
+Caddy answers the wildcard's **empty `200`**, so the failure looks like a success, not a
+`502`. That is what shipped until the 2026-09-05 live smoke; inserting at the head is the
+fix. Any future route Loskai pushes must go ahead of that block too.
 
 ### 3. Delete a route
 
@@ -158,8 +165,9 @@ For clarity, endpoints Loskai deliberately does **not** call:
 
 - `POST /stop` — never shuts Caddy down.
 - `PATCH /id/<id>` — editing is done as delete-then-add (endpoint #4), so PATCH is unused.
-- `PUT /config/...` (insert-at-index) — not needed; specific-host routes are
-  order-independent, so append is always sufficient.
+- `POST /config/apps/http/servers/<server>/routes` (append) — **deliberately not used.**
+  It is the obvious call for adding a route and it is the wrong one: an appended route
+  lands behind the terminal wildcard block and is never reached (endpoint #2).
 - `POST /adapt` — unused; Loskai manages routes as JSON via the config endpoints and no
   longer renders a Caddyfile at all (that export was removed — the bootstrap Caddyfile ships
   in the repo instead).
