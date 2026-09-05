@@ -89,7 +89,7 @@ unusual deployments only; setting them in isolation will break things (see below
 
 | Variable | Default | What it is |
 |---|---|---|
-| `LOSKAI_DATA_DIR` | `/opt/loskai` | In-container path for `settings.json`, `instances.json`, and the session secret. Backed by the settings volume. |
+| `LOSKAI_DATA_DIR` | `/data` | In-container path for `settings.json`, `instances.json`, the session secret, and `recipes/`. Backed by the state volume. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
 | `LOSKAI_STATIC_DIR` | `static` | Image path where the built React bundle is served from (populated by the Dockerfile `COPY`, not a volume). |
 
 ## Volumes
@@ -99,7 +99,7 @@ Three mounts on the `loskai` service:
 ```yaml
 - /var/run/docker.sock:/var/run/docker.sock          # host Docker socket (root-equivalent)
 - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}   # managed stacks — SAME path in and out
-- ./loskai-settings:/opt/loskai                      # Loskai's own state
+- ./data:/data                                       # Loskai's own state
 ```
 
 ### Docker socket
@@ -119,21 +119,44 @@ env var (the path the code scans), and the two must always match.
 This is also why `STACKS_DIR` is the one path variable that belongs in `.env`/compose
 yet must never be edited in the UI — it's structurally tied to the mount.
 
-### Settings volume — the `LOSKAI_DATA_DIR` coupling
+### State volume — the `LOSKAI_DATA_DIR` coupling
 
-`./loskai-settings:/opt/loskai` persists Loskai's own state. The **right** side
-(`/opt/loskai`) is the in-container path the app reads/writes, and it equals the
-`LOSKAI_DATA_DIR` default — so the code and the mount agree.
+`./data:/data` persists Loskai's own state. The **right** side (`/data`) is the
+in-container path the app reads/writes, and it equals the `LOSKAI_DATA_DIR` default — so
+the code and the mount agree.
+
+The **left** side is tracked in the repo (`data/.gitkeep`) on purpose. Docker creates a
+missing bind source as `root:root`, and `data/recipes/` is a directory you are meant to
+drop recipes into by hand — so the directory ships already owned by whoever cloned it.
 
 - **To change where data lives on the host**, edit **only the left side**
-  (e.g. `/mnt/tank/loskai:/opt/loskai`). Leave `LOSKAI_DATA_DIR` unset. This is the
-  normal, supported customization.
+  (e.g. `/mnt/tank/loskai:/data`). Leave `LOSKAI_DATA_DIR` unset. This is the normal,
+  supported customization.
 - **To change the in-container path**, you must edit *both* the mount's right side **and**
-  `LOSKAI_DATA_DIR` to the same value. Changing one without the other makes the app write
-  to an **unmounted (ephemeral)** directory — state is silently lost on container recreate.
+  `LOSKAI_DATA_DIR` to the same value. Changing one without the other would make the app
+  write to an **unmounted (ephemeral)** directory — state lost on container recreate.
 
 Unlike `STACKS_DIR`, this path is never handed to another daemon; it's private to Loskai,
 so a normal (differing host/container) bind mount is correct and same-path is unnecessary.
+
+#### Upgrading from `/opt/loskai`
+
+The in-container path was `/opt/loskai` and the host side was `./loskai-settings` before
+2026-09-05. Pulling a newer image without moving the directory would point the app at an
+unmounted `/data`: it would find no `settings.json`, conclude it was a **fresh install**,
+re-open the *public* first-run setup route, and write the replacement state into the
+container layer for the next recreate to discard.
+
+Loskai **refuses to start** in that state rather than choosing which half to lose, and the
+error names both directories. The migration is one command from the project directory:
+
+```bash
+mv loskai-settings data && docker compose up -d
+```
+
+Or keep the old location by setting `LOSKAI_DATA_DIR=/opt/loskai` and leaving the mount
+as it was. Either satisfies the guard; a fresh install and an already-moved one both start
+untouched.
 
 ## Cold start
 

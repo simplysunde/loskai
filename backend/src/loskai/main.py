@@ -37,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Order matters. verify_data_dir must come first: ensure_seeded writes settings.json
+    # when LOSKAI_PASSWORD is set, so running it against a data dir that lost its mount
+    # would create state at the empty path and mask the stranded install for good.
+    settings_module.verify_data_dir()
     # A settings.json that exists but doesn't parse aborts startup here rather than
     # booting on defaults — an empty dict would mean "no admin password set", which
     # re-opens the public first-run setup route. See settings.verify_readable.

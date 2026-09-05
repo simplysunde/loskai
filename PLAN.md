@@ -149,7 +149,7 @@ view both read.
 
 **What is stored vs. live:**
 - The instance list holds only **intent** — subdomain, upstream, and external targets.
-  It is a flat JSON file, `/opt/loskai/instances.json`, in the settings volume
+  It is a flat JSON file, `/data/instances.json`, in the state volume
   (same pattern as `settings.json`; no database).
 - **Runtime state** (container status, CPU, RAM, ports) is never stored — it is read
   live from the Docker socket and **joined in at display time** via `container`. This
@@ -302,9 +302,10 @@ daemon; it invents no new deployment method.
     in the settings volume. Adding or fixing a service is a push to that repo, no Loskai
     rebuild. If the repo is unreachable, the last-synced cache still renders. Sync is explicit:
     a "Refresh recipes" action (and optionally once on startup), no background polling.
-  - **A local directory** in the settings volume (`/opt/loskai/recipes/`) — a dev/testing
-    scratchpad for private or in-progress manifests, always available with no network. No new
-    mount: it lives in the same `loskai-settings` volume as `settings.json`.
+  - **A local directory** in the state volume (`/data/recipes/`) — recipes added by hand,
+    for private or in-progress manifests, always available with no network. No new mount: it
+    lives in the same `./data` volume as `settings.json`, so a folder dropped into
+    `data/recipes/` on the host is picked up with no container access.
   - Both are optional — have one, the other, or both. On a **name clash the repo wins** (it is
     the maintained source, most likely current); the shadowed local copy is **flagged** in the
     list so it is never silently hidden. To test a variant of an existing recipe locally, give
@@ -956,7 +957,7 @@ services:
       # Same path inside and out — the compose CLI hands bind paths to the host daemon,
       # so in-container path must equal host path or stack volumes land in the wrong place
       - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
-      - ./loskai-settings:/opt/loskai   # persists settings.json + instances.json
+      - ./data:/data   # persists settings.json + instances.json + recipes/
     environment:
       # Caddy — its own LXC over LAN (port 2019 firewalled to this host only)
       - CADDY_ADMIN_URL=http://192.168.10.101:2019
@@ -1143,15 +1144,15 @@ on first run.
 
 ### Settings persistence
 
-Settings are stored in `/opt/loskai/settings.json` inside the container,
+Settings are stored in `/data/settings.json` inside the container,
 backed by a mounted volume (the same volume also holds `instances.json`). Env-var-set
 values are shown as read-only in the UI with a "set via environment" indicator — they
 cannot be overridden from the UI.
 
 ```yaml
-# compose.yml (settings volume)
+# compose.yml (state volume)
 volumes:
-  - ./loskai-settings:/opt/loskai
+  - ./data:/data
 ```
 
 ### settings.json shape

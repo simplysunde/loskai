@@ -12,7 +12,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
-      - ./loskai-settings:/opt/loskai
+      - ./data:/data # Loskai's own state: settings.json, instances.json, recipes/
     environment:
       - CADDY_ADMIN_URL=${CADDY_ADMIN_URL:-}
       - ADGUARD_URL=${ADGUARD_URL:-}

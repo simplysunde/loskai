@@ -37,7 +37,8 @@ ADGUARD_USER=admin                        # what you set in step 2
 ADGUARD_PASSWORD=changeme                 # what you set in step 2
 BASE_DOMAIN=lvh.me                        # *.lvh.me resolves to 127.0.0.1 — handy
 LOSKAI_PASSWORD=devpass                   # or set it at first run in the UI
-# Writable state dir — the default /opt/loskai is the prod path and isn't writable in dev.
+# Writable state dir — the default /data is the in-container path and isn't writable when
+# the backend runs directly on your machine.
 LOSKAI_DATA_DIR=/home/you/loskai-data
 STACKS_DIR=/home/you/loskai-stacks
 ```
@@ -121,7 +122,7 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 
 | Symptom | Cause / fix |
 |---|---|
-| Backend startup `PermissionError: '/opt/loskai'` | `LOSKAI_DATA_DIR` unset → defaulted to the prod path. Set it in `.env` or export it (step 3). |
+| Backend startup `PermissionError: '/data'` | `LOSKAI_DATA_DIR` unset → defaulted to the in-container path, which you can't write to from the host. Set it in `.env` or export it (step 3). |
 | `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The dev Caddyfile's `*.localhost` placeholder creates one — recreate Caddy (`up -d`). |
 | Browser "can't establish a connection" | Wrong port — use `:8443` (https) / `:8081` (http), not the defaults. |
 | **502 Bad Gateway** | Caddy matched the route but can't reach the upstream. Use the container **service name** (`adguard:3000`) or a **LAN IP**, never `localhost`. Re-assign (delete + assign). |

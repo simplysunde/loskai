@@ -9,9 +9,10 @@ Recipes are not baked into the image. They come from two sources, both scanned t
 and merged into one list:
 
 - **A public git repo you own** (`RECIPES_REPO_URL`) — the canonical, most up-to-date
-  library, synced into a cache in the settings volume.
-- **A local directory** (`/opt/loskai/recipes/`, in the settings volume) — a dev/testing
-  scratchpad for private or in-progress recipes.
+  library, synced into a cache in the state volume.
+- **A local directory** (`/data/recipes/`, in the state volume) — recipes you add by hand,
+  for private or in-progress work. It is `data/recipes/` on the host with the shipped
+  compose files, so dropping a folder in there needs no container access.
 
 On a **name clash the repo wins**; the shadowed local copy is flagged, not dropped. To test
 a variant of an existing recipe locally, give it a distinct name.

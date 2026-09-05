@@ -49,10 +49,19 @@ class Settings(BaseSettings):
     stacks_dir: str = "/opt/stacks"
     # Seeds the admin password hash at first run; only ever stored hashed.
     loskai_password: str | None = None
-    # Where settings.json + instances.json + the session secret live.
-    data_dir: str = Field(default="/opt/loskai", validation_alias="LOSKAI_DATA_DIR")
+    # Where settings.json + instances.json + the session secret live — and `recipes/`,
+    # the folder recipes are hand-added to, which is why this is a host bind mount
+    # (compose: `./data:/data`) and not a path inside the image. Running the backend
+    # directly (dev) has no such mount, so `.env` sets this to a writable path; see
+    # docs/contributing/dev-testing.md.
+    data_dir: str = Field(default="/data", validation_alias="LOSKAI_DATA_DIR")
     # Built React bundle served in production; absent in dev (Vite serves the UI).
     static_dir: str = Field(default="static", validation_alias="LOSKAI_STATIC_DIR")
 
 
 settings = Settings()
+
+# Where `data_dir` defaulted before 2026-09-05. Referenced only by the startup guard in
+# `shared/settings.py`, which refuses to boot when an install's state is still here while
+# the app has been pointed somewhere empty.
+LEGACY_DATA_DIR = "/opt/loskai"
