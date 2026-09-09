@@ -5,22 +5,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 1–14 and 17 are done.
+`backend/` and `frontend/` are real, working code. Phases 13–18 are closed and nothing is in
+flight. **Phase 12 is *not* done despite sitting in the archive** — its trust-install page still
+prints Debian-only Linux instructions that fail on Fedora, and the per-route scheme toggle was
+approved 2026-08-03 and never built. See `TODO.md`'s **Open, not in flight** section, which also
+lists two live smokes (Phases 10a and 13) that were never run and are no longer blocked. All
+three checks pass (210 + 38 + docs).
 
-**Phase 16 — ship split DNS, fix upstream detection — is the live one, and all three stages
-have landed** (Stage B: `compose.caddy-loskai.yml` + the shared `loskai-edge` network; Stage A:
-per-container upstream detection; Stage C: the loopback guard on the DNS answer IP). Note the
-phase text predates the 2026-09-04 relettering and calls split DNS *layout C*. All three checks
-pass (209 + 38 + docs); **the one thing left is a live smoke only Sunde can run**. Phase 15
-(audit cleanup) is
-code-complete with one item left that needs real hardware, so it is waiting on Sunde rather
-than on code. **Check `TODO.md` for the current unchecked items before assuming something is
-missing** — and note that a completed phase's write-up describes the repo *as it was then*;
-only the Now/Next tiers describe today. The authoritative sources are:
+**Loskai has now actually been run** (2026-09-05), which it never had been before: everything
+up to that point was unit tests and static validation. Two of the three defects that surfaced
+were invisible to 209 passing tests, and **both failed as successes** — an empty `200` where a
+proxied response was expected, and a documented migration command that quietly nested state one
+directory too deep. When you change route pushing, the Caddyfile, upstream detection or a
+compose file, re-run the live rig rather than trusting the suite; the recipe is in
+`todo-archive.md` Phase 16's Verification block.
+
+**Check `TODO.md` for the current unchecked items before assuming something is missing** — and
+note that a completed phase's write-up describes the repo *as it was then*; only the Now tier
+describes today. The authoritative sources are:
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
-- **`TODO.md`** — the live phase + backlog. Completed phases 1–13 moved to
-  `todo-archive.md` at the repo root (2026-08-27); look there for how a finished thing was built.
+- **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
+  `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
+  for how a finished thing was built. Only Phase 18 is still written out in `TODO.md`.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.

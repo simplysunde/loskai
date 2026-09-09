@@ -292,6 +292,14 @@ daemon; it invents no new deployment method.
 > different path. Loskai's compose CLI resolves bind-mount paths and hands them to the
 > host daemon, so the in-container path must equal the host path or volumes get created in
 > the wrong place. See the compose file below.
+>
+> The consequence of that rule is the default: `${PWD}/stacks`, because Compose exposes no
+> interpolation variable for the project directory. **Compose must therefore be run from
+> the project directory** — `scripts/deploy.sh` `cd`s there. Invoked elsewhere, stacks
+> point at `<cwd>/stacks` and the Stack Manager shows an empty list rather than an error,
+> since Docker creates the directory. Setting `STACKS_DIR` to an absolute path pins it.
+> This affects `STACKS_DIR` only: `./data` is resolved against the project directory by
+> Compose, so state is correct from anywhere.
 
 **Personal Install Wizard**
 - A curated set of personal install recipes — not a generic community template store.

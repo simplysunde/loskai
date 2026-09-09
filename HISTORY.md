@@ -1,5 +1,59 @@
 # Loskai — History
 
+## 2026-09-09 — Phases 14–17 archived; `CLAUDE.md` said Phase 16 was still open
+
+Second archive move, same reasoning as the 2026-08-27 one (Phase 15, D1): `TODO.md` is read
+at every session start, and at 966 lines it had stopped being a file anyone reads and become
+one they skim. Phases 14–17 are all closed, so they went to `todo-archive.md` and it dropped
+to 159. Only Phase 18 stays written out, as the most recent work.
+
+Two things the sweep turned up, both the same failure this project keeps naming as its
+recurring one.
+
+**`CLAUDE.md`'s Project state still said Phase 16 was "the live one" with "the one thing left
+is a live smoke only Sunde can run".** That smoke ran four days earlier, found a defect that
+had broken every route in two of three layouts, and closed the phase. The file that is read as
+ground truth at the start of every session was describing a state that no longer existed —
+which is precisely what the 2026-09-02 audit found four instances of, and precisely what
+`check-docs.sh` cannot catch, because prose about status is not a link or an enumeration.
+
+**Phase 12 was archived as complete on 2026-08-27 and is not complete.** It has no completion
+marker and every item under it is unchecked: 12a (the trust-install page prints Debian-only
+Linux instructions that silently do nothing on Fedora/Nobara — a live defect on a page users
+are told to follow), 12b (the per-route scheme toggle, *approved* 2026-08-03, unbuilt), 12c
+(Caddy as ACME server, docs only). The archive header says "nothing here is live work"; that
+was untrue the day it was written. `TODO.md` now carries an **Open, not in flight** section so
+the unfinished work is visible without unpacking a phase back out of the archive.
+
+**And 12b already knew the thing that broke every route.** Its notes say, verbatim and dated
+2026-08-03:
+
+> **Must insert at index 0** (`PUT /config/apps/http/servers/{s}/routes/0`), not append: the
+> `:80` server's cert-setup site ends in a **catch-all** (an appended route would never match)
+
+That is the 2026-09-05 defect, reasoned out correctly, a month early — for the `:80` server.
+Nobody asked whether the `:443` server had the same shape, and it did: a handler-less terminal
+wildcard sitting first. The knowledge was in the repo the entire time the bug was shipping. It
+is a sharper lesson than "we never ran it": a constraint discovered for one instance of a
+pattern needs to be checked against every other instance, and the natural place to have caught
+this was `caddy-api.md`, which instead asserted the opposite in its *Not used* list.
+
+**Two live smokes in the archive were never run**, both written when there was no daemon to
+test against and both unblocked now: Phase 10a (the cert-onboarding page via `compose.dev.yml`)
+and Phase 13 (`dns_only` mode against a real Caddy and AdGuard).
+
+The archive header flags Phase 16 too, since a reader who never opens the archive still needs
+to know that routes are inserted at the head and why. The current-state versions of that fact
+live in `caddy-api.md` and `troubleshooting.md`; the archive is the story, not the contract.
+
+`PLAN.md` needed almost nothing — the route-ordering, `/data` and `./stacks` facts had all been
+corrected in the same commits as the behaviour, which is the rule this project has and mostly
+keeps. It gained one paragraph: that `${PWD}/stacks` implies compose must be run from the
+project directory, which is architecture rather than deployment detail.
+
+- Key files: `TODO.md` (966 → 159 lines), `todo-archive.md` (480 → 1293), `CLAUDE.md`
+  (Project state rewritten, archive pointer updated), `PLAN.md` (same-path callout)
+
 ## 2026-09-05 — Nothing lives in `/opt` any more
 
 Running Loskai for the first time (above) had a second consequence beyond the route bug: it
