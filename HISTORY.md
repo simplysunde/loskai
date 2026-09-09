@@ -1,5 +1,57 @@
 # Loskai — History
 
+## 2026-09-09 — Phase 19: the root CA comes out of Loskai, not just Caddy's `:80` site
+
+Sunde asked for a download button on the Caddy pill in Routing. Working out where the bytes
+would come from turned it into a page, and moved a line this project had drawn since Phase 10a.
+
+**Loskai is now in the cert path — deliberately, and narrowly.** `certificate-setup.md` used to
+open with "Loskai handles **zero** certificate material… Loskai is never in the path", and that
+was a real invariant, not throwaway prose. It still holds for everything that matters: no key
+material, no ACME token, no issuance. What changed is that Loskai now *serves* the internal
+**root CA**, which is public by construction — its entire purpose is to be installed on every
+device on the LAN. The invariant was about secrets; it had been written broadly enough to also
+forbid something harmless.
+
+**Why the obvious version doesn't work.** A button linking to `http://<caddy-ip>/caddy-root.crt`
+is one line of JSX and fails in the case it exists for: Loskai is normally reached over HTTPS
+through Caddy, and Chrome and Edge block a plain-HTTP download started from an HTTPS page —
+silently, with no error the page can see. Same family as the empty-`200` defect from 2026-09-05:
+it fails as a success. Serving the PEM from Loskai's own origin is what makes it work at all.
+
+**Why the Admin API and not Caddy's disk.** `GET /pki/ca/local` returns the CA's public
+description; the `:80` site instead reads `/data/caddy/pki/authorities/local/root.crt` off the
+volume. The file is simpler and only exists where Caddy and Loskai share a host — in split-LXC
+(A) Caddy's disk is on another machine, while Admin API reach is a precondition for Loskai
+functioning at all. `caddy-api.md` had listed `/pki/...` under *Not used*, described as a
+"confirmed dead end for our cert" — accurate, but about the deferred **expiry** feature, not
+about handing out a root. Narrowed rather than deleted.
+
+**The page is public, and that is the point.** The device that needs the root has no admin
+password and cannot yet trust the HTTPS route it would log in over. `GET
+/api/caddy/root-certificate` joins `PUBLIC_ROUTES`. Sunde asked for the tab's visibility to be
+configurable, since an ACME deployment has nothing to install — so `certificate_tab`
+(`public` / `admin` / `hidden`) moves the sidebar link. It was tempting to make `admin` a real
+gate; it isn't one, and pretending otherwise would have meant a second route checking the
+session itself — the pattern deliberately confined to the exec WebSocket — to protect a
+certificate that is meant to be handed out. The tests pin that `/certificate` stays reachable
+in `hidden` mode.
+
+**Sunde's port question, answered:** none. Caddy publishes `80`/`443`, Loskai `8080` — different
+containers, and Loskai never binds `:80`. The real edge is next door: `caddy/Caddyfile` uses a
+bare `:80 { … }`, matching every hostname on that port and displacing Caddy's automatic
+HTTP→HTTPS redirects. `certificate-setup.md` has recommended scoping it to the host IP since
+Phase 10a and the shipped co-located Caddyfile never did. Flagged, not fixed. It also has to go
+entirely on a move to public ACME, which needs `:80` for the HTTP-01 challenge — one more reason
+the durable home for this is a Loskai page.
+
+**Phase 12a, closed on the way past.** The trust-install page printed
+`update-ca-certificates` — a Debian tool that does not exist on Fedora, which is what Sunde's
+own desktop runs. Both pages now carry Debian, Fedora/RHEL and Arch/openSUSE commands. Chrome
+and Chromium on Linux read their own NSS database rather than the system store, so the
+system-wide install alone left the warning in place in the browser most people use; that step
+is now there too.
+
 ## 2026-09-09 — Phases 14–17 archived; `CLAUDE.md` said Phase 16 was still open
 
 Second archive move, same reasoning as the 2026-08-27 one (Phase 15, D1): `TODO.md` is read

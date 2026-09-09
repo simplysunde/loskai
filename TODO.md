@@ -1,13 +1,13 @@
 # Loskai — TODO
 
-**Now:** nothing in flight. Phases 13–18 are closed; **Phase 12 is not**, despite having been
-archived as complete (below). Pick from there or from the
-[backlog](#backlog--future-ideas) at the bottom of this file.
+**Now:** nothing in flight. Phases 13–19 are closed; **Phase 12 is still not**, despite having
+been archived as complete (below) — though Phase 19 closed out its 12a. Pick from there or from
+the [backlog](#backlog--future-ideas) at the bottom of this file.
 
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
-the path restructure that came straight out of running it. `pytest` (210) + `npm test` (38) +
-`check-docs.sh` all pass.
+the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
+public Certificate page). `pytest` (222) + `npm test` (48) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -39,10 +39,9 @@ visible without unpacking a phase back out. The checklists stay in
 
 - **Phase 12 — internal-CA trust onboarding. Archived 2026-08-27 as complete; it is not.**
   No completion marker, every item unchecked.
-  - **12a** — the trust-install page (`caddy/setup/index.html`) prints Debian-only Linux
-    instructions (`/usr/local/share/ca-certificates/` + `update-ca-certificates`) that
-    **silently do nothing on Fedora/Nobara**. A live defect on a page users are told to
-    follow, and Sunde's own desktop is Nobara
+  - ~~**12a** — the trust-install page prints Debian-only Linux instructions~~ **done in
+    Phase 19** (below): both pages now carry Debian, Fedora/RHEL and Arch/openSUSE commands,
+    plus the NSS step Chrome and Chromium need on Linux
   - **12b** — per-route scheme toggle (`https` / `both` / `http`), approved 2026-08-03,
     unbuilt. Exists only for clients that cannot hold a custom root CA. **Its notes already
     specify insert-at-index-0 for the `:80` server** — the same rule the 2026-09-05 defect
@@ -57,7 +56,7 @@ visible without unpacking a phase back out. The checklists stay in
 ---
 
 **Phases 1–17 live in [`todo-archive.md`](todo-archive.md)** (1–13 moved 2026-08-27, 14–17 on
-2026-09-09). Only Phase 18 is kept below, as the most recent work. `HISTORY.md` carries the
+2026-09-09). Phases 18 and 19 are kept below, as the most recent work. `HISTORY.md` carries the
 narrative of what was built and *why* — read it before reversing anything, since several
 current decisions are walk-backs of earlier ones.
 
@@ -154,6 +153,75 @@ directory. Setting `STACKS_DIR` to an absolute path pins it. This affects **only
 anywhere. That asymmetry is the price of same-path, and lifting it needs the
 `--project-directory` + `--env-file` pair (measured to work, and to fail **silently** on a
 stack's `.env` if the two ever drift) — considered and not taken._
+
+---
+
+## Phase 19 — The Certificate page
+
+_Origin (2026-09-09, Sunde): "I want to instead have a little download button on the caddy pill
+that is displayed on the routes page." The root was only reachable through Caddy's `:80`
+onboarding site, so getting it meant leaving Loskai for a by-IP URL._
+
+_**Decisions (Sunde, same session).** The pill button was dropped in favour of a dedicated page
+— "we might not need the download button on the caddy pill in routes if we are making a
+dedicated page." The page is **public like the Dashboard**, with its sidebar link controlled
+from settings, because "if we have acme domain the browser would automatically trust it and we
+no longer would need the internal root." The `:80` site stays._
+
+**Why not just link the pill at Caddy's `:80` file**
+
+_A plain-HTTP download initiated from an HTTPS page is blocked by Chrome and Edge, **without a
+visible error** — and Loskai is normally reached over HTTPS through Caddy, so that is the case
+that matters. Serving the PEM from Loskai's own origin is what makes the download work at all.
+Reading it from Caddy's **Admin API** rather than its data volume is what makes it work in
+split-LXC, where Caddy's disk is on another machine._
+
+**What shipped**
+- [x] **`GET /api/caddy/root-certificate`** — `client.local_ca()` (`GET /pki/ca/local`, the only
+      cert-material call Loskai makes) + a pure `service.root_certificate()` that takes the root
+      alone and rejects a PEM missing its markers. A truncated anchor installs fine and fails
+      later, at the browser, after the user believes they fixed it
+- [x] **Public**, in `PUBLIC_ROUTES` — the device that needs the root has no admin password and
+      cannot yet trust the HTTPS route it would log in over. No key material is involved; a root
+      CA is public by construction
+- [x] **`/certificate`** — download plus per-OS trust steps, outside `RequireAuth`. Platform
+      tabs rather than the `:80` page's detect-only display, which stranded a phone on desktop
+      instructions
+- [x] **`certificate_tab`** setting (`public` / `admin` / `hidden`, default `public`; env
+      `CERTIFICATE_TAB`, Settings → Network). It moves a **link, not a lock** — `/certificate`
+      and its download stay public in every mode, and the tests say so
+- [x] Rides on `GET /api/dashboard`, the one payload a logged-out visitor can read, so the
+      sidebar can decide before anyone logs in. New `useDashboard` hook so both consumers of
+      the `["dashboard"]` key share one type
+- [x] **12a fixed on both pages** — Debian, Fedora/RHEL and Arch/openSUSE trust stores, and the
+      NSS database Chrome and Chromium read on Linux instead of the system store. A
+      system-wide install alone leaves the warning in place in the browser most people use
+- [x] `check-docs.sh` check 2 now reads a `public: true` marker on each `NAV` entry instead of
+      excluding `Dashboard` by name — otherwise a second public tab reads as a missing admin tab
+- [x] Docs: `certificate-setup.md` (rewritten around the two paths, with a table for which to
+      use), `api.md`, `caddy-api.md` (`/pki/ca/local` moved out of *Not used* — the dead-end
+      note there was about cert **expiry**, which it still is), `deployment.md`, `PLAN.md`,
+      `CLAUDE.md`
+
+**Verification**
+- [x] `pytest` (222) + `npm test` (48) + `check-docs.sh`
+- [x] **Live, against a real Caddy.** The PEM Loskai serves is **byte-identical** to
+      `/data/caddy/pki/authorities/local/root.crt`, the file the `:80` site hands out, and
+      `openssl x509` reads it as `CA:TRUE, pathlen:1`. Fetched with **no session cookie**;
+      `GET /api/caddy/routes` on the same instance still answered `401`
+- [x] Also exercised end to end against a **real homelab Caddy** (a dev backend already running
+      on `:8000` with a live `CADDY_ADMIN_URL`) — same result, a valid CA root over a public GET
+- [ ] **Not verified: the page in a browser.** It is covered by 6 Vitest cases and `tsc`, and
+      the download path is pinned by a test, but nobody has loaded `/certificate` and clicked
+      the button. Worth folding into the Phase 10a smoke that is still open above
+
+**Adjacent, flagged not fixed**
+
+_`caddy/Caddyfile` uses a bare `:80 { … }`, which matches every hostname on that port and so
+displaces Caddy's automatic HTTP→HTTPS redirects: typing `grafana.home.lan` with no scheme lands
+on the onboarding page instead of redirecting. `certificate-setup.md` has recommended scoping it
+to the host IP since Phase 10a; the shipped co-located Caddyfile never did. Now written down in
+that guide as a known edge rather than left implicit._
 
 ---
 

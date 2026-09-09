@@ -5,8 +5,14 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import App from "./App";
 
-const RESPONSES: Record<string, unknown> = {
+const DEFAULTS: Record<string, unknown> = {
   "/api/auth/status": { authed: true, password_set: true },
+  "/api/dashboard": { services: [], certificate_tab: "public" },
+  "/api/caddy/root-certificate": {
+    pem: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n",
+    common_name: "Caddy Local Authority",
+    filename: "caddy-root.crt",
+  },
   "/api/health": {
     caddy: { status: "healthy" },
     adguard: { status: "healthy" },
@@ -14,6 +20,8 @@ const RESPONSES: Record<string, unknown> = {
     docker: { status: "healthy" },
   },
 };
+
+let RESPONSES = { ...DEFAULTS };
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -29,6 +37,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  RESPONSES = { ...DEFAULTS };
 });
 
 function renderAt(path: string) {
@@ -52,4 +61,42 @@ test("an unmatched path explains itself and keeps the nav", () => {
   expect(screen.getByRole("heading", { name: "Page not found" })).toBeInTheDocument();
   expect(screen.getByText("/nope")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Routing" })).toBeInTheDocument();
+});
+
+
+// The Certificate tab is the only nav entry whose presence is configurable, and the
+// setting is read from the *public* payload — the shell has to decide before anyone has
+// logged in.
+test("shows the Certificate tab to a logged-out visitor when it is public", async () => {
+  RESPONSES["/api/auth/status"] = { authed: false, password_set: true };
+  renderAt("/");
+
+  expect(await screen.findByRole("link", { name: "Certificate" })).toBeInTheDocument();
+});
+
+test("hides the Certificate tab from a logged-out visitor in admin mode", async () => {
+  RESPONSES["/api/auth/status"] = { authed: false, password_set: true };
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "admin" };
+  renderAt("/");
+
+  await screen.findByRole("link", { name: "Dashboard" });
+  expect(screen.queryByRole("link", { name: "Certificate" })).not.toBeInTheDocument();
+});
+
+test("shows it in admin mode once logged in", async () => {
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "admin" };
+  renderAt("/");
+
+  expect(await screen.findByRole("link", { name: "Certificate" })).toBeInTheDocument();
+});
+
+// `hidden` takes the link out of the sidebar; it is not a lock. The root CA is public
+// material, so anyone who has the URL still gets the page — including a device that was
+// handed the link before someone flipped the setting.
+test("keeps /certificate reachable even when the tab is hidden", async () => {
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "hidden" };
+  renderAt("/certificate");
+
+  expect(await screen.findByRole("heading", { name: "Certificate" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Certificate" })).not.toBeInTheDocument();
 });

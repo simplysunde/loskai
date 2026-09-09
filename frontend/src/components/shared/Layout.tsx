@@ -8,20 +8,26 @@ import {
   Moon,
   Route as RouteIcon,
   Settings as SettingsIcon,
+  ShieldCheck,
   Sun,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus } from "../../lib/useAuth";
+import { useDashboard } from "../../lib/useDashboard";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
 import { getTheme, setTheme, type Theme } from "../../lib/theme";
 
+// `public: true` marks a tab a logged-out visitor is meant to see. It is also what
+// scripts/check-docs.sh subtracts before comparing this list to CLAUDE.md's admin tabs —
+// add a tab without it and the docs check will ask you to call it an admin tab.
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true, public: true },
   { to: "/docker", label: "Docker", icon: Container, end: false },
   { to: "/routing", label: "Routing", icon: RouteIcon, end: false },
   { to: "/settings", label: "Settings", icon: SettingsIcon, end: false },
+  { to: "/certificate", label: "Certificate", icon: ShieldCheck, end: false, public: true },
 ] as const;
 
 const DOT: Record<ModuleState, string> = {
@@ -45,6 +51,7 @@ export function Layout() {
   const { data: auth } = useAuthStatus();
   const authed = !!auth?.authed;
   const health = useHealth(authed);
+  const { data: dash } = useDashboard();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
@@ -54,6 +61,15 @@ export function Layout() {
     setTheme(next);
     setThemeState(next);
   }
+
+  // Certificate is the one tab whose presence is configurable: an ACME deployment has no
+  // internal root to install, so the link is noise. Undecided until the payload lands —
+  // showing it and taking it away again reads worse than a beat of nothing. This hides
+  // the *link*, never the page: /certificate stays reachable, and its download is public
+  // in every mode by design.
+  const certTab = dash?.certificate_tab;
+  const showCert = certTab === "public" || (certTab === "admin" && authed);
+  const nav = NAV.filter((item) => item.to !== "/certificate" || showCert);
 
   const h = health.data;
   const dotFor: Record<string, ModuleState | undefined> = {
@@ -81,7 +97,7 @@ export function Layout() {
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

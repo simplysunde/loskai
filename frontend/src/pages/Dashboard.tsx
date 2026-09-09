@@ -1,17 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { api } from "../lib/api";
-import type { DashboardCard } from "../components/shared/ServiceCard";
+import { useDashboard } from "../lib/useDashboard";
 import { ServiceCard } from "../components/shared/ServiceCard";
 
 // The public launcher — the one unauthenticated view. Shows non-private routed
 // services only; no container detail or module state.
 export function Dashboard() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api.get<{ services: DashboardCard[] }>("/api/dashboard"),
-  });
+  const { data, isLoading } = useDashboard();
 
   const services = data?.services ?? [];
 

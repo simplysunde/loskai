@@ -5,6 +5,9 @@ import { Check, Loader2, Lock } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { FieldDef, SettingField, SettingsView } from "../../lib/settings";
 
+const FIELD_CLASS =
+  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500";
+
 // Auto-saving settings fields: each field is always editable and commits on blur / Enter
 // (one key at a time, partial PUT) — no per-panel Save button. Env-sourced values stay
 // locked. A subtle spinner/check by the label reports the save.
@@ -26,7 +29,9 @@ export function InlineSettingsFields({ fields }: { fields: FieldDef[] }) {
 function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
   const qc = useQueryClient();
   const isEnv = field?.source === "env";
-  const current = field?.value ?? "";
+  // An unset select shows its default rather than a blank row — the first option *is*
+  // the default (backend: CERTIFICATE_TAB_DEFAULT), so keep the two in step.
+  const current = field?.value ?? (def.options ? def.options[0].value : "");
   const [draft, setDraft] = useState(current);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,13 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
     save.mutate(draft);
   };
 
+  // A select has no blur-to-commit worth having: picking an option *is* the edit, and
+  // there's no half-typed state to protect, so it saves straight away.
+  const choose = (val: string) => {
+    setDraft(val);
+    if (val !== current) save.mutate(val);
+  };
+
   return (
     <label className="block">
       <span className="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
@@ -67,25 +79,40 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
         {save.isPending && <Loader2 className="h-3 w-3 animate-spin text-slate-500" />}
         {saved && <Check className="h-3 w-3 text-emerald-400" />}
       </span>
-      <input
-        type={field?.secret ? "password" : "text"}
-        disabled={isEnv}
-        value={isEnv ? current : draft}
-        placeholder={def.hint}
-        onFocus={() => {
-          focused.current = true;
-        }}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          else if (e.key === "Escape") {
-            setDraft(current);
-            e.currentTarget.blur();
-          }
-        }}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500"
-      />
+      {def.options ? (
+        <select
+          disabled={isEnv}
+          value={isEnv ? current : draft}
+          onChange={(e) => choose(e.target.value)}
+          className={FIELD_CLASS}
+        >
+          {def.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={field?.secret ? "password" : "text"}
+          disabled={isEnv}
+          value={isEnv ? current : draft}
+          placeholder={def.hint}
+          onFocus={() => {
+            focused.current = true;
+          }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            else if (e.key === "Escape") {
+              setDraft(current);
+              e.currentTarget.blur();
+            }
+          }}
+          className={FIELD_CLASS}
+        />
+      )}
       {error && <p className="mt-1 text-xs text-rose-400">{error}</p>}
     </label>
   );

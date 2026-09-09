@@ -192,6 +192,14 @@
     padding-right: 56px;
   }
 
+  .code-label {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--red-300);
+    margin: 14px 0 -4px;
+  }
+
   .copy-btn {
     position: absolute;
     top: 10px; right: 10px;
@@ -438,15 +446,45 @@
            data-en="<strong>Using Firefox?</strong> The installation above covers Safari and Chrome. Open the file directly in Firefox — it will guide you through the rest."></div>
     </div>
 
-    <!-- Linux -->
+    <!-- Linux. The trust-store command is distro-specific: update-ca-certificates is
+         Debian's and does not exist on Fedora, so one set of commands cannot cover it. -->
     <div class="platform" id="p-linux">
-      <p data-no="Du bruker Linux. Kjør disse kommandoene i en terminal:"
-         data-en="You're on Linux. Run these commands in a terminal:"></p>
+      <p data-no="Du bruker Linux. Velg kommandoene som passer distribusjonen din:"
+         data-en="You're on Linux. Pick the commands that match your distribution:"></p>
+
+      <div class="code-label" data-no="Debian, Ubuntu, Mint, Raspberry Pi OS"
+           data-en="Debian, Ubuntu, Mint, Raspberry Pi OS"></div>
       <div class="code-block">
         <code>sudo cp ~/Downloads/caddy-root.crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates</code>
         <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
       </div>
+
+      <div class="code-label" data-no="Fedora, RHEL, Rocky, Alma, CentOS"
+           data-en="Fedora, RHEL, Rocky, Alma, CentOS"></div>
+      <div class="code-block">
+        <code>sudo cp ~/Downloads/caddy-root.crt /etc/pki/ca-trust/source/anchors/
+sudo update-ca-trust</code>
+        <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+      </div>
+
+      <div class="code-label" data-no="Arch, openSUSE (p11-kit)" data-en="Arch, openSUSE (p11-kit)"></div>
+      <div class="code-block">
+        <code>sudo trust anchor --store ~/Downloads/caddy-root.crt</code>
+        <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+      </div>
+
+      <div class="code-label"
+           data-no="Chrome og Chromium bruker sitt eget lager på Linux — legg den til der også"
+           data-en="Chrome and Chromium keep a separate store on Linux — add it there too"></div>
+      <div class="code-block">
+        <code>certutil -d sql:$HOME/.pki/nssdb -A -t "C,," \
+  -n "Caddy Local Authority" -i ~/Downloads/caddy-root.crt</code>
+        <button class="copy-btn" data-no="kopier" data-en="copy" onclick="copy(this)"></button>
+      </div>
+      <p data-no="<code>certutil</code> kommer fra <code>nss-tools</code> (Fedora) eller <code>libnss3-tools</code> (Debian)."
+         data-en="<code>certutil</code> comes from <code>nss-tools</code> (Fedora) or <code>libnss3-tools</code> (Debian)."></p>
+
       <div class="firefox-note"
            data-no="<strong>Bruker du Firefox?</strong> Åpne filen direkte i Firefox — den tar deg gjennom resten selv."
            data-en="<strong>Using Firefox?</strong> Open the file directly in Firefox — it will guide you through the rest."></div>
@@ -459,8 +497,10 @@ sudo update-ca-certificates</code>
             data-en="<strong>Windows:</strong> Run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>certutil -addstore -f &quot;ROOT&quot; caddy-root.crt</code> in PowerShell as Administrator, or double-click the file and follow the wizard."></li>
         <li data-no="<strong>macOS:</strong> Kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt</code> i Terminal."
             data-en="<strong>macOS:</strong> Run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt</code> in Terminal."></li>
-        <li data-no="<strong>Linux:</strong> Kopier til <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> og kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."
-            data-en="<strong>Linux:</strong> Copy to <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> and run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."></li>
+        <li data-no="<strong>Linux (Debian/Ubuntu):</strong> Kopier til <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> og kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."
+            data-en="<strong>Linux (Debian/Ubuntu):</strong> Copy to <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/usr/local/share/ca-certificates/</code> and run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-certificates</code>."></li>
+        <li data-no="<strong>Linux (Fedora/RHEL):</strong> Kopier til <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/etc/pki/ca-trust/source/anchors/</code> og kjør <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-trust</code>."
+            data-en="<strong>Linux (Fedora/RHEL):</strong> Copy to <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>/etc/pki/ca-trust/source/anchors/</code> and run <code style='font-family:var(--mono);font-size:0.82rem;color:var(--red-400)'>sudo update-ca-trust</code>."></li>
         <li data-no="<strong>Firefox (alle OS):</strong> Åpne .crt-filen — Firefox vil be deg importere den."
             data-en="<strong>Firefox (any OS):</strong> Open the .crt file — Firefox will prompt you to import it."></li>
       </ol>

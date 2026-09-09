@@ -4,22 +4,63 @@ Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls i
 Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS
 token required (public ACME certs are a possible future alternative, not the current path).
 Browsers don't trust that root, so LAN devices get a cert warning until they install it
-**once**. This page is a small onboarding site — served by Caddy itself — that hands out the
-root and walks a user through installing it (Windows / macOS / Linux / Firefox, auto-detected).
+**once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
+including ones you add later — one internal root signs all the per-name leaves.
 
-Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted, including
-ones you add later — one internal root signs all the per-name leaves.
+There are **two ways to get the root**, and they exist for different reasons:
 
-> Loskai handles **zero** certificate material. This is entirely a Caddy concern (the page
-> is static files Caddy serves); Loskai is never in the path. Unrelated to the deferred
-> "Cert Status" (public-cert expiry) feature.
+| | [Loskai's Certificate page](#loskais-certificate-page-primary) | [Caddy's `:80` site](#caddys-80-onboarding-site-fallback) |
+|---|---|---|
+| Reached at | `/certificate` on Loskai | `http://<caddy-ip>/` |
+| Works when | always — any topology | Caddy shares a host you can reach on `:80` |
+| Source of the root | Caddy's Admin API | Caddy's own data volume |
+| Survives a move to public ACME | yes (says "nothing to install") | no — `:80` is needed for the HTTP-01 challenge |
 
-## How it's served
+Prefer the Certificate page. The `:80` site still ships because it works with Loskai
+stopped, which is worth having on the day you're setting the machine up.
 
-The page (`caddy/setup/index.html`) and the live root cert are served by a **plain-HTTP
-site on `:80`**, configured in Caddy's bootstrap Caddyfile — *not* pushed through Loskai's
-API. HTTP on purpose: the page's job is to fix the untrusted-cert warning, so it can't sit
-behind that same untrusted cert. Reach it **by IP** (no DNS or trust needed first).
+> Loskai handles no certificate **key** material and is not in the issuance path — that
+> stays entirely with Caddy. It does now *serve* the root CA, which is public by
+> definition (the whole point is that every device installs it). Unrelated to the
+> deferred "Cert Status" (public-cert expiry) feature.
+
+## Loskai's Certificate page (primary)
+
+`/certificate` in the Loskai UI: a download button plus per-OS trust instructions. It is
+**public, like the Dashboard** — a device that doesn't trust the internal CA yet can't be
+asked to log in over the HTTPS route to fix exactly that, so reach Loskai directly at
+`http://<host-ip>:8080/certificate` and hand that link to any new device.
+
+The PEM comes from Caddy's Admin API (`GET /pki/ca/local` → Loskai's
+[`GET /api/caddy/root-certificate`](../reference/api.md#caddy--apicaddy-read--push-only-never-assigns)),
+so it works in **every** topology — including split-LXC, where Caddy's data volume is on
+another machine entirely. The download is served by Loskai itself rather than linked to
+Caddy's `:80` file, because a plain-HTTP download from an HTTPS page is blocked outright
+by Chrome and Edge, and silently.
+
+If Caddy isn't using an internal CA, the page says there's nothing to install rather than
+erroring — a public-ACME deployment is already trusted.
+
+### Hiding the tab
+
+`CERTIFICATE_TAB` (or Settings → Network → Caddy) controls where the sidebar links it:
+`public` (default), `admin` (only once logged in), or `hidden`. Set it to `hidden` once
+you're on publicly trusted certs. This moves a **link**, not a lock: `/certificate` and
+its download stay public in every mode, because the root CA is public material.
+
+## Caddy's `:80` onboarding site (fallback)
+
+A standalone page (`caddy/setup/index.html`) and the live root cert, served by a
+**plain-HTTP site on `:80`** configured in Caddy's bootstrap Caddyfile — *not* pushed
+through Loskai's API, and reachable with Loskai stopped. HTTP on purpose: the page's job
+is to fix the untrusted-cert warning, so it can't sit behind that same untrusted cert.
+Reach it **by IP** (no DNS or trust needed first).
+
+> **It claims the whole of `:80`.** The shipped `caddy/Caddyfile` uses a bare `:80 { … }`,
+> which matches every hostname on that port and so replaces Caddy's automatic HTTP→HTTPS
+> redirects: typing `grafana.home.lan` without a scheme lands on this page instead of
+> redirecting. Scope it to the host IP (below) if that bothers you. And when you move to
+> public ACME, this block has to go — the HTTP-01 challenge needs `:80`.
 
 ```caddyfile
 :80 {
@@ -52,7 +93,7 @@ it (it has no `@id`).
 ## Reaching it
 
 - **Dev:** <http://localhost:8081/> (compose maps `8081:80`).
-- **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/` — hand this URL to any new device once.
+- **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/`.
 
   In prod, scope the site to the LXC IP so it doesn't shadow the automatic HTTP→HTTPS
   redirects for your real names:
@@ -76,5 +117,15 @@ convenience.
 
 ## Customising the page
 
-The page's `home.lan` strings (title, footer, step text) are just the base-domain label —
-edit `caddy/setup/index.html` to your domain, or leave them.
+The `:80` page's `home.lan` strings (title, footer, step text) are just the base-domain
+label — edit `caddy/setup/index.html` to your domain, or leave them. Loskai's Certificate
+page needs no such edit; it names nothing domain-specific.
+
+## Trust-store commands differ by distro
+
+Worth knowing, since both pages carry these and one wrong command reads as "this doesn't
+work": `update-ca-certificates` is a **Debian** tool and does not exist on Fedora, which
+uses `/etc/pki/ca-trust/source/anchors/` + `update-ca-trust`. Separately, Chrome and
+Chromium on Linux read their own NSS database rather than the system store, so a
+system-wide install alone leaves the warning in place in the browser most people use.
+Both pages now cover all of it.

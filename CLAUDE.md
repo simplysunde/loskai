@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 13–18 are closed and nothing is in
-flight. **Phase 12 is *not* done despite sitting in the archive** — its trust-install page still
-prints Debian-only Linux instructions that fail on Fedora, and the per-route scheme toggle was
-approved 2026-08-03 and never built. See `TODO.md`'s **Open, not in flight** section, which also
-lists two live smokes (Phases 10a and 13) that were never run and are no longer blocked. All
-three checks pass (210 + 38 + docs).
+`backend/` and `frontend/` are real, working code. Phases 13–19 are closed and nothing is in
+flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a (the Debian-only
+Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
+approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section, which
+also lists two live smokes (Phases 10a and 13) that were never run and are no longer blocked.
+All three checks pass (222 + 48 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -27,7 +27,7 @@ describes today. The authoritative sources are:
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
   `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. Only Phase 18 is still written out in `TODO.md`.
+  for how a finished thing was built. Phases 18 and 19 are still written out in `TODO.md`.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
@@ -47,7 +47,8 @@ describes today. The authoritative sources are:
   one. A merged single-container layout is recorded there as considered-and-rejected — don't
   re-propose it; the all-in-one *LXC* variant was deleted the same day, as it was never a real
   option). `deployment.md` is the env-var/volume reference, `install.md` the walkthrough,
-  `certificate-setup.md` the internal-CA onboarding, `migration.md` stack adoption *and*
+  `certificate-setup.md` the internal-CA onboarding (**two** paths: Loskai's public
+  `/certificate` page, and Caddy's own `:80` site), `migration.md` stack adoption *and*
   relocating Loskai itself, `troubleshooting.md` symptom-indexed triage.
 - **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
   (adding a `create-<service>-lxc.sh`).
@@ -139,8 +140,9 @@ HTTP middleware, so it checks the session cookie itself and closes with 1008 if 
 opens a root shell; never add a second WS route without repeating that check.
 The entire React bundle is served *unauthenticated* — it's just static JS; `RequireAuth` only
 decides what renders. **Never gate the static files or SPA routes** — the lock is 100% on the API.
-The public Dashboard is a launcher; the admin tabs (Docker, Routing, Settings) sit behind
-login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
+The public Dashboard is a launcher and the public **Certificate** page hands out Caddy's
+internal root CA (`certificate_tab` in settings moves its sidebar link, never its access);
+the admin tabs (Docker, Routing, Settings) sit behind login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
 independent modules.
 
 **Settings priority: env var > `settings.json` > unset**, each value tagged with its source.

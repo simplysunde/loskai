@@ -178,18 +178,27 @@ if claimed is None:
 elif sorted(c.lower() for c in claimed) != mods:
     problems.append(f"  CLAUDE.md: modules {claimed} != {mods} on disk")
 
-# 2. The admin tab list, against NAV in the frontend layout. Dashboard is excluded — it is
-#    the public launcher, not an admin tab.
+# 2. The admin tab list, against NAV in the frontend layout. Tabs marked `public: true`
+#    are excluded — the Dashboard launcher and the Certificate page are things a
+#    logged-out visitor is meant to reach, not admin tabs.
 layout = pathlib.Path("frontend/src/components/shared/Layout.tsx").read_text()
 nav_block = re.search(r"const NAV = \[(.*?)\] as const", layout, re.S)
-nav = [l for l in re.findall(r'label:\s*"([^"]+)"', nav_block.group(1) if nav_block else "")]
+entries = re.findall(r"\{([^}]*)\}", nav_block.group(1) if nav_block else "")
+nav, admin_nav = [], []
+for entry in entries:
+    label = re.search(r'label:\s*"([^"]+)"', entry)
+    if not label:
+        continue
+    nav.append(label.group(1))
+    if "public: true" not in entry:
+        admin_nav.append(label.group(1))
 tabs = listed(r"admin tabs \(([^)]*)\)")
 if not nav:
     problems.append("  Layout.tsx: could not parse NAV — the check needs updating")
 elif tabs is None:
     problems.append("  CLAUDE.md: no 'admin tabs (...)' list found — did the wording change?")
-elif tabs != [n for n in nav if n != "Dashboard"]:
-    problems.append(f"  CLAUDE.md: admin tabs {tabs} != NAV {nav} (minus Dashboard)")
+elif tabs != admin_nav:
+    problems.append(f"  CLAUDE.md: admin tabs {tabs} != NAV {admin_nav} (public tabs excluded)")
 
 # 3. The HTTP route count. Drifts the moment a route is added — the WebSocket is counted
 #    separately because CLAUDE.md names it separately.
@@ -210,7 +219,7 @@ for verb, path in re.findall(r'\("(\w+)",\s*"([^"]+)"\)', pub.group(1) if pub el
     if f"{verb} {path}" not in claude:
         problems.append(f"  CLAUDE.md: public route {verb} {path} is not named in the security section")
 
-print(f"modules: {len(mods)} · admin tabs: {len(nav) - 1} · HTTP routes: {routes}")
+print(f"modules: {len(mods)} · admin tabs: {len(admin_nav)} · HTTP routes: {routes}")
 if problems:
     print(f"\n{len(problems)} problem(s):")
     print("\n".join(problems))

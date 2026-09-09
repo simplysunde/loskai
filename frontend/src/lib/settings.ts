@@ -11,9 +11,12 @@ export interface SettingField {
 
 export type SettingsView = Record<string, SettingField>;
 
-// How a settings key is presented in a form. `hint` becomes the input placeholder.
+// How a settings key is presented in a form. `hint` becomes the input placeholder;
+// `options` turns the field into a select (a fixed set the backend also validates, so a
+// free-text box could only ever produce a 422).
 export interface FieldDef {
   key: string;
   label: string;
   hint?: string;
+  options?: { value: string; label: string }[];
 }

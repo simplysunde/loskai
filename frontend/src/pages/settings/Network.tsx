@@ -16,6 +16,15 @@ const ADGUARD_FIELDS = [
 const CADDY_FIELDS = [
   { key: "caddy_admin_url", label: "Admin URL", hint: "http://…:2019" },
   { key: "caddy_host_ip", label: "LAN IP", hint: "bare IP, e.g. 192.168.10.100" },
+  {
+    key: "certificate_tab",
+    label: "Certificate page in the sidebar",
+    options: [
+      { value: "public", label: "Everyone — including logged-out visitors" },
+      { value: "admin", label: "Only once logged in" },
+      { value: "hidden", label: "Never — using publicly trusted certs" },
+    ],
+  },
 ];
 
 // How Loskai reaches the three infrastructure services it drives. Configuration only —
@@ -43,6 +52,10 @@ export function Network() {
         name="Caddy"
         subtitle="TLS + reverse proxy. The LAN IP is what DNS rewrites answer with."
       >
+        {/* The certificate setting moves a *link*, not a lock: /certificate and its
+            download stay public whatever this says, because a root CA is meant to be
+            handed to every device. Hide it when Caddy uses publicly trusted certs and
+            there is nothing to install. */}
         <InlineSettingsFields fields={CADDY_FIELDS} />
       </Section>
 

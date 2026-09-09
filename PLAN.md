@@ -826,9 +826,9 @@ backend/src/loskai/
     │                        flat store; every writer goes through update_json
     ├── health.py            GET /api/health — polls all module clients
     ├── auth.py              login + session middleware — gates every /api/* except
-    │                        the public dashboard endpoint (see Security & Access)
-    ├── dashboard.py         GET /api/dashboard — the one public endpoint: non-private
-    │                        routed services (name, url, icon) for the launcher
+    │                        the public endpoints (see Security & Access)
+    ├── dashboard.py         GET /api/dashboard — public: non-private routed services
+    │                        (name, url, icon) for the launcher, + certificate_tab
     ├── assign.py            POST/DELETE /api/assign — assign & clear a subdomain;
     │                        Caddy required, AdGuard best-effort, both directions
     ├── export.py            GET /api/export — the backup bundle (settings + instances)
@@ -1265,17 +1265,22 @@ model is therefore a first-class concern, not a polish-phase afterthought.
 The UI is split in two, so authentication lives **inside Loskai** (not a blanket Caddy
 `basicauth`, which would also lock the public dashboard):
 
-- **Public tier — the Dashboard.** A launcher: a grid of cards for the non-private routed
-  services (name, icon, link to `https://prefix.{BASE_DOMAIN}`). No login. Served by the one
-  public endpoint, `GET /api/dashboard`, which exposes *only* launcher data — never container
-  detail, module state, or anything sensitive.
+- **Public tier — the Dashboard and the Certificate page.** The launcher: a grid of cards
+  for the non-private routed services (name, icon, link to `https://prefix.{BASE_DOMAIN}`).
+  No login. Served by `GET /api/dashboard`, which exposes *only* launcher data — never
+  container detail, module state, or anything sensitive. Alongside it, `/certificate`
+  hands out Caddy's internal root CA (`GET /api/caddy/root-certificate`) so a LAN device
+  can trust `*.{BASE_DOMAIN}`. That one is public by necessity: the device that needs it
+  has no admin password and cannot yet trust the HTTPS route it would log in over. It
+  carries no key material — a root CA is meant to be installed by every device.
 - **Admin tier — everything else.** The module tabs (Docker, Caddy, AdGuard, WireGuard) and
   Settings, plus every action. Behind the login.
 
 ### The gate is server-side, on the API
 
 Hiding admin *pages* in the frontend is not security — the boundary is enforced in the
-backend. **Every `/api/*` route requires a valid session except `GET /api/dashboard`.** This
+backend. **Every `/api/*` route requires a valid session except `GET /api/dashboard` and
+`GET /api/caddy/root-certificate`.** This
 is non-negotiable for endpoints like `WS /api/docker/containers/{id}/exec`, which is a root
 shell into a container: a hidden React route would still leave it one WebSocket away from
 anyone on the LAN. `shared/auth.py` is middleware that rejects unauthenticated `/api/*`

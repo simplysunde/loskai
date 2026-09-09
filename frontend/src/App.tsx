@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/shared/Layout";
 import { RequireAuth } from "./components/shared/RequireAuth";
+import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { NotFound } from "./pages/NotFound";
@@ -27,7 +28,7 @@ function PageFallback() {
   );
 }
 
-// Public: / (Dashboard) + /login. Admin tabs sit behind RequireAuth (UX) — the API
+// Public: / (Dashboard), /certificate + /login. Admin tabs sit behind RequireAuth (UX) — the API
 // middleware is the real gate. /settings nests its categories as child routes, so the
 // guard wraps the shell once rather than each category. The catch-all is inside
 // <Layout/> so a mistyped URL keeps the nav instead of rendering an empty pane.
@@ -37,6 +38,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
+        {/* Public on purpose: a device that doesn't trust the internal CA yet reaches
+            this by IP over plain HTTP, with no login, to fix exactly that. */}
+        <Route path="/certificate" element={<Certificate />} />
         <Route
           path="/docker"
           element={
