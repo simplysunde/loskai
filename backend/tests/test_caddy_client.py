@@ -54,6 +54,20 @@ async def test_push_route_inserts_at_head_not_appends(httpx_mock):
     assert httpx_mock.get_requests()[0].url.path.endswith("/routes/0")
 
 
+async def test_local_ca_reads_the_internal_authority(httpx_mock):
+    """`/pki/ca/local` is the only cert-material call. Pin the path — the CA id is
+    Caddy's, not ours, and `local` is what `tls internal` issues from."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{BASE}/pki/ca/local",
+        json={"id": "local", "root_certificate": "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----"},
+    )
+    ca = await _client().local_ca()
+
+    assert httpx_mock.get_requests()[0].url.path == "/pki/ca/local"
+    assert ca["id"] == "local"
+
+
 async def test_delete_route_ignores_404(httpx_mock):
     httpx_mock.add_response(method="DELETE", url=f"{BASE}/id/grafana", status_code=404)
     await _client().delete_route("grafana")  # must not raise

@@ -33,9 +33,17 @@ CONFIGURABLE_KEYS = [
     "caddy_host_ip",
     "host_ip",
     "recipes_repo_url",
+    "certificate_tab",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
+
+# Where the Certificate page appears in the nav. This is presentation, not a security
+# boundary: the root CA it hands out is public material (every LAN device installs it),
+# so `GET /api/caddy/root-certificate` stays public in all three modes — see
+# docs/guides/certificate-setup.md.
+CERTIFICATE_TAB_MODES = ("public", "admin", "hidden")
+CERTIFICATE_TAB_DEFAULT = "public"
 
 
 def _path() -> Path:
@@ -90,6 +98,17 @@ def value(key: str) -> Any:
     return resolve(key)[0]
 
 
+def certificate_tab() -> str:
+    """The Certificate page's nav visibility, normalised. Unset -> the default.
+
+    A stored value can only be one of the modes (`_validate` rejects the rest), but the
+    env layer never passes through validation, so a typo in `CERTIFICATE_TAB` falls back
+    to the default rather than hiding the page by accident.
+    """
+    val = value("certificate_tab")
+    return val if val in CERTIFICATE_TAB_MODES else CERTIFICATE_TAB_DEFAULT
+
+
 def get_view() -> dict[str, Any]:
     """Source-tagged settings for GET /api/settings. Never includes the admin hash."""
     stored = _read_stored()  # read once, resolve every key against it
@@ -130,6 +149,10 @@ def _validate(key: str, val: Any) -> None:
                 "interface', which is something to listen on, not something to connect "
                 "to. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
+    if key == "certificate_tab" and val not in CERTIFICATE_TAB_MODES:
+        raise ValueError(
+            f"Certificate tab must be one of {', '.join(CERTIFICATE_TAB_MODES)}"
+        )
     if key == "host_ip":
         # Prefixed onto a published port to form a container upstream, so it must be a bare IP.
         try:

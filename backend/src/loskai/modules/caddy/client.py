@@ -85,6 +85,20 @@ class CaddyClient:
                 return
             r.raise_for_status()
 
+    async def local_ca(self) -> dict:
+        """`GET /pki/ca/local` — Caddy's internal certificate authority (the one
+        `local_certs` / `tls internal` issues from).
+
+        The only cert-material call Loskai makes, and it is deliberately narrow: the
+        response carries the CA's **public** root and intermediate PEMs, never a key. A
+        404 means this Caddy has no internal CA at all — a public-ACME deployment — which
+        the router turns into a 409 rather than an upstream error.
+        """
+        async with self._client() as c:
+            r = await c.get("/pki/ca/local")
+            r.raise_for_status()
+            return r.json() or {}
+
     async def upstreams(self) -> list[dict]:
         async with self._client() as c:
             r = await c.get("/reverse_proxy/upstreams")

@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     host_ip: str | None = None
     # Public git repo the install wizard syncs recipes from.
     recipes_repo_url: str | None = None
+    # Where the Certificate page appears in the nav: "public" (everyone, like the
+    # dashboard), "admin" (only once logged in), "hidden". Unset means public — the
+    # internal CA is the default TLS mode, so the page is useful out of the box. An ACME
+    # deployment has no internal root to hand out and sets this to "hidden".
+    certificate_tab: str | None = None
 
     # --- Env-only settings (never written to settings.json) ---
     # Drives the compose bind mount, so it lives in the compose/env only. The default is

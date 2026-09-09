@@ -45,6 +45,33 @@ def caddy_mode(admin_url: str | None) -> str | None:
     return "lan"
 
 
+ROOT_CERT_FILENAME = "caddy-root.crt"
+
+
+def root_certificate(ca: dict) -> dict | None:
+    """The downloadable root out of a `GET /pki/ca/local` body, or None if there is none.
+
+    Only the **root** is handed out, never the intermediate: the intermediate is what
+    Caddy signs leaves with, and a device that trusts the root already accepts it — so
+    offering both would only be a second file to install in the wrong place.
+
+    The PEM markers are checked here because this file goes straight into a system trust
+    store. A truncated or empty body has to surface as an error; installed as-is it fails
+    later, at the browser, as an untrusted cert that the user has already "fixed".
+    """
+    pem = (ca.get("root_certificate") or "").strip()
+    if not (
+        pem.startswith("-----BEGIN CERTIFICATE-----")
+        and pem.endswith("-----END CERTIFICATE-----")
+    ):
+        return None
+    return {
+        "pem": pem + "\n",
+        "common_name": ca.get("root_common_name") or ca.get("name") or "",
+        "filename": ROOT_CERT_FILENAME,
+    }
+
+
 def _listen_port(addr: str) -> str:
     """Port of a Caddy listen address (':443', '0.0.0.0:443', '[::]:443')."""
     return addr.rsplit(":", 1)[-1]

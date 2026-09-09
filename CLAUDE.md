@@ -38,7 +38,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 36 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 37 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
@@ -129,8 +129,11 @@ co-located infra container from being double-routed from competing tabs.
 **Security is enforced on the API, never the frontend.** Single admin password (no accounts),
 hashed, `HttpOnly` session cookie. Middleware gates **every `/api/*` except `GET /api/dashboard`
 and the login flow** — `GET /api/auth/status`, `POST /api/login`, `POST /api/logout`,
-`POST /api/auth/setup` (you can't authenticate if login itself requires auth). That set is
-`PUBLIC_ROUTES` in `shared/auth.py`. **One route sits outside the middleware entirely:** the
+`POST /api/auth/setup` (you can't authenticate if login itself requires auth) — plus
+`GET /api/caddy/root-certificate`, which hands out Caddy's internal **root CA**: public
+material every LAN device is meant to install, fetched by devices that have no admin
+password and can't yet trust the HTTPS route. That set is `PUBLIC_ROUTES` in `shared/auth.py`.
+**One route sits outside the middleware entirely:** the
 container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) — WebSockets never traverse the
 HTTP middleware, so it checks the session cookie itself and closes with 1008 if it fails. It
 opens a root shell; never add a second WS route without repeating that check.

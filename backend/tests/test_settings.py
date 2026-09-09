@@ -174,3 +174,28 @@ def test_configurable_keys_match_the_env_model():
 
 def test_configurable_keys_are_unique():
     assert len(s.CONFIGURABLE_KEYS) == len(set(s.CONFIGURABLE_KEYS))
+
+
+# --- Certificate tab visibility ---
+
+
+def test_certificate_tab_defaults_to_public():
+    """Internal CA is the default TLS mode, so the page is useful out of the box."""
+    assert s.certificate_tab() == "public"
+
+
+def test_certificate_tab_stored_value_is_used():
+    s.update({"certificate_tab": "hidden"})
+    assert s.certificate_tab() == "hidden"
+
+
+def test_certificate_tab_rejects_an_unknown_mode():
+    with pytest.raises(ValueError, match="Certificate tab must be one of"):
+        s.update({"certificate_tab": "sometimes"})
+
+
+def test_certificate_tab_falls_back_when_env_is_a_typo(monkeypatch):
+    """The env layer never passes through `_validate`, so a bad CERTIFICATE_TAB must
+    degrade to the default rather than silently hiding the page."""
+    monkeypatch.setattr(config.settings, "certificate_tab", "publik")
+    assert s.certificate_tab() == "public"

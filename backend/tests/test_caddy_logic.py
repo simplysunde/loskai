@@ -169,3 +169,41 @@ async def test_push_all_skips_dns_only_instances():
 
     assert client.pushed == ["grafana"]  # only the proxy instance is pushed
     assert [r["id"] for r in results] == ["grafana"]  # dns_only isn't even reported
+
+
+# --- Root certificate (pure) ---
+
+ROOT_PEM = "-----BEGIN CERTIFICATE-----\nMIIBozCCAUmg\n-----END CERTIFICATE-----"
+
+
+def test_root_certificate_hands_out_the_root_not_the_intermediate():
+    """A device installs the *root* as a trust anchor; the intermediate is what Caddy
+    signs leaves with and needs no separate install."""
+    cert = service.root_certificate(
+        {
+            "root_certificate": ROOT_PEM,
+            "intermediate_certificate": "-----BEGIN CERTIFICATE-----\nINTERMEDIATE\n-----END CERTIFICATE-----",
+            "root_common_name": "Caddy Local Authority - 2026 ECC Root",
+        }
+    )
+
+    assert cert is not None
+    assert "INTERMEDIATE" not in cert["pem"]
+    assert cert["pem"].startswith("-----BEGIN CERTIFICATE-----")
+    assert cert["pem"].endswith("-----END CERTIFICATE-----\n")  # trailing newline: it's a file
+    assert cert["common_name"] == "Caddy Local Authority - 2026 ECC Root"
+    assert cert["filename"] == "caddy-root.crt"
+
+
+def test_root_certificate_none_when_ca_has_no_root():
+    """An ACME deployment has no internal CA — the router turns this into a 409, not a
+    download of an empty file."""
+    assert service.root_certificate({}) is None
+    assert service.root_certificate({"root_certificate": ""}) is None
+
+
+def test_root_certificate_rejects_a_truncated_pem():
+    """The file is fed straight into a system trust store. A body missing its END marker
+    must fail here — installed as-is it fails later, at the browser, after the user
+    believes they've already fixed the warning."""
+    assert service.root_certificate({"root_certificate": "-----BEGIN CERTIFICATE-----\nMIIBo"}) is None

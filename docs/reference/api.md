@@ -7,8 +7,9 @@ app is running — this document is the human-readable overview.
 ## Conventions
 
 - **Auth.** Every `/api/*` endpoint requires a valid session cookie **except** the ones
-  marked _public_ below (the dashboard + the login flow). The gate is server-side
-  middleware — see [PLAN.md → Security & Access]. Unauthenticated calls get `401`.
+  marked _public_ below (the dashboard, the login flow, and the root-certificate
+  download). The gate is server-side middleware — see [PLAN.md → Security & Access].
+  Unauthenticated calls get `401`.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie. The frontend redirects to `/login` on any `401`.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
@@ -30,6 +31,7 @@ app is running — this document is the human-readable overview.
 | `POST /api/login` | Body `{ password }` → sets the session cookie. `401` on a bad password, `409` if no password is set yet. |
 | `POST /api/logout` | Clears the session cookie. |
 | `POST /api/auth/setup` | First-run only: body `{ password }` sets the initial admin password. `409` once one exists, `422` if too short. |
+| `GET /api/caddy/root-certificate` | Caddy's internal root CA: `{ pem, common_name, filename }`. Public because the device that needs it has no admin password and can't yet trust the HTTPS route — see the Caddy section below. |
 
 ---
 
@@ -68,6 +70,7 @@ Module status lives in the aggregate `GET /api/health`, not a per-module route.
 |---|---|
 | `GET /routes` | **All** instances (routed or not) annotated with `route_mode`, `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin` links (so the UI can find a container's or Network service's route). Route fields are null when unrouted **or** `route_mode: "dns_only"` (no Caddy route exists for those — not "missing"). Display-only comparison — never auto-corrects. |
 | `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s; skips `dns_only` instances (nothing to push). |
+| `GET /root-certificate` | **Public.** Caddy's internal root CA as `{ pem, common_name, filename }`, read live from its Admin API — the download behind the [Certificate page](../guides/certificate-setup.md). `409` when Caddy runs no internal CA (a public-ACME deployment has nothing to install); `502` when Caddy is unreachable or unconfigured. |
 
 External contract: [caddy-api.md](caddy-api.md).
 

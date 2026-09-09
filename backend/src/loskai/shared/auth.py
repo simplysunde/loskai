@@ -31,6 +31,7 @@ MIN_PASSWORD_LEN = 8
 # flow (you can't authenticate if login itself requires auth). Everything else 401s.
 PUBLIC_ROUTES = {
     ("GET", "/api/dashboard"),
+    ("GET", "/api/caddy/root-certificate"),
     ("GET", "/api/auth/status"),
     ("POST", "/api/login"),
     ("POST", "/api/logout"),

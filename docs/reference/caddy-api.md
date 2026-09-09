@@ -131,6 +131,32 @@ GET /reverse_proxy/upstreams
 Reports each proxy backend's status (up/down, request count). Surfaced per row in the
 route list.
 
+### 8. The internal CA's root certificate
+
+```
+GET /pki/ca/local
+```
+
+`local` is the authority `local_certs` / `tls internal` issues from. The response is the
+CA's public description — `root_certificate` and `intermediate_certificate` as PEM
+strings, plus their common names. **No key material is exposed by this endpoint**, which
+is what makes it safe to surface at Loskai's own public
+`GET /api/caddy/root-certificate`.
+
+Loskai reads **only `root_certificate`**. That is the trust anchor a LAN device installs;
+the intermediate is what Caddy signs leaves with and is served in the TLS handshake, so
+handing it out separately would just be a second file to install in the wrong place.
+
+A **404 means this Caddy has no internal CA** — a public-ACME deployment. That is a normal
+configuration, not a failure, so Loskai reports it as `409` ("nothing to install") rather
+than an unreachable upstream.
+
+> Reading the PEM off disk (`/data/caddy/pki/authorities/local/root.crt`) is the other way
+> to get this, and is what the Caddyfile's `:80` onboarding site does. Loskai uses the API
+> instead because it holds in **every** topology: in split-LXC (A) Caddy's data volume is on
+> another machine entirely, while the Admin API is reachable by definition — Loskai cannot
+> function without it.
+
 ---
 
 ## Persistence — how routes survive a restart
@@ -171,8 +197,10 @@ For clarity, endpoints Loskai deliberately does **not** call:
 - `POST /adapt` — unused; Loskai manages routes as JSON via the config endpoints and no
   longer renders a Caddyfile at all (that export was removed — the bootstrap Caddyfile ships
   in the repo instead).
-- Cert / PKI endpoints (`GET /pki/...`) — confirmed dead end for our cert. The PKI
-  endpoints cover only Caddy's internal `local` CA (returning PEM blobs, no structured
-  expiry), and the public wildcard cert is never exposed at `/config` or `/pki`. The
+- `GET /pki/ca/local/certificates` — the root+intermediate chain as one PEM blob. Loskai
+  wants the root alone (endpoint #8), so it reads the structured object instead.
+- PKI endpoints **for certificate expiry** — still a dead end, and unrelated to endpoint
+  #8. They cover only the internal `local` CA and return PEM blobs with no structured
+  expiry, and the public wildcard cert is never exposed at `/config` or `/pki`. The
   Certificate Status feature is **deferred**; when revisited it will use a TLS probe to a
   routed name (read the served cert's `notAfter`), not the Admin API. See PLAN.md Future Ideas.
