@@ -83,14 +83,15 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 Two things Loskai deliberately **never** takes: the ACME/DNS-challenge token (that lives
 with Caddy) and private-registry credentials (`docker login` is a host precondition).
 
-### Internal (baked into the image — don't set these in `.env`)
+### Internal (set in the compose file, not in `.env`)
 
-These have defaults matching the image layout and the volume mounts. They exist for
-unusual deployments only; setting them in isolation will break things (see below).
+These track the image layout and the volume mounts, so they belong next to the mount they
+have to agree with rather than in your `.env`. They exist for unusual deployments only;
+changing one in isolation will break things (see below).
 
 | Variable | Default | What it is |
 |---|---|---|
-| `LOSKAI_DATA_DIR` | `/data` | In-container path for `settings.json`, `instances.json`, the session secret, and `recipes/`. Backed by the state volume. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
+| `LOSKAI_DATA_DIR` | the repo's `data/` | Path for `settings.json`, `instances.json`, the session secret, and `recipes/`. Every compose file passes `/data` explicitly to match its state mount, so the default only applies when you run the backend directly. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
 | `LOSKAI_STATIC_DIR` | `static` | Image path where the built React bundle is served from (populated by the Dockerfile `COPY`, not a volume). |
 
 ## Volumes
@@ -148,19 +149,23 @@ from. The difference is the price of the same-path rule.
 ### State volume — the `LOSKAI_DATA_DIR` coupling
 
 `./data:/data` persists Loskai's own state. The **right** side (`/data`) is the
-in-container path the app reads/writes, and it equals the `LOSKAI_DATA_DIR` default — so
-the code and the mount agree.
+in-container path the app reads/writes, and each compose file sets `LOSKAI_DATA_DIR=/data`
+in the same service — so the code and the mount agree by declaration, sitting a few lines
+apart where a drift between them is visible. (The code's own default is the repo's `data/`,
+which is what lets `make backend` run with nothing configured; in the image that default
+is never reached.)
 
 The **left** side is tracked in the repo (`data/.gitkeep`) on purpose. Docker creates a
 missing bind source as `root:root`, and `data/recipes/` is a directory you are meant to
 drop recipes into by hand — so the directory ships already owned by whoever cloned it.
 
 - **To change where data lives on the host**, edit **only the left side**
-  (e.g. `/mnt/tank/loskai:/data`). Leave `LOSKAI_DATA_DIR` unset. This is the normal,
-  supported customization.
+  (e.g. `/mnt/tank/loskai:/data`). Leave the `LOSKAI_DATA_DIR` line alone. This is the
+  normal, supported customization.
 - **To change the in-container path**, you must edit *both* the mount's right side **and**
-  `LOSKAI_DATA_DIR` to the same value. Changing one without the other would make the app
-  write to an **unmounted (ephemeral)** directory — state lost on container recreate.
+  the `LOSKAI_DATA_DIR` line to the same value. Changing one without the other would make
+  the app write to an **unmounted (ephemeral)** directory — state lost on container
+  recreate.
 
 Unlike `STACKS_DIR`, this path is never handed to another daemon; it's private to Loskai,
 so a normal (differing host/container) bind mount is correct and same-path is unnecessary.
@@ -184,11 +189,11 @@ and `mv loskai-settings data` would nest it at `data/loskai-settings/` where the
 can't see it. `rmdir` refusing to remove the old directory means something was left behind
 (a dotfile) — check before deleting it by hand.
 
-Or keep the old location by setting `LOSKAI_DATA_DIR=/opt/loskai` **and** restoring the
-`./loskai-settings:/opt/loskai` mount. Both, or neither — the coupling above is the whole
-point: the value and the mount's right side have to agree, and nothing checks that for
-you. If they drift, Loskai writes to an unmounted path inside the container and that state
-is discarded on the next recreate.
+Or keep the old location by changing `LOSKAI_DATA_DIR` to `/opt/loskai` **and** restoring
+the `./loskai-settings:/opt/loskai` mount. Both, or neither — the coupling above is the
+whole point: the value and the mount's right side have to agree, and nothing checks that
+for you. If they drift, Loskai writes to an unmounted path inside the container and that
+state is discarded on the next recreate.
 
 ## Cold start
 

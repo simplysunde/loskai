@@ -181,8 +181,9 @@ they were never pinned to an address.
 
 **3. `.env` is in neither directory.** It sits beside the compose file, not inside `data/`
 or `stacks/`. Most settings live in `settings.json` and travel with `data/`, but the
-env-only ones — `STACKS_DIR`, `LOSKAI_PASSWORD`, `LOSKAI_DATA_DIR` — do not. Copy `.env`
-across too, or re-enter what you need.
+env-only ones — `STACKS_DIR` and `LOSKAI_PASSWORD` — do not. Copy `.env` across too, or
+re-enter what you need. (`LOSKAI_DATA_DIR` needs no copying: it is set in the compose file
+beside the mount it has to match, so it travels with that.)
 
 ---
 

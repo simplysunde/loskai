@@ -176,6 +176,17 @@ def test_configurable_keys_are_unique():
     assert len(s.CONFIGURABLE_KEYS) == len(set(s.CONFIGURABLE_KEYS))
 
 
+def test_path_defaults_are_repo_anchored_not_container_paths():
+    """Both env-only path defaults resolve beside the repo, so running the backend
+    directly needs no configuration. The container is told its own paths explicitly by
+    every compose file; reverting either default to a bare in-container path (`/data`,
+    `/opt/loskai`) brings back a startup `PermissionError` for anyone running outside
+    Docker — which is how both of these read before 2026-09-05 and 2026-09-10."""
+    defaults = config.Settings.model_fields
+    for key in ("data_dir", "stacks_dir"):
+        assert defaults[key].default == str(config._REPO_ROOT / key.removesuffix("_dir"))
+
+
 # --- Certificate tab visibility ---
 
 

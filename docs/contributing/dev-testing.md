@@ -37,14 +37,11 @@ ADGUARD_USER=admin                        # what you set in step 2
 ADGUARD_PASSWORD=changeme                 # what you set in step 2
 BASE_DOMAIN=lvh.me                        # *.lvh.me resolves to 127.0.0.1 — handy
 LOSKAI_PASSWORD=devpass                   # or set it at first run in the UI
-# Writable state dir — the default /data is the in-container path and isn't writable when
-# the backend runs directly on your machine.
-LOSKAI_DATA_DIR=/home/you/loskai-data
-# STACKS_DIR is NOT needed here: it defaults to the repo's own stacks/, which is tracked.
+# Neither LOSKAI_DATA_DIR nor STACKS_DIR is needed here: both default to the repo's own
+# data/ and stacks/, which are tracked. Set LOSKAI_DATA_DIR only to keep state elsewhere.
 ```
 
 ```bash
-mkdir -p "$(grep LOSKAI_DATA_DIR .env | cut -d= -f2)"
 cd backend
 uv run uvicorn loskai.main:app --reload --port 8000
 ```
@@ -122,7 +119,7 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 
 | Symptom | Cause / fix |
 |---|---|
-| Backend startup `PermissionError: '/data'` | `LOSKAI_DATA_DIR` unset → defaulted to the in-container path, which you can't write to from the host. Set it in `.env` or export it (step 3). |
+| Backend startup `PermissionError: '/data'` | A stale `LOSKAI_DATA_DIR=/data` in your `.env` (or exported in your shell) — that's the in-container path, which you can't write to from the host. Unset it and let it default to the repo's `data/`. |
 | `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The dev Caddyfile's `*.localhost` placeholder creates one — recreate Caddy (`up -d`). |
 | Browser "can't establish a connection" | Wrong port — use `:8443` (https) / `:8081` (http), not the defaults. |
 | **502 Bad Gateway** | Caddy matched the route but can't reach the upstream. Use the container **service name** (`adguard:3000`) or a **LAN IP**, never `localhost`. Re-assign (delete + assign). |

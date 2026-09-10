@@ -35,5 +35,8 @@ services:
       - HOST_IP=${HOST_IP:-}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
       - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
+      # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
+      # the path the app writes to can't drift apart; the code default is the repo's data/.
+      - LOSKAI_DATA_DIR=/data
       - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
     restart: unless-stopped

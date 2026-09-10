@@ -65,6 +65,9 @@ services:
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
       - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
+      # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
+      # the path the app writes to can't drift apart; the code default is the repo's data/.
+      - LOSKAI_DATA_DIR=/data
       - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
       # Required in this mode: the host LAN IP where Caddy's :443 is published.
       - CADDY_HOST_IP=${CADDY_HOST_IP:?set CADDY_HOST_IP to the host's LAN IP}

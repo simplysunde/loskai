@@ -44,8 +44,8 @@ if [ -f loskai-settings/settings.json ] && [ ! -f data/settings.json ]; then
 
 		    mv loskai-settings/* data/ && rmdir loskai-settings
 
-		Or keep the old location by setting LOSKAI_DATA_DIR=/opt/loskai in .env and
-		restoring the ./loskai-settings:/opt/loskai mount in your compose file.
+		Or keep the old location by changing LOSKAI_DATA_DIR to /opt/loskai and
+		restoring the ./loskai-settings:/opt/loskai mount — both in your compose file.
 	MIGRATE
 	exit 1
 fi

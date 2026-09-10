@@ -55,17 +55,22 @@ class Settings(BaseSettings):
     # the repo's own `stacks/` (anchored like `_REPO_ROOT_ENV`, not the process CWD), which
     # is what makes `make backend` work with nothing set. Every compose file passes this
     # explicitly, so in a container the default only shows up when something is misconfigured
-    # — and `/app/stacks` being unmounted surfaces as `stacks_dir_ok: false` rather than
-    # silently scanning the wrong place.
+    # — and that unmounted fallback (`/stacks`: the image installs the source at `/app/src`,
+    # so `_REPO_ROOT` is `/` there, not `/app`) surfaces as `stacks_dir_ok: false` rather
+    # than silently scanning the wrong place.
     stacks_dir: str = str(_REPO_ROOT / "stacks")
     # Seeds the admin password hash at first run; only ever stored hashed.
     loskai_password: str | None = None
     # Where settings.json + instances.json + the session secret live — and `recipes/`,
     # the folder recipes are hand-added to, which is why this is a host bind mount
-    # (compose: `./data:/data`) and not a path inside the image. Running the backend
-    # directly (dev) has no such mount, so `.env` sets this to a writable path; see
-    # docs/contributing/dev-testing.md.
-    data_dir: str = Field(default="/data", validation_alias="LOSKAI_DATA_DIR")
+    # (compose: `./data:/data`) and not a path inside the image. Anchored to the repo's own
+    # `data/` for the same reason as `stacks_dir`: running the backend directly needs no
+    # config. Every compose file passes `LOSKAI_DATA_DIR=/data` explicitly to match its
+    # mount — do not lean on this default landing on `/data` in the image, which it would
+    # only do by accident of how deep the source happens to sit.
+    data_dir: str = Field(
+        default=str(_REPO_ROOT / "data"), validation_alias="LOSKAI_DATA_DIR"
+    )
     # Built React bundle served in production; absent in dev (Vite serves the UI).
     static_dir: str = Field(default="static", validation_alias="LOSKAI_STATIC_DIR")
 

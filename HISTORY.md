@@ -1,5 +1,40 @@
 # Loskai — History
 
+## 2026-09-10 — `LOSKAI_DATA_DIR` becomes explicit in compose, and defaults beside the repo
+
+Phase 18 moved the state mount to `./data:/data` but left `config.py`'s `data_dir` default at
+the bare in-container `/data`, so the two env-only paths ended up asymmetric: `stacks_dir` was
+anchored to the repo root and needed no configuration to run the backend directly, while
+`data_dir` still had to be set by hand or the process died on `PermissionError: '/data'` before
+serving a request. Phase 18's own write-up records that as intended ("`LOSKAI_DATA_DIR` stays an
+override, and dev sets it"), and `dev-testing.md` carried a troubleshooting row for it — the
+same shape as the `/opt` row that phase had just deleted, which is what prompted revisiting it.
+Sunde's read: defaulting it too "will simplify the process of setting it up with different
+configuration if someone wants that."
+
+**The default is now the repo's own `data/`, and all three compose files pass
+`LOSKAI_DATA_DIR=/data` explicitly** — the pattern `stacks_dir` already used. Running the
+backend under `uv` needs nothing set; the container is told its path next to the mount that
+path has to agree with, a few lines apart, where a drift between them is visible in one screen.
+
+**The tempting version of this change is wrong for a non-obvious reason.** Just repointing the
+default at `_REPO_ROOT / "data"` and leaving compose alone appears to work in both contexts,
+and that is the trap. `_REPO_ROOT` is `parents[3]` of `config.py`, the image installs the
+source at `/app/src` (editable, via a `.pth`), so in the container `_REPO_ROOT` is **`/`** —
+not `/app`, as a comment in `config.py` had claimed since Phase 18 — and `/` + `data` lands on
+`/data` by pure accident of how deep the source sits. Move the source in the Dockerfile and
+Loskai writes to an unmounted directory in the container's writable layer, losing state on the
+next recreate, with nothing failing at the time. Another fails-as-a-success, of the same family
+as the empty `200` and the nested `mv`. The explicit compose line is what makes the production
+path not depend on that coincidence; the corrected comment names `/stacks` as the real
+unmounted fallback, which still surfaces honestly as `stacks_dir_ok: false`.
+
+Phase 18's entry above is left as written — it describes the repo as it was then.
+
+- Key files: `backend/src/loskai/config.py`, `compose.yml`, `compose.colocated.yml`,
+  `compose.caddy-loskai.yml`, `.env.example`, `docs/guides/deployment.md`,
+  `docs/contributing/dev-testing.md`, `docs/guides/migration.md`, `scripts/deploy.sh`
+
 ## 2026-09-09 — Phase 19: the root CA comes out of Loskai, not just Caddy's `:80` site
 
 Sunde asked for a download button on the Caddy pill in Routing. Working out where the bytes
