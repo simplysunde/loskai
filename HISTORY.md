@@ -1,5 +1,27 @@
 # Loskai — History
 
+## 2026-09-14 — Three follow-ups to the `LOSKAI_DATA_DIR` default
+
+A review of the 2026-09-10 commit found that repointing the default at the repo's own `data/`
+had a consequence outside the code it touched: **the test suite's isolation had been leaning on
+that path being unwritable.** `conftest.py` resets every setting to its no-`.env` value, so
+`data_dir` now resolved to the developer's real `data/` — holding a live admin password hash and
+instance list. Every test that touches the store sets its own `data_dir` fixture, so nothing
+failed and nothing was written; but a test that forgot one used to die with `PermissionError`,
+and would instead have read live state, with `POST /api/auth/setup` or `PUT /api/settings`
+overwriting it. The conftest fixture now points both path settings at `tmp_path` (created, since
+`stacks_dir_ok()` distinguishes a missing directory), and `test_isolation.py` — a file that
+deliberately sets no paths of its own — asserts it.
+
+Two smaller ones from the same review. The **Dockerfile** now sets `LOSKAI_DATA_DIR=/data`
+itself: the 2026-09-10 entry's point was that production must not depend on `_REPO_ROOT`
+landing on `/` by accident, but only the three compose files closed that gap, leaving a plain
+`docker run` or a third-party stack on the coincidence. And `dev-testing.md` now warns against
+running the dev backend beside a Loskai container on the same host — since the default moved,
+they share `./data`, and `store.update_json`'s lock is per-process, so an interleaved
+read-modify-write loses one side silently. That page's `PermissionError` row also gained its
+second, now likelier cause: `data/` left root-owned by a compose run.
+
 ## 2026-09-10 — `LOSKAI_DATA_DIR` becomes explicit in compose, and defaults beside the repo
 
 Phase 18 moved the state mount to `./data:/data` but left `config.py`'s `data_dir` default at

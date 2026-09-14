@@ -6,6 +6,13 @@ every test would depend on whatever happens to be in the developer's local `.env
 e.g. a real `LOSKAI_PASSWORD` there makes first-run-setup tests fail because the app no
 longer thinks it's a fresh install. Reset every field to its no-`.env` value before each
 test so the suite stays hermetic no matter what's on disk.
+
+The two path defaults are then pointed at `tmp_path` rather than left at their clean
+values, which since 2026-09-10 resolve to the repo's own `data/` and `stacks/` — real,
+writable directories holding a developer's live admin password hash and instances. A
+test that forgets its own `data_dir` fixture used to fail loudly (`/data` is unwritable);
+without this it would instead read — and `POST /api/auth/setup` would overwrite — that
+live state.
 """
 
 import pytest
@@ -14,7 +21,13 @@ from loskai.config import Settings, settings
 
 
 @pytest.fixture(autouse=True)
-def _isolated_settings(monkeypatch):
+def _isolated_settings(monkeypatch, tmp_path):
     clean = Settings(_env_file=None)
     for name in Settings.model_fields:
         monkeypatch.setattr(settings, name, getattr(clean, name))
+    # Created, not just named: `stacks_dir_ok()` is false for a missing directory, and
+    # the repo's `stacks/` exists, so a bare path would change what health checks see.
+    for name in ("data_dir", "stacks_dir"):
+        path = tmp_path / name.removesuffix("_dir")
+        path.mkdir()
+        monkeypatch.setattr(settings, name, str(path))

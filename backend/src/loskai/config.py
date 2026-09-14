@@ -65,9 +65,9 @@ class Settings(BaseSettings):
     # the folder recipes are hand-added to, which is why this is a host bind mount
     # (compose: `./data:/data`) and not a path inside the image. Anchored to the repo's own
     # `data/` for the same reason as `stacks_dir`: running the backend directly needs no
-    # config. Every compose file passes `LOSKAI_DATA_DIR=/data` explicitly to match its
-    # mount — do not lean on this default landing on `/data` in the image, which it would
-    # only do by accident of how deep the source happens to sit.
+    # config. The Dockerfile sets `LOSKAI_DATA_DIR=/data` and every compose file passes it
+    # too, to match the mount — do not lean on this default landing on `/data` in the
+    # image, which it would only do by accident of how deep the source happens to sit.
     data_dir: str = Field(
         default=str(_REPO_ROOT / "data"), validation_alias="LOSKAI_DATA_DIR"
     )

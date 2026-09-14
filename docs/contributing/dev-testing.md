@@ -49,6 +49,12 @@ uv run uvicorn loskai.main:app --reload --port 8000
 Exporting the same variables in your shell instead works too (env vars still take
 priority over `.env`) — handy for CI or a one-off override without touching the file.
 
+> **Don't run this alongside a Loskai container on the same machine.** Compose mounts
+> `./data:/data`, which is the very directory the dev backend now defaults to, so both
+> processes would be read-modify-writing `settings.json` and `instances.json`. The lock
+> in `shared/store.py` is per-process and can't serialise that — one side's write is
+> silently lost. Stop the container, or point `LOSKAI_DATA_DIR` somewhere else.
+
 ## 4. Start the frontend (terminal 2)
 
 ```bash
@@ -120,6 +126,7 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 | Symptom | Cause / fix |
 |---|---|
 | Backend startup `PermissionError: '/data'` | A stale `LOSKAI_DATA_DIR=/data` in your `.env` (or exported in your shell) — that's the in-container path, which you can't write to from the host. Unset it and let it default to the repo's `data/`. |
+| Backend startup `PermissionError` on the repo's own `data/` or `stacks/` | A compose run left those files root-owned (the container writes as root through the bind mount). `sudo chown -R "$USER" data stacks`. |
 | `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The dev Caddyfile's `*.localhost` placeholder creates one — recreate Caddy (`up -d`). |
 | Browser "can't establish a connection" | Wrong port — use `:8443` (https) / `:8081` (http), not the defaults. |
 | **502 Bad Gateway** | Caddy matched the route but can't reach the upstream. Use the container **service name** (`adguard:3000`) or a **LAN IP**, never `localhost`. Re-assign (delete + assign). |
