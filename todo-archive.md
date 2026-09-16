@@ -14,8 +14,8 @@ Two entries here are worth knowing about even if you never read the rest:
   [`caddy-api.md`](docs/reference/caddy-api.md#2-add--assign-a-route) and
   [`troubleshooting.md`](docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200).
 - **Not everything in here is finished.** "Completed phases" was optimistic: **Phase 12** has
-  no completion marker and every item unchecked, and **Phase 13** carries a live smoke that
-  was never run (10a's ran 2026-09-16). `TODO.md`'s *Open, not in flight* section is the index; this file
+  no completion marker and every item unchecked. **Phases 10a and 13** each carried a live
+  smoke that went unrun for weeks; both ran and passed on 2026-09-16. `TODO.md`'s *Open, not in flight* section is the index; this file
   keeps the checklists.
 
 ---
@@ -488,10 +488,23 @@ PLAN.md "DNS-only routing" and `docs/adguard-api.md`._
       `is_loskai_domain` + conditional `current_ip` behavior) — 163 backend total (was 145).
       Frontend: new coverage in `validation.test.ts`, `AssignModal.test.tsx`,
       `ServiceTable.test.tsx` — 25 total (was 19). `tsc -b`, `vite build`, `oxlint` all clean
-- [ ] **Live smoke (user — needs a real Caddy/AdGuard):** assign a `dns_only` instance,
+- [x] **Live smoke (user — needs a real Caddy/AdGuard):** assign a `dns_only` instance,
       confirm no Caddy route appears in `GET /config/...`, confirm the AdGuard rewrite
       resolves to the raw IP; flip it to `proxy` and confirm a Caddy route appears while the
       rewrite answer moves to the shared Caddy IP. Not verifiable in-sandbox (no daemon)
+  - _**Ran 2026-09-16, passed**, against `compose.dev.yml`'s Caddy and AdGuard (v0.107.79).
+    Every step was driven through the Routing tab in headless Chromium and checked directly
+    in Caddy's config, AdGuard's rewrite list, and an `nslookup` against AdGuard's `:53`,
+    not in Loskai's own view of them. **Create** (Add route → External → DNS-only,
+    `nas` → `192.168.10.50`): no route in `srv0`, a single rewrite answering `.50`, and DNS
+    returned `.50`; the row showed the `dns-only` pill and dashes in Route/Live. **Flip to
+    `proxy`** (Change URL, upstream a whoami container): a route at index 0 of `srv0` that
+    proxied whoami's body under `curl --cacert`, and the rewrite moved to `.220`. That was
+    still a **single** rewrite: the `(domain, .50)` pair was deleted, not left stale. DNS
+    followed. **Flip back** to `dns_only` removed the Caddy route (Stage A's
+    teardown-on-switch), and **Delete** left no route and no rewrite. `consistency` was `[]`
+    throughout. One cosmetic defect found, now in the backlog: the success banner claims a
+    route was created on a `dns_only` assign._
 
 ---
 

@@ -1,5 +1,25 @@
 # Loskai — History
 
+## 2026-09-16 — The Phase 13 smoke: `dns_only` against a real AdGuard
+
+The last archived smoke that had never run, done the same day as 10a. It needed a real
+AdGuard, so the dev rig's AdGuard was taken through its first-run setup via
+`/control/install/configure`, the call its wizard makes. **It passed, and nothing needed
+fixing.** The full step-by-step result is in `todo-archive.md` Phase 13.
+
+**Every step went through the UI and was checked outside Loskai.** The picker and Change URL
+built each request, which kept 10a's lesson: a request written by hand can differ from what
+the UI actually sends. The state was then read straight from Caddy's config, AdGuard's rewrite
+list, and a real DNS lookup. The claim most likely to break was the flip, because a rewrite has
+no ID: moving a name from its own IP to Caddy's is a delete of the exact old `(domain, answer)`
+pair followed by an add. A wrong answer in the delete would leave two rewrites for one name,
+and clients would resolve it to either one. The list held exactly one rewrite after each flip.
+
+The smoke also flipped the route back to `dns_only`, which the checklist didn't ask for, to
+confirm Stage A's teardown of the Caddy route on that switch. One cosmetic defect turned up and
+is in the backlog: the success banner's text is fixed, so a `dns_only` assign claims it
+created a route.
+
 ## 2026-09-16 — The Phase 10a smoke, and the Certificate page in a real browser
 
 Both open items ran together on the dev VM, since one rig covers them: `compose.dev.yml`'s

@@ -47,10 +47,9 @@ visible without unpacking a phase back out. The checklists stay in
     specify insert-at-index-0 for the `:80` server** — the same rule the 2026-09-05 defect
     turned out to need for `:443`, written a month earlier and never generalised
   - **12c** — Caddy as ACME server for HTTPS-native backends (docs only, no Loskai code)
-- **One live smoke that was never run**, written when there was no daemon and doable now:
-  **Phase 13** (`dns_only` — assign one, confirm no Caddy route appears while the AdGuard
-  rewrite resolves to the raw IP, then flip it to `proxy`). ~~**Phase 10a**~~ **ran
-  2026-09-16**, together with Phase 19's browser check (below) — both passed
+- ~~**Two live smokes that were never run** — Phases 10a and 13~~ **both ran 2026-09-16 and
+  passed**, 10a together with Phase 19's browser check (below). Results are in each phase's
+  checklist in [`todo-archive.md`](todo-archive.md)
 - Phase 8b's Tier-3 integration rig + Forgejo CI are unchecked **by choice** — see the backlog
 
 ---
@@ -231,6 +230,10 @@ that guide as a known edge rather than left implicit._
 ---
 
 ## Backlog / Future ideas
+- **The Routing tab says "route + DNS rewrite created." after a `dns_only` assign** (found in
+  the 2026-09-16 Phase 13 smoke). `Routing.tsx` prints that fixed string whenever there is no
+  `warning`, ignoring the response's `caddy: "skipped"` — so the one mode that by definition
+  creates no route reports that it did. Cosmetic; the row itself renders correctly
 - **`POST /api/assign` accepts a `container` that matches nothing** (found in the 2026-09-16
   smoke). The link key is the container **name** — `AddRouteModal` sends `c.name` — but the
   endpoint takes any string: posting the short *ID* returned `200`, pushed a working route,
