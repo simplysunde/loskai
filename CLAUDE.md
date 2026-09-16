@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section, which
 also lists the Phase 13 live smoke, never run and no longer blocked (10a's ran 2026-09-16).
-All three checks pass (222 + 48 + docs).
+All three checks pass (224 + 48 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced

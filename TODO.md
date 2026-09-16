@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (222) + `npm test` (48) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (224) + `npm test` (48) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
