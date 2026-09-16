@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-09-16 — The Phase 10a smoke, and the Certificate page in a real browser
+
+Both open items ran together on the dev VM, since one rig covers them: `compose.dev.yml`'s
+Caddy for the `:80` onboarding site, and a backend on a spare port serving the built bundle.
+**Both passed, and nothing needed fixing.** The results are ticked in `todo-archive.md`
+Phase 10a and `TODO.md` Phase 19.
+
+The strongest single check was a `curl --cacert` pointed at the root the `:80` page hands out,
+with no `-k`, against a route pushed through the real Add route picker. It proves the root
+validates the leaves Caddy actually issues, which is Phase 10a's claim. The browser half ran in
+Chromium **and** Firefox, because `Certificate.tsx` revokes the blob URL immediately after
+`a.click()`, a pattern known to race in Firefox. It didn't: the saved file was byte-identical.
+
+**No browser could run on the VM without `sudo`** — Playwright's Chromium needs system
+libraries (`libatk` and others) that aren't installed. Running the script inside
+`mcr.microsoft.com/playwright` with `--network host` needed neither root nor a project
+dependency. The script lived in a scratch directory and nothing was added to `frontend/`.
+
+**One false alarm, recorded because it looked like a defect.** The Routing tab reported the
+smoke's route as orphaned ("the container was removed") while the same row read `synced`/`up`.
+The cause was the smoke itself: the first assign was posted by hand with the container's
+short **ID**, and the link key is the container **name**. The orphan check was right. The real
+gap is that `/api/assign` accepted a `container` that matches nothing and returned `200`; it is
+now in the backlog. Redone through the picker, which sends the name, the banner didn't appear.
+
 ## 2026-09-14 — Three follow-ups to the `LOSKAI_DATA_DIR` default
 
 A review of the 2026-09-10 commit found that repointing the default at the repo's own `data/`

@@ -9,7 +9,7 @@ All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-compl
 flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a (the Debian-only
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section, which
-also lists two live smokes (Phases 10a and 13) that were never run and are no longer blocked.
+also lists the Phase 13 live smoke, never run and no longer blocked (10a's ran 2026-09-16).
 All three checks pass (222 + 48 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything

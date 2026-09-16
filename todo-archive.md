@@ -14,8 +14,8 @@ Two entries here are worth knowing about even if you never read the rest:
   [`caddy-api.md`](docs/reference/caddy-api.md#2-add--assign-a-route) and
   [`troubleshooting.md`](docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200).
 - **Not everything in here is finished.** "Completed phases" was optimistic: **Phase 12** has
-  no completion marker and every item unchecked, and **Phases 10a and 13** each carry a live
-  smoke that was never run. `TODO.md`'s *Open, not in flight* section is the index; this file
+  no completion marker and every item unchecked, and **Phase 13** carries a live smoke that
+  was never run (10a's ran 2026-09-16). `TODO.md`'s *Open, not in flight* section is the index; this file
   keeps the checklists.
 
 ---
@@ -315,7 +315,8 @@ _Ship first — standalone, low-risk, doesn't touch the Loskai app. Caddy serves
 - [x] **Hardened server-discovery** (was "verify") — the `:80` site is a 2nd Caddy server; `next(iter(servers))` could pick it and break route pushes. `service.select_server_name` now picks the routing server by its `:443` listener (fallback: has-routes, then first). +5 tests
 - [x] `docs/certificate-setup.md` — the Caddyfile block, the mount, by-IP access (dev + prod), and how one internal root trusts all `*.BASE_DOMAIN` leaves
 - [x] Noted the `home.lan` strings are the base domain (documented; leave / parameterize later)
-- [ ] **Live smoke (user — needs Docker):** `docker compose -f compose.dev.yml up -d`, then `http://localhost:8081/` serves the page and `/caddy-root.crt` downloads the root; confirm Loskai still pushes routes (Caddy card healthy, an assign lands). Not verifiable in-sandbox
+- [x] **Live smoke (user — needs Docker):** `docker compose -f compose.dev.yml up -d`, then `http://localhost:8081/` serves the page and `/caddy-root.crt` downloads the root; confirm Loskai still pushes routes (Caddy card healthy, an assign lands). Not verifiable in-sandbox
+  - _**Ran 2026-09-16, passed.** `:8081/` served the onboarding page (`200`, 21.5 kB) and `/caddy-root.crt` a `CA:TRUE, pathlen:1` root, sha256-identical to `/data/caddy/pki/authorities/local/root.crt`. Caddy held two servers — `srv0` on `:443`, `srv1` on `:80` — and Loskai's discovery picked `srv0`, the hardening above. A container routed through the real **Add route** picker landed at index 0 of `srv0` and proxied whoami's body with `Via: 1.1 Caddy`, fetched with `curl --cacert` pointed at the downloaded root and **no `-k`**: the root the page hands out validates the leaves Caddy issues, which is this phase's whole claim. The Routing tab showed Caddy `online` and the row `synced`/`up`._
 
 _Invariants: no cert material in Loskai; the `:80` site has no `@id` so Sync never touches it; unrelated to the deferred Cert-Status (expiry) item._
 

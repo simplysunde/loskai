@@ -47,10 +47,10 @@ visible without unpacking a phase back out. The checklists stay in
     specify insert-at-index-0 for the `:80` server** — the same rule the 2026-09-05 defect
     turned out to need for `:443`, written a month earlier and never generalised
   - **12c** — Caddy as ACME server for HTTPS-native backends (docs only, no Loskai code)
-- **Two live smokes that were never run**, both written when there was no daemon and both
-  doable now: **Phase 10a** (cert-onboarding page via `compose.dev.yml`) and **Phase 13**
-  (`dns_only` — assign one, confirm no Caddy route appears while the AdGuard rewrite resolves
-  to the raw IP, then flip it to `proxy`)
+- **One live smoke that was never run**, written when there was no daemon and doable now:
+  **Phase 13** (`dns_only` — assign one, confirm no Caddy route appears while the AdGuard
+  rewrite resolves to the raw IP, then flip it to `proxy`). ~~**Phase 10a**~~ **ran
+  2026-09-16**, together with Phase 19's browser check (below) — both passed
 - Phase 8b's Tier-3 integration rig + Forgejo CI are unchecked **by choice** — see the backlog
 
 ---
@@ -211,9 +211,14 @@ split-LXC, where Caddy's disk is on another machine._
       `GET /api/caddy/routes` on the same instance still answered `401`
 - [x] Also exercised end to end against a **real homelab Caddy** (a dev backend already running
       on `:8000` with a live `CADDY_ADMIN_URL`) — same result, a valid CA root over a public GET
-- [ ] **Not verified: the page in a browser.** It is covered by 6 Vitest cases and `tsc`, and
-      the download path is pinned by a test, but nobody has loaded `/certificate` and clicked
-      the button. Worth folding into the Phase 10a smoke that is still open above
+- [x] **The page in a browser** (2026-09-16, with the Phase 10a smoke). Headless Chromium 153
+      and Firefox 155, logged out: the sidebar link leads to `/certificate`, all three platform
+      tabs switch, and clicking the button saves `caddy-root.crt` **byte-identical** to Caddy's
+      `root.crt`, no console errors. Firefox mattered: `download()` revokes the blob URL
+      straight after `a.click()`, a known race there, and the file still arrived whole. All
+      three `certificate_tab` modes checked the same way — `admin` shows the link only once
+      logged in, `hidden` never, and `/certificate` plus its download stay reachable logged
+      out in both
 
 **Adjacent, flagged not fixed**
 
@@ -226,6 +231,12 @@ that guide as a known edge rather than left implicit._
 ---
 
 ## Backlog / Future ideas
+- **`POST /api/assign` accepts a `container` that matches nothing** (found in the 2026-09-16
+  smoke). The link key is the container **name** — `AddRouteModal` sends `c.name` — but the
+  endpoint takes any string: posting the short *ID* returned `200`, pushed a working route,
+  and the Routing tab then listed it as an orphan whose container "was removed" while the
+  same row read `synced`/`up`. The UI can't send it, so only a hand-written API call hits it;
+  a `422` for a `container` with no match would close it
 - **An unrouted name under `BASE_DOMAIN` answers an empty `200`** (found alongside the
   2026-09-05 route-ordering defect, deliberately **not** fixed with it — it is the same
   wildcard block but a different symptom, and the fix that mattered was the one that made real
