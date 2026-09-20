@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
+import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields, type RouteMode } from "./useRouteFields";
 
@@ -99,6 +100,8 @@ export function AddRouteModal({
     enabled: open,
   });
   const health = useHealth();
+
+  useScrollLock(open);
 
   if (!open) return null;
 

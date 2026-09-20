@@ -44,6 +44,15 @@ before and after (`0 → 240` became `0 → 0`, with in-list scrolling intact) b
 no layout and the test suite cannot see this class of bug at all — the same blind spot the
 2026-09-05 route-ordering defect exploited, in a much smaller way.
 
+That fix stopped the list handing the gesture over; it did not stop the page moving when the
+wheel was over the backdrop instead, so **`useScrollLock` now freezes the page for all four
+overlays** — `ConfirmDialog`, `Modal`, `AddRouteModal`, `AssignModal`. Applying it to one
+dialog would have left the others inconsistent for the same gesture. It is ref-counted
+because a ConfirmDialog can open inside a Modal, and the inner one closing must not hand
+scrolling back while the outer is still up; it restores whatever `overflow` was there before
+rather than blanking it. This half *is* unit-testable — `body.style` needs no layout — so the
+five cases are pinned in jsdom, and the browser only confirmed the gesture end to end.
+
 **Preconditions moved ahead of the deletes.** `reconcile` used to check the base domain and
 answer IP itself; that check is now `_check_reconcilable`, shared by both, and the clear runs
 it before touching anything. Otherwise a `proxy` instance with no derivable answer IP would

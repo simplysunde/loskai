@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields, type RouteMode } from "./useRouteFields";
 
@@ -53,6 +54,8 @@ export function AssignModal({
     initialUpstream,
     initialTls,
   });
+  useScrollLock(open);
+
   if (!open) return null;
 
   const canSubmit = fields.valid && !pending;

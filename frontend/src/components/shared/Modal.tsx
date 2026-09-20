@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
+import { useScrollLock } from "../../lib/useScrollLock";
+
 // Generic modal shell for the larger dialogs (logs, terminal, stack editor, wizard).
 export function Modal({
   title,
@@ -13,6 +15,8 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  useScrollLock(true);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

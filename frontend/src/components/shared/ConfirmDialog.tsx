@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { useScrollLock } from "../../lib/useScrollLock";
+
 export function ConfirmDialog({
   open,
   title,
@@ -17,6 +19,8 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useScrollLock(open);
+
   if (!open) return null;
   return (
     <div

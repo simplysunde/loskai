@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (233) + `npm test` (58) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (233) + `npm test` (63) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -286,16 +286,28 @@ routes don't occur") is what settles it._
       page `0 → 240`; with the fix, `0 → 0`, and one tick from the top still scrolls the list
       by 120. **Not unit-tested** — jsdom has no layout, so scroll chaining cannot be
       reproduced there; the code carries a comment saying why the class is load-bearing
+- [x] **`useScrollLock` on every overlay** (Sunde: "do the background scroll lock too" — the
+      `overscroll-contain` above only stopped the hand-off *from the list*; a wheel over the
+      backdrop still scrolled the page). A ref-counted hook freezing `body` while an overlay
+      is up, applied to `ConfirmDialog`, `Modal`, `AddRouteModal` and `AssignModal` — all four
+      overlays, so they behave alike rather than one dialog being the odd one out. Ref-counted
+      because a ConfirmDialog can open *inside* a Modal (delete a stack from the stack editor)
+      and the inner close must not unfreeze the page under the outer one. It restores the
+      previous `overflow` rather than blanking it, and pads by the scrollbar's width so the
+      page doesn't jump sideways as a dialog opens
 - [x] Tests: `test_adguard_clear.py` (9 — foreign entries cleared, one-per-name restore, the
       two refusals, a failed delete, and four on the annotation, including a hand-added answer
       on one of *our own* names being marked not-restored) + `ClearRewrites.test.tsx` (10 —
       the dialog gates the call, cancel is a no-op, the warning's wording, the preview's rows
-      and counts, empty and unreachable lists, both result shapes, a 502)
+      and counts, empty and unreachable lists, both result shapes, a 502) + `useScrollLock`
+      (5 — lock, release, toggle without unmount, the nested case, and restoring a body that
+      already had an `overflow`). Unlike the overscroll fix this one *is* testable in jsdom,
+      since `body.style` is observable without layout
 - [x] Docs: `api.md`, `adguard-api.md` (Ownership gains its one exception), `PLAN.md`,
       `CLAUDE.md` (the invariant's caveat + the route count)
 
 **Verification**
-- [x] `pytest` (233) + `npm test` (58) + `check-docs.sh` + `tsc -b`
+- [x] `pytest` (233) + `npm test` (63) + `check-docs.sh` + `tsc -b`
 - [x] **Live, against a real AdGuard** (`compose.dev.yml`, v0.107.79), clicked in the browser:
       seeded two Loskai rewrites, one hand-added (`printer.smoke.test`) and one under a
       previous base domain (`oldnas.previous.lan`). **Sync first — `added/deleted/swept` all
@@ -308,6 +320,10 @@ routes don't occur") is what settles it._
       10.0.0.7`). The dialog marked exactly that one, the hand-added entry and the old-domain
       entry as **not restored**; the clear then removed all five and restored precisely the
       two it had promised
+- [x] **The scroll behaviour measured in a browser**, with 18 rewrites in the list: `body`
+      `overflow` `visible → hidden` on open and back on close, four wheel ticks over the
+      **backdrop** left `scrollY` at `0`, the list still scrolled (`0 → 120`), the page
+      scrolled again once closed (`0 → 273`), and the Add route modal locked the same way
 
 ---
 
