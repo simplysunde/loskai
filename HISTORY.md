@@ -3,8 +3,10 @@
 ## 2026-09-20 — A Devices tab, measured and dropped
 
 Considered splitting `dns_only` rewrites into their own tab, leaving Routing for reverse
-proxy + TLS, with the tab populated from AdGuard's device discovery. **Dropped — don't
-re-propose it without the DHCP precondition below.**
+proxy + TLS, with the tab populated from AdGuard's device discovery. **Not now — the
+discovery half is blocked on a precondition that may well be met later.** This is a
+deferral, not a dead end: if DHCP ever moves to AdGuard the measurements below change
+completely, and the idea should be picked back up rather than treated as settled.
 
 **AdGuard cannot enumerate the LAN.** It has no scanner: a device is known only once it
 talks to AdGuard, and it is named only if one of four sources supplies one — hosts file,
@@ -14,7 +16,7 @@ five were `localhost`/ip6 noise; **five real hosts, four of them from ARP with n
 all**, one named by rDNS. DHCP disabled, so no lease table. A Devices tab today would list
 four IPs and miss every phone, TV and the NAS.
 
-**The precondition, if it ever comes back:** move DHCP from the router to AdGuard. Its
+**The precondition that would revive it:** move DHCP from the router to AdGuard. Its
 lease table (MAC, IP, hostname) is a real inventory and "name this device" on top of it
 would be worth building. That makes AdGuard a single point of failure for the whole LAN
 and reverses `adguard-api.md`'s out-of-scope note on DHCP — an infrastructure decision, not
