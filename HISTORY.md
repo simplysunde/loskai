@@ -1,5 +1,37 @@
 # Loskai — History
 
+## 2026-09-20 — A Devices tab, measured and dropped
+
+Considered splitting `dns_only` rewrites into their own tab, leaving Routing for reverse
+proxy + TLS, with the tab populated from AdGuard's device discovery. **Dropped — don't
+re-propose it without the DHCP precondition below.**
+
+**AdGuard cannot enumerate the LAN.** It has no scanner: a device is known only once it
+talks to AdGuard, and it is named only if one of four sources supplies one — hosts file,
+rDNS, the ARP table *of the machine AdGuard runs on*, or AdGuard's own DHCP leases.
+Measured read-only against the live AdGuard LXC (v0.107.78): 10 runtime clients, of which
+five were `localhost`/ip6 noise; **five real hosts, four of them from ARP with no name at
+all**, one named by rDNS. DHCP disabled, so no lease table. A Devices tab today would list
+four IPs and miss every phone, TV and the NAS.
+
+**The precondition, if it ever comes back:** move DHCP from the router to AdGuard. Its
+lease table (MAC, IP, hostname) is a real inventory and "name this device" on top of it
+would be worth building. That makes AdGuard a single point of failure for the whole LAN
+and reverses `adguard-api.md`'s out-of-scope note on DHCP — an infrastructure decision, not
+a UI one. Loskai doing its own ARP/ping sweep was rejected outright (containerised, needs
+host networking, intrusive), as was parsing a router's leases (vendor-specific).
+
+**The tab split was judged separately and also dropped.** It needs no discovery, but it
+reverses Phase 13's "one inventory of named things" and would add a second route-creation
+surface — the exact thing the consolidated Add route picker exists to prevent — against a
+Phase 14 precedent of *reducing* tabs. Sunde: "lets forget about this then, and just keep
+dns and proxy on routes." A filter or two sections on the one Routing page remain available
+if the mixed table ever grates.
+
+**Noted in passing, unrelated to the tab:** the live query log's last 500 entries came from
+a single client IP, so almost nothing on that LAN currently uses AdGuard as its resolver —
+which is what any rewrite, in either mode, depends on.
+
 ## 2026-09-20 — A reset for AdGuard's rewrites, and what it does to an old decision
 
 Changing `BASE_DOMAIN` mid-development exposed a gap nothing in Loskai could close. Rewrites
