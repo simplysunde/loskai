@@ -55,6 +55,18 @@ async def status() -> dict:
     return await service.get_status(adguard, base, current_ip)
 
 
+@router.get("/rewrites")
+async def rewrites() -> dict:
+    """Every rewrite AdGuard holds, each flagged `managed` (Loskai would write it back).
+    Read-only; it backs the clear dialog's list of what is about to be removed."""
+    base = settings_store.value("base_domain")
+    current_ip = settings_store.derive_caddy_host_ip()
+    try:
+        return await service.list_rewrites(adguard, base, current_ip)
+    except _UNREACHABLE as exc:
+        raise HTTPException(status_code=502, detail=describe_error(exc))
+
+
 @router.post("/rewrites/clear")
 async def clear_rewrites() -> dict:
     """Wipe every rewrite AdGuard holds, then reconcile Loskai's back in. Destructive and

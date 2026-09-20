@@ -27,6 +27,17 @@ until someone presses it. Reconciling against a list we just emptied is also wha
 duplicates impossible: every routed name is missing, so each is added exactly once. Confirmed
 live — a second clear left the same two rewrites.
 
+**The dialog shows the list, same day.** Sunde: "a little quality of life would be a spoiler
+menu where we can see all the entries in AdGuard DNS rewrite that we are removing." A warning
+that says "every rewrite" is only trustworthy if you can check it, so `GET
+/api/adguard/rewrites` returns the list annotated with `managed`, and the dialog puts it behind
+a collapsed disclosure that leads with the count of what will *not* come back. `managed` is
+computed by reusing the `rewrite_domain`/`target_answer` pair the restore itself uses, not by
+re-deriving the rule — otherwise the preview and the action could disagree, which would be
+worse than no preview. It catches the case that isn't obvious: a hand-added answer on one of
+Loskai's *own* names is marked not-restored, because reconcile writes its own answer back, not
+that one.
+
 **Preconditions moved ahead of the deletes.** `reconcile` used to check the base domain and
 answer IP itself; that check is now `_check_reconcilable`, shared by both, and the clear runs
 it before touching anything. Otherwise a `proxy` instance with no derivable answer IP would

@@ -131,3 +131,66 @@ async def test_failed_delete_is_reported_and_restore_still_runs(data_dir):
     assert result["cleared"] == ["grafana.example.no"]
     assert [e["domain"] for e in result["errors"]] == ["stubborn.example.no"]
     assert result["restored"] == ["grafana.example.no"]  # ours is back regardless
+
+
+# --- The list the dialog shows before confirming ---
+
+
+def test_annotate_marks_managed_and_foreign_entries():
+    routed = [
+        inst("grafana", "grafana"),
+        inst("nas", "nas", route_mode="dns_only", upstream="192.168.10.50"),
+    ]
+    rewrites = [
+        {"domain": "grafana.example.no", "answer": IP},  # ours, proxy
+        {"domain": "nas.example.no", "answer": "192.168.10.50"},  # ours, dns_only
+        {"domain": "printer.example.no", "answer": "10.0.0.9"},  # hand-added
+        {"domain": "nas.previous.lan", "answer": "192.168.10.50"},  # old base domain
+    ]
+
+    rows = service.annotate_rewrites(rewrites, routed, BASE, IP)
+
+    assert [(r["domain"], r["managed"]) for r in rows] == [
+        ("grafana.example.no", True),
+        ("nas.example.no", True),
+        ("printer.example.no", False),
+        ("nas.previous.lan", False),
+    ]
+
+
+def test_annotate_same_domain_wrong_answer_is_not_managed():
+    # A hand-added answer on one of our own names would NOT come back after a clear:
+    # reconcile restores its own answer, not this one.
+    rows = service.annotate_rewrites(
+        [{"domain": "grafana.example.no", "answer": "10.0.0.9"}],
+        [inst("grafana", "grafana")],
+        BASE,
+        IP,
+    )
+
+    assert rows[0]["managed"] is False
+
+
+def test_annotate_without_base_domain_marks_nothing_managed():
+    rows = service.annotate_rewrites(
+        [{"domain": "grafana.example.no", "answer": IP}], [inst("grafana", "grafana")], None, IP
+    )
+
+    assert rows[0]["managed"] is False
+
+
+async def test_list_rewrites_annotates_live_list(data_dir):
+    instances_store.upsert_instance(inst("grafana", "grafana"))
+    client = FakeClient(
+        [
+            {"domain": "grafana.example.no", "answer": IP},
+            {"domain": "printer.example.no", "answer": "10.0.0.9"},
+        ]
+    )
+
+    result = await service.list_rewrites(client, BASE, IP)
+
+    assert result["rewrites"] == [
+        {"domain": "grafana.example.no", "answer": IP, "managed": True},
+        {"domain": "printer.example.no", "answer": "10.0.0.9", "managed": False},
+    ]

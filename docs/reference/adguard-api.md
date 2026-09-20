@@ -228,7 +228,9 @@ because `is_loskai_domain` scopes it to the *current* base domain) can be adopte
 instead of cleaned by hand. It changes nothing above: each delete still names its exact
 `(domain, answer)` pair, and no automatic path — assign, teardown, reconcile, the sweep —
 ever touches a foreign entry. What it adds is a deliberate, confirmed, user-initiated
-action.
+action — and the dialog lists every entry first, marking which ones the restore brings
+back (`GET /api/adguard/rewrites`), so "every rewrite" is checkable instead of taken on
+trust.
 
 ---
 

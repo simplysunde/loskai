@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (229 + 54 + docs).
+All three checks pass (233 + 58 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -38,7 +38,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 38 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 39 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the

@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (229) + `npm test` (54) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (233) + `npm test` (58) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -270,14 +270,25 @@ routes don't occur") is what settles it._
 - [x] **Settings › Network › AdGuard** — `ClearRewrites` panel: a danger-styled button, a
       `ConfirmDialog` naming hand-added rewrites and a previous base domain as collateral and
       saying they cannot be recovered, and a result line ("Removed 4 rewrites, restored 2")
-- [x] Tests: `test_adguard_clear.py` (5 — foreign entries cleared, one-per-name restore, the
-      two refusals, a failed delete) + `ClearRewrites.test.tsx` (6 — the dialog gates the
-      call, cancel is a no-op, the warning's wording, both result shapes, a 502)
+- [x] **`GET /api/adguard/rewrites`** + a disclosure in the dialog listing every entry that
+      is about to go (added 2026-09-20, same day, on Sunde's "a spoiler menu where we can see
+      all the entries"). Each row is marked **restored** or **not restored** by the pure
+      `annotate_rewrites()`, which reuses the same `rewrite_domain`/`target_answer` pair the
+      restore itself uses rather than re-deriving the rule — so the preview cannot promise
+      something the clear won't do. The summary leads with the count that matters
+      ("· 3 not restored"), and the list is collapsed by default so the warning stays the
+      headline. Fetched only while the dialog is open, uncached — "what am I about to lose"
+      must not be answered from a stale read
+- [x] Tests: `test_adguard_clear.py` (9 — foreign entries cleared, one-per-name restore, the
+      two refusals, a failed delete, and four on the annotation, including a hand-added answer
+      on one of *our own* names being marked not-restored) + `ClearRewrites.test.tsx` (10 —
+      the dialog gates the call, cancel is a no-op, the warning's wording, the preview's rows
+      and counts, empty and unreachable lists, both result shapes, a 502)
 - [x] Docs: `api.md`, `adguard-api.md` (Ownership gains its one exception), `PLAN.md`,
       `CLAUDE.md` (the invariant's caveat + the route count)
 
 **Verification**
-- [x] `pytest` (229) + `npm test` (54) + `check-docs.sh`
+- [x] `pytest` (233) + `npm test` (58) + `check-docs.sh` + `tsc -b`
 - [x] **Live, against a real AdGuard** (`compose.dev.yml`, v0.107.79), clicked in the browser:
       seeded two Loskai rewrites, one hand-added (`printer.smoke.test`) and one under a
       previous base domain (`oldnas.previous.lan`). **Sync first — `added/deleted/swept` all
@@ -285,6 +296,11 @@ routes don't occur") is what settles it._
       Clear: all four removed, exactly two restored, and `nslookup` against AdGuard's `:53`
       answered `.220` and `.50`. A second Clear left the same two — no duplicates. `health`
       reported `consistency: []` throughout
+- [x] **The preview checked against the clear it previews**, live: seeded five rewrites
+      including a *second* answer on one of Loskai's own names (`grafana.smoke.test →
+      10.0.0.7`). The dialog marked exactly that one, the hand-added entry and the old-domain
+      entry as **not restored**; the clear then removed all five and restored precisely the
+      two it had promised
 
 ---
 

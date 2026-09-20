@@ -204,6 +204,47 @@ def consistency_warnings(
 # --- Orchestration (I/O via the client) ---
 
 
+def annotate_rewrites(
+    rewrites: list[dict],
+    routed: list[Instance],
+    base_domain: str | None,
+    current_ip: str | None,
+) -> list[dict]:
+    """Every rewrite AdGuard holds, each marked `managed`: true when the exact
+    `(domain, answer)` pair is one a routed instance would have reconcile write back.
+
+    The distinction is the whole point of showing the list before a clear — a managed entry
+    is restored seconds later, an unmanaged one is gone for good. Pure, so the "would it
+    come back" question is answered by the same `rewrite_domain`/`target_answer` pair the
+    restore itself uses, not by a second guess at the rule."""
+    managed = set()
+    if base_domain:
+        for inst in routed:
+            target = target_answer(inst, current_ip)
+            if target:
+                managed.add((rewrite_domain(inst, base_domain), target))
+    return [
+        {
+            "domain": entry.get("domain", ""),
+            "answer": entry.get("answer", ""),
+            "managed": (entry.get("domain", ""), entry.get("answer", "")) in managed,
+        }
+        for entry in rewrites
+    ]
+
+
+async def list_rewrites(
+    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+) -> dict:
+    """The raw rewrite list, annotated. Read-only — it is what the clear dialog shows."""
+    rewrites = await client.list_rewrites()
+    return {
+        "rewrites": annotate_rewrites(
+            rewrites, instances_store.list_routed(), base_domain, current_ip
+        )
+    }
+
+
 async def get_status(
     client: AdGuardClient, base_domain: str | None, current_ip: str | None
 ) -> dict:
