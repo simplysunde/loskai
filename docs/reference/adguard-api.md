@@ -220,6 +220,16 @@ in AdGuard's rewrite list, because every write is a single add or an exact-pair 
 There is no wildcard rewrite to own or assert — the managed set is exactly one entry per
 routed instance, and it is load-bearing: it is what makes local names resolve.
 
+**The one exception is the explicit reset** (`POST /api/adguard/rewrites/clear`, Settings ›
+Network › AdGuard). It deletes every rewrite in the list — hand-added ones included — and
+then reconciles Loskai's own back. It exists so an AdGuard that already carries rewrites
+(from before Loskai, or under a previous `BASE_DOMAIN`, which the orphan sweep cannot see
+because `is_loskai_domain` scopes it to the *current* base domain) can be adopted wholesale
+instead of cleaned by hand. It changes nothing above: each delete still names its exact
+`(domain, answer)` pair, and no automatic path — assign, teardown, reconcile, the sweep —
+ever touches a foreign entry. What it adds is a deliberate, confirmed, user-initiated
+action.
+
 ---
 
 ## Not used

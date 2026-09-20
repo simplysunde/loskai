@@ -79,12 +79,15 @@ External contract: [caddy-api.md](caddy-api.md).
 ## AdGuard — `/api/adguard`
 
 Module status lives in the aggregate `GET /api/health`. Rewrites are written by the
-assign flow and reconcile only — there is no direct rewrite endpoint.
+assign flow and reconcile only — there is no endpoint that adds or deletes one rewrite.
+The single exception is the explicit reset below, which deletes the whole list.
 
 | Method & path | Purpose |
 |---|---|
 | `GET /status` | Per-instance DNS status: `{ answer_ip, instances: [{ id, domain, present, conflict }] }` — powers the routing table's DNS column. |
 | `POST /reconcile` | Best-effort reconcile (the DNS half of the **Sync** button): ensure/migrate rewrites per instance (answer = the shared Caddy IP for `proxy`, the instance's own IP for `dns_only`), **sweep** orphaned rewrites in the `{base_domain}` namespace whose answer is one Loskai is known to have written (the shared Caddy IP, or any currently-routed instance's own `dns_answer` — reclaims leftovers from a failed offline teardown, `proxy` or `dns_only`), and report conflicts. Returns `{ added, deleted, swept, conflicts, errors }`. `400` if no answer IP **and** a `proxy` instance is routed (an all-`dns_only` LAN needs none), `502` if AdGuard is down. |
+
+| `POST /rewrites/clear` | **Destructive, user-initiated reset.** Deletes **every** rewrite AdGuard holds — hand-added entries and entries under a previous `BASE_DOMAIN` included — then runs the reconcile above so Loskai's own are written back. Returns `{ cleared, restored, conflicts, errors }` (`cleared`/`restored` are domain lists). Preconditions are checked **before** the first delete, so a run that could not restore refuses outright rather than emptying DNS: `400` if the base domain is unset, or if a `proxy` instance is routed with no derivable answer IP; `502` if AdGuard is down. Restoring is part of the same call — against an emptied list reconcile adds each routed name exactly once, which is what makes duplicates impossible. |
 
 External contract: [adguard-api.md](adguard-api.md).
 

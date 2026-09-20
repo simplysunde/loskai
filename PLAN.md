@@ -637,8 +637,11 @@ Caddy LAN IP (derived from `CADDY_ADMIN_URL`; `CADDY_HOST_IP` fallback when that
 hostname), the same for every proxy rewrite; for `dns_only` it's that instance's own
 `upstream` IP instead — see [DNS-only routing](#dns-only-routing--decoupling-adguard-from-caddy).
 Every write is a single add or exact-pair
-delete (the API has no bulk op), so **manually-added rewrites are never touched** — a
-hand-added entry on the same domain is surfaced as a conflict, not overwritten. Each
+delete (the API has no bulk op), so **no automatic path touches a manually-added rewrite**
+— a hand-added entry on the same domain is surfaced as a conflict, not overwritten. The
+one way a foreign rewrite is ever removed is the explicit reset in Settings › Network,
+which wipes the whole list and reconciles Loskai's own back (see
+[docs/reference/adguard-api.md](docs/reference/adguard-api.md) — Ownership). Each
 instance records the answer Loskai last wrote for it (`dns_answer`), so if the Caddy IP
 ever changes a re-push deletes each instance's old entry and re-adds the new one — cleaning
 its own orphans while leaving anything it never set alone. Rationale and edge cases are in

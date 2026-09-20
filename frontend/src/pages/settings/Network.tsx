@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ExternalLink, Lock, Router, Shield } from "lucide-react";
 
 import { useHealth } from "../../lib/useHealth";
+import { ClearRewrites } from "../../components/settings/ClearRewrites";
 import { PeerDnsReminder } from "../../components/settings/PeerDnsReminder";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 
@@ -45,6 +46,7 @@ export function Network() {
         subtitle="DNS rewrites — one per routed name, pointing at Caddy."
       >
         <InlineSettingsFields fields={ADGUARD_FIELDS} />
+        <ClearRewrites />
       </Section>
 
       <Section

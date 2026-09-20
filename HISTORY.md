@@ -1,5 +1,38 @@
 # Loskai — History
 
+## 2026-09-20 — A reset for AdGuard's rewrites, and what it does to an old decision
+
+Changing `BASE_DOMAIN` mid-development exposed a gap nothing in Loskai could close. Rewrites
+under the old domain are invisible to the orphan sweep, because `is_loskai_domain` scopes it
+to the *current* base domain, and an unassign builds its delete pair from the current domain
+too — so it deletes a name that doesn't exist and strands the real one. The scoping is
+deliberate and stays: it is what keeps the sweep off hand-added entries.
+
+**The decision it revisits is from 2026-07-10** — "per-entry API + exact-pair delete means
+hand-added rewrites are never touched" — and Sunde's framing is that it predates `dns_only`.
+That is right, and it changes the premise. When Loskai could only name HTTP services behind
+Caddy, AdGuard obviously held entries Loskai had no business touching. With `dns_only`, Loskai
+can name anything on the LAN, so being *the* manager of rewrites is a coherent position — and
+a tool that wants to be the manager needs a way to adopt a box that already has some.
+
+**So the rule is unchanged and a new action sits beside it.** `POST
+/api/adguard/rewrites/clear` deletes every rewrite, hand-added ones included, then reconciles
+Loskai's own back. Every delete still names its exact `(domain, answer)` pair, and no
+automatic path — assign, teardown, reconcile, the sweep — touches a foreign entry. The
+difference is that this one is asked for, in a dialog that says what is lost.
+
+**The restore is in the same call, not a second button.** A separate resync already exists
+(Sync, on Routing), and a clear that doesn't restore leaves the LAN without working names
+until someone presses it. Reconciling against a list we just emptied is also what makes
+duplicates impossible: every routed name is missing, so each is added exactly once. Confirmed
+live — a second clear left the same two rewrites.
+
+**Preconditions moved ahead of the deletes.** `reconcile` used to check the base domain and
+answer IP itself; that check is now `_check_reconcilable`, shared by both, and the clear runs
+it before touching anything. Otherwise a `proxy` instance with no derivable answer IP would
+wipe the list and then fail, leaving DNS empty — the failure mode that matters most here, and
+it is now a `400` that deletes nothing.
+
 ## 2026-09-16 — The Phase 13 smoke: `dns_only` against a real AdGuard
 
 The last archived smoke that had never run, done the same day as 10a. It needed a real

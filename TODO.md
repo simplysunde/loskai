@@ -1,13 +1,13 @@
 # Loskai — TODO
 
-**Now:** nothing in flight. Phases 13–19 are closed; **Phase 12 is still not**, despite having
+**Now:** nothing in flight. Phases 13–20 are closed; **Phase 12 is still not**, despite having
 been archived as complete (below) — though Phase 19 closed out its 12a. Pick from there or from
 the [backlog](#backlog--future-ideas) at the bottom of this file.
 
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (224) + `npm test` (48) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (229) + `npm test` (54) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -226,6 +226,65 @@ displaces Caddy's automatic HTTP→HTTPS redirects: typing `grafana.home.lan` wi
 on the onboarding page instead of redirecting. `certificate-setup.md` has recommended scoping it
 to the host IP since Phase 10a; the shipped co-located Caddyfile never did. Now written down in
 that guide as a known edge rather than left implicit._
+
+---
+
+## Phase 20 — Clear AdGuard rewrites
+
+_Origin (2026-09-20, Sunde, after changing `BASE_DOMAIN` mid-development): rewrites under the
+old base domain are stranded. `is_loskai_domain` scopes the orphan sweep to the **current**
+base domain, so Sync cannot see them, and an unassign computes the delete pair from the
+current domain too — it deletes a name that no longer exists and leaves the real one behind.
+Nothing in Loskai could clean them up._
+
+_**Decision (Sunde).** "Make it so that we don't touch the hand-added ones was a decision that
+was made earlier in development before we had the dns_only rewrite option in Loskai." With
+`dns_only`, Loskai can name anything on the LAN, so it is plausible as **the** way to manage
+rewrites — and that needs a reset for an AdGuard that already carries some. A clear button
+under AdGuard in Settings, behind a dialog with a warning, so adopting an existing AdGuard is
+a choice rather than a hand-cleanup._
+
+**Why the clear restores in the same call, rather than a second button**
+
+_A separate resync already exists — the **Sync** button on Routing. A clear that doesn't
+restore leaves the LAN with no working names until someone remembers to press it, and that
+window is where duplicates come from. Clearing and reconciling in one call makes duplicates
+impossible by construction: reconcile runs against an emptied list, so every routed name is
+missing and is added exactly once. Sunde's own requirement ("need to make sure that duplicate
+routes don't occur") is what settles it._
+
+**What shipped**
+- [x] **`POST /api/adguard/rewrites/clear`** — `service.clear_and_restore()`: delete every
+      entry AdGuard holds by its exact `(domain, answer)` pair, then `reconcile()`. Returns
+      `{ cleared, restored, conflicts, errors }`
+- [x] **Preconditions are checked before the first delete** (`_check_reconcilable`, extracted
+      from `reconcile` so both share one rule). A `proxy` instance routed with no derivable
+      answer IP would make the restore raise *after* the wipe — leaving DNS empty. It now
+      refuses with `400` and deletes nothing
+- [x] A failed delete is reported per domain, not folded into the success line, and the
+      restore still runs — reconcile re-lists from AdGuard, so a leftover shows up as a
+      conflict rather than silently
+- [x] **The exact-pair rule is untouched.** Each delete still names its pair; no automatic
+      path (assign, teardown, reconcile, the orphan sweep) touches a foreign rewrite. This
+      adds one explicit, confirmed action — it does not widen any existing blast radius
+- [x] **Settings › Network › AdGuard** — `ClearRewrites` panel: a danger-styled button, a
+      `ConfirmDialog` naming hand-added rewrites and a previous base domain as collateral and
+      saying they cannot be recovered, and a result line ("Removed 4 rewrites, restored 2")
+- [x] Tests: `test_adguard_clear.py` (5 — foreign entries cleared, one-per-name restore, the
+      two refusals, a failed delete) + `ClearRewrites.test.tsx` (6 — the dialog gates the
+      call, cancel is a no-op, the warning's wording, both result shapes, a 502)
+- [x] Docs: `api.md`, `adguard-api.md` (Ownership gains its one exception), `PLAN.md`,
+      `CLAUDE.md` (the invariant's caveat + the route count)
+
+**Verification**
+- [x] `pytest` (229) + `npm test` (54) + `check-docs.sh`
+- [x] **Live, against a real AdGuard** (`compose.dev.yml`, v0.107.79), clicked in the browser:
+      seeded two Loskai rewrites, one hand-added (`printer.smoke.test`) and one under a
+      previous base domain (`oldnas.previous.lan`). **Sync first — `added/deleted/swept` all
+      empty**, both foreign entries untouched, which is the behaviour being preserved. Then
+      Clear: all four removed, exactly two restored, and `nslookup` against AdGuard's `:53`
+      answered `.220` and `.50`. A second Clear left the same two — no duplicates. `health`
+      reported `consistency: []` throughout
 
 ---
 

@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (224 + 48 + docs).
+All three checks pass (229 + 54 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -38,7 +38,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 37 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 38 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
@@ -159,7 +159,11 @@ must replay except the AdGuard password; its *own* admin password is stored only
   (was `./loskai-settings:/opt/loskai`) — **nothing lives in `/opt` any more**, and both
   directories are tracked with a `.gitkeep` so Docker can't create them root-owned.
 - **AdGuard rewrites are deleted by the exact `(domain, answer)` pair, never by domain** — this
-  is what protects hand-added rewrites. There is **no wildcard DNS rewrite**: one explicit
+  is what protects hand-added rewrites. **One deliberate exception:** `POST
+  /api/adguard/rewrites/clear` (Settings › Network) wipes the entire list, foreign entries
+  included, then reconciles Loskai's own back in the same call. It is destructive, confirmed
+  in a dialog, and never a side effect — every automatic path still leaves foreign rewrites
+  alone. There is **no wildcard DNS rewrite**: one explicit
   rewrite per routed instance. (Caddy's wildcard *TLS cert* is a separate, unrelated concern.)
 - **Caddy routes are keyed by `@id` = the instance `id`; editing a route is delete-then-add,
   never `PATCH`.** The server name is discovered at startup — never hardcode `srv0`.

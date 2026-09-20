@@ -2,7 +2,9 @@
 
 The module health payload is served through the aggregate /api/health, not a route of
 its own, and rewrites are written only by the assign flow and reconcile — never
-directly over HTTP (see PLAN: the AdGuard module is read + push only)."""
+directly over HTTP (see PLAN: the AdGuard module is read + push only). The one exception
+is the explicit reset, /rewrites/clear, which deletes every rewrite (hand-added ones
+included) and reconciles Loskai's own back; it writes nothing of its own choosing."""
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -51,6 +53,20 @@ async def status() -> dict:
     base = settings_store.value("base_domain")
     current_ip = settings_store.derive_caddy_host_ip()
     return await service.get_status(adguard, base, current_ip)
+
+
+@router.post("/rewrites/clear")
+async def clear_rewrites() -> dict:
+    """Wipe every rewrite AdGuard holds, then reconcile Loskai's back in. Destructive and
+    user-initiated only — see `service.clear_and_restore`."""
+    base = settings_store.value("base_domain")
+    current_ip = settings_store.derive_caddy_host_ip()
+    try:
+        return await service.clear_and_restore(adguard, base, current_ip)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except _UNREACHABLE as exc:
+        raise HTTPException(status_code=502, detail=describe_error(exc))
 
 
 @router.post("/reconcile")

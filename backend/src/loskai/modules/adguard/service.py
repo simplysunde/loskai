@@ -219,6 +219,24 @@ async def get_status(
     }
 
 
+def _check_reconcilable(
+    base_domain: str | None, current_ip: str | None
+) -> list[Instance]:
+    """Preconditions for writing rewrites, shared by `reconcile` and `clear_and_restore`,
+    returning the routed instances. Raising *before* any write is the point: it is what
+    lets the clear refuse a run that would delete every rewrite and then fail to put
+    Loskai's own back.
+
+    `current_ip` is only required when at least one routed instance is `proxy` — a LAN made
+    entirely of `dns_only` instances needs no `CADDY_HOST_IP` configured at all."""
+    if not base_domain:
+        raise ValueError("base_domain is not set")
+    routed = instances_store.list_routed()
+    if any(inst.route_mode == "proxy" for inst in routed) and not current_ip:
+        raise ValueError("Caddy answer IP is not derivable — set CADDY_HOST_IP")
+    return routed
+
+
 async def reconcile(
     client: AdGuardClient, base_domain: str | None, current_ip: str | None
 ) -> dict:
@@ -227,14 +245,8 @@ async def reconcile(
     from an IP or mode change (`deletes`), or an orphaned `<label(s)>.<base>` rewrite that
     no live route owns (`sweeps`).
 
-    `current_ip` is only required when at least one routed instance is `proxy` — a LAN made
-    entirely of `dns_only` instances needs no `CADDY_HOST_IP` configured at all."""
-    if not base_domain:
-        raise ValueError("base_domain is not set")
-
-    routed = instances_store.list_routed()
-    if any(inst.route_mode == "proxy" for inst in routed) and not current_ip:
-        raise ValueError("Caddy answer IP is not derivable — set CADDY_HOST_IP")
+    Preconditions — base domain set, answer IP derivable — are `_check_reconcilable`."""
+    routed = _check_reconcilable(base_domain, current_ip)
 
     rewrites = await client.list_rewrites()
     plan = plan_reconcile(routed, rewrites, base_domain, current_ip)
@@ -300,4 +312,50 @@ async def reconcile(
         "swept": swept,
         "conflicts": plan.conflicts,
         "errors": errors,
+    }
+
+
+async def clear_and_restore(
+    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+) -> dict:
+    """Delete **every** rewrite AdGuard holds — hand-added ones included — then reconcile,
+    so the list ends up as exactly what the instance list says it should be.
+
+    This is the one place Loskai removes an entry it did not write. The exact-pair rule is
+    not weakened: each delete still names its `(domain, answer)` pair, and no automatic
+    path (assign, teardown, the orphan sweep) touches a foreign rewrite. What changed is
+    that the user can now ask for a wholesale reset — the escape hatch for adopting an
+    AdGuard that already carries rewrites, from before Loskai or from a different naming
+    scheme. It is destructive and explicit, never a side effect of anything else.
+
+    Restoring is part of the same call, for two reasons. A clear on its own leaves the LAN
+    with no working names until someone remembers to Sync; and reconciling against a list
+    we just emptied is what makes duplicates impossible, since every routed name is missing
+    and so is added exactly once.
+    """
+    _check_reconcilable(base_domain, current_ip)  # refuse before deleting, not after
+
+    cleared: list[str] = []
+    errors: list[dict] = []
+    for entry in await client.list_rewrites():
+        domain, answer = entry.get("domain", ""), entry.get("answer", "")
+        try:
+            await client.delete_rewrite(domain, answer)
+            cleared.append(domain)
+        except (httpx.HTTPError, AdGuardError) as exc:
+            logger.warning(
+                "clear: delete %s -> %s failed: %s", domain, answer, describe_error(exc)
+            )
+            errors.append(
+                {"domain": domain, "op": "delete", "detail": describe_error(exc)}
+            )
+
+    # Re-lists from AdGuard, so anything a failed delete left behind is still accounted
+    # for — as a conflict if it shadows one of ours, rather than silently.
+    restored = await reconcile(client, base_domain, current_ip)
+    return {
+        "cleared": cleared,
+        "restored": restored["added"],
+        "conflicts": restored["conflicts"],
+        "errors": errors + restored["errors"],
     }
