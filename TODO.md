@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (233) + `npm test` (63) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (233) + `npm test` (68) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -324,6 +324,55 @@ routes don't occur") is what settles it._
       `overflow` `visible → hidden` on open and back on close, four wheel ticks over the
       **backdrop** left `scrollY` at `0`, the list still scrolled (`0 → 120`), the page
       scrolled again once closed (`0 → 273`), and the Add route modal locked the same way
+
+---
+
+## Phase 21 — Machines as upstreams
+
+_Origin (2026-09-20, Sunde, out of the Devices-tab conversation): "dns rewrites show up as
+named machines which can be used to replace ip adresses when setting proxy routes… we would
+then be able to make external in add route have a list similar to containers and network."_
+
+_**The model already had it.** An instance may exist without a subdomain (`PLAN.md`: tracked
+but not exposed), and `container`/`origin` are existing precedents for a field linking an
+instance to what it *is*. A "machine" needs no new concept — it is an instance whose upstream
+is a bare IP._
+
+**Decisions (Sunde, Q&A 2026-09-20)**
+- **A real link, not a snapshot** — a proxy route should record *which machine* it points at,
+  so changing that machine's IP once updates every route to it. Same shape as `container`
+- **A second button, not a second tab** — "Name a machine" beside "Add route" on Routing, one
+  table below. Route creation stays a single surface (the invariant the Add route picker
+  exists to hold), while naming a machine is a different verb. The tab split from the Devices
+  conversation stays dropped
+- **Staged** — the pick list first, since it needs no schema change and proves whether the
+  machine idea earns the link field
+
+**21a — the pick list _(shipped 2026-09-20)_**
+- [x] **Frontend only, no new endpoint** — `GET /api/caddy/routes` already returns every
+      instance with `route_mode` and `upstream`, and the Routing page has it cached
+- [x] External's source panel lists machines (`isValidDnsTarget(upstream)`, i.e. a bare IP)
+      above the manual form, in `proxy` mode only — DNS-only is where machines are *made*
+- [x] **Not filtered by routed**, unlike the Container and Network sources: you are borrowing
+      an address, not routing the thing
+- [x] **Fills the address, never the prefix.** `nas` would collide with the name the machine
+      already answers to — the route is a service *on* it (`plex`), not the machine. The
+      upstream is filled as `192.168.10.50:` so the port is all that is left to type
+- [x] Tests: 5 new in `AddRouteModal.test.tsx` (machines listed and only machines, the
+      prefill, the prefix left alone, no list in DNS-only, the empty state still takes a typed
+      address). The harness gained `/api/caddy/routes` — an unmocked path returned `{}` and
+      `.filter` crashed the modal
+- [x] Live: named a machine, then created a route by picking it — assign `200`, the route
+      proxied whoami over TLS, both rewrites correct
+
+**21b — the link field _(not started)_**
+- [ ] `machine` on the instance (mirroring `container`/`origin`), resolved to `IP:port` at
+      push time so an IP change propagates on the next Sync
+- [ ] "Name a machine" button on Routing
+- [ ] Deleting a machine that routes point at — refuse, or warn and unlink; **the case that
+      decides whether the link is worth it**
+- [ ] Migration: routes created in 21a hold a copied address and will not follow an IP change
+      until they are re-pointed
 
 ---
 

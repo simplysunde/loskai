@@ -1,5 +1,28 @@
 # Loskai — History
 
+## 2026-09-20 — Machines as upstreams, and what that settles about the tab split
+
+Out of the Devices-tab conversation came a better idea than the tab: let a named machine be
+something a proxy route can *point at*, so External in the Add route picker becomes a list
+like Container and Network rather than a free-text box. **The data model already supported
+it** — an instance may exist without a subdomain, and `container`/`origin` are precedents for
+a link field — so a "machine" is not a new concept, just an instance whose upstream is a bare
+IP.
+
+**It also resolves the split question in a way the tab never did.** If machines are things you
+pick *from*, they need somewhere to be created, which is an argument for a second *button*,
+not a second tab: route creation stays one surface, and "name a machine" is simply a different
+verb. Decided in a Q&A: a real link rather than a copied address (change a machine's IP once
+and every route to it follows — the `BASE_DOMAIN` lesson applied to upstreams), the second
+button, and staging it so the pick list lands first without a schema change.
+
+**21a shipped the same day and needed no backend at all** — `/api/caddy/routes` already
+returns every instance with its upstream. Two details are load-bearing. The list is *not*
+filtered by whether a machine is routed, unlike the other two sources, because you are
+borrowing an address rather than routing the thing. And picking a machine fills the upstream
+but deliberately leaves the prefix empty: prefilling `nas` would collide with the name the
+machine already answers to, since the route is a service *on* it. Both are pinned by tests.
+
 ## 2026-09-20 — A Devices tab, measured and dropped
 
 Considered splitting `dns_only` rewrites into their own tab, leaving Routing for reverse

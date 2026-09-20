@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (233 + 63 + docs).
+All three checks pass (233 + 68 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -121,7 +121,11 @@ and AdGuard modules never write on their own; they are read + push only.
 
 **Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
 `AddRouteModal`) — the single surface, with three sources (Container / Network service /
-External) that pre-fill and post to `/api/assign` with `container` / `origin` / neither. The
+External) that pre-fill and post to `/api/assign` with `container` / `origin` / neither.
+**External also lists the *machines* you have named** — instances whose upstream is a bare IP,
+i.e. `dns_only` ones — so a proxy route takes its address from one instead of retyping it;
+they are listed whether or not they are routed, since you are borrowing an address rather
+than routing the thing. The
 **Docker tab displays routed state but never creates routes** (a routed container links to
 its FQDN; a Settings > Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`). This is what prevents a

@@ -6,7 +6,9 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
+import { isValidDnsTarget } from "../../lib/validation";
 import { useScrollLock } from "../../lib/useScrollLock";
+import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields, type RouteMode } from "./useRouteFields";
 
@@ -94,6 +96,17 @@ export function AddRouteModal({
     enabled: open,
     retry: false,
   });
+  // The rows the Routing page already fetched — no extra endpoint. A "machine" is an
+  // instance whose upstream is a bare IP (what a dns_only assign stores), i.e. an address
+  // rather than a service. Unlike the Container and Network sources these are NOT filtered
+  // by whether they are routed: you are borrowing the address, not routing the thing, so a
+  // NAS that already answers to its own name is still a valid upstream for a new route.
+  const rows = useQuery({
+    queryKey: ["caddy-routes"],
+    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
+    enabled: open,
+    retry: false,
+  });
   const settings = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<SettingsView>("/api/settings"),
@@ -111,6 +124,9 @@ export function AddRouteModal({
     .split(":")[0];
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
+  const machines = (rows.data ?? []).filter(
+    (r) => r.upstream && isValidDnsTarget(r.upstream),
+  );
   const networkItems = NETWORK_SERVICES.filter((s) => !routedOrigins.has(s.origin)).map((s) => ({
     ...s,
     upstream: s.urlKey
@@ -134,6 +150,14 @@ export function AddRouteModal({
     fields.set({ prefix: suggestPrefix(c.name), upstream: c.suggested_upstream ?? "" });
     setLink({ container: c.name, name: c.name });
     setPicked(c.id);
+  };
+  const pickMachine = (m: RouteRow) => {
+    setPickedMode(null);
+    // Address only — deliberately not the prefix. The route is a *service on* this machine
+    // ("plex"), not the machine itself, and prefilling `nas` would collide with the name
+    // the machine already answers to. Trailing colon: the port is all that's left to type.
+    fields.set({ upstream: `${m.upstream}:` });
+    setPicked(m.id);
   };
   const pickNetwork = (s: (typeof networkItems)[number]) => {
     fields.set({ prefix: s.prefix, upstream: s.upstream });
@@ -190,7 +214,24 @@ export function AddRouteModal({
         )}
         {source === "external" && (
           <>
-            <p className="mt-3 text-xs text-slate-500">A LAN service by address — fill in a name and its host:port below.</p>
+            {!isDnsOnly && (
+              <PickList empty="No named machines yet — type an address below.">
+                {machines.map((m) => (
+                  <PickItem
+                    key={m.id}
+                    active={picked === m.id}
+                    onClick={() => pickMachine(m)}
+                    title={m.name}
+                    sub={m.fqdn ? `${m.upstream} · ${m.fqdn}` : (m.upstream ?? "")}
+                  />
+                ))}
+              </PickList>
+            )}
+            <p className="mt-3 text-xs text-slate-500">
+              {isDnsOnly
+                ? "A machine by address — give it a name and its bare IP below."
+                : "Pick a machine above to fill in its address, or type any host:port below."}
+            </p>
             <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
               <SourceTab active={routeMode === "proxy"} onClick={() => setRouteMode("proxy")} icon={null}>
                 Proxied

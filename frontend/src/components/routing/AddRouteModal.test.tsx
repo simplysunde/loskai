@@ -9,6 +9,7 @@ import { AddRouteModal } from "./AddRouteModal";
 // so they answer with the smallest shape each consumer needs.
 const RESPONSES: Record<string, unknown> = {
   "/api/docker/containers": [],
+  "/api/caddy/routes": [],
   "/api/settings": {
     base_domain: { value: "example.no", source: "stored", secret: false },
     adguard_url: { value: "http://192.168.10.101:3000", source: "stored", secret: false },
@@ -36,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   RESPONSES["/api/docker/containers"] = [];
+  RESPONSES["/api/caddy/routes"] = [];
 });
 
 function renderModal(overrides = {}) {
@@ -208,5 +210,90 @@ test("switching source clears the container's mode", async () => {
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
 
   // Back to the deployment-wide "docker" hint — a stale lan hint would misdescribe it.
+  expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
+});
+
+// --- Machines as upstreams (Phase 21a) ---
+
+const MACHINES = [
+  // A named machine: dns_only, so its upstream is a bare IP.
+  {
+    id: "nas",
+    name: "nas",
+    type: "external",
+    subdomain: "nas",
+    route_mode: "dns_only",
+    fqdn: "nas.example.no",
+    upstream: "192.168.10.50",
+    private: false,
+    routed: true,
+    synced: null,
+    upstream_healthy: null,
+  },
+  // A proxied service: host:port, not an address — must not be offered as a machine.
+  {
+    id: "grafana",
+    name: "grafana",
+    type: "docker",
+    subdomain: "grafana",
+    route_mode: "proxy",
+    fqdn: "grafana.example.no",
+    upstream: "192.168.10.60:3000",
+    private: false,
+    routed: true,
+    synced: true,
+    upstream_healthy: true,
+  },
+];
+
+test("External lists named machines, and only those", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+
+  expect(await screen.findByText("192.168.10.50 · nas.example.no")).toBeInTheDocument();
+  // grafana is a service on a machine, not an address to point at.
+  expect(screen.queryByText(/192\.168\.10\.60:3000/)).not.toBeInTheDocument();
+});
+
+test("picking a machine fills its address and leaves the port to type", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.click(await screen.findByText("192.168.10.50 · nas.example.no"));
+
+  expect(screen.getByPlaceholderText("e.g. grafana:3000")).toHaveValue("192.168.10.50:");
+});
+
+test("picking a machine leaves the prefix alone", async () => {
+  // Prefilling it with the machine's name would collide with the name the machine
+  // already answers to — the route is a service *on* it, not the machine itself.
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.click(await screen.findByText("192.168.10.50 · nas.example.no"));
+
+  expect(screen.getByPlaceholderText("grafana")).toHaveValue("");
+});
+
+test("DNS-only mode offers no machine list — it is where machines are made", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.click(screen.getByRole("button", { name: "DNS-only" }));
+
+  expect(screen.queryByText("192.168.10.50 · nas.example.no")).not.toBeInTheDocument();
+});
+
+test("with no machines yet, External still takes a typed address", async () => {
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+
+  expect(await screen.findByText(/No named machines yet/)).toBeInTheDocument();
   expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
 });
