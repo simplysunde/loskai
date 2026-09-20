@@ -279,6 +279,13 @@ routes don't occur") is what settles it._
       ("· 3 not restored"), and the list is collapsed by default so the warning stays the
       headline. Fetched only while the dialog is open, uncached — "what am I about to lose"
       must not be answered from a stale read
+- [x] **`overscroll-contain` on the list** (Sunde, same day: "after reaching the end the page
+      under start scrolling too, that doesn't feel correct"). Without it the wheel chains into
+      the page behind the dialog the moment the list bottoms out. Measured both ways in a real
+      browser rather than reasoned about: list parked at its end, two wheel ticks moved the
+      page `0 → 240`; with the fix, `0 → 0`, and one tick from the top still scrolls the list
+      by 120. **Not unit-tested** — jsdom has no layout, so scroll chaining cannot be
+      reproduced there; the code carries a comment saying why the class is load-bearing
 - [x] Tests: `test_adguard_clear.py` (9 — foreign entries cleared, one-per-name restore, the
       two refusals, a failed delete, and four on the annotation, including a hand-added answer
       on one of *our own* names being marked not-restored) + `ClearRewrites.test.tsx` (10 —

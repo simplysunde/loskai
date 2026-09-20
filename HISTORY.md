@@ -38,6 +38,12 @@ worse than no preview. It catches the case that isn't obvious: a hand-added answ
 Loskai's *own* names is marked not-restored, because reconcile writes its own answer back, not
 that one.
 
+**One follow-up from using it:** the list chained its scroll into the page behind the dialog
+once it hit the end. `overscroll-contain` fixes it, and the fix was measured in a browser
+before and after (`0 → 240` became `0 → 0`, with in-list scrolling intact) because jsdom has
+no layout and the test suite cannot see this class of bug at all — the same blind spot the
+2026-09-05 route-ordering defect exploited, in a much smaller way.
+
 **Preconditions moved ahead of the deletes.** `reconcile` used to check the base domain and
 answer IP itself; that check is now `_check_reconcilable`, shared by both, and the clear runs
 it before touching anything. Otherwise a `proxy` instance with no derivable answer IP would

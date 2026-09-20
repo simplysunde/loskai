@@ -165,7 +165,9 @@ function RewritePreview({
           </span>
         )}
       </summary>
-      <ul className="max-h-48 overflow-y-auto border-t border-slate-800 px-3 py-2">
+      {/* overscroll-contain: without it the wheel keeps going into the page behind the
+          dialog once the list bottoms out, which reads as the dialog losing the gesture. */}
+      <ul className="max-h-48 overflow-y-auto overscroll-contain border-t border-slate-800 px-3 py-2">
         {entries.map((e) => (
           <li
             key={`${e.domain}|${e.answer}`}
