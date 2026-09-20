@@ -14,6 +14,7 @@ export interface RouteRow {
   private: boolean;
   container?: string | null;
   origin?: string | null;
+  machine?: string | null;
   routed: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
@@ -92,6 +93,16 @@ export function ServiceTable({
                 {row.route_mode === "dns_only" && (
                   <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
                     dns-only
+                  </span>
+                )}
+                {/* The link is otherwise invisible — the address looks hand-typed until
+                    the machine moves and this row quietly follows it. */}
+                {row.machine && (
+                  <span
+                    title={`Follows the machine "${row.machine}" — move it and this address updates`}
+                    className="ml-1.5 rounded bg-teal-500/10 px-1 py-0.5 text-[10px] text-teal-300"
+                  >
+                    via {row.machine}
                   </span>
                 )}
               </td>

@@ -146,10 +146,11 @@ test("DNS-only mode validates a bare IP and submits dns_only", () => {
 
 // --- The upstream hint is the container's, not the deployment's (Phase 16 Stage A) ---
 
-function renderPicker() {
+function renderPicker(overrides = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+  const onSubmit = vi.fn();
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
@@ -160,12 +161,14 @@ function renderPicker() {
           // alone decided the hint, so every container was told to use name:port.
           mode="docker"
           routedOrigins={new Set()}
-          onSubmit={vi.fn()}
+          onSubmit={onSubmit}
           onClose={() => {}}
+          {...overrides}
         />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { onSubmit };
 }
 
 const CONTAINERS = [
@@ -255,6 +258,46 @@ test("External lists named machines, and only those", async () => {
   expect(await screen.findByText("192.168.10.50 · nas.example.no")).toBeInTheDocument();
   // grafana is a service on a machine, not an address to point at.
   expect(screen.queryByText(/192\.168\.10\.60:3000/)).not.toBeInTheDocument();
+});
+
+test("picking a machine links the route to it, not just its address", async () => {
+  // The link is what makes the route follow the machine when its IP changes.
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.click(await screen.findByText("192.168.10.50 · nas.example.no"));
+  fireEvent.change(screen.getByPlaceholderText("grafana"), { target: { value: "plex" } });
+  fireEvent.change(screen.getByPlaceholderText("e.g. grafana:3000"), {
+    target: { value: "192.168.10.50:32400" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ machine: "nas" }));
+});
+
+test("a typed address carries no machine link", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.change(screen.getByPlaceholderText("grafana"), { target: { value: "thing" } });
+  fireEvent.change(screen.getByPlaceholderText("e.g. grafana:3000"), {
+    target: { value: "192.168.10.77:8080" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.not.objectContaining({ machine: expect.anything() }),
+  );
+});
+
+test("the presets open straight into the machine form", async () => {
+  renderPicker({ initialSource: "external", initialRouteMode: "dns_only" });
+
+  // "Name a machine" lands on the DNS-only External form, not the container list.
+  expect(await screen.findByPlaceholderText("rack1.vm3")).toBeInTheDocument();
+  expect(screen.getByText(/give it a name and its bare IP/)).toBeInTheDocument();
 });
 
 test("picking a machine fills its address and leaves the port to type", async () => {

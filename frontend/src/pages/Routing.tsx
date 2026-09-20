@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  HardDrive,
   Loader2,
   Lock,
   Plus,
@@ -48,7 +49,10 @@ export function Routing() {
   const health = useHealth();
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // for editing an existing route
-  const [addOpen, setAddOpen] = useState(false);
+  // Two verbs, one surface: "Add route" publishes a service, "Name a machine" records an
+  // address others can point at. Both open the same picker — the second just starts on the
+  // External + DNS-only form — so route creation stays consolidated.
+  const [addOpen, setAddOpen] = useState<null | "route" | "machine">(null);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
@@ -145,7 +149,7 @@ export function Routing() {
   const addRoute = useMutation({
     mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/assign", r),
     onSuccess: (data) => {
-      setAddOpen(false);
+      setAddOpen(null);
       setResult(data);
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
       invalidate();
@@ -206,6 +210,10 @@ export function Routing() {
     },
   });
 
+  // Routes hosted on a machine — read off the rows we already have, no extra request.
+  const dependentsOf = (machine: RouteRow | null) =>
+    machine ? rows.filter((r) => r.machine === machine.id) : [];
+
   const openAssign = (target: RouteRow | null) => {
     setAssignTarget(target);
     setAssignError(null);
@@ -230,7 +238,17 @@ export function Routing() {
           <button
             onClick={() => {
               setAssignError(null);
-              setAddOpen(true);
+              setAddOpen("machine");
+            }}
+            title="Record a LAN machine by address, so routes can point at it by name"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+          >
+            <HardDrive className="h-4 w-4" /> Name a machine
+          </button>
+          <button
+            onClick={() => {
+              setAssignError(null);
+              setAddOpen("route");
             }}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
@@ -375,15 +393,17 @@ export function Routing() {
       />
 
       <AddRouteModal
-        key={addOpen ? "add-open" : "add-closed"}
-        open={addOpen}
+        key={addOpen ?? "add-closed"}
+        open={addOpen !== null}
         baseDomain={baseDomain}
         mode={mode}
+        initialSource={addOpen === "machine" ? "external" : "container"}
+        initialRouteMode={addOpen === "machine" ? "dns_only" : "proxy"}
         pending={addRoute.isPending}
         error={assignError}
         routedOrigins={routedOrigins}
         onSubmit={(r) => addRoute.mutate(r)}
-        onClose={() => setAddOpen(false)}
+        onClose={() => setAddOpen(null)}
       />
 
       <ConfirmDialog
@@ -410,6 +430,16 @@ export function Routing() {
         This deletes{" "}
         <span className="font-medium text-slate-200">{confirmDelete?.name}</span> entirely,
         including its route and DNS rewrite. The service it points to isn't affected.
+        {/* Deleting a machine doesn't break what runs on it — those routes keep the
+            address they already have. They just stop following it. */}
+        {dependentsOf(confirmDelete).length > 0 && (
+          <span className="mt-2 block text-amber-300">
+            {dependentsOf(confirmDelete).length === 1 ? "1 route points" : `${dependentsOf(confirmDelete).length} routes point`}{" "}
+            at this machine ({dependentsOf(confirmDelete).map((r) => r.name).join(", ")}).
+            {" "}They keep its current address and go on working — they just stop following
+            it when it moves.
+          </span>
+        )}
       </ConfirmDialog>
     </div>
   );

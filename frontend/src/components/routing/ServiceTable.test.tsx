@@ -103,3 +103,23 @@ test("a proxy row with known sync/health state shows real badges, not dashes", (
   expect(screen.getByText("up")).toBeInTheDocument();
   expect(screen.queryByText("dns-only")).not.toBeInTheDocument();
 });
+
+test("a route linked to a machine says which one", () => {
+  // Otherwise the link is invisible: the address looks hand-typed right up until the
+  // machine moves and this row quietly follows it.
+  render(
+    <ServiceTable
+      rows={[
+        row({
+          id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas",
+        }),
+      ]}
+    />,
+  );
+  expect(screen.getByText("via nas")).toBeInTheDocument();
+});
+
+test("an unlinked route shows no machine tag", () => {
+  render(<ServiceTable rows={[row({ upstream: "192.168.10.77:8080" })]} />);
+  expect(screen.queryByText(/^via /)).not.toBeInTheDocument();
+});

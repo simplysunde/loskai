@@ -165,6 +165,13 @@ state). The picker chooses a source, which pre-fills the subdomain + upstream:
   unlike the two sources below, you are reusing an address, not routing the thing itself.
   The picked machine fills the upstream only, never the prefix: the route is a service *on*
   that machine, and prefilling its name would collide with the name it already answers to.
+  Picking one also **links** the route to it (`machine` on the instance — a dependency, not
+  an idempotency key like `container`/`origin`): the machine's address is then entered in
+  exactly one place. Moving it rewrites every dependent's upstream host and re-pushes those
+  routes in the same assign; deleting it unlinks them instead of refusing, since they keep a
+  working address and nothing here is unrecoverable. "Name a machine" beside "Add route"
+  opens this same picker on its External + DNS-only form — a second *verb*, not a second
+  creation surface.
 - **Container** — an *unrouted* Docker container → a `docker` instance linked by `container`,
   pre-filled with a suggested subdomain (the container name) **and a reachable upstream** —
   `<service>:<port>` from the Docker socket (the container-side of its published port; resolves

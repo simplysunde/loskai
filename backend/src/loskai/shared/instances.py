@@ -31,6 +31,7 @@ class Instance(BaseModel):
     upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
     container: str | None = None  # container name/id (docker type only)
     origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
+    machine: str | None = None  # id of the machine instance that owns this upstream's host part
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
 
@@ -87,6 +88,19 @@ def get_by_origin(origin: str) -> Instance | None:
     """The instance routing a built-in network service (AdGuard/Gateway/Caddy) — the
     external-service analogue of `get_by_container`, so its assign stays idempotent."""
     return next((i for i in list_instances() if i.origin == origin), None)
+
+
+def list_by_machine(machine_id: str) -> list[Instance]:
+    """Every instance whose upstream host is owned by this machine. The third link field
+    after `container` and `origin`, but one-to-*many*: a machine hosts any number of
+    services, so this returns a list where those two return one."""
+    return [i for i in list_instances() if i.machine == machine_id]
+
+
+def is_machine(instance: Instance) -> bool:
+    """True if this instance is an *address* rather than a service — its upstream is a bare
+    host with no port, which is what a `dns_only` assign stores. Only these can be linked to."""
+    return bool(instance.upstream) and ":" not in instance.upstream  # type: ignore[operator]
 
 
 def upsert_instance(instance: Instance) -> Instance:

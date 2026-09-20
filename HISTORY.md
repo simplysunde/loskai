@@ -16,6 +16,22 @@ verb. Decided in a Q&A: a real link rather than a copied address (change a machi
 and every route to it follows — the `BASE_DOMAIN` lesson applied to upstreams), the second
 button, and staging it so the pick list lands first without a schema change.
 
+**21b followed the same day, and two decisions moved during implementation.** The plan said
+the upstream would be *derived* from the machine at push time; it is instead **rewritten
+eagerly** when the machine moves. Deriving would have meant a lookup in `build_route`, in the
+routing table's display and in the health join, and `upstream` would no longer have been what
+Caddy dials — a second source of truth for the sake of one write. Rewriting dependents inside
+the machine's own assign keeps `upstream` literal, and a failed re-push is self-repairing
+because the *store* already holds the new address and Sync pushes the store. And deleting a
+machine **unlinks** its routes instead of refusing: they keep a working address, so blocking
+would be gatekeeping for a case that isn't destructive — Phase 18's walk-back of the boot
+guard is the precedent, and this followed it deliberately.
+
+The live run made the propagation visible in a way tests cannot: after moving the machine to a
+fictitious `192.168.10.231`, the route answered `502`. That failure *is* the evidence — Caddy
+had genuinely been re-pushed and was dialing the new address — and re-pointing at the real one
+served `200` again.
+
 **21a shipped the same day and needed no backend at all** — `/api/caddy/routes` already
 returns every instance with its upstream. Two details are load-bearing. The list is *not*
 filtered by whether a machine is routed, unlike the other two sources, because you are

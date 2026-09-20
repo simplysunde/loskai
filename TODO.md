@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (233) + `npm test` (68) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (243) + `npm test` (73) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -365,14 +365,46 @@ is a bare IP._
 - [x] Live: named a machine, then created a route by picking it — assign `200`, the route
       proxied whoami over TLS, both rewrites correct
 
-**21b — the link field _(not started)_**
-- [ ] `machine` on the instance (mirroring `container`/`origin`), resolved to `IP:port` at
-      push time so an IP change propagates on the next Sync
-- [ ] "Name a machine" button on Routing
-- [ ] Deleting a machine that routes point at — refuse, or warn and unlink; **the case that
-      decides whether the link is worth it**
-- [ ] Migration: routes created in 21a hold a copied address and will not follow an IP change
-      until they are re-pointed
+**21b — the link field _(shipped 2026-09-20)_**
+- [x] **`machine` on the instance**, with `list_by_machine` + `is_machine` beside
+      `get_by_container`/`get_by_origin`. Unlike those two it is **not an idempotency key but
+      a dependency**, and one-to-*many*: a machine hosts any number of services
+- [x] **Propagation is eager, not derived at push time** (the TODO above said push-time —
+      changed on implementation). When a machine's assign moves its address, every dependent's
+      upstream host is rewritten and its route re-pushed inside the same call, so `upstream`
+      stays exactly what Caddy dials and nothing downstream needs a lookup. A no-op assign
+      re-pushes nothing. A failed re-push warns and leaves the **stored** upstream correct —
+      which is what makes Sync a repair rather than a second guess
+- [x] **Rejects a bad link up front** (`validate_machine`): `404` unknown, `422` for a service
+      (its upstream has a port) or for an instance naming itself
+- [x] **Deleting a machine unlinks, never blocks.** Dependents keep its last address and go on
+      working; the response lists them in `unlinked` and the dialog names them first. Refusing
+      was the alternative — rejected on Phase 18's standing preference for doing the thing and
+      saying what happened, since nothing here is unrecoverable
+- [x] `"Name a machine"` beside `"Add route"`, opening the same picker preset to External +
+      DNS-only (`initialSource`/`initialRouteMode`, remounted by `key`). A second verb, not a
+      second creation surface
+- [x] A `via <machine>` tag on linked rows — otherwise the link is invisible until the machine
+      moves and the row quietly follows it
+- [x] Tests: +10 backend (`relink_upstream`, linking, propagation across two routes, unlinked
+      rows untouched, a no-op assign, the failed re-push, the three rejections, delete-unlinks)
+      and +5 frontend (the link is sent, a typed address sends none, the presets, the tag)
+- [x] Docs: `api.md` (assign body + the delete's `unlinked`), `PLAN.md`, `CLAUDE.md`
+
+**Verification**
+- [x] `pytest` (243) + `npm test` (73) + `check-docs.sh` + `tsc -b`
+- [x] **Live.** Named a machine through the new button, routed a service onto it by picking it
+      (`via nas` shown), then moved the machine to `192.168.10.231`: the response said
+      `relinked: ["hello"]` and **Caddy's own dial changed to `192.168.10.231:8099`** — the
+      route then answered `502`, which is the proof the change reached Caddy, since that
+      address is fictitious. Re-pointing at the real one served `200` again. Deleting the
+      machine returned `unlinked: ["hello"]`, and that route kept its address with
+      `machine: null`
+
+**Known gap**
+- Routes created under **21a** hold a copied address with no link. They keep working and are
+  relinked by re-picking the machine in Change URL; there is no migration, since inferring a
+  link from a matching IP would guess
 
 ---
 

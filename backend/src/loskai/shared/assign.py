@@ -102,6 +102,29 @@ def subdomain_taken(prefix: str, exclude_id: str) -> bool:
     )
 
 
+def relink_upstream(upstream: str, new_host: str) -> str:
+    """Swap the host half of a `host:port` upstream, keeping the port. Pure — this is the
+    whole of what "the machine's address changed" means for a linked route."""
+    _, _, port = upstream.rpartition(":")
+    return f"{new_host}:{port}"
+
+
+def validate_machine(machine_id: str, target_id: str) -> Instance:
+    """The machine a route is being linked to must exist, be an address rather than a
+    service, and not be the route itself. Raises `AssignError` — a bad link is a client
+    error, not something to store and discover later."""
+    if machine_id == target_id:
+        raise AssignError(422, "an instance cannot be its own machine")
+    machine = instances_store.get_instance(machine_id)
+    if machine is None:
+        raise AssignError(404, f"machine '{machine_id}' not found")
+    if not instances_store.is_machine(machine):
+        raise AssignError(
+            422, f"'{machine_id}' is a service, not a machine — its upstream has a port"
+        )
+    return machine
+
+
 async def assign(
     caddy_client,
     adguard_client,
@@ -114,6 +137,7 @@ async def assign(
     name: str | None = None,
     container: str | None = None,
     origin: str | None = None,
+    machine: str | None = None,
     upstream_tls: bool = False,
     route_mode: Literal["proxy", "dns_only"] = "proxy",
 ) -> dict:
@@ -139,13 +163,16 @@ async def assign(
     if subdomain_taken(prefix, exclude_id=target_id):
         raise AssignError(409, f"subdomain '{prefix}' is already assigned")
 
+    if machine:
+        validate_machine(machine, target_id)
+
     created_new = existing is None
     if existing:
         prev: Instance | None = existing.model_copy(deep=True)
         inst = existing.model_copy(
             update={
                 "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
-                "route_mode": route_mode,
+                "route_mode": route_mode, "machine": machine,
             }
         )
     else:
@@ -157,7 +184,8 @@ async def assign(
         inst = Instance(
             id=prefix, name=name or prefix,
             type="docker" if container else "external",
-            container=container, origin=origin, subdomain=prefix, upstream=upstream,
+            container=container, origin=origin, machine=machine,
+            subdomain=prefix, upstream=upstream,
             upstream_tls=upstream_tls, route_mode=route_mode,
         )
 
@@ -227,13 +255,64 @@ async def assign(
                 "The name won't resolve on the LAN until it's added; retry when AdGuard is reachable."
             )
 
+    # Step 3 — carry the change to anything hosted here. This is what the `machine` link
+    # buys: one edit, every route to that address follows. Best-effort per route — a push
+    # that fails leaves the stored upstream correct, so the next Sync repairs it.
+    relinked, relink_failures = await _propagate_to_dependents(
+        caddy_client, inst, prev, base_domain
+    )
+    if relink_failures:
+        warning = (warning + " " if warning else "") + (
+            f"{len(relink_failures)} route(s) hosted here kept the old address in Caddy "
+            "until the next Sync."
+        )
+
     return {
         "caddy": "ok" if inst.route_mode == "proxy" else "skipped",
         "adguard": adguard_status,
         "url": f"https://{domain}" if inst.route_mode == "proxy" else domain,
         "instance_id": inst.id,
+        "relinked": relinked,
         "warning": warning,
     }
+
+
+async def _propagate_to_dependents(
+    caddy_client, machine: Instance, prev: Instance | None, base_domain: str | None
+) -> tuple[list[str], list[str]]:
+    """Rewrite the host half of every route hosted on `machine` and re-push it.
+
+    Only runs when this assign actually moved a machine's address: the link exists so an
+    IP is entered once, and a no-op assign must not re-push half the estate. Returns the
+    ids updated and the ids whose Caddy push failed (their stored upstream is already the
+    new one, which is what makes Sync a working repair rather than a second guess)."""
+    if not prev or not instances_store.is_machine(machine):
+        return [], []
+    old_host, new_host = prev.upstream, machine.upstream
+    if not new_host or old_host == new_host:
+        return [], []
+
+    updated: list[str] = []
+    failed: list[str] = []
+    for dep in instances_store.list_by_machine(machine.id):
+        if not dep.upstream:
+            continue
+        moved = dep.model_copy(
+            update={"upstream": relink_upstream(dep.upstream, new_host)}
+        )
+        instances_store.upsert_instance(moved)
+        updated.append(moved.id)
+        if moved.route_mode != "proxy" or not moved.subdomain:
+            continue
+        try:
+            await caddy_service.upsert_route(caddy_client, moved, base_domain)
+        except (httpx.HTTPError, CaddyError, ValueError) as exc:
+            failed.append(moved.id)
+            logger.warning(
+                "route %s not re-pushed after %s moved to %s: %s",
+                moved.id, machine.id, new_host, describe_error(exc),
+            )
+    return updated, failed
 
 
 async def unassign(
@@ -287,8 +366,17 @@ async def purge_instance(
     just does the cross-module teardown."""
     if inst.subdomain:
         await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
+    # Anything hosted here keeps working on the address it already has — it just stops
+    # following this machine. Refusing the delete would be the other option; Loskai's
+    # standing preference is to do the thing and say what happened (Phase 18's walk-back
+    # of the boot guard), and nothing here is unrecoverable: re-point the route to relink.
+    unlinked = [dep.id for dep in instances_store.list_by_machine(inst.id)]
+    for dep_id in unlinked:
+        dep = instances_store.get_instance(dep_id)
+        if dep:
+            instances_store.upsert_instance(dep.model_copy(update={"machine": None}))
     instances_store.delete_instance(inst.id)
-    return {"deleted": True, "instance_id": inst.id}
+    return {"deleted": True, "instance_id": inst.id, "unlinked": unlinked}
 
 
 async def delete_instance(
@@ -316,6 +404,7 @@ class AssignBody(BaseModel):
     name: str | None = None
     container: str | None = None
     origin: str | None = None
+    machine: str | None = None
     upstream_tls: bool = False
     route_mode: Literal["proxy", "dns_only"] = "proxy"
 
@@ -329,7 +418,7 @@ async def post_assign(body: AssignBody) -> dict:
             caddy, adguard,
             prefix=body.prefix, upstream=body.upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
-            origin=body.origin,
+            origin=body.origin, machine=body.machine,
             upstream_tls=body.upstream_tls,
             route_mode=body.route_mode,
             base_domain=base, current_ip=current_ip,

@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (233 + 68 + docs).
+All three checks pass (243 + 73 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -108,6 +108,10 @@ the `container` field, so the store cannot drift from reality. Two link fields a
 idempotency keys: `container` (a docker instance ↔ its container) and `origin` (an external
 instance ↔ a built-in Network service: `adguard`/`gateway`/`caddy`) — re-routing either edits
 its existing instance rather than making a duplicate (`get_by_container`/`get_by_origin`).
+A third link, **`machine`**, is not an idempotency key but a dependency: it names the instance
+that owns this upstream's *host* half. Moving that machine rewrites every dependent's upstream
+and re-pushes its route in the same assign (`list_by_machine`); deleting it **unlinks** rather
+than blocks — the routes keep the address they have and simply stop following it.
 
 **`client.py` (I/O) vs pure logic is a hard seam — keep it.** Thin `client.py` wrappers do
 only HTTP/socket calls; all decision logic (reconcile, route/Caddyfile builders, answer-IP

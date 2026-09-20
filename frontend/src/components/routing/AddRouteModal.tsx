@@ -20,10 +20,11 @@ export interface NewRoute {
   route_mode: RouteMode;
   container?: string;
   origin?: string;
+  machine?: string;
   name?: string;
 }
 
-type Source = "container" | "network" | "external";
+export type Source = "container" | "network" | "external";
 
 interface ContainerRow {
   id: string;
@@ -65,6 +66,8 @@ export function AddRouteModal({
   open,
   baseDomain,
   mode,
+  initialSource = "container",
+  initialRouteMode = "proxy",
   pending = false,
   error,
   routedOrigins,
@@ -74,15 +77,24 @@ export function AddRouteModal({
   open: boolean;
   baseDomain: string | null;
   mode: "docker" | "lan" | null;
+  // Presets, so "Name a machine" opens the External + DNS-only form directly rather than
+  // making naming a machine a thing you find inside a flow called "Add route".
+  initialSource?: Source;
+  initialRouteMode?: RouteMode;
   pending?: boolean;
   error?: string | null;
   routedOrigins: Set<string>;
   onSubmit: (route: NewRoute) => void;
   onClose: () => void;
 }) {
-  const [source, setSource] = useState<Source>("container");
-  const [routeMode, setRouteMode] = useState<RouteMode>("proxy");
-  const [link, setLink] = useState<{ container?: string; origin?: string; name?: string }>({});
+  const [source, setSource] = useState<Source>(initialSource);
+  const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
+  const [link, setLink] = useState<{
+    container?: string;
+    origin?: string;
+    machine?: string;
+    name?: string;
+  }>({});
   const [picked, setPicked] = useState<string | null>(null);
   const isDnsOnly = source === "external" && routeMode === "dns_only";
   // A picked container answers the hint for itself; `mode` is the deployment-wide
@@ -157,6 +169,8 @@ export function AddRouteModal({
     // ("plex"), not the machine itself, and prefilling `nas` would collide with the name
     // the machine already answers to. Trailing colon: the port is all that's left to type.
     fields.set({ upstream: `${m.upstream}:` });
+    // The link, not just the address: this route now follows the machine when it moves.
+    setLink({ machine: m.id });
     setPicked(m.id);
   };
   const pickNetwork = (s: (typeof networkItems)[number]) => {
