@@ -40,3 +40,28 @@ def test_delete():
     assert inst.delete_instance("x") is True
     assert inst.delete_instance("x") is False
     assert inst.list_instances() == []
+
+
+# --- `kind`: declared, not inferred (Phase 21d) ---
+
+
+def test_kind_is_backfilled_for_records_written_before_the_field():
+    # The rule the code used to infer at every call site, applied once at parse time.
+    machine = inst.Instance(id="nas", name="nas", type="external", upstream="192.168.10.50")
+    service = inst.Instance(id="g", name="g", type="docker", upstream="192.168.10.50:3000")
+
+    assert machine.kind == "machine"
+    assert service.kind == "service"
+
+
+def test_a_stored_kind_always_wins_over_the_shape():
+    # Once written, the record decides — the shape is only a fallback for old rows.
+    odd = inst.Instance(
+        id="x", name="x", type="external", upstream="192.168.10.50", kind="service"
+    )
+
+    assert odd.kind == "service"
+
+
+def test_an_instance_with_no_upstream_is_a_service():
+    assert inst.Instance(id="x", name="x", type="external").kind == "service"

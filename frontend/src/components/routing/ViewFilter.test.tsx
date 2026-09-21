@@ -51,3 +51,17 @@ test("no view ever loses a row", () => {
   expect(grouped).toBe(ALL.length);
   expect(split).toBe(ALL.length);
 });
+
+test("the backend's `kind` decides, not the address shape", () => {
+  // A machine that has been given a port-bearing upstream is a service, whatever it looks
+  // like — the record says so, and the record is what the backend links against.
+  const declared = row({ id: "odd", upstream: "192.168.10.50", kind: "service" });
+  expect(isMachine(declared)).toBe(false);
+  expect(isMachine(row({ id: "m", upstream: "192.168.10.50", kind: "machine" }))).toBe(true);
+});
+
+test("a row from before `kind` still sorts correctly", () => {
+  // Old build, no field on the row: fall back to the rule that used to be inferred.
+  expect(isMachine(row({ id: "old", upstream: "192.168.10.50" }))).toBe(true);
+  expect(isMachine(row({ id: "old2", upstream: "192.168.10.50:80" }))).toBe(false);
+});

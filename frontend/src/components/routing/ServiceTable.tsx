@@ -6,6 +6,7 @@ export interface RouteRow {
   id: string;
   name: string;
   type: "docker" | "external";
+  kind?: "service" | "machine";
   subdomain: string | null;
   route_mode?: "proxy" | "dns_only";
   fqdn: string | null;

@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (247) + `npm test` (80) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (252) + `npm test` (82) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -431,6 +431,28 @@ most, and a separate machine schema would contradict the founding "same struct, 
 **Answered while implementing:** a machine's IP change propagates (21b, verified); a *name*
 change keeps every link, because the link is by id; and the display `name` is owned by
 `PATCH /api/instances/{id}` — an assign deliberately leaves it alone.
+
+**21d — `kind`, declared instead of inferred _(shipped 2026-09-21)_**
+
+_Until now "is this a machine?" was the string test `":" not in upstream`, read in three
+places — `validate_machine`, the propagation guard, and the frontend's view filter. Correct
+for everything the UI creates, and a guess for anything else._
+
+- [x] **`kind: "service" | "machine"` on the instance**, set from the verb that assigned it
+      (`name_machine` → machine, `assign_route` → service) and re-evaluated on every assign,
+      so re-pointing a machine at a `host:port` makes it a service
+- [x] **No migration step.** A `model_validator(mode="before")` back-fills `kind` from the old
+      upstream-shape rule *only when the field is absent*, so a stored value always wins and
+      the next write persists the answer. Verified against a hand-written pre-`kind`
+      `instances.json`: `nas` read back as `machine`, `plex` as `service`, an upstream-less
+      record as `service`, the file untouched until something wrote to it
+- [x] `is_machine()` is now `kind == "machine"`; the frontend reads the field off the row and
+      keeps the shape test only as a fallback for a row from an older build
+- [x] Tests: +5 backend (back-fill for both shapes and for no upstream, a stored kind winning,
+      the verb deciding, a machine re-pointed at a port becoming a service) and +2 frontend
+- [x] Live, on the legacy store: the back-filled machine accepted a `machine` link and
+      propagated a move (`relinked: ["files"]`, `.50` → `.70`), while a legacy record that was
+      never linked stayed put
 
 **Known gap**
 - Routes created under **21a** hold a copied address with no link. They keep working and are

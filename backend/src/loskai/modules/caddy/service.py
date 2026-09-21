@@ -175,6 +175,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "container": inst.container,
                 "origin": inst.origin,
             "machine": inst.machine,
+            "kind": inst.kind,
                 "routed": routed,
                 "synced": synced,
                 "upstream_healthy": upstream_healthy,

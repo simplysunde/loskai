@@ -173,6 +173,8 @@ async def assign(
             update={
                 "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
                 "route_mode": route_mode, "machine": machine,
+                # Re-pointing a machine at a port turns it into a service, and vice versa.
+                "kind": "machine" if route_mode == "dns_only" else "service",
             }
         )
     else:
@@ -187,6 +189,7 @@ async def assign(
             container=container, origin=origin, machine=machine,
             subdomain=prefix, upstream=upstream,
             upstream_tls=upstream_tls, route_mode=route_mode,
+            kind="machine" if route_mode == "dns_only" else "service",
         )
 
     old_domain = (

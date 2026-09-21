@@ -673,3 +673,35 @@ async def test_assign_route_wrapper_publishes_a_service():
     assert result["caddy"] == "ok"
     assert caddy.pushed == ["grafana"]
     assert result["url"] == "https://grafana.example.no"
+
+
+async def test_the_verb_decides_the_kind():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+
+    await assign.name_machine(
+        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, current_ip=IP,
+    )
+    await assign.assign_route(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE, current_ip=IP,
+    )
+
+    assert instances_store.get_instance("nas").kind == "machine"
+    assert instances_store.get_instance("grafana").kind == "service"
+
+
+async def test_re_pointing_a_machine_at_a_port_makes_it_a_service():
+    # `kind` is not frozen at creation: it follows what the instance was last assigned as.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await assign.name_machine(
+        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, current_ip=IP,
+    )
+
+    await assign.assign_route(
+        caddy, ag, prefix="nas", upstream="192.168.10.50:5000", base_domain=BASE,
+        current_ip=IP, instance_id="nas",
+    )
+
+    nas = instances_store.get_instance("nas")
+    assert nas.kind == "service"
+    assert not instances_store.is_machine(nas)

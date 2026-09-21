@@ -9,9 +9,11 @@ const VIEWS: { id: View; label: string; hint: string }[] = [
   { id: "grouped", label: "Grouped", hint: "Each machine followed by what runs on it" },
 ];
 
-/** A machine is an address rather than a service: its upstream carries no port, which is
- *  what a `dns_only` assign stores. Same rule the backend links against. */
+/** A machine is an address rather than a service — the thing routes link to via `machine`.
+ *  Declared by the backend on the record (`kind`), not re-derived here: one rule, one place.
+ *  The upstream-shape fallback is only for a row from a build older than that field. */
 export function isMachine(row: RouteRow): boolean {
+  if (row.kind) return row.kind === "machine";
   return Boolean(row.upstream) && !row.upstream!.includes(":");
 }
 

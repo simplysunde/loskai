@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, model_validator
 
 from ..config import settings
 from . import store
@@ -24,6 +24,9 @@ class Instance(BaseModel):
     id: str  # stable slug — also the Caddy @id
     name: str  # display name
     type: Literal["docker", "external"]
+    kind: Literal["service", "machine"] = "service"  # what it *is*: a published service, or
+    # an address other routes point at. Set from `route_mode` on assign; back-filled below
+    # for records written before the field existed.
     subdomain: str | None = None  # null = tracked, no route assigned
     route_mode: Literal["proxy", "dns_only"] = "proxy"  # proxy = Caddy+AdGuard (default);
     # dns_only = AdGuard rewrite straight to `upstream`, no Caddy route, no TLS
@@ -34,6 +37,19 @@ class Instance(BaseModel):
     machine: str | None = None  # id of the machine instance that owns this upstream's host part
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
+
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_kind(cls, data: Any) -> Any:
+        """Back-fill `kind` for records written before it existed, from the shape the code
+        used to infer it from: an upstream with no port is an address, not a service. Runs
+        only when the field is absent, so a stored `kind` always wins — this is a migration
+        that needs no migration step, and the next write persists the answer."""
+        if isinstance(data, dict) and not data.get("kind"):
+            upstream = data.get("upstream") or ""
+            data = {**data, "kind": "machine" if upstream and ":" not in upstream else "service"}
+        return data
 
 
 def _path() -> Path:
@@ -98,9 +114,9 @@ def list_by_machine(machine_id: str) -> list[Instance]:
 
 
 def is_machine(instance: Instance) -> bool:
-    """True if this instance is an *address* rather than a service — its upstream is a bare
-    host with no port, which is what a `dns_only` assign stores. Only these can be linked to."""
-    return bool(instance.upstream) and ":" not in instance.upstream  # type: ignore[operator]
+    """True if this instance is an *address* rather than a service — the thing routes link to
+    via `machine`. Declared on the record now, not inferred from the upstream's shape."""
+    return instance.kind == "machine"
 
 
 def upsert_instance(instance: Instance) -> Instance:

@@ -117,6 +117,10 @@ view both read.
   "id":        "grafana",        // stable slug — also the Caddy @id
   "name":      "Grafana",        // display name
   "type":      "docker",         // "docker" | "external"
+  "kind":      "service",        // "service" (published at a URL) | "machine" (an address other
+                                 //   routes point at). Set from the verb used to assign it;
+                                 //   back-filled from the upstream's shape for records written
+                                 //   before the field, so there is no migration step
   "subdomain": "grafana",        // route prefix (null = tracked, no route assigned)
   "route_mode": "proxy",         // "proxy" (default, Caddy+AdGuard) | "dns_only" (AdGuard only —
                                  //   see "DNS-only routing" below)

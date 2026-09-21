@@ -31,9 +31,18 @@ changes it; nothing propagates because dependents hold an IP that did not move. 
 rendered that id, so a renamed machine would have left its routes labelled with a name it no
 longer answered to — found by writing the test to answer the question, not by using the app.
 
-**Still open:** `is_machine()` remains an inference — "the upstream has no port" — now read in
-three places, two backend and one frontend. An explicit marker on the instance was offered and
-not yet chosen.
+**Closed the same day:** `is_machine()` was an inference — "the upstream has no port" — read in
+three places, two backend and one frontend. It is now a declared `kind` on the record, set from
+the verb that assigned it. The interesting part is that it needed **no migration**: a
+before-validator fills `kind` from the old rule only when the field is absent, so old records
+read correctly on load, a stored value always wins, and the next write persists it. Checked
+against a hand-written pre-`kind` store rather than assumed, including that a back-filled
+machine still accepts links and propagates a move.
+
+`kind` is close to a synonym for `route_mode` today, and that is worth saying plainly. What it
+adds is that it describes what an instance *is* rather than how it is published — which is what
+the `machine` link actually cares about — and it takes a string-shape guess out of three call
+sites.
 
 ## 2026-09-20 — Machines as upstreams, and what that settles about the tab split
 
