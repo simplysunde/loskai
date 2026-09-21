@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (259) + `npm test` (86) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (262) + `npm test` (86) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -482,12 +482,19 @@ stored record** — so `instances.json` and the Routing table are untouched._
       (`POST /api/routes` 200), then re-pointed the machine from its own form — `relinked:
       ["hello"]` and Caddy's dial moved to `192.168.10.231:8099`. Propagation survived the split
 
+**21f — naming a machine no longer depends on Caddy _(shipped 2026-09-21)_**
+- [x] `_tear_down_route()` makes the delete **required only when converting** an instance that
+      had a proxy route — leaving that behind would keep Caddy answering a name the instance
+      no longer proxies, so that case still aborts and rolls back. Otherwise the call is
+      best-effort: a machine has no route, so Caddy being down or unconfigured is irrelevant
+- [x] Tests: +3 (naming a machine with a failing Caddy succeeds; converting a live route with
+      Caddy down raises `502` **and rolls back**; converting with Caddy up still deletes), plus
+      the endpoint test flipped from pinning the old `502` to asserting the `200`
+- [x] Live, both halves: with Caddy stopped, `POST /api/machines` returned `200` and
+      `nas.smoke.test` resolved to `192.168.10.50`; converting an existing proxy route with
+      Caddy stopped returned `502` and the row was still `service · proxy · 192.168.10.220:3000`
+
 **Known gaps**
-- **Naming a machine still needs Caddy reachable.** `assign()` calls `delete_route` on the
-  dns_only path to tear down a route left by a previous proxy assign, so with Caddy down or
-  unconfigured `POST /api/machines` answers `502` even though a machine has no route. Pre-dates
-  the split; the split makes it conspicuous. The fix is to attempt that teardown only when
-  editing an instance that *had* a proxy route
 - Routes created under **21a** hold a copied address with no link. They keep working and are
   relinked by re-picking the machine in Change URL; there is no migration, since inferring a
   link from a matching IP would guess

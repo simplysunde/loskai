@@ -56,16 +56,15 @@ def test_a_machine_rejects_a_port_in_its_address(client):
 
 
 def test_a_machine_accepts_a_dotted_hostname(client):
-    # No wildcard cert has to cover it, so the single-label rule does not apply: this gets
-    # past validation. It then fails at the Caddy step, because naming a machine still
-    # calls delete_route to tear down any route left by a previous proxy assignment —
-    # pre-dating this split, and the reason a machine currently needs Caddy reachable even
-    # though it has no route. Flagged in TODO's backlog, not fixed here.
+    # No wildcard cert has to cover it, so the single-label rule does not apply. And this
+    # runs with no `caddy_admin_url` configured at all: naming a machine involves no route,
+    # so it must not depend on Caddy being reachable (it answered 502 until Phase 21e).
     r = client.post("/api/machines", json={"hostname": "rack1.vm3", "address": "192.168.10.55"})
 
-    assert r.status_code == 502
-    assert "Caddy step failed" in r.json()["detail"]  # i.e. validation passed
-
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["caddy"] == "skipped"
+    assert body["url"] == "rack1.vm3.example.no"  # no scheme — nothing proxies it
 
 def test_a_route_rejects_a_dotted_prefix(client):
     # Every proxied name has to sit under the one *.BASE_DOMAIN certificate.

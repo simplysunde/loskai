@@ -208,9 +208,7 @@ async def assign(
         if inst.route_mode == "proxy":
             await caddy_service.upsert_route(caddy_client, inst, base_domain)
         else:
-            # dns_only: no Caddy route should exist. Tear down any stale one from a prior
-            # proxy assignment (idempotent — delete_route already ignores 404).
-            await caddy_client.delete_route(inst.id)
+            await _tear_down_route(caddy_client, inst, prev)
     except (httpx.HTTPError, CaddyError, ValueError) as exc:
         if created_new:
             instances_store.delete_instance(inst.id)
@@ -278,6 +276,26 @@ async def assign(
         "relinked": relinked,
         "warning": warning,
     }
+
+
+async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) -> None:
+    """Remove any Caddy route for an instance that is now `dns_only`.
+
+    Required only when this assign is *converting* one that had a proxy route: leaving that
+    behind would keep Caddy answering a name the instance no longer proxies, so a failure
+    there must abort and roll back. In every other case there is nothing to tear down, and
+    naming a machine must not depend on Caddy at all — it has no route, and before this the
+    unconditional delete made `POST /api/machines` fail with `502` whenever Caddy was down
+    or simply unconfigured."""
+    converting = bool(prev and prev.route_mode == "proxy" and prev.subdomain)
+    try:
+        await caddy_client.delete_route(inst.id)  # 404-safe
+    except (httpx.HTTPError, CaddyError) as exc:
+        if converting:
+            raise
+        logger.debug(
+            "no route teardown for %s (%s) — none expected", inst.id, describe_error(exc)
+        )
 
 
 async def _propagate_to_dependents(

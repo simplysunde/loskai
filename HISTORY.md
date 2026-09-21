@@ -21,10 +21,18 @@ machine form did not lowercase a typed hostname, which `useRouteFields` had done
 15 — one rule, now two places to implement it. Its own test caught it before anything shipped,
 which is the argument for writing the tests with the split rather than after.
 
-One thing the split made conspicuous rather than caused: naming a machine still requires Caddy
-to be reachable, because the dns_only path calls `delete_route` to tear down a route a previous
-proxy assign may have left. With Caddy down that is a `502` for an operation with no route in
-it. Backlogged with the fix — attempt the teardown only when editing an instance that had one.
+One thing the split made conspicuous rather than caused, **fixed the same day**: naming a
+machine required Caddy to be reachable, because the dns_only path called `delete_route` to tear
+down a route a previous proxy assign may have left. With Caddy down that was a `502` for an
+operation with no route in it.
+
+The teardown is now **required only when converting** — when the instance being renamed to a
+machine actually had a proxy route. That case must still fail loudly: a surviving Caddy route
+would go on answering a name the instance no longer proxies, which is worse than a refused
+edit, so it aborts and rolls back. Every other path treats the delete as best-effort, because
+there is nothing to delete. Both halves were checked against a stopped Caddy: naming a machine
+returned `200` and the name resolved; converting a live route returned `502` and left the row
+exactly as it was.
 
 ## 2026-09-21 — Three questions about machines: measured, then mostly answered "no"
 

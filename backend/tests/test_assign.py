@@ -705,3 +705,56 @@ async def test_re_pointing_a_machine_at_a_port_makes_it_a_service():
     nas = instances_store.get_instance("nas")
     assert nas.kind == "service"
     assert not instances_store.is_machine(nas)
+
+
+# --- Naming a machine must not depend on Caddy (Phase 21e follow-up) ---
+
+
+async def test_naming_a_machine_works_with_caddy_down():
+    # A machine has no route, so there is nothing for Caddy to do. The teardown call used
+    # to run unconditionally and take the whole operation down with it.
+    caddy, ag = FakeCaddy(fail=True), FakeAdGuard()
+
+    result = await assign.name_machine(
+        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, current_ip=IP,
+    )
+
+    assert result["caddy"] == "skipped"
+    assert instances_store.get_instance("nas").kind == "machine"
+
+
+async def test_converting_a_proxy_route_to_a_machine_still_needs_caddy():
+    # The other half: this one *has* a route, and leaving it behind would keep Caddy
+    # answering a name the instance no longer proxies. That must fail loudly and roll back.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await assign.assign_route(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE, current_ip=IP,
+    )
+    caddy.fail = True
+
+    with pytest.raises(AssignError) as exc:
+        await assign.name_machine(
+            caddy, ag, prefix="grafana", upstream="192.168.10.50", base_domain=BASE,
+            current_ip=IP, instance_id="grafana",
+        )
+
+    assert exc.value.status_code == 502
+    # Rolled back: still the proxied service it was.
+    assert instances_store.get_instance("grafana").route_mode == "proxy"
+
+
+async def test_converting_tears_the_route_down_when_caddy_is_up():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await assign.assign_route(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE, current_ip=IP,
+    )
+
+    await assign.name_machine(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50", base_domain=BASE,
+        current_ip=IP, instance_id="grafana",
+    )
+
+    assert caddy.deleted[-1] == "grafana"
+    assert instances_store.get_instance("grafana").kind == "machine"
