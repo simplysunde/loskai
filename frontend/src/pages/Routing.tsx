@@ -17,6 +17,7 @@ import {
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
+import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { InfraStatusPill } from "../components/routing/InfraStatusPill";
@@ -57,6 +58,9 @@ export function Routing() {
   // Machines and services share one table — "both" is the default, since the point of one
   // inventory is being able to see it. The other views are for when it gets long.
   const [view, setView] = useState<View>("all");
+  // Re-pointing a machine opens the machine form, not the route form: a machine has no
+  // port and no TLS, and its hostname may be dotted.
+  const [machineTarget, setMachineTarget] = useState<RouteRow | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
@@ -135,12 +139,11 @@ export function Routing() {
   });
 
   const assign = useMutation({
-    mutationFn: (p: {
-      prefix: string;
-      upstream: string;
-      upstream_tls: boolean;
-      route_mode: "proxy" | "dns_only";
-    }) => api.post<AssignResult>("/api/assign", { ...p, instance_id: assignTarget?.id ?? undefined }),
+    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
+      api.post<AssignResult>("/api/routes", {
+        ...p,
+        instance_id: assignTarget?.id ?? undefined,
+      }),
     onSuccess: (data) => {
       setAssignOpen(false);
       setResult(data);
@@ -151,7 +154,7 @@ export function Routing() {
 
   // Create a route from the "Add route" picker (container / network service / external).
   const addRoute = useMutation({
-    mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/assign", r),
+    mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/routes", r),
     onSuccess: (data) => {
       setAddOpen(null);
       setResult(data);
@@ -159,6 +162,17 @@ export function Routing() {
       invalidate();
     },
     onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Add route failed"),
+  });
+
+  const saveMachine = useMutation({
+    mutationFn: (m: NewMachine) => api.post<AssignResult>("/api/machines", m),
+    onSuccess: (data) => {
+      setAddOpen(null);
+      setMachineTarget(null);
+      setResult(data);
+      invalidate();
+    },
+    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Save failed"),
   });
 
   // Remove the route (Caddy + DNS), keep the instance.
@@ -217,6 +231,17 @@ export function Routing() {
   // Routes hosted on a machine — read off the rows we already have, no extra request.
   const dependentsOf = (machine: RouteRow | null) =>
     machine ? rows.filter((r) => r.machine === machine.id) : [];
+
+  // Change URL dispatches on what the row *is*: a machine's address is edited in the
+  // machine form, a service's upstream in the route form.
+  const openEdit = (row: RouteRow) => {
+    setAssignError(null);
+    if (isMachine(row)) {
+      setMachineTarget(row);
+      return;
+    }
+    openAssign(row);
+  };
 
   const openAssign = (target: RouteRow | null) => {
     setAssignTarget(target);
@@ -384,7 +409,7 @@ export function Routing() {
         )}
         <ServiceTable
           rows={applyView(rows, view)}
-          onAssign={(row) => openAssign(row)}
+          onAssign={(row) => openEdit(row)}
           onRemoveRoute={(row) => setConfirmRemove(row)}
           onDelete={(row) => setConfirmDelete(row)}
           actionBusyId={actionBusyId}
@@ -404,19 +429,38 @@ export function Routing() {
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
         initialUpstream={assignTarget?.upstream ?? ""}
         initialTls={assignTarget?.upstream_tls ?? false}
-        initialRouteMode={assignTarget?.route_mode ?? "proxy"}
-        allowDnsOnly={assignTarget?.type !== "docker"}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}
       />
 
+      <AddMachineModal
+        key={machineTarget?.id ?? (addOpen === "machine" ? "new-machine" : "machine-closed")}
+        open={addOpen === "machine" || machineTarget !== null}
+        baseDomain={baseDomain}
+        editing={
+          machineTarget
+            ? {
+                id: machineTarget.id,
+                hostname: machineTarget.subdomain ?? machineTarget.id,
+                address: machineTarget.upstream ?? "",
+                name: machineTarget.name,
+              }
+            : null
+        }
+        pending={saveMachine.isPending}
+        error={assignError}
+        onSubmit={(m) => saveMachine.mutate(m)}
+        onClose={() => {
+          setAddOpen(null);
+          setMachineTarget(null);
+        }}
+      />
+
       <AddRouteModal
         key={addOpen ?? "add-closed"}
-        open={addOpen !== null}
+        open={addOpen === "route"}
         baseDomain={baseDomain}
         mode={mode}
-        initialSource={addOpen === "machine" ? "external" : "container"}
-        initialRouteMode={addOpen === "machine" ? "dns_only" : "proxy"}
         pending={addRoute.isPending}
         error={assignError}
         routedOrigins={routedOrigins}

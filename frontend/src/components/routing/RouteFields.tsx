@@ -17,34 +17,30 @@ export function RouteFields({
   autoFocus?: boolean;
   preview?: ReactNode;
 }) {
-  const { isDnsOnly } = fields;
-
   return (
     <>
       <label className="mt-4 block">
         <span className="mb-1 block text-xs font-medium text-slate-400">
-          {isDnsOnly ? "Hostname (dots allowed)" : "Subdomain prefix"}
+          Subdomain prefix
         </span>
         <input
           autoFocus={autoFocus}
           value={fields.prefix}
           onChange={(e) => fields.setPrefix(e.target.value)}
-          placeholder={isDnsOnly ? "rack1.vm3" : "grafana"}
+          placeholder="grafana"
           className={INPUT}
         />
         {preview}
         {fields.prefix && !fields.prefixOk && (
           <span className="mt-1 block text-xs text-rose-400">
-            {isDnsOnly
-              ? "Each dot-separated label: lowercase letters, digits, hyphens."
-              : "Single DNS label only: lowercase letters, digits, hyphens."}
+            Single DNS label only: lowercase letters, digits, hyphens.
           </span>
         )}
       </label>
 
       <label className="mt-3 block">
         <span className="mb-1 block text-xs font-medium text-slate-400">
-          {isDnsOnly ? "Machine IP" : "Upstream (host:port)"}
+          Upstream (host:port)
         </span>
         <input
           value={fields.upstream}
@@ -55,7 +51,7 @@ export function RouteFields({
         <span className="mt-1 block text-xs text-slate-500">{fields.upstreamHelp}</span>
         {fields.upstream && !fields.upstreamOk && (
           <span className="mt-1 block text-xs text-rose-400">
-            {isDnsOnly ? "A bare IPv4 address — no port." : "Use host:port — no scheme (http://) or path."}
+            Use host:port — no scheme (http://) or path.
           </span>
         )}
       </label>

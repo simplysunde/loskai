@@ -419,30 +419,68 @@ async def delete_instance(
 router = APIRouter(prefix="/api", tags=["assign"])
 
 
-class AssignBody(BaseModel):
+# Two request models, because the two things being asked for are not the same shape. A
+# machine is an address with a name; a service is a name pointing at a host:port, possibly
+# over TLS, possibly hosted on a machine. Fields that mean nothing for one are absent from
+# it rather than ignored — a `upstream_tls` on a machine used to be silently dropped.
+#
+# They converge on one `assign()` below: the orchestration (dedup, uniqueness, Step 0/1/2
+# with its rollback, AdGuard's exact-pair cleanup, machine propagation) is identical, and
+# that is the part where two copies would drift into a real bug.
+
+
+class MachineCreate(BaseModel):
+    """Name a LAN machine. `hostname` may be dotted (`rack1.vm3`) — no wildcard cert has to
+    cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports."""
+
+    hostname: str
+    address: str
+    name: str | None = None
+    instance_id: str | None = None
+
+
+class RouteCreate(BaseModel):
+    """Publish a service at a name, through Caddy."""
+
     prefix: str
     upstream: str
-    instance_id: str | None = None
-    name: str | None = None
+    upstream_tls: bool = False
+    machine: str | None = None
     container: str | None = None
     origin: str | None = None
-    machine: str | None = None
-    upstream_tls: bool = False
-    route_mode: Literal["proxy", "dns_only"] = "proxy"
+    name: str | None = None
+    instance_id: str | None = None
 
 
-@router.post("/assign")
-async def post_assign(body: AssignBody) -> dict:
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+def _context() -> tuple[str | None, str | None]:
+    return settings_store.value("base_domain"), settings_store.derive_caddy_host_ip()
+
+
+@router.post("/machines")
+async def post_machine(body: MachineCreate) -> dict:
+    """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
+    base, current_ip = _context()
     try:
-        return await assign(
+        return await name_machine(
+            caddy, adguard,
+            prefix=body.hostname, upstream=body.address,
+            instance_id=body.instance_id, name=body.name,
+            base_domain=base, current_ip=current_ip,
+        )
+    except AssignError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+
+@router.post("/routes")
+async def post_route(body: RouteCreate) -> dict:
+    """Create or re-point a proxied service (`instance_id` to edit one)."""
+    base, current_ip = _context()
+    try:
+        return await assign_route(
             caddy, adguard,
             prefix=body.prefix, upstream=body.upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
-            origin=body.origin, machine=body.machine,
-            upstream_tls=body.upstream_tls,
-            route_mode=body.route_mode,
+            origin=body.origin, machine=body.machine, upstream_tls=body.upstream_tls,
             base_domain=base, current_ip=current_ip,
         )
     except AssignError as exc:

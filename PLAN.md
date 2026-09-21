@@ -491,7 +491,9 @@ route, so it never appears in `push_all` or the live-sync check.
 **Add route** (the single route-creation surface — a source picker over one assign form)
 - Source selector `[ Container | Network service | External ]` — pick an *unrouted* container
   or built-in service (pre-fills subdomain + upstream), or enter an external target by hand.
-  Routed items are filtered out. Submitting posts `container` / `origin` / neither to `/api/assign`.
+  Routed items are filtered out. Submitting posts `container` / `origin` / neither to
+  `/api/routes`. Naming a machine is a **separate modal and endpoint** (`/api/machines`) —
+  different shape, different verb — reached by the "Name a machine" button beside it.
 - Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
   (lowercase letters, digits, hyphens; must be unique)
 - Domain suffix auto-filled from the global `BASE_DOMAIN` setting (e.g. `example.no`)
@@ -799,7 +801,9 @@ instance itself survives — it just no longer has a route. To remove the instan
 `DELETE /api/instances/{id}` (any type — see Core Data Model), which runs this same
 clear-route step first and then drops the record.
 
-**`route_mode: "dns_only"` variant.** Same `POST /api/assign`, one extra field
+**`route_mode: "dns_only"` variant.** Stored the same way, but created through its own
+endpoint `POST /api/machines` since Phase 21e (this paragraph's "same endpoint, one extra
+field" was true until then)
 (`"route_mode": "dns_only"`), and Step 1 inverts: instead of pushing a route, Loskai
 deletes any Caddy route that might exist for that `@id` (idempotent — a no-op the first
 time, and what tears down a stale route on a proxy→dns_only mode switch). Step 2's answer

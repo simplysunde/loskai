@@ -10,14 +10,13 @@ import { isValidDnsTarget } from "../../lib/validation";
 import { useScrollLock } from "../../lib/useScrollLock";
 import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
-import { useRouteFields, type RouteMode } from "./useRouteFields";
+import { useRouteFields } from "./useRouteFields";
 
 // The route payload the parent posts to /api/assign.
 export interface NewRoute {
   prefix: string;
   upstream: string;
   upstream_tls: boolean;
-  route_mode: RouteMode;
   container?: string;
   origin?: string;
   machine?: string;
@@ -67,7 +66,6 @@ export function AddRouteModal({
   baseDomain,
   mode,
   initialSource = "container",
-  initialRouteMode = "proxy",
   pending = false,
   error,
   routedOrigins,
@@ -77,10 +75,8 @@ export function AddRouteModal({
   open: boolean;
   baseDomain: string | null;
   mode: "docker" | "lan" | null;
-  // Presets, so "Name a machine" opens the External + DNS-only form directly rather than
-  // making naming a machine a thing you find inside a flow called "Add route".
+  // Which source the picker opens on. Machines have their own modal — see AddMachineModal.
   initialSource?: Source;
-  initialRouteMode?: RouteMode;
   pending?: boolean;
   error?: string | null;
   routedOrigins: Set<string>;
@@ -88,7 +84,6 @@ export function AddRouteModal({
   onClose: () => void;
 }) {
   const [source, setSource] = useState<Source>(initialSource);
-  const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
   const [link, setLink] = useState<{
     container?: string;
     origin?: string;
@@ -96,11 +91,10 @@ export function AddRouteModal({
     name?: string;
   }>({});
   const [picked, setPicked] = useState<string | null>(null);
-  const isDnsOnly = source === "external" && routeMode === "dns_only";
   // A picked container answers the hint for itself; `mode` is the deployment-wide
   // fallback, used by the Network-service and External sources, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
-  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain, isDnsOnly });
+  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain });
 
   const containers = useQuery({
     queryKey: ["docker-containers"],
@@ -150,7 +144,6 @@ export function AddRouteModal({
 
   const reset = (next: Source) => {
     setSource(next);
-    setRouteMode("proxy"); // Container/Network always imply proxy; External defaults to it too
     fields.set({ prefix: "", upstream: "", tls: false });
     setLink({});
     setPicked(null);
@@ -228,49 +221,37 @@ export function AddRouteModal({
         )}
         {source === "external" && (
           <>
-            {!isDnsOnly && (
-              <PickList empty="No named machines yet — type an address below.">
-                {machines.map((m) => (
-                  <PickItem
-                    key={m.id}
-                    active={picked === m.id}
-                    onClick={() => pickMachine(m)}
-                    title={m.name}
-                    sub={m.fqdn ? `${m.upstream} · ${m.fqdn}` : (m.upstream ?? "")}
-                  />
-                ))}
-              </PickList>
-            )}
+            <PickList empty="No named machines yet — type an address below.">
+              {machines.map((m) => (
+                <PickItem
+                  key={m.id}
+                  active={picked === m.id}
+                  onClick={() => pickMachine(m)}
+                  title={m.name}
+                  sub={m.fqdn ? `${m.upstream} · ${m.fqdn}` : (m.upstream ?? "")}
+                />
+              ))}
+            </PickList>
             <p className="mt-3 text-xs text-slate-500">
-              {isDnsOnly
-                ? "A machine by address — give it a name and its bare IP below."
-                : "Pick a machine above to fill in its address, or type any host:port below."}
+              Pick a machine above to fill in its address, or type any host:port below.
+              Naming a machine itself is the <span className="text-slate-300">Name a
+              machine</span> button.
             </p>
-            <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
-              <SourceTab active={routeMode === "proxy"} onClick={() => setRouteMode("proxy")} icon={null}>
-                Proxied
-              </SourceTab>
-              <SourceTab active={routeMode === "dns_only"} onClick={() => setRouteMode("dns_only")} icon={null}>
-                DNS-only
-              </SourceTab>
-            </div>
           </>
         )}
 
         <RouteFields fields={fields} />
-        {!isDnsOnly && (
-          <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-            <input
-              type="checkbox"
-              checked={fields.tls}
-              onChange={(e) => fields.setTls(e.target.checked)}
-            />
-            Backend speaks HTTPS (skip cert verification)
-          </label>
-        )}
+        <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+          <input
+            type="checkbox"
+            checked={fields.tls}
+            onChange={(e) => fields.setTls(e.target.checked)}
+          />
+          Backend speaks HTTPS (skip cert verification)
+        </label>
 
         <p className="mt-4 text-xs text-slate-500">
-          → <span className="font-mono text-slate-300">{isDnsOnly ? fields.fqdn : `https://${fields.fqdn}`}</span>
+          → <span className="font-mono text-slate-300">{`https://${fields.fqdn}`}</span>
         </p>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 

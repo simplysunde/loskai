@@ -1,31 +1,24 @@
 import { useState } from "react";
 
-import {
-  assembleFqdn,
-  isValidDnsOnlyPrefix,
-  isValidDnsTarget,
-  isValidPrefix,
-  isValidUpstream,
-} from "../../lib/validation";
-
-export type RouteMode = "proxy" | "dns_only";
+import { assembleFqdn, isValidPrefix, isValidUpstream } from "../../lib/validation";
 
 // The prefix + upstream + TLS trio both route modals collect: state, validation, and the
 // copy that depends on Caddy's mode. It lives in one place because the two surfaces had
 // already drifted — AddRouteModal was missing the prefix lowercasing and every hint
 // AssignModal shows (Phase 15 F2), which is only possible while each keeps its own copy.
+//
+// Routes only. Naming a machine is a different shape — a dotted hostname and a bare
+// address, no port, no TLS — and collects its own fields in AddMachineModal rather than
+// bending these through an `isDnsOnly` flag (Phase 21e).
 export function useRouteFields({
   mode,
   baseDomain,
-  isDnsOnly,
   initialPrefix = "",
   initialUpstream = "",
   initialTls = false,
 }: {
   mode: "docker" | "lan" | null;
   baseDomain: string | null;
-  // Owned by the caller: each modal decides when DNS-only is even offered.
-  isDnsOnly: boolean;
   initialPrefix?: string;
   initialUpstream?: string;
   initialTls?: boolean;
@@ -34,8 +27,8 @@ export function useRouteFields({
   const [upstream, setUpstream] = useState(initialUpstream);
   const [tls, setTls] = useState(initialTls);
 
-  const prefixOk = isDnsOnly ? isValidDnsOnlyPrefix(prefix) : isValidPrefix(prefix);
-  const upstreamOk = isDnsOnly ? isValidDnsTarget(upstream) : isValidUpstream(upstream);
+  const prefixOk = isValidPrefix(prefix);
+  const upstreamOk = isValidUpstream(upstream);
 
   return {
     prefix,
@@ -51,27 +44,21 @@ export function useRouteFields({
       if (next.upstream !== undefined) setUpstream(next.upstream);
       if (next.tls !== undefined) setTls(next.tls);
     },
-    isDnsOnly,
     prefixOk,
     upstreamOk,
     valid: prefixOk && upstreamOk,
     fqdn: assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN"),
-    upstreamHint: isDnsOnly
-      ? "e.g. 192.168.10.55"
-      : mode === "docker"
-        ? "e.g. grafana:3000"
-        : "e.g. 192.168.10.100:3000",
-    upstreamHelp: isDnsOnly
-      ? "A bare LAN IP — DNS resolves the name straight to this address, no proxy, no TLS."
-      : mode === "docker"
+    upstreamHint:
+      mode === "docker" ? "e.g. grafana:3000" : "e.g. 192.168.10.100:3000",
+    upstreamHelp:
+      mode === "docker"
         ? "Caddy shares a Docker network with this container, so it can dial it by name."
         : "Must be reachable from wherever Caddy runs — a LAN IP:port. A container name resolves only if Caddy shares a Docker network with it.",
-    // What both modals post to /api/assign; AddRouteModal spreads its link fields on top.
+    // What both route modals post to /api/routes; AddRouteModal spreads its links on top.
     payload: () => ({
       prefix,
       upstream: upstream.trim(),
-      upstream_tls: isDnsOnly ? false : tls,
-      route_mode: (isDnsOnly ? "dns_only" : "proxy") as RouteMode,
+      upstream_tls: tls,
     }),
   };
 }

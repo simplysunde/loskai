@@ -85,7 +85,6 @@ test("lowercases a typed prefix instead of silently rejecting it", () => {
     prefix: "grafana",
     upstream: "192.168.10.100:3000",
     upstream_tls: false,
-    route_mode: "proxy",
   });
 });
 
@@ -119,30 +118,6 @@ test("hints stay hidden while a field is empty", () => {
   ).not.toBeInTheDocument();
   expect(addButton()).toBeDisabled();
 });
-
-test("DNS-only mode validates a bare IP and submits dns_only", () => {
-  const { onSubmit } = renderModal();
-  fireEvent.click(screen.getByRole("button", { name: "DNS-only" }));
-
-  const host = screen.getByPlaceholderText("rack1.vm3");
-  fireEvent.change(host, { target: { value: "Rack1.VM3" } });
-  expect(host).toHaveValue("rack1.vm3"); // dots allowed, case still normalised
-
-  const target = screen.getByPlaceholderText("e.g. 192.168.10.55");
-  fireEvent.change(target, { target: { value: "192.168.10.55:80" } });
-  expect(screen.getByText("A bare IPv4 address — no port.")).toBeInTheDocument();
-  expect(addButton()).toBeDisabled();
-
-  fireEvent.change(target, { target: { value: "192.168.10.55" } });
-  fireEvent.click(addButton());
-  expect(onSubmit).toHaveBeenCalledWith({
-    prefix: "rack1.vm3",
-    upstream: "192.168.10.55",
-    upstream_tls: false,
-    route_mode: "dns_only",
-  });
-});
-
 
 // --- The upstream hint is the container's, not the deployment's (Phase 16 Stage A) ---
 
@@ -219,12 +194,13 @@ test("switching source clears the container's mode", async () => {
 // --- Machines as upstreams (Phase 21a) ---
 
 const MACHINES = [
-  // A named machine: dns_only, so its upstream is a bare IP.
+  // A named machine: its upstream is a bare address, and `kind` says so.
   {
     id: "nas",
     name: "nas",
     type: "external",
     subdomain: "nas",
+    kind: "machine",
     route_mode: "dns_only",
     fqdn: "nas.example.no",
     upstream: "192.168.10.50",
@@ -239,6 +215,7 @@ const MACHINES = [
     name: "grafana",
     type: "docker",
     subdomain: "grafana",
+    kind: "service",
     route_mode: "proxy",
     fqdn: "grafana.example.no",
     upstream: "192.168.10.60:3000",
@@ -292,14 +269,6 @@ test("a typed address carries no machine link", async () => {
   );
 });
 
-test("the presets open straight into the machine form", async () => {
-  renderPicker({ initialSource: "external", initialRouteMode: "dns_only" });
-
-  // "Name a machine" lands on the DNS-only External form, not the container list.
-  expect(await screen.findByPlaceholderText("rack1.vm3")).toBeInTheDocument();
-  expect(screen.getByText(/give it a name and its bare IP/)).toBeInTheDocument();
-});
-
 test("picking a machine fills its address and leaves the port to type", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   renderPicker();
@@ -320,16 +289,6 @@ test("picking a machine leaves the prefix alone", async () => {
   fireEvent.click(await screen.findByText("192.168.10.50 · nas.example.no"));
 
   expect(screen.getByPlaceholderText("grafana")).toHaveValue("");
-});
-
-test("DNS-only mode offers no machine list — it is where machines are made", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.click(screen.getByRole("button", { name: "DNS-only" }));
-
-  expect(screen.queryByText("192.168.10.50 · nas.example.no")).not.toBeInTheDocument();
 });
 
 test("with no machines yet, External still takes a typed address", async () => {

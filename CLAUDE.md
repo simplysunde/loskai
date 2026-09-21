@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (252 + 82 + docs).
+All three checks pass (259 + 86 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -38,7 +38,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 39 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 40 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
@@ -122,7 +122,10 @@ only HTTP/socket calls; all decision logic (reconcile, route/Caddyfile builders,
 derivation) lives in pure functions. This is what makes the logic testable without a network
 (unit tests mock nothing, contract tests mock the client). Do not tangle I/O into logic.
 
-**`POST /api/assign` is the only cross-module action** (in `shared/assign.py`): it sets the
+**Creation is two endpoints over one cross-module action** (in `shared/assign.py`):
+**`POST /api/routes`** publishes a service and **`POST /api/machines`** names a LAN address,
+each with its own request model — a machine has no port, no TLS and may be dotted; a route
+has all three and may link to a machine. They converge on one `assign()`, which sets the
 instance's subdomain, pushes the Caddy route (**required** — aborts+rolls back on failure),
 then writes the AdGuard rewrite (**best-effort** — warns, never fails the assign). The Caddy
 and AdGuard modules never write on their own; they are read + push only.

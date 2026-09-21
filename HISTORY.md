@@ -1,5 +1,31 @@
 # Loskai — History
 
+## 2026-09-21 — The creation model split in two, after all
+
+Sunde asked a third time: "I still want you to split up the dns-only (machine name model) and
+add routes model." The measurement that argued against splitting the *flow* still holds — and
+it is not what was being asked. The split is of the **models, endpoints and forms**; the
+orchestration underneath stays one function, so the rollback, AdGuard's exact-pair cleanup and
+the machine propagation still exist exactly once.
+
+`POST /api/assign` is gone, replaced by `POST /api/machines` and `POST /api/routes`. Each
+takes only the fields its verb means: a machine has a possibly-dotted hostname and a bare
+address; a route has a single-label prefix, a `host:port` upstream, TLS and its links. The
+practical gain is that impossible combinations stopped being *ignored* and started being
+absent — `upstream_tls` on a machine was accepted and silently dropped before. The UI followed:
+a dedicated `AddMachineModal`, a picker with no DNS-only toggle, and Change URL dispatching on
+`kind` so a machine is edited as a machine.
+
+**The cost showed up immediately, and it is the cost the measurement predicted.** The new
+machine form did not lowercase a typed hostname, which `useRouteFields` had done since Phase
+15 — one rule, now two places to implement it. Its own test caught it before anything shipped,
+which is the argument for writing the tests with the split rather than after.
+
+One thing the split made conspicuous rather than caused: naming a machine still requires Caddy
+to be reachable, because the dns_only path calls `delete_route` to tear down a route a previous
+proxy assign may have left. With Caddy down that is a `502` for an operation with no route in
+it. Backlogged with the fix — attempt the teardown only when editing an instance that had one.
+
 ## 2026-09-21 — Three questions about machines: measured, then mostly answered "no"
 
 Sunde asked whether to split the add flow and model into reverse-proxy and `dns_only`

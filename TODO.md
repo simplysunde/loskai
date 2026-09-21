@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (252) + `npm test` (82) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (259) + `npm test` (86) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -454,7 +454,40 @@ for everything the UI creates, and a guess for anything else._
       propagated a move (`relinked: ["files"]`, `.50` → `.70`), while a legacy record that was
       never linked stayed put
 
-**Known gap**
+**21e — two models, two endpoints, two modals _(shipped 2026-09-21)_**
+
+_Sunde, after the wrappers landed: "I still want you to split up the dns-only (machine name
+model) and add routes model." Asked once about depth and answered **models + API + UI, one
+stored record** — so `instances.json` and the Routing table are untouched._
+
+- [x] **`MachineCreate` / `RouteCreate`**, each carrying only what its verb means. A machine
+      has `hostname` (dotted allowed) + `address` (bare IP); a route has `prefix` + `upstream`
+      + `upstream_tls` + the `machine`/`container`/`origin` links. `upstream_tls` on a machine
+      used to be accepted and silently dropped; now it isn't a field
+- [x] **`POST /api/machines` + `POST /api/routes` replace `POST /api/assign`** — one door per
+      verb rather than one door with a `route_mode` flag. A test asserts the old path is gone
+- [x] **`AddMachineModal`** — its own form: no source tabs, no port, no TLS, its own hint copy.
+      `AddRouteModal` lost the Proxied/DNS-only toggle, `AssignModal` lost `allowDnsOnly`, and
+      `useRouteFields`/`RouteFields` lost the `isDnsOnly` branching they carried for it
+- [x] **Change URL dispatches on `kind`** — a machine row opens the machine form (Edit machine),
+      a service row the route form
+- [x] **A drift the split caused, caught by its own test:** the new machine form didn't
+      lowercase a typed hostname, which `useRouteFields` had always done. Fixed in the
+      component. This is the cost the measurement predicted — two forms, two places for a rule
+- [x] Tests: +7 backend HTTP (`test_create_endpoints.py`: both endpoints need a session, the
+      old one is gone, each rejects the other's shape, the models carry no dead fields) and
+      +7 frontend (`AddMachineModal.test.tsx`), with the picker's DNS-only cases removed
+- [x] Docs: `api.md` (two rows replace one, under a renamed section), `CLAUDE.md`, `PLAN.md`
+- [x] Live: named a machine (`POST /api/machines` 200), routed a service onto it by picking it
+      (`POST /api/routes` 200), then re-pointed the machine from its own form — `relinked:
+      ["hello"]` and Caddy's dial moved to `192.168.10.231:8099`. Propagation survived the split
+
+**Known gaps**
+- **Naming a machine still needs Caddy reachable.** `assign()` calls `delete_route` on the
+  dns_only path to tear down a route left by a previous proxy assign, so with Caddy down or
+  unconfigured `POST /api/machines` answers `502` even though a machine has no route. Pre-dates
+  the split; the split makes it conspicuous. The fix is to attempt that teardown only when
+  editing an instance that *had* a proxy route
 - Routes created under **21a** hold a copied address with no link. They keep working and are
   relinked by re-picking the machine in Change URL; there is no migration, since inferring a
   link from a matching IP would guess

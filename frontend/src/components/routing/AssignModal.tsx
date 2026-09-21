@@ -1,40 +1,32 @@
-import { useState } from "react";
-
 import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
-import { useRouteFields, type RouteMode } from "./useRouteFields";
+import { useRouteFields } from "./useRouteFields";
 
-// Assign URL form: a single-label prefix + an upstream host:port, with the assembled
-// FQDN shown live, plus a Proxied/DNS-only mode toggle (external instances only — see
-// `allowDnsOnly`). Presentational — submit is handed to onSubmit (wired to /api/assign).
-// The upstream hint follows the Caddy mode (Docker names vs LAN IPs).
+// Assign URL form: a single-label prefix + an upstream host:port, with the assembled FQDN
+// shown live. Presentational — submit is handed to onSubmit (wired to /api/routes). The
+// upstream hint follows the Caddy mode (Docker names vs LAN IPs). Re-pointing a *machine*
+// is a different form entirely and goes to AddMachineModal (Phase 21e).
 export function AssignModal({
   open,
   baseDomain,
   mode,
   pending = false,
   error,
-  allowDnsOnly = false,
   onSubmit,
   onClose,
   initialPrefix = "",
   initialUpstream = "",
   initialTls = false,
-  initialRouteMode = "proxy",
 }: {
   open: boolean;
   baseDomain: string | null;
   mode: "docker" | "lan" | null;
   pending?: boolean;
   error?: string | null;
-  // A container-backed instance always stays proxy — its own IP is rarely meaningful as
-  // a bare DNS target, so the toggle is hidden for those rows.
-  allowDnsOnly?: boolean;
   onSubmit: (payload: {
     prefix: string;
     upstream: string;
     upstream_tls: boolean;
-    route_mode: RouteMode;
   }) => void;
   onClose: () => void;
   // Prefilled when re-assigning an existing instance (the modal is keyed per target so
@@ -42,14 +34,10 @@ export function AssignModal({
   initialPrefix?: string;
   initialUpstream?: string;
   initialTls?: boolean;
-  initialRouteMode?: RouteMode;
 }) {
-  const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
-  const isDnsOnly = allowDnsOnly && routeMode === "dns_only";
   const fields = useRouteFields({
     mode,
     baseDomain,
-    isDnsOnly,
     initialPrefix,
     initialUpstream,
     initialTls,
@@ -71,27 +59,6 @@ export function AssignModal({
       >
         <h2 className="text-base font-semibold text-slate-100">Assign URL</h2>
 
-        {allowDnsOnly && (
-          <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
-            <button
-              onClick={() => setRouteMode("proxy")}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium ${
-                routeMode === "proxy" ? "bg-teal-500/15 text-teal-200" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              Proxied
-            </button>
-            <button
-              onClick={() => setRouteMode("dns_only")}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium ${
-                routeMode === "dns_only" ? "bg-teal-500/15 text-teal-200" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              DNS-only
-            </button>
-          </div>
-        )}
-
         <RouteFields
           fields={fields}
           autoFocus
@@ -102,22 +69,20 @@ export function AssignModal({
           }
         />
 
-        {!isDnsOnly && (
-          <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={fields.tls}
-              onChange={(e) => fields.setTls(e.target.checked)}
-              className="mt-0.5 accent-teal-500"
-            />
-            <span>
-              Backend speaks HTTPS
-              <span className="block text-xs text-slate-500">
-                Dial the upstream over TLS, accepting a self-signed cert (e.g. Proxmox).
-              </span>
+        <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={fields.tls}
+            onChange={(e) => fields.setTls(e.target.checked)}
+            className="mt-0.5 accent-teal-500"
+          />
+          <span>
+            Backend speaks HTTPS
+            <span className="block text-xs text-slate-500">
+              Dial the upstream over TLS, accepting a self-signed cert (e.g. Proxmox).
             </span>
-          </label>
-        )}
+          </span>
+        </label>
 
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
