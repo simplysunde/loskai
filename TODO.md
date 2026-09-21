@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (243) + `npm test` (73) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (247) + `npm test` (80) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -400,6 +400,37 @@ is a bare IP._
       address is fictitious. Re-pointing at the real one served `200` again. Deleting the
       machine returned `unlinked: ["hello"]`, and that route kept its address with
       `machine: null`
+
+**21c — two verbs, and views over the one table _(shipped 2026-09-21)_**
+
+_Sunde asked whether the add function and model should be split into a reverse-proxy one and
+a `dns_only` one, whether machines deserve their own schema, and whether the two should
+reference each other. Measured before answering: `assign()` is ~190 lines with **four**
+behavioural branches on `route_mode` (prefix validation, upstream validation, the Caddy step,
+the answer/URL shape) — everything else, including the rollback and AdGuard's exact-pair
+cleanup, is shared. Splitting the flow would duplicate the parts where a divergence would hurt
+most, and a separate machine schema would contradict the founding "same struct, different
+`type`" decision. The reference already exists: `machine`, added in 21b._
+
+- [x] **Thin wrappers, not a split flow** — `assign_route()` and `name_machine()` over the one
+      orchestration, so call sites and tests read as two verbs with nothing duplicated
+- [x] **Views on the Routing table** (Sunde: "different sorting logics… only services, only
+      machines, both, groups, with the default being both"): All · Services · Machines ·
+      Grouped, the last putting each machine directly above what runs on it, with anything
+      unlinked kept at the end rather than dropped. Pure `applyView`, so "no view ever loses a
+      row" is a test rather than a hope
+- [x] **The `via` tag resolves to the machine's current name.** The link is stored by instance
+      id — which an edit never changes, so a rename keeps it — but the id is the name the
+      machine was *created* under, so the tag would otherwise read stale after a rename
+- [x] Tests: +4 backend (the two wrappers, and that a rename keeps the link and propagates
+      nothing, since dependents hold an IP that did not move) and +7 frontend (the four views,
+      the no-row-lost invariant, the tag after a rename, its fallback)
+- [x] Live: five rows across two machines, renamed one, and stepped through all four views —
+      grouped read `Storage box · files · plex · vm1 · loose`, and the tags followed the rename
+
+**Answered while implementing:** a machine's IP change propagates (21b, verified); a *name*
+change keeps every link, because the link is by id; and the display `name` is owned by
+`PATCH /api/instances/{id}` — an assign deliberately leaves it alone.
 
 **Known gap**
 - Routes created under **21a** hold a copied address with no link. They keep working and are

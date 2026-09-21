@@ -315,6 +315,25 @@ async def _propagate_to_dependents(
     return updated, failed
 
 
+# --- Named entry points ---
+#
+# One orchestration, two verbs. The body below is ~80% shared — dedup by container/origin,
+# the uniqueness check, the rollback, AdGuard's exact-pair cleanup, the machine propagation
+# — and those shared parts are the ones where a divergence between two copies would hurt
+# most. So the split is at the call site, not in the flow: these say which verb is meant.
+
+
+async def assign_route(caddy_client, adguard_client, **kwargs) -> dict:
+    """Publish a service at a name: Caddy route (required) + DNS rewrite answering Caddy."""
+    return await assign(caddy_client, adguard_client, route_mode="proxy", **kwargs)
+
+
+async def name_machine(caddy_client, adguard_client, **kwargs) -> dict:
+    """Give a LAN machine a name: a DNS rewrite straight to its own address, no Caddy, no
+    TLS. What routes then link to via `machine`."""
+    return await assign(caddy_client, adguard_client, route_mode="dns_only", **kwargs)
+
+
 async def unassign(
     caddy_client, adguard_client, instance_id: str, *, base_domain: str | None
 ) -> dict:

@@ -99,10 +99,10 @@ export function ServiceTable({
                     the machine moves and this row quietly follows it. */}
                 {row.machine && (
                   <span
-                    title={`Follows the machine "${row.machine}" — move it and this address updates`}
+                    title={`Follows the machine "${machineLabel(row.machine, rows)}" — move it and this address updates`}
                     className="ml-1.5 rounded bg-teal-500/10 px-1 py-0.5 text-[10px] text-teal-300"
                   >
-                    via {row.machine}
+                    via {machineLabel(row.machine, rows)}
                   </span>
                 )}
               </td>
@@ -244,4 +244,12 @@ function IconButton({
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
     </button>
   );
+}
+
+// The link is stored by instance id, which never changes — but the id is the name the
+// machine was *created* under. Renaming it would otherwise leave every route tagged with a
+// name the machine no longer answers to, so resolve to what it is called now.
+function machineLabel(machineId: string, rows: RouteRow[]): string {
+  const machine = rows.find((r) => r.id === machineId);
+  return machine?.name ?? machineId;
 }

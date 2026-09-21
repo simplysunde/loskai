@@ -605,3 +605,71 @@ async def test_deleting_a_machine_unlinks_its_routes_instead_of_blocking():
     plex = instances_store.get_instance("plex")
     assert plex.machine is None
     assert plex.upstream == "192.168.10.50:32400"  # still reachable, just no longer linked
+
+
+async def test_the_link_survives_renaming_the_machine():
+    # The link is by instance id, which an edit never changes — so giving the machine a
+    # different DNS name (or display name) keeps every route on it pointing at it.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await name_machine(caddy, ag)
+    await assign.assign(
+        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
+        base_domain=BASE, current_ip=IP, machine="nas",
+    )
+
+    # Rename: nas.example.no -> storage.example.no, same instance. (`name` is a display
+    # field owned by PATCH /api/instances/{id} — an assign deliberately leaves it alone.)
+    await assign.assign(
+        caddy, ag, prefix="storage", upstream="192.168.10.50", base_domain=BASE,
+        current_ip=IP, route_mode="dns_only", instance_id="nas", name="Storage box",
+    )
+
+    machine = instances_store.get_instance("nas")
+    assert machine.id == "nas" and machine.subdomain == "storage"
+    assert instances_store.get_instance("plex").machine == "nas"  # link intact
+    assert instances_store.list_by_machine("nas")[0].id == "plex"
+
+
+async def test_a_rename_alone_relinks_nothing():
+    # Nothing to propagate: dependents hold an IP, and the IP did not move.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await name_machine(caddy, ag)
+    await assign.assign(
+        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
+        base_domain=BASE, current_ip=IP, machine="nas",
+    )
+
+    result = await assign.assign(
+        caddy, ag, prefix="storage", upstream="192.168.10.50", base_domain=BASE,
+        current_ip=IP, route_mode="dns_only", instance_id="nas",
+    )
+
+    assert result["relinked"] == []
+    assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
+
+
+# --- The two verbs (thin wrappers over one orchestration) ---
+
+
+async def test_name_machine_wrapper_makes_a_machine():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+
+    result = await assign.name_machine(
+        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, current_ip=IP,
+    )
+
+    assert result["caddy"] == "skipped"  # no reverse proxy involved
+    assert instances_store.is_machine(instances_store.get_instance("nas"))
+
+
+async def test_assign_route_wrapper_publishes_a_service():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+
+    result = await assign.assign_route(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE, current_ip=IP,
+    )
+
+    assert result["caddy"] == "ok"
+    assert caddy.pushed == ["grafana"]
+    assert result["url"] == "https://grafana.example.no"

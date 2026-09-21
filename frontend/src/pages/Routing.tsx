@@ -21,6 +21,7 @@ import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModa
 import { AssignModal } from "../components/routing/AssignModal";
 import { InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
+import { applyView, isMachine, ViewFilter, type View } from "../components/routing/ViewFilter";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
 interface DnsStatus {
@@ -53,6 +54,9 @@ export function Routing() {
   // address others can point at. Both open the same picker — the second just starts on the
   // External + DNS-only form — so route creation stays consolidated.
   const [addOpen, setAddOpen] = useState<null | "route" | "machine">(null);
+  // Machines and services share one table — "both" is the default, since the point of one
+  // inventory is being able to see it. The other views are for when it gets long.
+  const [view, setView] = useState<View>("all");
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
@@ -365,8 +369,21 @@ export function Routing() {
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       ) : (
+        <>
+        {rows.length > 0 && (
+          <div className="mb-3">
+            <ViewFilter
+              view={view}
+              onChange={setView}
+              counts={{
+                services: rows.filter((r) => !isMachine(r)).length,
+                machines: rows.filter(isMachine).length,
+              }}
+            />
+          </div>
+        )}
         <ServiceTable
-          rows={rows}
+          rows={applyView(rows, view)}
           onAssign={(row) => openAssign(row)}
           onRemoveRoute={(row) => setConfirmRemove(row)}
           onDelete={(row) => setConfirmDelete(row)}
@@ -374,6 +391,7 @@ export function Routing() {
           onTogglePrivate={(row) => privateToggle.mutate(row)}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />
+        </>
       )}
 
       <AssignModal

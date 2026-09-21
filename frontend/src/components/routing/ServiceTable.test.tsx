@@ -123,3 +123,23 @@ test("an unlinked route shows no machine tag", () => {
   render(<ServiceTable rows={[row({ upstream: "192.168.10.77:8080" })]} />);
   expect(screen.queryByText(/^via /)).not.toBeInTheDocument();
 });
+
+test("the machine tag follows a rename", () => {
+  // The link is stored by id, which never changes — so the tag must resolve to what the
+  // machine is called now, not the name it happened to be created under.
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", route_mode: "dns_only" }),
+        row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" }),
+      ]}
+    />,
+  );
+  expect(screen.getByText("via Storage box")).toBeInTheDocument();
+  expect(screen.queryByText("via nas")).not.toBeInTheDocument();
+});
+
+test("a machine that is no longer listed falls back to its id", () => {
+  render(<ServiceTable rows={[row({ id: "plex", machine: "ghost" })]} />);
+  expect(screen.getByText("via ghost")).toBeInTheDocument();
+});

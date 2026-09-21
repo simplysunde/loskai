@@ -1,5 +1,40 @@
 # Loskai — History
 
+## 2026-09-21 — Three questions about machines: measured, then mostly answered "no"
+
+Sunde asked whether to split the add flow and model into reverse-proxy and `dns_only`
+versions, whether machines want their own schema, and whether the two should reference each
+other. Measuring first changed the answers.
+
+**The add flow stays one function.** `assign()` carries four behavioural branches on
+`route_mode`; the other ~180 lines — dedup by `container`/`origin`, the uniqueness check,
+Step 0/1/2 with its rollback, AdGuard's exact-pair cleanup, the machine propagation — are
+shared, and they are exactly the parts where two drifting copies would do real damage. What
+the split was *for* is call-site clarity, so `assign_route()` and `name_machine()` now wrap the
+one orchestration. Ten lines, no duplication.
+
+**Machines keep living in `instances.json`.** A separate schema would contradict the founding
+decision that a container and a LAN service are the same struct with a different `type` — and a
+machine fits that exactly: same struct, `upstream` holding an address instead of an address and
+port. A second store would mean second CRUD, second endpoints, and a Routing table merging two
+sources, to buy separation `route_mode` already provides.
+
+**The reference they were reaching for already existed** — `machine`, from 21b — so the work
+was making it *visible*: views over the one table (All · Services · Machines · Grouped, default
+both, grouped nesting services under the machine that hosts them), and resolving the `via` tag
+to the machine's current name rather than the id it was created under.
+
+**The question that produced the most useful answer was Sunde's aside** — "I'm assuming the
+machine will self update if we make a name change or even IP change?" An IP change propagates
+(21b). A *name* change keeps every link, because the link is by instance id and an edit never
+changes it; nothing propagates because dependents hold an IP that did not move. But the tag
+rendered that id, so a renamed machine would have left its routes labelled with a name it no
+longer answered to — found by writing the test to answer the question, not by using the app.
+
+**Still open:** `is_machine()` remains an inference — "the upstream has no port" — now read in
+three places, two backend and one frontend. An explicit marker on the instance was offered and
+not yet chosen.
+
 ## 2026-09-20 — Machines as upstreams, and what that settles about the tab split
 
 Out of the Devices-tab conversation came a better idea than the tab: let a named machine be
