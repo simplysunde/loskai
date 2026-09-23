@@ -86,3 +86,42 @@ def test_the_machine_model_has_no_tls_or_route_mode_to_send(client):
     assert set(MachineCreate.model_fields) == {"hostname", "address", "name", "instance_id"}
     assert "upstream_tls" in RouteCreate.model_fields
     assert "route_mode" not in RouteCreate.model_fields
+
+
+def test_a_route_naming_a_container_that_does_not_exist_is_rejected(client, monkeypatch):
+    # The 2026-09-16 smoke: the link is by container *name*, and a name matching nothing
+    # produced a working route that the Routing tab then listed as an orphan, while the
+    # same row read synced/up. It fails as a success, which is the shape worth catching.
+    from loskai.shared import assign as assign_module
+
+    monkeypatch.setattr(
+        assign_module.docker_client, "container_names", lambda: {"grafana", "sonarr"}
+    )
+
+    r = client.post(
+        "/api/routes",
+        json={"prefix": "ghost", "upstream": "192.168.10.50:80", "container": "not-a-container"},
+    )
+
+    assert r.status_code == 404
+    assert "not-a-container" in r.json()["detail"]
+
+
+def test_a_route_is_still_created_when_docker_cannot_be_asked(client, monkeypatch):
+    # Docker being unreachable means "unknown", not "invalid" — creating a route must not
+    # start depending on the Docker socket.
+    from loskai.shared import assign as assign_module
+
+    def unreachable():
+        raise RuntimeError("docker socket unavailable")
+
+    monkeypatch.setattr(assign_module.docker_client, "container_names", unreachable)
+
+    r = client.post(
+        "/api/routes",
+        json={"prefix": "ghost", "upstream": "192.168.10.50:80", "container": "unverifiable"},
+    )
+
+    # Gets past the link check and on to Caddy, which is what "not rejected" looks like here.
+    assert r.status_code == 502
+    assert "Caddy step failed" in r.json()["detail"]

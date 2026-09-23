@@ -7,7 +7,7 @@ the [backlog](#backlog--future-ideas) at the bottom of this file.
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (262) + `npm test` (86) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (264) + `npm test` (91) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -494,24 +494,31 @@ stored record** — so `instances.json` and the Routing table are untouched._
       `nas.smoke.test` resolved to `192.168.10.50`; converting an existing proxy route with
       Caddy stopped returned `502` and the row was still `service · proxy · 192.168.10.220:3000`
 
+**21g — the three remaining defects _(shipped 2026-09-23)_**
+- [x] **A `container` that names nothing is rejected** (`404`, from the 2026-09-16 smoke).
+      Checked in `post_route`, not inside `assign()` — that function takes its clients as
+      arguments so it can be driven by fakes, and reaching for the Docker singleton inside it
+      would be a hidden dependency (it broke two unit tests within seconds of trying).
+      **Docker unreachable means "unknown", not "invalid"**: creating a route must not start
+      depending on the Docker socket, so an unreachable daemon skips the check with a warning
+- [x] **The success banner follows the response.** `caddy: "skipped"` now reads "DNS rewrite
+      created." instead of claiming a route (from the 2026-09-20 Phase 13 smoke)
+- [x] **Change URL can link a route to a machine, and unlink it** — `machine: null` is
+      meaningful. This closes the 21a gap *and* a claim that was wrong: the note below used to
+      say "re-pick the machine in Change URL", which that form could not do
+- [x] Live: a made-up container name `404`s while a real one still works; naming a machine
+      banners "DNS rewrite created." while a route still says "route + DNS rewrite created.";
+      and a route created **without** a link was linked through Change URL, after which moving
+      the machine reported `relinked: ["legacy"]` and its upstream followed to `.231:8099`
+
 **Known gaps**
-- Routes created under **21a** hold a copied address with no link. They keep working and are
-  relinked by re-picking the machine in Change URL; there is no migration, since inferring a
-  link from a matching IP would guess
+- Routes created under **21a** hold a copied address with no link. They keep working, and can
+  now be linked by picking the machine in Change URL (21g). There is no automatic migration,
+  since inferring a link from a matching IP would guess
 
 ---
 
 ## Backlog / Future ideas
-- **The Routing tab says "route + DNS rewrite created." after a `dns_only` assign** (found in
-  the 2026-09-16 Phase 13 smoke). `Routing.tsx` prints that fixed string whenever there is no
-  `warning`, ignoring the response's `caddy: "skipped"` — so the one mode that by definition
-  creates no route reports that it did. Cosmetic; the row itself renders correctly
-- **`POST /api/assign` accepts a `container` that matches nothing** (found in the 2026-09-16
-  smoke). The link key is the container **name** — `AddRouteModal` sends `c.name` — but the
-  endpoint takes any string: posting the short *ID* returned `200`, pushed a working route,
-  and the Routing tab then listed it as an orphan whose container "was removed" while the
-  same row read `synced`/`up`. The UI can't send it, so only a hand-written API call hits it;
-  a `422` for a `container` with no match would close it
 - **An unrouted name under `BASE_DOMAIN` answers an empty `200`** (found alongside the
   2026-09-05 route-ordering defect, deliberately **not** fixed with it — it is the same
   wildcard block but a different symptom, and the fix that mattered was the one that made real

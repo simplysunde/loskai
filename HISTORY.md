@@ -1,5 +1,31 @@
 # Loskai — History
 
+## 2026-09-23 — The three defects the smokes had left behind
+
+Cleared the backlog items that came out of the September smokes, plus a claim of mine that was
+simply untrue.
+
+**A `container` naming nothing is now a `404`.** The link is by container *name*, and the
+orphan sweep matches the same way, so a name matching nothing produced a working route that
+the Routing tab then reported as orphaned while the same row read `synced`/`up` — failing as a
+success. The interesting part was where to check it: putting it inside `assign()` broke two
+unit tests within seconds, because that function takes its Caddy and AdGuard clients as
+arguments precisely so fakes can drive it, and the Docker singleton would have been a hidden
+dependency. It belongs in `post_route`, beside the other singleton lookups. **Docker being
+unreachable means "unknown", not "invalid"** — creating a route must not start depending on
+the Docker socket.
+
+**The success banner reads the response instead of asserting.** `caddy: "skipped"` now says
+"DNS rewrite created."; only a real route claims a route.
+
+**Change URL can link a route to a machine — and unlink it**, with `machine: null` meaning
+exactly that. This closes the gap left by 21a, and corrects something I had told Sunde: that
+such routes could be relinked "by re-picking the machine in Change URL". That form had no
+machine picker, so the instruction was impossible to follow. Now it is true, and proven the
+only way worth trusting: a route created *without* a link was linked through that form, and
+moving the machine afterwards reported `relinked: ["legacy"]` with the upstream following to
+`.231:8099`.
+
 ## 2026-09-21 — The creation model split in two, after all
 
 Sunde asked a third time: "I still want you to split up the dns-only (machine name model) and

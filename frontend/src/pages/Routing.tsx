@@ -139,7 +139,12 @@ export function Routing() {
   });
 
   const assign = useMutation({
-    mutationFn: (p: { prefix: string; upstream: string; upstream_tls: boolean }) =>
+    mutationFn: (p: {
+      prefix: string;
+      upstream: string;
+      upstream_tls: boolean;
+      machine?: string | null;
+    }) =>
       api.post<AssignResult>("/api/routes", {
         ...p,
         instance_id: assignTarget?.id ?? undefined,
@@ -384,7 +389,12 @@ export function Routing() {
             }`}
           >
             <span className="font-medium">{result.url}</span> —{" "}
-            {result.warning ?? "route + DNS rewrite created."}
+            {/* `caddy: "skipped"` means a machine was named: there is no route, and
+                saying there is was the one thing the banner got wrong. */}
+            {result.warning ??
+              (result.caddy === "skipped"
+                ? "DNS rewrite created."
+                : "route + DNS rewrite created.")}
           </div>
         )}
       </div>
@@ -429,6 +439,8 @@ export function Routing() {
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
         initialUpstream={assignTarget?.upstream ?? ""}
         initialTls={assignTarget?.upstream_tls ?? false}
+        initialMachine={assignTarget?.machine ?? null}
+        rows={rows}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}
       />

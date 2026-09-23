@@ -30,6 +30,7 @@ from ..modules.adguard.client import AdGuardError, adguard
 from ..modules.adguard.service import target_answer
 from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
+from ..modules.docker.client import docker_client
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
@@ -107,6 +108,23 @@ def relink_upstream(upstream: str, new_host: str) -> str:
     whole of what "the machine's address changed" means for a linked route."""
     _, _, port = upstream.rpartition(":")
     return f"{new_host}:{port}"
+
+
+def validate_container(container: str) -> None:
+    """A `container` link must name a container that exists. The link is by *name* (what
+    the picker sends), and the orphan sweep matches the same way — so a name that matches
+    nothing produced a working route the Routing tab then reported as orphaned, with the
+    same row reading `synced`/`up`. Found in the 2026-09-16 smoke.
+
+    Docker being unreachable is not a rejection: it means we cannot tell, and route
+    creation must not start depending on the Docker socket."""
+    try:
+        names = docker_client.container_names()
+    except Exception as exc:  # noqa: BLE001 — any docker/transport failure means "unknown"
+        logger.warning("container '%s' not verified: %s", container, exc)
+        return
+    if container not in names:
+        raise AssignError(404, f"no container named '{container}'")
 
 
 def validate_machine(machine_id: str, target_id: str) -> Instance:
@@ -494,6 +512,8 @@ async def post_route(body: RouteCreate) -> dict:
     """Create or re-point a proxied service (`instance_id` to edit one)."""
     base, current_ip = _context()
     try:
+        if body.container:
+            validate_container(body.container)
         return await assign_route(
             caddy, adguard,
             prefix=body.prefix, upstream=body.upstream,
