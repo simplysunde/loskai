@@ -85,6 +85,7 @@ test("lowercases a typed prefix instead of silently rejecting it", () => {
     prefix: "grafana",
     upstream: "192.168.10.100:3000",
     upstream_tls: false,
+    scheme: "https",
   });
 });
 
@@ -298,4 +299,32 @@ test("with no machines yet, External still takes a typed address", async () => {
 
   expect(await screen.findByText(/No named machines yet/)).toBeInTheDocument();
   expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
+});
+
+// --- Per-route scheme (Phase 12b) ---
+
+test("the scheme defaults to https and rides along with the route", () => {
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.change(screen.getByPlaceholderText("grafana"), { target: { value: "tv" } });
+  fireEvent.change(screen.getByPlaceholderText("e.g. grafana:3000"), {
+    target: { value: "192.168.10.50:8080" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "HTTP" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ scheme: "http" }));
+});
+
+test("the preview drops to http:// when the scheme does", () => {
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.change(screen.getByPlaceholderText("grafana"), { target: { value: "tv" } });
+  expect(screen.getByText("https://tv.example.no")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "HTTP" }));
+
+  expect(screen.getByText("http://tv.example.no")).toBeInTheDocument();
 });

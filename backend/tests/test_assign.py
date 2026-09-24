@@ -22,6 +22,7 @@ class FakeCaddy:
     def __init__(self, fail=False):
         self.fail = fail
         self.pushed: list[str] = []
+        self.http_pushed: list[str] = []
         self.deleted: list[str] = []
 
     async def delete_route(self, route_id):
@@ -37,6 +38,14 @@ class FakeCaddy:
 
             raise httpx.ConnectError("caddy down")
         self.pushed.append(route["@id"])
+
+    async def push_http_route(self, route):
+        # The `:80` server — a `scheme` of "http" or "both" pushes here as well.
+        if self.fail:
+            import httpx
+
+            raise httpx.ConnectError("caddy down")
+        self.http_pushed.append(route["@id"])
 
 
 class FakeAdGuard:
@@ -260,7 +269,9 @@ async def test_unassign_clears_and_deletes():
     result = await assign.unassign(caddy, ag, "nas", base_domain=BASE)
 
     assert result["cleared"] is True and result["adguard"] == "ok"
-    assert caddy.deleted == ["nas"]
+    # Both ids: a scheme:"both" instance has a plain-HTTP twin, and the teardown is
+    # unconditional because the stored scheme may have changed since it was pushed.
+    assert caddy.deleted == ["nas", "nas-http"]
     assert ag.deleted == [("nas.example.no", IP)]  # exact-pair delete
     inst = instances_store.get_instance("nas")
     assert inst.subdomain is None and inst.dns_answer is None  # instance survives
@@ -275,7 +286,7 @@ async def test_delete_external_instance_removes_route_and_record():
     result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
 
     assert result["deleted"] is True
-    assert caddy.deleted == ["nas"]  # route removed
+    assert caddy.deleted == ["nas", "nas-http"]  # both possible routes removed
     assert ag.deleted == [("nas.example.no", IP)]  # rewrite removed
     assert instances_store.get_instance("nas") is None  # record gone
 
@@ -377,7 +388,7 @@ async def test_unassign_dns_only_deletes_own_answer():
     result = await assign.unassign(caddy, ag, "vm1", base_domain=BASE)
 
     assert result["cleared"] is True
-    assert caddy.deleted == ["vm1"]  # harmless no-op delete, already 404-safe
+    assert caddy.deleted == ["vm1", "vm1-http"]  # harmless no-op deletes, 404-safe
     assert ag.deleted == [("vm1.example.no", "192.168.10.55")]
 
 
@@ -392,7 +403,7 @@ async def test_mode_switch_proxy_to_dns_only_tears_down_caddy_route():
         base_domain=BASE, current_ip=IP, route_mode="dns_only",
     )
     assert result["caddy"] == "skipped"
-    assert caddy.deleted == ["box"]  # stale proxy route torn down
+    assert caddy.deleted == ["box", "box-http"]  # stale proxy routes torn down
     assert caddy.pushed == []
     assert ag.added == [("box.example.no", "192.168.10.70")]  # now answers with its own IP
     # The old rewrite (same domain, shared Caddy IP) must be cleaned up too, or AdGuard
@@ -756,5 +767,33 @@ async def test_converting_tears_the_route_down_when_caddy_is_up():
         current_ip=IP, instance_id="grafana",
     )
 
-    assert caddy.deleted[-1] == "grafana"
+    assert caddy.deleted[-2:] == ["grafana", "grafana-http"]
     assert instances_store.get_instance("grafana").kind == "machine"
+
+
+async def test_an_http_route_reports_an_http_url():
+    # A card or banner linking https:// to a name with no certificate cannot connect.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+
+    result = await assign.assign_route(
+        caddy, ag, prefix="tv", upstream="192.168.10.50:8080",
+        base_domain=BASE, current_ip=IP, scheme="http",
+    )
+
+    assert result["url"] == "http://tv.example.no"
+
+
+async def test_https_and_both_still_report_https():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+
+    both = await assign.assign_route(
+        caddy, ag, prefix="printer", upstream="192.168.10.50:80",
+        base_domain=BASE, current_ip=IP, scheme="both",
+    )
+    plain = await assign.assign_route(
+        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE, current_ip=IP,
+    )
+
+    assert both["url"] == "https://printer.example.no"
+    assert plain["url"] == "https://grafana.example.no"

@@ -5,6 +5,7 @@ import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
+import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { isMachine } from "./ViewFilter";
 
 // Assign URL form: a single-label prefix + an upstream host:port, with the assembled FQDN
@@ -23,6 +24,7 @@ export function AssignModal({
   initialUpstream = "",
   initialTls = false,
   initialMachine = null,
+  initialScheme = "https",
   rows = [],
 }: {
   open: boolean;
@@ -35,6 +37,7 @@ export function AssignModal({
     upstream: string;
     upstream_tls: boolean;
     machine?: string | null;
+    scheme?: Scheme;
   }) => void;
   onClose: () => void;
   // Prefilled when re-assigning an existing instance (the modal is keyed per target so
@@ -46,9 +49,11 @@ export function AssignModal({
   // link existed (or pointed somewhere by hand) can be attached to one without being
   // deleted and rebuilt.
   initialMachine?: string | null;
+  initialScheme?: Scheme;
   rows?: RouteRow[];
 }) {
   const [machine, setMachine] = useState<string | null>(initialMachine);
+  const [scheme, setScheme] = useState<Scheme>(initialScheme);
   const fields = useRouteFields({
     mode,
     baseDomain,
@@ -127,6 +132,8 @@ export function AssignModal({
           </div>
         )}
 
+        <SchemeSelect value={scheme} onChange={setScheme} />
+
         <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
           <input
             type="checkbox"
@@ -154,7 +161,7 @@ export function AssignModal({
           <button
             disabled={!canSubmit}
             // `machine: null` is meaningful — it unlinks a route that was linked.
-            onClick={() => onSubmit({ ...fields.payload(), machine })}
+            onClick={() => onSubmit({ ...fields.payload(), machine, scheme })}
             className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             Assign

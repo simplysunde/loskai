@@ -12,6 +12,7 @@ export interface RouteRow {
   fqdn: string | null;
   upstream: string | null;
   upstream_tls?: boolean;
+  scheme?: "https" | "both" | "http";
   private: boolean;
   container?: string | null;
   origin?: string | null;
@@ -86,6 +87,20 @@ export function ServiceTable({
               </td>
               <td className="px-4 py-3 font-mono text-xs text-slate-400">
                 {row.upstream ?? "—"}
+                {/* Only when it differs from the default: a tag on every row would be
+                    noise, and https is what almost everything should be. */}
+                {row.scheme && row.scheme !== "https" && (
+                  <span
+                    title={
+                      row.scheme === "http"
+                        ? "Plain HTTP only — no certificate is issued for this name"
+                        : "Served on both 443 and 80"
+                    }
+                    className="ml-1.5 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300"
+                  >
+                    {row.scheme}
+                  </span>
+                )}
                 {row.upstream_tls && (
                   <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
                     https

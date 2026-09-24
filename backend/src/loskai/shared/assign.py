@@ -157,6 +157,7 @@ async def assign(
     origin: str | None = None,
     machine: str | None = None,
     upstream_tls: bool = False,
+    scheme: Literal["https", "both", "http"] = "https",
     route_mode: Literal["proxy", "dns_only"] = "proxy",
 ) -> dict:
     validate_prefix(prefix, route_mode)
@@ -190,7 +191,7 @@ async def assign(
         inst = existing.model_copy(
             update={
                 "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
-                "route_mode": route_mode, "machine": machine,
+                "route_mode": route_mode, "machine": machine, "scheme": scheme,
                 # Re-pointing a machine at a port turns it into a service, and vice versa.
                 "kind": "machine" if route_mode == "dns_only" else "service",
             }
@@ -206,7 +207,7 @@ async def assign(
             type="docker" if container else "external",
             container=container, origin=origin, machine=machine,
             subdomain=prefix, upstream=upstream,
-            upstream_tls=upstream_tls, route_mode=route_mode,
+            upstream_tls=upstream_tls, route_mode=route_mode, scheme=scheme,
             kind="machine" if route_mode == "dns_only" else "service",
         )
 
@@ -289,14 +290,23 @@ async def assign(
     return {
         "caddy": "ok" if inst.route_mode == "proxy" else "skipped",
         "adguard": adguard_status,
-        "url": f"https://{domain}" if inst.route_mode == "proxy" else domain,
+        "url": _display_url(inst, domain),
         "instance_id": inst.id,
         "relinked": relinked,
         "warning": warning,
     }
 
 
-async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) -> None:
+def _display_url(instance: Instance, domain: str) -> str:
+    """What to show and link after an assign. `dns_only` has no scheme at all (the name
+    resolves straight to a machine), and an `http` route has no certificate — calling it
+    https would hand back a URL that cannot connect."""
+    if instance.route_mode != "proxy":
+        return domain
+    return f"http://{domain}" if instance.scheme == "http" else f"https://{domain}"
+
+
+async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) -> None:  # noqa: D401
     """Remove any Caddy route for an instance that is now `dns_only`.
 
     Required only when this assign is *converting* one that had a proxy route: leaving that
@@ -307,7 +317,7 @@ async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) 
     or simply unconfigured."""
     converting = bool(prev and prev.route_mode == "proxy" and prev.subdomain)
     try:
-        await caddy_client.delete_route(inst.id)  # 404-safe
+        await caddy_service.teardown_route(caddy_client, inst.id)  # 404-safe, both ids
     except (httpx.HTTPError, CaddyError) as exc:
         if converting:
             raise
@@ -393,9 +403,10 @@ async def unassign(
         inst.model_copy(update={"subdomain": None, "dns_answer": None})
     )
 
-    # Step 1 — Caddy delete (required). Roll back on failure.
+    # Step 1 — Caddy delete (required). Roll back on failure. Both ids: a `scheme: "both"`
+    # instance has a plain-HTTP twin, and leaving it would keep serving the name on :80.
     try:
-        await caddy_client.delete_route(inst.id)  # ignores 404
+        await caddy_service.teardown_route(caddy_client, inst.id)  # ignores 404
     except (httpx.HTTPError, CaddyError) as exc:
         instances_store.upsert_instance(prev)
         raise AssignError(502, f"Caddy route delete failed: {describe_error(exc)}")
@@ -481,6 +492,8 @@ class RouteCreate(BaseModel):
     prefix: str
     upstream: str
     upstream_tls: bool = False
+    # One enum, not two booleans: two checkboxes admit an invalid both-off state.
+    scheme: Literal["https", "both", "http"] = "https"
     machine: str | None = None
     container: str | None = None
     origin: str | None = None
@@ -519,7 +532,7 @@ async def post_route(body: RouteCreate) -> dict:
             prefix=body.prefix, upstream=body.upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
             origin=body.origin, machine=body.machine, upstream_tls=body.upstream_tls,
-            base_domain=base, current_ip=current_ip,
+            scheme=body.scheme, base_domain=base, current_ip=current_ip,
         )
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)

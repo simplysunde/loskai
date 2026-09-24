@@ -144,6 +144,7 @@ export function Routing() {
       upstream: string;
       upstream_tls: boolean;
       machine?: string | null;
+      scheme?: "https" | "both" | "http";
     }) =>
       api.post<AssignResult>("/api/routes", {
         ...p,
@@ -440,6 +441,7 @@ export function Routing() {
         initialUpstream={assignTarget?.upstream ?? ""}
         initialTls={assignTarget?.upstream_tls ?? false}
         initialMachine={assignTarget?.machine ?? null}
+        initialScheme={assignTarget?.scheme ?? "https"}
         rows={rows}
         onSubmit={(p) => assign.mutate(p)}
         onClose={() => setAssignOpen(false)}

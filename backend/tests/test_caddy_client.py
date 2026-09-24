@@ -9,7 +9,7 @@ import json
 import httpx
 import pytest
 
-from loskai.modules.caddy.client import CaddyClient
+from loskai.modules.caddy.client import CaddyClient, CaddyError
 
 BASE = "http://caddy.test:2019"
 
@@ -115,3 +115,44 @@ def test_health_unconfigured_without_base():
 
     config.settings.caddy_admin_url = None
     assert asyncio.run(CaddyClient().health()) == {"status": "unconfigured"}
+
+
+async def test_http_server_is_discovered_separately_from_the_routing_one(httpx_mock):
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{BASE}/config/apps/http/servers",
+        json={"srv0": {"listen": [":443"]}, "srv1": {"listen": [":80"]}},
+    )
+    client = _client()
+
+    assert await client.http_server_name() == "srv1"
+
+
+async def test_push_http_route_inserts_at_head_of_the_80_server(httpx_mock):
+    """Index 0 again, for two reasons this time: the `:80` server's cert-setup site ends in
+    a catch-all `handle` (an appended route is never reached), and Caddy's automatic
+    HTTP→HTTPS redirect routes live there and would otherwise win over a plain-HTTP route."""
+    client = _client()
+    client._http_server_name = "srv1"
+    httpx_mock.add_response(
+        method="PUT", url=f"{BASE}/config/apps/http/servers/srv1/routes/0"
+    )
+
+    await client.push_http_route({"@id": "tv-http"})
+
+    sent = httpx_mock.get_requests()[-1]
+    assert sent.method == "PUT"
+    assert str(sent.url).endswith("/servers/srv1/routes/0")
+    assert json.loads(sent.read())["@id"] == "tv-http"
+
+
+async def test_push_http_route_without_an_80_server_raises(httpx_mock):
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{BASE}/config/apps/http/servers",
+        json={"srv0": {"listen": [":443"]}},
+    )
+    client = _client()
+
+    with pytest.raises(CaddyError):
+        await client.push_http_route({"@id": "tv-http"})

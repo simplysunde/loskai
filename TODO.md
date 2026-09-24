@@ -1,13 +1,14 @@
 # Loskai — TODO
 
-**Now:** nothing in flight. Phases 13–20 are closed; **Phase 12 is still not**, despite having
-been archived as complete (below) — though Phase 19 closed out its 12a. Pick from there or from
+**Now:** nothing in flight. Phases 13–22 are closed, and **Phase 12 is finally done** — 12a
+in Phase 19, 12b as Phase 22 (2026-09-24); only 12c remains, and it is documentation with no
+Loskai code. Pick from there or from
 the [backlog](#backlog--future-ideas) at the bottom of this file.
 
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (264) + `npm test` (91) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (281) + `npm test` (95) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -515,6 +516,59 @@ stored record** — so `instances.json` and the Routing table are untouched._
 - Routes created under **21a** hold a copied address with no link. They keep working, and can
   now be linked by picking the machine in Change URL (21g). There is no automatic migration,
   since inferring a link from a matching IP would guess
+
+---
+
+## Phase 22 — Per-route scheme (Phase 12's last unbuilt piece)
+
+_12b, approved 2026-08-03 and specified in [`todo-archive.md`](todo-archive.md) Phase 12.
+Exists **only** for clients that cannot hold a custom root CA — TVs, Chromecast/DLNA,
+printers, other containers calling the service by name, scripts. Not a performance feature:
+TLS on a LAN is unmeasurable next to the proxy hop, which is paid either way._
+
+**What shipped**
+- [x] **`scheme: "https" | "both" | "http"` on the instance**, default `https`. One enum, not
+      two booleans — two checkboxes admit an invalid both-off state
+- [x] **A second server selector.** `select_http_server_name` finds the `:80` server by its
+      listener; `select_server_name` keeps *excluding* it, because a reverse-proxy route
+      pushed into the cert-setup site would be served without TLS by accident. No `:80`
+      server means `scheme: "http"` raises rather than falling back
+- [x] **Index 0 in the `:80` server too**, for one more reason than on `:443`: that server's
+      setup site ends in a catch-all `handle`, and Caddy's automatic HTTP→HTTPS redirects
+      live there and would otherwise answer first. The spec called this in August; the
+      2026-09-05 defect proved the same rule for `:443` a month later
+- [x] **`both` is two routes with two ids** (`<id>`, `<id>-http`). `expected_route_ids()` is
+      what `synced` compares against, so a half-pushed `both` reads `false`; teardown removes
+      both ids unconditionally, since the stored scheme may have changed
+- [x] **`http` never lands in the `:443` server** — `upsert_route` deletes the route it does
+      not want on every push, so a scheme change converges with no migration. That absence is
+      what stops Caddy issuing a certificate for the name
+- [x] **Links follow the scheme.** The assign response's `url`, the public dashboard's cards
+      and the Docker tab's routed-container link were all hardcoded `https://`; an http-only
+      route linked that way cannot connect. Found by reading the UI after the backend worked
+- [x] Frontend: `SchemeSelect` in both route modals (editable on an existing route), an
+      amber tag in `ServiceTable` for anything that isn't the default, and a live preview
+      that drops to `http://`
+- [x] Tests: +14 backend (selector, twin id, per-scheme push/teardown, scheme change
+      convergence, no-`:80`-server, sync for `both`/`http`, the two URL shapes, the dashboard
+      card) and +4 frontend
+- [x] Docs: `caddy-api.md` (new §2b + the two-id teardown), `api.md`, `CLAUDE.md`, `PLAN.md`
+
+**Verification**
+- [x] `pytest` (281) + `npm test` (95) + `check-docs.sh` + `tsc -b`
+- [x] **Live, against the dev rig's two-server Caddy** (`srv0 :443`, `srv1 :80`), one route
+      per scheme:
+
+      | | `:443` holds | `:80` holds | `https://` | `http://` |
+      |---|---|---|---|---|
+      | `secure` (https) | `secure` | — | `200` whoami | `308` redirect |
+      | `tv` (http) | — | `tv-http` | **TLS alert, no cert** | `200` whoami |
+      | `printer` (both) | `printer` | `printer-http` | `200` whoami | `200` whoami |
+
+      The `tv` handshake failing is the point: `curl -v` shows `tlsv1 alert internal error`,
+      i.e. Caddy has no certificate for that name and never asked for one. Switching
+      `printer` back to `https` removed `printer-http` and the name fell back to the `:80`
+      redirect. The cert-setup catch-all still served its 21.5 kB page throughout
 
 ---
 

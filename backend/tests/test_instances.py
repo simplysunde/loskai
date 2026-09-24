@@ -65,3 +65,25 @@ def test_a_stored_kind_always_wins_over_the_shape():
 
 def test_an_instance_with_no_upstream_is_a_service():
     assert inst.Instance(id="x", name="x", type="external").kind == "service"
+
+
+def test_dashboard_card_links_an_http_route_over_http(tmp_path, monkeypatch):
+    # The public dashboard is the one surface a non-admin uses; an unreachable https link
+    # there is the most visible way to get this wrong.
+    from loskai.shared import dashboard
+
+    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+    monkeypatch.setattr(config.settings, "base_domain", "example.no")
+    inst.upsert_instance(
+        inst.Instance(id="tv", name="tv", type="external", subdomain="tv",
+                      upstream="192.168.10.50:8080", scheme="http")
+    )
+    inst.upsert_instance(
+        inst.Instance(id="app", name="app", type="external", subdomain="app",
+                      upstream="192.168.10.50:80")
+    )
+
+    cards = {c["name"]: c["url"] for c in dashboard.dashboard()["services"]}
+
+    assert cards["tv"] == "http://tv.example.no"
+    assert cards["app"] == "https://app.example.no"

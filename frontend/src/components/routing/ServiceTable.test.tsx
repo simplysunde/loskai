@@ -143,3 +143,20 @@ test("a machine that is no longer listed falls back to its id", () => {
   render(<ServiceTable rows={[row({ id: "plex", machine: "ghost" })]} />);
   expect(screen.getByText("via ghost")).toBeInTheDocument();
 });
+
+test("a non-default scheme is tagged, https is not", () => {
+  // A tag on every row would be noise: https is what almost everything should be.
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "tv", name: "tv", scheme: "http" }),
+        row({ id: "printer", name: "printer", scheme: "both" }),
+        row({ id: "grafana", name: "grafana", scheme: "https" }),
+      ]}
+    />,
+  );
+
+  expect(screen.getByText("http")).toBeInTheDocument();
+  expect(screen.getByText("both")).toBeInTheDocument();
+  expect(screen.queryByText("https")).not.toBeInTheDocument();
+});

@@ -10,7 +10,7 @@ flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a 
 Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
 approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
 two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
-All three checks pass (264 + 91 + docs).
+All three checks pass (281 + 95 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -182,6 +182,12 @@ must replay except the AdGuard password; its *own* admin password is stored only
   rewrite per routed instance. (Caddy's wildcard *TLS cert* is a separate, unrelated concern.)
 - **Caddy routes are keyed by `@id` = the instance `id`; editing a route is delete-then-add,
   never `PATCH`.** The server name is discovered at startup — never hardcode `srv0`.
+  **Both servers are discovered**: the routing one by its `:443` listener and, since 12b, the
+  plain-HTTP one by `:80`. An instance's `scheme` (`https` default / `both` / `http`) decides
+  which it is pushed into; `both` means **two routes, two ids** (`<id>` and `<id>-http`), so
+  sync needs both present and teardown removes both. Routes go in at **index 0 of each** —
+  `:80` for the same reason as `:443`, plus its catch-all setup site and Caddy's own
+  HTTP→HTTPS redirects, which would otherwise win.
 - **Loskai never handles the ACME/DNS-challenge token or private-registry credentials** —
   those live with Caddy / the Docker host. Registry `docker login` is a host precondition.
 - **Recipes are declarative data, validated but never executed** — synced from a public git

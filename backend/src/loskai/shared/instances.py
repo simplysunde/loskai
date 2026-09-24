@@ -32,6 +32,9 @@ class Instance(BaseModel):
     # dns_only = AdGuard rewrite straight to `upstream`, no Caddy route, no TLS
     upstream: str | None = None  # host:port (proxy) or a bare IP (dns_only) — chosen at assign time
     upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
+    scheme: Literal["https", "both", "http"] = "https"  # which port(s) Caddy serves this on.
+    # Exists for clients that cannot hold a custom root CA — dumb devices, other containers
+    # calling by name, scripts. Not a performance setting. Ignored when route_mode=dns_only.
     container: str | None = None  # container name/id (docker type only)
     origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
     machine: str | None = None  # id of the machine instance that owns this upstream's host part

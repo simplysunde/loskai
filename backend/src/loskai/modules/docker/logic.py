@@ -261,6 +261,16 @@ def subdomain_for(container_name: str, instances: list) -> str | None:
     return None
 
 
+def scheme_for(container_name: str, instances: list) -> str | None:
+    """The routed container's scheme, so the Docker tab links it over the protocol it is
+    actually served on — an `http` route has no certificate, and an https link to it cannot
+    connect. None when the container has no route."""
+    for inst in instances:
+        if inst.container == container_name and inst.subdomain:
+            return inst.scheme
+    return None
+
+
 def orphaned_instances(instances: list, live_container_names: set[str]) -> list:
     """Docker-backed instances whose linked container is gone (removed, not just
     stopped — a stopped container still appears in the host list). These point at an

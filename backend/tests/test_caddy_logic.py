@@ -4,6 +4,7 @@ import pytest
 
 from loskai import config
 from loskai.modules.caddy import service
+from loskai.modules.caddy.client import CaddyError
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
@@ -108,14 +109,24 @@ def test_select_server_raises_when_empty():
 
 
 class FakeClient:
-    def __init__(self, live_ids=(), fails_map=None):
+    """Two servers, because Caddy has two: `live_ids` are in the `:443` routing server and
+    `http_live_ids` in the `:80` one. `has_http_server=False` models a Caddy with no `:80`
+    site at all, where a plain-HTTP route has nowhere to go."""
+
+    def __init__(self, live_ids=(), fails_map=None, http_live_ids=(), has_http_server=True):
         self._live_ids = set(live_ids)
         self._fails_map = fails_map or {}
+        self._http_live_ids = set(http_live_ids)
+        self._has_http_server = has_http_server
         self.pushed: list[str] = []
+        self.http_pushed: list[str] = []
         self.deleted: list[str] = []
 
     async def list_live_routes(self):
         return [{"@id": i} for i in self._live_ids]
+
+    async def list_live_http_routes(self):
+        return [{"@id": i} for i in self._http_live_ids]
 
     async def upstreams(self):
         return [{"address": addr, "fails": fails} for addr, fails in self._fails_map.items()]
@@ -125,6 +136,11 @@ class FakeClient:
 
     async def push_route(self, route):
         self.pushed.append(route["@id"])
+
+    async def push_http_route(self, route):
+        if not self._has_http_server:
+            raise CaddyError("Caddy has no :80 server — a plain-HTTP route has nowhere to go")
+        self.http_pushed.append(route["@id"])
 
 
 async def test_list_with_sync_dns_only_row_is_na_for_route_and_live():
@@ -207,3 +223,122 @@ def test_root_certificate_rejects_a_truncated_pem():
     must fail here — installed as-is it fails later, at the browser, after the user
     believes they've already fixed the warning."""
     assert service.root_certificate({"root_certificate": "-----BEGIN CERTIFICATE-----\nMIIBo"}) is None
+
+
+# --- Per-route scheme (Phase 12b) ---
+
+
+def svc(id_, scheme="https", **kw):
+    return Instance(
+        id=id_, name=id_, type="external", subdomain=id_,
+        upstream="192.168.10.50:80", scheme=scheme, **kw
+    )
+
+
+def test_select_http_server_picks_the_80_site_not_the_routing_one():
+    servers = {
+        "srv0": {"listen": [":443"], "routes": []},
+        "srv1": {"listen": [":80"], "routes": []},
+    }
+
+    assert service.select_server_name(servers) == "srv0"
+    assert service.select_http_server_name(servers) == "srv1"
+
+
+def test_no_http_server_is_none_not_a_fallback():
+    # Falling back to the routing server would serve a "plain HTTP" route over TLS.
+    servers = {"srv0": {"listen": [":443"], "routes": []}}
+
+    assert service.select_http_server_name(servers) is None
+
+
+def test_the_http_twin_is_the_same_route_under_a_different_id():
+    inst = svc("grafana", scheme="both")
+
+    https_route = service.build_route(inst, BASE)
+    http_route = service.build_route(inst, BASE, route_id=service.http_route_id("grafana"))
+
+    assert https_route["@id"] == "grafana"
+    assert http_route["@id"] == "grafana-http"
+    assert http_route["match"] == https_route["match"]
+    assert http_route["handle"] == https_route["handle"]
+
+
+def test_expected_ids_per_scheme():
+    assert service.expected_route_ids(svc("a", scheme="https")) == ["a"]
+    assert service.expected_route_ids(svc("a", scheme="http")) == ["a-http"]
+    assert service.expected_route_ids(svc("a", scheme="both")) == ["a", "a-http"]
+    # dns_only has no Caddy route of any kind.
+    assert service.expected_route_ids(svc("a", route_mode="dns_only")) == []
+
+
+async def test_https_pushes_only_to_443_and_clears_any_http_twin():
+    client = FakeClient()
+
+    await service.upsert_route(client, svc("grafana", scheme="https"), BASE)
+
+    assert client.pushed == ["grafana"]
+    assert client.http_pushed == []
+    assert "grafana-http" in client.deleted  # a previous `both`/`http` twin is removed
+
+
+async def test_http_only_never_lands_in_the_443_server():
+    # Absence there is what stops Caddy trying to issue a certificate for the name.
+    client = FakeClient()
+
+    await service.upsert_route(client, svc("tv", scheme="http"), BASE)
+
+    assert client.pushed == []
+    assert client.http_pushed == ["tv-http"]
+    assert "tv" in client.deleted
+
+
+async def test_both_pushes_one_route_into_each_server():
+    client = FakeClient()
+
+    await service.upsert_route(client, svc("printer", scheme="both"), BASE)
+
+    assert client.pushed == ["printer"]
+    assert client.http_pushed == ["printer-http"]
+
+
+async def test_switching_scheme_converges_without_a_migration():
+    client = FakeClient()
+    await service.upsert_route(client, svc("x", scheme="both"), BASE)
+    client.pushed.clear(); client.http_pushed.clear(); client.deleted.clear()
+
+    await service.upsert_route(client, svc("x", scheme="https"), BASE)
+
+    assert client.pushed == ["x"]
+    assert client.http_pushed == []
+    assert "x-http" in client.deleted  # the twin it no longer wants
+
+
+async def test_plain_http_without_an_80_server_fails_loudly():
+    client = FakeClient(has_http_server=False)
+
+    with pytest.raises(CaddyError):
+        await service.upsert_route(client, svc("tv", scheme="http"), BASE)
+
+
+async def test_both_is_synced_only_when_both_routes_are_live(data_dir):
+    instances_store.upsert_instance(svc("printer", scheme="both"))
+
+    half = await service.list_with_sync(FakeClient(live_ids=["printer"]), BASE)
+    full = await service.list_with_sync(
+        FakeClient(live_ids=["printer"], http_live_ids=["printer-http"]), BASE
+    )
+
+    assert half[0]["synced"] is False  # the :80 half is missing
+    assert full[0]["synced"] is True
+
+
+async def test_an_http_only_row_syncs_on_its_own_id(data_dir):
+    instances_store.upsert_instance(svc("tv", scheme="http"))
+
+    rows = await service.list_with_sync(
+        FakeClient(live_ids=[], http_live_ids=["tv-http"]), BASE
+    )
+
+    assert rows[0]["synced"] is True
+    assert rows[0]["scheme"] == "http"

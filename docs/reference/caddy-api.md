@@ -29,8 +29,16 @@ hardcoded — see [Discover the server name](#1-discover-the-server-name).
 GET /config/apps/http/servers
 ```
 
-Returns the servers object; Loskai reads its single key (e.g. `srv0`) and caches it as
-`<server>` for the paths below. Done once on startup so nothing hardcodes `srv0`.
+Returns the servers object. Loskai picks the **routing** server by its `:443` listener and
+caches it as `<server>` for the paths below — never `next(iter(...))`, which broke as soon as
+a second server existed. Done once, so nothing hardcodes `srv0`.
+
+**A second server is discovered the same way**: the plain-HTTP one, by its `:80` listener
+(`<http-server>` below). It is deliberately a *separate* selector rather than a loosening of
+the first — a reverse-proxy route pushed into the `:80` cert-setup site would be served
+without TLS by accident. Only an instance whose `scheme` asks for it is pushed there, and a
+Caddy with no `:80` server simply cannot serve `scheme: "http"` (Loskai raises rather than
+falling back to the routing server).
 
 ### 2. Add / assign a route
 
@@ -68,14 +76,37 @@ Caddy answers the wildcard's **empty `200`**, so the failure looks like a succes
 `502`. That is what shipped until the 2026-09-05 live smoke; inserting at the head is the
 fix. Any future route Loskai pushes must go ahead of that block too.
 
+### 2b. The plain-HTTP twin (`scheme: "both"` / `"http"`)
+
+```
+PUT /config/apps/http/servers/<http-server>/routes/0
+```
+
+The same route object under a different `@id` — `<instance-id>-http` — pushed into the `:80`
+server. Two things make index 0 mandatory here, one more than on `:443`: that server's
+cert-setup site ends in a **catch-all** `handle` (an appended route is never reached), and
+Caddy's automatic HTTP→HTTPS **redirect** routes live there too and would otherwise answer
+first. The setup site's own routes carry no `@id`, so Sync keeps ignoring them.
+
+`scheme: "http"` also means the name must be **absent from the `:443` server**: that absence
+is what stops Caddy trying to issue a certificate for it. `upsert_route` therefore deletes the
+route it does *not* want on every push, so changing an existing route's scheme converges with
+no migration step.
+
 ### 3. Delete a route
 
 ```
 DELETE /id/grafana
+DELETE /id/grafana-http     # the plain-HTTP twin, if any
 ```
 
 `@id` addressing: removes the entire route object whose `@id` is `grafana`, wherever it
 sits. Used when a subdomain is cleared or an instance is deleted.
+
+**Both ids are attempted on every teardown**, unconditionally. `DELETE /id/…` is
+server-agnostic, so removing a `scheme: "both"` instance's twin needs the extra id rather
+than extra plumbing — and it must be unconditional because the stored scheme may have been
+changed since the route was pushed.
 
 ### 4. Edit a route (upstream / prefix changed)
 

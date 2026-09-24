@@ -26,6 +26,7 @@ class CaddyClient:
         # base_url None -> resolve from settings at call time (may change via the UI).
         self._explicit_base = base_url
         self._server_name: str | None = None
+        self._http_server_name: str | None = None
 
     def base_url(self) -> str | None:
         return self._explicit_base or settings_store.value("caddy_admin_url")
@@ -49,6 +50,46 @@ class CaddyClient:
 
         self._server_name = service.select_server_name(servers)
         return self._server_name
+
+    async def http_server_name(self) -> str | None:
+        """The `:80` server's key, or None if this Caddy has none. Cached like the routing
+        server, and discovered the same way — never hardcoded."""
+        if self._http_server_name is not None:
+            return self._http_server_name or None
+        async with self._client() as c:
+            r = await c.get("/config/apps/http/servers")
+            r.raise_for_status()
+            servers = r.json() or {}
+        from . import service
+
+        found = service.select_http_server_name(servers)
+        self._http_server_name = found or ""  # "" caches "looked, found none"
+        return found
+
+    async def list_live_http_routes(self) -> list[dict]:
+        """Routes in the `:80` server. `[]` when there is no such server — a deployment
+        without one simply cannot serve `scheme: "http"`, which `upsert_route` rejects."""
+        server = await self.http_server_name()
+        if not server:
+            return []
+        async with self._client() as c:
+            r = await c.get(f"/config/apps/http/servers/{server}/routes")
+            r.raise_for_status()
+            return r.json() or []
+
+    async def push_http_route(self, route: dict) -> None:
+        """Insert into the **`:80`** server, at the head, for the same reason as `:443` and
+        one more: that server's cert-setup site ends in a catch-all `handle`, so an appended
+        route is never reached, and Caddy's automatic HTTP→HTTPS redirect routes live there
+        too and would otherwise win over a plain-HTTP route."""
+        server = await self.http_server_name()
+        if not server:
+            raise CaddyError(
+                "Caddy has no :80 server — a plain-HTTP route has nowhere to go"
+            )
+        async with self._client() as c:
+            r = await c.put(f"/config/apps/http/servers/{server}/routes/0", json=route)
+            r.raise_for_status()
 
     async def list_live_routes(self) -> list[dict]:
         server = await self.server_name()

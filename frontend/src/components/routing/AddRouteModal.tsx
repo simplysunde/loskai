@@ -8,15 +8,17 @@ import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
 import { isValidDnsTarget } from "../../lib/validation";
 import { useScrollLock } from "../../lib/useScrollLock";
+import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
 
-// The route payload the parent posts to /api/assign.
+// The route payload the parent posts to /api/routes.
 export interface NewRoute {
   prefix: string;
   upstream: string;
   upstream_tls: boolean;
+  scheme?: Scheme;
   container?: string;
   origin?: string;
   machine?: string;
@@ -91,6 +93,7 @@ export function AddRouteModal({
     name?: string;
   }>({});
   const [picked, setPicked] = useState<string | null>(null);
+  const [scheme, setScheme] = useState<Scheme>("https");
   // A picked container answers the hint for itself; `mode` is the deployment-wide
   // fallback, used by the Network-service and External sources, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
@@ -241,6 +244,8 @@ export function AddRouteModal({
         )}
 
         <RouteFields fields={fields} />
+        <SchemeSelect value={scheme} onChange={setScheme} />
+
         <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
           <input
             type="checkbox"
@@ -251,7 +256,10 @@ export function AddRouteModal({
         </label>
 
         <p className="mt-4 text-xs text-slate-500">
-          → <span className="font-mono text-slate-300">{`https://${fields.fqdn}`}</span>
+          →{" "}
+          <span className="font-mono text-slate-300">
+            {scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
+          </span>
         </p>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
@@ -261,7 +269,7 @@ export function AddRouteModal({
           </button>
           <button
             disabled={!canSubmit}
-            onClick={() => onSubmit({ ...fields.payload(), ...link })}
+            onClick={() => onSubmit({ ...fields.payload(), scheme, ...link })}
             className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}

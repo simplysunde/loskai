@@ -386,7 +386,9 @@ Everything here exists because that choice is deferred._
 - [ ] Verify on device: Nobara + Firefox + Chromium all trust a `*.sunde` route after
       following the page
 
-**12b — Per-route scheme toggle (HTTPS / both / HTTP)** — _approved 2026-08-03_
+**12b — Per-route scheme toggle (HTTPS / both / HTTP)** — _approved 2026-08-03,
+**built 2026-09-24** (see `TODO.md` Phase 22 for the build record; the checklist below is
+the original specification and every item of it shipped)_
 _Exists **only** for clients that cannot hold a custom root CA: dumb devices (TVs,
 Chromecast/DLNA, printers, IoT), other **containers** calling the service by name (the root
 would have to be baked into someone else's image), and scripts/automation. **Not** a

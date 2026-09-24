@@ -24,7 +24,11 @@ def dashboard() -> dict:
     for inst in instances.list_routed():
         if inst.private:
             continue
-        url = f"https://{inst.subdomain}.{base}" if base else None
+        # An `http`-scheme route has no certificate by design, so linking it as https
+        # would send every dashboard visitor into a failed TLS handshake. A dns_only
+        # instance has no scheme of its own either — the card just names the host.
+        scheme = "http" if inst.scheme == "http" else "https"
+        url = f"{scheme}://{inst.subdomain}.{base}" if base else None
         cards.append({"name": inst.name, "url": url, "icon": None})
     return {
         "services": cards,

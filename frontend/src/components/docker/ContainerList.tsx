@@ -21,6 +21,7 @@ export interface Container {
   uptime: number | null;
   ports: string[];
   subdomain: string | null;
+  scheme?: "https" | "both" | "http" | null;
   suggested_upstream: string | null;
   cpu: number | null;
   mem: { percent: number | null } | null;
@@ -93,7 +94,7 @@ export function ContainerList({
                     {c.subdomain &&
                       (baseDomain ? (
                         <a
-                          href={`https://${c.subdomain}.${baseDomain}`}
+                          href={`${c.scheme === "http" ? "http" : "https"}://${c.subdomain}.${baseDomain}`}
                           target="_blank"
                           rel="noreferrer"
                           className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300 hover:bg-teal-500/25"

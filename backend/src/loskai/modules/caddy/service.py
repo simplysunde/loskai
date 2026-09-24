@@ -96,9 +96,60 @@ def select_server_name(servers: dict) -> str:
     return next(iter(servers))
 
 
-def build_route(instance: Instance, base_domain: str) -> dict:
+def select_http_server_name(servers: dict) -> str | None:
+    """The plain-HTTP server (`:80`), or None if this Caddy has none.
+
+    A *second* selector rather than loosening `select_server_name`: that one must keep
+    excluding `:80`, since a reverse-proxy route pushed into the cert-setup site would be
+    served without TLS by accident. Here the `:80` server is exactly what we want — and only
+    for instances whose scheme explicitly asks for it."""
+    if not servers:
+        return None
+    routing = select_server_name(servers)
+    for name, cfg in servers.items():
+        if name == routing:
+            continue
+        listen = (cfg or {}).get("listen") or []
+        if any(_listen_port(addr) == "80" for addr in listen):
+            return name
+    return None
+
+
+def http_route_id(instance_id: str) -> str:
+    """The `@id` of an instance's plain-HTTP route. `scheme: "both"` means two Caddy routes
+    for one instance, and they live in different servers, so they need distinct ids."""
+    return f"{instance_id}-http"
+
+
+def wants_https(instance: Instance) -> bool:
+    return instance.scheme in ("https", "both")
+
+
+def wants_http(instance: Instance) -> bool:
+    return instance.scheme in ("http", "both")
+
+
+def expected_route_ids(instance: Instance) -> list[str]:
+    """Every Caddy `@id` this instance should have. Empty for `dns_only` — no Caddy at all.
+    What `synced` compares against: `both` is only in sync when *both* are present."""
+    if instance.route_mode != "proxy" or not instance.subdomain:
+        return []
+    ids = []
+    if wants_https(instance):
+        ids.append(instance.id)
+    if wants_http(instance):
+        ids.append(http_route_id(instance.id))
+    return ids
+
+
+def build_route(
+    instance: Instance, base_domain: str, route_id: str | None = None
+) -> dict:
     """The Caddy route JSON for an instance (see docs/reference/caddy-api.md §2). Flat, keyed by
-    @id = instance id, matching one specific host."""
+    @id = instance id, matching one specific host.
+
+    `route_id` overrides the key for the plain-HTTP twin (`<id>-http`), which is otherwise
+    the same object: the handler does not change, only which server it is pushed into."""
     if not instance.subdomain:
         raise ValueError(f"instance {instance.id} has no subdomain")
     if not instance.upstream:
@@ -112,7 +163,7 @@ def build_route(instance: Instance, base_domain: str) -> dict:
         # Dial the backend over HTTPS; skip cert verification for LAN/self-signed backends.
         proxy["transport"] = {"protocol": "http", "tls": {"insecure_skip_verify": True}}
     return {
-        "@id": instance.id,
+        "@id": route_id or instance.id,
         "match": [{"host": [host]}],
         "handle": [
             {
@@ -136,7 +187,10 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
 
     live_ids: set[str] | None
     try:
+        # Both servers: a `scheme: "both"` instance is only in sync when its route is in
+        # each, and an `http` one must be absent from `:443` entirely.
         live = await client.list_live_routes()
+        live += await client.list_live_http_routes()
         live_ids = {r["@id"] for r in live if r.get("@id")}
     except (httpx.HTTPError, CaddyError):
         live_ids = None  # Caddy unreachable — sync status is unknown, not "missing"
@@ -156,7 +210,8 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         if not is_proxy or live_ids is None:
             synced = None
         else:
-            synced = inst.id in live_ids
+            expected = expected_route_ids(inst)
+            synced = bool(expected) and all(rid in live_ids for rid in expected)
         if not is_proxy or upstream_fails is None or inst.upstream is None:
             upstream_healthy = None
         else:
@@ -174,6 +229,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "private": inst.private,
                 "container": inst.container,
                 "origin": inst.origin,
+            "scheme": inst.scheme,
             "machine": inst.machine,
             "kind": inst.kind,
                 "routed": routed,
@@ -186,9 +242,34 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
 
 async def upsert_route(client: CaddyClient, instance: Instance, base_domain: str) -> None:
     """Delete-then-add — the single convergent path (docs/reference/caddy-api.md §4). Idempotent
-    by @id, so re-pushing never duplicates."""
-    await client.delete_route(instance.id)  # ignores 404
-    await client.push_route(build_route(instance, base_domain))
+    by @id, so re-pushing never duplicates.
+
+    Scheme-aware since Phase 12b: `https` (default) lives only in the `:443` server, `http`
+    only in the `:80` one, `both` in each. The route *not* wanted is deleted every time, so
+    changing an existing route's scheme converges without a separate migration — and for
+    `http` that deletion is load-bearing: absence from the `:443` server is what stops Caddy
+    trying to issue a certificate for the name."""
+    http_id = http_route_id(instance.id)
+
+    if wants_https(instance):
+        await client.delete_route(instance.id)  # ignores 404
+        await client.push_route(build_route(instance, base_domain))
+    else:
+        await client.delete_route(instance.id)
+
+    if wants_http(instance):
+        await client.delete_route(http_id)
+        await client.push_http_route(build_route(instance, base_domain, route_id=http_id))
+    else:
+        await client.delete_route(http_id)
+
+
+async def teardown_route(client: CaddyClient, instance_id: str) -> None:
+    """Remove both of an instance's possible routes. `DELETE /id/<id>` is server-agnostic,
+    so tearing down the plain-HTTP twin needs the extra id, not extra plumbing — and it is
+    unconditional because the stored scheme may already have been changed."""
+    await client.delete_route(instance_id)
+    await client.delete_route(http_route_id(instance_id))
 
 
 async def push_all(client: CaddyClient, base_domain: str | None) -> list[dict]:

@@ -1,5 +1,34 @@
 # Loskai — History
 
+## 2026-09-24 — Phase 12b, seven weeks late: the per-route scheme
+
+The last unbuilt piece of Phase 12, approved 2026-08-03. An instance gains
+`scheme: "https" | "both" | "http"` — one enum rather than two booleans, since two checkboxes
+admit a both-off state that means nothing.
+
+**The August specification had already worked out the rule that September proved.** It said
+the `:80` route must be inserted at index 0, because that server's cert-setup site ends in a
+catch-all and Caddy's automatic HTTP→HTTPS redirects live there. A month later the 2026-09-05
+live smoke found the *same* rule was needed on `:443`, for a different first-route-wins
+reason, and cost a day to diagnose. The knowledge was in the repo the whole time — which is
+the same lesson that phase's write-up already records, arriving a second time.
+
+**Three details carry the design.** The `:80` server gets its *own* selector rather than a
+loosened one, because a reverse-proxy route pushed into the cert-setup site would be served
+without TLS by accident. `both` means two Caddy routes with two ids, so "synced" had to become
+"all expected ids present" and teardown had to remove both unconditionally — the stored scheme
+may have changed since the push. And `http` works by **absence**: keeping the name out of the
+`:443` server is what stops Caddy trying to issue a certificate for it, which the live run
+confirmed the only way that counts — `curl -v` gets `tlsv1 alert internal error`, because no
+certificate for that name exists.
+
+**The backend was finished before the obvious flaw showed up.** Every link Loskai hands out —
+the assign response's `url`, the public dashboard's cards, the Docker tab's routed-container
+link — was a hardcoded `https://`. An http-only route linked that way cannot connect, and the
+dashboard is the one surface a non-admin actually uses. Found by reading the UI after the
+routing worked, not by any test, and fixed with the scheme carried through to the card and the
+container row.
+
 ## 2026-09-23 — The three defects the smokes had left behind
 
 Cleared the backlog items that came out of the September smokes, plus a claim of mine that was

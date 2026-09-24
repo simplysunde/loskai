@@ -75,6 +75,7 @@ class DockerClient:
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
                 "subdomain": logic.subdomain_for(c.name, instances),
+                "scheme": logic.scheme_for(c.name, instances),
                 # How Caddy has to dial *this* container, decided from the networks the
                 # two actually share — not from a deployment-wide guess. See
                 # logic.upstream_mode; the frontend uses it for the upstream hint copy.

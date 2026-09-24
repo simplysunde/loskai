@@ -45,6 +45,7 @@ test("Assign is disabled until prefix and upstream are valid", () => {
     upstream: "192.168.10.100:3000",
     upstream_tls: false,
     machine: null,
+    scheme: "https",
   });
 });
 
@@ -63,6 +64,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
     machine: null,
+    scheme: "https",
   });
 });
 
@@ -85,6 +87,7 @@ test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
     machine: null,
+    scheme: "https",
   });
 });
 
@@ -159,4 +162,19 @@ test("with no machines named yet, the picker stays out of the way", () => {
   renderModal({ rows: [] });
 
   expect(screen.queryByText("Hosted on a machine")).not.toBeInTheDocument();
+});
+
+test("an existing route's scheme is prefilled and editable", () => {
+  const { onSubmit } = renderModal({
+    initialPrefix: "tv",
+    initialUpstream: "192.168.10.50:8080",
+    initialScheme: "http",
+  });
+
+  // Prefilled: the current scheme is the selected one...
+  fireEvent.click(screen.getByRole("button", { name: "Both" }));
+  fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+
+  // ...and changing it is what makes the toggle useful on an existing route.
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ scheme: "both" }));
 });
