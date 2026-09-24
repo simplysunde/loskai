@@ -597,6 +597,14 @@ cannot detect its own host IP, `HOST_IP` is optional, and the Caddy container is
       index 0 beats the Caddyfile; an unrouted name → `302` to https instead of the onboarding
       page; browsing by IP → the page, unchanged; `/caddy-root.crt` → `200`
 
+**The ACME variant of the LXC script got the same treatment** _(same day)_. Internal mode
+fetches `caddy/Caddyfile` from the repo, so it inherited both fixes for free — but
+`create-caddy-lxc.sh`'s `TLS_MODE=acme` branch writes its **own inline Caddyfile**, which had
+neither: a handler-less wildcard block (the empty `200`) and **no `:80` server at all**, so
+`scheme: "http"`/`"both"` had nowhere to be pushed. It now carries a 404 for unrouted names
+and a minimal `:80` site. Verified by running the script's own heredoc and adapting the
+result: `srv0 :443` + `srv1 :80`, where before there was only `srv0`.
+
 **Not done, and why:** redirecting the page itself to Loskai's `/certificate` would need
 Loskai's address, which has the same undetectable-host-IP problem and would mean a new
 required env var. The page costs nothing where it now sits — by-IP only, which is exactly the

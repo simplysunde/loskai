@@ -24,6 +24,14 @@ the same job automatically.
 The live run also confirmed the layering 12b depends on: an `http`-scheme route still proxies
 on `:80`, because Loskai's routes sit at index 0, ahead of anything the Caddyfile compiles to.
 
+**Both fixes had a twin that nearly missed them.** `create-caddy-lxc.sh` fetches
+`caddy/Caddyfile` from the repo in internal mode — one config, no drift, which is why that
+path inherited them automatically. Its `TLS_MODE=acme` branch writes an inline Caddyfile
+instead, and that one had a handler-less wildcard block and **no `:80` server at all**: the
+empty `200` for unrouted names, and nowhere for Phase 22's `http`/`both` routes to be pushed.
+Caught by asking where else a Caddyfile is written, not by any check — `check-docs.sh` cannot
+see into a heredoc in a shell script.
+
 **The same block now answers unrouted names with a 404**, closing a backlog item open since
 2026-09-05. The wildcard site was handler-less — cert-only — which compiled to a terminal
 route returning an empty `200`, so a name with no route looked like a broken service rather

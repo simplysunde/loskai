@@ -256,6 +256,11 @@ fi
 # --- Bootstrap Caddyfile (admin + TLS + onboarding, no routes) ---
 log "Writing /etc/caddy/Caddyfile"
 if [ "$TLS_MODE" = acme ]; then
+	# Mirrors caddy/Caddyfile's behaviour for the public-cert path: a 404 for names with no
+	# route (the block would otherwise be handler-less and answer an empty 200, which reads
+	# as a broken service), and a :80 site so `scheme: "http"`/`"both"` routes have a server
+	# to be pushed into — without one Caddy creates no port-80 listener at all. There is no
+	# onboarding page here: ACME certs are publicly trusted, so there is nothing to install.
 	pct exec "$CTID" -- bash -c "cat > /etc/caddy/Caddyfile" <<CADDYFILE
 {
 	admin 0.0.0.0:2019
@@ -265,6 +270,14 @@ if [ "$TLS_MODE" = acme ]; then
 	tls {
 		dns duckdns {env.DUCKDNS_TOKEN}
 	}
+	header Content-Type "text/html; charset=utf-8"
+	respond "<!doctype html><meta charset=utf-8><title>Not routed</title><p>Nothing is routed at this name." 404
+}
+
+# Plain-HTTP server. Caddy adds its own HTTP->HTTPS redirects here for every name it serves;
+# Loskai pushes any \`scheme: "http"\` route at index 0, ahead of this catch-all.
+:80 {
+	respond "Nothing is routed at this name." 404
 }
 CADDYFILE
 else
