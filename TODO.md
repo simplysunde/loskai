@@ -38,15 +38,15 @@ that has never been true. These are real, unfinished, and unblocked — listed h
 visible without unpacking a phase back out. The checklists stay in
 [`todo-archive.md`](todo-archive.md)._
 
-- **Phase 12 — internal-CA trust onboarding. Archived 2026-08-27 as complete; it is not.**
-  No completion marker, every item unchecked.
+- **Phase 12 — internal-CA trust onboarding. Archived 2026-08-27 before it was complete.**
+  Finished 2026-09-24 across two later phases; only 12c (documentation) remains.
   - ~~**12a** — the trust-install page prints Debian-only Linux instructions~~ **done in
     Phase 19** (below): both pages now carry Debian, Fedora/RHEL and Arch/openSUSE commands,
     plus the NSS step Chrome and Chromium need on Linux
-  - **12b** — per-route scheme toggle (`https` / `both` / `http`), approved 2026-08-03,
-    unbuilt. Exists only for clients that cannot hold a custom root CA. **Its notes already
-    specify insert-at-index-0 for the `:80` server** — the same rule the 2026-09-05 defect
-    turned out to need for `:443`, written a month earlier and never generalised
+  - ~~**12b** — per-route scheme toggle (`https` / `both` / `http`), approved 2026-08-03~~
+    **built 2026-09-24 as Phase 22** (below). Its notes had specified insert-at-index-0 for
+    the `:80` server since August — the same rule the 2026-09-05 defect turned out to need
+    for `:443`, a month later and at the cost of a day
   - **12c** — Caddy as ACME server for HTTPS-native backends (docs only, no Loskai code)
 - ~~**Two live smokes that were never run** — Phases 10a and 13~~ **both ran 2026-09-16 and
   passed**, 10a together with Phase 19's browser check (below). Results are in each phase's
