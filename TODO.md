@@ -602,19 +602,26 @@ Loskai's address, which has the same undetectable-host-IP problem and would mean
 required env var. The page costs nothing where it now sits — by-IP only, which is exactly the
 fallback `certificate-setup.md` documents.
 
+**A 404 for names that aren't routed** _(same day, closing the 2026-09-05 backlog item)_
+- [x] The `*.{$BASE_DOMAIN}` block gained a `respond … 404` with a small dark page naming the
+      host. It was previously handler-less — cert-only — which compiled to a terminal route
+      answering an **empty `200`**: a blank page that looked like a broken service rather than
+      an unassigned name
+- [x] **404, not a redirect to the dashboard.** That is what nginx, Traefik and the hosting
+      platforms do; redirecting changes the URL under the visitor and hides the real cause.
+      No "back to the dashboard" link, because Caddy does not know Loskai's address and
+      Loskai cannot detect it — the same constraint as above. One line to add later if Loskai
+      is ever routed at a fixed name
+- [x] `dev/Caddyfile` deliberately **not** changed: its placeholder site is `*.localhost`,
+      kept different from `BASE_DOMAIN` on purpose, so a 404 there would never see real names
+- [x] Live, against the **production** Caddyfile in a container (`BASE_DOMAIN=smoke.test`)
+      with a Loskai-shaped route pushed at index 0: the routed name proxied `200`, an
+      unrouted one answered `404` with `Nothing is routed at typo.smoke.test`, plain HTTP
+      redirected first, and the by-IP onboarding page was untouched. Rendered in a browser
+
 ---
 
 ## Backlog / Future ideas
-- **An unrouted name under `BASE_DOMAIN` answers an empty `200`** (found alongside the
-  2026-09-05 route-ordering defect, deliberately **not** fixed with it — it is the same
-  wildcard block but a different symptom, and the fix that mattered was the one that made real
-  routes work). `curl https://nothing.<base-domain>/` returns `200` with `content-length: 0`
-  from the Caddyfile's terminal `*.{$BASE_DOMAIN}` block. A typo'd or not-yet-assigned name
-  looks like a blank page rather than an error, which is the same "fails as a success" shape
-  that hid the route bug for so long. Fix is a catch-all `respond 404` **after** the wildcard
-  block in `caddy/Caddyfile` (it must stay ahead of nothing and behind everything Loskai
-  pushes, which head-insertion now guarantees). Worth a `troubleshooting.md` symptom entry
-  either way — anyone on a build from before 2026-09-05 hits the empty 200 on a *real* route
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the
   names resolve on the LAN via AdGuard rewrites). Dissolves Phase 12 entirely, including the

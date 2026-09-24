@@ -50,8 +50,11 @@ appended, so **every route was shadowed** wherever Caddy ran with the real `BASE
 that block — the co-located and split-DNS layouts, and split-LXC in `acme` mode. Update, then
 re-push from **Routing → Sync**.
 
-A name under `BASE_DOMAIN` that you have *not* routed answers the same empty `200`, from the
-same block. That one is expected.
+A name under `BASE_DOMAIN` that you have *not* routed answers **`404` — "Nothing is routed at
+&lt;name&gt;"** — from that same block. That one is expected, and it is the quickest way to tell
+the two apart: a blank page means the shadowing bug above, a 404 page means the name simply
+has no route (check Routing, or the spelling). Builds from before 2026-09-24 answered an empty
+`200` here too, which is why the symptoms used to look identical.
 
 ---
 

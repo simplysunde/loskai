@@ -7,16 +7,38 @@
 # The onboarding page (served on :80, published by compose.colocated.yml) lets LAN devices
 # trust the internal root once. For the public-ACME alternative, see the bottom of this file
 # (and swap caddy/Dockerfile to the xcaddy build).
-
 {
 	# Internal to the Docker network — Loskai reaches this as caddy:2019. Not published.
 	admin 0.0.0.0:2019
-	local_certs   # Caddy is its own CA — issues an internal cert per name on demand
+	local_certs # Caddy is its own CA — issues an internal cert per name on demand
 }
 
-# Issue an internal cert for each *.{$BASE_DOMAIN} name on demand. No handlers -> cert only.
+# Issue an internal cert for each *.{$BASE_DOMAIN} name on demand, and answer names that
+# aren't routed. Loskai inserts every real route at index 0 of this server, ahead of what
+# this block compiles to, so this only ever replies when nothing is routed at the name —
+# which used to be an empty 200 that looked like a blank page rather than a mistake.
 *.{$BASE_DOMAIN} {
 	tls internal
+	header Content-Type "text/html; charset=utf-8"
+	respond <<HTML
+		<!doctype html>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Not routed — {host}</title>
+		<style>
+			body { background:#0f172a; color:#e2e8f0; font:16px/1.6 system-ui, sans-serif;
+			       display:grid; place-items:center; min-height:100vh; margin:0; padding:2rem }
+			div { max-width:32rem; text-align:center }
+			h1 { font-size:1.25rem; margin:0 0 .5rem }
+			code { background:#1e293b; padding:.15rem .4rem; border-radius:.25rem }
+			p { color:#94a3b8; margin:.5rem 0 0 }
+		</style>
+		<div>
+			<h1>Nothing is routed at <code>{host}</code></h1>
+			<p>The name resolves and this server answered, but no service is assigned to it.</p>
+			<p>Add a route for it in Loskai, or check the name for a typo.</p>
+		</div>
+		HTML 404
 }
 
 # Certificate-onboarding page on :80 — plain HTTP so a LAN device can install the internal

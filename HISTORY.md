@@ -24,6 +24,14 @@ the same job automatically.
 The live run also confirmed the layering 12b depends on: an `http`-scheme route still proxies
 on `:80`, because Loskai's routes sit at index 0, ahead of anything the Caddyfile compiles to.
 
+**The same block now answers unrouted names with a 404**, closing a backlog item open since
+2026-09-05. The wildcard site was handler-less — cert-only — which compiled to a terminal
+route returning an empty `200`, so a name with no route looked like a broken service rather
+than an unassigned one. It now returns a small page naming the host. A 404 rather than a
+redirect to the dashboard because that is what proxies do: redirecting changes the URL under
+the visitor and hides the cause. There is no link home, for the third time in one day for the
+same reason — Caddy does not know Loskai's address, and Loskai cannot detect its own.
+
 ## 2026-09-24 — Phase 12b, seven weeks late: the per-route scheme
 
 The last unbuilt piece of Phase 12, approved 2026-08-03. An instance gains
