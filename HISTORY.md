@@ -1,5 +1,29 @@
 # Loskai — History
 
+## 2026-09-24 — "The setup page is redundant now" — half right, and the half that isn't matters
+
+Sunde's observation was correct about the page: `/certificate` hands out the same root over a
+connection that needs no trust, so the `:80` onboarding site is no longer the primary path.
+The trap was what deleting it would take with it. Measured rather than assumed: a Caddy whose
+Caddyfile has a real HTTPS site but **no `:80` block** comes up with only `srv0` on `:443` —
+no port-80 listener at all. That block is what creates the server 12b's `http` and `both`
+routes are pushed into, and without it those schemes have nowhere to land and a bare hostname
+gets connection-refused rather than a redirect.
+
+So the fix was to stop it **claiming every name**, not to remove it. The block now leads with
+a matcher on `*.{$BASE_DOMAIN}` that redirects those to HTTPS; the page answers everything
+else, which in practice means browsing to Caddy by IP.
+
+**Keyed on the domain, not an IP, and that was the interesting decision.** Sunde asked whether
+the supplied host IP could be used, or detected. Neither: `config.py`'s `host_ip` has recorded
+since it was written that a bridged container cannot detect its own host IP, `HOST_IP` is
+optional, and the Caddy container is handed only `BASE_DOMAIN`. Scoping to an IP would have
+*added* a required setting to make a wart go away — where the domain Caddy already has does
+the same job automatically.
+
+The live run also confirmed the layering 12b depends on: an `http`-scheme route still proxies
+on `:80`, because Loskai's routes sit at index 0, ahead of anything the Caddyfile compiles to.
+
 ## 2026-09-24 — Phase 12b, seven weeks late: the per-route scheme
 
 The last unbuilt piece of Phase 12, approved 2026-08-03. An instance gains

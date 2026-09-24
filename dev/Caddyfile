@@ -33,6 +33,18 @@
 # :443 routing one; Loskai discovers the routing server by its :443 listener, so it never
 # pushes routes here. In dev, reach it at http://localhost:8081/ (compose maps 8081:80).
 :80 {
+	# Names under BASE_DOMAIN belong to HTTPS — or to a plain-HTTP route Loskai pushes at
+	# index 0 of this server, which is matched before anything in this file. Without this
+	# first handle the catch-all below swallowed them, so typing `grafana.example.no` with
+	# no scheme landed on the onboarding page instead of redirecting. Keyed on BASE_DOMAIN
+	# rather than this host's IP because Caddy is already given the domain, and a bridged
+	# container cannot detect its own host IP (see backend config.py `host_ip`).
+	# The `:example.invalid` default makes the matcher inert when BASE_DOMAIN is unset.
+	@internal host *.{$BASE_DOMAIN:example.invalid}
+	handle @internal {
+		redir https://{host}{uri}
+	}
+
 	# The internal root CA, streamed live from Caddy's PKI (unique per install — never
 	# committed). Appears once Caddy has initialised its `local` CA.
 	handle /caddy-root.crt {

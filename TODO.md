@@ -572,6 +572,38 @@ TLS on a LAN is unmeasurable next to the proxy hop, which is paid either way._
 
 ---
 
+## Phase 23 — The `:80` site stops claiming every name
+
+_Sunde, after 12b: "as it is the setup page is now redundant since we are able to download
+what we need directly through loskai." True for the **page** — `/certificate` serves the root
+over a connection that needs no trust. Not true for the **block**: measured, a Caddy whose
+Caddyfile has a real HTTPS site but no `:80` block ends up with **only `srv0` on `:443`** — no
+port-80 listener at all — and that server is where 12b's `http`/`both` routes go._
+
+_"Will we be able to use the supplied host ip… or were we able to detect host ip
+automatically?" Neither: `config.py`'s `host_ip` already records that a bridged container
+cannot detect its own host IP, `HOST_IP` is optional, and the Caddy container is passed only
+`BASE_DOMAIN`. Scoping the block to an IP would have **added** a required setting._
+
+- [x] The `:80` block leads with `@internal host *.{$BASE_DOMAIN:example.invalid}` →
+      `redir https://{host}{uri}`, in both `caddy/Caddyfile` and `dev/Caddyfile`. Keyed on the
+      domain Caddy already has, so it is automatic with no new configuration; the
+      `example.invalid` default makes the matcher inert when `BASE_DOMAIN` is unset
+- [x] `compose.dev.yml` passes `BASE_DOMAIN` to its Caddy (the placeholder site stays
+      `*.localhost` on purpose)
+- [x] Docs: `certificate-setup.md`'s "it claims the whole of `:80`" warning rewritten
+- [x] Live, all five cases: an `https` route typed as `http` → **`308` to https** (Caddy's own
+      redirect, for names it holds a route for); an `http` route → **`200` proxied**, since
+      index 0 beats the Caddyfile; an unrouted name → `302` to https instead of the onboarding
+      page; browsing by IP → the page, unchanged; `/caddy-root.crt` → `200`
+
+**Not done, and why:** redirecting the page itself to Loskai's `/certificate` would need
+Loskai's address, which has the same undetectable-host-IP problem and would mean a new
+required env var. The page costs nothing where it now sits — by-IP only, which is exactly the
+fallback `certificate-setup.md` documents.
+
+---
+
 ## Backlog / Future ideas
 - **An unrouted name under `BASE_DOMAIN` answers an empty `200`** (found alongside the
   2026-09-05 route-ordering defect, deliberately **not** fixed with it — it is the same

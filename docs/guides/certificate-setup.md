@@ -56,11 +56,18 @@ through Loskai's API, and reachable with Loskai stopped. HTTP on purpose: the pa
 is to fix the untrusted-cert warning, so it can't sit behind that same untrusted cert.
 Reach it **by IP** (no DNS or trust needed first).
 
-> **It claims the whole of `:80`.** The shipped `caddy/Caddyfile` uses a bare `:80 { … }`,
-> which matches every hostname on that port and so replaces Caddy's automatic HTTP→HTTPS
-> redirects: typing `grafana.home.lan` without a scheme lands on this page instead of
-> redirecting. Scope it to the host IP (below) if that bothers you. And when you move to
-> public ACME, this block has to go — the HTTP-01 challenge needs `:80`.
+> **It listens on the whole of `:80`, but no longer swallows your names.** The block starts
+> with a matcher on `*.{$BASE_DOMAIN}` that redirects those to HTTPS, so typing
+> `grafana.home.lan` with no scheme redirects as you would expect; the page itself answers
+> everything else, which in practice means browsing to Caddy **by IP**. Keyed on the domain
+> rather than this host's IP deliberately: Caddy is already given `BASE_DOMAIN`, and a
+> bridged container cannot detect its own host IP.
+>
+> **This does not override a `scheme: "http"` route.** Loskai pushes those into this same
+> `:80` server at index 0, ahead of everything in the Caddyfile, so they proxy normally
+> — see [api.md](../reference/api.md) (`POST /api/routes`, `scheme`).
+>
+> When you move to public ACME, this block has to go — the HTTP-01 challenge needs `:80`.
 
 ```caddyfile
 :80 {
@@ -95,8 +102,9 @@ it (it has no `@id`).
 - **Dev:** <http://localhost:8081/> (compose maps `8081:80`).
 - **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/`.
 
-  In prod, scope the site to the LXC IP so it doesn't shadow the automatic HTTP→HTTPS
-  redirects for your real names:
+  The shipped file already keeps your real names redirecting to HTTPS (see the note
+  above). Scoping the whole site to the LXC IP is still an option if you would rather it
+  answered nothing else at all:
 
   ```caddyfile
   http://192.168.10.100 {   # the Caddy LXC's IP
