@@ -656,9 +656,28 @@ to swap the directive by hand. Any provider but DuckDNS produced a Caddy that wo
       single-token provider emits `dns cloudflare {env.CADDY_DNS_TOKEN}`, and acme-dns emits
       its four-field block. Both compose files still `config -q` clean
 
-**Not done (and not needed for the above):** the co-located Docker path is still a hand-edit
-of two files rather than a switch. `caddy/Dockerfile`'s comment now shows the `ARG` shape it
-would take.
+**The co-located Docker path is a switch too** _(same day)_. It was the one place still
+needing two files hand-edited, for two real reasons: a DNS plugin is **compiled into** the
+binary (the LXC can swap builds at runtime with `caddy add-package`; an image cannot), and a
+Caddyfile has no conditionals, so one file cannot serve both modes.
+- [x] `caddy/Dockerfile` gains build targets — `stock` (plain Caddy, no compile) and `acme`
+      (rebuilt via `xcaddy` with `CADDY_DNS_PLUGIN`). Both carry both Caddyfiles, so only the
+      *binary* differs
+- [x] `caddy/Caddyfile.acme` — the DNS-01 wildcard, the same 404 for unrouted names, and a
+      `:80` server kept for `scheme: "http"`/`"both"` routes and Caddy's own redirects. No
+      onboarding page: publicly trusted certs leave nothing to install
+- [x] Both compose files select with `CADDY_BUILD` (target) and `CADDY_CONFIG` (which file the
+      container reads), defaulting to the internal CA
+- [x] **A bug my own negative test caught:** `docker build` with no `--target` builds the
+      **last** stage, so with `acme` written last a plain build silently produced a
+      Go-compiled binary carrying a plugin nobody asked for. `stock` is now last, with a
+      comment saying why the ordering is load-bearing
+- [x] Verified by building both and inspecting the binaries, not the build log: the default
+      image has **0** `dns.providers.*` modules and refuses the ACME config with `module not
+      registered`; `--target acme` has `dns.providers.cloudflare`, adapts to an `acme` issuer
+      with the DNS challenge and the token left as an `{env.…}` reference, and starts with
+      `srv0 :443` + `srv1 :80`, reaching "obtaining certificate"
+- [x] Docs: five new rows in `deployment.md`'s env table
 
 **What this does *not* solve:** one.com hosts the domain in question and there is **no
 `onecom` module** in the caddy-dns organisation (checked: the o-range holds `njalla`,

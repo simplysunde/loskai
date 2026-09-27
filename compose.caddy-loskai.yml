@@ -10,18 +10,28 @@
 
 services:
   caddy:
-    build: ./caddy # stock Caddy + internal CA by default; see caddy/Dockerfile for the ACME build
+    build:
+      context: ./caddy
+      # `stock` (default) is plain Caddy with its internal CA and needs no configuration.
+      # For public certs: CADDY_BUILD=acme plus CADDY_DNS_PLUGIN for your DNS host, and set
+      # CADDY_CONFIG=Caddyfile.acme below. See caddy/Caddyfile.acme.
+      target: ${CADDY_BUILD:-stock}
+      args:
+        CADDY_DNS_PLUGIN: ${CADDY_DNS_PLUGIN:-github.com/caddy-dns/cloudflare}
     container_name: caddy
     ports:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
       - "443:443"
       # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
+    # Which Caddyfile the container reads: the internal-CA one by default, or
+    # Caddyfile.acme for public DNS-01 certs. Both are baked into the image.
+    command: ["caddy", "run", "--config", "/etc/caddy/${CADDY_CONFIG:-Caddyfile}", "--adapter", "caddyfile"]
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
-      # CADDY_DNS_TOKEN is only needed for the future public-ACME path (see caddy/Caddyfile +
-      # caddy/Dockerfile) and holds your DNS provider's credential. The default internal CA
-      # needs no token — leave this commented.
-      #- CADDY_DNS_TOKEN=${CADDY_DNS_TOKEN:-}
+      # ACME only: the plugin's directive name and its credential. Ignored by the internal
+      # CA, which needs neither.
+      - CADDY_DNS_PROVIDER=${CADDY_DNS_PROVIDER:-}
+      - CADDY_DNS_TOKEN=${CADDY_DNS_TOKEN:-}
     volumes:
       - caddy-data:/data # certs + the autosaved config (survives restarts)
       - caddy-config:/config

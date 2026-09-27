@@ -16,6 +16,18 @@ one concrete reason rather than generality: providers do not share a credential 
 acme-dns — the likely answer for a registrar with no API — needs four fields where Cloudflare
 needs one.
 
+**The co-located Docker path was closed the same day**, and the interesting part was why it
+had lagged: a DNS plugin is compiled into the binary, so an env var cannot add one the way
+`caddy add-package` can on the LXC, and a Caddyfile has no conditionals, so one file cannot
+serve both modes. Build targets plus a second Caddyfile solve both — `CADDY_BUILD` picks the
+binary, `CADDY_CONFIG` picks the file, and both files ship in both images so only the binary
+differs.
+
+Writing the negative test is what made it correct. Checking that a *stock* image refuses an
+ACME config, I found it accepted one — because `docker build` with no `--target` builds the
+**last** stage, and `acme` was written last. The default build had been quietly producing a
+Go-compiled binary with a plugin nobody asked for. Stage order is now load-bearing and says so.
+
 **The question that prompted it was the more interesting one.** Sunde asked whether Loskai
 needs anything at all for public certs, or "a simple env variable". The answer is that the env
 variable already exists (`CERTIFICATE_TAB=hidden`) and Loskai needs no code: it pushes routes
