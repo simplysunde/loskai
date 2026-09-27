@@ -22,7 +22,9 @@
 #   TLS_MODE=internal  → Caddy is its own CA (local_certs). LAN devices install the root once
 #                        via the onboarding page at http://<lxc-ip>/.
 #   TLS_MODE=acme      → public wildcard *.BASE_DOMAIN via DNS challenge; adds the matching
-#                        caddy-dns plugin (via `caddy add-package`) and needs a provider token.
+#                        caddy-dns plugin (via `caddy add-package`) and needs a provider
+#                        credential. Requires CADDY_DNS_PLUGIN, e.g.
+#                        CADDY_DNS_PLUGIN=github.com/caddy-dns/cloudflare
 #
 # Infrastructure scaffolding — read it before running. It cannot be tested outside a
 # Proxmox host.
@@ -74,8 +76,23 @@ TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
 BASE_DOMAIN="${BASE_DOMAIN:-example.no}"
 # TLS mode: 'internal' (Caddy's own CA, the default) or 'acme' (public DNS-challenge wildcard).
 TLS_MODE="${TLS_MODE:-internal}"
-# ACME only — the caddy-dns plugin matching your domain's DNS provider (DuckDNS shown as default).
-CADDY_DNS_PLUGIN="${CADDY_DNS_PLUGIN:-github.com/caddy-dns/duckdns}"
+# ACME only — the caddy-dns plugin matching your domain's DNS provider. Any module from
+# https://github.com/orgs/caddy-dns/repositories works; there is no default worth guessing.
+CADDY_DNS_PLUGIN="${CADDY_DNS_PLUGIN:-}"
+# The Caddyfile directive name for that plugin. Derived from the module path, which is right
+# for nearly all of them (caddy-dns/cloudflare -> `dns cloudflare`); override when it isn't.
+CADDY_DNS_PROVIDER="${CADDY_DNS_PROVIDER:-${CADDY_DNS_PLUGIN##*/}}"
+# What follows the provider name in the `tls` block. The default suits any provider taking a
+# single credential (Cloudflare, deSEC, DuckDNS, Hetzner, …). Providers needing several fields
+# — acme-dns wants username/password/subdomain/server_url — pass their whole block here, e.g.
+#   CADDY_DNS_ARGS='{
+#           username {env.ACMEDNS_USER}
+#           password {env.ACMEDNS_PASS}
+#           subdomain {env.ACMEDNS_SUBDOMAIN}
+#           server_url {env.ACMEDNS_SERVER}
+#   }'
+# and add the matching Environment= lines to the unit afterwards.
+CADDY_DNS_ARGS="${CADDY_DNS_ARGS:-{env.CADDY_DNS_TOKEN\}}"
 # Raw base URL of the Loskai repo. Internal mode fetches caddy/Caddyfile + the onboarding page
 # from here, so this LXC and the co-located container share ONE config (no drift). Override for
 # a private forge, e.g. REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main
@@ -247,6 +264,12 @@ AUTOUPGRADES
 
 # ACME mode needs the DNS-challenge plugin in the caddy binary. `caddy add-package` swaps in
 # an official build that includes it — no xcaddy/Go toolchain required.
+if [ "$TLS_MODE" = acme ] && [ -z "$CADDY_DNS_PLUGIN" ]; then
+	echo "TLS_MODE=acme needs CADDY_DNS_PLUGIN (e.g. github.com/caddy-dns/cloudflare)." >&2
+	echo "Pick the module for your DNS host: https://github.com/orgs/caddy-dns/repositories" >&2
+	exit 1
+fi
+
 if [ "$TLS_MODE" = acme ]; then
 	log "Adding caddy-dns plugin ($CADDY_DNS_PLUGIN) for ACME"
 	pct exec "$CTID" -- caddy add-package "$CADDY_DNS_PLUGIN"
@@ -268,7 +291,7 @@ if [ "$TLS_MODE" = acme ]; then
 
 *.{\$BASE_DOMAIN} {
 	tls {
-		dns duckdns {env.DUCKDNS_TOKEN}
+		dns $CADDY_DNS_PROVIDER $CADDY_DNS_ARGS
 	}
 	header Content-Type "text/html; charset=utf-8"
 	respond "<!doctype html><meta charset=utf-8><title>Not routed</title><p>Nothing is routed at this name." 404
@@ -322,7 +345,7 @@ if [ "$TLS_MODE" = acme ]; then UNIT_BASE_DOMAIN="$BASE_DOMAIN"; else UNIT_BASE_
 pct exec "$CTID" -- sed -i "s/__BASE_DOMAIN__/$UNIT_BASE_DOMAIN/" /etc/systemd/system/caddy.service
 if [ "$TLS_MODE" = acme ]; then
 	# ACME needs the DNS-provider token in Caddy's environment (set to a placeholder here).
-	pct exec "$CTID" -- sed -i "s|__TOKEN_LINE__|Environment=DUCKDNS_TOKEN=changeme|" /etc/systemd/system/caddy.service
+	pct exec "$CTID" -- sed -i "s|__TOKEN_LINE__|Environment=CADDY_DNS_TOKEN=changeme|" /etc/systemd/system/caddy.service
 else
 	# Internal CA needs no token — drop the placeholder line.
 	pct exec "$CTID" -- sed -i "/__TOKEN_LINE__/d" /etc/systemd/system/caddy.service
@@ -340,11 +363,12 @@ if [ "$TLS_MODE" = acme ]; then
 Caddy is up on DHCP IP: ${CT_IP_ADDR}  (assign it a static lease/IP next).
 
 Next steps (Caddy, TLS_MODE=acme):
-  1. Set your real DNS token in the container:
-       pct exec $CTID -- sed -i 's/DUCKDNS_TOKEN=changeme/DUCKDNS_TOKEN=<your-token>/' \\
+  1. Set your real DNS credential in the container (provider: $CADDY_DNS_PROVIDER):
+       pct exec $CTID -- sed -i 's/CADDY_DNS_TOKEN=changeme/CADDY_DNS_TOKEN=<your-token>/' \\
          /etc/systemd/system/caddy.service
        pct exec $CTID -- systemctl daemon-reload && pct exec $CTID -- systemctl restart caddy
-     (Swap CADDY_DNS_PLUGIN + the tls directive if your provider isn't DuckDNS.)
+     (A provider needing several fields was configured via CADDY_DNS_ARGS — add one
+      Environment= line per field instead of the single token above.)
   2. Firewall Caddy's admin API: allow :2019 only from the Docker host (where Loskai runs).
   3. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019.
 NEXT

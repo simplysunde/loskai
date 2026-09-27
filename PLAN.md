@@ -1036,8 +1036,9 @@ targets today, in **both dev and production** — stock Caddy is enough, no xcad
 > ZeroSSL via a DNS challenge) is a possible later option: it drops the one-time root
 > install but adds a real domain, an xcaddy build with the matching `caddy-dns` plugin, and
 > a DNS-provider token in Caddy's environment on the Caddy LXC. The provider depends on the domain
-> (registrar DNS / Cloudflare for a real domain; the DuckDNS plugin for a `*.duckdns.org`
-> name). Because Loskai is cert-agnostic, adopting it is a Caddyfile change only, with no
+> (whoever hosts the zone, so long as a [caddy-dns
+> module](https://github.com/orgs/caddy-dns/repositories) exists for them; a registrar with no
+> API is reached by delegating a subdomain or CNAME-ing `_acme-challenge` to acme-dns). Because Loskai is cert-agnostic, adopting it is a Caddyfile change only, with no
 > application-code impact. Deferred until/unless it is pursued.
 
 ### Install (for reference — handled by the Phase 7 Caddy LXC script, `create-caddy-lxc.sh`)
@@ -1047,12 +1048,12 @@ xcaddy, no plugins. The xcaddy build below is required **only** for the future p
 path, to bake in the matching `caddy-dns` plugin:
 
 ```bash
-# Build Caddy with your DNS provider's plugin via xcaddy (DuckDNS shown as one example)
+# Build Caddy with your DNS provider's plugin via xcaddy (cloudflare shown as an example)
 apt install -y debian-keyring debian-archive-keyring apt-transport-https
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-xcaddy-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-xcaddy.list
 apt update && apt install xcaddy
-xcaddy build --with github.com/caddy-dns/duckdns --output /usr/bin/caddy   # swap plugin for your provider
+xcaddy build --with github.com/caddy-dns/cloudflare --output /usr/bin/caddy   # swap for your provider
 ```
 
 Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy autosaves
@@ -1100,7 +1101,7 @@ siblings reusing the same internal cert.
 > above + the provider token in Caddy's env):
 > ```caddyfile
 > *.{$BASE_DOMAIN} {
->     tls { dns duckdns {env.DUCKDNS_TOKEN} }   # swap provider + token to match your domain
+>     tls { dns <provider> {env.CADDY_DNS_TOKEN} }   # the caddy-dns module for your DNS host
 > }
 > ```
 
@@ -1169,7 +1170,7 @@ file only and is shown read-only in the UI; see the table below.)
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 | Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in split-LXC, and per container in the two layouts where Caddy is a container here — a route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container, since a bridged container can't detect its own host's IP. Same address as `CADDY_HOST_IP` whenever Caddy runs on this host |
 
-Any ACME/DNS-challenge token (DuckDNS, Cloudflare, …) is used by Caddy directly on the
+Any ACME/DNS-challenge credential (`CADDY_DNS_TOKEN`) is used by Caddy directly on the
 Caddy LXC — Loskai never needs it (and the default internal-CA mode needs none). In the
 co-located alternative (Caddy as Docker
 container), it would be passed to the Caddy container, not to Loskai. **No env var

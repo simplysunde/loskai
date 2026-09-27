@@ -70,12 +70,20 @@
 }
 
 # --- Future: public ACME certs instead of the internal CA ---------------------------------
-# Replace `local_certs` above + this whole `:80` block with a DNS-challenge wildcard, and
-# switch caddy/Dockerfile to the xcaddy build so the caddy-dns plugin is present. Token comes
-# from the caddy service's environment (DUCKDNS_TOKEN in compose.colocated.yml).
+# Replace `local_certs` above with a DNS-challenge wildcard, and switch caddy/Dockerfile to
+# the xcaddy build so the matching caddy-dns plugin is present (pick yours from
+# https://github.com/orgs/caddy-dns/repositories). The credential comes from the caddy
+# service's environment — CADDY_DNS_TOKEN in compose.colocated.yml.
+#
+# Keep the `:80` block: its onboarding page becomes pointless once certs are publicly
+# trusted, but the *server* is still where `scheme: "http"`/`"both"` routes are pushed, and
+# where Caddy puts its HTTP->HTTPS redirects. Swap the page for a 404 rather than deleting it.
 #
 # *.{$BASE_DOMAIN} {
 # 	tls {
-# 		dns duckdns {env.DUCKDNS_TOKEN}   # swap provider to match your domain
+# 		dns <provider> {env.CADDY_DNS_TOKEN}   # e.g. cloudflare, desec, duckdns
 # 	}
 # }
+#
+# A provider needing more than one credential (acme-dns: username/password/subdomain/
+# server_url) takes a block instead of the single token.

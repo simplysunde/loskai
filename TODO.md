@@ -629,14 +629,54 @@ fallback `certificate-setup.md` documents.
 
 ---
 
+## Phase 24 — The ACME path stops assuming DuckDNS
+
+_Sunde, while weighing public certs: "Ideally we create a caddy that simply works for
+everyone… I say do the fixes, and remove most references to duckdns other than where it makes
+sense."_
+
+_**The bug:** `CADDY_DNS_PLUGIN` was a variable and drove `caddy add-package`, so the right
+plugin was installed — but the Caddyfile the script wrote hardcoded `dns duckdns
+{env.DUCKDNS_TOKEN}`, the unit hardcoded `DUCKDNS_TOKEN`, and the closing instructions told you
+to swap the directive by hand. Any provider but DuckDNS produced a Caddy that would not start._
+
+- [x] `CADDY_DNS_PROVIDER` — the directive name, **derived** from the module path
+      (`caddy-dns/cloudflare` → `cloudflare`) with an override for the few where they differ
+- [x] `CADDY_DNS_ARGS` — what follows the provider name, defaulting to
+      `{env.CADDY_DNS_TOKEN}`. **Single-credential providers are the default case, not the
+      only one:** acme-dns needs username/password/subdomain/server_url, and passes its whole
+      block here. That matters because acme-dns is the likely path for a registrar with no API
+- [x] `CADDY_DNS_PLUGIN` now has **no default** — `TLS_MODE=acme` without it exits with the
+      link to the module list, rather than silently building a DuckDNS config
+- [x] Provider-neutral `CADDY_DNS_TOKEN` in the systemd unit, the compose files and the docs
+- [x] DuckDNS removed from `caddy/Caddyfile`, `caddy/Dockerfile`, both compose files and
+      `PLAN.md`, kept only where it reads as one example among several. **`HISTORY.md` left
+      untouched** — those entries record what was decided at the time
+- [x] Verified by running the script's own variable logic and heredoc for both shapes: a
+      single-token provider emits `dns cloudflare {env.CADDY_DNS_TOKEN}`, and acme-dns emits
+      its four-field block. Both compose files still `config -q` clean
+
+**Not done (and not needed for the above):** the co-located Docker path is still a hand-edit
+of two files rather than a switch. `caddy/Dockerfile`'s comment now shows the `ARG` shape it
+would take.
+
+**What this does *not* solve:** one.com hosts the domain in question and there is **no
+`onecom` module** in the caddy-dns organisation (checked: the o-range holds `njalla`,
+`neoserv`, `oraclecloud`). Public certs there still require delegating a subdomain or
+CNAME-ing `_acme-challenge` to acme-dns — now at least configurable rather than a hand-edit.
+
+---
+
 ## Backlog / Future ideas
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the
   names resolve on the LAN via AdGuard rewrites). Dissolves Phase 12 entirely, including the
   whole onboarding page. **Not scheduled** — deliberate decision to keep the homelab off the
   owned domain for now. Precondition when revisited: DNS hosted somewhere with an API Caddy
-  has a plugin for (one.com almost certainly isn't; a subdomain can be NS-delegated, or
-  `_acme-challenge` CNAME'd to an acme-dns instance, without moving the registrar)
+  has a plugin for. **Confirmed 2026-09-27: one.com has no caddy-dns module**, so the two
+  routes are NS-delegating a subdomain, or CNAME-ing `_acme-challenge` to an acme-dns
+  instance — neither moves the registrar. Phase 24 made the LXC script provider-agnostic, so
+  either is configuration rather than a patch
 - **Store read amplification** (twin of Phase 15's deferred F12, noted 2026-08-29): every
   `get_instance` / `get_by_container` / `get_by_origin` / `list_routed` re-reads and re-parses
   the whole `instances.json`, so one assign reads the file several times over — ten call sites

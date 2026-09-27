@@ -13,9 +13,10 @@ services:
       # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
-      # DUCKDNS_TOKEN is only needed for the future public-ACME path (see caddy/Caddyfile +
-      # caddy/Dockerfile). The default internal CA needs no token — leave this commented.
-      #- DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
+      # CADDY_DNS_TOKEN is only needed for the future public-ACME path (see caddy/Caddyfile +
+      # caddy/Dockerfile) and holds your DNS provider's credential. The default internal CA
+      # needs no token — leave this commented.
+      #- CADDY_DNS_TOKEN=${CADDY_DNS_TOKEN:-}
     volumes:
       - caddy-data:/data # certs + the autosaved config (survives restarts)
       - caddy-config:/config

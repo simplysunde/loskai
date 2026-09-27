@@ -1,5 +1,29 @@
 # Loskai — History
 
+## 2026-09-27 — The ACME path was only ever wired for one provider
+
+Weighing public certificates turned up a defect in a path that has shipped for weeks.
+`CADDY_DNS_PLUGIN` looked configurable and drove `caddy add-package`, so the correct plugin
+was installed — but the Caddyfile the script wrote said `dns duckdns {env.DUCKDNS_TOKEN}`
+regardless, and the closing instructions admitted it: *"swap CADDY_DNS_PLUGIN + the tls
+directive if your provider isn't DuckDNS."* A variable whose documented use requires a manual
+edit afterwards is not a variable.
+
+It is now derived: `CADDY_DNS_PROVIDER` comes from the module path, `CADDY_DNS_ARGS` carries
+whatever follows it, and `TLS_MODE=acme` without a plugin **fails with the module list**
+rather than defaulting to a provider the user does not use. The `ARGS` indirection exists for
+one concrete reason rather than generality: providers do not share a credential shape, and
+acme-dns — the likely answer for a registrar with no API — needs four fields where Cloudflare
+needs one.
+
+**The question that prompted it was the more interesting one.** Sunde asked whether Loskai
+needs anything at all for public certs, or "a simple env variable". The answer is that the env
+variable already exists (`CERTIFICATE_TAB=hidden`) and Loskai needs no code: it pushes routes
+and never touches cert material. But testing turned up a wrinkle — the 409 "nothing to
+install" path cannot fire, because **Caddy materialises its `local` CA whether or not anything
+signs with it**, so `/pki/ca/local` always returns a root. The setting is the mechanism, not a
+fallback for auto-detection that quietly never happens.
+
 ## 2026-09-24 — "The setup page is redundant now" — half right, and the half that isn't matters
 
 Sunde's observation was correct about the page: `/certificate` hands out the same root over a
