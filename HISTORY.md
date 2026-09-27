@@ -1,5 +1,29 @@
 # Loskai — History
 
+## 2026-09-27 — Phase 12 finally closes, on its last and smallest item
+
+12c was always documentation: Caddy can run an `acme_server` against the internal CA it
+already has, so a backend that insists on serving its own HTTPS — Proxmox on `:8006` — can
+hold a leaf signed by the root every LAN device already trusts. Loskai is not involved at any
+point, which is the first thing the new guide says.
+
+**The value was in the numbers, and every one of them came from upstream rather than memory.**
+`acme_server` issues **12h** certificates by default. Proxmox renews from a daily timer, and
+only when a certificate expires within 30 days — so the default leaf is expired for most of
+each day, and the failure looks like "certificates randomly stop working". Raising it runs
+into the next constraint: a leaf cannot outlive its signing intermediate, whose lifetime
+defaults to **7d**, and asking for more returns a `500` rather than an explanation. The guide
+recommends `168h` with `intermediate_lifetime 30d` and says why both numbers exist.
+
+**It also documents a trap this repo created for itself.** A name resolves to one address, so
+a backend that is already a *proxied route* has its name pointing at Caddy — and an http-01
+challenge for that name validates against Caddy instead of the backend. The fix turned out to
+be something built four days ago: stop proxying it and make it a **machine**, `dns_only`,
+resolving straight to the host. Phase 21 answered a question Phase 12 had not asked yet.
+
+With this, Phase 12 is complete — 12a in Phase 19, 12b as Phase 22, 12c here — and it stayed
+open, wrongly marked complete in the archive, for almost two months.
+
 ## 2026-09-27 — ACME support removed, hours after being finished
 
 Sunde, once the Docker switch was working: *"Did we just add a bunch of unnecessary logic and

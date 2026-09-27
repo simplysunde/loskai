@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 13–19 are closed and nothing is in
-flight. **Phase 12 is still *not* done despite sitting in the archive** — 12a (the Debian-only
-Linux trust instructions) was fixed by Phase 19, but the per-route scheme toggle (12b) was
-approved 2026-08-03 and remains unbuilt. See `TODO.md`'s **Open, not in flight** section. The
-two archived live smokes (Phases 10a and 13) both ran and passed on 2026-09-16.
+flight. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
+as `docs/guides/backend-certificates.md`. The two archived live smokes (Phases 10a and 13)
+both ran and passed on 2026-09-16. **ACME support was removed 2026-09-27** (Phase 25) — the
+internal CA is the only TLS mode Loskai's configs ship.
 All three checks pass (281 + 95 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
@@ -48,7 +48,9 @@ describes today. The authoritative sources are:
   re-propose it; the all-in-one *LXC* variant was deleted the same day, as it was never a real
   option). `deployment.md` is the env-var/volume reference, `install.md` the walkthrough,
   `certificate-setup.md` the internal-CA onboarding (**two** paths: Loskai's public
-  `/certificate` page, and Caddy's own `:80` site), `migration.md` stack adoption *and*
+  `/certificate` page, and Caddy's own `:80` site), `backend-certificates.md` the mirror image
+  — Caddy as an ACME server so a backend (Proxmox `:8006`) serves a cert devices already
+  trust, with **no Loskai involvement at all**, `migration.md` stack adoption *and*
   relocating Loskai itself, `troubleshooting.md` symptom-indexed triage.
 - **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
   (adding a `create-<service>-lxc.sh`).

@@ -420,7 +420,8 @@ paid either way. Every case here disappears under the Backlog's real-domain path
       insert-at-0 request shape
 
 **12c — Caddy as ACME server for HTTPS-native backends** _(config + docs, no Loskai code)_
-- [ ] Document running Caddy's `acme_server` backed by the existing internal CA, and pointing
+**Done 2026-09-27** → [`docs/guides/backend-certificates.md`](docs/guides/backend-certificates.md)
+- [x] Document running Caddy's `acme_server` backed by the existing internal CA, and pointing
       **Proxmox's built-in ACME client** at it. Proxmox then serves a leaf signed by the root
       LAN devices already trust — so `:8006` is trusted **directly**, not only through the
       proxy, and Caddy's backend leg verifies cleanly with no pinning

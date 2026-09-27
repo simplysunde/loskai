@@ -22,6 +22,7 @@ and [`todo-archive.md`](../todo-archive.md) (completed phases 1–13).
 | **Configure a running container** — env vars, volumes | [Deployment](guides/deployment.md) |
 | **Fix a 502**, a redirect loop, a name that won't resolve | [Troubleshooting](guides/troubleshooting.md) |
 | Stop my browser **warning about the certificate** | [Certificate onboarding](guides/certificate-setup.md) |
+| Reach Proxmox or a NAS **directly** on its own port, without a warning | [Backend certificates](guides/backend-certificates.md) |
 | **Adopt an existing compose project** into Loskai | [Migration](guides/migration.md) |
 | **Run the code locally** and change it | [Dev & testing](contributing/dev-testing.md) |
 | Know **what an endpoint returns** | [Loskai API](reference/api.md) |
@@ -37,6 +38,7 @@ Operating Loskai. Read in roughly this order the first time.
 | [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which two are recommended, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
+| [backend-certificates.md](guides/backend-certificates.md) | Only if you open a backend on its own port — Proxmox `:8006`, a NAS UI. Runs Caddy as an ACME server for its own CA so the backend serves a certificate your devices already trust. Loskai is not involved; this is Caddy and the backend. |
 | [migration.md](guides/migration.md) | Moving an existing Docker Compose project under Loskai's Stack Manager — and when not to bother. Also covers relocating Loskai itself. |
 | [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Symptom-indexed: 502s, redirect loops, DNS, certs, VPN, greyed-out module cards. |
 

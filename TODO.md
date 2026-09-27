@@ -1,9 +1,9 @@
 # Loskai — TODO
 
-**Now:** nothing in flight. Phases 13–22 are closed, and **Phase 12 is finally done** — 12a
-in Phase 19, 12b as Phase 22 (2026-09-24); only 12c remains, and it is documentation with no
-Loskai code. Pick from there or from
-the [backlog](#backlog--future-ideas) at the bottom of this file.
+**Now:** nothing in flight. Phases 13–26 are closed and **Phase 12 is complete** — 12a in
+Phase 19, 12b as Phase 22, 12c as Phase 26 (2026-09-27). Phase 25 removed ACME support the
+same day: the internal CA is the only TLS mode the shipped configs know. Pick from the
+[backlog](#backlog--future-ideas) at the bottom of this file.
 
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
@@ -47,7 +47,8 @@ visible without unpacking a phase back out. The checklists stay in
     **built 2026-09-24 as Phase 22** (below). Its notes had specified insert-at-index-0 for
     the `:80` server since August — the same rule the 2026-09-05 defect turned out to need
     for `:443`, a month later and at the cost of a day
-  - **12c** — Caddy as ACME server for HTTPS-native backends (docs only, no Loskai code)
+  - ~~**12c** — Caddy as ACME server for HTTPS-native backends~~ **done 2026-09-27** —
+    [`backend-certificates.md`](docs/guides/backend-certificates.md). **Phase 12 is complete.**
 - ~~**Two live smokes that were never run** — Phases 10a and 13~~ **both ran 2026-09-16 and
   passed**, 10a together with Phase 19's browser check (below). Results are in each phase's
   checklist in [`todo-archive.md`](todo-archive.md)
@@ -731,6 +732,41 @@ pair of example configs and a build stage._
       because there was none to change
 - [x] Both compose files `config -q` clean; `bash -n` on the script; the co-located image
       builds and adapts to `"issuers":[{"module":"internal"}]`
+
+---
+
+## Phase 26 — 12c: backend certificates, and Phase 12 closes
+
+_The last item of Phase 12, approved 2026-08-03 and documentation-only:
+[`docs/guides/backend-certificates.md`](docs/guides/backend-certificates.md). Caddy runs an
+`acme_server` against its **existing internal CA**, and a backend's own ACME client gets a
+leaf signed by the root every LAN device already trusts — so Proxmox's `:8006` is trusted
+**directly**, not only through the proxy._
+
+**Verified against upstream documentation, not memory** — the numbers are the whole story here
+- [x] `acme_server` takes `ca` (default `local`), `lifetime` (**default 12h**), `challenges`,
+      `allow`/`deny`; the directory is `https://<host>/acme/<ca-id>/directory`
+- [x] Proxmox renews from `pve-daily-update.service`, and only when the cert **expires within
+      30 days** — so a 12h leaf is expired for most of every day. The guide recommends `168h`
+- [x] A leaf cannot outlive its intermediate, whose lifetime defaults to **7d**, so raising
+      one means raising `intermediate_lifetime` (Caddyfile global `pki { ca local { … } }`).
+      Violating it returns a `500`, not a useful error
+- [x] Proxmox's own steps confirmed: **Datacenter → ACME** then **Node → Certificates**;
+      `pvenode acme account register` (option "2) Custom"), `pvenode config set --acme
+      domains=…`, `pvenode acme cert order`; http-01 and dns-01 both supported
+
+**The trap the guide leads with** — a name resolves to one address, so a name that is already
+a *proxied route* points at Caddy, and the challenge for it validates against Caddy instead of
+the backend. The fix is to stop proxying that backend and make it a **machine** (`dns_only`)
+instead, which is what Phase 21's machines are for.
+
+- [x] Linked from `docs/README.md` (both tables), cross-linked from `certificate-setup.md`,
+      and added to `CLAUDE.md`'s guide list
+- [x] States plainly that **Loskai does nothing here**: no ACME code, and `Sync` cannot
+      disturb an `acme_server` site because `push_all` only touches routes whose `@id` matches
+      an instance
+
+**Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c here.
 
 ---
 

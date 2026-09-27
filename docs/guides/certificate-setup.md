@@ -5,6 +5,10 @@ Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or
 token required. Publicly trusted certs are a possible future alternative — see `TODO.md`'s
 backlog — but Loskai ships no mode for them: it never writes the Caddyfile, so that choice is
 made in Caddy's own config.
+
+Teaching a *backend* to serve a certificate your devices already trust — Proxmox on `:8006`,
+a NAS admin UI — is the mirror image of this page and lives in
+[backend-certificates.md](backend-certificates.md).
 Browsers don't trust that root, so LAN devices get a cert warning until they install it
 **once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
 including ones you add later — one internal root signs all the per-name leaves.
