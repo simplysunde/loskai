@@ -87,3 +87,45 @@ def test_dashboard_card_links_an_http_route_over_http(tmp_path, monkeypatch):
 
     assert cards["tv"] == "http://tv.example.no"
     assert cards["app"] == "https://app.example.no"
+
+
+def test_machines_are_not_dashboard_cards(tmp_path, monkeypatch):
+    # A machine is an address. The port its UI lives on — :8006 for Proxmox, none at all for
+    # a box you only SSH to — is not in the record, so a card for one links to a dead port.
+    from loskai.shared import dashboard
+
+    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+    monkeypatch.setattr(config.settings, "base_domain", "example.no")
+    inst.upsert_instance(
+        inst.Instance(id="proxmox", name="Proxmox", type="external", kind="machine",
+                      subdomain="proxmox", upstream="192.168.10.177", route_mode="dns_only")
+    )
+    inst.upsert_instance(
+        inst.Instance(id="grafana", name="Grafana", type="external",
+                      subdomain="grafana", upstream="192.168.10.50:3000")
+    )
+
+    names = [c["name"] for c in dashboard.dashboard()["services"]]
+
+    assert names == ["Grafana"]
+
+
+def test_a_route_onto_a_machine_is_still_a_card(tmp_path, monkeypatch):
+    # The documented way to put Proxmox on the dashboard: a second name, routed at its port
+    # and linked to the machine, so it follows the machine if the host moves.
+    from loskai.shared import dashboard
+
+    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+    monkeypatch.setattr(config.settings, "base_domain", "example.no")
+    inst.upsert_instance(
+        inst.Instance(id="proxmox", name="Proxmox", type="external", kind="machine",
+                      subdomain="proxmox", upstream="192.168.10.177", route_mode="dns_only")
+    )
+    inst.upsert_instance(
+        inst.Instance(id="pve", name="Proxmox UI", type="external", subdomain="pve",
+                      upstream="192.168.10.177:8006", machine="proxmox", upstream_tls=True)
+    )
+
+    cards = {c["name"]: c["url"] for c in dashboard.dashboard()["services"]}
+
+    assert cards == {"Proxmox UI": "https://pve.example.no"}

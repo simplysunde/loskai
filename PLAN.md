@@ -1293,6 +1293,10 @@ The UI is split in two, so authentication lives **inside Loskai** (not a blanket
 
 - **Public tier — the Dashboard and the Certificate page.** The launcher: a grid of cards
   for the non-private routed services (name, icon, link to `https://prefix.{BASE_DOMAIN}`).
+  **Machines are not services** and never appear: an address has no port to link to — put a
+  machine's UI on the dashboard by routing it under a second name, which is also the only
+  way to have both a proxied name and a directly-certified one (see
+  [backend-certificates.md](docs/guides/backend-certificates.md)).
   No login. Served by `GET /api/dashboard`, which exposes *only* launcher data — never
   container detail, module state, or anything sensitive. Alongside it, `/certificate`
   hands out Caddy's internal root CA (`GET /api/caddy/root-certificate`) so a LAN device

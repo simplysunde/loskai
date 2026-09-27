@@ -24,6 +24,20 @@ resolving straight to the host. Phase 21 answered a question Phase 12 had not as
 With this, Phase 12 is complete — 12a in Phase 19, 12b as Phase 22, 12c here — and it stayed
 open, wrongly marked complete in the archive, for almost two months.
 
+**And writing it down found a defect immediately.** Sunde's first question about the advice —
+*"how do we show the entry on the dashboard when we stop proxying it?"* — had the answer "with
+a broken link". `list_routed()` includes machines, so a machine produced a launcher card
+pointing at `https://proxmox.<domain>` with no port: `:443`, where nothing listens. The source
+comment claimed "the card just names the host" while the line under it built an `https://` URL.
+
+**Machines are now excluded from the dashboard**, on Sunde's preference and for a reason worth
+keeping: an address has no port to link to, and the port is not derivable — `:8006` for
+Proxmox, `:5000` for a NAS, none at all for a box that only answers SSH. A per-machine link
+port was considered and rejected: it would add a field to say what a *route* already says, and
+a route linked to the machine follows it when the host moves. So the documented way to put a
+backend's UI on the launcher is a second name, routed at its port — which is the same two-name
+arrangement the ACME trap already forces.
+
 ## 2026-09-27 — ACME support removed, hours after being finished
 
 Sunde, once the Docker switch was working: *"Did we just add a bunch of unnecessary logic and

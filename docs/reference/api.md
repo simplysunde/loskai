@@ -26,7 +26,7 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/dashboard` | Launcher cards for non-private routed services: `{ services: [{ name, url, icon }] }`. Exposes nothing else. |
+| `GET /api/dashboard` | Launcher cards for non-private routed **services**: `{ services: [{ name, url, icon }] }`. Exposes nothing else. **Machines are excluded** (`kind: "machine"`) — a machine is an address, and the port its UI lives on is not derivable from the record, so a card for one would link to a dead port. To put a machine's web UI on the dashboard, give it a *route* under a second name (Add route → External → pick the machine, add the port). |
 | `GET /api/auth/status` | `{ authed, password_set }` — lets the SPA choose login vs first-run setup. |
 | `POST /api/login` | Body `{ password }` → sets the session cookie. `401` on a bad password, `409` if no password is set yet. |
 | `POST /api/logout` | Clears the session cookie. |

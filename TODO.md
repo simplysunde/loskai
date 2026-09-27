@@ -768,6 +768,23 @@ instead, which is what Phase 21's machines are for.
 
 **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c here.
 
+**A defect the guide surfaced, fixed the same hour.** Writing "make the backend a machine"
+raised Sunde's question — *how does it then appear on the dashboard?* — and the answer turned
+out to be "with a broken link". `list_routed()` includes machines, so a machine produced a
+card pointing at `https://proxmox.{BASE_DOMAIN}` with **no port**: `:443`, where nothing
+listens. The source comment even said "the card just names the host" while building an
+`https://` URL anyway.
+- [x] **Machines are excluded from the dashboard** (`kind: "machine"`). An address has no
+      port to link to, and it is not derivable — `:8006` for Proxmox, `:5000` for a NAS, none
+      at all for a box you only SSH to. A launcher card that lands on a dead port is worse
+      than no card. Proxied services on odd ports are unaffected: Caddy fronts those at `:443`
+- [x] The documented way to put such a UI on the dashboard is a **route under a second name**,
+      built by picking the machine in Add route — which also links it, so it follows the
+      machine. Both halves are pinned by tests, and the guide carries the two-name table
+- [x] Considered and rejected: a per-machine link port. It would make the card work, but it
+      adds a field to say what a route already says, and the route follows the machine for
+      free
+
 ---
 
 ## Backlog / Future ideas

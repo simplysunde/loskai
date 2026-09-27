@@ -43,8 +43,18 @@ a **machine** in Loskai instead (Routing → **Name a machine**): `dns_only`, re
 to the backend's IP. Your browser then goes direct, with a certificate it trusts, and nothing
 is in the path. That is what machines are for.
 
-If you want both, use two names — `proxmox.{BASE_DOMAIN}` proxied, and a second name
-pointing at the host for direct access.
+If you want both, use two names. That is also the answer to *"then how does Proxmox appear
+on the dashboard?"* — **machines never do**, because an address has no port to link to. Give
+it a route under a second name and that route is the card:
+
+| | name | what it is |
+|---|---|---|
+| direct, certified | `proxmox.{BASE_DOMAIN}` | a **machine** → `192.168.10.177`. Not on the dashboard. |
+| launcher entry | `pve.{BASE_DOMAIN}` | a **route** → `192.168.10.177:8006`, **Backend speaks HTTPS** ticked. Appears as a card. |
+
+Build the second one with Add route → **External** → pick the machine from the list: it fills
+the address, you add `:8006`. That also *links* the route to the machine, so if the host ever
+moves, the route follows it.
 
 ---
 

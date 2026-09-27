@@ -24,9 +24,16 @@ def dashboard() -> dict:
     for inst in instances.list_routed():
         if inst.private:
             continue
+        # Machines never appear. A machine is an *address*, not a service: the port (or
+        # path) its web UI lives on — `:8006` for Proxmox, `:5000` for a NAS, none at all
+        # for a box you only SSH to — is not derivable from anything the record holds, so
+        # a card for one either links nowhere useful or has to be told separately. A
+        # launcher entry that lands on a dead port is worse than no entry. Services on odd
+        # ports are unaffected: Caddy fronts those at :443.
+        if instances.is_machine(inst):
+            continue
         # An `http`-scheme route has no certificate by design, so linking it as https
-        # would send every dashboard visitor into a failed TLS handshake. A dns_only
-        # instance has no scheme of its own either — the card just names the host.
+        # would send every dashboard visitor into a failed TLS handshake.
         scheme = "http" if inst.scheme == "http" else "https"
         url = f"{scheme}://{inst.subdomain}.{base}" if base else None
         cards.append({"name": inst.name, "url": url, "icon": None})
