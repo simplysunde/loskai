@@ -2,7 +2,9 @@
 
 Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls internal`) —
 Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS
-token required (public ACME certs are a possible future alternative, not the current path).
+token required. Publicly trusted certs are a possible future alternative — see `TODO.md`'s
+backlog — but Loskai ships no mode for them: it never writes the Caddyfile, so that choice is
+made in Caddy's own config.
 Browsers don't trust that root, so LAN devices get a cert warning until they install it
 **once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
 including ones you add later — one internal root signs all the per-name leaves.
@@ -14,7 +16,7 @@ There are **two ways to get the root**, and they exist for different reasons:
 | Reached at | `/certificate` on Loskai | `http://<caddy-ip>/` |
 | Works when | always — any topology | Caddy shares a host you can reach on `:80` |
 | Source of the root | Caddy's Admin API | Caddy's own data volume |
-| Survives a move to public ACME | yes (says "nothing to install") | no — `:80` is needed for the HTTP-01 challenge |
+| If you ever move to publicly trusted certs | survives — says "nothing to install" | becomes pointless, and `:80` may be wanted for an HTTP-01 challenge |
 
 Prefer the Certificate page. The `:80` site still ships because it works with Loskai
 stopped, which is worth having on the day you're setting the machine up.

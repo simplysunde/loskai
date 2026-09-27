@@ -1101,7 +1101,7 @@ siblings reusing the same internal cert.
 > above + the provider token in Caddy's env):
 > ```caddyfile
 > *.{$BASE_DOMAIN} {
->     tls { dns <provider> {env.CADDY_DNS_TOKEN} }   # the caddy-dns module for your DNS host
+>     tls { dns <provider> {env.DNS_TOKEN} }   # the caddy-dns module for your DNS host
 > }
 > ```
 
@@ -1170,7 +1170,7 @@ file only and is shown read-only in the UI; see the table below.)
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 | Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in split-LXC, and per container in the two layouts where Caddy is a container here — a route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container, since a bridged container can't detect its own host's IP. Same address as `CADDY_HOST_IP` whenever Caddy runs on this host |
 
-Any ACME/DNS-challenge credential (`CADDY_DNS_TOKEN`) is used by Caddy directly on the
+Any ACME/DNS-challenge credential, should you add one, is used by Caddy directly on the
 Caddy LXC — Loskai never needs it (and the default internal-CA mode needs none). In the
 co-located alternative (Caddy as Docker
 container), it would be passed to the Caddy container, not to Loskai. **No env var

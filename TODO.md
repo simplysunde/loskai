@@ -629,7 +629,11 @@ fallback `certificate-setup.md` documents.
 
 ---
 
-## Phase 24 — The ACME path stops assuming DuckDNS
+## Phase 24 — The ACME path stops assuming DuckDNS _(superseded by Phase 25 — removed)_
+
+> **Superseded the same day.** Everything below shipped and then came out again in Phase 25,
+> which dropped ACME support entirely. Kept as the record of what was there and why, and as
+> the recipe for putting it back: `git revert` the two commits it names.
 
 _Sunde, while weighing public certs: "Ideally we create a caddy that simply works for
 everyone… I say do the fixes, and remove most references to duckdns other than where it makes
@@ -683,6 +687,50 @@ Caddyfile has no conditionals, so one file cannot serve both modes.
 `onecom` module** in the caddy-dns organisation (checked: the o-range holds `njalla`,
 `neoserv`, `oraclecloud`). Public certs there still require delegating a subdomain or
 CNAME-ing `_acme-challenge` to acme-dns — now at least configurable rather than a hand-edit.
+
+---
+
+## Phase 25 — ACME support removed; internal CA is the only mode
+
+_Sunde, after the Docker switch landed: "Did we just add a bunch of unnecessary logic and
+complexity? Instead of simply keeping it to internal root verification?" Then, given a
+priced-up comparison: "lets go all the way for internal-CA-only."_
+
+_**The question was fair and the answer was mostly yes.** Two of the day's bugs existed only
+because a second TLS mode did — the provider hardcoding, and the ACME LXC branch missing both
+Caddyfile fixes. Worse, the 404 + `:80` logic had ended up in **three** files that had to
+agree, in a project whose documented recurring failure is exactly that kind of drift._
+
+_**What made removal cheap** is what Sunde spotted: Loskai has no ACME code. Verified — every
+write it makes to Caddy is `PUT …/routes/0` (insert one route) or `DELETE /id/<id>`; it never
+writes a Caddyfile, and `push_all` only touches ids matching instances, so Caddyfile-derived
+and hand-added routes are invisible to it. "ACME support" was never a Loskai feature, only a
+pair of example configs and a build stage._
+
+**Removed**
+- [x] `caddy/Caddyfile.acme` (whole file) and the `stock`/`acme` build targets — `caddy/
+      Dockerfile` is back to three lines of `FROM`/`COPY`
+- [x] `TLS_MODE`, `CADDY_DNS_PLUGIN`/`PROVIDER`/`ARGS`, the `caddy add-package` step, the
+      inline ACME Caddyfile and the token line from `create-caddy-lxc.sh` — **294 lines, down
+      from 380**, with one Caddyfile path (fetched from the repo) instead of two
+- [x] `CADDY_BUILD`, `CADDY_CONFIG`, `CADDY_DNS_*` and the `command:` override from both
+      compose files; five rows from `deployment.md`'s env table
+- [x] The commented ACME block in `caddy/Caddyfile`; the `TLS_MODE=acme` aside in `install.md`
+- [x] `caddy/Dockerfile` and the script header now say where it went and why it costs nothing
+      to re-add by hand: Loskai never writes the Caddyfile
+
+**Kept deliberately**
+- The **backlog idea** (real domain + DNS-01) — dropping the code is not dropping the option
+- **`HISTORY.md` untouched**, and Phase 24 kept with a superseded banner. Between them they
+  are the record *and* the recipe: `git revert` of `a6d4d78` + `52129af` restores it whole
+- `certificate_tab: hidden`, which exists for a deployment whose certs are already trusted —
+  cheap, already built, and useful to anyone hand-rolling ACME
+
+**Verification**
+- [x] `pytest` (281) + `npm test` (95) + `check-docs.sh` — **no application code changed**,
+      because there was none to change
+- [x] Both compose files `config -q` clean; `bash -n` on the script; the co-located image
+      builds and adapts to `"issuers":[{"module":"internal"}]`
 
 ---
 

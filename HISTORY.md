@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-09-27 — ACME support removed, hours after being finished
+
+Sunde, once the Docker switch was working: *"Did we just add a bunch of unnecessary logic and
+complexity? instead of simply keeping it to internal root verification?"* The honest answer
+was mostly yes, and the more useful admission is that **I never offered removal as an option**
+— the framing had been fix-or-improve when it should have been keep-or-drop.
+
+The evidence was already on the table. Two of the day's defects existed *only* because a
+second TLS mode did: the provider hardcoding that made `TLS_MODE=acme` work for exactly one
+provider, and the ACME branch of the LXC script that missed both Caddyfile fixes because it
+wrote its own config. By the end the 404 and `:80` logic lived in three files that had to
+agree — in a repo whose stated recurring failure is that kind of drift.
+
+**What made it cheap to remove is what Sunde put his finger on:** Loskai has no ACME code.
+Every write it makes to Caddy is `PUT …/routes/0` or `DELETE /id/<id>`; it never writes a
+Caddyfile; `push_all` only touches ids matching instances. So "ACME support" was two example
+configs and a build stage, and deleting them changed no application code and no tests. The
+script came out 86 lines lighter with one Caddyfile path instead of two.
+
+**The option is not gone, only the code.** The backlog idea stays, `certificate_tab: hidden`
+stays, and Phase 24 keeps its write-up under a superseded banner — because the two commits it
+names *are* the recipe: `git revert` restores the lot. Which is the argument for deleting
+speculative surface generally. Version control already remembers it; the repo does not have to
+carry it.
+
 ## 2026-09-27 — The ACME path was only ever wired for one provider
 
 Weighing public certificates turned up a defect in a path that has shipped for weeks.

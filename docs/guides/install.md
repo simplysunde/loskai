@@ -67,13 +67,11 @@ curl -fsSL $BASE/scripts/create-caddy-lxc.sh | REPO_RAW_BASE=$BASE bash
 > (`curl -fsSL $BASE/scripts/create-caddy-lxc.sh | bash`). You only pass it now because that
 > default doesn't exist yet while the repo lives on your forge.
 
-This installs Caddy with **internal-CA TLS** by default (its own CA — no public domain or ACME
+This installs Caddy with **internal-CA TLS** (its own CA — no public domain or ACME
 token). It carries no routes; Loskai pushes them at runtime.
 
-> **You don't set your domain here.** In internal-CA mode Caddy signs each name on demand and
-> never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3). For public certs
-> instead, run with `TLS_MODE=acme BASE_DOMAIN=example.no` + a `caddy-dns` plugin (only that
-> mode needs the domain here); see the header of [`create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh).
+> **You don't set your domain here.** Caddy signs each name on demand with its own CA and
+> never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3).
 
 Then:
 
