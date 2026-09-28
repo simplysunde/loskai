@@ -5,17 +5,29 @@ service to deploy. Loskai **validates and interprets** a recipe against the fixe
 below — it never executes recipe-supplied code. A malformed recipe fails validation and is
 skipped, so it can never push Loskai outside its known install paths.
 
-Recipes are not baked into the image. They come from two sources, both scanned the same way
-and merged into one list:
+Recipes are not baked into the image. They come from two kinds of source, scanned the same
+way and merged into one list:
 
-- **A public git repo you own** (`RECIPES_REPO_URL`) — the canonical, most up-to-date
-  library, synced into a cache in the state volume.
+- **Git repos you own** — as many as you like, managed in **Settings › General › Recipe
+  sources**: one row per repo, each independently enabled, each synced into its own cache
+  in the state volume. Loskai ships with one **built-in default** source already in the
+  list; it is an ordinary row, so it can be switched off or removed like any other.
 - **A local directory** (`/data/recipes/`, in the state volume) — recipes you add by hand,
   for private or in-progress work. It is `data/recipes/` on the host with the shipped
-  compose files, so dropping a folder in there needs no container access.
+  compose files, so dropping a folder in there needs no container access. It is always
+  scanned and cannot be disabled — there is no URL to switch off.
 
-On a **name clash the repo wins**; the shadowed local copy is flagged, not dropped. To test
-a variant of an existing recipe locally, give it a distinct name.
+**Priority is list order, and the local directory is always last.** The first source to
+define a recipe id wins; a later copy of that id is **flagged** (`shadowed`, naming both
+the copy that lost and the source that beat it), never silently dropped. To test a variant
+of an existing recipe locally, give it a distinct name.
+
+`RECIPES_REPO_URL` still works and takes a comma-separated list. Like every env-set value
+it **wins over the stored list** and makes the editor read-only — which also means the
+built-in default is not included when it is set. Unset it to manage sources in the UI.
+
+A repo that fails to sync costs you that repo's recipes and nothing else: each source
+reports separately and keeps whatever it last cloned.
 
 This document is the contract. It is also what you hand to an AI coder (or write by hand)
 to produce a valid recipe — no authoring UI exists or is needed.
@@ -63,6 +75,7 @@ env:                             # optional (omit if the compose needs no variab
     secret: true                 # optional — renders as a password field, never logged
 
 suggested_subdomain: grafana     # optional — pre-fills the Assign-URL step
+service: web                     # optional — which compose service is the published one
 
 # Type-specific fields:
 git_repo: https://github.com/you/app   # required for type: git_build only
@@ -82,6 +95,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `env[].secret` | — | — | `true` → password field, value never logged. Defaults `false`. |
 | `directories` | — | all | Host dirs to pre-create before `up`. **Usually omit** — Docker auto-creates bind-mount source directories on `up`. Only set this when you need a directory to exist ahead of the container (e.g. to drop a config file into it). May reference `${VAR}` from `env`. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
+| `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
 
 ### `type` — the three install patterns
@@ -109,6 +123,27 @@ stack directory, never in version control.
 
 ---
 
+## What the install links to
+
+After the type's command succeeds, Loskai registers the new service as a `docker`
+instance — and an instance links to its container **by container name**. Compose names
+containers `<project>-<service>-1` unless the compose file pins `container_name`, so the
+name is read back from the daemon rather than assumed from the recipe id.
+
+For a multi-service recipe, the published service is chosen in this order:
+
+1. the manifest's `service`, when it names a service that came up,
+2. the only service, when there is one,
+3. the service that **publishes ports** (a database usually publishes none),
+4. alphabetically — a stable answer rather than whatever the daemon listed first.
+
+If the command fails, or no container can be identified, **no instance is written**: a
+guessed link would sit in the list as a second, dead record beside the one the Routing
+tab's Add route picker creates correctly. The wizard says so, and the container (which
+exists either way) is routable from that picker.
+
+---
+
 ## Validation
 
 Loskai rejects a recipe (skips it, surfaces why) when:
@@ -117,6 +152,7 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - `name` or `type` is missing, or `type` is not one of the three values.
 - `type: git_build` with no `git_repo`.
 - an `env` entry is missing `key` or `label`.
+- `service` is present but is not a string.
 - `compose.yml` is missing.
 
 Validation never runs recipe content — it only parses and checks fields. A rejected recipe

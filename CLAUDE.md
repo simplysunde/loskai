@@ -5,12 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 13–27 are closed and nothing is in
-flight. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
-as `docs/guides/backend-certificates.md`. The two archived live smokes (Phases 10a and 13)
+`backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
+install wizard) is code-complete but open** — no install has ever been run, because no recipe
+exists yet. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22,
+12c as `docs/guides/backend-certificates.md`. The two archived live smokes (Phases 10a and 13)
 both ran and passed on 2026-09-16. **ACME support was removed 2026-09-27** (Phase 25) — the
 internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (297 + 100 + docs).
+All three checks pass (329 + 115 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -27,8 +28,8 @@ describes today. The authoritative sources are:
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
   `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. **Phases 18–27 are still written out in `TODO.md`** —
-  ten of them, so it is the longer file now; archive the older ones when it gets unwieldy.
+  for how a finished thing was built. **Phases 18–28 are still written out in `TODO.md`** —
+  eleven of them, so it is the longer file now; archive the older ones when it gets unwieldy.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
@@ -198,8 +199,16 @@ must replay except the AdGuard password; its *own* admin password is stored only
   HTTP→HTTPS redirects, which would otherwise win.
 - **Loskai never handles the ACME/DNS-challenge token or private-registry credentials** —
   those live with Caddy / the Docker host. Registry `docker login` is a host precondition.
-- **Recipes are declarative data, validated but never executed** — synced from a public git
-  repo (+ a local dev dir); the `.env` is generated at install, never committed.
+- **Recipes are declarative data, validated but never executed** — synced from any number
+  of public git repos (`recipes_repos`: a list of `{url, enabled}` rows, seeded with
+  `config.DEFAULT_RECIPES_REPO`, each cached under its own slug) plus the local
+  `data/recipes/` dir, which is always scanned last and cannot be disabled. First source to
+  define a recipe id wins; the losers are flagged, never dropped. A stored **empty list**
+  means "no git sources" and is never re-seeded. `RECIPES_REPO_URL` is still the env layer
+  (comma-separated) and still wins. The `.env` is generated at install, never committed.
+- **An installed recipe's instance links to the container name the daemon created**, read
+  back from the compose project label — never the recipe id, which is only the project
+  name. No container identified → no instance, and the wizard says so.
 
 ## Module build order
 

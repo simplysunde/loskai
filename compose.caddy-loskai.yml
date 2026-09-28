@@ -62,7 +62,9 @@ services:
       # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
       # the path the app writes to can't drift apart; the code default is the repo's data/.
       - LOSKAI_DATA_DIR=/data
-      - RECIPES_REPO_URL=${RECIPES_REPO_URL:-} # overrides the image default; unset = image default
+      # Overrides the whole source list (comma-separate for several) and makes Settings
+      # read-only; unset = the UI's list, seeded with the built-in default source.
+      - RECIPES_REPO_URL=${RECIPES_REPO_URL:-}
       # Required in this mode: Caddy's admin URL is a hostname, so the DNS answer IP can't
       # be derived from it. This host's LAN IP, where Caddy's :443 is published.
       - CADDY_HOST_IP=${CADDY_HOST_IP:?set CADDY_HOST_IP to this host's LAN IP}

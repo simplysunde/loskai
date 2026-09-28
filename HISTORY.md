@@ -1,5 +1,68 @@
 # Loskai — History
 
+## 2026-09-28 — The install wizard's first real look, and sources become a list
+
+Sunde asked where to start building the install wizard. It was already built — `recipes.py`,
+`InstallWizard.tsx`, the three routes, `git` and the compose plugin in the image, all of it
+shipped with Module 1 in July. What was missing was **recipes**: `data/recipes/` held a
+`.gitkeep` and nothing else, so the only thing anyone had ever seen of the wizard was its
+empty state. Reading it against the plan turned up two defects and a stale doc, none of which
+297 passing tests could have caught, because none of them could run an install.
+
+**The instance an install registered pointed at nothing.** It set `container` to the *recipe
+id*, but the recipe id is the compose **project** name — Compose names containers
+`<project>-<service>-1` unless the file pins `container_name`, and every join in the Docker
+module matches on the container name. So an installed service never linked to its own
+container: no FQDN in the Docker tab, and a row that read as orphaned. Third time this shape
+of bug has appeared here and the second time it would have "worked" in tests: the code was
+self-consistent, and only a real daemon disagrees. The name now comes from the daemon, via
+the compose project label, and `logic.primary_container` picks the published service of a
+multi-service recipe (manifest `service:`, else the only one, else the one publishing ports,
+else alphabetical — a stable answer, not whatever was listed first).
+
+**When it can't identify a container, it now registers nothing.** The tempting fix was to
+fall back to a guess. But a wrong `container` is worse than an absent instance: the Routing
+tab's Container source lists the real container and creates the instance correctly, so a
+guess would leave a second, permanently dead record beside it. Same for a failed `up` — which
+used to register an instance regardless.
+
+**`instructions.md` was being loaded, shipped, and dropped.** The backend put it in the
+payload from day one; the frontend's `Recipe` interface never declared the field, so the one
+place a recipe author can say "first login is admin / admin" reached the browser and was
+discarded. It is now the wizard's first step, with what the install will create — PLAN.md's
+step 1 existing at last. `shadowed` had been ignored in exactly the same way.
+
+**Sources went from one URL to a list, which Sunde asked for and the design wanted anyway.**
+`recipes_repos` is a list of `{url, enabled}` rows, each cloned into its own slug-named cache
+(the slug carries a hash of the URL, because two repos ending in `/recipes.git` are routine
+and sharing a cache would have one silently overwrite the other). Priority is list order,
+local `data/recipes/` always last. A sync reports **per source**, so an unreachable repo costs
+that repo's recipes and nothing else.
+
+Three things about that shape are deliberate. It is the **only list-valued setting**, so it
+gets its own editor rather than an `InlineSettingsFields` row, and the cast that reads it
+lives in one place with the reason. A stored **empty list is a real value**: with a built-in
+default seeded when nothing is stored, deleting every source has to persist rather than
+re-seed itself — so `[]` can never be an unset marker here. And `RECIPES_REPO_URL` stays the
+env layer (comma-separated, still wins, editor read-only) via a *property* on `Settings`, so
+the priority chain resolves it generically instead of special-casing recipes; the settable
+attribute behind it is named once in `ENV_SOURCE_ATTRS` rather than in each test fixture.
+
+**The built-in default is one constant.** `config.DEFAULT_RECIPES_REPO` points at Forgejo
+beside loskai while both are private, and moves to the public GitHub URL when loskai is
+published — Sunde's call, and a one-line change when it comes. A dev `.env` that already sets
+`RECIPES_REPO_URL` overrides it, which is also why the sources editor will be read-only on
+this machine until that line is commented out.
+
+Still no recipes. That is the next piece of work, and now there is somewhere for them to go.
+
+- Key files: `backend/src/loskai/modules/docker/{recipes,logic,client,router}.py`,
+  `backend/src/loskai/{config,shared/settings}.py`,
+  `frontend/src/components/{docker/InstallWizard,settings/RecipeSources}.tsx`,
+  `frontend/src/{lib/settings.ts,pages/settings/General.tsx}`,
+  `docs/reference/{recipe-schema,api}.md`, `docs/guides/deployment.md`, `PLAN.md`, `CLAUDE.md`
+- 329 backend + 115 frontend tests pass (was 297 + 100); `check-docs.sh` clean
+
 ## 2026-09-28 — Launcher icons, and the first binary state in the store
 
 Two asks that turned out to be one: an image per route for the dashboard card, and a list

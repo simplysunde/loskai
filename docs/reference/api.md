@@ -143,9 +143,9 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 | Method & path | Purpose |
 |---|---|
-| `GET /recipes` | Merged install recipes: `{ recipes, invalid, shadowed }` (repo wins; shadowed local flagged). |
-| `POST /recipes/refresh` | Re-sync the recipes repo (`git clone`/`pull`). |
-| `POST /recipes/{id}/install` | Body `{ answers }` — generate `.env`, run the type's command, register a `docker` instance. |
+| `GET /recipes` | Merged install recipes: `{ recipes, invalid, shadowed, sources, local_count }`. Every enabled source in priority order, then `data/recipes`; first to define an id wins and the losers are listed in `shadowed`. |
+| `POST /recipes/refresh` | Re-sync every enabled source (`git clone`/`pull`), or just one with body `{ url }`. Reports per source — one failure never stops the others. |
+| `POST /recipes/{id}/install` | Body `{ answers }` — generate `.env`, run the type's command, register a `docker` instance linked to the container the daemon actually created. No container identified (or `up` failed) → no instance, and a `warning`. |
 | `GET /stats` | Host resource summary (containers, CPUs, memory, disk). |
 
 Recipe manifest format: [recipe-schema.md](recipe-schema.md).

@@ -1,14 +1,19 @@
 # Loskai — TODO
 
-**Now:** nothing in flight. Phases 13–27 are closed and **Phase 12 is complete** — 12a in
-Phase 19, 12b as Phase 22, 12c as Phase 26 (2026-09-27). Phase 25 removed ACME support the
-same day: the internal CA is the only TLS mode the shipped configs know. Pick from the
+**Now:** **Phase 28** (below) is code-complete but **not closed** — the install wizard's two
+defects are fixed and recipe sources are a toggleable list, with one unchecked item: no
+install has ever actually been run, because no recipe exists yet. Writing the first real
+recipe and running it against the live rig is the next piece of work.
+
+Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
+as Phase 26 (2026-09-27). Phase 25 removed ACME support the same day: the internal CA is the
+only TLS mode the shipped configs know. Otherwise pick from the
 [backlog](#backlog--future-ideas) at the bottom of this file.
 
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (297) + `npm test` (100) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (329) + `npm test` (115) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -839,7 +844,79 @@ piece of work._
 
 ---
 
+## Phase 28 — The install wizard, looked at for the first time
+
+_Sunde: "I want to start building the installation wizard for docker containers now. where do
+we start? and sould we make the repo for loskai-recipes besides loskai?" Then: "fix #1 and #2
+first and maybe allow for multiple repos to be added, we have our standard one, and then we
+have the abbilitty to disable it or add multiple other sources."_
+
+_**It was already built** — engine, modal, routes, `git` + the compose plugin in the image, all
+of it from Module 1 in July. What was missing was recipes: `data/recipes/` held a `.gitkeep`,
+so the only part of the wizard anyone had ever seen was its empty state. Reading it against
+`PLAN.md` found two defects and one stale plan step._
+
+**#1 — the installed instance pointed at no container**
+- [x] `install_recipe` set `container` to the **recipe id**, but that is the compose *project*
+      name; Compose names containers `<project>-<service>-1` unless the file pins
+      `container_name`, and every join in the module matches the container **name**. So a
+      recipe-installed service never linked to its own container — no FQDN in the Docker tab,
+      and a row that reads as orphaned
+- [x] `client.containers_in_project` reads the real names back via the
+      `com.docker.compose.project` label; `logic.primary_container` (pure) picks the published
+      one: manifest `service:`, else the only service, else the one publishing ports, else
+      alphabetical
+- [x] Optional `service:` added to the manifest schema, for app-plus-database recipes
+- [x] **A failed `up`, or a container that can't be identified, registers no instance** and
+      says so. Previously a failed install registered one anyway. A guessed `container` is
+      worse than none: the Routing tab's Container source creates the record correctly, so a
+      guess leaves a second, dead row beside it
+
+**#2 — `instructions.md` was shipped and dropped**
+- [x] The backend has put it in the payload since July; the frontend's `Recipe` interface
+      never declared the field, so the recipe author's walk-through was discarded in the
+      browser. Now the wizard's **first step**, with what the install will create (stack dir,
+      declared directories, the variables it asks for, the source it came from) — `PLAN.md`'s
+      step 1, existing at last
+- [x] `shadowed` was ignored the same way; it now names the copy that lost *and* the source
+      that beat it. `invalid` now shows each reason, not just a count
+- [x] Empty state distinguishes **no sources** / **never synced** / **synced and empty** —
+      three states with three different fixes that had one message between them
+
+**Multiple sources**
+- [x] `recipes_repo_url` (one string) → `recipes_repos` (a list of `{url, enabled}` rows,
+      managed in Settings › General: toggle, add, remove, per-row sync)
+- [x] One cache per repo, `recipes-cache/<tail>-<hash of url>` — two repos ending in
+      `/recipes.git` are routine, and a shared cache would have one overwrite the other
+- [x] Priority is list order; local `data/recipes/` always last and never disableable
+- [x] **A built-in default is seeded when nothing is stored** (`config.DEFAULT_RECIPES_REPO` —
+      Forgejo beside loskai for now, the public GitHub URL when loskai is published), and it
+      is an ordinary row: switch it off, or delete it
+- [x] Which is why **a stored empty list is a real value**, never an unset marker — deleting
+      every source has to survive a restart rather than re-seed the default
+- [x] Sync reports **per source**: one unreachable repo costs that repo's recipes and nothing
+      else, and `POST /recipes/refresh` takes an optional `{url}` for one row. No new route
+- [x] `RECIPES_REPO_URL` still the env layer, now comma-separated, still wins and still makes
+      the editor read-only — via a property on `Settings`, so the priority chain stays generic.
+      `ENV_SOURCE_ATTRS` names the settable attribute behind it once, rather than in each test
+      fixture. A stored pre-list single URL is read as one source and dropped on the next save
+
+**Verification**
+- [x] `pytest` (329, was 297) + `npm test` (115, was 100) + `check-docs.sh` + `tsc -b` + oxlint
+- [ ] **Live install not yet run — there are no recipes.** Everything above is unit-tested
+      with a stubbed compose run and a stubbed daemon, which is precisely the state that hid
+      #1 for two months. The first real recipe is the next piece of work, and the install must
+      be run against the live rig (`todo-archive.md` Phase 16) before this phase is closed:
+      check that the registered instance's `container` matches `docker ps`, not just that the
+      response said `ok`
+
+---
+
 ## Backlog / Future ideas
+- **Prune orphaned recipe caches** — removing a source leaves its clone in
+  `data/recipes-cache/<slug>/`. Harmless (nothing scans it once the row is gone) and
+  deliberately not auto-deleted: the alternative is Loskai removing directories on a settings
+  save. A "clean up unused caches" action, or leave it to `rm -rf`
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the
   names resolve on the LAN via AdGuard rewrites). Dissolves Phase 12 entirely, including the
