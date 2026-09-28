@@ -17,6 +17,39 @@ from . import settings as settings_store
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
+def _card(inst, base: str | None) -> dict:
+    """One launcher entry. `id` is here because a desktop launcher builds shortcuts from
+    these and needs a key that survives a rename; `name` does not."""
+    # An `http`-scheme route has no certificate by design, so linking it as https
+    # would send every visitor into a failed TLS handshake.
+    scheme = "http" if inst.scheme == "http" else "https"
+    return {
+        "id": inst.id,
+        "name": inst.name,
+        "url": f"{scheme}://{inst.subdomain}.{base}" if base else None,
+        "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
+    }
+
+
+@router.get("/launcher")
+def launcher() -> dict:
+    """Every routed service, **including private ones** — for a desktop launcher that builds
+    shortcuts. Authenticated (it is not in `PUBLIC_ROUTES`), which is the whole difference
+    from `/api/dashboard`: `private` means "not on the public wall", not "secret", so a
+    client that can prove it holds the admin password may list them.
+
+    A desktop client authenticates the same way the web UI does: `POST /api/login` with the
+    password, then send the session cookie back."""
+    base = settings_store.value("base_domain")
+    return {
+        "services": [
+            _card(inst, base) | {"private": inst.private}
+            for inst in instances.list_routed()
+            if not instances.is_machine(inst)
+        ]
+    }
+
+
 @router.get("/dashboard")
 def dashboard() -> dict:
     base = settings_store.value("base_domain")
@@ -32,11 +65,7 @@ def dashboard() -> dict:
         # ports are unaffected: Caddy fronts those at :443.
         if instances.is_machine(inst):
             continue
-        # An `http`-scheme route has no certificate by design, so linking it as https
-        # would send every dashboard visitor into a failed TLS handshake.
-        scheme = "http" if inst.scheme == "http" else "https"
-        url = f"{scheme}://{inst.subdomain}.{base}" if base else None
-        cards.append({"name": inst.name, "url": url, "icon": None})
+        cards.append(_card(inst, base))
     return {
         "services": cards,
         "certificate_tab": settings_store.certificate_tab(),

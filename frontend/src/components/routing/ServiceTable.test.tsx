@@ -160,3 +160,32 @@ test("a non-default scheme is tagged, https is not", () => {
   expect(screen.getByText("both")).toBeInTheDocument();
   expect(screen.queryByText("https")).not.toBeInTheDocument();
 });
+
+test("a service offers an icon picker; a machine does not", () => {
+  // A machine has no launcher card, so there is nothing for an icon to appear on.
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "grafana", name: "grafana" }),
+        row({ id: "nas", name: "nas", upstream: "192.168.10.50", kind: "machine" }),
+      ]}
+      onIcon={() => {}}
+    />,
+  );
+
+  expect(screen.getByTitle(/Set a launcher icon/)).toBeInTheDocument();
+  expect(screen.getAllByTitle(/launcher icon/)).toHaveLength(1);
+});
+
+test("an uploaded icon is shown, with a control to remove it", () => {
+  render(
+    <ServiceTable
+      rows={[row({ id: "grafana", name: "grafana", icon: "/api/instances/grafana/icon" })]}
+      onIcon={() => {}}
+      onClearIcon={() => {}}
+    />,
+  );
+
+  expect(screen.getByTitle("Change the launcher icon")).toBeInTheDocument();
+  expect(screen.getByTitle("Remove the launcher icon")).toBeInTheDocument();
+});

@@ -38,7 +38,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 40 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 44 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
@@ -150,7 +150,11 @@ and the login flow** — `GET /api/auth/status`, `POST /api/login`, `POST /api/l
 `POST /api/auth/setup` (you can't authenticate if login itself requires auth) — plus
 `GET /api/caddy/root-certificate`, which hands out Caddy's internal **root CA**: public
 material every LAN device is meant to install, fetched by devices that have no admin
-password and can't yet trust the HTTPS route. That set is `PUBLIC_ROUTES` in `shared/auth.py`.
+password and can't yet trust the HTTPS route. That set is `PUBLIC_ROUTES` in `shared/auth.py`, plus one *pattern* in `PUBLIC_PATTERNS`
+beside it — **`GET /api/instances/{id}/icon`**, the launcher icons, which cannot be an exact
+tuple because the path carries the instance id. A card has to render its icon before anyone
+logs in. Uploads are sniffed by magic bytes and SVG is refused, because these are
+user-supplied bytes served back from Loskai's own origin.
 **One route sits outside the middleware entirely:** the
 container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) — WebSockets never traverse the
 HTTP middleware, so it checks the session cookie itself and closes with 1008 if it fails. It

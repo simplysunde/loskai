@@ -181,6 +181,19 @@ export function Routing() {
     onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Save failed"),
   });
 
+  const setIcon = useMutation({
+    mutationFn: ({ row, file }: { row: RouteRow; file: File }) =>
+      api.upload(`/api/instances/${row.id}/icon`, file),
+    onSuccess: invalidate,
+    onError: (err) =>
+      setAssignError(err instanceof ApiError ? err.message : "Icon upload failed"),
+  });
+
+  const clearIcon = useMutation({
+    mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}/icon`),
+    onSuccess: invalidate,
+  });
+
   // Remove the route (Caddy + DNS), keep the instance.
   const removeRoute = useMutation({
     mutationFn: (row: RouteRow) => api.del(`/api/assign/${row.id}`),
@@ -425,6 +438,8 @@ export function Routing() {
           onDelete={(row) => setConfirmDelete(row)}
           actionBusyId={actionBusyId}
           onTogglePrivate={(row) => privateToggle.mutate(row)}
+          onIcon={(row, file) => setIcon.mutate({ row, file })}
+          onClearIcon={(row) => clearIcon.mutate(row)}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />
         </>

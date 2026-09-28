@@ -219,6 +219,17 @@ for verb, path in re.findall(r'\("(\w+)",\s*"([^"]+)"\)', pub.group(1) if pub el
     if f"{verb} {path}" not in claude:
         problems.append(f"  CLAUDE.md: public route {verb} {path} is not named in the security section")
 
+# Public routes whose path carries a parameter live in PUBLIC_PATTERNS instead, and are just
+# as public. Turn each regex back into the path shape CLAUDE.md should name — otherwise a
+# whole class of unauthenticated surface could be added without the enumeration noticing.
+pat = re.search(r"PUBLIC_PATTERNS = \[(.*?)\n\]", auth, re.S)
+for verb, rx in re.findall(r'\("(\w+)",\s*re\.compile\(r"([^"]+)"\)\)', pat.group(1) if pat else ""):
+    readable = rx.strip("^$").replace("[^/]+", "{id}")
+    if f"{verb} {readable}" not in claude:
+        problems.append(
+            f"  CLAUDE.md: public route pattern {verb} {readable} is not named in the security section"
+        )
+
 print(f"modules: {len(mods)} · admin tabs: {len(admin_nav)} · HTTP routes: {routes}")
 if problems:
     print(f"\n{len(problems)} problem(s):")

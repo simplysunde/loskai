@@ -1,5 +1,35 @@
 # Loskai — History
 
+## 2026-09-28 — Launcher icons, and the first binary state in the store
+
+Two asks that turned out to be one: an image per route for the dashboard card, and a list
+endpoint for a desktop launcher that builds kiosk-profile shortcuts. `GET /api/dashboard` was
+already public and already returned `{name, url, icon}` — the icon had simply never been
+filled in. So the endpoint half was nearly free, and the work was making icons real.
+
+**This is the first binary state Loskai stores.** Everything else is two JSON files; icons are
+images in the same volume, which keeps backup and relocation working the way they already do.
+Three decisions carry it. Validation is by **magic bytes**, because the file is served back
+from Loskai's own origin and a caller's `Content-Type` vouches for nothing. **SVG is refused**
+for the same reason — it is a script container, and these render unauthenticated. And the
+upload is a **raw body rather than multipart**: the bytes are sniffed either way, so a form
+part would only carry a filename and type that are ignored, at the cost of a
+`python-multipart` dependency.
+
+**The security surface needed care, and the enforcement needed extending.** `PUBLIC_ROUTES` is
+a set of exact `(method, path)` tuples, and an icon path carries the instance id, so it cannot
+be one. Rather than loosening the matcher, there is now a `PUBLIC_PATTERNS` list holding a
+single anchored regex — and `check-docs.sh` was extended to assert each pattern is named in
+`CLAUDE.md`, exactly as it already did for the set. Otherwise a whole category of
+unauthenticated surface could have been added without the enumeration check noticing, which is
+the failure mode that script exists for. Verified by deleting the mention and watching it fail.
+
+**On private routes**, Sunde's instinct was right that the existing password is enough:
+`GET /api/launcher` is simply the same list, authenticated, with a `private` flag. A desktop
+client logs in the way the web UI does. `private` means "not on the public wall", not
+"secret" — so a client holding the admin password may list them, and the public dashboard
+stays exactly as minimal as it was.
+
 ## 2026-09-27 — Phase 12 finally closes, on its last and smallest item
 
 12c was always documentation: Caddy can run an `acme_server` against the internal CA it

@@ -11,11 +11,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError, model_validator
 
 from ..config import settings
-from . import store
+from . import icons, store
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class Instance(BaseModel):
     machine: str | None = None  # id of the machine instance that owns this upstream's host part
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
+    icon: str | None = None  # launcher icon filename in <data_dir>/icons (see shared/icons.py)
 
 
     @model_validator(mode="before")
@@ -162,6 +164,62 @@ router = APIRouter(prefix="/api", tags=["instances"])
 class InstancePatch(BaseModel):
     private: bool | None = None
     name: str | None = None
+
+
+@router.get("/instances/{instance_id}/icon")
+def get_icon(instance_id: str):
+    """The launcher icon. **Public** — the Dashboard is unauthenticated, so a card has to
+    render its icon before anyone logs in (see `auth.PUBLIC_PATTERNS`). Serves only what a
+    prior upload sniffed as PNG/JPEG/WebP, under that sniffed content type."""
+    inst = get_instance(instance_id)
+    if inst is None or not inst.icon:
+        raise HTTPException(status_code=404, detail="no icon for this instance")
+    try:
+        path = icons.path_for(inst.icon)
+    except icons.IconError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="icon file is missing")
+    return FileResponse(path, media_type=icons.content_type(inst.icon))
+
+
+@router.post("/instances/{instance_id}/icon")
+async def put_icon(instance_id: str, request: Request) -> Instance:
+    """Replace this instance's launcher icon. Admin-only (the middleware gates it).
+
+    The image is the raw request body, not a multipart form: the bytes are sniffed either
+    way (see `icons.sniff`), so a form part would add a dependency — `python-multipart` —
+    to carry a filename and content type that are both ignored.
+
+    Read with a cap rather than `await request.body()`, so an oversized upload is refused
+    after one chunk instead of being buffered in full first."""
+    inst = get_instance(instance_id)
+    if inst is None:
+        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > icons.MAX_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"image is larger than {icons.MAX_BYTES // 1024} KB",
+            )
+    try:
+        filename = icons.save(instance_id, bytes(data))
+    except icons.IconError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return upsert_instance(inst.model_copy(update={"icon": filename}))
+
+
+@router.delete("/instances/{instance_id}/icon")
+def delete_icon(instance_id: str) -> Instance:
+    """Drop the icon; the card falls back to its generic glyph."""
+    inst = get_instance(instance_id)
+    if inst is None:
+        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    icons.remove_all(instance_id)
+    return upsert_instance(inst.model_copy(update={"icon": None}))
 
 
 @router.patch("/instances/{instance_id}")

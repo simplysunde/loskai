@@ -787,6 +787,58 @@ listens. The source comment even said "the card just names the host" while build
 
 ---
 
+## Phase 27 — Launcher icons, and an endpoint for a desktop launcher
+
+_Sunde: an image per route for the dashboard card, and "a get endpoint that allows us to read
+out the created routes in a list, to be used with a desktop version of the launcher" — kiosk
+Chromium profiles, one per service. Plus, on private routes: "a desktop launcher should have
+the ability to access privates if we provide a password or token. Since loskai simply has a
+password, that option might be enough."_
+
+_**Half of it already existed.** `GET /api/dashboard` is public and already returned
+`{name, url, icon}` — the icon field had simply never been filled in. So the two asks were one
+piece of work._
+
+**Icons**
+- [x] `icon` on the instance; images in `<data_dir>/icons/<id>.<ext>` — **the only binary
+      state Loskai keeps**, in the same volume as the JSON, so a backup carries it
+- [x] **Validated by magic bytes**, not by filename or the caller's `Content-Type`: PNG, JPEG,
+      WebP, 512 KB cap. **SVG refused** — these are served back from Loskai's own origin, and
+      an SVG is a script container. A RIFF file that is not WebP is refused too
+- [x] **Raw request body, not multipart.** The bytes are sniffed either way, so a form part
+      would carry a filename and type that are ignored — and would add a `python-multipart`
+      dependency. Read with a streamed cap, so an oversized upload is refused after a chunk
+      rather than buffered whole (`413`)
+- [x] `path_for` resolves and bounds-checks the stored filename: it comes from
+      `instances.json`, which a human can hand-edit, and `../` would otherwise read anything
+- [x] The thumbnail **is** the control — set and cleared from the Routing row rather than a
+      dialog. Machines have no card, so they get no picker
+- [x] `ServiceCard` renders the image with an `onError` fallback to the glyph, so a missing
+      file never leaves a torn card
+
+**The launcher endpoint**
+- [x] `GET /api/launcher` — every routed service **including private**, each flagged.
+      Authenticated, which is the entire difference from `/api/dashboard`. A desktop client
+      logs in exactly as the web UI does: `POST /api/login`, then send the cookie back
+- [x] Cards carry `id` now — a desktop launcher keys shortcuts on something that survives a
+      rename, which `name` does not
+
+**The public surface, kept enforced**
+- [x] `PUBLIC_ROUTES` holds exact `(method, path)` tuples, so a parameterised icon path
+      cannot live there. Added `PUBLIC_PATTERNS` — one anchored regex — **and extended
+      `check-docs.sh` to assert it is named in `CLAUDE.md` too**, so this class of
+      unauthenticated surface cannot be added unnoticed. Verified by removing the mention and
+      watching the check fail
+
+**Verification**
+- [x] `pytest` (297) + `npm test` (100) + `check-docs.sh` + `tsc -b`
+- [x] Live: a real 180-byte PNG uploaded through the UI, served **byte-identical with no
+      session** as `image/png`, rendered on the logged-out dashboard. `/api/launcher` returned
+      the private route with `private: true` while `/api/dashboard` omitted it, and answered
+      `401` with no session
+
+---
+
 ## Backlog / Future ideas
 - **Real domain + DNS-01 wildcard** (e.g. `*.home.<owned-domain>`): publicly-trusted certs,
   zero cert install on any device, nothing exposed publicly (DNS-01 is outbound-only; the

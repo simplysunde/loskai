@@ -6,6 +6,7 @@ UX only. There are no accounts — one admin password, stored hashed (argon2), v
 into a signed HttpOnly session cookie. The static bundle is served unauthenticated.
 """
 
+import re
 import secrets
 from pathlib import Path
 
@@ -29,6 +30,15 @@ MIN_PASSWORD_LEN = 8
 
 # The only endpoints reachable without a session: the public dashboard + the login
 # flow (you can't authenticate if login itself requires auth). Everything else 401s.
+# Public routes whose path carries a parameter, so they cannot be exact tuples above.
+# Deliberately a short, anchored list: everything here is readable by anyone who can reach
+# Loskai. `scripts/check-docs.sh` asserts each one is named in CLAUDE.md, same as the set.
+PUBLIC_PATTERNS = [
+    # Launcher icons. The Dashboard is unauthenticated, so a card has to render its icon
+    # before anyone logs in. Images only, sniffed on upload (see shared/icons.py).
+    ("GET", re.compile(r"^/api/instances/[^/]+/icon$")),
+]
+
 PUBLIC_ROUTES = {
     ("GET", "/api/dashboard"),
     ("GET", "/api/caddy/root-certificate"),
@@ -105,7 +115,11 @@ def ensure_seeded() -> None:
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path.startswith("/api/") and (request.method, path) not in PUBLIC_ROUTES:
+        public = (request.method, path) in PUBLIC_ROUTES or any(
+            request.method == verb and pattern.match(path)
+            for verb, pattern in PUBLIC_PATTERNS
+        )
+        if path.startswith("/api/") and not public:
             if not valid_session(request.cookies.get(SESSION_COOKIE)):
                 return JSONResponse(
                     {"detail": "Authentication required"}, status_code=401

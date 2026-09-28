@@ -1297,6 +1297,10 @@ The UI is split in two, so authentication lives **inside Loskai** (not a blanket
   machine's UI on the dashboard by routing it under a second name, which is also the only
   way to have both a proxied name and a directly-certified one (see
   [backend-certificates.md](docs/guides/backend-certificates.md)).
+  Each card can carry an uploaded **icon** (`GET /api/instances/{id}/icon`, public because
+  the wall is). **`GET /api/launcher`** is the same list *including private* services, behind
+  the session — for a desktop launcher building shortcuts; `private` means "not on the public
+  wall", not "secret".
   No login. Served by `GET /api/dashboard`, which exposes *only* launcher data — never
   container detail, module state, or anything sensitive. Alongside it, `/certificate`
   hands out Caddy's internal root CA (`GET /api/caddy/root-certificate`) so a LAN device

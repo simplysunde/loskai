@@ -48,6 +48,10 @@ export const api = {
     request<T>(p, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
+  // Raw-body upload (launcher icons). Not multipart: the backend validates by magic
+  // bytes, so a form part would only carry a filename and type it ignores.
+  upload: <T>(p: string, file: File) =>
+    request<T>(p, { method: "POST", body: file, headers: { "Content-Type": "" } }),
   // DELETE may carry a body — AdGuard's rewrite delete takes the whole (domain, answer).
   del: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),

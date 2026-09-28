@@ -230,6 +230,9 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
                 "container": inst.container,
                 "origin": inst.origin,
             "scheme": inst.scheme,
+            # The URL, not the stored filename: the table renders this directly, exactly
+            # as the dashboard card does.
+            "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
             "machine": inst.machine,
             "kind": inst.kind,
                 "routed": routed,

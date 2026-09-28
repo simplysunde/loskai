@@ -26,7 +26,8 @@ app is running — this document is the human-readable overview.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/dashboard` | Launcher cards for non-private routed **services**: `{ services: [{ name, url, icon }] }`. Exposes nothing else. **Machines are excluded** (`kind: "machine"`) — a machine is an address, and the port its UI lives on is not derivable from the record, so a card for one would link to a dead port. To put a machine's web UI on the dashboard, give it a *route* under a second name (Add route → External → pick the machine, add the port). |
+| `GET /api/launcher` | The same cards **including private ones**, each with a `private` flag — for a desktop launcher that builds shortcuts. **Authenticated**, which is the whole difference from `/api/dashboard`: `private` means "not on the public wall", not "secret". A desktop client logs in the way the web UI does (`POST /api/login`, then send the session cookie). Machines are excluded here too. |
+| `GET /api/dashboard` | Launcher cards for non-private routed **services**: `{ services: [{ id, name, url, icon }] }`. `id` is stable across a rename, which `name` is not — a desktop launcher keys its shortcuts on it. `icon` is `/api/instances/<id>/icon` when one has been uploaded, else `null`. Exposes nothing else. **Machines are excluded** (`kind: "machine"`) — a machine is an address, and the port its UI lives on is not derivable from the record, so a card for one would link to a dead port. To put a machine's web UI on the dashboard, give it a *route* under a second name (Add route → External → pick the machine, add the port). |
 | `GET /api/auth/status` | `{ authed, password_set }` — lets the SPA choose login vs first-run setup. |
 | `POST /api/login` | Body `{ password }` → sets the session cookie. `401` on a bad password, `409` if no password is set yet. |
 | `POST /api/logout` | Clears the session cookie. |
@@ -51,6 +52,9 @@ app is running — this document is the human-readable overview.
 | Method & path | Purpose |
 |---|---|
 | `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. |
+| `GET /api/instances/{id}/icon` | The launcher icon. **Public** — the Dashboard is unauthenticated, so a card renders its icon before anyone logs in. `404` when none is set. Served under the content type sniffed at upload. |
+| `POST /api/instances/{id}/icon` | Set the launcher icon. The image is the **raw request body**, not a multipart form (the bytes are sniffed either way, so a form part would only carry a filename and type that are ignored — and would add a `python-multipart` dependency). PNG, JPEG or WebP, **detected by magic bytes**, max 512 KB. **SVG is refused**: these are served from Loskai's own origin, and an SVG is a script container. `413` if oversized, `422` if unsupported. One icon per instance — uploading replaces any previous one, including a different format. |
+| `DELETE /api/instances/{id}/icon` | Remove it; the card falls back to its generic glyph. |
 | `DELETE /api/instances/{id}` | Fully delete an instance: removes its route + rewrite (if any), then the record. Deleting a **machine** unlinks the routes hosted on it rather than refusing — they keep its last address and go on working, and the response lists them in `unlinked`. Works for **any** type — deleting a docker instance leaves the container untouched (it becomes an unrouted container, re-routable via Add route). |
 
 ### Creation (two verbs over one cross-module action)

@@ -1,8 +1,11 @@
 import { ExternalLink, Boxes } from "lucide-react";
 
 export interface DashboardCard {
+  id?: string;
   name: string;
   url: string | null;
+  // Path to the uploaded image, or null for the generic glyph. A desktop launcher reading
+  // /api/launcher uses the same field to fetch a shortcut icon.
   icon: string | null;
 }
 
@@ -11,7 +14,23 @@ export interface DashboardCard {
 export function ServiceCard({ card }: { card: DashboardCard }) {
   const body = (
     <>
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
+      {card.icon ? (
+        <img
+          src={card.icon}
+          alt=""
+          className="h-10 w-10 shrink-0 rounded-lg object-cover"
+          // A missing or broken file must not leave a torn card — fall back to the glyph.
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+            e.currentTarget.nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300 ${
+          card.icon ? "hidden" : ""
+        }`}
+      >
         <Boxes className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">

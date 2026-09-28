@@ -91,7 +91,7 @@ changing one in isolation will break things (see below).
 
 | Variable | Default | What it is |
 |---|---|---|
-| `LOSKAI_DATA_DIR` | the repo's `data/` | Path for `settings.json`, `instances.json`, the session secret, and `recipes/`. The Dockerfile and every compose file set `/data` explicitly to match the state mount, so the default only applies when you run the backend directly. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
+| `LOSKAI_DATA_DIR` | the repo's `data/` | Path for `settings.json`, `instances.json`, the session secret, `recipes/`, and `icons/` (uploaded launcher images — the only binary state Loskai keeps, so a backup of this volume carries them). The Dockerfile and every compose file set `/data` explicitly to match the state mount, so the default only applies when you run the backend directly. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
 | `LOSKAI_STATIC_DIR` | `static` | Image path where the built React bundle is served from (populated by the Dockerfile `COPY`, not a volume). |
 
 ## Volumes

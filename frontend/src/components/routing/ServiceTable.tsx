@@ -1,6 +1,7 @@
-import { Eye, EyeOff, Loader2, Pencil, Plus, Trash2, Unlink } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
+import { isMachine } from "./ViewFilter";
 
 export interface RouteRow {
   id: string;
@@ -17,6 +18,7 @@ export interface RouteRow {
   container?: string | null;
   origin?: string | null;
   machine?: string | null;
+  icon?: string | null;
   routed: boolean;
   synced: boolean | null;
   upstream_healthy: boolean | null;
@@ -37,6 +39,8 @@ export function ServiceTable({
   actionBusyId,
   onTogglePrivate,
   privateBusyId,
+  onIcon,
+  onClearIcon,
 }: {
   rows: RouteRow[];
   onAssign?: (row: RouteRow) => void;
@@ -45,6 +49,9 @@ export function ServiceTable({
   actionBusyId?: string | null;
   onTogglePrivate?: (row: RouteRow) => void;
   privateBusyId?: string | null;
+  // Launcher icon: picking a file uploads it, and a row with one offers to clear it.
+  onIcon?: (row: RouteRow, file: File) => void;
+  onClearIcon?: (row: RouteRow) => void;
 }) {
   const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onTogglePrivate);
 
@@ -74,6 +81,9 @@ export function ServiceTable({
             <tr key={row.id} className="hover:bg-slate-900/40">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2 font-medium text-slate-100">
+                  {onIcon && !isMachine(row) && (
+                    <IconPicker row={row} onPick={onIcon} onClear={onClearIcon} />
+                  )}
                   {row.name}
                   <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
                     {row.type}
@@ -268,4 +278,53 @@ function IconButton({
 function machineLabel(machineId: string, rows: RouteRow[]): string {
   const machine = rows.find((r) => r.id === machineId);
   return machine?.name ?? machineId;
+}
+
+// The launcher icon, edited where the service is named rather than behind a dialog: the
+// thumbnail *is* the control. Machines have no card, so they have no icon to set.
+function IconPicker({
+  row,
+  onPick,
+  onClear,
+}: {
+  row: RouteRow;
+  onPick: (row: RouteRow, file: File) => void;
+  onClear?: (row: RouteRow) => void;
+}) {
+  const id = `icon-${row.id}`;
+  return (
+    <span className="group relative inline-flex">
+      <label
+        htmlFor={id}
+        title={row.icon ? "Change the launcher icon" : "Set a launcher icon (PNG, JPEG or WebP)"}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded border border-slate-800 bg-slate-900 text-slate-600 hover:border-teal-600/50 hover:text-teal-300"
+      >
+        {row.icon ? (
+          <img src={row.icon} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <ImagePlus className="h-3.5 w-3.5" />
+        )}
+      </label>
+      <input
+        id={id}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onPick(row, file);
+          e.target.value = ""; // so re-picking the same file fires again
+        }}
+      />
+      {row.icon && onClear && (
+        <button
+          onClick={() => onClear(row)}
+          title="Remove the launcher icon"
+          className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-slate-800 p-0.5 text-slate-400 hover:text-rose-300 group-hover:block"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      )}
+    </span>
+  );
 }
