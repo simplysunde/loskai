@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { Modal } from "../shared/Modal";
@@ -17,22 +17,39 @@ interface Recipe {
   type: string;
   description?: string;
   env: RecipeEnv[];
+  directories: string[];
   suggested_subdomain?: string;
-  source: "repo" | "local";
+  service?: string | null;
+  // instructions.md, verbatim. Shown before the form — it is the recipe's own
+  // walk-through, and the only place a recipe author can say "log in with admin/admin".
+  instructions: string;
+  source: string;
+  source_url?: string | null;
 }
 interface RecipeList {
   recipes: Recipe[];
   invalid: { id: string; source: string; error: string }[];
-  shadowed: { id: string; shadowed_by: string }[];
+  // A recipe id defined by more than one source: `source` lost, `shadowed_by` won.
+  shadowed: { id: string; source: string; shadowed_by: string }[];
+  sources: { url: string; label: string; enabled: boolean; synced: boolean; count: number }[];
+  local_count: number;
+}
+interface InstallResult {
+  ok: boolean;
+  output: string;
+  container: string | null;
+  warning?: string;
 }
 
-// Multi-step wizard: pick a recipe -> fill the manifest's env form -> deploy. Recipes are
-// the merged repo + local set (repo wins; shadowed local flagged).
+// Multi-step wizard: pick a recipe -> read what it will do -> fill the manifest's env
+// form -> deploy. Recipes are the merged set from every enabled source in priority order
+// (first one to define an id wins; the losers are flagged, never hidden).
 export function InstallWizard({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Recipe | null>(null);
+  const [reviewed, setReviewed] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<{ ok: boolean; output: string } | null>(null);
+  const [result, setResult] = useState<InstallResult | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["docker-recipes"],
@@ -47,16 +64,19 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
 
   const install = useMutation({
     mutationFn: (recipe: Recipe) =>
-      api.post<{ ok: boolean; output: string }>(`/api/docker/recipes/${recipe.id}/install`, { answers }),
+      api.post<InstallResult>(`/api/docker/recipes/${recipe.id}/install`, { answers }),
     onSuccess: (r) => {
       setResult(r);
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
+      // The install registers an instance, which the Routing table and dashboard read.
+      qc.invalidateQueries({ queryKey: ["instances"] });
     },
   });
 
   function pick(recipe: Recipe) {
     setSelected(recipe);
+    setReviewed(false);
     const seed: Record<string, string> = {};
     for (const e of recipe.env) seed[e.key] = e.default ?? "";
     setAnswers(seed);
@@ -72,34 +92,22 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={title} onClose={onClose} wide>
       {result ? (
-        <div className="space-y-3">
-          <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
-            {result.ok ? "Deployed." : "Finished with errors — check the output."}
-          </p>
-          <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-300">
-            {result.output || "(no output)"}
-          </pre>
-          {selected?.suggested_subdomain && (
-            <p className="text-sm text-slate-400">
-              Suggested subdomain: <span className="text-teal-300">{selected.suggested_subdomain}</span> —
-              assign it from the Routing tab.
-            </p>
-          )}
-          <div className="flex justify-end">
-            <button onClick={onClose} className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500">
-              Done
-            </button>
-          </div>
-        </div>
-      ) : selected ? (
+        <ResultStep result={result} recipe={selected} onClose={onClose} />
+      ) : selected && reviewed ? (
         <FillStep
           recipe={selected}
           answers={answers}
           setAnswers={setAnswers}
           pending={install.isPending}
           error={install.error instanceof ApiError ? install.error.message : null}
-          onBack={() => setSelected(null)}
+          onBack={() => setReviewed(false)}
           onInstall={() => install.mutate(selected)}
+        />
+      ) : selected ? (
+        <ReviewStep
+          recipe={selected}
+          onBack={() => setSelected(null)}
+          onContinue={() => setReviewed(true)}
         />
       ) : (
         <PickStep
@@ -111,6 +119,24 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
         />
       )}
     </Modal>
+  );
+}
+
+// Why nothing is listed — three different problems with three different fixes, so the
+// empty state has to say which one it is rather than "no recipes".
+function EmptyState({ data }: { data?: RecipeList }) {
+  const enabled = (data?.sources ?? []).filter((s) => s.enabled);
+  const message = !enabled.length
+    ? data?.local_count
+      ? "Every recipe here is local. Add a git source in Settings > General for the shared set."
+      : "No recipe sources are enabled. Add one in Settings > General, or drop a folder in data/recipes."
+    : enabled.every((s) => !s.synced)
+      ? `${enabled.map((s) => s.label).join(", ")} has never synced — hit Refresh recipes.`
+      : "Nothing in the synced sources. Push a recipe folder, then refresh.";
+  return (
+    <div className="rounded-xl border border-dashed border-slate-800 py-10 text-center text-sm text-slate-500">
+      {message}
+    </div>
   );
 }
 
@@ -143,9 +169,7 @@ function PickStep({
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       ) : !data?.recipes.length ? (
-        <div className="rounded-xl border border-dashed border-slate-800 py-10 text-center text-sm text-slate-500">
-          No recipes. Set a recipes repo URL in Settings, or drop one in the local recipes dir.
-        </div>
+        <EmptyState data={data} />
       ) : (
         <div className="grid gap-2">
           {data.recipes.map((r) => (
@@ -154,22 +178,146 @@ function PickStep({
               onClick={() => onPick(r)}
               className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-left hover:border-teal-600/50"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="font-medium text-slate-100">{r.name}</div>
-                <div className="text-xs text-slate-500">{r.description ?? r.type}</div>
+                <div className="truncate text-xs text-slate-500">{r.description ?? r.type}</div>
               </div>
-              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+              <span
+                title={r.source_url ?? "data/recipes"}
+                className="ml-3 shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400"
+              >
                 {r.source} · {r.type}
               </span>
             </button>
           ))}
         </div>
       )}
-      {data?.invalid.length ? (
-        <p className="mt-3 text-xs text-amber-400/80">
-          {data.invalid.length} recipe(s) skipped (invalid): {data.invalid.map((i) => i.id).join(", ")}
+      {data?.shadowed.length ? (
+        <p className="mt-3 text-xs text-slate-500">
+          {data.shadowed.map((s) => `${s.id} (${s.source} copy hidden by ${s.shadowed_by})`).join(", ")}
         </p>
       ) : null}
+      {data?.invalid.length ? (
+        <p className="mt-2 text-xs text-amber-400/80">
+          {data.invalid.length} recipe(s) skipped (invalid):{" "}
+          {data.invalid.map((i) => `${i.id} — ${i.error}`).join("; ")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// Step 1: what this install is about to do, and the recipe's own instructions.md. Shown
+// before the form so the answers are filled in with the walk-through already read.
+function ReviewStep({
+  recipe,
+  onBack,
+  onContinue,
+}: {
+  recipe: Recipe;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <dl className="grid gap-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-xs">
+        <Row label="Stack">
+          <code className="text-slate-300">{recipe.id}/</code> in the stacks directory —
+          compose.yml plus a generated .env
+        </Row>
+        <Row label="Install">
+          <code className="text-slate-300">{recipe.type}</code>
+          {recipe.type === "git_build" ? " — clones the repo, then builds locally" : ""}
+          {recipe.type === "registry_pull"
+            ? " — needs docker login on the host, done once"
+            : ""}
+        </Row>
+        {recipe.directories.length > 0 && (
+          <Row label="Directories">
+            <code className="text-slate-300">{recipe.directories.join(", ")}</code> created
+            first
+          </Row>
+        )}
+        <Row label="Asks for">
+          {recipe.env.length
+            ? recipe.env.map((e) => e.key).join(", ")
+            : "nothing — the compose file needs no variables"}
+        </Row>
+        <Row label="From">
+          {recipe.source}
+          {recipe.source_url ? ` · ${recipe.source_url}` : " · data/recipes"}
+        </Row>
+      </dl>
+
+      {recipe.instructions ? (
+        // Rendered as plain preformatted text, not parsed: Markdown here would mean a new
+        // dependency to display a file whose whole job is being readable as it is.
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-400">Instructions</p>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-3 text-xs leading-relaxed text-slate-300">
+            {recipe.instructions}
+          </pre>
+        </div>
+      ) : null}
+
+      <div className="flex justify-between">
+        <button onClick={onBack} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+          Back
+        </button>
+        <button
+          onClick={onContinue}
+          className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="w-24 shrink-0 text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-slate-400">{children}</dd>
+    </div>
+  );
+}
+
+function ResultStep({
+  result,
+  recipe,
+  onClose,
+}: {
+  result: InstallResult;
+  recipe: Recipe | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
+        {result.ok ? "Deployed." : "Finished with errors — check the output."}
+      </p>
+      {result.warning && (
+        <p className="flex items-start gap-2 text-sm text-amber-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {result.warning}
+        </p>
+      )}
+      <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-300">
+        {result.output || "(no output)"}
+      </pre>
+      {result.ok && recipe?.suggested_subdomain && (
+        <p className="text-sm text-slate-400">
+          Suggested subdomain: <span className="text-teal-300">{recipe.suggested_subdomain}</span> —
+          assign it from the Routing tab.
+        </p>
+      )}
+      <div className="flex justify-end">
+        <button onClick={onClose} className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500">
+          Done
+        </button>
+      </div>
     </div>
   );
 }

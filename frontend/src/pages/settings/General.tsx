@@ -5,6 +5,7 @@ import { Download, Loader2 } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { FieldDef } from "../../lib/settings";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
+import { RecipeSources } from "../../components/settings/RecipeSources";
 
 // App-wide knobs. Per-service config (AdGuard, WireGuard, Caddy) lives under
 // Settings > Network; this category keeps the app-level settings + backup. Fields commit
@@ -16,7 +17,6 @@ const APP_FIELDS: FieldDef[] = [
     label: "Docker Host LAN IP",
     hint: "auto-fills container upstreams in split-LXC mode, e.g. 192.168.10.50",
   },
-  { key: "recipes_repo_url", label: "Recipes Repo URL" },
   { key: "stacks_dir", label: "Stacks Directory", hint: "set in the compose file" },
 ];
 
@@ -43,6 +43,10 @@ export function General() {
   return (
     <div className="max-w-xl space-y-8">
       <InlineSettingsFields fields={APP_FIELDS} />
+
+      {/* Not an InlineSettingsFields row: `recipes_repos` is a list of repos with a
+          toggle each, so it gets its own editor rather than a text box. */}
+      <RecipeSources />
 
       <section className="border-t border-slate-800 pt-6">
         <h2 className="text-sm font-medium text-slate-300">Backup</h2>
