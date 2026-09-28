@@ -375,11 +375,14 @@ daemon; it invents no new deployment method.
   compose file. (The only substitution Loskai does itself is the `directories` paths, since
   it runs the `mkdir` before compose does.)
 - Wizard steps per recipe:
-  1. Show what will be created (directory, compose, the env vars it will ask for)
+  1. Show what will be created (stack directory, compose, declared directories, the env
+     vars it will ask for, which source it came from) plus the recipe's `instructions.md`
   2. Fill in required values (data path, passwords, ports — with the recipe's defaults),
      the form rendered from the manifest's `env:` schema
-  3. Optionally assign a subdomain (records it on the new `docker` instance, then calls
-     the Caddy + AdGuard modules)
+  3. **No assign step here.** Route creation is consolidated in the Routing tab's Add route
+     picker (see the Docker tab rule above), so the wizard surfaces the manifest's
+     `suggested_subdomain` and sends you there — a subdomain step inside the wizard would be
+     the second surface that creates routes, which is the thing that consolidation removed
   4. Confirm → creates the directories, writes `compose.yml` + the generated `.env`, runs the
      `type`'s install command, and registers the service as a `docker` instance — linked to
      the container name the daemon actually created (`<project>-<service>-1`, read back from
