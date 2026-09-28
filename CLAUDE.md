@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 13–19 are closed and nothing is in
+`backend/` and `frontend/` are real, working code. Phases 13–27 are closed and nothing is in
 flight. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
 as `docs/guides/backend-certificates.md`. The two archived live smokes (Phases 10a and 13)
 both ran and passed on 2026-09-16. **ACME support was removed 2026-09-27** (Phase 25) — the
 internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (281 + 95 + docs).
+All three checks pass (297 + 100 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -27,7 +27,8 @@ describes today. The authoritative sources are:
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
   `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. Phases 18 and 19 are still written out in `TODO.md`.
+  for how a finished thing was built. **Phases 18–27 are still written out in `TODO.md`** —
+  ten of them, so it is the longer file now; archive the older ones when it gets unwieldy.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
@@ -134,7 +135,8 @@ and AdGuard modules never write on their own; they are read + push only.
 
 **Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
 `AddRouteModal`) — the single surface, with three sources (Container / Network service /
-External) that pre-fill and post to `/api/assign` with `container` / `origin` / neither.
+External) that pre-fill and post to `/api/routes` with `container` / `origin` / neither
+(naming a machine is the sibling verb, `/api/machines`, from its own button and modal).
 **External also lists the *machines* you have named** — instances whose upstream is a bare IP,
 i.e. `dns_only` ones — so a proxy route takes its address from one instead of retyping it;
 they are listed whether or not they are routed, since you are borrowing an address rather

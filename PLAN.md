@@ -126,6 +126,14 @@ view both read.
                                  //   see "DNS-only routing" below)
   "upstream":  "192.168.10.100:3000",  // host:port (proxy) or a bare IP (dns_only) — chosen at assign time
   "upstream_tls": false,         // true = dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
+  "scheme":    "https",          // "https" (default) | "both" | "http" — which port(s) Caddy serves
+                                 //   this on. For clients that cannot hold a custom root CA; "http"
+                                 //   is kept out of the :443 server so no cert is ever issued for it
+  "machine":   null,             // id of the machine instance owning this upstream's HOST half —
+                                 //   a dependency, not an idempotency key. Moving that machine
+                                 //   rewrites this upstream and re-pushes the route
+  "icon":      null,             // launcher icon filename in <data_dir>/icons; served publicly at
+                                 //   /api/instances/<id>/icon (the Dashboard is unauthenticated)
   "container": "grafana",        // container name/id — links a docker instance to live data
   "origin":    null,             // "adguard"|"gateway"|"caddy" — links an external instance to a
                                  //   built-in Network service; null for a plain LAN target
@@ -508,7 +516,7 @@ route, so it never appears in `push_all` or the live-sync check.
   - LAN device:       `192.168.10.50:5000`
   - Proxmox:          `192.168.10.10:8006`  (tick "Backend speaks HTTPS" — it's TLS-only)
   - Loskai itself:  `192.168.10.100:8080`
-- One click (`POST /api/assign`) → Caddy route created (required), HTTPS live immediately;
+- One click (`POST /api/routes`) → Caddy route created (required), HTTPS live immediately;
   the AdGuard DNS rewrite is written best-effort in the same call (skipped with a warning
   if AdGuard is unhealthy — the name won't resolve on the LAN until the rewrite is added,
   so retry when AdGuard is back)
@@ -763,7 +771,7 @@ the duplicate `GET /api/wireguard/status`, which no caller used).
 ## The Assign Action — Cross-Module Coordination
 
 This is the one place where modules coordinate. When a user adds a route (via the Routing
-tab's **Add route** picker, `POST /api/assign`), this happens — the flow is identical whether
+tab's **Add route** picker, `POST /api/routes`), this happens — the flow is identical whether
 the source was a container, a Network service, or an external target:
 
 ```
@@ -853,9 +861,15 @@ backend/src/loskai/
     ├── auth.py              login + session middleware — gates every /api/* except
     │                        the public endpoints (see Security & Access)
     ├── dashboard.py         GET /api/dashboard — public: non-private routed services
-    │                        (name, url, icon) for the launcher, + certificate_tab
-    ├── assign.py            POST/DELETE /api/assign — assign & clear a subdomain;
-    │                        Caddy required, AdGuard best-effort, both directions
+    │                        (id, name, url, icon) + certificate_tab. Machines excluded:
+    │                        an address has no port to link to. Also GET /api/launcher,
+    │                        the same list *including private*, behind the session
+    ├── icons.py             launcher icons in <data_dir>/icons — the only binary state.
+    │                        Format sniffed by magic bytes (PNG/JPEG/WebP, no SVG), since
+    │                        these are served back from Loskai's own origin
+    ├── assign.py            POST /api/routes + POST /api/machines — the two creation
+    │                        verbs over one orchestration; DELETE /api/assign/{id} clears
+    │                        a subdomain. Caddy required, AdGuard best-effort
     ├── export.py            GET /api/export — the backup bundle (settings + instances)
     ├── instances.py         read/write instances.json — the instance list (route intent)
     └── settings.py          read/write settings.json, merge with env vars, priority chain
@@ -919,7 +933,8 @@ frontend/src/
 │   │   ├── StatusBadge.tsx
 │   │   ├── ModuleStatus.tsx  degraded/unreachable banner per module
 │   │   ├── RequireAuth.tsx   wrapper that redirects to /login without a session
-│   │   ├── ServiceCard.tsx   one dashboard card (name, icon, link-out)
+│   │   ├── ServiceCard.tsx   one dashboard card (name, uploaded icon or glyph, link-out)
+│   │   ├── Modal.tsx         generic shell for the larger dialogs (logs, terminal, wizard)
 │   │   ├── InlineSettingsFields.tsx auto-saving per-field editor (both Settings pages)
 │   │   └── ConfirmDialog.tsx
 │   ├── routing/            unified Caddy + AdGuard view
@@ -928,7 +943,10 @@ frontend/src/
 │   │   │                       private toggle; "Sync" for recovery
 │   │   ├── InfraStatusPill.tsx AdGuard/Caddy health + link-out; falls back to a
 │   │   │                       "Configure" link into /settings/network when unset
-│   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/assign
+│   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/routes
+│   │   ├── AddMachineModal.tsx hostname + bare address form → POST /api/machines
+│   │   ├── SchemeSelect.tsx    https / both / http, per route
+│   │   ├── ViewFilter.tsx      All · Services · Machines · Grouped over the one table
 │   │   └── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
 │   ├── settings/
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance
@@ -942,8 +960,11 @@ frontend/src/
 │       ├── InstallWizard.tsx
 │       └── StatsBar.tsx
 └── lib/
-    ├── api.ts               fetch wrapper
-    └── useHealth.ts         React Query hook, polls /api/health every 30s
+    ├── api.ts               fetch wrapper (+ raw-body upload for launcher icons)
+    ├── useHealth.ts         React Query hook, polls /api/health every 30s
+    ├── useDashboard.ts      the one public payload — cards + certificate_tab
+    ├── useScrollLock.ts     freezes the page behind any open overlay, ref-counted
+    └── validation.ts        prefix/upstream/address rules shared by the route forms
 ```
 
 ### Single Docker Image
