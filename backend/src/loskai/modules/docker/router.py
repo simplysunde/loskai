@@ -285,9 +285,10 @@ def recipes() -> dict:
 
 
 @router.post("/recipes/refresh")
-def refresh_recipes() -> dict:
+def refresh_recipes(payload: dict = Body(default={})) -> dict:
+    """Sync every enabled recipe source, or just the one named by `url`."""
     try:
-        return recipes_mod.sync_recipes()
+        return recipes_mod.sync_recipes(payload.get("url"))
     except RecipeError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

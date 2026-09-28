@@ -253,6 +253,36 @@ def suggested_upstream(
     return f"{service or container_name}:{port}"
 
 
+def primary_container(containers: list[dict], declared: str | None = None) -> str | None:
+    """Which container of a freshly installed compose project the instance joins to.
+
+    The join everywhere else in this module matches on the *container name*, and Compose
+    names containers `<project>-<service>-1` unless the compose file pins
+    `container_name` — so an installed recipe's instance can only link up if it is told
+    the real name. A recipe is also often several services (app + database) and only one
+    of them is the thing being published.
+
+    Order: the manifest's `service` if it names one that exists, then the only service
+    when there is one, then the service publishing ports (a database usually publishes
+    none), then alphabetically — a stable answer beats whatever the daemon listed first.
+
+    `containers` is `[{"service", "name", "ports"}]` from `client.containers_in_project`.
+    None when the project has no containers at all.
+    """
+    if not containers:
+        return None
+    by_service = {c["service"]: c for c in containers}
+    if declared and declared in by_service:
+        return by_service[declared]["name"]
+    if len(containers) == 1:
+        return containers[0]["name"]
+    published = [c for c in containers if any((c.get("ports") or {}).values())]
+    if len(published) == 1:
+        return published[0]["name"]
+    pool = published or containers
+    return min(pool, key=lambda c: c["service"])["name"]
+
+
 def subdomain_for(container_name: str, instances: list) -> str | None:
     """The assigned subdomain for a container, joined via the instance's `container`."""
     for inst in instances:

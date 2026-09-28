@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Body, HTTPException
 
+from ..config import DEFAULT_RECIPES_REPO
 from ..config import settings as env
 from . import store
 
@@ -32,11 +33,18 @@ CONFIGURABLE_KEYS = [
     "base_domain",
     "caddy_host_ip",
     "host_ip",
-    "recipes_repo_url",
+    "recipes_repos",
     "certificate_tab",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
+
+# The settable `config.Settings` attribute behind a configurable key, where the two differ.
+# Only `recipes_repos` does: its env layer is the comma-separated RECIPES_REPO_URL, and
+# `Settings.recipes_repos` is a read-only property over it. `_resolve` reads the property
+# (it wants the list); anything that *sets* the env layer — the test fixtures — has to go
+# through the real attribute, so the pair is named here rather than in each of them.
+ENV_SOURCE_ATTRS = {"recipes_repos": "recipes_repo_url"}
 
 # Where the Certificate page appears in the nav. This is presentation, not a security
 # boundary: the root CA it hands out is public material (every LAN device installs it),
@@ -44,6 +52,15 @@ SECRET_KEYS = {"adguard_password"}
 # docs/guides/certificate-setup.md.
 CERTIFICATE_TAB_MODES = ("public", "admin", "hidden")
 CERTIFICATE_TAB_DEFAULT = "public"
+
+# Recipe sources are the one configurable value that is a list rather than a string: a
+# git repo per entry, each independently enabled. Capped only to keep one bad PUT from
+# turning "Refresh recipes" into an unbounded pile of git clones.
+MAX_RECIPE_SOURCES = 20
+# Pre-multi-source installs stored a single URL under this key. `recipe_sources` still
+# reads it, and saving the list drops it — a migration with no migration step, the same
+# shape as `Instance._derive_kind`.
+LEGACY_RECIPES_KEY = "recipes_repo_url"
 
 
 def _path() -> Path:
@@ -109,6 +126,45 @@ def certificate_tab() -> str:
     return val if val in CERTIFICATE_TAB_MODES else CERTIFICATE_TAB_DEFAULT
 
 
+def _source_view(entry: Any) -> dict[str, Any]:
+    """One stored source entry, normalised for both the scanner and the UI.
+
+    `builtin` is derived from the URL rather than stored, so the flag can never disagree
+    with what `DEFAULT_RECIPES_REPO` currently is — including after that constant moves
+    to the public repo, when the old URL simply stops being the built-in one.
+    """
+    entry = entry if isinstance(entry, dict) else {"url": str(entry)}
+    url = str(entry.get("url") or "").strip()
+    return {
+        "url": url,
+        "enabled": bool(entry.get("enabled", True)),
+        "name": entry.get("name") or None,
+        "builtin": url == DEFAULT_RECIPES_REPO,
+    }
+
+
+def recipe_sources() -> tuple[list[dict[str, Any]], Source]:
+    """The install wizard's git sources, in priority order, with their source tag.
+
+    Unset means *nothing configured yet*, not *no sources*: the list is seeded with the
+    built-in default so a fresh install has somewhere to sync from. Which is why a stored
+    empty list is a real value here and never an unset marker — deleting every source is
+    how you say "none", and it has to survive a restart rather than re-seeding itself.
+
+    The local `recipes/` dir is not in this list. It is always scanned, needs no URL, and
+    cannot be disabled — see `recipes.py`, which appends it last.
+    """
+    stored = _read_stored()
+    val, source = _resolve("recipes_repos", stored)
+    if source != "unset":
+        entries = val if isinstance(val, list) else []
+        return [_source_view(e) for e in entries if _source_view(e)["url"]], source
+    legacy = str(stored.get(LEGACY_RECIPES_KEY) or "").strip()
+    if legacy:
+        return [_source_view({"url": legacy})], "stored"
+    return [_source_view({"url": DEFAULT_RECIPES_REPO})], "unset"
+
+
 def get_view() -> dict[str, Any]:
     """Source-tagged settings for GET /api/settings. Never includes the admin hash."""
     stored = _read_stored()  # read once, resolve every key against it
@@ -116,6 +172,12 @@ def get_view() -> dict[str, Any]:
     for key in CONFIGURABLE_KEYS:
         val, source = _resolve(key, stored)
         view[key] = {"value": val, "source": source, "secret": key in SECRET_KEYS}
+    # The one structured value: the generic resolve above reports it unset on a fresh
+    # install, but the editor has to render the seeded built-in default (and its toggle),
+    # so the effective list replaces it. Source stays as resolved — the UI locks on `env`,
+    # and `builtin` on the entry is what labels the default.
+    sources, sources_source = recipe_sources()
+    view["recipes_repos"] = {"value": sources, "source": sources_source, "secret": False}
     # stacks_dir is env-only (drives the compose mount) — always shown read-only.
     view["stacks_dir"] = {"value": env.stacks_dir, "source": "env", "secret": False}
     return view
@@ -153,6 +215,28 @@ def _validate(key: str, val: Any) -> None:
         raise ValueError(
             f"Certificate tab must be one of {', '.join(CERTIFICATE_TAB_MODES)}"
         )
+    if key == "recipes_repos":
+        if not isinstance(val, list):
+            raise ValueError("Recipe sources must be a list")
+        if len(val) > MAX_RECIPE_SOURCES:
+            raise ValueError(f"At most {MAX_RECIPE_SOURCES} recipe sources")
+        seen: set[str] = set()
+        for entry in val:
+            if not isinstance(entry, dict):
+                raise ValueError("Each recipe source must be an object with a 'url'")
+            url = str(entry.get("url") or "").strip()
+            if not url:
+                raise ValueError("A recipe source needs a 'url'")
+            # http(s) only. `git clone` would also take ssh:// or a local path, but the
+            # sync is deliberately anonymous (public repos, no key material in Loskai),
+            # and a bare path would point the wizard at the container's own filesystem.
+            if not url.startswith(("http://", "https://")):
+                raise ValueError(
+                    f"Recipe source must be an http:// or https:// git URL — got '{url}'"
+                )
+            if url in seen:
+                raise ValueError(f"Duplicate recipe source: {url}")
+            seen.add(url)
     if key == "host_ip":
         # Prefixed onto a published port to form a container upstream, so it must be a bare IP.
         try:
@@ -175,8 +259,15 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
             if val in (None, ""):
                 stored.pop(key, None)
             else:
+                # An empty *list* is not an unset value: `recipes_repos: []` is how "no
+                # git sources at all" is stored, and it has to persist rather than let
+                # the built-in default re-seed itself on the next read.
                 _validate(key, val)  # raises before anything is written
                 stored[key] = val
+            if key == "recipes_repos":
+                # The list is authoritative from here on; drop the pre-multi-source
+                # single URL so recipe_sources() can no longer fall back to it.
+                stored.pop(LEGACY_RECIPES_KEY, None)
         return stored
 
     _update_stored(apply)

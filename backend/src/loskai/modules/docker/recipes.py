@@ -1,14 +1,16 @@
 """Recipe engine — declarative install manifests, validated but never executed.
 
-Two sources merged into one list: the synced public repo cache (canonical) and a local
-dir in the settings volume. On a name clash the repo wins; the shadowed local copy is
-flagged, not dropped. See docs/reference/recipe-schema.md — the contract recipes are authored
-against.
+Sources are merged into one list: every enabled git repo (in priority order) and then the
+local dir in the state volume, which is always scanned last and cannot be disabled. The
+first source to define a recipe id wins; a later copy is flagged, not dropped. See
+docs/reference/recipe-schema.md — the contract recipes are authored against.
 
 Validation + the merge are pure/filesystem (unit-tested). Sync (git) and install
 (compose subprocess) are I/O.
 """
 
+import hashlib
+import logging
 import re
 import subprocess
 from pathlib import Path
@@ -19,10 +21,19 @@ from ...config import settings
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ...shared.instances import Instance
-from . import stacks
+from . import logic, stacks
+from .client import DOCKER_ERRORS, describe_error, docker_client
+
+logger = logging.getLogger(__name__)
 
 VALID_TYPES = {"pull", "git_build", "registry_pull"}
+SOURCE_LOCAL = "local"
 _VAR_RE = re.compile(r"\$\{(\w+)\}")
+_SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]")
+# Compose derives a project name from the directory it runs in, lowercased and stripped
+# of anything outside this set. Mirrored here so container discovery asks the daemon for
+# the label Compose actually wrote.
+_PROJECT_RE = re.compile(r"[^a-z0-9_-]")
 _GIT_TIMEOUT = 120
 
 
@@ -45,6 +56,8 @@ def validate_manifest(data: object) -> list[str]:
         errors.append(f"'type' must be one of {sorted(VALID_TYPES)}")
     if rtype == "git_build" and not data.get("git_repo"):
         errors.append("type 'git_build' requires 'git_repo'")
+    if "service" in data and not isinstance(data.get("service"), str):
+        errors.append("'service' must be a compose service name")
     for i, entry in enumerate(data.get("env") or []):
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
@@ -63,18 +76,51 @@ def expand_vars(text: str, answers: dict[str, str]) -> str:
     return _VAR_RE.sub(lambda m: answers.get(m.group(1), m.group(0)), text)
 
 
+def source_slug(url: str) -> str:
+    """Cache directory name for one repo: a readable tail plus a hash of the whole URL.
+
+    The hash is what makes it safe — two repos on different hosts routinely end in the
+    same path segment, and sharing a cache would have one silently overwrite the other.
+    """
+    tail = _SLUG_RE.sub("-", url.rstrip("/").rsplit("/", 1)[-1]).removesuffix(".git")
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:8]
+    return f"{tail[:40] or 'repo'}-{digest}"
+
+
+def source_label(url: str, name: str | None = None) -> str:
+    """Short display name for a source: its own `name`, else the URL's last segment."""
+    if name:
+        return name
+    return url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git") or url
+
+
+def project_name(recipe_id: str) -> str:
+    """The compose project name `docker compose` will use for an installed recipe."""
+    return _PROJECT_RE.sub("", recipe_id.lower())
+
+
 # --- Source scanning + merge (filesystem) ---
 
 
-def _repo_cache() -> Path:
+def _cache_root() -> Path:
     return Path(settings.data_dir) / "recipes-cache"
+
+
+def _repo_cache(url: str) -> Path:
+    return _cache_root() / source_slug(url)
 
 
 def _local_dir() -> Path:
     return Path(settings.data_dir) / "recipes"
 
 
-def _load_folder(folder: Path, source: str) -> dict:
+def enabled_sources() -> list[dict]:
+    """The configured git sources that are switched on, in priority order."""
+    sources, _ = settings_store.recipe_sources()
+    return [s for s in sources if s.get("enabled", True)]
+
+
+def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
     manifest = folder / "recipe.yml"
     if not manifest.is_file():
         raise RecipeError("recipe.yml missing")
@@ -97,66 +143,105 @@ def _load_folder(folder: Path, source: str) -> dict:
         "directories": data.get("directories") or [],
         "suggested_subdomain": data.get("suggested_subdomain"),
         "git_repo": data.get("git_repo"),
+        # Which compose service is the published one, when the recipe runs several
+        # (logic.primary_container). Optional — one service needs no declaration.
+        "service": data.get("service"),
         "instructions": instructions.read_text(encoding="utf-8") if instructions.is_file() else "",
         "source": source,
+        "source_url": source_url,
+        "path": str(folder),
     }
 
 
-def _scan(base: Path, source: str) -> tuple[dict[str, dict], list[dict]]:
+def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, dict], list[dict]]:
     valid: dict[str, dict] = {}
     invalid: list[dict] = []
     if not base.is_dir():
         return valid, invalid
     for folder in sorted(p for p in base.iterdir() if p.is_dir()):
         try:
-            valid[folder.name] = _load_folder(folder, source)
+            valid[folder.name] = _load_folder(folder, source, source_url)
         except RecipeError as exc:
             invalid.append({"id": folder.name, "source": source, "error": str(exc)})
     return valid, invalid
 
 
-def list_recipes() -> dict:
-    """Merged recipe list. Repo wins on a name clash; the shadowed local copy is flagged
-    (`shadowed: true`), never silently dropped."""
-    repo, repo_bad = _scan(_repo_cache(), "repo")
-    local, local_bad = _scan(_local_dir(), "local")
+def _merged() -> dict:
+    """Scan every enabled source in priority order, then the local dir.
 
-    merged: dict[str, dict] = dict(local)
+    First source to define a recipe id wins; a later copy is flagged in `shadowed` (with
+    both the source it came from and the one that beat it), never silently dropped. The
+    local dir goes last deliberately: it is where in-progress manifests live, and a
+    maintained repo staying authoritative is what makes "give the variant a distinct
+    name" the right advice.
+
+    Recipes carry their folder `path` here; `list_recipes` drops it for the API.
+    """
+    scans = [(source_label(s["url"], s.get("name")), s["url"], _repo_cache(s["url"])) for s in enabled_sources()]
+    scans.append((SOURCE_LOCAL, None, _local_dir()))
+
+    merged: dict[str, dict] = {}
+    invalid: list[dict] = []
     shadowed: list[dict] = []
-    for rid, recipe in repo.items():
-        if rid in local:
-            shadowed.append({"id": rid, "shadowed_by": "repo"})
-        merged[rid] = recipe  # repo wins
+    for label, url, base in scans:
+        valid, bad = _scan(base, label, url)
+        invalid.extend(bad)
+        for rid, recipe in valid.items():
+            if rid in merged:
+                shadowed.append({"id": rid, "source": label, "shadowed_by": merged[rid]["source"]})
+            else:
+                merged[rid] = recipe
+    return {"recipes": merged, "invalid": invalid, "shadowed": shadowed}
 
+
+def _source_status(source: dict, counts: dict[str, int]) -> dict:
+    """One source as the UI shows it: what it is, and whether it has ever synced."""
+    cache = _repo_cache(source["url"])
+    label = source_label(source["url"], source.get("name"))
+    synced = (cache / ".git").is_dir()
     return {
-        "recipes": sorted(merged.values(), key=lambda r: r["name"].lower()),
-        "invalid": repo_bad + local_bad,
-        "shadowed": shadowed,
+        "url": source["url"],
+        "label": label,
+        "enabled": bool(source.get("enabled", True)),
+        "builtin": bool(source.get("builtin")),
+        "synced": synced,
+        "last_synced": int(cache.stat().st_mtime) if synced else None,
+        "count": counts.get(label, 0),
+    }
+
+
+def list_recipes() -> dict:
+    """The merged recipe list, plus what was skipped, shadowed, and scanned."""
+    merged = _merged()
+    recipes = sorted(merged["recipes"].values(), key=lambda r: r["name"].lower())
+    counts: dict[str, int] = {}
+    for recipe in recipes:
+        counts[recipe["source"]] = counts.get(recipe["source"], 0) + 1
+    sources, sources_source = settings_store.recipe_sources()
+    return {
+        "recipes": [{k: v for k, v in r.items() if k != "path"} for r in recipes],
+        "invalid": merged["invalid"],
+        "shadowed": merged["shadowed"],
+        # So the wizard's empty state can tell "no sources configured" apart from
+        # "configured but never synced" — two very different things to tell the user.
+        "sources": [_source_status(s, counts) for s in sources],
+        "sources_source": sources_source,
+        "local_count": counts.get(SOURCE_LOCAL, 0),
     }
 
 
 def get_recipe(recipe_id: str) -> dict:
-    for recipe in list_recipes()["recipes"]:
-        if recipe["id"] == recipe_id:
-            return recipe
-    raise RecipeError(f"recipe '{recipe_id}' not found")
-
-
-def _recipe_folder(recipe_id: str, source: str) -> Path:
-    base = _repo_cache() if source == "repo" else _local_dir()
-    return base / recipe_id
+    recipe = _merged()["recipes"].get(recipe_id)
+    if recipe is None:
+        raise RecipeError(f"recipe '{recipe_id}' not found")
+    return recipe
 
 
 # --- Sync (git I/O) ---
 
 
-def sync_recipes() -> dict:
-    """Clone/pull the public recipes repo into the settings-volume cache. No auth
-    (public). Explicit only — never background-polled. Falls back to the last cache."""
-    url = settings_store.value("recipes_repo_url")
-    if not url:
-        raise RecipeError("recipes_repo_url is not set")
-    cache = _repo_cache()
+def _sync_one(url: str) -> str:
+    cache = _repo_cache(url)
     try:
         if (cache / ".git").is_dir():
             proc = subprocess.run(
@@ -175,7 +260,38 @@ def sync_recipes() -> dict:
         raise RecipeError("git sync timed out")
     if proc.returncode != 0:
         raise RecipeError((proc.stderr or proc.stdout).strip() or "git sync failed")
-    return {"ok": True, "output": (proc.stdout + proc.stderr).strip()}
+    return (proc.stdout + proc.stderr).strip()
+
+
+def sync_recipes(url: str | None = None) -> dict:
+    """Clone/pull each enabled repo into its own cache. No auth (public repos). Explicit
+    only — never background-polled.
+
+    One repo failing never stops the others: each gets its own result and keeps whatever
+    it last synced, so an unreachable source costs you that source's recipes and nothing
+    else. `url` syncs just that source.
+    """
+    targets = enabled_sources()
+    if url is not None:
+        targets = [s for s in targets if s["url"] == url]
+        if not targets:
+            raise RecipeError(f"'{url}' is not an enabled recipe source")
+    if not targets:
+        raise RecipeError("no recipe sources are enabled — add one in Settings > General")
+
+    results: list[dict] = []
+    for source in targets:
+        label = source_label(source["url"], source.get("name"))
+        try:
+            results.append({"url": source["url"], "label": label, "ok": True, "output": _sync_one(source["url"])})
+        except RecipeError as exc:
+            logger.warning("recipe source %s failed to sync: %s", source["url"], exc)
+            results.append({"url": source["url"], "label": label, "ok": False, "output": str(exc)})
+    return {
+        "ok": all(r["ok"] for r in results),
+        "results": results,
+        "output": "\n\n".join(f"{r['label']}: {r['output']}" for r in results),
+    }
 
 
 # --- Install (compose I/O) ---
@@ -187,7 +303,7 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
     if not stacks.stacks_dir_ok():
         raise RecipeError("stacks directory not found — check the compose mount")
     recipe = get_recipe(recipe_id)
-    folder = _recipe_folder(recipe_id, recipe["source"])
+    folder = Path(recipe["path"])
     compose_src = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
     if compose_src is None:
         raise RecipeError("recipe compose.yml missing")
@@ -210,11 +326,49 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
 
     build = recipe["type"] == "git_build"
     result = _compose_up(target, build=build)
+    if not result["ok"]:
+        # Nothing came up, so there is nothing to register. An instance whose `container`
+        # names no container joins to nothing — it would show as a permanently orphaned
+        # row rather than a failed install.
+        return {"ok": False, "output": result["output"], "instance_id": None, "container": None}
+
+    container = _discover_container(recipe_id, recipe.get("service"))
+    if container is None:
+        # Installed, but we can't say which container is the published one. Registering a
+        # link to a guessed name is worse than registering nothing: the Routing tab's
+        # Container source lists the container itself and creates the instance correctly,
+        # whereas a wrong `container` would sit there as a second, dead record.
+        return {
+            "ok": True,
+            "output": result["output"],
+            "instance_id": None,
+            "container": None,
+            "warning": (
+                f"'{recipe['name']}' is up, but its container could not be identified — "
+                "route it from the Routing tab's Add route picker."
+            ),
+        }
 
     instances_store.upsert_instance(
-        Instance(id=recipe_id, name=recipe["name"], type="docker", container=recipe_id)
+        Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
     )
-    return {"ok": result["ok"], "output": result["output"], "instance_id": recipe_id}
+    return {"ok": True, "output": result["output"], "instance_id": recipe_id, "container": container}
+
+
+def _discover_container(recipe_id: str, declared: str | None) -> str | None:
+    """The real container name to link the new instance to.
+
+    Compose names containers `<project>-<service>-1` unless the compose file pins
+    `container_name`, so the recipe id is not it — and the instance join matches on the
+    name. Asking the daemon is the only way to know; a daemon that has gone away returns
+    None rather than failing an otherwise successful install.
+    """
+    try:
+        containers = docker_client.containers_in_project(project_name(recipe_id))
+    except DOCKER_ERRORS as exc:
+        logger.warning("could not read containers for '%s': %s", recipe_id, describe_error(exc))
+        return None
+    return logic.primary_container(containers, declared)
 
 
 def _git_clone(repo: str, target: Path) -> None:

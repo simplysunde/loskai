@@ -151,6 +151,28 @@ class DockerClient:
                 result.setdefault(project, set()).add(service)
         return result
 
+    def containers_in_project(self, project: str) -> list[dict]:
+        """`[{"service", "name", "ports"}]` for one compose project, running or not.
+
+        `compose_projects` answers "which services are up" for the stack list; this
+        answers "what is this project's container actually called", which is what an
+        installed recipe's instance has to link to (logic.primary_container).
+        """
+        containers = self._get().containers.list(
+            all=True, filters={"label": f"com.docker.compose.project={project}"}
+        )
+        out: list[dict] = []
+        for c in containers:
+            service = (c.labels or {}).get("com.docker.compose.service")
+            if not service:
+                continue
+            out.append({
+                "service": service,
+                "name": c.name,
+                "ports": (c.attrs.get("NetworkSettings") or {}).get("Ports") or {},
+            })
+        return out
+
     def image_of(self, container_id: str) -> str:
         c = self._get().containers.get(container_id)
         return logic.image_name(c.attrs, c.image.tags if c.image else [])

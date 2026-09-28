@@ -22,7 +22,7 @@ from loskai.shared import store
 def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
     for key in s.CONFIGURABLE_KEYS:
-        monkeypatch.setattr(config.settings, key, None)
+        monkeypatch.setattr(config.settings, s.ENV_SOURCE_ATTRS.get(key, key), None)
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
     # Clear env-layer values so each test controls them explicitly.
     for key in s.CONFIGURABLE_KEYS:
-        monkeypatch.setattr(config.settings, key, None)
+        monkeypatch.setattr(config.settings, s.ENV_SOURCE_ATTRS.get(key, key), None)
 
 
 def test_unset_when_nothing_configured():
@@ -169,7 +169,8 @@ def test_configurable_keys_match_the_env_model():
     env-only and unwritable from the UI, with no failing test and a symptom that looks
     like a frontend bug. Adding a genuinely env-only key means updating ENV_ONLY_KEYS
     here — a deliberate act, which is the point."""
-    assert set(s.CONFIGURABLE_KEYS) | ENV_ONLY_KEYS == set(config.Settings.model_fields)
+    configurable = {s.ENV_SOURCE_ATTRS.get(key, key) for key in s.CONFIGURABLE_KEYS}
+    assert configurable | ENV_ONLY_KEYS == set(config.Settings.model_fields)
 
 
 def test_configurable_keys_are_unique():

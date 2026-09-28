@@ -6,6 +6,7 @@ UI on first run. `settings.py` merges these env values (highest priority) with
 """
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,6 +18,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # env_file and production gets its config from real env vars via compose either way.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _REPO_ROOT_ENV = _REPO_ROOT / ".env"
+
+# The built-in default recipe source, seeded into the sources list when nothing is stored
+# (see shared/settings.recipe_sources). Interim internal location: loskai-recipes lives
+# beside loskai on the development Forgejo while both are private, and moves to
+# https://github.com/simplysunde/loskai-recipes when loskai itself is published — one
+# constant, so that is a one-line change. Overridden by RECIPES_REPO_URL, and disableable
+# or removable in Settings > General.
+DEFAULT_RECIPES_REPO = "http://192.168.10.216:3000/sunde/loskai-recipes.git"
 
 
 class Settings(BaseSettings):
@@ -42,7 +51,10 @@ class Settings(BaseSettings):
     # <host_ip>:<published-port>; a bridged container can't detect its own host IP, so it's
     # set here once and used to auto-fill those upstreams.
     host_ip: str | None = None
-    # Public git repo the install wizard syncs recipes from.
+    # Public git repo(s) the install wizard syncs recipes from — comma-separated for
+    # several. Set here it *is* the whole list (the UI's copy goes read-only, like every
+    # env-sourced setting) and the built-in default is not included; unset, the stored
+    # list applies. See the `recipes_repos` property below.
     recipes_repo_url: str | None = None
     # Where the Certificate page appears in the nav: "public" (everyone, like the
     # dashboard), "admin" (only once logged in), "hidden". Unset means public — the
@@ -73,6 +85,19 @@ class Settings(BaseSettings):
     )
     # Built React bundle served in production; absent in dev (Vite serves the UI).
     static_dir: str = Field(default="static", validation_alias="LOSKAI_STATIC_DIR")
+
+    @property
+    def recipes_repos(self) -> list[dict[str, Any]] | None:
+        """`RECIPES_REPO_URL` as the env layer of the `recipes_repos` sources list, so the
+        priority chain in shared/settings.py resolves it generically (`getattr(env, key)`)
+        rather than special-casing recipes.
+
+        None when unset — the shipped compose files pass the variable through empty
+        (`${RECIPES_REPO_URL:-}`), which has to read as "not configured" rather than
+        "no sources", or every default install would sync nothing.
+        """
+        urls = [u.strip() for u in (self.recipes_repo_url or "").split(",") if u.strip()]
+        return [{"url": u, "enabled": True} for u in urls] or None
 
 
 settings = Settings()
