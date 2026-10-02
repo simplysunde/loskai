@@ -11,7 +11,7 @@ exists yet. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b 
 12c as `docs/guides/backend-certificates.md`. The two archived live smokes (Phases 10a and 13)
 both ran and passed on 2026-09-16. **ACME support was removed 2026-09-27** (Phase 25) — the
 internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (329 + 115 + docs).
+All three checks pass (327 + 115 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -204,8 +204,9 @@ must replay except the AdGuard password; its *own* admin password is stored only
   `config.DEFAULT_RECIPES_REPO`, each cached under its own slug) plus the local
   `data/recipes/` dir, which is always scanned last and cannot be disabled. First source to
   define a recipe id wins; the losers are flagged, never dropped. A stored **empty list**
-  means "no git sources" and is never re-seeded. `RECIPES_REPO_URL` is still the env layer
-  (comma-separated) and still wins. The `.env` is generated at install, never committed.
+  means "no git sources" and is never re-seeded. **Sources have no env var** — the only
+  entry in `STORED_ONLY_KEYS`, so the editor is never read-only; nothing about them is
+  needed before the UI is up. The `.env` is generated at install, never committed.
 - **An installed recipe's instance links to the container name the daemon created**, read
   back from the compose project label — never the recipe id, which is only the project
   name. No container identified → no instance, and the wizard says so.

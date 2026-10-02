@@ -16,7 +16,6 @@ const EXTRA = "https://github.com/someone/extras.git";
 // must not drop the other rows, and a remove must not silently disable instead.
 function renderPanel({
   sources = [{ url: BUILTIN, enabled: true, name: null, builtin: true }] as unknown[],
-  source = "stored",
   status = [
     { url: BUILTIN, label: "loskai-recipes", enabled: true, builtin: true, synced: true, count: 3 },
   ] as unknown[],
@@ -32,7 +31,7 @@ function renderPanel({
     }
     const body =
       path === SETTINGS
-        ? { recipes_repos: { value: sources, source, secret: false } }
+        ? { recipes_repos: { value: sources, source: "stored", secret: false } }
         : path === RECIPES
           ? { sources: status, local_count: 1 }
           : { ok: true, results: [{ url: BUILTIN, label: "loskai-recipes", ok: true, output: "up to date" }] };
@@ -136,11 +135,12 @@ test("a single row's sync targets that source, not every source", async () => {
   await waitFor(() => expect(synced()).toEqual([{ url: BUILTIN }]));
 });
 
-test("an env-set list is read-only — no toggles, no add box", async () => {
-  renderPanel({ source: "env" });
+test("the panel is always editable — recipe sources have no env layer", async () => {
+  // Deliberate departure from every other setting: there is no RECIPES_REPO_URL to make
+  // this read-only, because sources are never needed before the UI is reachable.
+  renderPanel();
 
-  expect(await screen.findByText(/Set by/)).toBeInTheDocument();
-  expect((screen.getByLabelText(`Enable ${BUILTIN}`) as HTMLInputElement).disabled).toBe(true);
-  expect(screen.queryByLabelText("Recipe source URL")).not.toBeInTheDocument();
-  expect(screen.queryByTitle("Remove this source")).not.toBeInTheDocument();
+  expect((await screen.findByLabelText(`Enable ${BUILTIN}`) as HTMLInputElement).disabled).toBe(false);
+  expect(screen.getByLabelText("Recipe source URL")).toBeInTheDocument();
+  expect(screen.getByTitle("Remove this source")).toBeInTheDocument();
 });

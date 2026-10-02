@@ -97,29 +97,6 @@ def test_stored_empty_list_means_no_sources(data_dir):
     assert recipes.enabled_sources() == []
 
 
-def test_legacy_single_url_is_read_as_one_source(data_dir):
-    """An install configured before the list existed keeps working."""
-    settings_store._update_stored(lambda st: {**st, "recipes_repo_url": REPO_A})
-    sources, source = settings_store.recipe_sources()
-    assert source == "stored"
-    assert [s["url"] for s in sources] == [REPO_A]
-
-
-def test_saving_the_list_drops_the_legacy_key(data_dir):
-    settings_store._update_stored(lambda st: {**st, "recipes_repo_url": REPO_A})
-    _use_sources(REPO_B)
-    assert "recipes_repo_url" not in settings_store._read_stored()
-    assert [s["url"] for s in settings_store.recipe_sources()[0]] == [REPO_B]
-
-
-def test_env_var_wins_and_takes_several_urls(data_dir, monkeypatch):
-    _use_sources(REPO_A)
-    monkeypatch.setattr(config.settings, "recipes_repo_url", f"{REPO_B}, {REPO_A}")
-    sources, source = settings_store.recipe_sources()
-    assert source == "env"
-    assert [s["url"] for s in sources] == [REPO_B, REPO_A]
-
-
 def test_list_recipes_merges_sources_in_priority_order(data_dir):
     _use_sources(REPO_A, REPO_B)
     _make_recipe(_cache(data_dir, REPO_A), "grafana", "Grafana (A)")

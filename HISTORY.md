@@ -1,5 +1,48 @@
 # Loskai — History
 
+## 2026-10-02 — `RECIPES_REPO_URL` deleted, four days after it was extended
+
+Sunde, mid-change: "do we even need the env variable? Since we now have a option in the ui
+for adding more on top of the default?" No. The question arrived while implementing a
+*smaller* override semantics for it, and made the whole thing unnecessary rather than
+smaller — the better outcome, and the second time on this project that pricing up a deletion
+beat refining the thing.
+
+**Why it was dead weight.** It was load-bearing when recipe sources were a single string that
+had to be set before any UI for them existed. Once sources became a list of rows with add,
+remove, toggle and per-row sync, the variable was a second way to say exactly what the editor
+says. Worse, the precedence rule it brought with it — env wins, env-set values render
+read-only — was the *only* reason the sources panel could ever lock, and it locked on Sunde's
+own dev box, where a leftover `.env` line made the new editor unusable.
+
+**The test it failed.** The env layer exists for values needed *before the UI is reachable*:
+`CADDY_ADMIN_URL`, `ADGUARD_URL`, `BASE_DOMAIN`, `LOSKAI_PASSWORD`. Recipe sources are needed
+only once you are logged in and looking at the wizard. So `recipes_repos` is now the first
+entry in **`STORED_ONLY_KEYS`** — a named category beside `ENV_ONLY_KEYS`, which keeps the
+three-places enumeration test meaningful: a key with no env var is now a declared choice
+rather than one forgotten in `config.Settings`. A second test asserts such a key never
+quietly acquires an env attribute later, since `_resolve` would silently start preferring it.
+
+**What went with it:** the `Settings.recipes_repos` property, `ENV_SOURCE_ATTRS` (which only
+existed because that property was unsettable, and which two test fixtures had to know about),
+the stored-legacy-single-URL fallback, the read-only branch of the editor, the variable in
+three compose files and `.env.example`. The legacy fallback is worth naming: it migrated a
+stored `recipes_repo_url` from before the list, and **nothing had ever stored one** — the
+install base is one box whose `settings.json` never carried the key. A migration with no
+records to migrate is not caution, it is a branch nobody will ever execute.
+
+**What is deliberately kept:** `DEFAULT_RECIPES_REPO` stays on the development Forgejo until
+loskai is published, then becomes `https://github.com/simplysunde/loskai-recipes` — one line.
+With no variable to override it, pointing an install elsewhere is two clicks in the editor,
+and local recipe work is what `data/recipes/` has always been for (always scanned, never
+disableable). Source rows stay restricted to `http(s)` URLs: a bare path would aim the wizard
+at the container's own filesystem.
+
+- Key files: `backend/src/loskai/{config,shared/settings}.py`,
+  `frontend/src/components/settings/RecipeSources.tsx`, `compose*.yml`, `.env.example`,
+  `docs/reference/recipe-schema.md`, `docs/guides/deployment.md`, `PLAN.md`, `CLAUDE.md`
+- 327 backend + 115 frontend tests pass; `check-docs.sh` clean
+
 ## 2026-09-28 — The install wizard's first real look, and sources become a list
 
 Sunde asked where to start building the install wizard. It was already built — `recipes.py`,

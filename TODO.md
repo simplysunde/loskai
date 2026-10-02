@@ -13,7 +13,7 @@ only TLS mode the shipped configs know. Otherwise pick from the
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (329) + `npm test` (115) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (327) + `npm test` (115) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -896,13 +896,18 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       every source has to survive a restart rather than re-seed the default
 - [x] Sync reports **per source**: one unreachable repo costs that repo's recipes and nothing
       else, and `POST /recipes/refresh` takes an optional `{url}` for one row. No new route
-- [x] `RECIPES_REPO_URL` still the env layer, now comma-separated, still wins and still makes
-      the editor read-only — via a property on `Settings`, so the priority chain stays generic.
-      `ENV_SOURCE_ATTRS` names the settable attribute behind it once, rather than in each test
-      fixture. A stored pre-list single URL is read as one source and dropped on the next save
+- [x] **`RECIPES_REPO_URL` removed entirely** (2026-10-02, Sunde: "do we even need the env
+      variable? Since we now have a option in the ui for adding more on top of the default?").
+      It was load-bearing when sources were one string set before any UI existed; with an
+      editor it was a second way to say the same thing, and the precedence rule it dragged in
+      was the only reason the panel could go read-only. Recipe sources are never needed before
+      the UI is reachable — which is the test for belonging in the env layer. `recipes_repos`
+      is now the only entry in `STORED_ONLY_KEYS`; the `Settings` property, `ENV_SOURCE_ATTRS`,
+      the stored-legacy-URL fallback (nothing had ever stored it), the read-only branch in the
+      editor and the variable in three compose files all went with it
 
 **Verification**
-- [x] `pytest` (329, was 297) + `npm test` (115, was 100) + `check-docs.sh` + `tsc -b` + oxlint
+- [x] `pytest` (327) + `npm test` (115) + `check-docs.sh` + `tsc -b` + oxlint
 - [ ] **Live install not yet run — there are no recipes.** Everything above is unit-tested
       with a stubbed compose run and a stubbed daemon, which is precisely the state that hid
       #1 for two months. The first real recipe is the next piece of work, and the install must

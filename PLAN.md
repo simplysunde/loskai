@@ -351,8 +351,10 @@ daemon; it invents no new deployment method.
     later copy is **flagged** (naming both the copy that lost and the source that beat it)
     so it is never silently hidden. To test a variant of an existing recipe locally, give
     it a distinct name so it does not collide.
-  - `RECIPES_REPO_URL` remains the env layer and takes a comma-separated list. Set, it *is*
-    the whole list and the editor goes read-only — the same rule as every other setting.
+  - **No env var.** Sources are the one configurable value with no environment layer
+    (`STORED_ONLY_KEYS`): the editor covers everything a variable could say, and nothing
+    about recipe sources is needed before the UI is reachable — which is the test for
+    belonging in the env layer at all. So the panel is never read-only.
 - **A recipe is declarative data, never executable code.** Loskai validates each recipe
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
   code. A malformed recipe fails validation and is skipped; it can't push Loskai outside
@@ -1202,7 +1204,7 @@ file only and is shown read-only in the UI; see the table below.)
 | WireGuard dashboard URL | `WIREGUARD_DASHBOARD_URL` | Optional |
 | Stacks directory | `STACKS_DIR` | Host path for Docker stacks; defaults to `./stacks` beside the compose file. **Set in the compose file, not the UI** — it drives the same-path bind mount, so the container only sees the directory mounted at launch. Shown read-only on the settings page; changing where stacks live means editing the compose mount and restarting. If it points somewhere unmounted, the Stack Manager simply shows no stacks — that empty list is the signal, no extra validation |
 | Base domain | `BASE_DOMAIN` | Your domain, e.g. `example.no` — service prefixes are appended to this |
-| Recipe sources | `RECIPES_REPO_URL` | Optional. Public git URL(s) Loskai syncs install-wizard recipes from, comma-separated, each cached in the state volume. Normally managed as a list of toggleable rows in Settings > General (stored as `recipes_repos`, seeded with a built-in default); setting the env var overrides that list entirely and makes it read-only |
+| Recipe sources | — (no env var) | Optional. Git repos the install wizard syncs recipes from, each cached in the state volume. A list of toggleable rows in Settings > General only (stored as `recipes_repos`, seeded with `config.DEFAULT_RECIPES_REPO`) — see `STORED_ONLY_KEYS` for why this one has no environment layer |
 | Loskai admin password | `LOSKAI_PASSWORD` | Guards the admin UI. Set via env or at first run; stored **hashed** (argon2/bcrypt), never returned by the API. Until one is set, the admin tier is locked and first run prompts to create it |
 | Caddy LAN IP | `CADDY_HOST_IP` | Optional. The IP that DNS rewrites resolve names to (where Caddy listens on `:443`). Derived from `CADDY_ADMIN_URL`'s host when that is an IP; only needed when the admin URL is a hostname (Docker co-located mode, `http://caddy:2019`) |
 | Docker host LAN IP | `HOST_IP` | Optional. This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in split-LXC, and per container in the two layouts where Caddy is a container here — a route needs `<host_ip>:<published-port>`; set once and Loskai auto-fills that upstream when routing a container, since a bridged container can't detect its own host's IP. Same address as `CADDY_HOST_IP` whenever Caddy runs on this host |
@@ -1265,7 +1267,6 @@ ADGUARD_USER=admin
 ADGUARD_PASSWORD=changeme
 WIREGUARD_DASHBOARD_URL=http://192.168.10.102:51821
 #STACKS_DIR=/srv/stacks   # optional — defaults to ./stacks
-# RECIPES_REPO_URL=https://github.com/you/loskai-recipes   # comma-separate for several; overrides the UI's source list
 # CADDY_HOST_IP=192.168.10.101   # only if CADDY_ADMIN_URL is a hostname (Docker co-located mode)
 # HOST_IP=192.168.10.100         # this Docker host's LAN IP, for auto-filled container-route upstreams in split-LXC mode
 ```

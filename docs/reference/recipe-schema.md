@@ -22,9 +22,9 @@ define a recipe id wins; a later copy of that id is **flagged** (`shadowed`, nam
 the copy that lost and the source that beat it), never silently dropped. To test a variant
 of an existing recipe locally, give it a distinct name.
 
-`RECIPES_REPO_URL` still works and takes a comma-separated list. Like every env-set value
-it **wins over the stored list** and makes the editor read-only — which also means the
-built-in default is not included when it is set. Unset it to manage sources in the UI.
+There is **no environment variable** for sources. The editor is the only place they are
+set, so it is never read-only — recipe sources are never needed before the UI is reachable,
+which is what the env layer exists for elsewhere.
 
 A repo that fails to sync costs you that repo's recipes and nothing else: each source
 reports separately and keeps whatever it last cloned.

@@ -10,8 +10,10 @@ from loskai.shared import settings as s
 def isolated_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
     # Clear env-layer values so each test controls them explicitly.
-    for key in s.CONFIGURABLE_KEYS:
-        monkeypatch.setattr(config.settings, s.ENV_SOURCE_ATTRS.get(key, key), None)
+    # Stored-only keys have no attribute to clear (see STORED_ONLY_KEYS), and
+    # monkeypatch refuses to set one that doesn't exist.
+    for key in set(s.CONFIGURABLE_KEYS) - s.STORED_ONLY_KEYS:
+        monkeypatch.setattr(config.settings, key, None)
 
 
 def test_unset_when_nothing_configured():
@@ -168,9 +170,18 @@ def test_configurable_keys_match_the_env_model():
     and the frontend *_FIELDS arrays. Forgetting the middle one silently makes a key
     env-only and unwritable from the UI, with no failing test and a symptom that looks
     like a frontend bug. Adding a genuinely env-only key means updating ENV_ONLY_KEYS
-    here — a deliberate act, which is the point."""
-    configurable = {s.ENV_SOURCE_ATTRS.get(key, key) for key in s.CONFIGURABLE_KEYS}
-    assert configurable | ENV_ONLY_KEYS == set(config.Settings.model_fields)
+    here — a deliberate act, which is the point. A key with no env layer at all goes in
+    STORED_ONLY_KEYS instead, which is equally deliberate."""
+    from_env = set(s.CONFIGURABLE_KEYS) - s.STORED_ONLY_KEYS
+    assert from_env | ENV_ONLY_KEYS == set(config.Settings.model_fields)
+
+
+def test_stored_only_keys_have_no_env_attribute():
+    """The other half of the pairing: a stored-only key must not quietly acquire an env
+    layer later, because `_resolve` would start preferring it with nothing to say so."""
+    for key in s.STORED_ONLY_KEYS:
+        assert key in s.CONFIGURABLE_KEYS
+        assert not hasattr(config.settings, key)
 
 
 def test_configurable_keys_are_unique():

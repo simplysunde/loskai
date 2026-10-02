@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, GitBranch, Loader2, Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { recipeSources, type RecipeSource, type SettingsView } from "../../lib/settings";
@@ -27,6 +27,9 @@ interface SyncResult {
 // a badge — disabling or deleting it is allowed, which is why an empty list is a stored
 // value and not a reset (backend `recipe_sources`). The local `data/recipes` dir is not a
 // row: it is always scanned, needs no URL, and can't be turned off.
+//
+// This is the only place sources can be set: there is no env var for them, so the panel
+// is never read-only (backend `STORED_ONLY_KEYS`).
 export function RecipeSources() {
   const qc = useQueryClient();
   const [draft, setDraft] = useState("");
@@ -44,7 +47,6 @@ export function RecipeSources() {
   });
 
   const sources = recipeSources(settings);
-  const isEnv = settings?.recipes_repos?.source === "env";
   const statusOf = (url: string) => recipes.data?.sources.find((s) => s.url === url);
 
   const save = useMutation({
@@ -91,7 +93,7 @@ export function RecipeSources() {
     <section className="border-t border-slate-800 pt-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-sm font-medium text-slate-300">Recipe sources</h2>
-        {!isEnv && sources.length > 1 && (
+        {sources.length > 1 && (
           <button
             type="button"
             onClick={() => sync.mutate(undefined)}
@@ -108,13 +110,6 @@ export function RecipeSources() {
         recipe wins, so order is priority.
       </p>
 
-      {isEnv && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-          <Lock className="h-3.5 w-3.5" /> Set by <code>RECIPES_REPO_URL</code> — unset it
-          to manage sources here.
-        </p>
-      )}
-
       <ul className="mt-3 space-y-2">
         {sources.map((source, index) => {
           const status = statusOf(source.url);
@@ -126,7 +121,7 @@ export function RecipeSources() {
               <input
                 type="checkbox"
                 checked={source.enabled}
-                disabled={isEnv || save.isPending}
+                disabled={save.isPending}
                 onChange={(e) => replace(index, { enabled: e.target.checked })}
                 aria-label={`Enable ${source.name ?? source.url}`}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-teal-500 disabled:opacity-50"
@@ -150,29 +145,27 @@ export function RecipeSources() {
                         : "never synced"}
                 </p>
               </div>
-              {!isEnv && (
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    title="Sync this source"
-                    onClick={() => sync.mutate(source.url)}
-                    disabled={!source.enabled || sync.isPending}
-                    className="rounded-lg border border-slate-700 p-1.5 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
-                  </button>
-                  <button
-                    type="button"
-                    title="Remove this source"
-                    aria-label={`Remove ${source.url}`}
-                    onClick={() => save.mutate(sources.filter((_, i) => i !== index))}
-                    disabled={save.isPending}
-                    className="rounded-lg border border-slate-700 p-1.5 text-slate-400 hover:bg-slate-800 hover:text-rose-300 disabled:opacity-40"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  title="Sync this source"
+                  onClick={() => sync.mutate(source.url)}
+                  disabled={!source.enabled || sync.isPending}
+                  className="rounded-lg border border-slate-700 p-1.5 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  type="button"
+                  title="Remove this source"
+                  aria-label={`Remove ${source.url}`}
+                  onClick={() => save.mutate(sources.filter((_, i) => i !== index))}
+                  disabled={save.isPending}
+                  className="rounded-lg border border-slate-700 p-1.5 text-slate-400 hover:bg-slate-800 hover:text-rose-300 disabled:opacity-40"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </li>
           );
         })}
@@ -184,27 +177,25 @@ export function RecipeSources() {
         </p>
       )}
 
-      {!isEnv && (
-        <div className="mt-3 flex gap-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            placeholder="https://github.com/you/loskai-recipes"
-            aria-label="Recipe source URL"
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100 outline-none focus:border-teal-500"
-          />
-          <button
-            type="button"
-            onClick={add}
-            disabled={!draft.trim() || save.isPending}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-          >
-            {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            Add
-          </button>
-        </div>
-      )}
+      <div className="mt-3 flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="https://github.com/you/loskai-recipes"
+          aria-label="Recipe source URL"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100 outline-none focus:border-teal-500"
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!draft.trim() || save.isPending}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+        >
+          {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          Add
+        </button>
+      </div>
 
       <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
         <GitBranch className="h-3.5 w-3.5 shrink-0" />

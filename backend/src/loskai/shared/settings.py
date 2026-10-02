@@ -39,12 +39,17 @@ CONFIGURABLE_KEYS = [
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
 
-# The settable `config.Settings` attribute behind a configurable key, where the two differ.
-# Only `recipes_repos` does: its env layer is the comma-separated RECIPES_REPO_URL, and
-# `Settings.recipes_repos` is a read-only property over it. `_resolve` reads the property
-# (it wants the list); anything that *sets* the env layer — the test fixtures — has to go
-# through the real attribute, so the pair is named here rather than in each of them.
-ENV_SOURCE_ATTRS = {"recipes_repos": "recipes_repo_url"}
+# Configurable keys with **no env layer** — stored or unset, never set from the
+# environment. `_resolve` needs no special case (there is simply no attribute of that name
+# on `config.Settings`); this names them so the three-places enumeration test can tell a
+# deliberately stored-only key from one forgotten in `config.Settings`.
+#
+# `recipes_repos` is the only one. It is a list of rows managed in Settings > General, and
+# nothing about recipe sources is needed before the UI is reachable — unlike a service URL
+# or the admin password, which are the reason the env layer exists at all. Giving it one
+# would mean two ways to say the same thing, and would let the editor go read-only for a
+# value you can always just edit.
+STORED_ONLY_KEYS = {"recipes_repos"}
 
 # Where the Certificate page appears in the nav. This is presentation, not a security
 # boundary: the root CA it hands out is public material (every LAN device installs it),
@@ -57,10 +62,6 @@ CERTIFICATE_TAB_DEFAULT = "public"
 # git repo per entry, each independently enabled. Capped only to keep one bad PUT from
 # turning "Refresh recipes" into an unbounded pile of git clones.
 MAX_RECIPE_SOURCES = 20
-# Pre-multi-source installs stored a single URL under this key. `recipe_sources` still
-# reads it, and saving the list drops it — a migration with no migration step, the same
-# shape as `Instance._derive_kind`.
-LEGACY_RECIPES_KEY = "recipes_repo_url"
 
 
 def _path() -> Path:
@@ -154,14 +155,10 @@ def recipe_sources() -> tuple[list[dict[str, Any]], Source]:
     The local `recipes/` dir is not in this list. It is always scanned, needs no URL, and
     cannot be disabled — see `recipes.py`, which appends it last.
     """
-    stored = _read_stored()
-    val, source = _resolve("recipes_repos", stored)
+    val, source = _resolve("recipes_repos", _read_stored())
     if source != "unset":
         entries = val if isinstance(val, list) else []
         return [_source_view(e) for e in entries if _source_view(e)["url"]], source
-    legacy = str(stored.get(LEGACY_RECIPES_KEY) or "").strip()
-    if legacy:
-        return [_source_view({"url": legacy})], "stored"
     return [_source_view({"url": DEFAULT_RECIPES_REPO})], "unset"
 
 
@@ -174,8 +171,7 @@ def get_view() -> dict[str, Any]:
         view[key] = {"value": val, "source": source, "secret": key in SECRET_KEYS}
     # The one structured value: the generic resolve above reports it unset on a fresh
     # install, but the editor has to render the seeded built-in default (and its toggle),
-    # so the effective list replaces it. Source stays as resolved — the UI locks on `env`,
-    # and `builtin` on the entry is what labels the default.
+    # so the effective list replaces it. `builtin` on the entry is what labels the default.
     sources, sources_source = recipe_sources()
     view["recipes_repos"] = {"value": sources, "source": sources_source, "secret": False}
     # stacks_dir is env-only (drives the compose mount) — always shown read-only.
@@ -264,10 +260,6 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
                 # the built-in default re-seed itself on the next read.
                 _validate(key, val)  # raises before anything is written
                 stored[key] = val
-            if key == "recipes_repos":
-                # The list is authoritative from here on; drop the pre-multi-source
-                # single URL so recipe_sources() can no longer fall back to it.
-                stored.pop(LEGACY_RECIPES_KEY, None)
         return stored
 
     _update_stored(apply)
