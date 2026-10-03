@@ -151,6 +151,64 @@ def test_a_full_suggestion_is_always_the_host_plus_a_port():
         assert full and full.rsplit(":", 1)[0] == logic.suggested_host(*args)
 
 
+# --- loskai.port: the port Docker can't see, or can't choose ---
+
+LABEL = {"loskai.port": "8000"}
+
+
+def test_host_networking_with_a_port_label_is_fully_dialable():
+    """Bambuddy with its label: nothing published, but the label names the port, and in
+    the host's own namespace a container port is a host port."""
+    assert logic.suggested_upstream(
+        "bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.220", LABEL, host_network=True
+    ) == "192.168.10.220:8000"
+
+
+def test_a_label_resolves_to_its_published_host_port_in_lan_mode():
+    """The label is the container-side port; off-box, Caddy dials what it's published as."""
+    ports = {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8081"}]}
+    assert logic.suggested_upstream(
+        "web", None, ports, "lan", "192.168.10.50", {"loskai.port": "80"}
+    ) == "192.168.10.50:8081"
+
+
+def test_a_label_picks_one_port_out_of_several():
+    ports = {
+        "80/tcp": [{"HostPort": "8080"}],
+        "443/tcp": [{"HostPort": "8443"}],
+        "9000/tcp": [{"HostPort": "9000"}],
+    }
+    # Without it: ambiguous.
+    assert logic.suggested_upstream("app", None, ports, "lan", "192.168.10.50") is None
+    assert logic.suggested_upstream(
+        "app", None, ports, "lan", "192.168.10.50", {"loskai.port": "9000"}
+    ) == "192.168.10.50:9000"
+
+
+def test_a_label_naming_an_unpublished_port_is_not_dialable_off_box():
+    ports = {"80/tcp": [{"HostPort": "8081"}], "3000/tcp": None}
+    labels = {"loskai.port": "3000"}
+    assert logic.suggested_upstream("app", None, ports, "lan", "192.168.10.50", labels) is None
+    # The host is still known.
+    assert logic.suggested_host("app", None, ports, "lan", "192.168.10.50", labels) == "192.168.10.50"
+
+
+def test_on_a_shared_network_the_label_is_the_port_by_name():
+    exposed = {"3000/tcp": None, "3002/tcp": None, "8000/tcp": None}
+    assert logic.suggested_upstream("x", "bambuddy", exposed, "docker") is None  # ambiguous
+    assert logic.suggested_upstream("x", "bambuddy", exposed, "docker", None, LABEL) == "bambuddy:8000"
+
+
+def test_an_invalid_label_is_ignored_not_trusted():
+    ports = {"80/tcp": [{"HostPort": "8081"}]}
+    for bad in ("", "abc", "0", "70000", "80/tcp", "-1"):
+        assert logic.label_port({"loskai.port": bad}) is None
+        # Falls back to the unlabelled answer.
+        assert logic.suggested_upstream(
+            "web", None, ports, "lan", "192.168.10.50", {"loskai.port": bad}
+        ) == "192.168.10.50:8081"
+
+
 def test_linked_instance_id_finds_an_unrouted_link():
     """A recipe install links an instance before any route exists; its id is the recipe's,
     a better prefix than the generated container name."""

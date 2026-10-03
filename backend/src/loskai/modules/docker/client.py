@@ -69,6 +69,7 @@ class DockerClient:
             upstream_mode = logic.upstream_mode(caddy_nets, logic.container_networks(attrs))
             service = labels.get("com.docker.compose.service")
             ports = (attrs.get("NetworkSettings") or {}).get("Ports")
+            host_network = "host" in logic.container_networks(attrs)
             summary = {
                 "id": c.id[:12],
                 "name": c.name,
@@ -84,12 +85,12 @@ class DockerClient:
                 # logic.upstream_mode; the frontend uses it for the upstream hint copy.
                 "upstream_mode": upstream_mode,
                 "suggested_upstream": logic.suggested_upstream(
-                    c.name, service, ports, upstream_mode, host_ip
+                    c.name, service, ports, upstream_mode, host_ip, labels, host_network
                 ),
                 # The half that is known even when the port is not — the form pre-fills
                 # `<host>:` and leaves only the port to type.
                 "suggested_host": logic.suggested_host(
-                    c.name, service, ports, upstream_mode, host_ip
+                    c.name, service, ports, upstream_mode, host_ip, labels, host_network
                 ),
                 "cpu": None,
                 "mem": None,

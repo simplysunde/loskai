@@ -221,12 +221,60 @@ def upstream_mode(
     return "docker" if shares_docker_network(caddy_networks, container_networks) else "lan"
 
 
+# The one Loskai-specific label a container can carry: the port its service listens on, as
+# the container sees it. For what Docker cannot report — under host networking nothing is
+# published at all — and to pick one port out of several. Compose interpolates labels, so a
+# recipe writes `loskai.port: ${PORT}` and the label changes when the port does.
+PORT_LABEL = "loskai.port"
+
+
+def label_port(labels: dict | None) -> str | None:
+    """`loskai.port` when it names a valid TCP port, else None (ignored, not an error)."""
+    raw = str((labels or {}).get(PORT_LABEL) or "").strip()
+    return raw if raw.isdigit() and 0 < int(raw) < 65536 else None
+
+
+def _concrete_ip(host_ip: str | None) -> str | None:
+    return None if host_ip in (None, "", "0.0.0.0", "::") else host_ip
+
+
+def _dial(
+    container_name: str,
+    service: str | None,
+    ports: dict | None,
+    mode: str | None,
+    host_ip: str | None,
+    labels: dict | None,
+    host_network: bool,
+) -> tuple[str | None, str | None]:
+    """`(host, port)` Caddy dials for this container — either half may be None. The single
+    resolver behind `suggested_host` and `suggested_upstream`, so they cannot disagree."""
+    label = label_port(labels)
+    if mode != "lan":
+        # Shared network: Docker DNS resolves the name; the port is the container's own.
+        return service or container_name, label or suggested_container_port(ports)
+    if label and host_network:
+        # The container is in the host's own namespace: its port *is* a host port.
+        return host_ip, label
+    if label:
+        bindings = [b for b in ((ports or {}).get(f"{label}/tcp") or []) if b.get("HostPort")]
+        if not bindings:
+            return host_ip, None  # labelled, but that port isn't published — not dialable
+        return _concrete_ip(bindings[0].get("HostIp")) or host_ip, bindings[0]["HostPort"]
+    binding = published_host_binding(ports)
+    if binding is None:
+        return host_ip, None
+    return binding[0] or host_ip, binding[1]
+
+
 def suggested_host(
     container_name: str,
     service: str | None,
     ports: dict | None,
     mode: str | None = None,
     host_ip: str | None = None,
+    labels: dict | None = None,
+    host_network: bool = False,
 ) -> str | None:
     """The host half of an upstream — which is known far more often than the port.
 
@@ -239,10 +287,7 @@ def suggested_host(
     None only in `lan` mode with no `host_ip` configured — a bridged Loskai cannot detect
     its own host's LAN IP.
     """
-    if mode == "lan":
-        binding = published_host_binding(ports)
-        return (binding[0] if binding else None) or host_ip
-    return service or container_name
+    return _dial(container_name, service, ports, mode, host_ip, labels, host_network)[0]
 
 
 def suggested_upstream(
@@ -251,9 +296,12 @@ def suggested_upstream(
     ports: dict | None,
     mode: str | None = None,
     host_ip: str | None = None,
+    labels: dict | None = None,
+    host_network: bool = False,
 ) -> str | None:
-    """A reachable upstream to pre-fill the assign form, best-effort: `suggested_host` plus
-    the port, or None when either half is unknown — the form then pre-fills the host alone.
+    """A reachable upstream, or None when either half is unknown. This is both the route
+    forms' pre-fill and what a route that follows its container is rewritten to — one
+    function, so the two cannot drift.
 
     In `docker` mode (Caddy shares the Docker network) this is `<service-or-name>:<port>` —
     the name resolves to the container's network IP via Docker DNS (robust across restarts).
@@ -261,13 +309,10 @@ def suggested_upstream(
     In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so it needs
     the Docker host's LAN IP + the *published host port*: `<host_ip>:<host_port>`.
 
-    `mode` unset falls back to the docker-name form (co-located default)."""
-    host = suggested_host(container_name, service, ports, mode, host_ip)
-    if mode == "lan":
-        binding = published_host_binding(ports)
-        port = binding[1] if binding else None
-    else:
-        port = suggested_container_port(ports)
+    A `loskai.port` label names the port when Docker can't (host networking) or can't choose
+    (several published), and is resolved to whatever Caddy dials. `mode` unset falls back to
+    the docker-name form (co-located default)."""
+    host, port = _dial(container_name, service, ports, mode, host_ip, labels, host_network)
     return f"{host}:{port}" if host and port else None
 
 
