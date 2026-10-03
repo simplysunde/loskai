@@ -17,6 +17,7 @@ Order (see PLAN, "The Assign URL Action"):
 in tests; the router passes the process singletons.
 """
 
+import asyncio
 import logging
 import re
 from ipaddress import ip_address
@@ -31,6 +32,7 @@ from ..modules.adguard.service import target_answer
 from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
 from ..modules.docker.client import docker_client
+from . import follow
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
@@ -159,6 +161,7 @@ async def assign(
     upstream_tls: bool = False,
     scheme: Literal["https", "both", "http"] = "https",
     route_mode: Literal["proxy", "dns_only"] = "proxy",
+    follow_container: bool = False,
 ) -> dict:
     validate_prefix(prefix, route_mode)
     if not base_domain:
@@ -192,6 +195,7 @@ async def assign(
             update={
                 "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
                 "route_mode": route_mode, "machine": machine, "scheme": scheme,
+                "follow_container": follow_container,
                 # Re-pointing a machine at a port turns it into a service, and vice versa.
                 "kind": "machine" if route_mode == "dns_only" else "service",
             }
@@ -209,6 +213,7 @@ async def assign(
             subdomain=prefix, upstream=upstream,
             upstream_tls=upstream_tls, route_mode=route_mode, scheme=scheme,
             kind="machine" if route_mode == "dns_only" else "service",
+            follow_container=follow_container,
         )
 
     old_domain = (
@@ -499,6 +504,41 @@ class RouteCreate(BaseModel):
     origin: str | None = None
     name: str | None = None
     instance_id: str | None = None
+    # The upstream is derived from the live container and kept in step with it (see
+    # shared/follow.py) — the server works it out; any `upstream` sent alongside is ignored.
+    follow_container: bool = False
+
+
+async def _followed_upstream(body: "RouteCreate") -> str:
+    """The upstream a following route gets: the container's, asked of Docker now.
+
+    The one place route creation depends on the Docker socket, deliberately — everywhere
+    else an unreachable daemon means "unknown" and the route goes ahead (validate_container).
+    A following route's address *is* Docker's answer, so without one there is no route to
+    make: 503, not a guess."""
+    container = body.container
+    if not container and body.instance_id:
+        existing = instances_store.get_instance(body.instance_id)
+        container = existing.container if existing else None
+    if not container:
+        raise AssignError(400, "only a container's route can follow its container")
+    if body.machine:
+        raise AssignError(
+            400, "a route follows its container or a machine, not both — unlink the machine"
+        )
+    try:
+        upstream = await asyncio.to_thread(follow.derive_upstream, container)
+    except Exception as exc:  # noqa: BLE001 — any docker/transport failure
+        raise AssignError(
+            503, f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
+            "set it by hand, or retry"
+        )
+    if not upstream:
+        raise AssignError(
+            400, f"'{container}'s port can't be determined — set the address by hand, or "
+            "give the container a loskai.port label"
+        )
+    return upstream
 
 
 def _context() -> tuple[str | None, str | None]:
@@ -527,12 +567,14 @@ async def post_route(body: RouteCreate) -> dict:
     try:
         if body.container:
             validate_container(body.container)
+        upstream = await _followed_upstream(body) if body.follow_container else body.upstream
         return await assign_route(
             caddy, adguard,
-            prefix=body.prefix, upstream=body.upstream,
+            prefix=body.prefix, upstream=upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
             origin=body.origin, machine=body.machine, upstream_tls=body.upstream_tls,
             scheme=body.scheme, base_domain=base, current_ip=current_ip,
+            follow_container=body.follow_container,
         )
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)

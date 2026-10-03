@@ -125,3 +125,124 @@ def test_a_route_is_still_created_when_docker_cannot_be_asked(client, monkeypatc
     # Gets past the link check and on to Caddy, which is what "not rejected" looks like here.
     assert r.status_code == 502
     assert "Caddy step failed" in r.json()["detail"]
+
+
+# --- A route that follows its container (Phase 29) ---
+
+
+@pytest.fixture
+def follow_env(monkeypatch):
+    """Caddy accepts every push; Docker knows one container and what it's dialled at."""
+    from loskai.shared import assign as assign_module
+    from loskai.shared import follow
+
+    pushed = []
+
+    async def caddy_ok(_client, inst, _base):
+        pushed.append((inst.id, inst.upstream))
+
+    monkeypatch.setattr(assign_module.caddy_service, "upsert_route", caddy_ok)
+    monkeypatch.setattr(assign_module.docker_client, "container_names", lambda: {"whoami-whoami-1"})
+    monkeypatch.setattr(
+        follow, "derive_upstream",
+        lambda c: {"whoami-whoami-1": "192.168.10.220:8081"}.get(c),
+    )
+    return pushed
+
+
+def _stored(instance_id):
+    from loskai.shared import instances as instances_store
+
+    return instances_store.get_instance(instance_id)
+
+
+def test_a_following_route_takes_its_address_from_the_container(client, follow_env):
+    """The server is the authority: whatever upstream the client sends is ignored."""
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "10.9.9.9:1", "container": "whoami-whoami-1",
+        "follow_container": True,
+    })
+
+    assert r.status_code == 200, r.text
+    inst = _stored("whoami")
+    assert inst.follow_container is True
+    assert inst.upstream == "192.168.10.220:8081"
+    assert follow_env == [("whoami", "192.168.10.220:8081")]
+
+
+def test_a_container_route_sets_its_own_address_unless_it_asks_to_follow(client, follow_env):
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "192.168.10.220:9000", "container": "whoami-whoami-1",
+    })
+
+    assert r.status_code == 200, r.text
+    assert _stored("whoami").follow_container is False
+    assert _stored("whoami").upstream == "192.168.10.220:9000"
+
+
+def test_editing_a_route_can_turn_following_on_without_naming_the_container(client, follow_env):
+    """The row's form posts `instance_id`, not `container` — the record supplies it."""
+    client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "192.168.10.220:9000", "container": "whoami-whoami-1",
+    })
+
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "", "instance_id": "whoami", "follow_container": True,
+    })
+
+    assert r.status_code == 200, r.text
+    assert _stored("whoami").upstream == "192.168.10.220:8081"
+    assert _stored("whoami").follow_container is True
+
+
+def test_only_a_container_route_can_follow(client, follow_env):
+    r = client.post("/api/routes", json={
+        "prefix": "nas", "upstream": "192.168.10.50:5000", "follow_container": True,
+    })
+
+    assert r.status_code == 400
+    assert "only a container" in r.json()["detail"]
+
+
+def test_following_a_container_and_a_machine_is_refused(client, follow_env):
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "x:1", "container": "whoami-whoami-1",
+        "machine": "nas", "follow_container": True,
+    })
+
+    assert r.status_code == 400
+    assert "not both" in r.json()["detail"]
+
+
+def test_a_port_docker_cannot_name_cannot_be_followed(client, follow_env, monkeypatch):
+    from loskai.shared import follow
+
+    monkeypatch.setattr(follow, "derive_upstream", lambda c: None)
+
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "", "container": "whoami-whoami-1",
+        "follow_container": True,
+    })
+
+    assert r.status_code == 400
+    assert "loskai.port" in r.json()["detail"]  # says how to fix it, not just that it failed
+    assert _stored("whoami") is None
+
+
+def test_following_needs_docker_where_a_plain_route_does_not(client, follow_env, monkeypatch):
+    """The one deliberate exception to "route creation must not depend on the Docker
+    socket": a following route's address *is* Docker's answer."""
+    from loskai.shared import follow
+
+    def unreachable(_c):
+        raise RuntimeError("docker socket unavailable")
+
+    monkeypatch.setattr(follow, "derive_upstream", unreachable)
+
+    r = client.post("/api/routes", json={
+        "prefix": "whoami", "upstream": "", "container": "whoami-whoami-1",
+        "follow_container": True,
+    })
+
+    assert r.status_code == 503
+    assert _stored("whoami") is None
