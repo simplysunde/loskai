@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 VALID_TYPES = {"pull", "git_build", "registry_pull"}
 SOURCE_LOCAL = "local"
 _VAR_RE = re.compile(r"\$\{(\w+)\}")
+# A .env key Compose can read back as one: shell-identifier shape. Anything else (`=`, a
+# space, a newline) would split or merge lines in the generated file.
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]")
 # Compose derives a project name from the directory it runs in, lowercased and stripped
 # of anything outside this set. Mirrored here so container discovery asks the daemon for
@@ -61,19 +64,66 @@ def validate_manifest(data: object) -> list[str]:
     for i, entry in enumerate(data.get("env") or []):
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
+        elif not _ENV_KEY_RE.match(str(entry["key"])):
+            errors.append(f"env[{i}] key '{entry['key']}' is not a valid variable name")
     return errors
 
 
-def render_env(answers: dict[str, str]) -> str:
-    """Wizard answers -> .env text. Values are written verbatim (compose does the
-    ${VAR} substitution)."""
-    return "".join(f"{k}={v}\n" for k, v in answers.items())
+def resolve_answers(env_spec: list[dict], answers: dict) -> dict[str, str]:
+    """The values one install writes: every key the manifest declares, in manifest order —
+    the caller's answer where given, else the manifest default, else empty.
+
+    The server owns this, not the form. The wizard happens to send every key pre-filled,
+    but an API caller that omits one used to get a *blank* variable — a `${PORT}` that
+    publishes on a random host port, silently. An explicit empty answer is kept: clearing
+    a pre-filled field is a choice. An undeclared key is refused rather than written,
+    since a `.env` line is not just a variable to Compose — `COMPOSE_PROJECT_NAME` in it
+    re-points the project, and with it the container this install links to.
+    """
+    declared = [str(e["key"]) for e in env_spec]
+    unknown = sorted(set(answers) - set(declared))
+    if unknown:
+        raise RecipeError(
+            f"not declared by this recipe: {', '.join(unknown)} — "
+            f"it asks for {', '.join(declared) or 'nothing'}"
+        )
+    values: dict[str, str] = {}
+    for entry in env_spec:
+        given = answers.get(entry["key"])
+        values[str(entry["key"])] = str(given if given is not None else entry.get("default", ""))
+    return values
 
 
-def expand_vars(text: str, answers: dict[str, str]) -> str:
-    """Substitute ${VAR} from answers (used for the `directories` paths Loskai mkdir-s
-    before compose runs). Unknown vars are left as-is."""
-    return _VAR_RE.sub(lambda m: answers.get(m.group(1), m.group(0)), text)
+def _env_escape(value: str) -> str:
+    # Backslash first, or the escapes added after it would be doubled.
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "\\$")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+
+
+def render_env(values: dict[str, str]) -> str:
+    r"""Install values -> .env text, every value double-quoted and escaped so Compose reads
+    back exactly what was typed.
+
+    Written verbatim, Compose interpolates `$` (`pa$word1` arrives as `pa`), reads ` #` as
+    a comment (`correct horse #battery` arrives as `correct horse`), and a newline starts
+    a new `KEY=` line. All of these *succeed* — `up` exits 0 and the app simply has a
+    different password. Single quotes would fix the first two but cannot hold a `'`.
+    Double quotes with `\\`, `\"`, `\$`, `\n` and `\r` escaped round-trip all of it,
+    checked against `docker compose config` and a real container's environment on
+    2026-10-03.
+    """
+    return "".join(f'{k}="{_env_escape(v)}"\n' for k, v in values.items())
+
+
+def expand_vars(text: str, values: dict[str, str]) -> str:
+    """Substitute ${VAR} from the install values (used for the `directories` paths Loskai
+    mkdir-s before compose runs). Unknown vars are left as-is."""
+    return _VAR_RE.sub(lambda m: values.get(m.group(1), m.group(0)), text)
 
 
 def source_slug(url: str) -> str:
@@ -303,6 +353,8 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
     if not stacks.stacks_dir_ok():
         raise RecipeError("stacks directory not found — check the compose mount")
     recipe = get_recipe(recipe_id)
+    # Before any side effect: an undeclared key fails here, not after the mkdir.
+    values = resolve_answers(recipe["env"], answers)
     folder = Path(recipe["path"])
     compose_src = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
     if compose_src is None:
@@ -312,9 +364,9 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
     if target.exists():
         raise RecipeError(f"a stack named '{recipe_id}' already exists")
 
-    # Pre-create any declared directories (with ${VAR} expanded from the answers).
+    # Pre-create any declared directories (with ${VAR} expanded from the install values).
     for raw in recipe["directories"]:
-        Path(expand_vars(str(raw), answers)).mkdir(parents=True, exist_ok=True)
+        Path(expand_vars(str(raw), values)).mkdir(parents=True, exist_ok=True)
 
     if recipe["type"] == "git_build":
         _git_clone(recipe["git_repo"], target)
@@ -322,7 +374,7 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
         target.mkdir(parents=True)
 
     (target / "compose.yml").write_text(compose_src.read_text(encoding="utf-8"), encoding="utf-8")
-    (target / ".env").write_text(render_env(answers), encoding="utf-8")
+    (target / ".env").write_text(render_env(values), encoding="utf-8")
 
     build = recipe["type"] == "git_build"
     result = _compose_up(target, build=build)

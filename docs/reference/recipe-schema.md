@@ -89,7 +89,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `type` | ✅ | all | Install pattern — see below. |
 | `description` | — | all | One-line summary for the recipe list. |
 | `env` | — | all | List of values the wizard asks for; each generates one `.env` line. Omit if the compose needs no variables. |
-| `env[].key` | ✅ | — | The `.env` / `${VAR}` name. Must match a `${VAR}` in `compose.yml`. |
+| `env[].key` | ✅ | — | The `.env` / `${VAR}` name. Must match a `${VAR}` in `compose.yml`, and be a variable name: letters, digits and `_`, not starting with a digit. |
 | `env[].label` | ✅ | — | The prompt shown to the user. |
 | `env[].default` | — | — | Pre-filled value. |
 | `env[].secret` | — | — | `true` → password field, value never logged. Defaults `false`. |
@@ -113,10 +113,29 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 The `.env` never lives in the repo. At install time Loskai:
 
 1. Renders a form from `env`, with the user's answers (defaults pre-filled).
-2. Writes those answers as `KEY=value` lines into a `.env` in the new stack directory.
-3. Runs the `type`'s command. `docker compose` substitutes every `${VAR}` in `compose.yml`
+2. Builds the value set **on the server**, from the manifest rather than from whatever the
+   client sent: every declared key, in manifest order — the answer where one was given,
+   else the `default`, else empty. A key the manifest does not declare is **refused**
+   (`400`), before anything touches disk.
+3. Writes each value **double-quoted, with `\`, `"`, `$` and newlines escaped**, into a
+   `.env` in the new stack directory.
+4. Runs the `type`'s command. `docker compose` substitutes every `${VAR}` in `compose.yml`
    from that `.env` automatically — so there is **no templating engine**, and `compose.yml`
    stays a real compose file.
+
+Steps 2 and 3 exist because Compose reads a `.env` as more than a list of strings, and every
+way it can go wrong **succeeds** — `up` exits 0 and the app simply has a different value:
+
+| Written verbatim | What the container got |
+|---|---|
+| `pa$word1` | `pa` — `$word1` interpolated as an unset variable |
+| `correct horse #battery` | `correct horse` — the rest read as a comment |
+| a value containing a newline | a second `KEY=` line; `COMPOSE_PROJECT_NAME` there re-points the project |
+| an omitted key (API caller) | a blank variable — `"${PORT}:80"` published on a random host port |
+
+Single quotes would fix the first two but cannot hold a `'`; double quotes with those
+escapes round-trip everything. Checked against a real container's environment on
+2026-10-03.
 
 Because the `.env` holds secrets (any `secret: true` value), it exists only on disk in the
 stack directory, never in version control.
@@ -153,6 +172,8 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - `type: git_build` with no `git_repo`.
 - an `env` entry is missing `key` or `label`.
 - `service` is present but is not a string.
+- an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
+  the generated `.env`).
 - `compose.yml` is missing.
 
 Validation never runs recipe content — it only parses and checks fields. A rejected recipe

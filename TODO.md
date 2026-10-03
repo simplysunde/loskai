@@ -1,9 +1,9 @@
 # Loskai — TODO
 
-**Now:** **Phase 28** (below) is code-complete but **not closed** — the install wizard's two
-defects are fixed and recipe sources are a toggleable list, with one unchecked item: no
-install has ever actually been run, because no recipe exists yet. Writing the first real
-recipe and running it against the live rig is the next piece of work.
+**Now:** **Phase 28** (below) has **run live and passed** (2026-10-03): the first real recipe
+installed, linked to the right container, routed without a duplicate — and the run found and
+fixed `.env` generation silently corrupting secrets. **One item left:** sync the recipes repo
+over git once it is pushed. Then the phase closes, and the next work is real recipes.
 
 Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
 as Phase 26 (2026-09-27). Phase 25 removed ACME support the same day: the internal CA is the
@@ -13,7 +13,7 @@ only TLS mode the shipped configs know. Otherwise pick from the
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (327) + `npm test` (115) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (348) + `npm test` (115) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -907,13 +907,42 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       editor and the variable in three compose files all went with it
 
 **Verification**
-- [x] `pytest` (327) + `npm test` (115) + `check-docs.sh` + `tsc -b` + oxlint
-- [ ] **Live install not yet run — there are no recipes.** Everything above is unit-tested
-      with a stubbed compose run and a stubbed daemon, which is precisely the state that hid
-      #1 for two months. The first real recipe is the next piece of work, and the install must
-      be run against the live rig (`todo-archive.md` Phase 16) before this phase is closed:
-      check that the registered instance's `container` matches `docker ps`, not just that the
-      response said `ok`
+- [x] `pytest` (348) + `npm test` (115) + `check-docs.sh` + `tsc -b` + oxlint
+- [x] **Live install — ran 2026-10-03 and passed**, on the first real recipe: `whoami` in
+      `sunde/loskai-recipes` (`56b7cc6`). Rig: a host backend on `:8010` with a **scratch**
+      data dir and every variable explicit, plus Caddy alone as compose project
+      `loskai-smoke` — the full split-DNS stack can't run beside the dev `loskai` container
+      (same `container_name`, same `:8080`), and that one points at real infrastructure
+      - instance `container` = `whoami-whoami-1`, **exactly what `docker ps` shows** (the old
+        code stored `whoami`, which matches nothing); orphans empty
+      - **routing it by container name edited the recipe's instance** — still one record, now
+        with a subdomain — where the old link key would have created a duplicate. The Docker
+        tab's container row shows the route; Caddy returns a 300-byte body carrying
+        `X-Forwarded-Host: whoami.smoke.test`, the line `instructions.md` promises
+      - `pair` → `pair-web-1` (published beat alphabetical) and `pair-declared` →
+        `pair-declared-app-1` (declared beat published): local test recipes built so the
+        rules disagree. A port clash returned `ok: false`, the daemon's error, no instance
+      - torn down through Loskai's own stack delete; host left exactly as found
+
+**Found by the live run — `.env` generation corrupted secrets, silently**
+- [x] **An omitted answer wrote no variable.** An API install with `{}` published `${PORT}` on
+      a *random* host port: the wizard seeds defaults client-side, the server never did.
+      `resolve_answers` now builds the set from the manifest — answer, else `default`, else
+      empty; an explicit empty answer is kept
+- [x] **Values were written verbatim, and Compose rewrites them.** Checked against
+      `docker compose config`: `pa$word1` arrived as `pa` (interpolated), `correct horse
+      #battery` as `correct horse` (comment), and a newline started a second line —
+      `COMPOSE_PROJECT_NAME=hijacked` there **renamed the project**. Every one *succeeds*.
+      Now every value is double-quoted with `\` `"` `$` `\n` `\r` escaped — single quotes
+      cannot hold a `'`. **Live round trip: a password with all of it reached a real
+      container's environment byte-identical**, and the project label stayed put
+- [x] **Undeclared answer keys were written too** — the same `COMPOSE_*` route in. Refused
+      with `400` before anything touches disk. Manifest `env` keys must be variable names
+- [ ] **The git sync path**, once `sunde/loskai-recipes` is pushed: Sync from Settings ›
+      General should clone it into its slug cache and list `whoami` from source
+      `loskai-recipes`, not `local`. Everything else in this phase has now run for real.
+      (An early Sync against the still-empty repo is safe — checked: git keeps the empty
+      clone's tracking, and the next pull fast-forwards)
 
 ---
 

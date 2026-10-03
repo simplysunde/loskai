@@ -1,5 +1,56 @@
 # Loskai — History
 
+## 2026-10-03 — The first install ever run, and the secrets it would have mangled
+
+Sunde created `sunde/loskai-recipes` on Forgejo — the exact URL `DEFAULT_RECIPES_REPO` already
+named — and `whoami` went in as its first recipe. Then the install ran for real, for the first
+time since the wizard was built in July.
+
+**The container-link fix held.** The registered instance named `whoami-whoami-1`, exactly what
+`docker ps` showed, where the July code would have stored `whoami` and matched nothing. The
+stronger proof was routing it the way the Add route picker does: the route *edited* the
+recipe's instance instead of creating a second one, which is what the old link key would have
+done. The multi-service rules held too, each tested in the case where the rules disagree.
+
+**Then the run found the thing it was for.** `.env` generation wrote answers verbatim, and
+Compose does not read a `.env` as a list of strings. Checked directly against
+`docker compose config`: `pa$word1` arrived as `pa`, because `$word1` was interpolated;
+`correct horse #battery` arrived as `correct horse`, because ` #` starts a comment; and a
+newline started a second line, where `COMPOSE_PROJECT_NAME=hijacked` renamed the project.
+**Every one of those succeeds** — `up` exits 0 and the app simply has a different password.
+That is the third time on this project a defect has failed as a success (after the empty `200`
+and the nested migration), and the second that unit tests were structurally unable to see:
+they asserted the `.env` text Loskai wrote, which was exactly what Loskai meant to write.
+
+It surfaced sideways. An API install with `{}` published `${PORT}` on a random host port,
+because the wizard seeds defaults in the browser and the server never did. Following that up
+is what led to testing what Compose does with the values themselves.
+
+**The fix is an encoding, chosen by testing rather than reading:** every value double-quoted,
+with `\`, `"`, `$`, newline and CR escaped. Single quotes would have handled `$` and `#` but
+cannot contain a `'`, and doubling it is a Compose parse error — both tried. The server now
+owns the value set (`resolve_answers`): every declared key in manifest order, answer else
+default else empty, and an undeclared key refused with `400` before anything touches disk.
+Manifest keys must be variable names. Proven with a live round trip — a password holding all
+of the above reached a real container's environment byte-identical, with the project label
+untouched.
+
+**Two process notes.** The full split-DNS stack can't run beside the dev `loskai` container,
+which holds the same `container_name` and `:8080` and points at real infrastructure, so the
+rig was a host backend on `:8010` with scratch state plus Caddy alone as project
+`loskai-smoke`. And restarting that backend with a `pgrep -f` loop killed the calling shell,
+because the pattern matched its own command line. The memory note warned about exactly that;
+kill by PID.
+
+From this commit on, commits carry no AI attribution lines. Sunde's global instructions have
+always said so, and harness guidance had been overriding them; the existing history is left
+as it is.
+
+- Key files: `backend/src/loskai/modules/docker/recipes.py`,
+  `backend/tests/test_docker_recipes.py`, `docs/reference/{recipe-schema,api}.md`
+- 348 backend + 115 frontend tests pass (was 327 + 115); `check-docs.sh` clean
+- Still open: syncing `loskai-recipes` over git, which needs the push
+
 ## 2026-10-02 — `RECIPES_REPO_URL` deleted, four days after it was extended
 
 Sunde, mid-change: "do we even need the env variable? Since we now have a option in the ui

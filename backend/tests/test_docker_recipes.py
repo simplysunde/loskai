@@ -37,8 +37,80 @@ def test_env_entry_needs_key_and_label():
     assert any("env[0]" in e for e in errors)
 
 
-def test_render_env():
-    assert recipes.render_env({"PORT": "3000", "PW": "secret"}) == "PORT=3000\nPW=secret\n"
+def test_render_env_quotes_every_value():
+    assert recipes.render_env({"PORT": "3000", "PW": "secret"}) == 'PORT="3000"\nPW="secret"\n'
+
+
+# Each of these arrived at the container altered when written verbatim — and the install
+# still *succeeded*. Encodings checked against `docker compose config` and a real
+# container's environment on 2026-10-03 (see render_env).
+@pytest.mark.parametrize(
+    "value,encoded",
+    [
+        ("pa$word1", r'"pa\$word1"'),  # verbatim: interpolated, arrived as "pa"
+        ("correct horse #battery", '"correct horse #battery"'),  # verbatim: cut at " #"
+        ("it's", '"it\'s"'),  # the case single quotes cannot hold
+        ('say "hi"', r'"say \"hi\""'),
+        ("back\\slash", r'"back\\slash"'),
+        ("a\\$b", r'"a\\\$b"'),  # backslash escaped first, or "\$" would decode to "$"
+        ("x\nCOMPOSE_PROJECT_NAME=hijacked", r'"x\nCOMPOSE_PROJECT_NAME=hijacked"'),
+        ("a\rb", r'"a\rb"'),
+        ("", '""'),
+    ],
+)
+def test_render_env_escapes_what_compose_would_rewrite(value, encoded):
+    assert recipes.render_env({"V": value}) == f"V={encoded}\n"
+
+
+def test_a_newline_in_a_value_stays_on_one_line():
+    """Verbatim, a newline started a second KEY= line — and COMPOSE_PROJECT_NAME in a .env
+    re-points the project, and with it the container the install links to."""
+    rendered = recipes.render_env({"V": "x\nCOMPOSE_PROJECT_NAME=hijacked"})
+    assert rendered.count("\n") == 1 and not rendered.startswith("COMPOSE")
+
+
+# --- Answers: the server owns the value set, not the form ---
+
+
+SPEC = [
+    {"key": "PORT", "label": "Host port", "default": "8081"},
+    {"key": "PW", "label": "Password", "secret": True},
+]
+
+
+def test_missing_answers_take_the_manifest_default():
+    """Found live: an API install with `{}` wrote no PORT, and compose published on a
+    random host port. The wizard sends defaults pre-filled; an API caller need not."""
+    assert recipes.resolve_answers(SPEC, {}) == {"PORT": "8081", "PW": ""}
+
+
+def test_an_explicit_empty_answer_is_kept():
+    """Clearing a pre-filled field is a choice, not a request for the default."""
+    assert recipes.resolve_answers(SPEC, {"PORT": ""})["PORT"] == ""
+
+
+def test_none_counts_as_missing():
+    assert recipes.resolve_answers(SPEC, {"PORT": None})["PORT"] == "8081"
+
+
+def test_answers_are_written_in_manifest_order_as_strings():
+    assert list(recipes.resolve_answers(SPEC, {"PW": "x", "PORT": 9000}).items()) == [
+        ("PORT", "9000"),
+        ("PW", "x"),
+    ]
+
+
+def test_an_undeclared_answer_is_refused():
+    with pytest.raises(recipes.RecipeError, match="not declared by this recipe: COMPOSE_PROJECT_NAME"):
+        recipes.resolve_answers(SPEC, {"COMPOSE_PROJECT_NAME": "hijacked"})
+
+
+@pytest.mark.parametrize("key", ["MY VAR", "A=B", "1PORT", "PORT\nX"])
+def test_env_key_must_be_a_variable_name(key):
+    errors = recipes.validate_manifest(
+        {"name": "X", "type": "pull", "env": [{"key": key, "label": "L"}]}
+    )
+    assert any("not a valid variable name" in e for e in errors)
 
 
 def test_expand_vars():
@@ -274,7 +346,13 @@ def test_primary_container_none_when_nothing_came_up():
 @pytest.fixture
 def installable(data_dir, monkeypatch):
     """A local recipe plus a stubbed compose run — the install path without a daemon."""
-    _make_recipe(data_dir / "recipes", "grafana", "Grafana")
+    _make_recipe(
+        data_dir / "recipes",
+        "grafana",
+        "Grafana",
+        'env:\n  - key: PORT\n    label: Host port\n    default: "3000"\n'
+        "  - key: PW\n    label: Admin password\n    secret: true\n",
+    )
     monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
     return data_dir
 
@@ -300,10 +378,24 @@ def test_install_links_the_instance_to_the_compose_container(installable, monkey
 
 def test_install_writes_the_generated_env(installable, monkeypatch):
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
-    recipes.install_recipe("grafana", {"PORT": "3000", "PW": "s3cret"})
+    recipes.install_recipe("grafana", {"PORT": "3000", "PW": "pa$word1"})
     stack = recipes.stacks.stacks_dir() / "grafana"
-    assert (stack / ".env").read_text() == "PORT=3000\nPW=s3cret\n"
+    assert (stack / ".env").read_text() == 'PORT="3000"\nPW="pa\\$word1"\n'
     assert "image: x" in (stack / "compose.yml").read_text()
+
+
+def test_install_fills_defaults_for_missing_answers(installable, monkeypatch):
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    recipes.install_recipe("grafana", {})
+    env = (recipes.stacks.stacks_dir() / "grafana" / ".env").read_text()
+    assert env == 'PORT="3000"\nPW=""\n'
+
+
+def test_install_refuses_an_undeclared_answer_before_touching_disk(installable, monkeypatch):
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    with pytest.raises(recipes.RecipeError, match="not declared"):
+        recipes.install_recipe("grafana", {"COMPOSE_PROJECT_NAME": "hijacked"})
+    assert not (recipes.stacks.stacks_dir() / "grafana").exists()
 
 
 def test_failed_compose_registers_no_instance(installable, monkeypatch):
