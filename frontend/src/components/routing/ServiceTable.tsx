@@ -18,6 +18,8 @@ export interface RouteRow {
   container?: string | null;
   origin?: string | null;
   machine?: string | null;
+  // The upstream is the container's, kept in step when its port changes (Phase 29).
+  follow_container?: boolean;
   icon?: string | null;
   routed: boolean;
   synced: boolean | null;

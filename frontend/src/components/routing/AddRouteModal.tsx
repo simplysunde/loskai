@@ -24,6 +24,7 @@ export interface NewRoute {
   origin?: string;
   machine?: string;
   name?: string;
+  follow_container?: boolean;
 }
 
 export type Source = "container" | "network" | "external";
@@ -88,6 +89,9 @@ export function AddRouteModal({
     name?: string;
   }>({});
   const [picked, setPicked] = useState<string | null>(null);
+  // A picked container's route follows it by default whenever its address can be derived.
+  const [follow, setFollow] = useState(false);
+  const [derived, setDerived] = useState<string | null>(null);
   const [scheme, setScheme] = useState<Scheme>("https");
   // A picked container answers the hint for itself; `mode` is the deployment-wide
   // fallback, used by the Network-service and External sources, which have no container.
@@ -146,11 +150,15 @@ export function AddRouteModal({
     setLink({});
     setPicked(null);
     setPickedMode(null);
+    setFollow(false);
+    setDerived(null);
   };
 
   const pickContainer = (c: ContainerRow) => {
     setPickedMode(c.upstream_mode ?? null);
     fields.set(containerPrefill(c));
+    setDerived(c.suggested_upstream ?? null);
+    setFollow(Boolean(c.suggested_upstream));
     setLink({ container: c.name, name: c.name });
     setPicked(c.id);
   };
@@ -238,7 +246,21 @@ export function AddRouteModal({
           </>
         )}
 
-        <RouteFields fields={fields} />
+        <RouteFields
+          fields={fields}
+          follow={
+            source === "container" && picked
+              ? {
+                  on: follow,
+                  derived,
+                  set: (on) => {
+                    setFollow(on);
+                    if (on && derived) fields.set({ upstream: derived });
+                  },
+                }
+              : undefined
+          }
+        />
         <SchemeSelect value={scheme} onChange={setScheme} />
 
         <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
@@ -264,7 +286,14 @@ export function AddRouteModal({
           </button>
           <button
             disabled={!canSubmit}
-            onClick={() => onSubmit({ ...fields.payload(), scheme, ...link })}
+            onClick={() =>
+              onSubmit({
+                ...fields.payload(),
+                scheme,
+                ...link,
+                ...(source === "container" && picked ? { follow_container: follow } : {}),
+              })
+            }
             className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}

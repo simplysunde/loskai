@@ -26,6 +26,7 @@ export function AssignModal({
   initialMachine = null,
   initialScheme = "https",
   rows = [],
+  follow,
 }: {
   open: boolean;
   baseDomain: string | null;
@@ -38,6 +39,7 @@ export function AssignModal({
     upstream_tls: boolean;
     machine?: string | null;
     scheme?: Scheme;
+    follow_container?: boolean;
   }) => void;
   onClose: () => void;
   // Prefilled when re-assigning an existing instance (the modal is keyed per target so
@@ -51,9 +53,13 @@ export function AssignModal({
   initialMachine?: string | null;
   initialScheme?: Scheme;
   rows?: RouteRow[];
+  // Present only for a container's route: whether it starts out following, and the
+  // container's live address (null when Docker can't name its port).
+  follow?: { initial: boolean; derived: string | null };
 }) {
   const [machine, setMachine] = useState<string | null>(initialMachine);
   const [scheme, setScheme] = useState<Scheme>(initialScheme);
+  const [following, setFollowing] = useState(follow?.initial ?? false);
   const fields = useRouteFields({
     mode,
     baseDomain,
@@ -68,6 +74,8 @@ export function AssignModal({
   const canSubmit = fields.valid && !pending;
   const machines = rows.filter(isMachine);
   const pickMachine = (m: RouteRow) => {
+    // A route follows its container or a machine — never both (the backend refuses it).
+    setFollowing(false);
     setMachine(m.id);
     // Keep the port, take the machine's address — the same swap the backend does when the
     // machine later moves.
@@ -93,6 +101,21 @@ export function AssignModal({
             <span className="mt-1 block text-xs text-slate-500">
               → <span className="text-teal-300">{fields.fqdn}</span>
             </span>
+          }
+          follow={
+            follow
+              ? {
+                  on: following,
+                  derived: follow.derived,
+                  set: (on) => {
+                    setFollowing(on);
+                    if (on) {
+                      setMachine(null);
+                      if (follow.derived) fields.set({ upstream: follow.derived });
+                    }
+                  },
+                }
+              : undefined
           }
         />
 
@@ -161,7 +184,14 @@ export function AssignModal({
           <button
             disabled={!canSubmit}
             // `machine: null` is meaningful — it unlinks a route that was linked.
-            onClick={() => onSubmit({ ...fields.payload(), machine, scheme })}
+            onClick={() =>
+              onSubmit({
+                ...fields.payload(),
+                machine,
+                scheme,
+                ...(follow ? { follow_container: following } : {}),
+              })
+            }
             className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             Assign

@@ -208,6 +208,53 @@ test("a container with no linked instance keeps its own name as the prefix", asy
   expect(screen.getByPlaceholderText("grafana")).toHaveValue("grafana");
 });
 
+test("a container whose address is known is followed by default, locked", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(await screen.findByText("sonarr"));
+  const upstream = screen.getByPlaceholderText("e.g. 192.168.10.100:3000") as HTMLInputElement;
+  expect(upstream.readOnly).toBe(true);
+
+  fireEvent.click(screen.getByRole("button", { name: /Add route/ }));
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ container: "sonarr", follow_container: true }),
+  );
+});
+
+test("Set by hand on a picked container sends an address of its own", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(await screen.findByText("sonarr"));
+  fireEvent.click(screen.getByRole("button", { name: "Set by hand" }));
+  const upstream = screen.getByPlaceholderText("e.g. 192.168.10.100:3000");
+  fireEvent.change(upstream, { target: { value: "192.168.10.50:9999" } });
+  fireEvent.click(screen.getByRole("button", { name: /Add route/ }));
+
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ follow_container: false, upstream: "192.168.10.50:9999" }),
+  );
+});
+
+test("a container whose port Docker can't name starts unlocked, half-filled", async () => {
+  RESPONSES["/api/docker/containers"] = [
+    {
+      id: "c", name: "bambuddy-bambuddy-1", image: "x", subdomain: null,
+      suggested_upstream: null, suggested_host: "192.168.10.220", instance_id: "bambuddy",
+      upstream_mode: "lan",
+    },
+  ];
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("bambuddy-bambuddy-1"));
+
+  const upstream = screen.getByPlaceholderText("e.g. 192.168.10.100:3000") as HTMLInputElement;
+  expect(upstream.readOnly).toBe(false);
+  expect(upstream).toHaveValue("192.168.10.220:");
+  expect(screen.getByText(/can't name this container's port/)).toBeInTheDocument();
+});
+
 test("switching source clears the container's mode", async () => {
   RESPONSES["/api/docker/containers"] = CONTAINERS;
   renderPicker();

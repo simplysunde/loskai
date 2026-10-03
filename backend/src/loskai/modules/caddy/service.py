@@ -234,6 +234,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
             # as the dashboard card does.
             "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
             "machine": inst.machine,
+            "follow_container": inst.follow_container,
             "kind": inst.kind,
                 "routed": routed,
                 "synced": synced,

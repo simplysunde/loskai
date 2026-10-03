@@ -114,6 +114,15 @@ export function Routing() {
     ? containers.data?.find((c) => c.name === assignTarget.container)
     : undefined;
   const assignMode = assignContainer?.upstream_mode ?? mode;
+  // A container's route offers following. An existing route keeps whatever it declared; a
+  // never-routed one (a fresh recipe install) starts out following whenever it can.
+  const assignDerived = assignContainer?.suggested_upstream ?? null;
+  const assignFollow = assignTarget?.container
+    ? {
+        initial: assignTarget.routed ? Boolean(assignTarget.follow_container) : Boolean(assignDerived),
+        derived: assignDerived,
+      }
+    : undefined;
 
   const caddyHost = (h?.adguard?.answer_ip ?? "")
     .replace(/^\w+:\/\//, "")
@@ -150,6 +159,7 @@ export function Routing() {
       upstream_tls: boolean;
       machine?: string | null;
       scheme?: "https" | "both" | "http";
+      follow_container?: boolean;
     }) =>
       api.post<AssignResult>("/api/routes", {
         ...p,
@@ -459,8 +469,11 @@ export function Routing() {
         error={assignError}
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
         initialUpstream={
-          assignTarget?.upstream ?? (assignContainer ? containerPrefill(assignContainer).upstream : "")
+          (assignFollow?.initial ? assignDerived : null) ??
+          assignTarget?.upstream ??
+          (assignContainer ? containerPrefill(assignContainer).upstream : "")
         }
+        follow={assignFollow}
         initialTls={assignTarget?.upstream_tls ?? false}
         initialMachine={assignTarget?.machine ?? null}
         initialScheme={assignTarget?.scheme ?? "https"}
