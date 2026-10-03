@@ -976,6 +976,64 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
 
 ---
 
+## Phase 29 — A Docker route follows its container
+
+_Sunde, 2026-10-03, after the route forms learned to pre-fill the host: "the port should be
+locked for docker containers and self update if we change it in the docker". Chose, of two
+options, **watching Docker's event stream** over re-pushing only on Loskai's own restarts —
+so a port changed over SSH is followed too._
+
+_Today a Docker route **stores** its upstream. Change the container's port and the route
+keeps dialling the old one — a 502, with nothing in Loskai saying why. The model already has
+the answer one link over: a route that follows its **machine** is rewritten when the machine
+moves (`_propagate_to_dependents`). This is the same move with a different trigger._
+
+**Model**
+- [ ] `follow_container: bool` on the instance — **declared, never re-derived**, like `kind`.
+      Defaults `False`, so every existing record keeps exactly the upstream it has. New
+      container routes follow by default when the address can be derived
+- [ ] The derivation is the pre-fill — `logic.suggested_upstream`, one function, so what the
+      form shows and what the follower writes cannot disagree
+- [ ] **`loskai.port` label** for what Docker can't see: the port the service listens on, as
+      the container sees it, resolved to whatever Caddy dials (`service:<port>` on a shared
+      network, `<host_ip>:<published port for it>` in `lan`, `<host_ip>:<port>` under host
+      networking). Compose interpolates it — `loskai.port: ${PORT}` — so it changes when the
+      port does. Also picks one port out of several published
+
+**Assign**
+- [ ] `RouteCreate.follow_container`. When set, **the server derives the upstream** from the
+      live container and ignores the client's; not derivable → `400`, set it by hand
+- [ ] Following a container and following a machine are exclusive → `400`
+
+**The follower** — `shared/follow.py`, Loskai's first background task
+- [ ] Docker `start` events → reconcile that container: if it is linked, routed, following,
+      and its derived upstream changed → store it, re-push the Caddy route. Best-effort like
+      machine propagation: the stored upstream is updated first, so Sync repairs a failed push
+- [ ] Reconcile **every** following route at startup and after each reconnect — changes made
+      while Loskai or the daemon was down produce no event
+- [ ] Never blocks startup; Docker unreachable → back off and retry, nothing else greys out
+- [ ] Stopped on shutdown (close the event stream, so its blocking read returns)
+
+**UI** — in `RouteFields`, so both forms get it from one place
+- [ ] Following: the upstream is read-only, with the derived value and "follows the
+      container — updates itself when its port changes"; **Set by hand** unlocks it
+      (`follow_container: false`)
+- [ ] A manual docker route whose address can be derived offers **Follow the container**
+
+**Recipes**
+- [ ] Bambuddy's compose sets `loskai.port: ${PORT:-8000}` — host networking, so this is the
+      only way its port is known; with it, its route is derivable and follows
+
+**Verification**
+- [ ] Unit + contract tests for each piece above
+- [ ] **Live, Sunde's scenario exactly:** route `whoami` following, change its port in the
+      stack's `.env` and `docker compose up -d` **outside Loskai**, then confirm the route
+      followed (Caddy's stored upstream, and real bytes through the route on the new port)
+- [ ] Live: a host-networked container with a `loskai.port` label routes and follows
+- [ ] Live: kill and restart the daemon connection mid-run — the follower reconnects
+
+---
+
 ## Backlog / Future ideas
 - **Prune orphaned recipe caches** — removing a source leaves its clone in
   `data/recipes-cache/<slug>/`. Harmless (nothing scans it once the row is gone) and
