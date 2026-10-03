@@ -8,11 +8,12 @@ All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-compl
 `backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
 install wizard) has run live and passed** (2026-10-03), git sync included — open for two
 bugs: a reinstall wipes route fields, and the root container leaves root-owned files on the
-host. **Phase 12 is finally complete** (2026-09-27): 12a in
+host. **Phase 29** (a Docker route follows its container) is built and verified live, bar a
+daemon-restart check that needs root. **Phase 12 is finally complete** (2026-09-27): 12a in
 Phase 19, 12b as Phase 22, 12c as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (353 + 122 + docs).
+All three checks pass (379 + 131 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -29,8 +30,8 @@ describes today. The authoritative sources are:
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
   `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. **Phases 18–28 are still written out in `TODO.md`** —
-  eleven of them, so it is the longer file now; archive the older ones when it gets unwieldy.
+  for how a finished thing was built. **Phases 18–29 are still written out in `TODO.md`** —
+  twelve of them, so it is the longer file now; archive the older ones when it gets unwieldy.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
@@ -121,6 +122,13 @@ that owns this upstream's *host* half — and what may be linked to is **declare
 from the upstream's shape for older records), never re-derived at a call site. Moving that machine rewrites every dependent's upstream
 and re-pushes its route in the same assign (`list_by_machine`); deleting it **unlinks** rather
 than blocks — the routes keep the address they have and simply stop following it.
+**`follow_container` is the container counterpart** (Phase 29): a docker route that follows its
+container has its upstream *derived* from the live container (`logic.suggested_upstream` — the
+same function the route forms pre-fill from) and rewritten when the container starts on a
+different port. The trigger is Docker's event stream, in `shared/follow.py` — **Loskai's only
+background task**: it never blocks startup, backs off when the daemon is gone, catches up at
+startup and on every reconnect, and writes compare-and-set so a hand edit made meanwhile wins.
+Declared, defaulting `False` — a record that predates it keeps its stored upstream exactly.
 
 **`client.py` (I/O) vs pure logic is a hard seam — keep it.** Thin `client.py` wrappers do
 only HTTP/socket calls; all decision logic (reconcile, route/Caddyfile builders, answer-IP

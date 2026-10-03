@@ -1,5 +1,54 @@
 # Loskai — History
 
+## 2026-10-03 — A Docker route follows its container
+
+Once the route forms pre-filled the host, Sunde pushed past it: "the port should be locked for
+docker containers and self update if we change it in the docker." Underneath that is a real
+defect, older than any of this: a Docker route *stores* its upstream, so a container whose
+port changes leaves its route dialling the old one — a 502, with nothing in Loskai saying why.
+The live run reproduced it exactly while Loskai was stopped.
+
+**The model already had the answer, one link over.** A route linked to a *machine* is rewritten
+when the machine moves. `follow_container` is the container counterpart: the upstream is
+derived from the live container and re-derived when it starts on a different port. It is
+**declared**, like `kind`, defaulting `False` — every record that predates it keeps its stored
+upstream exactly, and no migration guesses which ones "should" follow.
+
+**One derivation, three users.** The form's pre-fill, the server's answer when a route asks to
+follow, and the follower's rewrite all call `logic.suggested_upstream`. The server is the
+authority: a following route's upstream from the client is ignored, which the live run proved
+by sending a bogus one. Following a container and a machine at once is refused, and the form
+won't build that request.
+
+**Sunde chose the event stream** over re-pushing only on Loskai's own restarts, so a port
+changed over SSH is followed too. That makes `shared/follow.py` Loskai's first background
+task, and the shape of it is the risk to get right: it never blocks startup; Docker gone means
+back off and retry, not crash; it subscribes *before* catching up, so nothing slips between;
+it catches up at startup and after every reconnect, because a change made while it wasn't
+listening sends no event; and its write is compare-and-set, so a hand edit made while it was
+asking Docker wins. Shutdown closes the stream — the only thing that releases a read blocked
+in its thread, which a test pins.
+
+**Host networking needed one more piece.** Docker reports no ports for it at all, so
+`loskai.port` — a label naming the port as the container sees it — fills the gap, and resolves
+to whatever Caddy dials. Because Compose interpolates labels, Bambuddy's recipe writes
+`loskai.port: ${PORT}` and the label moves with the port; the live run showed the route
+following a host-networked container through exactly that. It also picks one port out of
+several published.
+
+**A route creation now sometimes depends on the Docker socket**, which this codebase had a
+rule against. Only for a following route, and deliberately: its address *is* Docker's answer,
+so with Docker unreachable there is nothing honest to store (`503`). Every other route still
+goes ahead without Docker.
+
+Unrun: restarting the daemon itself mid-run, which needs root. The reconnect path has a unit
+test and nothing more, and the TODO says so.
+
+- Key files: `backend/src/loskai/shared/follow.py` (new), `shared/{assign,instances}.py`,
+  `modules/docker/{logic,client}.py`, `main.py`, `frontend/src/components/routing/RouteFields.tsx`,
+  `AddRouteModal.tsx`, `AssignModal.tsx`, `pages/Routing.tsx`
+- 379 backend + 131 frontend tests pass
+
 ## 2026-10-03 — Two route forms, one pre-fill
 
 Sunde routed the first recipe install by hand and found the address box empty: "if it's a docker

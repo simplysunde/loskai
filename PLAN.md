@@ -185,9 +185,17 @@ state). The picker chooses a source, which pre-fills the subdomain + upstream:
   opens this same picker on its External + DNS-only form — a second *verb*, not a second
   creation surface.
 - **Container** — an *unrouted* Docker container → a `docker` instance linked by `container`,
-  pre-filled with a suggested subdomain (the container name) **and a reachable upstream** —
-  `<service>:<port>` from the Docker socket (the container-side of its published port; resolves
-  via Docker DNS when Caddy shares the network).
+  pre-filled with a suggested subdomain (the linked instance's id — a recipe's own name — else
+  the container name) **and a reachable upstream** — `<service>:<port>` from the Docker socket
+  when Caddy shares the network, `<host_ip>:<published port>` otherwise. When the port can't be
+  determined the host half still is, and the form fills `<host>:`. A `loskai.port` label names
+  the port Docker can't see (host networking) or can't choose (several published).
+  **By default the route then follows its container** (`follow_container` — Phase 29): the
+  upstream is derived from the live container, not typed, and when the container starts on a
+  different port — re-upped from the Stack Manager or over SSH — the route is rewritten and
+  re-pushed. It is the container counterpart of the `machine` link, triggered by Docker's event
+  stream (`shared/follow.py`, Loskai's only background task), with a catch-up at startup for
+  changes made while Loskai was down. "Set by hand" turns it off for one route.
 - **Network service** — a built-in service (AdGuard / WireGuard / Caddy cert page) → an `external`
   instance carrying an `origin` marker, pre-filled from the service's configured URL.
 - **External** — any bare `IP:port` LAN target (Proxmox, a NAS) → a plain `external` instance.

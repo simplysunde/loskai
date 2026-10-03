@@ -163,6 +163,33 @@ exists either way) is routable from that picker.
 
 ---
 
+## Telling Loskai the port — `loskai.port`
+
+Routing a container needs its port, and Docker can report one only when the container
+publishes exactly one. Two common recipe shapes leave it guessing:
+
+- **Host networking** (`network_mode: host`) publishes nothing at all — the app binds its port
+  in the host's own namespace, and only its own config knows which.
+- **Several published ports** — Docker can't choose which one is the web interface.
+
+Label the service with the port it listens on, **as the container sees it**:
+
+```yaml
+services:
+  app:
+    labels:
+      loskai.port: "${PORT:-8000}"
+```
+
+Loskai resolves it to whatever Caddy dials — the published host port for it, the port itself
+under host networking, `service:port` on a shared network. Because Compose interpolates
+labels, writing it from the same variable the app reads keeps the two in step: change `PORT`,
+re-up, and the label moves with it. With the label, the route form fills the whole address,
+and a route that follows its container (the default) is rewritten when the port changes. An
+invalid value is ignored, not trusted.
+
+---
+
 ## Validation
 
 Loskai rejects a recipe (skips it, surfaces why) when:

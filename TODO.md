@@ -1,6 +1,9 @@
 # Loskai — TODO
 
-**Now:** **Phase 28** (below) has **run live and passed** (2026-10-03): the first real recipe
+**Now:** **Phase 29** (below) is built and verified live — a Docker route follows its
+container, so a port changed even over SSH re-points the route by itself. Only the
+daemon-restart check is unrun (it needs root). **Phase 28** also has **run live and passed**
+(2026-10-03): the first real recipe
 installed, linked to the right container, routed without a duplicate — and the run found and
 fixed `.env` generation silently corrupting secrets; the git sync path works too. **Two bugs
 left, each needing a decision:** reinstalling a recipe wipes its instance's route fields
@@ -15,7 +18,7 @@ only TLS mode the shipped configs know. Otherwise pick from the
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (353) + `npm test` (122) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (379) + `npm test` (131) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -989,48 +992,66 @@ the answer one link over: a route that follows its **machine** is rewritten when
 moves (`_propagate_to_dependents`). This is the same move with a different trigger._
 
 **Model**
-- [ ] `follow_container: bool` on the instance — **declared, never re-derived**, like `kind`.
+- [x] `follow_container: bool` on the instance — **declared, never re-derived**, like `kind`.
       Defaults `False`, so every existing record keeps exactly the upstream it has. New
       container routes follow by default when the address can be derived
-- [ ] The derivation is the pre-fill — `logic.suggested_upstream`, one function, so what the
+- [x] The derivation is the pre-fill — `logic.suggested_upstream`, one function, so what the
       form shows and what the follower writes cannot disagree
-- [ ] **`loskai.port` label** for what Docker can't see: the port the service listens on, as
+- [x] **`loskai.port` label** for what Docker can't see: the port the service listens on, as
       the container sees it, resolved to whatever Caddy dials (`service:<port>` on a shared
       network, `<host_ip>:<published port for it>` in `lan`, `<host_ip>:<port>` under host
       networking). Compose interpolates it — `loskai.port: ${PORT}` — so it changes when the
       port does. Also picks one port out of several published
 
 **Assign**
-- [ ] `RouteCreate.follow_container`. When set, **the server derives the upstream** from the
+- [x] `RouteCreate.follow_container`. When set, **the server derives the upstream** from the
       live container and ignores the client's; not derivable → `400`, set it by hand
-- [ ] Following a container and following a machine are exclusive → `400`
+- [x] Following a container and following a machine are exclusive → `400`
 
 **The follower** — `shared/follow.py`, Loskai's first background task
-- [ ] Docker `start` events → reconcile that container: if it is linked, routed, following,
+- [x] Docker `start` events → reconcile that container: if it is linked, routed, following,
       and its derived upstream changed → store it, re-push the Caddy route. Best-effort like
       machine propagation: the stored upstream is updated first, so Sync repairs a failed push
-- [ ] Reconcile **every** following route at startup and after each reconnect — changes made
+- [x] Reconcile **every** following route at startup and after each reconnect — changes made
       while Loskai or the daemon was down produce no event
-- [ ] Never blocks startup; Docker unreachable → back off and retry, nothing else greys out
-- [ ] Stopped on shutdown (close the event stream, so its blocking read returns)
+- [x] Never blocks startup; Docker unreachable → back off and retry, nothing else greys out
+- [x] Stopped on shutdown (close the event stream, so its blocking read returns)
 
 **UI** — in `RouteFields`, so both forms get it from one place
-- [ ] Following: the upstream is read-only, with the derived value and "follows the
+- [x] Following: the upstream is read-only, with the derived value and "follows the
       container — updates itself when its port changes"; **Set by hand** unlocks it
       (`follow_container: false`)
-- [ ] A manual docker route whose address can be derived offers **Follow the container**
+- [x] A manual docker route whose address can be derived offers **Follow the container**
 
 **Recipes**
-- [ ] Bambuddy's compose sets `loskai.port: ${PORT:-8000}` — host networking, so this is the
+- [x] Bambuddy's compose sets `loskai.port: ${PORT:-8000}` — host networking, so this is the
       only way its port is known; with it, its route is derivable and follows
 
 **Verification**
-- [ ] Unit + contract tests for each piece above
-- [ ] **Live, Sunde's scenario exactly:** route `whoami` following, change its port in the
-      stack's `.env` and `docker compose up -d` **outside Loskai**, then confirm the route
-      followed (Caddy's stored upstream, and real bytes through the route on the new port)
-- [ ] Live: a host-networked container with a `loskai.port` label routes and follows
-- [ ] Live: kill and restart the daemon connection mid-run — the follower reconnects
+- [x] Unit + contract tests: label resolution in every mode, the follower (13 — including an
+      edit made mid-reconcile winning, and shutdown releasing a read blocked in its thread),
+      the endpoint rules (7), the lock in both forms. `pytest` (379) + `npm test` (131)
+- [x] **Live, Sunde's scenario exactly** (2026-10-03, scratch backend + Caddy as project
+      `loskai-smoke`, beside the real dev stack and untouched by it): installed a whoami
+      recipe as `followtest` — **not** `whoami`, whose Compose project is global per daemon
+      and belongs to Sunde's running container — routed it following while *sending a bogus
+      upstream*, which the server ignored for the derived `192.168.10.220:8091`. Then edited
+      its `.env` to 8092 and ran `docker compose up -d` **outside Loskai**: the follower
+      logged the move ~0.5s later, Caddy dialled `192.168.10.220:8092`, the route served the
+      *recreated* container, and the old port refused connections. `synced` and
+      `upstream_healthy` both true
+- [x] Live: host networking — Docker reported `ports: []`, the picker still offered
+      `192.168.10.220:8093` from the label; changing `PORT` outside Loskai moved the label
+      to 8094 and the route with it
+- [x] Live: **catch-up** — with Loskai stopped, the port changed to 8095; the route went
+      stale (**502**, the original complaint). On restart it was re-pointed with no event
+      and no click (**200**)
+- [x] Live: a route set by hand stayed put through a port change (zero follower moves)
+- [ ] Live: **restarting the Docker daemon** mid-run — needs root on the dev VM, so not run.
+      The reconnect path is covered only by `test_the_daemon_going_away_is_retried_and_caught_up`
+      (a dropped stream, a refused reconnect, then the catch-up). Run it the next time a
+      daemon restart happens anyway: `journalctl` should show one "not following containers
+      … retrying" line, and following routes should still move afterwards
 
 ---
 

@@ -92,6 +92,14 @@ Use the **Docker host's LAN IP + the container's published host port** (e.g.
 > confirm with the test below. See
 > [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable).
 
+> **A container's port changed since it was routed?** A route that **follows its container**
+> (the default for one routed from the Container source — its address is greyed out in the
+> form) is rewritten when the container starts on the new port, including after a re-up over
+> SSH. A route **set by hand** keeps the address it was given: open it under Routing and choose
+> *Follow the container*. If a following route still 502s, Docker can't name the port — the
+> form says so — and a `loskai.port` label fixes that
+> ([recipe-schema.md](../reference/recipe-schema.md#telling-loskai-the-port--loskaiport)).
+
 **The decisive test** — run it *from inside the Caddy LXC*; it separates config from plumbing:
 
 ```bash
