@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
-install wizard) has run live and passed** (2026-10-03) — open only for syncing the recipes
-repo over git once it is pushed. **Phase 12 is finally complete** (2026-09-27): 12a in
+install wizard) has run live and passed** (2026-10-03) — open for a reinstall bug that wipes
+route fields, and for syncing the recipes repo over git once it is pushed. **Phase 12 is finally complete** (2026-09-27): 12a in
 Phase 19, 12b as Phase 22, 12c as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.

@@ -2,8 +2,9 @@
 
 **Now:** **Phase 28** (below) has **run live and passed** (2026-10-03): the first real recipe
 installed, linked to the right container, routed without a duplicate — and the run found and
-fixed `.env` generation silently corrupting secrets. **One item left:** sync the recipes repo
-over git once it is pushed. Then the phase closes, and the next work is real recipes.
+fixed `.env` generation silently corrupting secrets. **Two items left:** reinstalling a recipe
+wipes its instance's route fields (found with the Bambuddy recipe — needs a relink-or-refuse
+decision), and syncing the recipes repo over git once it is pushed.
 
 Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
 as Phase 26 (2026-09-27). Phase 25 removed ACME support the same day: the internal CA is the
@@ -938,6 +939,16 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       container's environment byte-identical**, and the project label stayed put
 - [x] **Undeclared answer keys were written too** — the same `COMPOSE_*` route in. Refused
       with `400` before anything touches disk. Manifest `env` keys must be variable names
+- [ ] **Reinstalling a recipe wipes its instance's route fields** (found 2026-10-03, live, with
+      the Bambuddy recipe). `install_recipe` ends in `upsert_instance(Instance(id=recipe_id,
+      ...))`, which *replaces* the record. So Delete the stack (volumes kept, as intended),
+      reinstall, and `subdomain`/`upstream` are gone, along with `private`, `icon`, `scheme`
+      and `machine` — while the Caddy route `@id <recipe_id>` keeps serving. Loskai shows the
+      service unrouted and `/api/health` reports no inconsistency. Worse, a route's id is its
+      **prefix** (`assign.py:206`), so an *unrelated* instance routed at the same name — a
+      hand-run Bambuddy at `bambuddy.<domain>` — is overwritten outright. Needs a decision:
+      relink (keep the fields, update `container`) when the existing record is this
+      recipe's docker instance, and refuse — or take a new id — when it is something else
 - [ ] **The git sync path**, once `sunde/loskai-recipes` is pushed: Sync from Settings ›
       General should clone it into its slug cache and list `whoami` from source
       `loskai-recipes`, not `local`. Everything else in this phase has now run for real.
