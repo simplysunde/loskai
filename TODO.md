@@ -2,9 +2,10 @@
 
 **Now:** **Phase 28** (below) has **run live and passed** (2026-10-03): the first real recipe
 installed, linked to the right container, routed without a duplicate — and the run found and
-fixed `.env` generation silently corrupting secrets. **Two items left:** reinstalling a recipe
-wipes its instance's route fields (found with the Bambuddy recipe — needs a relink-or-refuse
-decision), and syncing the recipes repo over git once it is pushed.
+fixed `.env` generation silently corrupting secrets; the git sync path works too. **Two bugs
+left, each needing a decision:** reinstalling a recipe wipes its instance's route fields
+(relink or refuse), and the container runs as root, so its files on the host — state and
+wizard-created stacks — are root-owned (which user should it run as).
 
 Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
 as Phase 26 (2026-09-27). Phase 25 removed ACME support the same day: the internal CA is the
@@ -14,7 +15,7 @@ only TLS mode the shipped configs know. Otherwise pick from the
 **Phases 15, 16 and 18 closed 2026-09-05** — 15 and 16 on live smokes against a real Docker
 daemon, **the first time this project had ever been run** rather than unit-tested, and 18 is
 the path restructure that came straight out of running it. **Phase 19 closed 2026-09-09** (the
-public Certificate page). `pytest` (348) + `npm test` (115) + `check-docs.sh` all pass.
+public Certificate page). `pytest` (353) + `npm test` (122) + `check-docs.sh` all pass.
 
 **Two things a fresh session should know before touching anything:**
 
@@ -908,7 +909,7 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       editor and the variable in three compose files all went with it
 
 **Verification**
-- [x] `pytest` (348) + `npm test` (115) + `check-docs.sh` + `tsc -b` + oxlint
+- [x] `pytest` (353) + `npm test` (122) + `check-docs.sh` + `tsc -b` + oxlint
 - [x] **Live install — ran 2026-10-03 and passed**, on the first real recipe: `whoami` in
       `sunde/loskai-recipes` (`56b7cc6`). Rig: a host backend on `:8010` with a **scratch**
       data dir and every variable explicit, plus Caddy alone as compose project
@@ -949,11 +950,29 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       hand-run Bambuddy at `bambuddy.<domain>` — is overwritten outright. Needs a decision:
       relink (keep the fields, update `container`) when the existing record is this
       recipe's docker instance, and refuse — or take a new id — when it is something else
-- [ ] **The git sync path**, once `sunde/loskai-recipes` is pushed: Sync from Settings ›
-      General should clone it into its slug cache and list `whoami` from source
-      `loskai-recipes`, not `local`. Everything else in this phase has now run for real.
-      (An early Sync against the still-empty repo is safe — checked: git keeps the empty
-      clone's tracking, and the next pull fast-forwards)
+- [x] **Routing a recipe install opened an empty form** (Sunde, 2026-10-03: "if it's a docker
+      entry it will always have the host ip"; then: "add route and add url are two different
+      functions"). They were: the Add route picker pre-filled from Docker, the row's "Assign
+      a URL" from the stored record only — which a fresh install doesn't have. One helper,
+      `containerPrefill`, now serves both. The backend adds `suggested_host` (known whenever
+      `HOST_IP` is, even with no port: host networking, several published ports) and the
+      linked `instance_id`, so the prefix is the recipe's name, not `<project>-<svc>-1`.
+      Checked against the live daemon: `whoami`'s row now fills `192.168.10.220:8081`, a
+      host-networked container `192.168.10.220:` — the trailing colon is the machine picker's
+      existing convention. Bambuddy's image EXPOSEs ~110 ports, so guessing the port from
+      the image was ruled out rather than built
+- [ ] **The container runs as root, so everything it writes on the host is root-owned** (found
+      2026-10-03, the first time the redeployed container wrote state). `data/instances.json`
+      became `root:root 0600` — unreadable to the host user, which also breaks a dev backend
+      run against the same `data/` — and a wizard-created stack is `root:root`, so it **can't
+      be edited over SSH** without sudo, against the "SSH stays a first-class equal" rule. Its
+      `.env` is `0644`, world-readable, which matters once a recipe asks for a password.
+      Phase 18's `.gitkeep`s only covered the directories. Needs a decision on the container's
+      user: it also needs the docker socket's group
+- [x] **The git sync path — worked, run by Sunde** (2026-10-03): pushed, synced from Settings,
+      and `whoami` installed from it into `stacks/whoami`. The cache
+      `data/recipes-cache/loskai-recipes-2bc51ad3` is at `5b94ac7`, matching `origin/main`,
+      and the local `data/recipes/` holds only its `.gitkeep`, so the recipe came from git
 
 ---
 

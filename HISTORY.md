@@ -1,5 +1,35 @@
 # Loskai — History
 
+## 2026-10-03 — Two route forms, one pre-fill
+
+Sunde routed the first recipe install by hand and found the address box empty: "if it's a docker
+entry it will always have the host ip". Then the real diagnosis, also Sunde's: "add route and
+add url are two different functions" — they look the same and are different code. The Add
+route picker asked Docker; the Routing row's "Assign a URL" read only the stored record, and
+a recipe install is linked but never routed, so it stores no upstream. Every fresh install
+opened that form blank.
+
+The fix is one helper, `containerPrefill`, used by both — named in CLAUDE.md so a third form
+doesn't drift the same way. Underneath, the backend now reports the **host half** of an
+upstream on its own (`suggested_host`), because it is known far more often than the port:
+Bambuddy runs with host networking and Docker reports no ports at all, yet Caddy still dials
+the Docker host, whose IP is configured. The form then pre-fills `192.168.10.220:` — the
+trailing colon the machine picker already used. `suggested_upstream` is built from it, so
+the two can't disagree. The prefix is the linked instance's id, i.e. the recipe's name,
+instead of `bambuddy-bambuddy-1`.
+
+**Rejected: guessing the port from the image's `EXPOSE`.** It looked like the general answer
+for host networking until the Bambuddy image turned out to expose about 110 ports.
+
+**Found on the way, not fixed:** the container runs as root, so the first state it wrote after
+the redeploy made `data/instances.json` `root:root 0600`, and the wizard's `stacks/whoami` is
+root-owned — not editable over SSH, against one of Loskai's founding rules. Recorded in
+Phase 28; it needs a decision about the container's user.
+
+- Key files: `backend/src/loskai/modules/docker/{logic,client}.py`,
+  `frontend/src/components/routing/containerPrefill.ts`, `AddRouteModal.tsx`, `Routing.tsx`
+- 353 backend + 122 frontend tests pass
+
 ## 2026-10-03 — The first install ever run, and the secrets it would have mangled
 
 Sunde created `sunde/loskai-recipes` on Forgejo — the exact URL `DEFAULT_RECIPES_REPO` already

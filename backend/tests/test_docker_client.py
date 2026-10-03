@@ -151,6 +151,25 @@ def test_host_networking_never_yields_the_name_form(monkeypatch, data_dir):
     assert rows["grafana"]["upstream_mode"] == "lan"
 
 
+def test_a_host_networked_recipe_install_still_prefills_host_and_prefix(monkeypatch, data_dir):
+    """Bambuddy, as installed: host networking (Docker reports no ports), and an unrouted
+    instance the install linked by container name. The port is unknowable; the host and
+    the prefix are not."""
+    instances_store.upsert_instance(
+        Instance(id="bambuddy", name="Bambuddy", type="docker", container="bambuddy-bambuddy-1")
+    )
+    bambuddy = FakeContainer("bambuddy-bambuddy-1", networks={"host": []}, service="bambuddy")
+    bambuddy.attrs["NetworkSettings"]["Ports"] = {}
+    _use(monkeypatch, FakeDocker([bambuddy]))
+
+    row = DockerClient().list_containers(host_ip="192.168.10.220")[0]
+    assert row["upstream_mode"] == "lan"
+    assert row["suggested_upstream"] is None
+    assert row["suggested_host"] == "192.168.10.220"
+    assert row["instance_id"] == "bambuddy"
+    assert row["subdomain"] is None  # linked, not routed
+
+
 def test_unmatched_caddy_host_falls_back_to_lan(monkeypatch, data_dir):
     """An IP admin URL (layout A) or a hostname pointing off-box matches nothing here."""
     fake = FakeDocker([FakeContainer("grafana", networks={"media_default": []})])

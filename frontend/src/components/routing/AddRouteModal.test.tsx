@@ -181,6 +181,33 @@ test("a container off Caddy's network is hinted by host IP, despite docker mode"
   );
 });
 
+test("a host-networked recipe install fills the host and the recipe's name", async () => {
+  // Bambuddy, as installed: Docker reports no ports, so no full upstream — but the host is
+  // still the Docker host, and the install already named the instance after the recipe.
+  RESPONSES["/api/docker/containers"] = [
+    {
+      id: "c", name: "bambuddy-bambuddy-1", image: "ghcr.io/maziggy/bambuddy", subdomain: null,
+      suggested_upstream: null, suggested_host: "192.168.10.220", instance_id: "bambuddy",
+      upstream_mode: "lan",
+    },
+  ];
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("bambuddy-bambuddy-1"));
+
+  expect(screen.getByPlaceholderText("grafana")).toHaveValue("bambuddy");
+  expect(screen.getByPlaceholderText("e.g. 192.168.10.100:3000")).toHaveValue("192.168.10.220:");
+});
+
+test("a container with no linked instance keeps its own name as the prefix", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  renderPicker();
+
+  fireEvent.click(await screen.findByText("grafana"));
+
+  expect(screen.getByPlaceholderText("grafana")).toHaveValue("grafana");
+});
+
 test("switching source clears the container's mode", async () => {
   RESPONSES["/api/docker/containers"] = CONTAINERS;
   renderPicker();

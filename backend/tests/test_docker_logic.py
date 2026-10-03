@@ -115,6 +115,54 @@ def test_suggested_upstream_lan_mode_uses_host_ip_and_published_port():
     assert logic.suggested_upstream("web", None, two, "lan", "192.168.10.50") is None
 
 
+def test_suggested_host_is_known_when_the_port_is_not():
+    """The case that left the Assign form empty: Bambuddy runs with host networking, so
+    Docker reports no ports at all — but Caddy still dials the Docker host, whose IP is
+    configured. The host half is known; only the port is left to type."""
+    assert logic.suggested_upstream("bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.50") is None
+    assert logic.suggested_host("bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.50") == (
+        "192.168.10.50"
+    )
+    # Several published ports: ambiguous port, same host.
+    two = {"80/tcp": [{"HostPort": "80"}], "443/tcp": [{"HostPort": "443"}]}
+    assert logic.suggested_host("web", None, two, "lan", "192.168.10.50") == "192.168.10.50"
+
+
+def test_suggested_host_follows_the_same_rules_as_the_full_upstream():
+    # A concrete bind IP wins over the configured host_ip, as for suggested_upstream.
+    concrete = {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}
+    assert logic.suggested_host("pve", None, concrete, "lan", "192.168.10.50") == "192.168.10.9"
+    # docker mode: the service name, else the container name — never an IP.
+    assert logic.suggested_host("app-web-1", "web", {}, "docker", "192.168.10.50") == "web"
+    assert logic.suggested_host("myapp", None, {}) == "myapp"
+    # The one unknowable case: lan mode with no host_ip configured.
+    assert logic.suggested_host("jellyfin", "jellyfin", {}, "lan", None) is None
+
+
+def test_a_full_suggestion_is_always_the_host_plus_a_port():
+    """suggested_upstream is built from suggested_host, so the two cannot disagree."""
+    cases = [
+        ("jellyfin", "jellyfin", {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}, "lan", "192.168.10.50"),
+        ("pve", None, {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}, "lan", None),
+        ("adguard", "adguard", {"3000/tcp": [{"HostPort": "3000"}]}, "docker", None),
+    ]
+    for args in cases:
+        full = logic.suggested_upstream(*args)
+        assert full and full.rsplit(":", 1)[0] == logic.suggested_host(*args)
+
+
+def test_linked_instance_id_finds_an_unrouted_link():
+    """A recipe install links an instance before any route exists; its id is the recipe's,
+    a better prefix than the generated container name."""
+    instances = [
+        Instance(id="bambuddy", name="Bambuddy", type="docker", container="bambuddy-bambuddy-1"),
+        Instance(id="graf", name="G", type="docker", container="grafana", subdomain="graf"),
+    ]
+    assert logic.linked_instance_id("bambuddy-bambuddy-1", instances) == "bambuddy"
+    assert logic.linked_instance_id("grafana", instances) == "graf"
+    assert logic.linked_instance_id("stray", instances) is None
+
+
 def test_published_host_binding():
     assert logic.published_host_binding({"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}) == (
         None,

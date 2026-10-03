@@ -20,6 +20,7 @@ import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
+import { containerPrefill, type PrefillSource } from "../components/routing/containerPrefill";
 import { InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { applyView, isMachine, ViewFilter, type View } from "../components/routing/ViewFilter";
@@ -86,14 +87,16 @@ export function Routing() {
     queryFn: () => api.get<Orphan[]>("/api/docker/orphans"),
     refetchInterval: 30_000,
   });
-  // Only for the upstream hint when editing a docker route: the container knows how Caddy
-  // reaches it. Shares AddRouteModal's query key, so React Query serves both from one
+  // The container behind a docker row knows how Caddy reaches it: the upstream hint, and
+  // the pre-fill when the row has no upstream stored yet (a recipe install, linked but
+  // never routed). Shares AddRouteModal's query key, so React Query serves both from one
   // fetch; `retry: false` keeps a down Docker daemon from blocking this page.
   const containers = useQuery({
     queryKey: ["docker-containers"],
-    queryFn: () => api.get<{ name: string; upstream_mode?: "docker" | "lan" | null }[]>(
-      "/api/docker/containers",
-    ),
+    queryFn: () =>
+      api.get<(PrefillSource & { upstream_mode?: "docker" | "lan" | null })[]>(
+        "/api/docker/containers",
+      ),
     retry: false,
   });
 
@@ -107,8 +110,10 @@ export function Routing() {
   // -cert warning. AdGuard's answer IP *is* the Caddy host, so it's the one source for both.
   // Per-container where the row is a container, else the deployment-wide summary — the
   // Network-service and External rows have no container to ask.
-  const assignMode =
-    containers.data?.find((c) => c.name === assignTarget?.container)?.upstream_mode ?? mode;
+  const assignContainer = assignTarget?.container
+    ? containers.data?.find((c) => c.name === assignTarget.container)
+    : undefined;
+  const assignMode = assignContainer?.upstream_mode ?? mode;
 
   const caddyHost = (h?.adguard?.answer_ip ?? "")
     .replace(/^\w+:\/\//, "")
@@ -453,7 +458,9 @@ export function Routing() {
         pending={assign.isPending}
         error={assignError}
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
-        initialUpstream={assignTarget?.upstream ?? ""}
+        initialUpstream={
+          assignTarget?.upstream ?? (assignContainer ? containerPrefill(assignContainer).upstream : "")
+        }
         initialTls={assignTarget?.upstream_tls ?? false}
         initialMachine={assignTarget?.machine ?? null}
         initialScheme={assignTarget?.scheme ?? "https"}

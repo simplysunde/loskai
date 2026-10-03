@@ -67,6 +67,8 @@ class DockerClient:
             running = c.status == "running"
             labels = c.labels or {}
             upstream_mode = logic.upstream_mode(caddy_nets, logic.container_networks(attrs))
+            service = labels.get("com.docker.compose.service")
+            ports = (attrs.get("NetworkSettings") or {}).get("Ports")
             summary = {
                 "id": c.id[:12],
                 "name": c.name,
@@ -75,17 +77,19 @@ class DockerClient:
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
                 "subdomain": logic.subdomain_for(c.name, instances),
+                "instance_id": logic.linked_instance_id(c.name, instances),
                 "scheme": logic.scheme_for(c.name, instances),
                 # How Caddy has to dial *this* container, decided from the networks the
                 # two actually share — not from a deployment-wide guess. See
                 # logic.upstream_mode; the frontend uses it for the upstream hint copy.
                 "upstream_mode": upstream_mode,
                 "suggested_upstream": logic.suggested_upstream(
-                    c.name,
-                    labels.get("com.docker.compose.service"),
-                    (attrs.get("NetworkSettings") or {}).get("Ports"),
-                    upstream_mode,
-                    host_ip,
+                    c.name, service, ports, upstream_mode, host_ip
+                ),
+                # The half that is known even when the port is not — the form pre-fills
+                # `<host>:` and leaves only the port to type.
+                "suggested_host": logic.suggested_host(
+                    c.name, service, ports, upstream_mode, host_ip
                 ),
                 "cpu": None,
                 "mem": None,

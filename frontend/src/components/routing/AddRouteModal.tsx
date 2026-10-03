@@ -8,6 +8,7 @@ import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
 import { isValidDnsTarget } from "../../lib/validation";
 import { useScrollLock } from "../../lib/useScrollLock";
+import { containerPrefill, type PrefillSource } from "./containerPrefill";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
@@ -27,12 +28,10 @@ export interface NewRoute {
 
 export type Source = "container" | "network" | "external";
 
-interface ContainerRow {
+interface ContainerRow extends PrefillSource {
   id: string;
-  name: string;
   image: string;
   subdomain: string | null;
-  suggested_upstream: string | null;
   // How Caddy must dial *this* container, decided backend-side from the networks the two
   // share. Optional so a cached payload from before Phase 16 Stage A still renders.
   upstream_mode?: "docker" | "lan" | null;
@@ -53,10 +52,6 @@ function urlToUpstream(url?: string | null): string {
   } catch {
     return "";
   }
-}
-
-function suggestPrefix(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
 }
 
 // "Add route" picker: choose a source (an unrouted Container, a built-in Network service,
@@ -155,7 +150,7 @@ export function AddRouteModal({
 
   const pickContainer = (c: ContainerRow) => {
     setPickedMode(c.upstream_mode ?? null);
-    fields.set({ prefix: suggestPrefix(c.name), upstream: c.suggested_upstream ?? "" });
+    fields.set(containerPrefill(c));
     setLink({ container: c.name, name: c.name });
     setPicked(c.id);
   };

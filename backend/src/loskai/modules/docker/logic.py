@@ -221,6 +221,30 @@ def upstream_mode(
     return "docker" if shares_docker_network(caddy_networks, container_networks) else "lan"
 
 
+def suggested_host(
+    container_name: str,
+    service: str | None,
+    ports: dict | None,
+    mode: str | None = None,
+    host_ip: str | None = None,
+) -> str | None:
+    """The host half of an upstream — which is known far more often than the port.
+
+    `lan`: the concrete IP a port was published to, else the configured `host_ip`. That is
+    the Docker host itself, so it holds even when no single port can be named: a
+    host-networked container publishes nothing at all, and several published ports are
+    ambiguous, but either way Caddy dials the same host. `docker`: the service name (else
+    the container name), which Docker DNS resolves on the shared network.
+
+    None only in `lan` mode with no `host_ip` configured — a bridged Loskai cannot detect
+    its own host's LAN IP.
+    """
+    if mode == "lan":
+        binding = published_host_binding(ports)
+        return (binding[0] if binding else None) or host_ip
+    return service or container_name
+
+
 def suggested_upstream(
     container_name: str,
     service: str | None,
@@ -228,29 +252,23 @@ def suggested_upstream(
     mode: str | None = None,
     host_ip: str | None = None,
 ) -> str | None:
-    """A reachable upstream to pre-fill the assign form, best-effort.
+    """A reachable upstream to pre-fill the assign form, best-effort: `suggested_host` plus
+    the port, or None when either half is unknown — the form then pre-fills the host alone.
 
     In `docker` mode (Caddy shares the Docker network) this is `<service-or-name>:<port>` —
     the name resolves to the container's network IP via Docker DNS (robust across restarts).
 
     In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so it needs
-    the Docker host's LAN IP + the *published host port*: `<host_ip>:<host_port>`. The host IP
-    comes from the container's own binding when it was published to a concrete IP, else from
-    the configured `host_ip` (a bridged Loskai can't detect its host's LAN IP). None when
-    neither is available or the port is ambiguous — the user then fills it in.
+    the Docker host's LAN IP + the *published host port*: `<host_ip>:<host_port>`.
 
     `mode` unset falls back to the docker-name form (co-located default)."""
+    host = suggested_host(container_name, service, ports, mode, host_ip)
     if mode == "lan":
         binding = published_host_binding(ports)
-        if binding is None:
-            return None
-        bind_ip, host_port = binding
-        ip = bind_ip or host_ip
-        return f"{ip}:{host_port}" if ip else None
-    port = suggested_container_port(ports)
-    if not port:
-        return None
-    return f"{service or container_name}:{port}"
+        port = binding[1] if binding else None
+    else:
+        port = suggested_container_port(ports)
+    return f"{host}:{port}" if host and port else None
 
 
 def primary_container(containers: list[dict], declared: str | None = None) -> str | None:
@@ -281,6 +299,16 @@ def primary_container(containers: list[dict], declared: str | None = None) -> st
         return published[0]["name"]
     pool = published or containers
     return min(pool, key=lambda c: c["service"])["name"]
+
+
+def linked_instance_id(container_name: str, instances: list) -> str | None:
+    """The id of the instance linked to this container, routed or not. A recipe install
+    creates one before any route exists, named for the recipe — a better route prefix than
+    the generated `<project>-<service>-1`."""
+    for inst in instances:
+        if inst.container == container_name:
+            return inst.id
+    return None
 
 
 def subdomain_for(container_name: str, instances: list) -> str | None:
