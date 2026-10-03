@@ -6,6 +6,8 @@ SPA is served unauthenticated. All four module routers (caddy, adguard, wireguar
 docker) are registered here.
 """
 
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,9 +18,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from .config import settings
 from .modules.adguard import router as adguard_router
 from .modules.caddy import router as caddy_router
+from .modules.caddy.client import caddy
 from .modules.docker import router as docker_router
 from .modules.wireguard import router as wireguard_router
-from .shared import assign, auth, dashboard, export, health, instances
+from .shared import assign, auth, dashboard, export, follow, health, instances
 from .shared import settings as settings_module
 from .shared.store import CorruptStoreError
 
@@ -43,7 +46,14 @@ async def lifespan(app: FastAPI):
     settings_module.verify_readable()
     # Seed the admin password from LOSKAI_PASSWORD once, if provided.
     auth.ensure_seeded()
+    # Routes that follow their container — Loskai's only background task. Started, not
+    # awaited: it must never hold up startup, and an unreachable daemon is its own problem
+    # (it backs off and retries). See shared/follow.py.
+    follower = asyncio.create_task(follow.watch(caddy))
     yield
+    follower.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await follower
 
 
 app = FastAPI(title="Loskai", lifespan=lifespan)

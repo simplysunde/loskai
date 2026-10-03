@@ -39,6 +39,10 @@ class Instance(BaseModel):
     container: str | None = None  # container name/id (docker type only)
     origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
     machine: str | None = None  # id of the machine instance that owns this upstream's host part
+    # The docker counterpart of `machine`: the upstream is derived from the live container
+    # (logic.suggested_upstream) and rewritten when it starts on a different port — see
+    # shared/follow.py. Declared, never inferred: False keeps a stored upstream exactly as set.
+    follow_container: bool = False
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
     icon: str | None = None  # launcher icon filename in <data_dir>/icons (see shared/icons.py)
@@ -136,6 +140,26 @@ def upsert_instance(instance: Instance) -> Instance:
 
     _update(replace)
     return instance
+
+
+def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> Instance | None:
+    """Re-point a following route's upstream — compare-and-set under the store lock.
+
+    Writes only while the record still follows its container *and* still holds `expected`.
+    The follower reads, asks Docker (slow), then writes; an edit made in between — someone
+    setting the address by hand — must win over a value derived from the state before it.
+    Returns the updated record, or None when it no longer qualified."""
+    updated: list[Instance] = []
+
+    def repoint(instances: list[Instance]) -> list[Instance]:
+        for idx, inst in enumerate(instances):
+            if inst.id == instance_id and inst.follow_container and inst.upstream == expected:
+                instances[idx] = inst.model_copy(update={"upstream": upstream})
+                updated.append(instances[idx])
+        return instances
+
+    _update(repoint)
+    return updated[0] if updated else None
 
 
 def delete_instance(instance_id: str) -> bool:

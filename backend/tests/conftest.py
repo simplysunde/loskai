@@ -18,6 +18,7 @@ live state.
 import pytest
 
 from loskai.config import Settings, settings
+from loskai.shared import follow
 
 
 @pytest.fixture(autouse=True)
@@ -31,3 +32,16 @@ def _isolated_settings(monkeypatch, tmp_path):
         path = tmp_path / name.removesuffix("_dir")
         path.mkdir()
         monkeypatch.setattr(settings, name, str(path))
+
+
+@pytest.fixture(autouse=True)
+def _no_follower(monkeypatch):
+    """The app's lifespan starts the container follower (shared/follow.py), and every
+    `with TestClient(app)` runs the lifespan. Left alone it would open Docker's event
+    stream against whatever daemon the developer's machine has. Tests of the follower
+    itself call its functions directly."""
+
+    async def idle(_caddy_client) -> None:
+        return None
+
+    monkeypatch.setattr(follow, "watch", idle)

@@ -156,6 +156,14 @@ class DockerClient:
                 result.setdefault(project, set()).add(service)
         return result
 
+    def container_events(self):
+        """Docker's event stream, filtered to container starts — the trigger for a route that
+        follows its container (shared/follow.py). A blocking iterator; `.close()` ends it,
+        which is how a read blocked in another thread is released at shutdown."""
+        return self._get().events(
+            decode=True, filters={"type": "container", "event": ["start"]}
+        )
+
     def containers_in_project(self, project: str) -> list[dict]:
         """`[{"service", "name", "ports"}]` for one compose project, running or not.
 
