@@ -170,12 +170,13 @@ view both read.
 **How routes are created — one surface.** All route creation happens in the Routing tab's
 **Add route** picker; no other tab creates routes (the Docker tab only *displays* routed
 state). The picker chooses a source, which pre-fills the subdomain + upstream:
-- **External** — a LAN target by address. The **machines** already named (instances whose
-  upstream is a bare IP — what a `dns_only` assign stores) are offered as a pick list, so a
-  proxy route can borrow one's address and only needs its port; typing an address by hand
-  stays available. The list is deliberately *not* filtered by whether a machine is routed —
+- **External** — a LAN target by address. The upstream is entered as **host + port on one
+  row** (both route forms share this): the host field is a combobox offering the **machines**
+  already named (instances declared `kind: "machine"`), the Docker host and a picked
+  container's own host, filtered as you type — so a proxy route can borrow a machine's
+  address and only needs its port; typing any address stays available. The list is deliberately *not* filtered by whether a machine is routed —
   unlike the two sources below, you are reusing an address, not routing the thing itself.
-  The picked machine fills the upstream only, never the prefix: the route is a service *on*
+  The picked machine fills the host only, never the prefix or the port: the route is a service *on*
   that machine, and prefilling its name would collide with the name it already answers to.
   Picking one also **links** the route to it (`machine` on the instance — a dependency, not
   an idempotency key like `container`/`origin`): the machine's address is then entered in

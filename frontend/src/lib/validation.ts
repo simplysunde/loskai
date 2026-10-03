@@ -34,6 +34,27 @@ export function isValidUpstream(upstream: string): boolean {
   return /^\d+$/.test(port) && +port >= 1 && +port <= 65535;
 }
 
+// The route forms collect an upstream as two fields, host and port. `splitUpstream` takes a
+// stored or pasted "host:port" apart at its last colon; a value with no port is all host.
+export function splitUpstream(value: string): { host: string; port: string } {
+  const v = value.trim();
+  const idx = v.lastIndexOf(":");
+  if (idx < 0) return { host: v, port: "" };
+  return { host: v.slice(0, idx), port: v.slice(idx + 1) };
+}
+
+// Just the host half: an IP or a name, nothing else — no scheme, path, port or whitespace.
+// (IPv6 literals are out of scope, as for isValidDnsTarget.)
+export function isValidHost(host: string): boolean {
+  const h = host.trim();
+  return h.length > 0 && !/[\s/:]/.test(h);
+}
+
+export function isValidPort(port: string): boolean {
+  const p = port.trim();
+  return /^\d+$/.test(p) && +p >= 1 && +p <= 65535;
+}
+
 // A dns_only target is the AdGuard answer itself — a bare IPv4 address, no port, no
 // scheme. IPv6 is out of scope for now (mirrors the backend's validate_upstream guard).
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;

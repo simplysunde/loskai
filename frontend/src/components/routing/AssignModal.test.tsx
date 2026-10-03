@@ -3,6 +3,21 @@ import { expect, test, vi } from "vitest";
 
 import { AssignModal } from "./AssignModal";
 
+const hostInput = () =>
+  screen.getByRole("combobox", { name: "Host or machine" }) as HTMLInputElement;
+const portInput = () => screen.getByRole("textbox", { name: "Port" }) as HTMLInputElement;
+
+function typeUpstream(host: string, port: string) {
+  fireEvent.change(hostInput(), { target: { value: host } });
+  fireEvent.change(portInput(), { target: { value: port } });
+}
+
+// Open the host list from its chevron and pick an entry, as a mouse would.
+function pickHost(name: RegExp) {
+  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
+  fireEvent.mouseDown(screen.getByRole("option", { name }));
+}
+
 function renderModal(overrides = {}) {
   const onSubmit = vi.fn();
   render(
@@ -34,9 +49,7 @@ test("Assign is disabled until prefix and upstream are valid", () => {
   fireEvent.change(screen.getByPlaceholderText("grafana"), {
     target: { value: "grafana" },
   });
-  fireEvent.change(screen.getByPlaceholderText("e.g. 192.168.10.100:3000"), {
-    target: { value: "192.168.10.100:3000" },
-  });
+  typeUpstream("192.168.10.100", "3000");
   expect(assign).toBeEnabled();
 
   fireEvent.click(assign);
@@ -54,9 +67,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
   fireEvent.change(screen.getByPlaceholderText("grafana"), {
     target: { value: "proxmox" },
   });
-  fireEvent.change(screen.getByPlaceholderText("e.g. 192.168.10.100:3000"), {
-    target: { value: "192.168.10.202:8006" },
-  });
+  typeUpstream("192.168.10.202", "8006");
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenCalledWith({
@@ -70,7 +81,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
 
 test("uses the Docker upstream hint in docker mode", () => {
   renderModal({ mode: "docker" });
-  expect(screen.getByPlaceholderText("e.g. grafana:3000")).toBeInTheDocument();
+  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
 });
 
 test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {
@@ -114,7 +125,7 @@ test("a route created before the link can be attached to a machine", () => {
     initialUpstream: "192.168.10.50:32400",
   });
 
-  fireEvent.click(screen.getByRole("button", { name: /nas/ }));
+  pickHost(/nas/);
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
@@ -129,7 +140,7 @@ test("picking a machine keeps the port and takes its address", () => {
     initialUpstream: "10.0.0.9:32400",
   });
 
-  fireEvent.click(screen.getByRole("button", { name: /nas/ }));
+  pickHost(/nas/);
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
@@ -137,7 +148,7 @@ test("picking a machine keeps the port and takes its address", () => {
   );
 });
 
-test("a linked route can be unlinked, and null is what says so", () => {
+test("typing over a linked route's host unlinks it, and null is what says so", () => {
   const { onSubmit } = renderModal({
     rows: MACHINES,
     initialPrefix: "plex",
@@ -145,7 +156,9 @@ test("a linked route can be unlinked, and null is what says so", () => {
     initialMachine: "nas",
   });
 
-  fireEvent.click(screen.getByRole("button", { name: /unlink/ }));
+  expect(screen.getByText(/Linked to nas/)).toBeInTheDocument();
+  fireEvent.change(hostInput(), { target: { value: "192.168.10.51" } });
+  expect(screen.queryByText(/Linked to nas/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ machine: null }));
@@ -153,15 +166,35 @@ test("a linked route can be unlinked, and null is what says so", () => {
 
 test("only machines are offered — a service is an address in use, not one to point at", () => {
   renderModal({ rows: MACHINES });
+  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
 
-  expect(screen.getByRole("button", { name: /nas/ })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: /nas/ })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: /web/ })).not.toBeInTheDocument();
 });
 
-test("with no machines named yet, the picker stays out of the way", () => {
+test("the Docker host and the container's own host are offered beside the machines", () => {
+  renderModal({ rows: MACHINES, dockerHost: "192.168.10.220", containerHost: "jellyfin" });
+  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
+
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "nas192.168.10.50",
+    "Docker host192.168.10.220",
+    "This containerjellyfin",
+  ]);
+});
+
+test("an address that is already a machine's is offered once, as the machine", () => {
+  // Picking it should link the machine, so the machine's entry is the one to keep.
+  renderModal({ rows: MACHINES, dockerHost: "192.168.10.50", containerHost: "192.168.10.50" });
+  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
+
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["nas192.168.10.50"]);
+});
+
+test("with nothing to offer, the host field is a plain text field", () => {
   renderModal({ rows: [] });
 
-  expect(screen.queryByText("Hosted on a machine")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
 });
 
 test("an existing route's scheme is prefilled and editable", () => {
@@ -181,7 +214,6 @@ test("an existing route's scheme is prefilled and editable", () => {
 
 // --- A container's route can follow it (Phase 29) ---
 
-const upstream = () => screen.getByPlaceholderText("e.g. 192.168.10.100:3000") as HTMLInputElement;
 
 test("a following route shows the container's address, locked", () => {
   const { onSubmit } = renderModal({
@@ -190,8 +222,11 @@ test("a following route shows the container's address, locked", () => {
     follow: { initial: true, derived: "192.168.10.220:8081" },
   });
 
-  expect(upstream()).toHaveValue("192.168.10.220:8081");
-  expect(upstream().readOnly).toBe(true);
+  expect(hostInput()).toHaveValue("192.168.10.220");
+  expect(portInput()).toHaveValue("8081");
+  expect(hostInput().readOnly && portInput().readOnly).toBe(true);
+  // Locked means no list either.
+  expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
   expect(screen.getByText(/Follows the container/)).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
@@ -206,8 +241,8 @@ test("Set by hand unlocks the address and stops following", () => {
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Set by hand" }));
-  expect(upstream().readOnly).toBe(false);
-  fireEvent.change(upstream(), { target: { value: "192.168.10.220:9000" } });
+  expect(hostInput().readOnly || portInput().readOnly).toBe(false);
+  fireEvent.change(portInput(), { target: { value: "9000" } });
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
@@ -224,8 +259,9 @@ test("a route set by hand is offered following, with the address it would get", 
 
   fireEvent.click(screen.getByRole("button", { name: /Follow the container \(192\.168\.10\.220:8081\)/ }));
 
-  expect(upstream()).toHaveValue("192.168.10.220:8081");
-  expect(upstream().readOnly).toBe(true);
+  expect(hostInput()).toHaveValue("192.168.10.220");
+  expect(portInput()).toHaveValue("8081");
+  expect(hostInput().readOnly).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ follow_container: true }));
 });
@@ -246,8 +282,9 @@ test("following and a machine link exclude each other in the form, as on the ser
     expect.objectContaining({ follow_container: true, machine: null }),
   );
 
-  // ...and picking a machine stops following.
-  fireEvent.click(screen.getByRole("button", { name: /nas/ }));
+  // ...and a machine can only be picked once following is off: the host is locked till then.
+  fireEvent.click(screen.getByRole("button", { name: "Set by hand" }));
+  pickHost(/nas/);
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenLastCalledWith(
     expect.objectContaining({ follow_container: false, machine: "nas" }),

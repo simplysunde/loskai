@@ -1053,6 +1053,21 @@ moves (`_propagate_to_dependents`). This is the same move with a different trigg
       daemon restart happens anyway: `journalctl` should show one "not following containers
       … retrying" line, and following routes should still move afterwards
 
+**Follow-up, same day — the upstream as host + port** (Sunde: "split into two fields, one for
+the ip address/machine … a dropdown menu … with a dual function of being able to simply type
+in the ip address (and a search filter) and the port, both fields … in the same row")
+- [x] `HostSelect`: type any address, or pick from a list filtered by name or address; ▾ shows
+      all; arrow keys + Enter pick, and **Enter never swaps a typed address** for an option it
+      prefixes (`192.168.10.5` vs `.50`). Picking a machine links the route; typing unlinks
+- [x] In `RouteFields`, so both forms got it — and **both forms lost their own machine list**
+      (Add route's External list, the row form's "Hosted on a machine" box). The options come
+      from one builder, `hostOptions`, which reads the declared `kind` — the External list had
+      been re-deriving "machine" from the address shape
+- [x] Following locks both fields and hides the list. A pasted `host:port` splits itself;
+      the port takes digits only. The docker-mode host hint is `jellyfin`, no longer the
+      prefix's `grafana`
+- [x] No backend change: the forms still post one `upstream`. `npm test` (139)
+
 ---
 
 ## Backlog / Future ideas

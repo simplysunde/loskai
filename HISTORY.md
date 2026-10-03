@@ -1,5 +1,25 @@
 # Loskai — History
 
+## 2026-10-03 — The upstream becomes host + port
+
+Sunde asked for the upstream as two fields on one row: a host that is both a dropdown of
+known machines and a plain text box with a search filter, and a port. It went into
+`RouteFields`, so both route forms changed at once — the payoff of yesterday's decision to
+leave the two forms separate but sharing.
+
+The useful side effect was a deletion. Each form had carried its own machine picker — a pick
+list under Add route's External source, a "Hosted on a machine" box in the row form — and
+the host dropdown is both of them. One option builder replaced them, and it reads the
+declared `kind`, where the External list had quietly been re-deriving "machine" from the
+shape of the address: the drift CLAUDE.md warns about, removed in passing.
+
+The one rule worth a test of its own: nothing is highlighted until an arrow key says so, so
+Enter can never replace a typed `192.168.10.5` with the `192.168.10.50` it happens to prefix.
+
+- Key files: `frontend/src/components/routing/{HostSelect.tsx,hostOptions.ts,RouteFields.tsx,
+  useRouteFields.ts,AddRouteModal.tsx,AssignModal.tsx}`, `frontend/src/lib/validation.ts`
+- 379 backend + 139 frontend tests pass; no backend change
+
 ## 2026-10-03 — A Docker route follows its container
 
 Once the route forms pre-filled the host, Sunde pushed past it: "the port should be locked for

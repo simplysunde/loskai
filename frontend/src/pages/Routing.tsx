@@ -474,6 +474,8 @@ export function Routing() {
           (assignContainer ? containerPrefill(assignContainer).upstream : "")
         }
         follow={assignFollow}
+        dockerHost={settings.data?.host_ip?.value ?? null}
+        containerHost={assignContainer?.suggested_host ?? null}
         initialTls={assignTarget?.upstream_tls ?? false}
         initialMachine={assignTarget?.machine ?? null}
         initialScheme={assignTarget?.scheme ?? "https"}

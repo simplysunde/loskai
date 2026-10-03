@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Link2, Link2Off } from "lucide-react";
 
 import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
-import { isMachine } from "./ViewFilter";
+import { hostOptions } from "./hostOptions";
 
 // Assign URL form: a single-label prefix + an upstream host:port, with the assembled FQDN
 // shown live. Presentational — submit is handed to onSubmit (wired to /api/routes). The
@@ -27,6 +26,8 @@ export function AssignModal({
   initialScheme = "https",
   rows = [],
   follow,
+  dockerHost = null,
+  containerHost = null,
 }: {
   open: boolean;
   baseDomain: string | null;
@@ -56,6 +57,9 @@ export function AssignModal({
   // Present only for a container's route: whether it starts out following, and the
   // container's live address (null when Docker can't name its port).
   follow?: { initial: boolean; derived: string | null };
+  // Extra entries for the host dropdown, beside the named machines in `rows`.
+  dockerHost?: string | null;
+  containerHost?: string | null;
 }) {
   const [machine, setMachine] = useState<string | null>(initialMachine);
   const [scheme, setScheme] = useState<Scheme>(initialScheme);
@@ -72,16 +76,7 @@ export function AssignModal({
   if (!open) return null;
 
   const canSubmit = fields.valid && !pending;
-  const machines = rows.filter(isMachine);
-  const pickMachine = (m: RouteRow) => {
-    // A route follows its container or a machine — never both (the backend refuses it).
-    setFollowing(false);
-    setMachine(m.id);
-    // Keep the port, take the machine's address — the same swap the backend does when the
-    // machine later moves.
-    const [, port = ""] = (fields.upstream || ":").split(":");
-    fields.set({ upstream: `${m.upstream}:${port}` });
-  };
+  const hosts = hostOptions({ rows, dockerHost, containerHost });
 
   return (
     <div
@@ -96,6 +91,11 @@ export function AssignModal({
 
         <RouteFields
           fields={fields}
+          hosts={hosts}
+          machine={machine}
+          // A picked machine links the route; typing an address unlinks. (While the route
+          // follows its container the host is locked, so no machine can be picked then.)
+          onHostPick={(option) => setMachine(option?.machine ?? null)}
           autoFocus
           preview={
             <span className="mt-1 block text-xs text-slate-500">
@@ -118,42 +118,6 @@ export function AssignModal({
               : undefined
           }
         />
-
-        {machines.length > 0 && (
-          <div className="mt-4 rounded-lg border border-slate-800 p-2">
-            <p className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-400">
-              <Link2 className="h-3.5 w-3.5" />
-              Hosted on a machine
-              {machine && (
-                <button
-                  onClick={() => setMachine(null)}
-                  className="ml-auto flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
-                >
-                  <Link2Off className="h-3 w-3" /> unlink
-                </button>
-              )}
-            </p>
-            <div className="max-h-28 space-y-1 overflow-y-auto overscroll-contain">
-              {machines.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => pickMachine(m)}
-                  className={`flex w-full items-baseline justify-between gap-2 rounded-md border px-2 py-1 text-left text-xs ${
-                    machine === m.id
-                      ? "border-teal-600 bg-teal-500/10 text-teal-100"
-                      : "border-slate-800 text-slate-300 hover:bg-slate-800/60"
-                  }`}
-                >
-                  <span>{m.name}</span>
-                  <span className="font-mono text-[11px] text-slate-500">{m.upstream}</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-[11px] text-slate-600">
-              Linked routes follow the machine's address when it moves.
-            </p>
-          </div>
-        )}
 
         <SchemeSelect value={scheme} onChange={setScheme} />
 

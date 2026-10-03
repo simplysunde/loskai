@@ -13,7 +13,7 @@ daemon-restart check that needs root. **Phase 12 is finally complete** (2026-09-
 Phase 19, 12b as Phase 22, 12c as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (379 + 131 + docs).
+All three checks pass (379 + 139 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -147,10 +147,12 @@ and AdGuard modules never write on their own; they are read + push only.
 `AddRouteModal`) — the single surface, with three sources (Container / Network service /
 External) that pre-fill and post to `/api/routes` with `container` / `origin` / neither
 (naming a machine is the sibling verb, `/api/machines`, from its own button and modal).
-**External also lists the *machines* you have named** — instances whose upstream is a bare IP,
-i.e. `dns_only` ones — so a proxy route takes its address from one instead of retyping it;
-they are listed whether or not they are routed, since you are borrowing an address rather
-than routing the thing. The
+**The upstream is two fields on one row — host and port** — in both route forms (they share
+`RouteFields`). The host is a combobox (`HostSelect`): type any address, or pick from a list
+filtered as you type — the *machines* you have named (by declared `kind`), the Docker host,
+and a picked container's own host. **Picking a machine links the route to it; typing never
+does.** Machines are listed whether or not they are routed, since you are borrowing an
+address rather than routing the thing. The
 **Docker tab displays routed state but never creates routes** (a routed container links to
 its FQDN; a Settings > Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`); on an *unrouted* row the

@@ -6,9 +6,9 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
-import { isValidDnsTarget } from "../../lib/validation";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { containerPrefill, type PrefillSource } from "./containerPrefill";
+import { hostOptions } from "./hostOptions";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
@@ -104,11 +104,10 @@ export function AddRouteModal({
     enabled: open,
     retry: false,
   });
-  // The rows the Routing page already fetched — no extra endpoint. A "machine" is an
-  // instance whose upstream is a bare IP (what a dns_only assign stores), i.e. an address
-  // rather than a service. Unlike the Container and Network sources these are NOT filtered
-  // by whether they are routed: you are borrowing the address, not routing the thing, so a
-  // NAS that already answers to its own name is still a valid upstream for a new route.
+  // The rows the Routing page already fetched — no extra endpoint — for the host dropdown's
+  // machines. Unlike the Container and Network sources these are NOT filtered by whether
+  // they are routed: you are borrowing the address, not routing the thing, so a NAS that
+  // already answers to its own name is still a valid upstream for a new route.
   const rows = useQuery({
     queryKey: ["caddy-routes"],
     queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
@@ -132,9 +131,13 @@ export function AddRouteModal({
     .split(":")[0];
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
-  const machines = (rows.data ?? []).filter(
-    (r) => r.upstream && isValidDnsTarget(r.upstream),
-  );
+  const pickedContainer =
+    source === "container" ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
+  const hosts = hostOptions({
+    rows: rows.data,
+    dockerHost: settings.data?.host_ip?.value,
+    containerHost: pickedContainer?.suggested_host,
+  });
   const networkItems = NETWORK_SERVICES.filter((s) => !routedOrigins.has(s.origin)).map((s) => ({
     ...s,
     upstream: s.urlKey
@@ -161,16 +164,6 @@ export function AddRouteModal({
     setFollow(Boolean(c.suggested_upstream));
     setLink({ container: c.name, name: c.name });
     setPicked(c.id);
-  };
-  const pickMachine = (m: RouteRow) => {
-    setPickedMode(null);
-    // Address only — deliberately not the prefix. The route is a *service on* this machine
-    // ("plex"), not the machine itself, and prefilling `nas` would collide with the name
-    // the machine already answers to. Trailing colon: the port is all that's left to type.
-    fields.set({ upstream: `${m.upstream}:` });
-    // The link, not just the address: this route now follows the machine when it moves.
-    setLink({ machine: m.id });
-    setPicked(m.id);
   };
   const pickNetwork = (s: (typeof networkItems)[number]) => {
     fields.set({ prefix: s.prefix, upstream: s.upstream });
@@ -227,27 +220,20 @@ export function AddRouteModal({
         )}
         {source === "external" && (
           <>
-            <PickList empty="No named machines yet — type an address below.">
-              {machines.map((m) => (
-                <PickItem
-                  key={m.id}
-                  active={picked === m.id}
-                  onClick={() => pickMachine(m)}
-                  title={m.name}
-                  sub={m.fqdn ? `${m.upstream} · ${m.fqdn}` : (m.upstream ?? "")}
-                />
-              ))}
-            </PickList>
-            <p className="mt-3 text-xs text-slate-500">
-              Pick a machine above to fill in its address, or type any host:port below.
-              Naming a machine itself is the <span className="text-slate-300">Name a
-              machine</span> button.
+            <p className="mt-1 text-xs text-slate-500">
+              Pick a machine from the host list to link this route to it, or type any
+              address. Naming a machine itself is the <span className="text-slate-300">Name
+              a machine</span> button.
             </p>
           </>
         )}
 
         <RouteFields
           fields={fields}
+          hosts={hosts}
+          machine={link.machine ?? null}
+          // A picked machine links the route; typing unlinks it. Container/origin links stay.
+          onHostPick={(option) => setLink((l) => ({ ...l, machine: option?.machine }))}
           follow={
             source === "container" && picked
               ? {
@@ -255,7 +241,11 @@ export function AddRouteModal({
                   derived,
                   set: (on) => {
                     setFollow(on);
-                    if (on && derived) fields.set({ upstream: derived });
+                    if (on) {
+                      // A route follows its container or a machine, never both.
+                      setLink((l) => ({ ...l, machine: undefined }));
+                      if (derived) fields.set({ upstream: derived });
+                    }
                   },
                 }
               : undefined

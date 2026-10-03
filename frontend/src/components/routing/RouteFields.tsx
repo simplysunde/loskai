@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { HostSelect } from "./HostSelect";
+import type { HostOption } from "./hostOptions";
 import type { RouteFieldsState } from "./useRouteFields";
 
 const INPUT =
@@ -25,13 +27,23 @@ export function RouteFields({
   autoFocus = false,
   preview,
   follow,
+  hosts = [],
+  machine = null,
+  onHostPick,
 }: {
   fields: RouteFieldsState;
   autoFocus?: boolean;
   preview?: ReactNode;
   follow?: FollowState;
+  // The host dropdown's options, and which machine (if any) the route is linked to. A pick
+  // reports its option, typing reports null — the form decides what that does to its link.
+  hosts?: HostOption[];
+  machine?: string | null;
+  onHostPick?: (option: HostOption | null) => void;
 }) {
   const following = Boolean(follow?.on);
+  const linked = machine ? hosts.find((h) => h.machine === machine) : undefined;
+  const typedPort = fields.port !== "";
   return (
     <>
       <label className="mt-4 block">
@@ -53,29 +65,56 @@ export function RouteFields({
         )}
       </label>
 
-      <label className="mt-3 block">
-        <span className="mb-1 block text-xs font-medium text-slate-400">
-          Upstream (host:port)
-        </span>
-        <input
-          value={fields.upstream}
-          onChange={(e) => fields.setUpstream(e.target.value)}
-          placeholder={fields.upstreamHint}
-          readOnly={following}
-          className={following ? `${INPUT} cursor-default text-slate-400` : INPUT}
-        />
-        <span className="mt-1 block text-xs text-slate-500">
-          {following
-            ? "Follows the container — Loskai rewrites this when its port changes."
+      {/* Host and port on one row: the host is the half usually picked from a list, the
+          port the half usually typed. */}
+      <div className="mt-3 flex gap-2">
+        <label className="block min-w-0 flex-1">
+          <span className="mb-1 block text-xs font-medium text-slate-400">Host or machine</span>
+          <HostSelect
+            value={fields.host}
+            options={hosts}
+            placeholder={fields.hostHint}
+            readOnly={following}
+            onType={(value) => {
+              fields.setHost(value);
+              onHostPick?.(null);
+            }}
+            onPick={(option) => {
+              fields.setHost(option.address);
+              onHostPick?.(option);
+            }}
+            className={following ? `${INPUT} cursor-default text-slate-400` : INPUT}
+          />
+        </label>
+        <label className="block w-24 shrink-0">
+          <span className="mb-1 block text-xs font-medium text-slate-400">Port</span>
+          <input
+            aria-label="Port"
+            inputMode="numeric"
+            value={fields.port}
+            onChange={(e) => fields.setPort(e.target.value)}
+            placeholder="3000"
+            readOnly={following}
+            className={following ? `${INPUT} cursor-default text-slate-400` : INPUT}
+          />
+        </label>
+      </div>
+      <span className="mt-1 block text-xs text-slate-500">
+        {following
+          ? "Follows the container — Loskai rewrites this when its port changes."
+          : linked
+            ? `Linked to ${linked.label} — the address follows it if it moves. Type to unlink.`
             : fields.upstreamHelp}
+      </span>
+      {!following && fields.host && !fields.hostOk && (
+        <span className="mt-1 block text-xs text-rose-400">
+          Just the host — no scheme (http://), path or port.
         </span>
-        {!following && fields.upstream && !fields.upstreamOk && (
-          <span className="mt-1 block text-xs text-rose-400">
-            Use host:port — no scheme (http://) or path.
-          </span>
-        )}
-      </label>
-      {/* Outside the <label>: a button inside one also focuses the input. */}
+      )}
+      {!following && typedPort && !fields.portOk && (
+        <span className="mt-1 block text-xs text-rose-400">The port is a number, 1–65535.</span>
+      )}
+      {/* Buttons sit outside the <label>s: a button inside one also focuses its input. */}
       {follow && following && (
         <button type="button" onClick={() => follow.set(false)} className={`mt-1 ${LINK}`}>
           Set by hand
