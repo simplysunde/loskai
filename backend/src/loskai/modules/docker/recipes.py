@@ -244,7 +244,8 @@ def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, di
     invalid: list[dict] = []
     if not base.is_dir():
         return valid, invalid
-    for folder in sorted(p for p in base.iterdir() if p.is_dir()):
+    # A synced source is a git clone, so `.git` sits beside the recipes.
+    for folder in sorted(p for p in base.iterdir() if p.is_dir() and not p.name.startswith(".")):
         try:
             valid[folder.name] = _load_folder(folder, source, source_url)
         except RecipeError as exc:

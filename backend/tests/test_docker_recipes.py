@@ -290,6 +290,16 @@ def test_list_recipes_flags_invalid(data_dir):
     assert any(i["id"] == "broken" and "compose.yml missing" in i["error"] for i in result["invalid"])
 
 
+def test_hidden_folders_are_not_recipes(data_dir):
+    """A synced source is a git clone: its `.git` used to be reported as a broken recipe."""
+    (data_dir / "recipes" / ".git").mkdir(parents=True)
+    _make_recipe(data_dir / "recipes", "ok", "OK")
+
+    result = recipes.list_recipes()
+    assert [r["id"] for r in result["recipes"]] == ["ok"]
+    assert result["invalid"] == []
+
+
 def test_list_recipes_empty_when_no_sources(data_dir):
     assert recipes.list_recipes()["recipes"] == []
 

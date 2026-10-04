@@ -36,7 +36,8 @@ to produce a valid recipe — no authoring UI exists or is needed.
 
 ## Folder layout
 
-One folder per recipe. The folder name is the recipe's stable id.
+One folder per recipe. The folder name is the recipe's stable id. A folder whose name starts
+with `.` (a synced repo's `.git`) is not a recipe and is never scanned.
 
 ```
 grafana/
