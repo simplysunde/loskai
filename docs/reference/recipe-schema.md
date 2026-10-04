@@ -36,8 +36,10 @@ to produce a valid recipe — no authoring UI exists or is needed.
 
 ## Folder layout
 
-One folder per recipe. The folder name is the recipe's stable id. A folder whose name starts
-with `.` (a synced repo's `.git`) is not a recipe and is never scanned.
+One folder per recipe. The folder name is the recipe's stable id. **Every folder at the top
+of a source is read as a recipe**, except one whose name starts with `.` (a synced repo's
+`.git`) — so keep anything else in a recipes repo (a README, docs) as files at its root, or
+it is listed as a skipped recipe.
 
 ```
 grafana/
@@ -315,6 +317,16 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 
 Validation never runs recipe content — it only parses and checks fields. A rejected recipe
 affects nothing else; the rest of the list still loads.
+
+**Check a recipe before pushing it** with the same validator, from a loskai checkout:
+
+```
+uv run --project <loskai>/backend python -m loskai.modules.docker.check_recipes [path ...]
+```
+
+A path holding a `recipe.yml` is one recipe; any other is scanned as a source, so run from
+the recipes repo it checks every recipe in it. It prints the reason each one would be
+skipped, and exits 1 if any would be. It reads files only — no Docker, nothing written.
 
 ---
 

@@ -983,6 +983,13 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       false` — checked against the daemon: a missing folder fails the deploy instead of
       mounting an empty one Docker made. Delete removes the override; the stack editor shows
       it read-only. Deliberately one group, one service, one `read_only`
+- [x] **Recipes can be authored from the recipes repo alone** (2026-10-04, Sunde: "so we can
+      use claude code inside that project whilst not being wholly dependent on the docs for
+      loskai"). loskai-recipes gets a `CLAUDE.md` and a copy of `recipe-schema.md` at its root (a
+      `docs/` folder would be scanned as a recipe — the checker caught it), written by
+      `scripts/sync-recipe-schema.sh` — the contract stays here, beside the validator. The
+      docs check fails while the copy differs. `check_recipes` runs the wizard's validator
+      over a folder or a whole repo, so a recipe is proven valid before it is pushed
 - [x] **A synced source reported its `.git` as a skipped recipe** (2026-10-04). Every folder
       in a source was scanned, and a clone has `.git`. Hidden folders are skipped now
 - [ ] **The container runs as root, so everything it writes on the host is root-owned** (found

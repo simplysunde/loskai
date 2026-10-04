@@ -13,7 +13,7 @@ root. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Pha
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (430 + 153 + docs).
+All three checks pass (434 + 153 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -43,7 +43,9 @@ describes today. The authoritative sources are:
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
   `api.md` is Loskai's own API surface — 44 HTTP routes plus the exec WebSocket;
-  `recipe-schema.md` is the install-wizard manifest.
+  `recipe-schema.md` is the install-wizard manifest — **copied into the loskai-recipes repo**
+  (at its root) so a session authoring recipes has it; edit it here only, then run
+  `bash scripts/sync-recipe-schema.sh`. The docs check fails while the copy differs.
 - **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
   deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
   supported alternative** — all three ship. **The letters were reassigned 2026-09-04**, split
@@ -71,12 +73,15 @@ Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vit
 - Frontend dev server: `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`)
 - Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
 - Frontend tests: `npm test` (Vitest)
-- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — **five checks:** broken
+- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — **six checks:** broken
   links; dead heading anchors; pages under `docs/` unreachable from `docs/README.md`;
   `docs/` paths cited from source and config that no longer resolve; `docs/` paths written
   out in the current-state docs (prose, backticks, or a link's *display text* — check 1
-  validates where a link points, never what it claims to); and **this file's enumerations
-  against the code** (module names, admin tabs, HTTP route count, public routes).
+  validates where a link points, never what it claims to); **this file's enumerations
+  against the code** (module names, admin tabs, HTTP route count, public routes); and the
+  recipes repo's copy of `recipe-schema.md`, when `../loskai-recipes` is checked out.
+- Recipe check: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`)
+  — the wizard's own validator over a recipe folder or a whole recipes repo.
 - **Production** serves on `:8080` — one FastAPI process serves the API *and* the built
   React bundle as static files (single container, single port). Dev is two servers; prod is one.
 

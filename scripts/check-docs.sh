@@ -3,7 +3,7 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Four checks, all of which have caught real breakage:
+# Six checks, all of which have caught real breakage:
 #   1. Relative links that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
@@ -14,6 +14,8 @@
 #      display text. Check 1 validates where a link points, not what it claims to point at, so
 #      a link labelled with a pre-move path passed while displaying one that 404s. Five of
 #      those survived Phase 17 in PLAN.md and lxc-script-authoring.md.
+#   6. The loskai-recipes repo's copy of recipe-schema.md, when that repo is checked out
+#      beside this one (scripts/sync-recipe-schema.sh). Skipped, not failed, without it.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -237,5 +239,12 @@ if problems:
     sys.exit(1)
 print("\nCLAUDE.md's enumerations match the code")
 PY
+
+log "Checking the recipes repo's copy of the schema"
+if [ -d "${LOSKAI_RECIPES_DIR:-../loskai-recipes}" ]; then
+  bash scripts/sync-recipe-schema.sh --check
+else
+  echo "skipped — no loskai-recipes checkout beside this one"
+fi
 
 log "Docs OK"

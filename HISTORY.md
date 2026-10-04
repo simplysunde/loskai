@@ -1,5 +1,23 @@
 # Loskai — History
 
+## 2026-10-04 — The recipe schema gets a copy in the recipes repo, and a checker
+
+Sunde wanted to write recipes with Claude Code opened in `loskai-recipes`, without relying on
+this repo's docs. The obvious move — put the schema there — was rejected for the opposite of
+the obvious reason: the validator lives here, and the rule that a doc changes in the same
+commit as its behaviour only works within one repo. So the contract stays here and the
+recipes repo gets a **copy**, written only by `scripts/sync-recipe-schema.sh` and checked by
+`check-docs.sh` whenever `../loskai-recipes` is beside this checkout (both always are, on
+the working machine) — duplicated docs drift here, so drift has to be a failed check.
+
+Docs say what is valid; `check_recipes` proves it, running the wizard's own `_load_folder`
+over a recipe or a whole repo. It exists so an authoring session gets the exact reason a
+recipe would be skipped before pushing, not after a sync.
+
+- Key files: `scripts/sync-recipe-schema.sh`, `scripts/check-docs.sh`,
+  `backend/src/loskai/modules/docker/check_recipes.py`; in loskai-recipes, `CLAUDE.md`
+- 434 backend + 153 frontend tests pass
+
 ## 2026-10-04 — Folders a user adds at install: `mounts`
 
 `type: path` asks for one folder. Asked about Jellyfin, the honest answer was "point it at a
