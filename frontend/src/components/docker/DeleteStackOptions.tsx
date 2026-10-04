@@ -34,7 +34,7 @@ export function DeleteStackOptions({
             />
             <span>
               Also delete its data —{" "}
-              <span className="font-mono text-slate-400">{data.map((d) => `${d}/`).join(", ")}</span>
+              <span className="font-mono text-slate-400">{data.join(", ")}</span>
             </span>
           </label>
           <span className={`mt-2 block text-xs ${deleteData ? "text-rose-300" : "text-slate-500"}`}>

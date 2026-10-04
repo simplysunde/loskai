@@ -8,7 +8,7 @@ export interface Stack {
   name: string;
   services: string[];
   status: "up" | "down" | "partial" | "unknown";
-  // What else the folder holds besides compose.yml and .env — its data.
+  // What else the folder holds besides compose.yml and .env — its data. Folders end in "/".
   data?: string[];
 }
 

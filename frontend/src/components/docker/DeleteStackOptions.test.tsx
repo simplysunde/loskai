@@ -17,7 +17,7 @@ function Harness({ stack }: { stack: Stack }) {
   );
 }
 
-const WITH_DATA: Stack = { name: "bambuddy", services: ["bambuddy"], status: "up", data: ["data", "logs"] };
+const WITH_DATA: Stack = { name: "bambuddy", services: ["bambuddy"], status: "up", data: ["data/", "logs/"] };
 
 test("data is kept unless the box is ticked", () => {
   render(<Harness stack={WITH_DATA} />);

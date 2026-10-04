@@ -132,7 +132,7 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 | Method & path | Purpose |
 |---|---|
-| `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, data }]`. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. |
+| `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, data }]`. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. Folders end in `/`. |
 | `POST /stacks` | Body `{ name, compose, env? }` — the raw create path (write files + `up -d`). A folder left by a Delete that kept its data (no compose file) is taken over; one that still has a compose file is a live stack, refused. |
 | `GET /stacks/{name}` | Stack detail incl. `compose` + `env` file contents. |
 | `POST /stacks/{name}/action` | Body `{ action: up\|down\|restart\|pull }`. |

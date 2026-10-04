@@ -86,9 +86,14 @@ def list_stacks() -> list[dict]:
 
 def stack_data(directory: Path) -> list[str]:
     """What a stack folder holds besides its compose file and `.env` — its data, by the
-    recipes' convention of keeping `./data` beside the compose file. Names only: sizing a
-    media library to label a checkbox would take minutes."""
-    return sorted(p.name for p in directory.iterdir() if p.name not in {*_COMPOSE_NAMES, ".env"})
+    recipes' convention of keeping `./data` beside the compose file. Names only, folders
+    marked with a trailing `/`: sizing a media library to label a checkbox would take
+    minutes."""
+    return sorted(
+        p.name + ("/" if p.is_dir() else "")
+        for p in directory.iterdir()
+        if p.name not in {*_COMPOSE_NAMES, ".env"}
+    )
 
 
 def claim_dir(name: str) -> tuple[Path, bool]:

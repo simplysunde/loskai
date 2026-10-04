@@ -117,7 +117,7 @@ def test_delete_keeps_the_data_by_default(stacks_dir, monkeypatch):
 
     result = stacks.delete_stack("web")
 
-    assert result["kept"] == ["data"]
+    assert result["kept"] == ["data/"]
     assert (d / "data" / "app.db").read_text() == "rows"
     assert not (d / "compose.yml").exists() and not (d / ".env").exists()
     # No compose file, so no longer a stack — the data just waits in its folder.
@@ -146,7 +146,14 @@ def test_the_stack_list_says_what_else_a_folder_holds(stacks_dir):
     _with_data(stacks_dir, "web")
     _make_stack(stacks_dir, "bare")
 
-    assert {s["name"]: s["data"] for s in stacks.list_stacks()} == {"bare": [], "web": ["data"]}
+    assert {s["name"]: s["data"] for s in stacks.list_stacks()} == {"bare": [], "web": ["data/"]}
+
+
+def test_a_file_beside_the_compose_file_is_named_without_a_slash(stacks_dir):
+    d = _with_data(stacks_dir, "web")
+    (d / "compose.yml.bak").write_text("old")
+
+    assert stacks.list_stacks()[0]["data"] == ["compose.yml.bak", "data/"]
 
 
 def test_a_new_stack_takes_over_a_folder_delete_left(stacks_dir, monkeypatch):
