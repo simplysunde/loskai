@@ -966,6 +966,15 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       host-networked container `192.168.10.220:` — the trailing colon is the machine picker's
       existing convention. Bambuddy's image EXPOSEs ~110 ports, so guessing the port from
       the image was ruled out rather than built
+- [x] **Host folders as a recipe concept — `type: path`** (2026-10-04, Sunde: the wizard
+      should handle mounted paths "based on how we configure the instructions"). Tested from
+      inside the running Loskai first: `./data` and `${X:-./data}` land in the stack folder,
+      an absolute path passes through, and **`~` becomes `/root`** — compose runs as root in
+      Loskai's container. A `path` entry is required; the wizard says where it lands (stack
+      folder, kept on Delete / Docker host, never deleted) and refuses `~`, a bare name (a
+      named volume to Compose) and `:` — the server checks the same. **`directories:` removed**:
+      it made folders inside Loskai's container, invisible to the host; a manifest with it is
+      rejected with a pointer to `type: path`
 - [ ] **The container runs as root, so everything it writes on the host is root-owned** (found
       2026-10-03, the first time the redeployed container wrote state). `data/instances.json`
       became `root:root 0600` — unreadable to the host user, which also breaks a dev backend

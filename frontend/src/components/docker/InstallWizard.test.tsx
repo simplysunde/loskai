@@ -9,8 +9,10 @@ const GRAFANA = {
   name: "Grafana",
   type: "pull",
   description: "Dashboards",
-  env: [{ key: "PORT", label: "Host port", default: "3000" }],
-  directories: ["/srv/grafana"],
+  env: [
+    { key: "PORT", label: "Host port", default: "3000" },
+    { key: "DATA", label: "Data folder", type: "path", default: "./data" },
+  ],
   suggested_subdomain: "grafana",
   instructions: "# Grafana\nFirst login is admin / admin.\n",
   source: "loskai-recipes",
@@ -79,8 +81,57 @@ test("the review step names what the install will create", async () => {
   await pickGrafana();
 
   expect(screen.getByText("grafana/")).toBeInTheDocument();
-  expect(screen.getByText("/srv/grafana")).toBeInTheDocument();
-  expect(screen.getByText("PORT")).toBeInTheDocument();
+  expect(screen.getByText("./data")).toBeInTheDocument();
+  expect(screen.getByText(/— in its own folder/)).toBeInTheDocument();
+  expect(screen.getByText("PORT, DATA")).toBeInTheDocument();
+});
+
+// --- type: path — the wizard says where a mounted folder lands ---
+
+async function fillStep() {
+  renderWizard();
+  await pickGrafana();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+}
+const dataField = () => screen.getByLabelText(/Data folder/) as HTMLInputElement;
+const setData = (value: string) => fireEvent.change(dataField(), { target: { value } });
+const deploy = () => screen.getByRole("button", { name: "Deploy" });
+
+test("a relative path lands beside the compose file, kept on Delete", async () => {
+  await fillStep();
+
+  expect(dataField()).toHaveValue("./data");
+  expect(screen.getByText(/In its own folder: stacks\/grafana\/data/)).toBeInTheDocument();
+  expect(screen.getByText(/Kept when the stack is deleted/)).toBeInTheDocument();
+  expect(deploy()).toBeEnabled();
+});
+
+test("an absolute path is on the host, and never Loskai's to delete", async () => {
+  await fillStep();
+  setData("/srv/grafana");
+
+  expect(screen.getByText(/On the Docker host. Loskai never deletes it/)).toBeInTheDocument();
+  expect(deploy()).toBeEnabled();
+});
+
+test.each([
+  ["~/grafana", /container's home \(\/root\)/],
+  ["grafana", /a bare 'grafana' is a Docker volume/],
+  ["/srv/a:b", /split the volume spec/],
+])("%s is refused before Deploy, with the reason", async (value, reason) => {
+  await fillStep();
+  setData(value);
+
+  expect(screen.getByText(reason)).toBeInTheDocument();
+  expect(deploy()).toBeDisabled();
+});
+
+test("a cleared path is required", async () => {
+  await fillStep();
+  setData("");
+
+  expect(screen.getByText(/Required — the folder to mount/)).toBeInTheDocument();
+  expect(deploy()).toBeDisabled();
 });
 
 test("a shadowed recipe says which source lost and which won", async () => {

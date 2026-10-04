@@ -65,3 +65,15 @@ export function isValidDnsTarget(value: string): boolean {
   if (!match) return false;
   return match.slice(1).every((octet) => Number(octet) >= 0 && Number(octet) <= 255);
 }
+
+// A host folder a recipe mounts (an `env` entry with `type: path`). Mirrors the backend's
+// recipes.path_problem — each of these installs fine and mounts somewhere unintended: `~`
+// expands inside Loskai's container (compose runs as root there: /root), a bare name is a
+// Docker volume rather than a folder, and a ':' splits the volume spec.
+export function pathProblem(value: string): string | null {
+  const v = value.trim();
+  if (v.startsWith("~")) return "'~' would be the Loskai container's home (/root), not yours — write the full path";
+  if (v.includes(":")) return "A path can't contain ':' — it would split the volume spec";
+  if (v && !/^(\/|\.\/|\.\.\/)/.test(v)) return `Start a relative path with ./ — a bare '${v}' is a Docker volume, not a folder`;
+  return null;
+}

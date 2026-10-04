@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 
 VALID_TYPES = {"pull", "git_build", "registry_pull"}
 SOURCE_LOCAL = "local"
-_VAR_RE = re.compile(r"\$\{(\w+)\}")
+# An `env` entry's `type`: what the wizard asks for, and how the answer is checked.
+# `path` is a host folder mounted into the container (see path_problem).
+ENV_TYPES = {"text", "path"}
 # A .env key Compose can read back as one: shell-identifier shape. Anything else (`=`, a
 # space, a newline) would split or merge lines in the generated file.
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -62,12 +64,42 @@ def validate_manifest(data: object) -> list[str]:
         errors.append("type 'git_build' requires 'git_repo'")
     if "service" in data and not isinstance(data.get("service"), str):
         errors.append("'service' must be a compose service name")
+    if "directories" in data:
+        # Removed 2026-10-04: Loskai made them *inside its own container*, so any path
+        # outside the stacks folder became a folder no one would ever see. Docker creates a
+        # missing bind folder on the host itself.
+        errors.append("'directories' is no longer supported — declare a `type: path` env entry")
     for i, entry in enumerate(data.get("env") or []):
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
-        elif not _ENV_KEY_RE.match(str(entry["key"])):
+            continue
+        if not _ENV_KEY_RE.match(str(entry["key"])):
             errors.append(f"env[{i}] key '{entry['key']}' is not a valid variable name")
+        etype = entry.get("type", "text")
+        if etype not in ENV_TYPES:
+            errors.append(f"env[{i}] type must be one of {sorted(ENV_TYPES)}")
+        elif etype == "path" and entry.get("default"):
+            problem = path_problem(str(entry["default"]))
+            if problem:
+                errors.append(f"env[{i}] default: {problem}")
     return errors
+
+
+def path_problem(value: str) -> str | None:
+    """Why a host path can't be mounted as written, or None.
+
+    Checked because each of these *installs*: Compose accepts all three and does something
+    other than intended. `~` expands inside the Loskai container, where compose runs as
+    root — `/root`, not your home. A bare name (`data`) is a named volume to Compose, not
+    a folder. A `:` splits the `source:target` spec in two."""
+    v = value.strip()
+    if v.startswith("~"):
+        return "'~' would be the Loskai container's home (/root), not yours — write the full path"
+    if ":" in v:
+        return "a path can't contain ':' — it would split the volume spec"
+    if v and not v.startswith(("/", "./", "../")):
+        return f"start a relative path with ./ — a bare '{v}' is a Docker volume, not a folder"
+    return None
 
 
 def resolve_answers(env_spec: list[dict], answers: dict) -> dict[str, str]:
@@ -91,7 +123,17 @@ def resolve_answers(env_spec: list[dict], answers: dict) -> dict[str, str]:
     values: dict[str, str] = {}
     for entry in env_spec:
         given = answers.get(entry["key"])
-        values[str(entry["key"])] = str(given if given is not None else entry.get("default", ""))
+        value = str(given if given is not None else entry.get("default", ""))
+        if entry.get("type") == "path":
+            # Always required: an empty source makes `:/data`, which Compose rejects —
+            # after the stack folder has been made.
+            value = value.strip()
+            if not value:
+                raise RecipeError(f"'{entry['label']}' is required — the folder to mount")
+            problem = path_problem(value)
+            if problem:
+                raise RecipeError(f"'{entry['label']}': {problem}")
+        values[str(entry["key"])] = value
     return values
 
 
@@ -119,12 +161,6 @@ def render_env(values: dict[str, str]) -> str:
     2026-10-03.
     """
     return "".join(f'{k}="{_env_escape(v)}"\n' for k, v in values.items())
-
-
-def expand_vars(text: str, values: dict[str, str]) -> str:
-    """Substitute ${VAR} from the install values (used for the `directories` paths Loskai
-    mkdir-s before compose runs). Unknown vars are left as-is."""
-    return _VAR_RE.sub(lambda m: values.get(m.group(1), m.group(0)), text)
 
 
 def source_slug(url: str) -> str:
@@ -191,7 +227,6 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         "type": data["type"],
         "description": data.get("description"),
         "env": data.get("env") or [],
-        "directories": data.get("directories") or [],
         "suggested_subdomain": data.get("suggested_subdomain"),
         "git_repo": data.get("git_repo"),
         # Which compose service is the published one, when the recipe runs several
@@ -378,10 +413,6 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
             target, reused = stacks.claim_dir(recipe_id)
         except StackError as exc:
             raise RecipeError(str(exc))
-
-    # Pre-create any declared directories (with ${VAR} expanded from the install values).
-    for raw in recipe["directories"]:
-        Path(expand_vars(str(raw), values)).mkdir(parents=True, exist_ok=True)
 
     if recipe["type"] == "git_build":
         _git_clone(recipe["git_repo"], target)

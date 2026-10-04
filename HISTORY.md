@@ -1,5 +1,34 @@
 # Loskai — History
 
+## 2026-10-04 — Mounted folders become something a recipe declares
+
+Sunde asked what the best way is to assign host paths in a compose file, and then — "ideally
+the install wizard is able to handle that, based on how we configure the instructions."
+
+The answer was tested rather than recited, from inside the running Loskai, because that is
+where a stack's compose actually runs. `./data` and `${X:-./data}` land in the stack folder; an
+absolute path passes through to the host; **`~` became `/root`** — compose runs as root inside
+Loskai's container. Two neighbouring traps come from Compose itself: a bare `data` is a named
+volume, not a folder, and a `:` splits the volume spec. All three install without complaint
+and mount the wrong thing — this project's recurring "fails as a success".
+
+So a recipe's `env` entry can now be `type: path`. The wizard says where each answer lands —
+in the stack's own folder (kept on Delete unless ticked) or on the Docker host (never Loskai's
+to delete) — and refuses the three traps before Deploy; the server refuses them too. A path is
+always required, since an empty source fails in Compose after the folder is made.
+
+The convention it encodes: the service's own state is a relative path fixed in the compose
+file; data it uses but doesn't own is a `path` question; caches are named volumes.
+
+**`directories:` was deleted, not fixed.** It pre-created folders — inside Loskai's own
+container, so for any path outside the stacks folder it made a directory nobody would ever
+see, while Docker was creating the real one on the host anyway. No recipe used it. A manifest
+that still has it is rejected with a pointer to `type: path`.
+
+- Key files: `backend/src/loskai/modules/docker/recipes.py`, `frontend/src/lib/validation.ts`,
+  `frontend/src/components/docker/InstallWizard.tsx`, `docs/reference/recipe-schema.md`
+- 405 backend + 149 frontend tests pass
+
 ## 2026-10-04 — A service is one folder, so Delete stops deleting it
 
 Asked where Bambuddy's data lived, Sunde found it in named volumes and preferred "the relative

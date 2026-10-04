@@ -113,9 +113,71 @@ def test_env_key_must_be_a_variable_name(key):
     assert any("not a valid variable name" in e for e in errors)
 
 
-def test_expand_vars():
-    assert recipes.expand_vars("/data/${APP}", {"APP": "grafana"}) == "/data/grafana"
-    assert recipes.expand_vars("/data/${MISSING}", {}) == "/data/${MISSING}"
+# --- type: path — the host folders a recipe mounts ---
+
+
+@pytest.mark.parametrize("value", ["./data", "./library/photos", "../shared", "/srv/media", "/mnt/nas share"])
+def test_a_mountable_path_has_no_problem(value):
+    assert recipes.path_problem(value) is None
+
+
+@pytest.mark.parametrize(
+    "value,why",
+    [
+        ("~/media", "/root"),  # compose runs as root inside Loskai's container
+        ("~", "/root"),
+        ("data", "Docker volume"),  # a bare name is a named volume, not a folder
+        ("/srv/a:b", "split the volume spec"),
+    ],
+)
+def test_paths_compose_would_mount_somewhere_else(value, why):
+    assert why in recipes.path_problem(value)
+
+
+PATH_SPEC = [
+    {"key": "CONFIG", "label": "Config folder", "type": "path", "default": "./config"},
+    {"key": "MEDIA", "label": "Media library", "type": "path"},
+]
+
+
+def test_a_path_answer_is_checked_on_the_server():
+    with pytest.raises(recipes.RecipeError, match="Media library.*Docker volume"):
+        recipes.resolve_answers(PATH_SPEC, {"MEDIA": "movies"})
+    with pytest.raises(recipes.RecipeError, match="/root"):
+        recipes.resolve_answers(PATH_SPEC, {"MEDIA": "~/movies"})
+
+
+def test_a_path_is_required_even_when_cleared():
+    """An empty source makes `:/media`, which compose rejects after the folder is made."""
+    with pytest.raises(recipes.RecipeError, match="'Media library' is required"):
+        recipes.resolve_answers(PATH_SPEC, {})
+    with pytest.raises(recipes.RecipeError, match="'Config folder' is required"):
+        recipes.resolve_answers(PATH_SPEC, {"CONFIG": "  ", "MEDIA": "/srv/media"})
+
+
+def test_path_answers_are_trimmed_and_passed_through():
+    assert recipes.resolve_answers(PATH_SPEC, {"MEDIA": " /srv/media "}) == {
+        "CONFIG": "./config", "MEDIA": "/srv/media",
+    }
+
+
+def test_a_manifest_path_default_is_checked_too():
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "env": [
+        {"key": "D", "label": "Data", "type": "path", "default": "~/data"},
+    ]})
+    assert any("env[0] default" in e and "/root" in e for e in errors)
+
+
+def test_an_unknown_env_type_is_rejected():
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "env": [
+        {"key": "D", "label": "Data", "type": "folder"},
+    ]})
+    assert any("type must be one of" in e for e in errors)
+
+
+def test_directories_is_gone_and_says_what_replaces_it():
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "directories": ["/srv/x"]})
+    assert any("type: path" in e for e in errors)
 
 
 # --- Sources + merge (filesystem) ---

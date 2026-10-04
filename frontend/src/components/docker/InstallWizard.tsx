@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
+import { pathProblem } from "../../lib/validation";
 import { Modal } from "../shared/Modal";
 
 interface RecipeEnv {
@@ -10,6 +11,8 @@ interface RecipeEnv {
   label: string;
   default?: string;
   secret?: boolean;
+  // `path`: a host folder mounted into the container — the wizard says where it lands.
+  type?: "text" | "path";
 }
 interface Recipe {
   id: string;
@@ -17,7 +20,6 @@ interface Recipe {
   type: string;
   description?: string;
   env: RecipeEnv[];
-  directories: string[];
   suggested_subdomain?: string;
   service?: string | null;
   // instructions.md, verbatim. Shown before the form — it is the recipe's own
@@ -234,10 +236,19 @@ function ReviewStep({
             ? " — needs docker login on the host, done once"
             : ""}
         </Row>
-        {recipe.directories.length > 0 && (
-          <Row label="Directories">
-            <code className="text-slate-300">{recipe.directories.join(", ")}</code> created
-            first
+        {paths(recipe).length > 0 && (
+          <Row label="Data">
+            {paths(recipe).map((e) => (
+              <span key={e.key} className="block">
+                {e.label}:{" "}
+                {e.default ? (
+                  <code className="text-slate-300">{e.default}</code>
+                ) : (
+                  <span className="text-slate-300">you choose</span>
+                )}
+                {e.default ? ` — ${pathWhere(e.default, recipe.id).short}` : ""}
+              </span>
+            ))}
           </Row>
         )}
         <Row label="Asks for">
@@ -359,8 +370,10 @@ function FillStep({
             type={e.secret ? "password" : "text"}
             value={answers[e.key] ?? ""}
             onChange={(ev) => setAnswers({ ...answers, [e.key]: ev.target.value })}
+            placeholder={e.type === "path" ? "./data or /srv/media" : undefined}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
           />
+          {e.type === "path" && <PathNote value={answers[e.key] ?? ""} recipeId={recipe.id} />}
         </label>
       ))}
       {error && <p className="text-sm text-rose-400">{error}</p>}
@@ -370,7 +383,7 @@ function FillStep({
         </button>
         <button
           onClick={onInstall}
-          disabled={pending}
+          disabled={pending || paths(recipe).some((e) => !pathOk(answers[e.key] ?? ""))}
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {pending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -378,5 +391,35 @@ function FillStep({
         </button>
       </div>
     </div>
+  );
+}
+
+const paths = (recipe: Recipe) => recipe.env.filter((e) => e.type === "path");
+const pathOk = (value: string) => value.trim() !== "" && pathProblem(value) === null;
+
+// Where a mounted folder ends up, in the terms that matter: beside the compose file (kept
+// when the stack is deleted, unless that is ticked), or anywhere else on the Docker host
+// (never touched by Loskai). Compose resolves a relative path against the stack folder.
+function pathWhere(value: string, recipeId: string): { short: string; long: string } {
+  const v = value.trim();
+  if (v.startsWith("/")) {
+    return {
+      short: "on the Docker host",
+      long: "On the Docker host. Loskai never deletes it — if it doesn't exist, Docker creates it, owned by root.",
+    };
+  }
+  const shown = `stacks/${recipeId}/${v.replace(/^\.\//, "")}`;
+  return {
+    short: "in its own folder",
+    long: `In its own folder: ${shown}. Kept when the stack is deleted, unless you tick "Also delete its data".`,
+  };
+}
+
+function PathNote({ value, recipeId }: { value: string; recipeId: string }) {
+  const problem = value.trim() ? pathProblem(value) : "Required — the folder to mount.";
+  return (
+    <span className={`mt-1 block text-xs ${problem ? "text-rose-400" : "text-slate-500"}`}>
+      {problem ?? pathWhere(value, recipeId).long}
+    </span>
   );
 }

@@ -67,9 +67,9 @@ env:                             # optional (omit if the compose needs no variab
   - key: PORT                    # required — the .env / ${VAR} name
     label: Host port             # required — human prompt shown in the wizard
     default: "3000"              # optional — pre-filled value
-  - key: DATA_PATH
-    label: Where should data be stored?
-    default: /opt/appdata
+  - key: MEDIA_PATH
+    label: Where is your media library?
+    type: path                   # optional — a host folder to mount; see "Mounting host folders"
   - key: GF_SECURITY_ADMIN_PASSWORD
     label: Admin password
     secret: true                 # optional — renders as a password field, never logged
@@ -93,7 +93,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `env[].label` | ✅ | — | The prompt shown to the user. |
 | `env[].default` | — | — | Pre-filled value. |
 | `env[].secret` | — | — | `true` → password field, value never logged. Defaults `false`. |
-| `directories` | — | all | Host dirs to pre-create before `up`. **Usually omit** — Docker auto-creates bind-mount source directories on `up`. Only set this when you need a directory to exist ahead of the container (e.g. to drop a config file into it). May reference `${VAR}` from `env`. |
+| `env[].type` | — | — | `text` (default) or `path` — a host folder mounted into the container. A `path` answer is **required** and checked (below); the wizard shows where it lands. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
@@ -171,6 +171,37 @@ that's still running — and the install refuses rather than overwrite it.
 
 ---
 
+## Mounting host folders — `type: path`
+
+Three kinds of data, three ways to mount them:
+
+| Data | How | Example |
+|---|---|---|
+| **The service's own state** — config, database | a relative path beside the compose file, fixed in `compose.yml` | `./data:/app/data` |
+| **Data it uses but doesn't own** — media, photos on a big disk, a NAS share | a `type: path` question, mounted `:ro` when the app only reads | `${MEDIA_PATH}:/media:ro` |
+| **Caches** that are safe to lose | a named volume | `model-cache:/cache` |
+
+State lives in the stack's own folder, so a service is one folder you can see, back up and
+move — and a stack's Delete keeps everything but `compose.yml` and `.env` unless told
+otherwise. When a service's own state can be large (a photo library), ask for it with a
+relative default — `${UPLOAD_LOCATION:-./library}` and `default: ./library` — so it lands in
+the stack folder unless pointed at a bigger disk.
+
+A `type: path` answer is refused when Compose would accept it and mount the wrong thing:
+
+- **`~`** — `docker compose` runs inside Loskai's container, as root, so `~` is `/root` there,
+  not your home. Write the full path.
+- **A bare name** (`data`) — to Compose that is a *named volume*, not a folder. A relative
+  path starts with `./`.
+- **A `:`** — it would split the `source:target` spec.
+
+An absolute path is on the Docker host and Loskai never deletes it; if it doesn't exist,
+Docker creates it, owned by root. There is no "create these folders first" field — the old
+`directories:` made them inside Loskai's own container, invisible to the host, and a
+manifest that still has it is rejected with a pointer here.
+
+---
+
 ## Telling Loskai the port — `loskai.port`
 
 Routing a container needs its port, and Docker can report one only when the container
@@ -207,6 +238,9 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - `type: git_build` with no `git_repo`.
 - an `env` entry is missing `key` or `label`.
 - `service` is present but is not a string.
+- an `env` entry's `type` is not `text` or `path`, or a `path` default is one of the cases
+  above.
+- `directories` is present — it was removed; use a `type: path` entry.
 - an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
   the generated `.env`).
 - `compose.yml` is missing.

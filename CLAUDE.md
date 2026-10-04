@@ -7,12 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
 install wizard) has run live and passed** (2026-10-03), git sync included — open for one
-bug: the root container leaves root-owned files on the host. **Phase 29** (a Docker route follows its container) is built and verified live, bar a
-daemon-restart check that needs root. **Phase 12 is finally complete** (2026-09-27): 12a in
-Phase 19, 12b as Phase 22, 12c as `docs/guides/backend-certificates.md`. The two archived live
+bug: the root container leaves root-owned files on the host. **Phase 29** (a Docker route
+follows its container) is built and verified live, bar a daemon-restart check that needs
+root. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
+as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (391 + 143 + docs).
+All three checks pass (405 + 149 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -222,7 +223,10 @@ must replay except the AdGuard password; its *own* admin password is stored only
   needed before the UI is up. The `.env` is generated at install, never committed — and
   **every value in it is double-quoted and escaped** (`resolve_answers` + `render_env`).
   Written verbatim, Compose interpolates `$` and cuts at ` #`, so a password arrives altered
-  while `up` still exits 0. Don't "simplify" it back to `KEY=value`.
+  while `up` still exits 0. Don't "simplify" it back to `KEY=value`. A `type: path` answer
+  is checked the same way, for the cases Compose accepts and mounts wrongly: `~` (compose
+  runs as root inside Loskai's container, so it means `/root`), a bare name (a named volume,
+  not a folder), a `:`.
 - **An installed recipe's instance links to the container name the daemon created**, read
   back from the compose project label — never the recipe id, which is only the project
   name. No container identified → no instance, and the wizard says so. A reinstall keeps
