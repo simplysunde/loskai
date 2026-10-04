@@ -103,6 +103,71 @@ def test_delete_stack_removes_dir(stacks_dir, monkeypatch):
     assert not (stacks_dir / "web").exists()
 
 
+def _with_data(base, name):
+    d = _make_stack(base, name, env="PORT=1\n")
+    (d / "data").mkdir()
+    (d / "data" / "app.db").write_text("rows")
+    return d
+
+
+def test_delete_keeps_the_data_by_default(stacks_dir, monkeypatch):
+    """Recipes keep data beside the compose file; Delete must not take it with it."""
+    d = _with_data(stacks_dir, "web")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+
+    result = stacks.delete_stack("web")
+
+    assert result["kept"] == ["data"]
+    assert (d / "data" / "app.db").read_text() == "rows"
+    assert not (d / "compose.yml").exists() and not (d / ".env").exists()
+    # No compose file, so no longer a stack — the data just waits in its folder.
+    assert stacks.list_stacks() == []
+
+
+def test_delete_with_data_removes_the_folder(stacks_dir, monkeypatch):
+    _with_data(stacks_dir, "web")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+
+    assert stacks.delete_stack("web", delete_data=True)["kept"] == []
+    assert not (stacks_dir / "web").exists()
+
+
+def test_delete_always_stops_the_stack_first(stacks_dir, monkeypatch):
+    _with_data(stacks_dir, "web")
+    ran = []
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: ran.append(a) or {"ok": True, "output": ""})
+
+    stacks.delete_stack("web")
+
+    assert ran == [("down",)]  # never `down -v`: named volumes survive too
+
+
+def test_the_stack_list_says_what_else_a_folder_holds(stacks_dir):
+    _with_data(stacks_dir, "web")
+    _make_stack(stacks_dir, "bare")
+
+    assert {s["name"]: s["data"] for s in stacks.list_stacks()} == {"bare": [], "web": ["data"]}
+
+
+def test_a_new_stack_takes_over_a_folder_delete_left(stacks_dir, monkeypatch):
+    d = _with_data(stacks_dir, "web")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    stacks.delete_stack("web")
+
+    stacks.create_stack("web", COMPOSE)
+
+    assert (d / "data" / "app.db").read_text() == "rows"
+    assert (d / "compose.yml").read_text() == COMPOSE
+
+
+def test_a_live_stack_is_never_taken_over(stacks_dir, monkeypatch):
+    _make_stack(stacks_dir, "web")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+
+    with pytest.raises(StackError, match="already exists"):
+        stacks.create_stack("web", COMPOSE)
+
+
 def test_name_validation_blocks_traversal(stacks_dir):
     for bad in ["../etc", "a/b", ".."]:
         with pytest.raises(StackError):

@@ -139,3 +139,14 @@ test("a failed install offers no subdomain suggestion", async () => {
   await waitFor(() => expect(screen.getByText(/Finished with errors/)).toBeInTheDocument());
   expect(screen.queryByText(/Suggested subdomain/)).not.toBeInTheDocument();
 });
+
+test("an install that reused a kept folder says so", async () => {
+  renderWizard({
+    install: { ok: true, output: "Started", container: "grafana-app-1", reused_data: true },
+  });
+  await pickGrafana();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+
+  expect(await screen.findByText(/Picked up the data left in its folder/)).toBeInTheDocument();
+});

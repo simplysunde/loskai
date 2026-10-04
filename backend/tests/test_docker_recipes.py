@@ -354,6 +354,8 @@ def installable(data_dir, monkeypatch):
         "  - key: PW\n    label: Admin password\n    secret: true\n",
     )
     monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
+    # The reinstall check asks Docker which containers exist; never the real daemon here.
+    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     return data_dir
 
 
@@ -430,3 +432,89 @@ def test_install_refuses_a_duplicate_stack(installable, monkeypatch):
     recipes.install_recipe("grafana", {})
     with pytest.raises(recipes.RecipeError, match="already exists"):
         recipes.install_recipe("grafana", {})
+
+
+# --- Reinstalling: the folder's data and the route record both survive ---
+
+
+def test_install_reuses_the_folder_a_kept_delete_left(installable, monkeypatch):
+    """Delete keeps a stack's data by default; installing it again picks the folder up."""
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    leftover = recipes.stacks.stacks_dir() / "grafana" / "data"
+    leftover.mkdir(parents=True)
+    (leftover / "grafana.db").write_text("dashboards")
+
+    result = recipes.install_recipe("grafana", {})
+
+    assert result["ok"] and result["reused_data"] is True
+    assert (leftover / "grafana.db").read_text() == "dashboards"
+    assert (recipes.stacks.stacks_dir() / "grafana" / "compose.yml").is_file()
+
+
+def test_a_fresh_install_reports_no_reused_data(installable, monkeypatch):
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    assert recipes.install_recipe("grafana", {})["reused_data"] is False
+
+
+def test_git_build_needs_an_empty_folder(data_dir, monkeypatch):
+    _make_recipe(data_dir / "recipes", "app", "App", 'git_repo: "https://x"\n')
+    # _make_recipe writes type: pull; make this one a git_build.
+    manifest = data_dir / "recipes" / "app" / "recipe.yml"
+    manifest.write_text(manifest.read_text().replace("type: pull", "type: git_build"))
+    (recipes.stacks.stacks_dir() / "app" / "data").mkdir(parents=True)
+    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
+
+    with pytest.raises(recipes.RecipeError, match="clones into an empty one"):
+        recipes.install_recipe("app", {})
+
+
+def test_reinstall_keeps_the_route_record(installable, monkeypatch):
+    """The open Phase 28 bug: a reinstall replaced the record wholesale, wiping its route
+    fields while Caddy kept serving the route."""
+    from loskai.shared.instances import Instance
+
+    instances_store.upsert_instance(Instance(
+        id="grafana", name="My dashboards", type="docker", container="grafana-old-1",
+        subdomain="graf", upstream="192.168.10.220:3000", private=True, icon="grafana.png",
+        follow_container=True,
+    ))
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    recipes.install_recipe("grafana", {})
+
+    inst = instances_store.get_instance("grafana")
+    assert inst.container == "grafana-app-1"  # re-pointed at what exists now
+    assert (inst.name, inst.subdomain, inst.upstream) == ("My dashboards", "graf", "192.168.10.220:3000")
+    assert inst.private and inst.icon == "grafana.png" and inst.follow_container
+
+
+def test_an_id_that_names_an_external_route_is_refused(installable, monkeypatch):
+    """A route's id is its prefix — a hand-made route at the recipe's name is not ours."""
+    from loskai.shared.instances import Instance
+
+    instances_store.upsert_instance(Instance(
+        id="grafana", name="grafana", type="external", subdomain="grafana",
+        upstream="192.168.10.60:3000",
+    ))
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    with pytest.raises(recipes.RecipeError, match="already the name of a route"):
+        recipes.install_recipe("grafana", {})
+    assert not (recipes.stacks.stacks_dir() / "grafana").exists()  # refused before any side effect
+    assert instances_store.get_instance("grafana").type == "external"
+
+
+def test_an_id_linked_to_another_running_container_is_refused(installable, monkeypatch):
+    """A route to a hand-run container named for the same app — still running — is not
+    this recipe's earlier install."""
+    from loskai.shared.instances import Instance
+
+    instances_store.upsert_instance(Instance(
+        id="grafana", name="grafana", type="docker", container="grafana", subdomain="grafana",
+    ))
+    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: {"grafana"})
+    _fake_project(monkeypatch, [])
+
+    with pytest.raises(recipes.RecipeError, match="route to container 'grafana'"):
+        recipes.install_recipe("grafana", {})
+    assert instances_store.get_instance("grafana").container == "grafana"

@@ -161,6 +161,14 @@ guessed link would sit in the list as a second, dead record beside the one the R
 tab's Add route picker creates correctly. The wizard says so, and the container (which
 exists either way) is routable from that picker.
 
+**Installing again.** Keep data beside the compose file (`./data`) — a stack's Delete keeps
+everything but `compose.yml` and `.env` unless told otherwise, and installing the same
+recipe again reuses that folder, data and all (the wizard says it did). The record is kept
+too: a reinstall re-points the earlier install's instance at the new container and leaves
+its route, icon and private flag alone. Because a route's id is its prefix, the recipe's id
+can already belong to something else — an external route, or a route to another container
+that's still running — and the install refuses rather than overwrite it.
+
 ---
 
 ## Telling Loskai the port — `loskai.port`

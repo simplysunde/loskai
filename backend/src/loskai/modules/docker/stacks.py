@@ -75,8 +75,34 @@ def list_stacks() -> list[dict]:
             status = "unknown"
         else:
             status = logic.compute_stack_status(declared, projects.get(directory.name, set()))
-        stacks.append({"name": directory.name, "services": sorted(declared), "status": status})
+        stacks.append({
+            "name": directory.name,
+            "services": sorted(declared),
+            "status": status,
+            "data": stack_data(directory),
+        })
     return stacks
+
+
+def stack_data(directory: Path) -> list[str]:
+    """What a stack folder holds besides its compose file and `.env` — its data, by the
+    recipes' convention of keeping `./data` beside the compose file. Names only: sizing a
+    media library to label a checkbox would take minutes."""
+    return sorted(p.name for p in directory.iterdir() if p.name not in {*_COMPOSE_NAMES, ".env"})
+
+
+def claim_dir(name: str) -> tuple[Path, bool]:
+    """The folder a new stack goes in, and whether it already held data.
+
+    A folder with a compose file is a live stack: refused. One without is what Delete
+    leaves when it keeps the data — taken over, which is how installing the same thing
+    again gets its data back."""
+    directory = _stack_dir(name)
+    if _compose_file(directory) is not None:
+        raise StackError(f"stack '{name}' already exists")
+    reused = directory.is_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory, reused
 
 
 def get_stack(name: str) -> dict:
@@ -136,10 +162,7 @@ def create_stack(name: str, compose_content: str, env_content: str = "") -> dict
     """The raw path: write a finished compose.yml + .env and `up`."""
     if not stacks_dir_ok():
         raise StackError("stacks directory not found — check the compose mount")
-    directory = _stack_dir(name)
-    if directory.exists():
-        raise StackError(f"stack '{name}' already exists")
-    directory.mkdir(parents=True)
+    directory, _ = claim_dir(name)
     (directory / "compose.yml").write_text(compose_content, encoding="utf-8")
     if env_content:
         (directory / ".env").write_text(env_content, encoding="utf-8")
@@ -155,12 +178,26 @@ def update_stack_file(name: str, file: str, content: str) -> None:
     (directory / file).write_text(content, encoding="utf-8")
 
 
-def delete_stack(name: str) -> dict:
+def delete_stack(name: str, delete_data: bool = False) -> dict:
+    """`down`, then remove the stack — but not its data unless asked.
+
+    Recipes keep their data beside the compose file (`./data`), so removing the folder
+    would take a service's database with it. By default only the compose file and `.env`
+    go: the stack leaves the list, the data stays, and installing it again picks the
+    folder back up (claim_dir). A folder left with nothing in it is removed.
+    `down` never takes `-v`, so named volumes survive either way."""
     directory = _stack_dir(name)
     if not directory.is_dir():
         raise StackError(f"stack '{name}' not found")
     result = {"ok": True, "output": ""}
     if _compose_file(directory) is not None:
         result = _run_compose(directory, "down")
-    shutil.rmtree(directory)
-    return result
+    if delete_data:
+        shutil.rmtree(directory)
+        return {**result, "kept": []}
+    for n in (*_COMPOSE_NAMES, ".env"):
+        (directory / n).unlink(missing_ok=True)
+    kept = stack_data(directory)
+    if not kept:
+        directory.rmdir()
+    return {**result, "kept": kept}

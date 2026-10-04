@@ -39,6 +39,8 @@ interface InstallResult {
   output: string;
   container: string | null;
   warning?: string;
+  // The stack folder already held data (left by a Delete that kept it), and it was reused.
+  reused_data?: boolean;
 }
 
 // Multi-step wizard: pick a recipe -> read what it will do -> fill the manifest's env
@@ -298,6 +300,11 @@ function ResultStep({
       <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
         {result.ok ? "Deployed." : "Finished with errors — check the output."}
       </p>
+      {result.ok && result.reused_data && (
+        <p className="text-sm text-slate-300">
+          Picked up the data left in its folder by an earlier install.
+        </p>
+      )}
       {result.warning && (
         <p className="flex items-start gap-2 text-sm text-amber-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

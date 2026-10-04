@@ -1,5 +1,34 @@
 # Loskai — History
 
+## 2026-10-04 — A service is one folder, so Delete stops deleting it
+
+Asked where Bambuddy's data lived, Sunde found it in named volumes and preferred "the relative
+directory of the service (where the compose file is located)" — `./data` beside the compose
+file, which is also what upstream Immich does. One folder per service: compose file and data
+together, visible and backed up over SSH.
+
+That preference turned the stack **Delete** into a data-loss button, because it was a plain
+`rmtree` of the folder. Of three options — keep the data unless ticked, move the folder to a
+trash, or keep deleting and warn louder — Sunde chose the first. Delete now runs `down` and
+removes only `compose.yml` and `.env`; the dialog names the folders it would take and makes
+taking them a deliberate tick. The trash option was rejected partly on a detail: the container
+still writes as root, so a trash would be root-owned and emptying it would need sudo.
+
+Keeping the folder made reinstalling routine, which is exactly where the open Phase 28 bug
+lived: a reinstall replaced the instance record wholesale and wiped its route. Both were fixed
+together. A folder with no compose file is now taken over by the next stack or install of that
+name; the record is kept and only re-pointed. Because a route's id is its prefix, the install
+also refuses when the recipe's id already names something unrelated, rather than overwrite it.
+
+Bambuddy's running install was moved from its volumes to `./data` live: stopped (it checkpoints
+SQLite on the way down), copied, compose swapped, started — every lasting table identical
+afterwards, the route still serving, the files owned by the host user since the image chowns
+to `PUID`. The old volumes are kept until confirmed.
+
+- Key files: `backend/src/loskai/modules/docker/{stacks,recipes,router}.py`,
+  `frontend/src/components/docker/DeleteStackOptions.tsx`, `pages/Docker.tsx`
+- 391 backend + 143 frontend tests pass
+
 ## 2026-10-03 — The upstream becomes host + port
 
 Sunde asked for the upstream as two fields on one row: a host that is both a dropdown of

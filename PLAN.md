@@ -320,7 +320,11 @@ daemon; it invents no new deployment method.
   prompts. For a one-off or a stack you already have. Bind-mount source directories are
   auto-created by Docker on `up`, so no directory step is needed
 - Edit `compose.yml` and `.env` in-browser, then re-`up` to apply
-- Delete a stack (`down` + remove the directory, with confirmation)
+- Delete a stack — `down`, then remove `compose.yml` and `.env`. **The rest of the folder is
+  kept unless you tick "Also delete its data"**: recipes keep a service's data beside its
+  compose file (`./data`), so removing the folder would take the database with it. A kept
+  folder is no longer a stack (no compose file); creating or installing the same name again
+  takes it over, data and all
 
 > **Same-path mount (important).** `STACKS_DIR` must be bind-mounted at the **same path**
 > inside the container as on the host (`${STACKS_DIR}:${STACKS_DIR}`), not remapped to a

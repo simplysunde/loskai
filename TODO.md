@@ -5,9 +5,9 @@ container, so a port changed even over SSH re-points the route by itself. Only t
 daemon-restart check is unrun (it needs root). **Phase 28** also has **run live and passed**
 (2026-10-03): the first real recipe
 installed, linked to the right container, routed without a duplicate — and the run found and
-fixed `.env` generation silently corrupting secrets; the git sync path works too. **Two bugs
-left, each needing a decision:** reinstalling a recipe wipes its instance's route fields
-(relink or refuse), and the container runs as root, so its files on the host — state and
+fixed `.env` generation silently corrupting secrets; the git sync path works too. Reinstall
+now keeps the route record, and a stack's Delete keeps its data unless asked. **One bug left,
+needing a decision:** the container runs as root, so its files on the host — state and
 wizard-created stacks — are root-owned (which user should it run as).
 
 Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
@@ -943,16 +943,18 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       container's environment byte-identical**, and the project label stayed put
 - [x] **Undeclared answer keys were written too** — the same `COMPOSE_*` route in. Refused
       with `400` before anything touches disk. Manifest `env` keys must be variable names
-- [ ] **Reinstalling a recipe wipes its instance's route fields** (found 2026-10-03, live, with
-      the Bambuddy recipe). `install_recipe` ends in `upsert_instance(Instance(id=recipe_id,
-      ...))`, which *replaces* the record. So Delete the stack (volumes kept, as intended),
-      reinstall, and `subdomain`/`upstream` are gone, along with `private`, `icon`, `scheme`
-      and `machine` — while the Caddy route `@id <recipe_id>` keeps serving. Loskai shows the
-      service unrouted and `/api/health` reports no inconsistency. Worse, a route's id is its
-      **prefix** (`assign.py:206`), so an *unrelated* instance routed at the same name — a
-      hand-run Bambuddy at `bambuddy.<domain>` — is overwritten outright. Needs a decision:
-      relink (keep the fields, update `container`) when the existing record is this
-      recipe's docker instance, and refuse — or take a new id — when it is something else
+- [x] **Reinstalling a recipe wiped its instance's route fields** — found 2026-10-03, fixed
+      2026-10-04 together with the Delete change below, since that is what made reinstalling
+      routine. A reinstall now keeps the earlier record (route, icon, private, following) and
+      re-points only `container`. The id is refused when it names something else: an external
+      route, or a docker record linked to a different container that is still running
+- [x] **A stack's Delete kept nothing** (2026-10-04, Sunde: data belongs "in the relative
+      directory of the service"). Recipes now keep data in `./data` beside the compose file,
+      which made `rmtree` a data-loss button. Delete now removes `compose.yml` and `.env` only
+      unless "Also delete its data" is ticked; the dialog names the folders. Creating or
+      installing the same name again takes the folder over (`claim_dir`), and the wizard says
+      it picked the data up. Bambuddy's recipe moved to `./data`/`./logs`, and the running
+      install was migrated live: every lasting table identical, route still serving
 - [x] **Routing a recipe install opened an empty form** (Sunde, 2026-10-03: "if it's a docker
       entry it will always have the host ip"; then: "add route and add url are two different
       functions"). They were: the Add route picker pre-filled from Docker, the row's "Assign

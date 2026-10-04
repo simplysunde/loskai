@@ -23,6 +23,7 @@ from ...shared import settings as settings_store
 from ...shared.instances import Instance
 from . import logic, stacks
 from .client import DOCKER_ERRORS, describe_error, docker_client
+from .stacks import StackError
 
 logger = logging.getLogger(__name__)
 
@@ -360,9 +361,23 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
     if compose_src is None:
         raise RecipeError("recipe compose.yml missing")
 
-    target = stacks.stacks_dir() / recipe_id
-    if target.exists():
-        raise RecipeError(f"a stack named '{recipe_id}' already exists")
+    # Also before any side effect: whose record this install will register under its id.
+    slot = _instance_slot(recipe_id)
+
+    if recipe["type"] == "git_build":
+        # A clone needs an empty folder, so a leftover one can't be reused here.
+        target = stacks.stacks_dir() / recipe_id
+        if target.exists():
+            raise RecipeError(
+                f"'{recipe_id}' already has a folder in the stacks directory — a git_build "
+                "recipe clones into an empty one"
+            )
+        reused = False
+    else:
+        try:
+            target, reused = stacks.claim_dir(recipe_id)
+        except StackError as exc:
+            raise RecipeError(str(exc))
 
     # Pre-create any declared directories (with ${VAR} expanded from the install values).
     for raw in recipe["directories"]:
@@ -370,8 +385,6 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
 
     if recipe["type"] == "git_build":
         _git_clone(recipe["git_repo"], target)
-    else:
-        target.mkdir(parents=True)
 
     (target / "compose.yml").write_text(compose_src.read_text(encoding="utf-8"), encoding="utf-8")
     (target / ".env").write_text(render_env(values), encoding="utf-8")
@@ -382,7 +395,10 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
         # Nothing came up, so there is nothing to register. An instance whose `container`
         # names no container joins to nothing — it would show as a permanently orphaned
         # row rather than a failed install.
-        return {"ok": False, "output": result["output"], "instance_id": None, "container": None}
+        return {
+            "ok": False, "output": result["output"], "instance_id": None, "container": None,
+            "reused_data": reused,
+        }
 
     container = _discover_container(recipe_id, recipe.get("service"))
     if container is None:
@@ -395,16 +411,57 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
             "output": result["output"],
             "instance_id": None,
             "container": None,
+            "reused_data": reused,
             "warning": (
                 f"'{recipe['name']}' is up, but its container could not be identified — "
                 "route it from the Routing tab's Add route picker."
             ),
         }
 
-    instances_store.upsert_instance(
-        Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
+    # A reinstall keeps the earlier record — its route, icon, private flag, following —
+    # and only re-points it at the container that now exists. Replacing it wholesale used
+    # to wipe the route fields while Caddy kept serving the route.
+    record = (
+        slot.model_copy(update={"container": container})
+        if slot
+        else Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
     )
-    return {"ok": True, "output": result["output"], "instance_id": recipe_id, "container": container}
+    instances_store.upsert_instance(record)
+    return {
+        "ok": True, "output": result["output"], "instance_id": recipe_id, "container": container,
+        "reused_data": reused,
+    }
+
+
+def _instance_slot(recipe_id: str) -> Instance | None:
+    """The record an install of `recipe_id` registers under: an earlier install's, to keep,
+    or None for a fresh one.
+
+    A route's instance id is its prefix, so the id can belong to something that isn't
+    this recipe at all — an external route, or a route to another container that is still
+    running. Those are refused rather than overwritten. A docker record whose container is
+    gone (deleted with its stack), or belongs to this recipe's own project, is the earlier
+    install's."""
+    existing = instances_store.get_instance(recipe_id)
+    if existing is None:
+        return None
+    if existing.type != "docker":
+        raise RecipeError(
+            f"'{recipe_id}' is already the name of a route to {existing.upstream or 'something else'} "
+            "— rename or remove it under Routing first"
+        )
+    if existing.container:
+        try:
+            alive = existing.container in docker_client.container_names()
+            ours = {c["name"] for c in docker_client.containers_in_project(project_name(recipe_id))}
+        except DOCKER_ERRORS:
+            alive, ours = False, set()  # can't tell — and the install needs Docker anyway
+        if alive and existing.container not in ours:
+            raise RecipeError(
+                f"'{recipe_id}' is already the name of the route to container "
+                f"'{existing.container}' — rename or remove it under Routing first"
+            )
+    return existing
 
 
 def _discover_container(recipe_id: str, declared: str | None) -> str | None:

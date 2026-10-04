@@ -12,10 +12,11 @@ import {
 import { InstallWizard } from "../components/docker/InstallWizard";
 import { LogViewer } from "../components/docker/LogViewer";
 import { StackEditor } from "../components/docker/StackEditor";
-import { StackList } from "../components/docker/StackList";
+import { StackList, type Stack } from "../components/docker/StackList";
 import { StatsBar } from "../components/docker/StatsBar";
 import { Terminal } from "../components/docker/Terminal";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { DeleteStackOptions } from "../components/docker/DeleteStackOptions";
 import { ModuleStatus } from "../components/shared/ModuleStatus";
 
 type Tab = "containers" | "stacks";
@@ -30,7 +31,8 @@ export function Docker() {
   const [terminalFor, setTerminalFor] = useState<Container | null>(null);
   const [removeContainer, setRemoveContainer] = useState<Container | null>(null);
   const [stackEditor, setStackEditor] = useState<{ name: string | null } | null>(null);
-  const [deleteStack, setDeleteStack] = useState<string | null>(null);
+  const [deleteStack, setDeleteStack] = useState<Stack | null>(null);
+  const [deleteData, setDeleteData] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
   const settings = useQuery({
@@ -48,7 +50,8 @@ export function Docker() {
   });
 
   const deleteStackMut = useMutation({
-    mutationFn: (name: string) => api.del(`/api/docker/stacks/${name}`),
+    mutationFn: ({ name, data }: { name: string; data: boolean }) =>
+      api.del(`/api/docker/stacks/${name}${data ? "?delete_data=true" : ""}`),
     onSuccess: () => {
       setDeleteStack(null);
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
@@ -102,7 +105,13 @@ export function Docker() {
           onRemove={setRemoveContainer}
         />
       ) : (
-        <StackList onEdit={(name) => setStackEditor({ name })} onDelete={setDeleteStack} />
+        <StackList
+          onEdit={(name) => setStackEditor({ name })}
+          onDelete={(stack) => {
+            setDeleteData(false); // never carried over from a previous dialog
+            setDeleteStack(stack);
+          }}
+        />
       )}
 
       {logsFor && <LogViewer container={logsFor} onClose={() => setLogsFor(null)} />}
@@ -128,12 +137,15 @@ export function Docker() {
         open={deleteStack !== null}
         title="Delete stack"
         destructive
-        confirmLabel="Delete"
+        confirmLabel={deleteData ? "Delete with data" : "Delete"}
         onCancel={() => setDeleteStack(null)}
-        onConfirm={() => deleteStack && deleteStackMut.mutate(deleteStack)}
+        onConfirm={() =>
+          deleteStack && deleteStackMut.mutate({ name: deleteStack.name, data: deleteData })
+        }
       >
-        Run <span className="font-mono">down</span> and delete the{" "}
-        <span className="font-medium text-slate-200">{deleteStack}</span> stack directory?
+        {deleteStack && (
+          <DeleteStackOptions stack={deleteStack} deleteData={deleteData} onDeleteData={setDeleteData} />
+        )}
       </ConfirmDialog>
     </div>
   );

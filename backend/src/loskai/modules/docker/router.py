@@ -269,9 +269,10 @@ def update_stack_file(name: str, payload: dict = Body(...)) -> dict:
 
 
 @router.delete("/stacks/{name}")
-def delete_stack(name: str) -> dict:
+def delete_stack(name: str, delete_data: bool = False) -> dict:
+    """Keeps the folder's data unless `?delete_data=true`."""
     try:
-        return stacks_mod.delete_stack(name)
+        return stacks_mod.delete_stack(name, delete_data)
     except StackError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

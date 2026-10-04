@@ -8,6 +8,8 @@ export interface Stack {
   name: string;
   services: string[];
   status: "up" | "down" | "partial" | "unknown";
+  // What else the folder holds besides compose.yml and .env — its data.
+  data?: string[];
 }
 
 const STATUS: Record<string, string> = {
@@ -22,7 +24,7 @@ export function StackList({
   onDelete,
 }: {
   onEdit: (name: string) => void;
-  onDelete: (name: string) => void;
+  onDelete: (stack: Stack) => void;
 }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -94,7 +96,7 @@ export function StackList({
                     <Act title="Edit" onClick={() => onEdit(s.name)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Act>
-                    <Act title="Delete" danger onClick={() => onDelete(s.name)}>
+                    <Act title="Delete" danger onClick={() => onDelete(s)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Act>
                   </div>
