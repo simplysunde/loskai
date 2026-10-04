@@ -13,7 +13,7 @@ root. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Pha
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (407 + 149 + docs).
+All three checks pass (430 + 153 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -226,13 +226,15 @@ must replay except the AdGuard password; its *own* admin password is stored only
   while `up` still exits 0. Don't "simplify" it back to `KEY=value`. A `type: path` answer
   is checked the same way, for the cases Compose accepts and mounts wrongly: `~` (compose
   runs as root inside Loskai's container, so it means `/root`), a bare name (a named volume,
-  not a folder), a `:`.
+  not a folder), a `:`. A recipe's `mounts` (folders the user adds) go into a generated
+  `compose.override.yml`, long syntax with `create_host_path: false` — never into the
+  recipe's own `compose.yml`.
 - **An installed recipe's instance links to the container name the daemon created**, read
   back from the compose project label — never the recipe id, which is only the project
   name. No container identified → no instance, and the wizard says so. A reinstall keeps
   the earlier record and only re-points `container`; an id that names something else is
   refused, never overwritten.
-- **A stack's Delete keeps its data unless asked** (`delete_data`): only `compose.yml` and
+- **A stack's Delete keeps its data unless asked** (`delete_data`): only `compose.yml`, an override and
   `.env` go, because recipes keep data beside them (`./data`). Don't turn it back into a
   plain `rmtree`. A kept folder (no compose file) is taken over by the next stack of that
   name (`claim_dir`).

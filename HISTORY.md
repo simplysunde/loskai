@@ -1,5 +1,29 @@
 # Loskai — History
 
+## 2026-10-04 — Folders a user adds at install: `mounts`
+
+`type: path` asks for one folder. Asked about Jellyfin, the honest answer was "point it at a
+parent folder" — and Sunde mounts music, movies and anime individually, which no recipe can
+anticipate. A file browser was priced first and declined: Loskai can't see the host's disks,
+so it would mean mounting the host root into Loskai or a throwaway container per click, for
+a field filled in once — and its one real benefit, catching a typo, comes free from
+`create_host_path: false`, verified against the daemon (a missing folder fails the deploy
+rather than becoming an empty root-owned one).
+
+So a recipe can declare a `mounts` group and the wizard adds rows, each landing at
+`target/<name>`. They go into a generated `compose.override.yml` rather than the recipe's
+`compose.yml`: Compose merges it unasked, and Loskai already runs compose from the stack
+folder without `-f`. The cost is a stack whose definition is in two files — so the editor
+shows the override, read-only, and Delete treats it as config.
+
+The limits are written into the schema on purpose — one group, one service, one `read_only`
+— because the risk was never this feature but its growing into a volume editor. The *arr
+stack, needing matching paths in several containers, is where it stops.
+
+- Key files: `backend/src/loskai/modules/docker/recipes.py`, `stacks.py`,
+  `frontend/src/components/docker/InstallWizard.tsx`, `docs/reference/recipe-schema.md`
+- 430 backend + 153 frontend tests pass
+
 ## 2026-10-04 — Mounted folders become something a recipe declares
 
 Sunde asked what the best way is to assign host paths in a compose file, and then — "ideally

@@ -297,7 +297,9 @@ def refresh_recipes(payload: dict = Body(default={})) -> dict:
 @router.post("/recipes/{recipe_id}/install")
 def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
     try:
-        return recipes_mod.install_recipe(recipe_id, payload.get("answers", {}))
+        return recipes_mod.install_recipe(
+            recipe_id, payload.get("answers", {}), payload.get("mounts") or []
+        )
     except RecipeError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

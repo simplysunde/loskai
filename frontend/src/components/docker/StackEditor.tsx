@@ -21,6 +21,7 @@ export function StackEditor({
     creating ? "services:\n  app:\n    image: \n" : "",
   );
   const [env, setEnv] = useState("");
+  const [override, setOverride] = useState<{ file: string; text: string } | null>(null);
   const [loading, setLoading] = useState(!creating);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +29,13 @@ export function StackEditor({
   useEffect(() => {
     if (creating) return;
     api
-      .get<{ compose: string; env: string }>(`/api/docker/stacks/${name}`)
+      .get<{ compose: string; env: string; override: string | null; override_file: string | null }>(
+        `/api/docker/stacks/${name}`,
+      )
       .then((s) => {
         setCompose(s.compose);
         setEnv(s.env);
+        if (s.override !== null && s.override_file) setOverride({ file: s.override_file, text: s.override });
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
@@ -74,6 +78,18 @@ export function StackEditor({
           )}
           <Editor label="compose.yml" value={compose} onChange={setCompose} rows={14} />
           <Editor label=".env" value={env} onChange={setEnv} rows={5} />
+          {override && (
+            // Read-only: Compose merges it into compose.yml, so it is shown to keep the
+            // stack's whole definition visible — the install wizard's folders live here.
+            <div>
+              <span className="mb-1 block text-xs font-medium text-slate-400">
+                {override.file} — merged in by Compose; read-only here
+              </span>
+              <pre className="max-h-48 overflow-auto rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 font-mono text-xs text-slate-400">
+                {override.text}
+              </pre>
+            </div>
+          )}
           {error && <p className="text-sm text-rose-400">{error}</p>}
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">

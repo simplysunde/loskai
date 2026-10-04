@@ -75,6 +75,11 @@ env:                             # optional (omit if the compose needs no variab
     label: Admin password
     secret: true                 # optional — renders as a password field, never logged
 
+mounts:                          # optional — folders the user adds at install; see "Folders the user adds"
+  label: Media folders
+  target: /media
+  read_only: true
+
 suggested_subdomain: grafana     # optional — pre-fills the Assign-URL step
 service: web                     # optional — which compose service is the published one
 
@@ -95,6 +100,10 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `env[].default` | — | — | Pre-filled value. |
 | `env[].secret` | — | — | `true` → password field, value never logged. Defaults `false`. |
 | `env[].type` | — | — | `text` (default) or `path` — a host folder mounted into the container. A `path` answer is **required** and checked (below); the wizard shows where it lands. |
+| `mounts` | — | all | Folders the user adds at install, however many — see [Folders the user adds](#folders-the-user-adds--mounts). |
+| `mounts.label` | ✅ | — | The heading over the folder rows. |
+| `mounts.target` | ✅ | — | Absolute container path; each folder lands at `target/<its name>`. |
+| `mounts.read_only` | — | — | Defaults `true`. One setting for every folder. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
@@ -163,7 +172,7 @@ tab's Add route picker creates correctly. The wizard says so, and the container 
 exists either way) is routable from that picker.
 
 **Installing again.** Keep data beside the compose file (`./data`) — a stack's Delete keeps
-everything but `compose.yml` and `.env` unless told otherwise, and installing the same
+everything but its compose files and `.env` unless told otherwise, and installing the same
 recipe again reuses that folder, data and all (the wizard says it did). The record is kept
 too: a reinstall re-points the earlier install's instance at the new container and leaves
 its route, icon and private flag alone. Because a route's id is its prefix, the recipe's id
@@ -180,10 +189,11 @@ Three kinds of data, three ways to mount them:
 |---|---|---|
 | **The service's own state** — config, database | a relative path beside the compose file, fixed in `compose.yml` | `./data:/app/data` |
 | **Data it uses but doesn't own** — media, photos on a big disk, a NAS share | a `type: path` question, mounted `:ro` when the app only reads | `${MEDIA_PATH}:/media:ro` |
+| **…when the user has any number of them** — music, movies, anime | a `mounts` block (below) | `/media/anime`, `/media/music` |
 | **Caches** that are safe to lose | a named volume | `model-cache:/cache` |
 
 State lives in the stack's own folder, so a service is one folder you can see, back up and
-move — and a stack's Delete keeps everything but `compose.yml` and `.env` unless told
+move — and a stack's Delete keeps everything but its compose files and `.env` unless told
 otherwise. When a service's own state can be large (a photo library), ask for it with a
 relative default — `${UPLOAD_LOCATION:-./library}` and `default: ./library` — so it lands in
 the stack folder unless pointed at a bigger disk.
@@ -200,6 +210,59 @@ An absolute path is on the Docker host and Loskai never deletes it; if it doesn'
 Docker creates it, owned by root. There is no "create these folders first" field — the old
 `directories:` made them inside Loskai's own container, invisible to the host, and a
 manifest that still has it is rejected with a pointer here.
+
+---
+
+## Folders the user adds — `mounts`
+
+A `path` question asks for exactly one folder. A media server, a book library or a backup
+tool takes as many as the user happens to have — one per library — and no recipe can guess
+how many, or what they are called. `mounts` lets the user add them in the wizard instead:
+
+```yaml
+mounts:
+  label: Media folders     # the heading over the rows
+  target: /media           # each folder lands at /media/<its name>
+  read_only: true          # the default; one setting for every folder
+```
+
+The user adds rows — `/srv/media/anime`, `/srv/media/music` — and each shows where it lands
+(`→ /media/anime`). Inside the app, they then pick those as libraries. Adding none is fine.
+
+Loskai writes them into a **`compose.override.yml`** beside the recipe's `compose.yml`, which
+Compose merges in by itself — the recipe's own file is never rewritten:
+
+```yaml
+services:
+  jellyfin:
+    volumes:
+      - type: bind
+        source: /srv/media/anime
+        target: /media/anime
+        read_only: true
+        bind:
+          create_host_path: false
+```
+
+**A folder that doesn't exist fails the deploy** (`bind source path does not exist`), rather
+than being created. The short form (`/srv/media/anime:/media/anime`) has Docker create a
+mistyped folder — empty, root-owned — and the install succeeds with an empty library.
+
+Each folder gets the `path` checks above, and two more: a folder must have a name of its own
+(not `/`), and two folders whose last names match (`/disk1/anime`, `/disk2/anime`) are
+refused, since both would land at one place — rename one, or mount their parent.
+
+Where they go: the recipe's `service`, or its only service. A multi-service recipe with
+`mounts` must name its `service`.
+
+The override is configuration, not data: a stack's Delete removes it with `compose.yml`, and
+installing again writes it from the new rows. The stack editor shows it read-only — to change
+the folders, reinstall (the data is kept) or edit the file over SSH.
+
+**Where this stops.** One group of folders per recipe, mounted into one service, all
+read-only or all writable, each at `target/<name>`. A recipe that needs more — two groups,
+or the same folder in several containers at matching paths (Sonarr and its downloader) —
+asks with fixed `type: path` questions instead. Past these limits it is a volume editor.
 
 ---
 
@@ -242,6 +305,10 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - an `env` entry's `type` is not `text` or `path`, or a `path` default is one of the cases
   above.
 - `directories` is present — it was removed; use a `type: path` entry.
+- `mounts` is not a mapping, has no `label`, has a `target` that isn't an absolute container
+  path (or is `/`), or a `read_only` that isn't `true`/`false`.
+- `mounts` is present in a multi-service recipe with no `service`, or `service` names no
+  service in `compose.yml`.
 - an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
   the generated `.env`).
 - `compose.yml` is missing.

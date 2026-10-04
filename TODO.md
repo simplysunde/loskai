@@ -975,6 +975,16 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       named volume to Compose) and `:` — the server checks the same. **`directories:` removed**:
       it made folders inside Loskai's container, invisible to the host; a manifest with it is
       rejected with a pointer to `type: path`
+- [x] **Any number of folders, added at install — `mounts`** (2026-10-04, Sunde mounts music,
+      movies and anime separately: "I would assume that ability is quite relevant"). A recipe
+      declares one group (`label`, `target`, `read_only`); the wizard adds rows, each landing
+      at `target/<name>`; Loskai writes them into `compose.override.yml`, which Compose merges
+      by itself, so the recipe's file stays untouched. Long syntax with `create_host_path:
+      false` — checked against the daemon: a missing folder fails the deploy instead of
+      mounting an empty one Docker made. Delete removes the override; the stack editor shows
+      it read-only. Deliberately one group, one service, one `read_only`
+- [x] **A synced source reported its `.git` as a skipped recipe** (2026-10-04). Every folder
+      in a source was scanned, and a clone has `.git`. Hidden folders are skipped now
 - [ ] **The container runs as root, so everything it writes on the host is root-owned** (found
       2026-10-03, the first time the redeployed container wrote state). `data/instances.json`
       became `root:root 0600` — unreadable to the host user, which also breaks a dev backend

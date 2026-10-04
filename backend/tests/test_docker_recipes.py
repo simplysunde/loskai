@@ -590,3 +590,130 @@ def test_an_id_linked_to_another_running_container_is_refused(installable, monke
     with pytest.raises(recipes.RecipeError, match="route to container 'grafana'"):
         recipes.install_recipe("grafana", {})
     assert instances_store.get_instance("grafana").container == "grafana"
+
+
+# --- mounts: the folders the user adds at install, however many they have ---
+
+MEDIA = "mounts:\n  label: Media folders\n  target: /media\n"
+
+
+@pytest.mark.parametrize(
+    "mounts,problem",
+    [
+        ("folders", "must be a mapping"),
+        ({"target": "/media"}, "needs a 'label'"),
+        ({"label": "Media"}, "absolute container path"),
+        ({"label": "Media", "target": "media"}, "absolute container path"),
+        ({"label": "Media", "target": "/"}, "absolute container path"),
+        ({"label": "Media", "target": "/a:b"}, "absolute container path"),
+        ({"label": "Media", "target": "/media", "read_only": "yes"}, "true or false"),
+    ],
+)
+def test_mounts_block_is_validated(mounts, problem):
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "mounts": mounts})
+    assert any(problem in e for e in errors), errors
+
+
+def test_mounts_go_into_the_only_service_read_only_by_default(data_dir):
+    _make_recipe(data_dir / "recipes", "jellyfin", "Jellyfin", MEDIA)
+    mounts = recipes.get_recipe("jellyfin")["mounts"]
+    assert mounts == {"label": "Media folders", "target": "/media", "read_only": True, "service": "app"}
+
+
+def test_mounts_in_a_multi_service_recipe_need_its_service(data_dir):
+    folder = _make_recipe(data_dir / "recipes", "jellyfin", "Jellyfin", MEDIA)
+    (folder / "compose.yml").write_text("services:\n  app:\n    image: x\n  db:\n    image: y\n")
+    result = recipes.list_recipes()
+    assert any("needs 'service'" in i["error"] for i in result["invalid"])
+
+
+def test_mounts_service_must_be_in_the_compose_file(data_dir):
+    _make_recipe(data_dir / "recipes", "jellyfin", "Jellyfin", MEDIA + "service: web\n")
+    result = recipes.list_recipes()
+    assert any("'service: web' is not a service" in i["error"] for i in result["invalid"])
+
+
+MEDIA_SPEC = {"label": "Media folders", "target": "/media", "read_only": True, "service": "app"}
+
+
+def test_each_folder_lands_under_the_target_by_its_own_name():
+    folders = ["/srv/scloud/media/anime", "/srv/scloud/media/movies/", "./music"]
+    assert recipes.resolve_mounts(MEDIA_SPEC, folders) == [
+        ("/srv/scloud/media/anime", "/media/anime"),
+        ("/srv/scloud/media/movies/", "/media/movies"),
+        ("./music", "/media/music"),
+    ]
+
+
+def test_two_folders_with_one_name_are_refused():
+    with pytest.raises(recipes.RecipeError, match="would both land at /media/anime"):
+        recipes.resolve_mounts(MEDIA_SPEC, ["/disk1/anime", "/disk2/anime"])
+
+
+@pytest.mark.parametrize(
+    "folder,reason",
+    [
+        ("~/anime", "container's home"),
+        ("anime", "is a Docker volume"),
+        ("", "a folder is empty"),
+        ("/", "no folder name"),
+    ],
+)
+def test_a_bad_folder_is_refused_with_the_reason(folder, reason):
+    with pytest.raises(recipes.RecipeError, match=reason):
+        recipes.resolve_mounts(MEDIA_SPEC, [folder])
+
+
+def test_folders_for_a_recipe_without_mounts_are_refused():
+    with pytest.raises(recipes.RecipeError, match="takes no extra folders"):
+        recipes.resolve_mounts(None, ["/srv/media"])
+    assert recipes.resolve_mounts(None, []) == []
+
+
+def test_override_is_long_syntax_that_never_creates_a_folder():
+    """The short form has Docker create a mistyped folder, empty and root-owned, and the
+    install succeeds with an empty library. `create_host_path: false` fails it instead."""
+    import yaml
+
+    text = recipes.render_override("app", [("/srv/my$stuff", "/media/my$stuff")], True)
+    volume = yaml.safe_load(text)["services"]["app"]["volumes"][0]
+    assert volume == {
+        "type": "bind",
+        # Compose interpolates the override too: `$$` is a literal `$`.
+        "source": "/srv/my$$stuff",
+        "target": "/media/my$$stuff",
+        "read_only": True,
+        "bind": {"create_host_path": False},
+    }
+
+
+@pytest.fixture
+def jellyfin(installable, monkeypatch):
+    _make_recipe(installable / "recipes", "jellyfin", "Jellyfin", MEDIA)
+    _fake_project(monkeypatch, [_c("app", "jellyfin-app-1")])
+    return recipes.stacks.stacks_dir() / "jellyfin"
+
+
+def test_install_writes_the_folders_into_an_override(jellyfin):
+    import yaml
+
+    recipes.install_recipe("jellyfin", {}, ["/srv/media/anime", "/srv/media/music"])
+
+    volumes = yaml.safe_load((jellyfin / "compose.override.yml").read_text())["services"]["app"]["volumes"]
+    assert [(v["source"], v["target"]) for v in volumes] == [
+        ("/srv/media/anime", "/media/anime"),
+        ("/srv/media/music", "/media/music"),
+    ]
+    # The recipe's own compose file is copied untouched.
+    assert (jellyfin / "compose.yml").read_text() == "services:\n  app:\n    image: x\n"
+
+
+def test_install_without_folders_writes_no_override(jellyfin):
+    recipes.install_recipe("jellyfin", {})
+    assert not (jellyfin / "compose.override.yml").exists()
+
+
+def test_a_bad_folder_fails_before_touching_disk(jellyfin):
+    with pytest.raises(recipes.RecipeError, match="is a Docker volume"):
+        recipes.install_recipe("jellyfin", {}, ["anime"])
+    assert not jellyfin.exists()

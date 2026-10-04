@@ -124,6 +124,25 @@ def test_delete_keeps_the_data_by_default(stacks_dir, monkeypatch):
     assert stacks.list_stacks() == []
 
 
+def test_delete_removes_the_override_but_keeps_the_data(stacks_dir, monkeypatch):
+    """The override is config (the folders added at install), not data — and a kept one
+    would come back to mount the old folders on the next install."""
+    d = _with_data(stacks_dir, "web")
+    (d / "compose.override.yml").write_text("services: {}\n")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+
+    assert stacks.delete_stack("web")["kept"] == ["data/"]
+    assert not (d / "compose.override.yml").exists()
+
+
+def test_get_stack_shows_the_override(stacks_dir):
+    d = _make_stack(stacks_dir, "web", COMPOSE)
+    assert stacks.get_stack("web")["override"] is None
+    (d / "compose.override.yml").write_text("services: {}\n")
+    got = stacks.get_stack("web")
+    assert got["override"] == "services: {}\n" and got["override_file"] == "compose.override.yml"
+
+
 def test_delete_with_data_removes_the_folder(stacks_dir, monkeypatch):
     _with_data(stacks_dir, "web")
     monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})

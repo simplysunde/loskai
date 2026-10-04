@@ -13,7 +13,7 @@ import hashlib
 import logging
 import re
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 
@@ -69,6 +69,8 @@ def validate_manifest(data: object) -> list[str]:
         # outside the stacks folder became a folder no one would ever see. Docker creates a
         # missing bind folder on the host itself.
         errors.append("'directories' is no longer supported — declare a `type: path` env entry")
+    if "mounts" in data:
+        errors.extend(_mounts_problems(data["mounts"]))
     for i, entry in enumerate(data.get("env") or []):
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
@@ -82,6 +84,23 @@ def validate_manifest(data: object) -> list[str]:
             problem = path_problem(str(entry["default"]))
             if problem:
                 errors.append(f"env[{i}] default: {problem}")
+    return errors
+
+
+def _mounts_problems(mounts: object) -> list[str]:
+    """`mounts`: a group of folders the user picks at install — however many they have —
+    each mounted at `target/<its name>` in the published service. Deliberately one group,
+    one service, one read_only for all: past that it is a volume editor."""
+    if not isinstance(mounts, dict):
+        return ["'mounts' must be a mapping with 'label' and 'target'"]
+    errors: list[str] = []
+    if not isinstance(mounts.get("label"), str) or not mounts["label"]:
+        errors.append("mounts needs a 'label'")
+    target = mounts.get("target")
+    if not isinstance(target, str) or not target.startswith("/") or not target.strip("/") or ":" in target:
+        errors.append("mounts 'target' must be an absolute container path, like /media")
+    if not isinstance(mounts.get("read_only", True), bool):
+        errors.append("mounts 'read_only' must be true or false")
     return errors
 
 
@@ -135,6 +154,58 @@ def resolve_answers(env_spec: list[dict], answers: dict) -> dict[str, str]:
                 raise RecipeError(f"'{entry['label']}': {problem}")
         values[str(entry["key"])] = value
     return values
+
+
+def resolve_mounts(spec: dict | None, folders: list) -> list[tuple[str, str]]:
+    """(host folder, container path) for each folder the user added: each lands at
+    `target/<its own name>`, so `/srv/media/anime` becomes `/media/anime`."""
+    if not isinstance(folders, list):
+        raise RecipeError("'mounts' must be a list of folders")
+    if not folders:
+        return []
+    if spec is None:
+        raise RecipeError("this recipe takes no extra folders")
+    pairs: list[tuple[str, str]] = []
+    landed: dict[str, str] = {}
+    for raw in folders:
+        source = str(raw).strip()
+        problem = "a folder is empty" if not source else path_problem(source)
+        if problem:
+            raise RecipeError(f"'{spec['label']}': {problem}")
+        name = PurePosixPath(source.rstrip("/")).name
+        if name in ("", ".", ".."):
+            raise RecipeError(f"'{spec['label']}': '{source}' has no folder name to mount it under")
+        target = f"{spec['target'].rstrip('/')}/{name}"
+        if target in landed:
+            raise RecipeError(
+                f"'{landed[target]}' and '{source}' would both land at {target} — "
+                "rename one, or mount their parent"
+            )
+        landed[target] = source
+        pairs.append((source, target))
+    return pairs
+
+
+def render_override(service: str, pairs: list[tuple[str, str]], read_only: bool) -> str:
+    """The compose.override.yml holding the folders added at install. Compose merges it
+    into compose.yml by itself, so the recipe's own file is never rewritten.
+
+    Long syntax with `create_host_path: false`: a mistyped folder fails the deploy with
+    "bind source path does not exist", where the short form has Docker create an empty,
+    root-owned folder and mount that — a library that installs fine and stays empty.
+    `$` is doubled because Compose interpolates this file like any other."""
+    volumes = [
+        {
+            "type": "bind",
+            "source": source.replace("$", "$$"),
+            "target": target.replace("$", "$$"),
+            "read_only": read_only,
+            "bind": {"create_host_path": False},
+        }
+        for source, target in pairs
+    ]
+    body = yaml.safe_dump({"services": {service: {"volumes": volumes}}}, sort_keys=False)
+    return "# Folders added in Loskai's install wizard. Reinstall to change them.\n" + body
 
 
 def _env_escape(value: str) -> str:
@@ -216,8 +287,20 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
     except yaml.YAMLError as exc:
         raise RecipeError(f"invalid YAML: {exc}")
     errors = validate_manifest(data)
-    if not any((folder / n).is_file() for n in ("compose.yml", "compose.yaml")):
+    compose = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
+    if compose is None:
         errors.append("compose.yml missing")
+    mounts = None
+    if not errors and "mounts" in data:
+        service, problem = _mount_service(compose.read_text(encoding="utf-8"), data.get("service"))
+        if problem:
+            errors.append(problem)
+        mounts = {
+            "label": data["mounts"]["label"],
+            "target": data["mounts"]["target"],
+            "read_only": data["mounts"].get("read_only", True),
+            "service": service,
+        }
     if errors:
         raise RecipeError("; ".join(errors))
     instructions = folder / "instructions.md"
@@ -232,11 +315,24 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         # Which compose service is the published one, when the recipe runs several
         # (logic.primary_container). Optional — one service needs no declaration.
         "service": data.get("service"),
+        "mounts": mounts,
         "instructions": instructions.read_text(encoding="utf-8") if instructions.is_file() else "",
         "source": source,
         "source_url": source_url,
         "path": str(folder),
     }
+
+
+def _mount_service(compose_text: str, declared: str | None) -> tuple[str | None, str | None]:
+    """The service a recipe's `mounts` go into — its `service`, or its only one."""
+    services = logic.declared_services(compose_text)
+    if declared:
+        if declared in services:
+            return declared, None
+        return None, f"'service: {declared}' is not a service in compose.yml"
+    if len(services) == 1:
+        return next(iter(services)), None
+    return None, "'mounts' needs 'service' to say which compose service gets the folders"
 
 
 def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, dict], list[dict]]:
@@ -384,14 +480,16 @@ def sync_recipes(url: str | None = None) -> dict:
 # --- Install (compose I/O) ---
 
 
-def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
-    """Create the stack dir, write compose.yml + a generated .env, run the type's
-    command, and register a docker instance. Never executes recipe-supplied code."""
+def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None = None) -> dict:
+    """Create the stack dir, write compose.yml + a generated .env (+ an override holding
+    the folders added at install), run the type's command, and register a docker
+    instance. Never executes recipe-supplied code."""
     if not stacks.stacks_dir_ok():
         raise RecipeError("stacks directory not found — check the compose mount")
     recipe = get_recipe(recipe_id)
     # Before any side effect: an undeclared key fails here, not after the mkdir.
     values = resolve_answers(recipe["env"], answers)
+    pairs = resolve_mounts(recipe["mounts"], mounts or [])
     folder = Path(recipe["path"])
     compose_src = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
     if compose_src is None:
@@ -420,6 +518,12 @@ def install_recipe(recipe_id: str, answers: dict[str, str]) -> dict:
 
     (target / "compose.yml").write_text(compose_src.read_text(encoding="utf-8"), encoding="utf-8")
     (target / ".env").write_text(render_env(values), encoding="utf-8")
+    override = target / stacks.OVERRIDE_NAME
+    if pairs:
+        spec = recipe["mounts"]
+        override.write_text(render_override(spec["service"], pairs, spec["read_only"]), encoding="utf-8")
+    else:
+        override.unlink(missing_ok=True)
 
     build = recipe["type"] == "git_build"
     result = _compose_up(target, build=build)

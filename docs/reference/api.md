@@ -134,10 +134,10 @@ IP for peer DNS; any HTTP response counts as reachable).
 |---|---|
 | `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, data }]`. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. Folders end in `/`. |
 | `POST /stacks` | Body `{ name, compose, env? }` — the raw create path (write files + `up -d`). A folder left by a Delete that kept its data (no compose file) is taken over; one that still has a compose file is a live stack, refused. |
-| `GET /stacks/{name}` | Stack detail incl. `compose` + `env` file contents. |
+| `GET /stacks/{name}` | Stack detail incl. `compose` + `env` file contents, and `override` + `override_file` — a `compose.override.yml` beside it, which Compose merges in (the install wizard's folders live there), or `null`. |
 | `POST /stacks/{name}/action` | Body `{ action: up\|down\|restart\|pull }`. |
 | `PUT /stacks/{name}/file` | Body `{ file: "compose.yml"\|".env", content }`. |
-| `DELETE /stacks/{name}` | `down` (never `-v`), then remove `compose.yml` and `.env` — **the rest of the folder stays** (it is the service's data) unless `?delete_data=true`, which removes the folder. A folder left empty is removed either way. Returns `{ ok, output, kept }`. |
+| `DELETE /stacks/{name}` | `down` (never `-v`), then remove `compose.yml`, any `compose.override.yml` and `.env` — **the rest of the folder stays** (it is the service's data) unless `?delete_data=true`, which removes the folder. A folder left empty is removed either way. Returns `{ ok, output, kept }`. |
 
 ### Recipes & stats
 
@@ -145,7 +145,7 @@ IP for peer DNS; any HTTP response counts as reachable).
 |---|---|
 | `GET /recipes` | Merged install recipes: `{ recipes, invalid, shadowed, sources, local_count }`. Every enabled source in priority order, then `data/recipes`; first to define an id wins and the losers are listed in `shadowed`. |
 | `POST /recipes/refresh` | Re-sync every enabled source (`git clone`/`pull`), or just one with body `{ url }`. Reports per source — one failure never stops the others. |
-| `POST /recipes/{id}/install` | Body `{ answers }` — omitted keys take the manifest default; an undeclared key → `400`, and so does a `type: path` answer that is empty, starts with `~`, is a bare name, or contains `:`. Generates a quoted `.env`, runs the type's command, registers a `docker` instance linked to the container the daemon actually created. No container identified (or `up` failed) → no instance, and a `warning`. A folder Delete left with its data is reused (`reused_data: true`); a `git_build` recipe still needs an empty one. **A reinstall keeps the earlier record** — route, icon, private flag, following — and only re-points `container`. `400` if the recipe's id already names something else: an external route, or a route to another container that is still running. |
+| `POST /recipes/{id}/install` | Body `{ answers, mounts }` — `mounts` is a list of host folders for a recipe that declares a `mounts` block, written to `compose.override.yml`, each at `target/<its name>`; for any other recipe a non-empty list → `400`, as does a folder failing the path checks, with no name of its own, or landing where another one does. Omitted answer keys take the manifest default; an undeclared key → `400`, and so does a `type: path` answer that is empty, starts with `~`, is a bare name, or contains `:`. Generates a quoted `.env`, runs the type's command, registers a `docker` instance linked to the container the daemon actually created. No container identified (or `up` failed) → no instance, and a `warning`. A folder Delete left with its data is reused (`reused_data: true`); a `git_build` recipe still needs an empty one. **A reinstall keeps the earlier record** — route, icon, private flag, following — and only re-points `container`. `400` if the recipe's id already names something else: an external route, or a route to another container that is still running. |
 | `GET /stats` | Host resource summary (containers, CPUs, memory, disk). |
 
 Recipe manifest format: [recipe-schema.md](recipe-schema.md).

@@ -201,3 +201,75 @@ test("an install that reused a kept folder says so", async () => {
 
   expect(await screen.findByText(/Picked up the data left in its folder/)).toBeInTheDocument();
 });
+
+// --- mounts — the folders the user adds, however many they have ---
+
+const JELLYFIN = {
+  ...GRAFANA,
+  id: "jellyfin",
+  name: "Jellyfin",
+  env: [],
+  mounts: { label: "Media folders", target: "/media", read_only: true },
+};
+
+async function jellyfinFill() {
+  const fetchMock = renderWizard({ recipes: [JELLYFIN] });
+  fireEvent.click(await screen.findByText("Jellyfin"));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  return fetchMock;
+}
+const folder = (n: number) => screen.getByLabelText(`Media folders ${n}`);
+const setFolder = (n: number, value: string) => fireEvent.change(folder(n), { target: { value } });
+
+test("each added folder shows where it lands, and all of them are sent", async () => {
+  const fetchMock = await jellyfinFill();
+  setFolder(1, "/srv/scloud/media/anime");
+  fireEvent.click(screen.getByRole("button", { name: "Add folder" }));
+  setFolder(2, "/srv/scloud/media/movies/");
+  fireEvent.click(screen.getByRole("button", { name: "Add folder" })); // left blank
+
+  expect(screen.getByText("→ /media/anime, read-only")).toBeInTheDocument();
+  expect(screen.getByText("→ /media/movies, read-only")).toBeInTheDocument();
+
+  fireEvent.click(deploy());
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringMatching(/install$/),
+    expect.anything(),
+  ));
+  const [, init] = fetchMock.mock.calls.find(([path]) => path.endsWith("/install")) as unknown as [
+    string,
+    RequestInit,
+  ];
+  // The blank row is dropped, not sent as an empty folder.
+  expect(JSON.parse(String(init.body)).mounts).toEqual([
+    "/srv/scloud/media/anime",
+    "/srv/scloud/media/movies/",
+  ]);
+});
+
+test("two folders with one name are refused before Deploy", async () => {
+  await jellyfinFill();
+  setFolder(1, "/disk1/anime");
+  fireEvent.click(screen.getByRole("button", { name: "Add folder" }));
+  setFolder(2, "/disk2/anime");
+
+  expect(screen.getAllByText(/Lands at the same place as/)).toHaveLength(2);
+  expect(deploy()).toBeDisabled();
+});
+
+test("a folder gets the same checks as a path field", async () => {
+  await jellyfinFill();
+  setFolder(1, "~/anime");
+
+  expect(screen.getByText(/container's home \(\/root\)/)).toBeInTheDocument();
+  expect(deploy()).toBeDisabled();
+});
+
+test("a removed folder is gone from the form", async () => {
+  await jellyfinFill();
+  setFolder(1, "/srv/anime");
+  fireEvent.click(screen.getByRole("button", { name: "Remove folder" }));
+
+  expect(screen.queryByLabelText("Media folders 1")).not.toBeInTheDocument();
+  expect(deploy()).toBeEnabled();
+});

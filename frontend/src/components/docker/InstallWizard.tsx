@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, RefreshCw, X } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
@@ -22,6 +22,9 @@ interface Recipe {
   env: RecipeEnv[];
   suggested_subdomain?: string;
   service?: string | null;
+  // Folders the user adds at install, however many they have: each lands at
+  // `target/<its name>`. Written to compose.override.yml, never into the recipe's file.
+  mounts?: { label: string; target: string; read_only: boolean } | null;
   // instructions.md, verbatim. Shown before the form — it is the recipe's own
   // walk-through, and the only place a recipe author can say "log in with admin/admin".
   instructions: string;
@@ -53,6 +56,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [folders, setFolders] = useState<string[]>([]);
   const [result, setResult] = useState<InstallResult | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -68,7 +72,10 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
 
   const install = useMutation({
     mutationFn: (recipe: Recipe) =>
-      api.post<InstallResult>(`/api/docker/recipes/${recipe.id}/install`, { answers }),
+      api.post<InstallResult>(`/api/docker/recipes/${recipe.id}/install`, {
+        answers,
+        mounts: folders.filter((f) => f.trim() !== ""),
+      }),
     onSuccess: (r) => {
       setResult(r);
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
@@ -84,6 +91,8 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     const seed: Record<string, string> = {};
     for (const e of recipe.env) seed[e.key] = e.default ?? "";
     setAnswers(seed);
+    // One empty row to start, so the field reads as something to fill in.
+    setFolders(recipe.mounts ? [""] : []);
     setResult(null);
   }
 
@@ -102,6 +111,8 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           recipe={selected}
           answers={answers}
           setAnswers={setAnswers}
+          folders={folders}
+          setFolders={setFolders}
           pending={install.isPending}
           error={install.error instanceof ApiError ? install.error.message : null}
           onBack={() => setReviewed(false)}
@@ -251,6 +262,13 @@ function ReviewStep({
             ))}
           </Row>
         )}
+        {recipe.mounts && (
+          <Row label="Folders">
+            {recipe.mounts.label}: you add them — each lands at{" "}
+            <code className="text-slate-300">{recipe.mounts.target}/&lt;its name&gt;</code>
+            {recipe.mounts.read_only ? ", read-only" : ""}
+          </Row>
+        )}
         <Row label="Asks for">
           {recipe.env.length
             ? recipe.env.map((e) => e.key).join(", ")
@@ -344,6 +362,8 @@ function FillStep({
   recipe,
   answers,
   setAnswers,
+  folders,
+  setFolders,
   pending,
   error,
   onBack,
@@ -352,6 +372,8 @@ function FillStep({
   recipe: Recipe;
   answers: Record<string, string>;
   setAnswers: (a: Record<string, string>) => void;
+  folders: string[];
+  setFolders: (f: string[]) => void;
   pending: boolean;
   error: string | null;
   onBack: () => void;
@@ -376,6 +398,9 @@ function FillStep({
           {e.type === "path" && <PathNote value={answers[e.key] ?? ""} recipeId={recipe.id} />}
         </label>
       ))}
+      {recipe.mounts && (
+        <FolderRows spec={recipe.mounts} folders={folders} setFolders={setFolders} />
+      )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
       <div className="flex justify-between">
         <button onClick={onBack} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
@@ -383,7 +408,11 @@ function FillStep({
         </button>
         <button
           onClick={onInstall}
-          disabled={pending || paths(recipe).some((e) => !pathOk(answers[e.key] ?? ""))}
+          disabled={
+            pending ||
+            paths(recipe).some((e) => !pathOk(answers[e.key] ?? "")) ||
+            (recipe.mounts != null && folderProblems(folders).some(Boolean))
+          }
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {pending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -421,5 +450,77 @@ function PathNote({ value, recipeId }: { value: string; recipeId: string }) {
     <span className={`mt-1 block text-xs ${problem ? "text-rose-400" : "text-slate-500"}`}>
       {problem ?? pathWhere(value, recipeId).long}
     </span>
+  );
+}
+
+// Where each added folder lands, or why it can't: the same checks as a path field, plus
+// the two a folder list adds — a folder with no name of its own (`/`), and two folders
+// that would land at one place. A blank row is skipped, not an error.
+function folderProblems(folders: string[]): (string | null)[] {
+  const names = folders.map((f) => f.trim().replace(/\/+$/, "").split("/").pop() ?? "");
+  return folders.map((f, i) => {
+    if (!f.trim()) return null;
+    const problem = pathProblem(f);
+    if (problem) return problem;
+    if (["", ".", ".."].includes(names[i])) return `'${f.trim()}' has no folder name to mount it under.`;
+    const other = names.findIndex((n, j) => j !== i && n === names[i] && folders[j].trim());
+    if (other !== -1) return `Lands at the same place as '${folders[other].trim()}' — rename one, or mount their parent.`;
+    return null;
+  });
+}
+
+function FolderRows({
+  spec,
+  folders,
+  setFolders,
+}: {
+  spec: NonNullable<Recipe["mounts"]>;
+  folders: string[];
+  setFolders: (f: string[]) => void;
+}) {
+  const problems = folderProblems(folders);
+  const base = spec.target.replace(/\/+$/, "");
+  const set = (i: number, value: string) => setFolders(folders.map((f, j) => (j === i ? value : f)));
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium text-slate-400">{spec.label}</span>
+      <div className="space-y-2">
+        {folders.map((f, i) => (
+          <div key={i}>
+            <div className="flex gap-2">
+              <input
+                aria-label={`${spec.label} ${i + 1}`}
+                value={f}
+                onChange={(ev) => set(i, ev.target.value)}
+                placeholder="/srv/media/movies"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+              />
+              <button
+                onClick={() => setFolders(folders.filter((_, j) => j !== i))}
+                aria-label="Remove folder"
+                className="rounded-lg px-2 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {f.trim() && (
+              <span className={`mt-1 block text-xs ${problems[i] ? "text-rose-400" : "text-slate-500"}`}>
+                {problems[i] ??
+                  `→ ${base}/${f.trim().replace(/\/+$/, "").split("/").pop()}${spec.read_only ? ", read-only" : ""}`}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => setFolders([...folders, ""])}
+        className="mt-2 flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add folder
+      </button>
+      <span className="mt-1 block text-xs text-slate-500">
+        A folder that doesn't exist on the Docker host fails the deploy — it is never created empty.
+      </span>
+    </div>
   );
 }

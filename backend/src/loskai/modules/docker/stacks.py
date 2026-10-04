@@ -18,6 +18,12 @@ from . import logic
 from .client import DOCKER_ERRORS, docker_client
 
 _COMPOSE_NAMES = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
+# Compose merges an override beside the compose file on its own. The install wizard writes
+# this one for the folders added at install (recipes.render_override).
+OVERRIDE_NAME = "compose.override.yml"
+_OVERRIDE_NAMES = [OVERRIDE_NAME, "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"]
+# What a stack *is*, as opposed to the data it keeps — what Delete removes by default.
+_CONFIG_NAMES = {*_COMPOSE_NAMES, *_OVERRIDE_NAMES, ".env"}
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
 _ACTIONS = {"up", "down", "restart", "pull"}
 _COMPOSE_TIMEOUT = 300  # seconds
@@ -92,7 +98,7 @@ def stack_data(directory: Path) -> list[str]:
     return sorted(
         p.name + ("/" if p.is_dir() else "")
         for p in directory.iterdir()
-        if p.name not in {*_COMPOSE_NAMES, ".env"}
+        if p.name not in _CONFIG_NAMES
     )
 
 
@@ -116,6 +122,7 @@ def get_stack(name: str) -> dict:
     if compose is None:
         raise StackError(f"stack '{name}' not found")
     env_file = directory / ".env"
+    override = next((directory / n for n in _OVERRIDE_NAMES if (directory / n).is_file()), None)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     try:
         projects = docker_client.compose_projects()
@@ -129,6 +136,10 @@ def get_stack(name: str) -> dict:
         "compose": compose.read_text(encoding="utf-8"),
         "compose_file": compose.name,
         "env": env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
+        # Shown read-only: Compose merges it in, so a stack that has one isn't described by
+        # compose.yml alone.
+        "override": override.read_text(encoding="utf-8") if override else None,
+        "override_file": override.name if override else None,
     }
 
 
@@ -187,8 +198,8 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
     """`down`, then remove the stack — but not its data unless asked.
 
     Recipes keep their data beside the compose file (`./data`), so removing the folder
-    would take a service's database with it. By default only the compose file and `.env`
-    go: the stack leaves the list, the data stays, and installing it again picks the
+    would take a service's database with it. By default only the compose file, any
+    override and `.env` go: the stack leaves the list, the data stays, and installing it again picks the
     folder back up (claim_dir). A folder left with nothing in it is removed.
     `down` never takes `-v`, so named volumes survive either way."""
     directory = _stack_dir(name)
@@ -200,7 +211,7 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
     if delete_data:
         shutil.rmtree(directory)
         return {**result, "kept": []}
-    for n in (*_COMPOSE_NAMES, ".env"):
+    for n in _CONFIG_NAMES:
         (directory / n).unlink(missing_ok=True)
     kept = stack_data(directory)
     if not kept:
