@@ -1107,6 +1107,56 @@ in the ip address (and a search filter) and the port, both fields … in the sam
 
 ---
 
+## Phase 30 — UI polish: Machines tab, the upstream link, Docker by stack, the recipe catalog
+
+_Origin (2026-10-05, Sunde): "the docker view's structure with regards to containers and
+volumes, the add/install recipes menus and navigation wizard, routing of services and
+containers and the binding up against machines (I want to move machines to its own tab on the
+side bar separating them from routes to make it more defined)"._
+
+**Decisions (Sunde, Q&A 2026-10-05)**
+- **Machines get their own sidebar tab** — a walk-back of Phase 21's "a second button, not a
+  second tab". Machines and routes now read as two things, which the views and the `via` tag
+  were working around. Each machine is listed with the routes hosted on it beneath
+- **The upstream host is Machine *or* Address**, a toggle. Machine is a select by name and
+  the link is the point; Address keeps Phase 29's combobox (Docker host, this container, or
+  typed). A linked row shows `nas:32400` with the IP beneath, not the IP with a tag
+- **Docker is organised by stack**: each stack expands to its containers, the rest under
+  Standalone. A Volumes tab beside it, with size and which containers use each volume
+- **The recipe flow, all four**: a roomier catalog with search, a step indicator, routing
+  the install from its last step, and Install reachable from every Docker tab
+
+**30a — the Machines tab**
+- [x] `/machines` page + nav entry (admin), machines with their dependents beneath; Name a
+      machine, edit, delete (the unlink warning moves with it)
+- [x] Routing shows services only — the views and the Name a machine button go
+- [x] Docs: `CLAUDE.md` admin tabs, `HISTORY.md` (the walk-back), `PLAN.md` if it names the tab
+
+**30b — Machine or Address**
+- [ ] `RouteFields`: a toggle; Machine mode is a select of machines + the port; Address mode
+      is `HostSelect` without the machines. Both route forms get it through the shared fields
+- [ ] Routing table: a linked upstream reads `<machine>:<port>`, the address beneath
+
+**30c — Docker by stack, and volumes**
+- [ ] Backend: each container carries its compose `project`; `GET /api/docker/volumes` (name,
+      size, project, which containers mount it). `api.md` + the route count
+- [ ] Frontend: Containers tab grouped by stack (stack actions on the group row), Standalone
+      last; Volumes tab
+
+**30d — the recipe flow**
+- [ ] Catalog: search, a grid, the source shown quietly
+- [ ] Step indicator: Choose → Review → Configure → Done
+- [ ] Done step routes the install: the suggested prefix + the container's upstream,
+      following by default, posted to `/api/routes`
+- [ ] Install recipe in the Docker header, not only on the Stacks tab
+
+**Verification**
+- [ ] `pytest` + `npm test` + `npm run build` + `check-docs.sh`
+- [ ] Live: the rig — a recipe installed and routed from the wizard's last step; a route
+      linked to a machine through Machine mode, then the machine moved
+
+---
+
 ## Backlog / Future ideas
 - **Prune orphaned recipe caches** — removing a source leaves its clone in
   `data/recipes-cache/<slug>/`. Harmless (nothing scans it once the row is gone) and

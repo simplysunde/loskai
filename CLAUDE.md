@@ -119,8 +119,9 @@ the `container` field, so the store cannot drift from reality. Two link fields a
 idempotency keys: `container` (a docker instance ↔ its container) and `origin` (an external
 instance ↔ a built-in Network service: `adguard`/`gateway`/`caddy`) — re-routing either edits
 its existing instance rather than making a duplicate (`get_by_container`/`get_by_origin`).
-The Routing table shows both kinds together by default, with **views** (All · Services ·
-Machines · Grouped) to filter or nest them — one inventory, several readings of it.
+Services and machines are one store read by two tabs: **Routing** lists services, and
+**Machines** lists each machine with the routes hosted on it beneath (Phase 30 — before it,
+one table with views).
 A third link, **`machine`**, is not an idempotency key but a dependency: it names the instance
 that owns this upstream's *host* half — and what may be linked to is **declared** by
 `kind: "service" | "machine"` on the record (set from the verb that assigned it, back-filled
@@ -151,7 +152,7 @@ and AdGuard modules never write on their own; they are read + push only.
 **Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
 `AddRouteModal`) — the single surface, with three sources (Container / Network service /
 External) that pre-fill and post to `/api/routes` with `container` / `origin` / neither
-(naming a machine is the sibling verb, `/api/machines`, from its own button and modal).
+(naming a machine is the sibling verb, `/api/machines`, from the Machines tab).
 **The upstream is two fields on one row — host and port** — in both route forms (they share
 `RouteFields`). The host is a combobox (`HostSelect`): type any address, or pick from a list
 filtered as you type — the *machines* you have named (by declared `kind`), the Docker host,
@@ -185,7 +186,7 @@ The entire React bundle is served *unauthenticated* — it's just static JS; `Re
 decides what renders. **Never gate the static files or SPA routes** — the lock is 100% on the API.
 The public Dashboard is a launcher and the public **Certificate** page hands out Caddy's
 internal root CA (`certificate_tab` in settings moves its sidebar link, never its access);
-the admin tabs (Docker, Routing, Settings) sit behind login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
+the admin tabs (Docker, Routing, Machines, Settings) sit behind login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
 independent modules.
 
 **Settings priority: env var > `settings.json` > unset**, each value tagged with its source.

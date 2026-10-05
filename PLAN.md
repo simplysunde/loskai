@@ -182,9 +182,9 @@ state). The picker chooses a source, which pre-fills the subdomain + upstream:
   an idempotency key like `container`/`origin`): the machine's address is then entered in
   exactly one place. Moving it rewrites every dependent's upstream host and re-pushes those
   routes in the same assign; deleting it unlinks them instead of refusing, since they keep a
-  working address and nothing here is unrecoverable. "Name a machine" beside "Add route"
-  opens this same picker on its External + DNS-only form — a second *verb*, not a second
-  creation surface.
+  working address and nothing here is unrecoverable. Machines are named on their own
+  **Machines** tab (Phase 30), each listed with the routes hosted on it — a second *verb*
+  with its own form, not a second route-creation surface.
 - **Container** — an *unrouted* Docker container → a `docker` instance linked by `container`,
   pre-filled with a suggested subdomain (the linked instance's id — a recipe's own name — else
   the container name) **and a reachable upstream** — `<service>:<port>` from the Docker socket
@@ -532,7 +532,7 @@ route, so it never appears in `push_all` or the live-sync check.
   or built-in service (pre-fills subdomain + upstream), or enter an external target by hand.
   Routed items are filtered out. Submitting posts `container` / `origin` / neither to
   `/api/routes`. Naming a machine is a **separate modal and endpoint** (`/api/machines`) —
-  different shape, different verb — reached by the "Name a machine" button beside it.
+  different shape, different verb — on the Machines tab.
 - Input: subdomain **prefix only** (e.g. `grafana`) — a single DNS label
   (lowercase letters, digits, hyphens; must be unique)
 - Domain suffix auto-filled from the global `BASE_DOMAIN` setting (e.g. `example.no`)
@@ -953,7 +953,8 @@ frontend/src/
 │   ├── Dashboard.tsx        public landing — grid of service cards (launcher)
 │   ├── Login.tsx            the security screen — single-password form
 │   ├── Docker.tsx           ─┐ admin tabs — behind the session gate (Phase 8)
-│   ├── Routing.tsx          ─┘ unified Caddy + AdGuard: one row per service
+│   ├── Routing.tsx           │ unified Caddy + AdGuard: one row per service
+│   ├── Machines.tsx         ─┘ named LAN addresses, each with the routes hosted on it
 │   └── settings/            nested category routes under /settings
 │       ├── SettingsLayout.tsx  category sidebar + <Outlet/>; owns the page header
 │       ├── General.tsx         app-wide settings + backup export
@@ -977,7 +978,7 @@ frontend/src/
 │   │   ├── AddRouteModal.tsx   source picker (container/network/external) → POST /api/routes
 │   │   ├── AddMachineModal.tsx hostname + bare address form → POST /api/machines
 │   │   ├── SchemeSelect.tsx    https / both / http, per route
-│   │   ├── ViewFilter.tsx      All · Services · Machines · Grouped over the one table
+│   │   ├── MachineTable.tsx    each machine, its hosted routes beneath (Machines tab)
 │   │   └── AssignModal.tsx     prefix + upstream form (per-row "Change URL")
 │   ├── settings/
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance

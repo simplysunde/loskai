@@ -39,7 +39,7 @@ that name, it connects to the name — and reaches itself, not Proxmox. Validati
 neither end says why in a way that helps.
 
 **So pick one per name.** The tidy arrangement is to *stop proxying* the backend and make it
-a **machine** in Loskai instead (Routing → **Name a machine**): `dns_only`, resolving straight
+a **machine** in Loskai instead (Machines → **Name a machine**): `dns_only`, resolving straight
 to the backend's IP. Your browser then goes direct, with a certificate it trusts, and nothing
 is in the path. That is what machines are for.
 

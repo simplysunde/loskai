@@ -7,6 +7,7 @@ import {
   LogOut,
   Moon,
   Route as RouteIcon,
+  Server,
   Settings as SettingsIcon,
   ShieldCheck,
   Sun,
@@ -26,6 +27,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true, public: true },
   { to: "/docker", label: "Docker", icon: Container, end: false },
   { to: "/routing", label: "Routing", icon: RouteIcon, end: false },
+  { to: "/machines", label: "Machines", icon: Server, end: false },
   { to: "/settings", label: "Settings", icon: SettingsIcon, end: false },
   { to: "/certificate", label: "Certificate", icon: ShieldCheck, end: false, public: true },
 ] as const;
@@ -75,6 +77,7 @@ export function Layout() {
   const dotFor: Record<string, ModuleState | undefined> = {
     "/docker": h?.docker.status,
     "/routing": worst(h?.caddy.status, h?.adguard.status),
+    "/machines": h?.adguard.status,
   };
 
   async function logout() {

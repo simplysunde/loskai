@@ -7,6 +7,7 @@ import { RequireAuth } from "./components/shared/RequireAuth";
 import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { Machines } from "./pages/Machines";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
 import { General } from "./pages/settings/General";
@@ -56,6 +57,14 @@ export default function App() {
           element={
             <RequireAuth>
               <Routing />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/machines"
+          element={
+            <RequireAuth>
+              <Machines />
             </RequireAuth>
           }
         />

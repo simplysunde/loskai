@@ -1,7 +1,7 @@
 import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
-import { isMachine } from "./ViewFilter";
+import { isMachine, machineLabel } from "./machine";
 
 export interface RouteRow {
   id: string;
@@ -35,6 +35,7 @@ export interface RouteRow {
 // route). Missing or stale DNS rewrites are fixed globally via the Sync button, not per row.
 export function ServiceTable({
   rows,
+  machines = rows,
   onAssign,
   onRemoveRoute,
   onDelete,
@@ -45,6 +46,9 @@ export function ServiceTable({
   onClearIcon,
 }: {
   rows: RouteRow[];
+  // Where a linked row's machine is looked up. Routing shows services only, so the
+  // machines it links to are not among `rows`.
+  machines?: RouteRow[];
   onAssign?: (row: RouteRow) => void;
   onRemoveRoute?: (row: RouteRow) => void;
   onDelete?: (row: RouteRow) => void;
@@ -127,10 +131,10 @@ export function ServiceTable({
                     the machine moves and this row quietly follows it. */}
                 {row.machine && (
                   <span
-                    title={`Follows the machine "${machineLabel(row.machine, rows)}" — move it and this address updates`}
+                    title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
                     className="ml-1.5 rounded bg-teal-500/10 px-1 py-0.5 text-[10px] text-teal-300"
                   >
-                    via {machineLabel(row.machine, rows)}
+                    via {machineLabel(row.machine, machines)}
                   </span>
                 )}
               </td>
@@ -218,7 +222,7 @@ function Dash() {
   return <span className="text-xs text-slate-600">—</span>;
 }
 
-function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {
+export function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       {present === undefined || present === null ? (
@@ -272,14 +276,6 @@ function IconButton({
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
     </button>
   );
-}
-
-// The link is stored by instance id, which never changes — but the id is the name the
-// machine was *created* under. Renaming it would otherwise leave every route tagged with a
-// name the machine no longer answers to, so resolve to what it is called now.
-function machineLabel(machineId: string, rows: RouteRow[]): string {
-  const machine = rows.find((r) => r.id === machineId);
-  return machine?.name ?? machineId;
 }
 
 // The launcher icon, edited where the service is named rather than behind a dialog: the

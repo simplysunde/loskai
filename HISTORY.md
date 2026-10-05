@@ -1,5 +1,21 @@
 # Loskai — History
 
+## 2026-10-05 — Machines get their own tab (Phase 30a)
+
+**A walk-back of Phase 21's "a second button, not a second tab".** That decision kept one
+table and leaned on views (All · Services · Machines · Grouped) and a `via` tag to make the
+machine/service split readable. Sunde wanted the split to be *structural*: a machine and a
+route are different verbs with different forms, and one table with a filter kept presenting
+them as the same thing. The Machines tab lists each machine with the routes hosted on it
+beneath — the Grouped view, promoted to the only reading — and Routing lists services only.
+
+What did not change is the point the original decision protected: route creation is still one
+surface (Routing's Add route), and the store is still one `instances.json` — both tabs read
+`/api/caddy/routes` and split it on the declared `kind`. No backend change.
+
+- Key files: `frontend/src/pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
+  `components/routing/machine.ts` (`isMachine`, moved out of the deleted `ViewFilter.tsx`)
+
 ## 2026-10-04 — The recipe schema gets a copy in the recipes repo, and a checker
 
 Sunde wanted to write recipes with Claude Code opened in `loskai-recipes`, without relying on

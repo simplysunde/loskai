@@ -1,5 +1,5 @@
 import type { RouteRow } from "./ServiceTable";
-import { isMachine } from "./ViewFilter";
+import { isMachine } from "./machine";
 
 // What the route forms' host dropdown offers. Machines first — picking one links the route
 // to it, so the route follows the machine's address — then the Docker host and the picked
