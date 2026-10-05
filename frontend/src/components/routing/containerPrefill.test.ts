@@ -32,6 +32,11 @@ test("the prefix prefers the linked instance's id over the generated container n
   expect(containerPrefill({ name: "My_App.1" }).prefix).toBe(suggestPrefix("My_App.1"));
 });
 
+test("an instance id that isn't a valid label is cleaned like a container name", () => {
+  // A recipe id is a folder name; raw, it opened the form with Submit disabled.
+  expect(containerPrefill({ name: "x", instance_id: "Home_Assistant" }).prefix).toBe("home-assistant");
+});
+
 test("suggestPrefix makes a container name a valid label", () => {
   expect(suggestPrefix("My_App.1")).toBe("my-app-1");
   expect(suggestPrefix("--edge--")).toBe("edge");

@@ -21,7 +21,8 @@ export function suggestPrefix(name: string): string {
 
 export function containerPrefill(c: PrefillSource): { prefix: string; upstream: string } {
   return {
-    prefix: c.instance_id ?? suggestPrefix(c.name),
+    // Cleaned too: a recipe id is just a folder name, so it can be `home_assistant`.
+    prefix: suggestPrefix(c.instance_id ?? c.name),
     // Trailing colon when only the host is known — the machine picker's convention: the
     // port is all that's left to type.
     upstream: c.suggested_upstream ?? (c.suggested_host ? `${c.suggested_host}:` : ""),
