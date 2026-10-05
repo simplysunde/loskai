@@ -992,6 +992,15 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       over a folder or a whole repo, so a recipe is proven valid before it is pushed
 - [x] **A synced source reported its `.git` as a skipped recipe** (2026-10-04). Every folder
       in a source was scanned, and a clone has `.git`. Hidden folders are skipped now
+- [ ] **Bambuddy reinstall, run by Sunde — then clear the migration's fallbacks.** Delete
+      (data kept) and install again from the synced recipe; expect "Picked up the data left
+      in its folder". Compare against the fingerprint taken 2026-10-04 before it: lasting
+      tables `announcements=2 archive_fts_config=1 archive_fts_data=2 color_catalog=638
+      groups=3 maintenance_types=9 notification_templates=38 settings=11
+      sponsor_toast_state=1 spool_catalog=91`, `data/.jwt_secret` sha256 starting
+      `01cd37ce877168ed`, mounts on `stacks/bambuddy/data`, its route record kept. Once it
+      matches, remove the pre-migration volumes `bambuddy_bambuddy_data` and
+      `bambuddy_bambuddy_logs` and `stacks/bambuddy/compose.yml.volumes-backup`
 - [ ] **The container runs as root, so everything it writes on the host is root-owned** (found
       2026-10-03, the first time the redeployed container wrote state). `data/instances.json`
       became `root:root 0600` — unreadable to the host user, which also breaks a dev backend
