@@ -145,15 +145,23 @@ def upsert_instance(instance: Instance) -> Instance:
 def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> Instance | None:
     """Re-point a following route's upstream — compare-and-set under the store lock.
 
-    Writes only while the record still follows its container *and* still holds `expected`.
-    The follower reads, asks Docker (slow), then writes; an edit made in between — someone
-    setting the address by hand — must win over a value derived from the state before it.
+    Writes only while the record is still a following proxied route *and* still holds
+    `expected`. The follower reads, asks Docker (slow), then writes; an edit made in
+    between — someone setting the address by hand, or unassigning the route — must win
+    over a value derived from the state before it. Unassigning leaves `upstream` and
+    `follow_container` as they were, so the route itself has to be checked too.
     Returns the updated record, or None when it no longer qualified."""
     updated: list[Instance] = []
 
     def repoint(instances: list[Instance]) -> list[Instance]:
         for idx, inst in enumerate(instances):
-            if inst.id == instance_id and inst.follow_container and inst.upstream == expected:
+            if (
+                inst.id == instance_id
+                and inst.follow_container
+                and inst.subdomain
+                and inst.route_mode == "proxy"
+                and inst.upstream == expected
+            ):
                 instances[idx] = inst.model_copy(update={"upstream": upstream})
                 updated.append(instances[idx])
         return instances

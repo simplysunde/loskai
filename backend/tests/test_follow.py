@@ -153,6 +153,22 @@ async def test_an_edit_made_while_docker_was_asked_wins(monkeypatch, pushed):
     assert pushed == []
 
 
+async def test_a_route_unassigned_while_docker_was_asked_stays_gone(monkeypatch, pushed):
+    """Unassigning clears `subdomain` but keeps `upstream` and `follow_container`, so the
+    write used to go through — and push a `None.<base>` route back into Caddy."""
+    _route()
+
+    def docker_slow_while_user_unassigns():
+        _route(subdomain=None)
+        return {CONTAINER: NEW}
+
+    monkeypatch.setattr(follow, "derived_upstreams", docker_slow_while_user_unassigns)
+
+    assert await follow.reconcile(None, CONTAINER) is None
+    assert _stored() == OLD
+    assert pushed == []
+
+
 # --- reconcile_all: catch-up ---
 
 
