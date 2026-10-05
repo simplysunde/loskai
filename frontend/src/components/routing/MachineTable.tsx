@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { CornerDownRight, Loader2, Pencil, Trash2 } from "lucide-react";
+import { CornerDownRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { splitUpstream } from "../../lib/validation";
 import { dependentsOf } from "./machine";
@@ -13,6 +13,7 @@ export function MachineTable({
   rows,
   onEdit,
   onDelete,
+  onAddRoute,
   busyId,
 }: {
   machines: RouteRow[];
@@ -20,6 +21,8 @@ export function MachineTable({
   rows: RouteRow[];
   onEdit: (machine: RouteRow) => void;
   onDelete: (machine: RouteRow) => void;
+  // Add route, already linked to this machine — the usual reason to have named it.
+  onAddRoute?: (machine: RouteRow) => void;
   busyId?: string | null;
 }) {
   if (machines.length === 0) {
@@ -60,6 +63,11 @@ export function MachineTable({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
+                        {onAddRoute && (
+                          <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </IconButton>
+                        )}
                         <IconButton title="Edit machine" onClick={() => onEdit(m)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </IconButton>

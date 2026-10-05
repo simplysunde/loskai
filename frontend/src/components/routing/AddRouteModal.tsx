@@ -64,6 +64,7 @@ export function AddRouteModal({
   baseDomain,
   mode,
   initialSource = "container",
+  initialMachine,
   pending = false,
   error,
   routedOrigins,
@@ -75,19 +76,21 @@ export function AddRouteModal({
   mode: "docker" | "lan" | null;
   // Which source the picker opens on. Machines have their own modal — see AddMachineModal.
   initialSource?: Source;
+  // Opened from a machine's row on the Machines tab: External, already linked to it.
+  initialMachine?: { id: string; address: string };
   pending?: boolean;
   error?: string | null;
   routedOrigins: Set<string>;
   onSubmit: (route: NewRoute) => void;
   onClose: () => void;
 }) {
-  const [source, setSource] = useState<Source>(initialSource);
+  const [source, setSource] = useState<Source>(initialMachine ? "external" : initialSource);
   const [link, setLink] = useState<{
     container?: string;
     origin?: string;
     machine?: string;
     name?: string;
-  }>({});
+  }>(initialMachine ? { machine: initialMachine.id } : {});
   const [picked, setPicked] = useState<string | null>(null);
   // A picked container's route follows it by default whenever its address can be derived.
   const [follow, setFollow] = useState(false);
@@ -96,7 +99,11 @@ export function AddRouteModal({
   // A picked container answers the hint for itself; `mode` is the deployment-wide
   // fallback, used by the Network-service and External sources, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
-  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain });
+  const fields = useRouteFields({
+    mode: pickedMode ?? mode,
+    baseDomain,
+    initialUpstream: initialMachine ? `${initialMachine.address}:` : "",
+  });
 
   const containers = useQuery({
     queryKey: ["docker-containers"],
@@ -221,14 +228,20 @@ export function AddRouteModal({
         {source === "external" && (
           <>
             <p className="mt-1 text-xs text-slate-500">
-              Pick a machine from the host list to link this route to it, or type any
-              address. Naming a machine itself is the <span className="text-slate-300">Name
-              a machine</span> button.
+              A service on a machine you have named — pick it under{" "}
+              <span className="text-slate-300">Machine</span>, and the route follows it — or
+              any address. Machines are named on the{" "}
+              <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
+                Machines
+              </Link>{" "}
+              tab.
             </p>
           </>
         )}
 
         <RouteFields
+          // Remounted per source, so the Machine/Address choice starts afresh with it.
+          key={source}
           fields={fields}
           hosts={hosts}
           machine={link.machine ?? null}

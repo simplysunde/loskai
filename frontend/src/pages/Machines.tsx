@@ -6,6 +6,7 @@ import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
+import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { dependentsOf, isMachine } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
@@ -17,6 +18,8 @@ interface DnsStatus {
   instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
 }
 interface SaveResult {
+  // "skipped" for a machine — it has no route.
+  caddy: string;
   url: string;
   warning: string | null;
   relinked?: string[];
@@ -34,6 +37,8 @@ export function Machines() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
+  // The machine a new route is being added on, from its row.
+  const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -57,6 +62,9 @@ export function Machines() {
     return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
   });
   const machines = rows.filter(isMachine);
+  const routedOrigins = new Set(
+    rows.filter((r) => r.origin && r.routed).map((r) => r.origin as string),
+  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["caddy-routes"] });
@@ -71,6 +79,16 @@ export function Machines() {
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Save failed"),
+  });
+
+  const addRoute = useMutation({
+    mutationFn: (r: NewRoute) => api.post<SaveResult>("/api/routes", r),
+    onSuccess: (data) => {
+      setRouteOn(null);
+      setResult(data);
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Add route failed"),
   });
 
   const remove = useMutation({
@@ -122,7 +140,7 @@ export function Machines() {
             }`}
           >
             <span className="font-medium">{result.url}</span> —{" "}
-            {result.warning ?? "DNS rewrite saved."}
+            {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
             {result.relinked && result.relinked.length > 0 && (
               <> Moved {result.relinked.join(", ")} with it.</>
             )}
@@ -143,6 +161,10 @@ export function Machines() {
             setEditing(m);
           }}
           onDelete={setConfirmDelete}
+          onAddRoute={(m) => {
+            setError(null);
+            setRouteOn(m);
+          }}
           busyId={remove.isPending ? remove.variables?.id : null}
         />
       )}
@@ -165,6 +187,19 @@ export function Machines() {
         error={error}
         onSubmit={(m) => save.mutate(m)}
         onClose={() => setEditing(null)}
+      />
+
+      <AddRouteModal
+        key={routeOn?.id ?? "route-closed"}
+        open={routeOn !== null}
+        baseDomain={baseDomain}
+        mode={health.data?.caddy?.mode ?? null}
+        initialMachine={routeOn ? { id: routeOn.id, address: routeOn.upstream ?? "" } : undefined}
+        pending={addRoute.isPending}
+        error={error}
+        routedOrigins={routedOrigins}
+        onSubmit={(r) => addRoute.mutate(r)}
+        onClose={() => setRouteOn(null)}
       />
 
       <ConfirmDialog

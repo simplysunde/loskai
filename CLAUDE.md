@@ -149,16 +149,17 @@ instance's subdomain, pushes the Caddy route (**required** — aborts+rolls back
 then writes the AdGuard rewrite (**best-effort** — warns, never fails the assign). The Caddy
 and AdGuard modules never write on their own; they are read + push only.
 
-**Route creation is consolidated in the Routing tab's "Add route" picker** (frontend
-`AddRouteModal`) — the single surface, with three sources (Container / Network service /
-External) that pre-fill and post to `/api/routes` with `container` / `origin` / neither
-(naming a machine is the sibling verb, `/api/machines`, from the Machines tab).
+**Route creation is consolidated in the "Add route" picker** (frontend `AddRouteModal`) —
+the single surface, opened from the Routing tab or from a machine's row on the Machines tab
+(preset to that machine), with three sources (Container / Network service / External) that
+pre-fill and post to `/api/routes` with `container` / `origin` / neither (naming a machine
+is the sibling verb, `/api/machines`, from the Machines tab).
 **The upstream is two fields on one row — host and port** — in both route forms (they share
-`RouteFields`). The host is a combobox (`HostSelect`): type any address, or pick from a list
-filtered as you type — the *machines* you have named (by declared `kind`), the Docker host,
-and a picked container's own host. **Picking a machine links the route to it; typing never
-does.** Machines are listed whether or not they are routed, since you are borrowing an
-address rather than routing the thing. The
+`RouteFields`). The host is **Machine or Address**, a toggle (Phase 30): Machine picks one
+of the machines you have named (by declared `kind`) and **links the route to it**; Address is
+a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
+own host — and **never links**. Switching to Machine never guesses a link from a matching
+IP. A linked row reads `<machine>:<port>` in the Routing table. The
 **Docker tab displays routed state but never creates routes** (a routed container links to
 its FQDN; a Settings > Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`); on an *unrouted* row the

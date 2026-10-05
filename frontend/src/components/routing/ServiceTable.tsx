@@ -1,6 +1,7 @@
 import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { StatusBadge } from "../shared/StatusBadge";
+import { splitUpstream } from "../../lib/validation";
 import { isMachine, machineLabel } from "./machine";
 
 export interface RouteRow {
@@ -102,7 +103,19 @@ export function ServiceTable({
                 </div>
               </td>
               <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                {row.upstream ?? "—"}
+                {/* A linked upstream reads as the machine it follows; the address it
+                    resolves to right now sits beneath. Otherwise the link is invisible —
+                    the address looks hand-typed until the machine moves. */}
+                {row.machine ? (
+                  <span
+                    title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
+                    className="text-teal-300"
+                  >
+                    {machineLabel(row.machine, machines)}:{splitUpstream(row.upstream ?? "").port}
+                  </span>
+                ) : (
+                  (row.upstream ?? "—")
+                )}
                 {/* Only when it differs from the default: a tag on every row would be
                     noise, and https is what almost everything should be. */}
                 {row.scheme && row.scheme !== "https" && (
@@ -127,15 +140,8 @@ export function ServiceTable({
                     dns-only
                   </span>
                 )}
-                {/* The link is otherwise invisible — the address looks hand-typed until
-                    the machine moves and this row quietly follows it. */}
-                {row.machine && (
-                  <span
-                    title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
-                    className="ml-1.5 rounded bg-teal-500/10 px-1 py-0.5 text-[10px] text-teal-300"
-                  >
-                    via {machineLabel(row.machine, machines)}
-                  </span>
+                {row.machine && row.upstream && (
+                  <div className="text-[11px] text-slate-600">{row.upstream}</div>
                 )}
               </td>
               <td className="px-4 py-3">

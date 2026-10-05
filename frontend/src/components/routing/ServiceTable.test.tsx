@@ -104,44 +104,39 @@ test("a proxy row with known sync/health state shows real badges, not dashes", (
   expect(screen.queryByText("dns-only")).not.toBeInTheDocument();
 });
 
-test("a route linked to a machine says which one", () => {
+test("a linked upstream reads as its machine, the address beneath", () => {
   // Otherwise the link is invisible: the address looks hand-typed right up until the
   // machine moves and this row quietly follows it.
   render(
     <ServiceTable
-      rows={[
-        row({
-          id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas",
-        }),
-      ]}
+      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
+      machines={[row({ id: "nas", name: "nas", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  expect(screen.getByText("via nas")).toBeInTheDocument();
+  expect(screen.getByText("nas:32400")).toBeInTheDocument();
+  expect(screen.getByText("192.168.10.50:32400")).toBeInTheDocument();
 });
 
-test("an unlinked route shows no machine tag", () => {
+test("an unlinked route shows its address as it is", () => {
   render(<ServiceTable rows={[row({ upstream: "192.168.10.77:8080" })]} />);
-  expect(screen.queryByText(/^via /)).not.toBeInTheDocument();
+  expect(screen.getByText("192.168.10.77:8080")).toBeInTheDocument();
 });
 
-test("the machine tag follows a rename", () => {
-  // The link is stored by id, which never changes — so the tag must resolve to what the
+test("a linked upstream follows a rename", () => {
+  // The link is stored by id, which never changes — so it must resolve to what the
   // machine is called now, not the name it happened to be created under.
   render(
     <ServiceTable
-      rows={[
-        row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", route_mode: "dns_only" }),
-        row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" }),
-      ]}
+      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
+      machines={[row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  expect(screen.getByText("via Storage box")).toBeInTheDocument();
-  expect(screen.queryByText("via nas")).not.toBeInTheDocument();
+  expect(screen.getByText("Storage box:32400")).toBeInTheDocument();
 });
 
 test("a machine that is no longer listed falls back to its id", () => {
-  render(<ServiceTable rows={[row({ id: "plex", machine: "ghost" })]} />);
-  expect(screen.getByText("via ghost")).toBeInTheDocument();
+  render(<ServiceTable rows={[row({ id: "plex", upstream: "192.168.10.50:32400", machine: "ghost" })]} />);
+  expect(screen.getByText("ghost:32400")).toBeInTheDocument();
 });
 
 test("a non-default scheme is tagged, https is not", () => {

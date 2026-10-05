@@ -4,7 +4,7 @@ import { expect, test, vi } from "vitest";
 import { AssignModal } from "./AssignModal";
 
 const hostInput = () =>
-  screen.getByRole("combobox", { name: "Host or machine" }) as HTMLInputElement;
+  screen.getByRole("combobox", { name: "Host" }) as HTMLInputElement;
 const portInput = () => screen.getByRole("textbox", { name: "Port" }) as HTMLInputElement;
 
 function typeUpstream(host: string, port: string) {
@@ -12,10 +12,16 @@ function typeUpstream(host: string, port: string) {
   fireEvent.change(portInput(), { target: { value: port } });
 }
 
-// Open the host list from its chevron and pick an entry, as a mouse would.
-function pickHost(name: RegExp) {
+// Machine mode, then the machine by id.
+function pickMachine(id: string) {
+  fireEvent.click(screen.getByRole("button", { name: "Machine" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Machine" }), { target: { value: id } });
+}
+
+// Address mode's dropdown, opened from its chevron.
+function addressOptions() {
   fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
-  fireEvent.mouseDown(screen.getByRole("option", { name }));
+  return screen.getAllByRole("option").map((o) => o.textContent);
 }
 
 function renderModal(overrides = {}) {
@@ -125,7 +131,7 @@ test("a route created before the link can be attached to a machine", () => {
     initialUpstream: "192.168.10.50:32400",
   });
 
-  pickHost(/nas/);
+  pickMachine("nas");
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
@@ -140,7 +146,7 @@ test("picking a machine keeps the port and takes its address", () => {
     initialUpstream: "10.0.0.9:32400",
   });
 
-  pickHost(/nas/);
+  pickMachine("nas");
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
@@ -148,7 +154,7 @@ test("picking a machine keeps the port and takes its address", () => {
   );
 });
 
-test("typing over a linked route's host unlinks it, and null is what says so", () => {
+test("a linked route opens on its machine; Address unlinks it, and null is what says so", () => {
   const { onSubmit } = renderModal({
     rows: MACHINES,
     initialPrefix: "plex",
@@ -156,45 +162,45 @@ test("typing over a linked route's host unlinks it, and null is what says so", (
     initialMachine: "nas",
   });
 
-  expect(screen.getByText(/Linked to nas/)).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Machine" })).toHaveValue("nas");
+  fireEvent.click(screen.getByRole("button", { name: "Address" }));
+  expect(hostInput()).toHaveValue("192.168.10.50");
   fireEvent.change(hostInput(), { target: { value: "192.168.10.51" } });
-  expect(screen.queryByText(/Linked to nas/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
-  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ machine: null }));
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ machine: null, upstream: "192.168.10.51:32400" }),
+  );
 });
 
-test("only machines are offered — a service is an address in use, not one to point at", () => {
+test("only machines are offered as machines — a service is an address in use", () => {
   renderModal({ rows: MACHINES });
-  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
+  fireEvent.click(screen.getByRole("button", { name: "Machine" }));
 
-  expect(screen.getByRole("option", { name: /nas/ })).toBeInTheDocument();
-  expect(screen.queryByRole("option", { name: /web/ })).not.toBeInTheDocument();
+  const options = screen.getAllByRole("option").map((o) => o.textContent);
+  expect(options).toContain("nas — 192.168.10.50");
+  expect(options.some((o) => o?.includes("web"))).toBe(false);
 });
 
-test("the Docker host and the container's own host are offered beside the machines", () => {
+test("Address mode offers the Docker host and the container's own host", () => {
   renderModal({ rows: MACHINES, dockerHost: "192.168.10.220", containerHost: "jellyfin" });
-  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
 
-  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
-    "nas192.168.10.50",
-    "Docker host192.168.10.220",
-    "This containerjellyfin",
-  ]);
+  expect(addressOptions()).toEqual(["Docker host192.168.10.220", "This containerjellyfin"]);
 });
 
-test("an address that is already a machine's is offered once, as the machine", () => {
-  // Picking it should link the machine, so the machine's entry is the one to keep.
+test("the Docker host stays an address even when a machine shares its IP", () => {
+  // The two modes are separate lists: typing an address never links, so the Docker host
+  // isn't hidden behind a machine that happens to have the same IP.
   renderModal({ rows: MACHINES, dockerHost: "192.168.10.50", containerHost: "192.168.10.50" });
-  fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
 
-  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["nas192.168.10.50"]);
+  expect(addressOptions()).toEqual(["Docker host192.168.10.50"]);
 });
 
-test("with nothing to offer, the host field is a plain text field", () => {
+test("with nothing to offer, the host field is a plain text field, and no toggle", () => {
   renderModal({ rows: [] });
 
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
 });
 
 test("an existing route's scheme is prefilled and editable", () => {
@@ -282,9 +288,10 @@ test("following and a machine link exclude each other in the form, as on the ser
     expect.objectContaining({ follow_container: true, machine: null }),
   );
 
-  // ...and a machine can only be picked once following is off: the host is locked till then.
+  // ...and a machine can only be picked once following is off: the toggle is hidden till then.
+  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Set by hand" }));
-  pickHost(/nas/);
+  pickMachine("nas");
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenLastCalledWith(
     expect.objectContaining({ follow_container: false, machine: "nas" }),

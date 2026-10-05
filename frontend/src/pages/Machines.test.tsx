@@ -45,6 +45,8 @@ beforeEach(() => {
           ? ROUTES
           : path === "/api/adguard/status"
             ? { answer_ip: null, instances: [{ id: "nas", domain: "nas.example.no", present: true, conflict: false }] }
+            : path === "/api/docker/containers"
+              ? []
             : path === "/api/machines"
               ? { url: "nas.example.no", warning: null, relinked: ["plex"] }
               : {};
@@ -110,4 +112,14 @@ test("editing a machine posts its id, and the banner says what moved with it", a
   expect(post.body).toMatchObject({ instance_id: "nas", address: "192.168.10.70", hostname: "nas" });
   const banner = await screen.findByText(/Moved plex with it/);
   expect(within(banner).getByText("nas.example.no")).toBeInTheDocument();
+});
+
+test("a machine's row adds a route already linked to it", async () => {
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByTitle("Add a route on this machine"));
+
+  expect(await screen.findByRole("combobox", { name: "Machine" })).toHaveValue("nas");
+  expect(screen.getByText(/follows Storage box/)).toBeInTheDocument();
 });

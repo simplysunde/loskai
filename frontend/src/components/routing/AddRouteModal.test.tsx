@@ -70,7 +70,7 @@ function renderModal(overrides = {}) {
 
 const prefixInput = () => screen.getByPlaceholderText("grafana");
 const hostInput = () =>
-  screen.getByRole("combobox", { name: "Host or machine" }) as HTMLInputElement;
+  screen.getByRole("combobox", { name: "Host" }) as HTMLInputElement;
 const portInput = () => screen.getByRole("textbox", { name: "Port" }) as HTMLInputElement;
 const addButton = () => screen.getByRole("button", { name: /Add route/ });
 
@@ -80,9 +80,10 @@ function typeUpstream(host: string, port: string) {
 }
 
 // Open the host list from its chevron and pick an entry, as a mouse would.
-async function pickHost(name: RegExp) {
-  fireEvent.mouseDown(await screen.findByRole("button", { name: "Show hosts" }));
-  fireEvent.mouseDown(screen.getByRole("option", { name }));
+// Machine mode, then the machine by id — the toggle only appears once machines have loaded.
+async function pickMachine(id: string) {
+  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Machine" }), { target: { value: id } });
 }
 
 test("lowercases a typed prefix instead of silently rejecting it", () => {
@@ -333,16 +334,17 @@ const MACHINES = [
   },
 ];
 
-test("the host list offers named machines, and only those", async () => {
+test("Machine mode offers named machines, and only those", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.mouseDown(await screen.findByRole("button", { name: "Show hosts" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
 
-  expect(screen.getByRole("option", { name: /nas/ })).toHaveTextContent("192.168.10.50");
+  const options = screen.getAllByRole("option").map((o) => o.textContent);
+  expect(options).toContain("nas — 192.168.10.50");
   // grafana is a service on a machine, not an address to point at.
-  expect(screen.queryByRole("option", { name: /grafana/ })).not.toBeInTheDocument();
+  expect(options.some((o) => o?.includes("grafana"))).toBe(false);
 });
 
 test("picking a machine links the route to it, not just its address", async () => {
@@ -351,7 +353,7 @@ test("picking a machine links the route to it, not just its address", async () =
   const { onSubmit } = renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickHost(/nas/);
+  await pickMachine("nas");
   fireEvent.change(prefixInput(), { target: { value: "plex" } });
   fireEvent.change(portInput(), { target: { value: "32400" } });
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));
@@ -375,31 +377,46 @@ test("a typed address carries no machine link", async () => {
   );
 });
 
-test("typing over a picked machine unlinks it", async () => {
+test("switching back to Address unlinks, keeping the address to edit", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   const { onSubmit } = renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickHost(/nas/);
-  expect(screen.getByText(/Linked to nas/)).toBeInTheDocument();
+  await pickMachine("nas");
+  expect(screen.getByText(/follows nas/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Address" }));
+  expect(hostInput()).toHaveValue("192.168.10.50");
   fireEvent.change(prefixInput(), { target: { value: "thing" } });
-  typeUpstream("192.168.10.77", "8080");
+  fireEvent.change(portInput(), { target: { value: "8080" } });
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));
 
-  expect(screen.queryByText(/Linked to nas/)).not.toBeInTheDocument();
   expect(onSubmit).toHaveBeenCalledWith(
     expect.not.objectContaining({ machine: expect.anything() }),
   );
 });
 
-test("picking a machine fills its address and leaves the port to type", async () => {
+test("Machine mode can't submit until a machine is chosen", async () => {
+  // Switching never guesses a link from an address that happens to match.
   RESPONSES["/api/caddy/routes"] = MACHINES;
   renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickHost(/nas/);
+  fireEvent.change(prefixInput(), { target: { value: "plex" } });
+  typeUpstream("192.168.10.50", "32400");
+  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
 
-  expect(hostInput()).toHaveValue("192.168.10.50");
+  expect(screen.getByRole("combobox", { name: "Machine" })).toHaveValue("");
+  expect(screen.getByRole("button", { name: "Add route" })).toBeDisabled();
+});
+
+test("picking a machine shows where the route goes, and leaves the port to type", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  renderPicker();
+
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  await pickMachine("nas");
+
+  expect(screen.getByText("→ 192.168.10.50 — follows nas when its address changes.")).toBeInTheDocument();
   expect(portInput()).toHaveValue("");
 });
 
@@ -409,7 +426,7 @@ test("picking a machine keeps a port already typed", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
   fireEvent.change(portInput(), { target: { value: "32400" } });
-  await pickHost(/nas/);
+  await pickMachine("nas");
 
   expect(portInput()).toHaveValue("32400");
 });
@@ -421,12 +438,26 @@ test("picking a machine leaves the prefix alone", async () => {
   renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickHost(/nas/);
+  await pickMachine("nas");
 
   expect(prefixInput()).toHaveValue("");
 });
 
-test("typing filters the host list by name or address", async () => {
+test("opened from a machine's row, it starts on External, linked to that machine", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  const { onSubmit } = renderPicker({ initialMachine: { id: "nas", address: "192.168.10.50" } });
+
+  expect(await screen.findByRole("combobox", { name: "Machine" })).toHaveValue("nas");
+  fireEvent.change(prefixInput(), { target: { value: "plex" } });
+  fireEvent.change(portInput(), { target: { value: "32400" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ machine: "nas", upstream: "192.168.10.50:32400" }),
+  );
+});
+
+test("Address mode's list is the Docker host, filtered as you type — not the machines", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   RESPONSES["/api/settings"] = {
     ...(DEFAULT_SETTINGS as object),
@@ -442,33 +473,36 @@ test("typing filters the host list by name or address", async () => {
   ]);
 
   fireEvent.change(hostInput(), { target: { value: "10.50" } });
-  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["nas192.168.10.50"]);
+  expect(screen.queryByRole("option")).not.toBeInTheDocument();
 });
 
 test("the keyboard picks from the list — but Enter never swaps a typed address", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
+  RESPONSES["/api/settings"] = {
+    ...(DEFAULT_SETTINGS as object),
+    host_ip: { value: "192.168.10.220", source: "stored", secret: false },
+  };
   renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
   await screen.findByRole("button", { name: "Show hosts" });
 
-  // "192.168.10.5" is a prefix of nas's address; Enter must leave what was typed.
-  fireEvent.change(hostInput(), { target: { value: "192.168.10.5" } });
+  // "192.168.10.2" is a prefix of the Docker host's address; Enter must leave what was typed.
+  fireEvent.change(hostInput(), { target: { value: "192.168.10.2" } });
   fireEvent.keyDown(hostInput(), { key: "Enter" });
-  expect(hostInput()).toHaveValue("192.168.10.5");
+  expect(hostInput()).toHaveValue("192.168.10.2");
 
   // An arrow key highlights; then Enter picks.
   fireEvent.keyDown(hostInput(), { key: "ArrowDown" });
   fireEvent.keyDown(hostInput(), { key: "Enter" });
-  expect(hostInput()).toHaveValue("192.168.10.50");
-  expect(screen.getByText(/Linked to nas/)).toBeInTheDocument();
+  expect(hostInput()).toHaveValue("192.168.10.220");
 });
 
-test("with no hosts to offer, the host field is a plain text field", async () => {
+test("with no hosts to offer, the host field is a plain text field, and no toggle", async () => {
   const { onSubmit } = renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.77", "8080");
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));

@@ -167,14 +167,16 @@ view both read.
   live from the Docker socket and **joined in at display time** via `container`. This
   keeps the store from ever drifting out of sync with reality.
 
-**How routes are created — one surface.** All route creation happens in the Routing tab's
-**Add route** picker; no other tab creates routes (the Docker tab only *displays* routed
+**How routes are created — one surface.** All route creation happens in the **Add route**
+picker — opened on the Routing tab, or from a machine's row on the Machines tab preset to
+that machine; it is the same component either way (the Docker tab only *displays* routed
 state). The picker chooses a source, which pre-fills the subdomain + upstream:
 - **External** — a LAN target by address. The upstream is entered as **host + port on one
-  row** (both route forms share this): the host field is a combobox offering the **machines**
-  already named (instances declared `kind: "machine"`), the Docker host and a picked
-  container's own host, filtered as you type — so a proxy route can borrow a machine's
-  address and only needs its port; typing any address stays available. The list is deliberately *not* filtered by whether a machine is routed —
+  row** (both route forms share this). The host is **Machine or Address** (Phase 30):
+  Machine selects one of the **machines** already named (instances declared
+  `kind: "machine"`), so a proxy route borrows a machine's address and only needs its port;
+  Address is a combobox — type any address, or pick the Docker host or a picked container's
+  own host. The machine list is deliberately *not* filtered by whether a machine is routed —
   unlike the two sources below, you are reusing an address, not routing the thing itself.
   The picked machine fills the host only, never the prefix or the port: the route is a service *on*
   that machine, and prefilling its name would collide with the name it already answers to.

@@ -49,7 +49,7 @@ export function HostSelect({
     <div className="relative">
       <input
         role="combobox"
-        aria-label="Host or machine"
+        aria-label="Host"
         aria-expanded={expanded}
         aria-controls={listId}
         aria-autocomplete="list"

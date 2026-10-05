@@ -1133,9 +1133,16 @@ side bar separating them from routes to make it more defined)"._
 - [x] Docs: `CLAUDE.md` admin tabs, `HISTORY.md` (the walk-back), `PLAN.md` if it names the tab
 
 **30b — Machine or Address**
-- [ ] `RouteFields`: a toggle; Machine mode is a select of machines + the port; Address mode
+- [x] `RouteFields`: a toggle; Machine mode is a select of machines + the port; Address mode
       is `HostSelect` without the machines. Both route forms get it through the shared fields
-- [ ] Routing table: a linked upstream reads `<machine>:<port>`, the address beneath
+- [x] Routing table: a linked upstream reads `<machine>:<port>`, the address beneath
+- [x] **Added while building:** each machine's row on the Machines tab has "Add a route on
+      this machine" — the same Add route picker, opened on External in Machine mode
+- [x] **Machines no longer hide the Docker host.** `hostOptions` used to drop the Docker
+      host when a machine shared its IP, so a pick linked the machine; the two modes are
+      separate lists now, and Address never links
+- [x] Tests: the combobox-picks-a-machine tests rewritten for the toggle (no guessing a link
+      on switch, Address unlinks and keeps the IP, a row-opened picker starts linked)
 
 **30c — Docker by stack, and volumes**
 - [ ] Backend: each container carries its compose `project`; `GET /api/docker/volumes` (name,
