@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 
 import { DeleteStackOptions } from "./DeleteStackOptions";
-import type { Stack } from "./StackList";
+import type { Stack } from "./groupByStack";
 
 // Recipes keep data beside the compose file, so what's worth pinning is that taking the
 // data is never the default — and that the dialog says exactly what each choice does.

@@ -42,7 +42,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 44 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 45 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest — **copied into the loskai-recipes repo**
   (at its root) so a session authoring recipes has it; edit it here only, then run
   `bash scripts/sync-recipe-schema.sh`. The docs check fails while the copy differs.

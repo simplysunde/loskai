@@ -190,3 +190,32 @@ def test_caddy_is_resolved_once_per_request_not_per_container(monkeypatch, data_
 
     DockerClient().list_containers(caddy_host="caddy")
     assert fake.list_calls == 1
+
+
+def test_a_container_carries_its_compose_project(monkeypatch, data_dir):
+    """The Docker tab groups containers under their stack by this — a stack's project is
+    its folder name."""
+    stacked = FakeContainer("immich-db")
+    stacked.labels["com.docker.compose.project"] = "immich"
+    _use(monkeypatch, FakeDocker([stacked, FakeContainer("portainer")]))
+
+    rows = {r["name"]: r for r in DockerClient().list_containers(with_stats=False)}
+    assert rows["immich-db"]["project"] == "immich"
+    assert rows["portainer"]["project"] is None
+
+
+def test_list_volumes_joins_df_to_the_mounts_of_every_container(monkeypatch, data_dir):
+    db = FakeContainer("immich-db", running=False)  # stopped still holds its volume
+    db.attrs["Mounts"] = [{"Type": "volume", "Name": "immich_pgdata"}]
+    fake = FakeDocker([db, FakeContainer("web")])
+    fake.df = lambda: {"Volumes": [
+        {"Name": "immich_pgdata", "Driver": "local", "UsageData": {"Size": 5}},
+        {"Name": "orphan", "Driver": "local", "UsageData": {"Size": 7}},
+    ]}
+    _use(monkeypatch, fake)
+
+    rows = DockerClient().list_volumes()
+    assert [(r["name"], r["used_by"]) for r in rows] == [
+        ("immich_pgdata", ["immich-db"]),
+        ("orphan", []),
+    ]

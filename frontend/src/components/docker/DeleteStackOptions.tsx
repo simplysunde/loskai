@@ -1,4 +1,4 @@
-import type { Stack } from "./StackList";
+import type { Stack } from "./groupByStack";
 
 // What Delete on a stack will do, and the one choice it offers. Recipes keep their data
 // beside the compose file (./data), so by default Delete removes only compose.yml and

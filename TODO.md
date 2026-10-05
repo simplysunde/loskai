@@ -1145,17 +1145,27 @@ side bar separating them from routes to make it more defined)"._
       on switch, Address unlinks and keeps the IP, a row-opened picker starts linked)
 
 **30c — Docker by stack, and volumes**
-- [ ] Backend: each container carries its compose `project`; `GET /api/docker/volumes` (name,
+- [x] Backend: each container carries its compose `project`; `GET /api/docker/volumes` (name,
       size, project, which containers mount it). `api.md` + the route count
-- [ ] Frontend: Containers tab grouped by stack (stack actions on the group row), Standalone
-      last; Volumes tab
+- [x] Frontend: Containers tab grouped by stack (stack actions on the group row), Standalone
+      last; Volumes tab. A compose project from outside the stacks folder (Loskai's own) is
+      its own group, listed but without stack actions; a stack with no containers keeps its
+      group, so Up stays reachable
+- [x] **Read-only volumes, deliberately.** No remove button: Docker refuses an in-use volume
+      anyway, and the one worth removing is the one nothing mounts — which is exactly what
+      the list now shows. `docker volume rm` stays on the host
+- [x] Checked against the real daemon (dev VM): three volumes, all `used_by: []` — correct,
+      since all three containers there bind-mount. They are the Bambuddy migration's
+      leftovers (`bambuddy_bambuddy_data`/`_logs`) and an old `loskai_caddy-data`
+- [x] Tests: +5 backend (`volume_rows` join/size/anonymous, `project`, `list_volumes`), +7
+      frontend (`groupByStack` ×4, the grouped table ×2, volumes ×1)
 
 **30d — the recipe flow**
 - [ ] Catalog: search, a grid, the source shown quietly
 - [ ] Step indicator: Choose → Review → Configure → Done
 - [ ] Done step routes the install: the suggested prefix + the container's upstream,
       following by default, posted to `/api/routes`
-- [ ] Install recipe in the Docker header, not only on the Stacks tab
+- [x] Install recipe in the Docker header, not only on the Stacks tab (landed with 30c)
 
 **Verification**
 - [ ] `pytest` + `npm test` + `npm run build` + `check-docs.sh`

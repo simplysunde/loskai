@@ -5,21 +5,19 @@ import { FilePlus2, PackagePlus } from "lucide-react";
 import { api } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
-import {
-  ContainerList,
-  type Container,
-} from "../components/docker/ContainerList";
+import type { Container, Stack } from "../components/docker/groupByStack";
 import { InstallWizard } from "../components/docker/InstallWizard";
 import { LogViewer } from "../components/docker/LogViewer";
 import { StackEditor } from "../components/docker/StackEditor";
-import { StackList, type Stack } from "../components/docker/StackList";
+import { StackGroups } from "../components/docker/StackGroups";
 import { StatsBar } from "../components/docker/StatsBar";
 import { Terminal } from "../components/docker/Terminal";
+import { VolumeList } from "../components/docker/VolumeList";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { DeleteStackOptions } from "../components/docker/DeleteStackOptions";
 import { ModuleStatus } from "../components/shared/ModuleStatus";
 
-type Tab = "containers" | "stacks";
+type Tab = "containers" | "volumes";
 
 export function Docker() {
   const qc = useQueryClient();
@@ -55,14 +53,33 @@ export function Docker() {
     onSuccess: () => {
       setDeleteStack(null);
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
     },
   });
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-100">Docker</h1>
-        <p className="mt-1 text-sm text-slate-500">Containers and compose stacks on this host.</p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-100">Docker</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Containers by the stack that runs them, and the volumes they keep.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => setStackEditor({ name: null })}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+          >
+            <FilePlus2 className="h-4 w-4" /> New stack
+          </button>
+          <button
+            onClick={() => setWizardOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+          >
+            <PackagePlus className="h-4 w-4" /> Install recipe
+          </button>
+        </div>
       </header>
 
       <div className="mb-4 space-y-3">
@@ -70,48 +87,29 @@ export function Docker() {
         <StatsBar />
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex gap-1 rounded-lg border border-slate-800 p-1">
-          <TabButton active={tab === "containers"} onClick={() => setTab("containers")}>
-            Containers
-          </TabButton>
-          <TabButton active={tab === "stacks"} onClick={() => setTab("stacks")}>
-            Stacks
-          </TabButton>
-        </div>
-        {tab === "stacks" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStackEditor({ name: null })}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              <FilePlus2 className="h-4 w-4" /> New stack
-            </button>
-            <button
-              onClick={() => setWizardOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
-            >
-              <PackagePlus className="h-4 w-4" /> Install recipe
-            </button>
-          </div>
-        )}
+      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
+        <TabButton active={tab === "containers"} onClick={() => setTab("containers")}>
+          Containers
+        </TabButton>
+        <TabButton active={tab === "volumes"} onClick={() => setTab("volumes")}>
+          Volumes
+        </TabButton>
       </div>
 
       {tab === "containers" ? (
-        <ContainerList
+        <StackGroups
           baseDomain={baseDomain}
           onLogs={setLogsFor}
           onTerminal={setTerminalFor}
           onRemove={setRemoveContainer}
-        />
-      ) : (
-        <StackList
-          onEdit={(name) => setStackEditor({ name })}
-          onDelete={(stack) => {
+          onEditStack={(name) => setStackEditor({ name })}
+          onDeleteStack={(stack) => {
             setDeleteData(false); // never carried over from a previous dialog
             setDeleteStack(stack);
           }}
         />
+      ) : (
+        <VolumeList />
       )}
 
       {logsFor && <LogViewer container={logsFor} onClose={() => setLogsFor(null)} />}

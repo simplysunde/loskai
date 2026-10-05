@@ -304,6 +304,14 @@ def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+# --- Volumes ---
+
+
+@router.get("/volumes")
+def volumes() -> list[dict]:
+    return _docker_call(docker_client.list_volumes)
+
+
 # --- Host stats ---
 
 

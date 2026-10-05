@@ -392,3 +392,35 @@ def orphaned_instances(instances: list, live_container_names: set[str]) -> list:
         for inst in instances
         if inst.type == "docker" and inst.container and inst.container not in live_container_names
     ]
+
+
+def volume_rows(volumes: list[dict], containers: list[dict]) -> list[dict]:
+    """Named volumes (from `docker system df`), each with the containers that mount it.
+
+    `containers` is `[{"name", "mounts"}]`, the mounts as Docker reports them; only a
+    `Type: volume` mount names a volume, so bind mounts never appear here. `size` is None
+    where Docker hasn't computed it (it reports -1). An anonymous volume — Docker's label, or
+    the 64-hex name it gives one — is flagged, since its name means nothing to read.
+    """
+    used_by: dict[str, list[str]] = {}
+    for c in containers:
+        for mount in c.get("mounts") or []:
+            if mount.get("Type") == "volume" and mount.get("Name"):
+                used_by.setdefault(mount["Name"], []).append(c["name"])
+    rows = []
+    for v in volumes:
+        name = v.get("Name")
+        if not name:
+            continue
+        labels = v.get("Labels") or {}
+        size = (v.get("UsageData") or {}).get("Size")
+        rows.append({
+            "name": name,
+            "driver": v.get("Driver"),
+            "size": size if isinstance(size, int) and size >= 0 else None,
+            "project": labels.get("com.docker.compose.project"),
+            "anonymous": "com.docker.volume.anonymous" in labels
+            or (len(name) == 64 and all(ch in "0123456789abcdef" for ch in name)),
+            "used_by": sorted(used_by.get(name, [])),
+        })
+    return sorted(rows, key=lambda r: r["name"])

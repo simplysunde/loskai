@@ -74,6 +74,9 @@ class DockerClient:
                 "id": c.id[:12],
                 "name": c.name,
                 "image": logic.image_name(attrs, c.image.tags if c.image else []),
+                # The compose project it belongs to — a stack's folder name, for one
+                # Loskai manages. The Docker tab groups containers under their stack by it.
+                "project": labels.get("com.docker.compose.project"),
                 "status": c.status,
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
@@ -210,6 +213,15 @@ class DockerClient:
             "disk_volumes_bytes": sum((v.get("UsageData") or {}).get("Size", 0) for v in volumes),
             "docker_version": info.get("ServerVersion"),
         }
+
+    def list_volumes(self) -> list[dict]:
+        client = self._get()
+        volumes = client.df().get("Volumes") or []
+        containers = [
+            {"name": c.name, "mounts": c.attrs.get("Mounts")}
+            for c in client.containers.list(all=True)
+        ]
+        return logic.volume_rows(volumes, containers)
 
     # --- Interactive exec (driven by the WebSocket handler in the router) ---
 

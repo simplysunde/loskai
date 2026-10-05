@@ -322,3 +322,51 @@ def test_upstream_mode_feeds_suggested_upstream_end_to_end():
     assert logic.suggested_upstream(
         "stack-grafana-1", "grafana", ports, isolated, "192.168.10.50"
     ) == "192.168.10.50:3000"
+
+
+# --- Volumes ---
+
+ANON = "a" * 64
+
+
+def test_volume_rows_join_each_volume_to_the_containers_mounting_it():
+    volumes = [
+        {"Name": "immich_pgdata", "Driver": "local", "UsageData": {"Size": 1200, "RefCount": 1},
+         "Labels": {"com.docker.compose.project": "immich"}},
+        {"Name": "old_cache", "Driver": "local", "UsageData": {"Size": 340, "RefCount": 0}},
+    ]
+    containers = [
+        {"name": "immich-db", "mounts": [
+            {"Type": "volume", "Name": "immich_pgdata", "Destination": "/var/lib/postgresql"},
+            # A bind mount names no volume, whatever its source looks like.
+            {"Type": "bind", "Source": "/srv/old_cache", "Destination": "/cache"},
+        ]},
+        {"name": "immich-server", "mounts": None},
+    ]
+    rows = logic.volume_rows(volumes, containers)
+    assert [r["name"] for r in rows] == ["immich_pgdata", "old_cache"]
+    assert rows[0] == {
+        "name": "immich_pgdata", "driver": "local", "size": 1200, "project": "immich",
+        "anonymous": False, "used_by": ["immich-db"],
+    }
+    assert rows[1]["used_by"] == []  # unused: nothing mounts it
+    assert rows[1]["project"] is None
+
+
+def test_volume_rows_size_unknown_is_none_not_minus_one():
+    # Docker reports -1 for a size it hasn't computed; a 0-byte volume is a real 0.
+    rows = logic.volume_rows(
+        [{"Name": "a", "UsageData": {"Size": -1}}, {"Name": "b", "UsageData": {"Size": 0}},
+         {"Name": "c"}],
+        [],
+    )
+    assert [r["size"] for r in rows] == [None, 0, None]
+
+
+def test_volume_rows_flag_anonymous_volumes():
+    rows = logic.volume_rows(
+        [{"Name": ANON}, {"Name": "named", "Labels": {"com.docker.volume.anonymous": ""}},
+         {"Name": "data"}],
+        [],
+    )
+    assert {r["name"]: r["anonymous"] for r in rows} == {ANON: True, "named": True, "data": False}

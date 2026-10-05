@@ -448,18 +448,20 @@ daemon; it invents no new deployment method.
 
 ### Scope — what it can and can't do
 
-Two views over one host, at two granularities:
-- **Container Overview** — *every* running container (live, from the socket), whatever
-  started it. Runtime control + logs + terminal.
-- **Stack Manager** — only the compose projects in `STACKS_DIR` (the ones with editable
-  files). A stack container shows in both views; a bare `docker run` container shows only
-  in Container Overview (nothing to edit — it has no compose file).
+One view of the host, organised by stack (Phase 30 — before it, two tabs):
+- **Containers** — *every* container (live, from the socket), nested under the stack that
+  started it by its `com.docker.compose.project` label. A stack in `STACKS_DIR` (editable
+  files) carries the stack actions on its header row; a compose project from elsewhere is
+  listed but not managed; a bare `docker run` container sits under **Standalone** (nothing
+  to edit — it has no compose file). Runtime control + logs + terminal per container.
+- **Volumes** — named volumes, read-only: size, stack, and which containers mount each, so
+  one nothing uses is visible. Bind mounts (the recipes' `./data`) are folders, not volumes.
 
 | ✅ Can do | ❌ Can't do (by design) |
 |---|---|
 | List all running containers with live stats | Manage containers on **other hosts** (single host, for now) |
 | Start / stop / restart / remove any container | Edit config of a container with **no compose file** |
-| Stream logs, open a browser terminal, quick commands | Be a full Portainer (no network / volume / image-management UI) |
+| Stream logs, open a browser terminal, quick commands | Be a full Portainer (no network / image management; volumes are listed, never removed) |
 | Discover, start/stop/restart, and **pull-update** stacks | See stacks **outside** `STACKS_DIR` |
 | Create a stack (wizard *or* manual browser compose) | Do anything without the **socket mounted** |
 | Edit `compose.yml` / `.env`, delete a stack | Build/manage arbitrary images (only recipe builds + pull) |
@@ -985,11 +987,11 @@ frontend/src/
 │   ├── settings/
 │   │   └── PeerDnsReminder.tsx WireGuard peer-DNS guidance
 │   └── docker/              Phase 8
-│       ├── ContainerList.tsx
+│       ├── StackGroups.tsx      containers nested under their stack (groupByStack.ts)
+│       ├── VolumeList.tsx       named volumes: size, stack, used by
 │       ├── LogViewer.tsx
 │       ├── Terminal.tsx         xterm.js browser terminal (WebSocket exec)
 │       ├── QuickCommands.tsx    preset command buttons above the terminal
-│       ├── StackList.tsx
 │       ├── StackEditor.tsx
 │       ├── InstallWizard.tsx
 │       └── StatsBar.tsx
