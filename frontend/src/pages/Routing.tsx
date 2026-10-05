@@ -19,7 +19,7 @@ import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill, type PrefillSource } from "../components/routing/containerPrefill";
-import { InfraStatusPill } from "../components/routing/InfraStatusPill";
+import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -287,32 +287,33 @@ export function Routing() {
       </header>
 
       <div className="mb-4 space-y-3">
-        <InfraStatusPill
-          icon={<Shield className="h-4 w-4" />}
-          name="AdGuard"
-          health={h?.adguard}
-          url={h?.adguard?.url}
-          linkLabel="Open AdGuard"
-        >
-          {h?.adguard?.answer_ip && (
-            <span className="shrink-0 text-xs text-slate-500">
-              answers → <span className="font-mono text-slate-400">{h.adguard.answer_ip}</span>
-            </span>
-          )}
-        </InfraStatusPill>
+        <div className="grid gap-3 md:grid-cols-2">
+          <InfraStatusPill
+            icon={<Shield className="h-4 w-4" />}
+            name="AdGuard"
+            health={h?.adguard}
+            url={h?.adguard?.url}
+            linkLabel="Open AdGuard"
+          >
+            {h?.adguard?.answer_ip && (
+              <span
+                title="The address every DNS rewrite answers with — where Caddy listens"
+                className="min-w-0 truncate font-mono text-xs text-slate-500"
+              >
+                → {h.adguard.answer_ip}
+              </span>
+            )}
+          </InfraStatusPill>
 
-        <InfraStatusPill
-          icon={<Lock className="h-4 w-4" />}
-          name="Caddy"
-          health={h?.caddy}
-          url={certUrl}
-          linkLabel="Cert page"
-          action={<CopyCertLink url={certUrl} />}
-        >
-          <span className="hidden shrink-0 text-xs text-slate-500 lg:inline">
-            share the cert page to trust <span className="font-mono">*.{baseDomain ?? "domain"}</span>
-          </span>
-        </InfraStatusPill>
+          <InfraStatusPill
+            icon={<Lock className="h-4 w-4" />}
+            name="Caddy"
+            health={h?.caddy}
+            url={certUrl}
+            linkLabel={`Cert page — share it to trust *.${baseDomain ?? "domain"}`}
+            action={<CopyCertLink url={certUrl} />}
+          />
+        </div>
         {syncNote && (
           <div className="rounded-lg border border-teal-600/40 bg-teal-500/10 px-3 py-2 text-sm text-teal-200">
             {syncNote}
@@ -479,7 +480,7 @@ function CopyCertLink({ url }: { url: string | null }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+      className={ICON_BUTTON}
     >
       {copied ? (
         <Check className="h-3.5 w-3.5 text-emerald-400" />
