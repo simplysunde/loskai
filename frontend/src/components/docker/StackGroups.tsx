@@ -17,6 +17,7 @@ import {
 
 import { api } from "../../lib/api";
 import { formatPercent, formatUptime } from "../../lib/format";
+import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { groupByStack, type Container, type Group, type Stack } from "./groupByStack";
 
@@ -273,14 +274,7 @@ function ContainerRow({
           {c.name}
           {c.subdomain &&
             (baseDomain ? (
-              <a
-                href={`${c.scheme === "http" ? "http" : "https"}://${c.subdomain}.${baseDomain}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300 hover:bg-teal-500/25"
-              >
-                {c.subdomain}.{baseDomain}
-              </a>
+              <RouteLink host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
             ) : (
               <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300">
                 {c.subdomain}

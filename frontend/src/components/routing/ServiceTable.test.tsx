@@ -184,3 +184,25 @@ test("an uploaded icon is shown, with a control to remove it", () => {
   expect(screen.getByTitle("Change the launcher icon")).toBeInTheDocument();
   expect(screen.getByTitle("Remove the launcher icon")).toBeInTheDocument();
 });
+
+test("a routed name opens the site — over http when that is all it serves", () => {
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "grafana", name: "grafana", fqdn: "grafana.example.no" }),
+        row({ id: "tv", name: "tv", fqdn: "tv.example.no", scheme: "http" }),
+        row({ id: "off", name: "off", routed: false, subdomain: null, fqdn: null }),
+      ]}
+    />,
+  );
+
+  expect(screen.getByRole("link", { name: "grafana.example.no" })).toHaveAttribute(
+    "href",
+    "https://grafana.example.no",
+  );
+  expect(screen.getByRole("link", { name: "tv.example.no" })).toHaveAttribute(
+    "href",
+    "http://tv.example.no",
+  );
+  expect(screen.getByText("not routed")).toBeInTheDocument();
+});

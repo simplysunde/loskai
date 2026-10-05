@@ -1,5 +1,6 @@
 import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
+import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { splitUpstream } from "../../lib/validation";
 import { isMachine, machineLabel } from "./machine";
@@ -96,8 +97,10 @@ export function ServiceTable({
                     {row.type}
                   </span>
                 </div>
-                <div className="text-xs text-slate-500">
-                  {row.fqdn ?? (
+                <div className="mt-1 text-xs">
+                  {row.fqdn ? (
+                    <RouteLink host={row.fqdn} scheme={row.scheme} />
+                  ) : (
                     <span className="text-slate-600">not routed</span>
                   )}
                 </div>
