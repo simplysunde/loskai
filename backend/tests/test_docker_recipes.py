@@ -286,6 +286,25 @@ def test_same_tail_on_different_hosts_gets_its_own_cache():
     assert a.startswith("recipes-") and b.startswith("recipes-")
 
 
+def test_sources_sharing_a_tail_are_counted_and_named_apart(data_dir):
+    """Two forks called `recipes` on different hosts used to share one label — each row
+    showed the combined count, and a shadow note read "recipes copy hidden by recipes"."""
+    one, two = "https://git.example/one/recipes.git", "https://github.com/two/recipes.git"
+    _use_sources(one, two)
+    _make_recipe(_cache(data_dir, one), "grafana", "Grafana")
+    _make_recipe(_cache(data_dir, two), "grafana", "Grafana")
+    _make_recipe(_cache(data_dir, two), "jelly", "Jellyfin")
+
+    result = recipes.list_recipes()
+    assert [(s["label"], s["count"]) for s in result["sources"]] == [
+        ("git.example/one/recipes", 1),
+        ("github.com/two/recipes", 1),
+    ]
+    assert result["shadowed"] == [
+        {"id": "grafana", "source": "github.com/two/recipes", "shadowed_by": "git.example/one/recipes"}
+    ]
+
+
 def test_list_recipes_flags_invalid(data_dir):
     # compose.yml missing -> invalid, but doesn't break the rest.
     _make_recipe(data_dir / "recipes", "broken", "Broken", compose=False)

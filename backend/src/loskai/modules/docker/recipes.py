@@ -254,6 +254,18 @@ def source_label(url: str, name: str | None = None) -> str:
     return url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git") or url
 
 
+def source_labels(sources: list[dict]) -> dict[str, str]:
+    """url -> label for every configured source. A short label two sources share (two
+    forks both called `loskai-recipes`), or one that reads as the local dir, falls back to
+    the URL itself — recipe counts and shadow notes are keyed by label."""
+    short = {s["url"]: source_label(s["url"], s.get("name")) for s in sources}
+    taken = [*short.values(), SOURCE_LOCAL]
+    return {
+        url: label if taken.count(label) == 1 else url.split("://", 1)[-1].rstrip("/").removesuffix(".git")
+        for url, label in short.items()
+    }
+
+
 def project_name(recipe_id: str) -> str:
     """The compose project name `docker compose` will use for an installed recipe."""
     return _PROJECT_RE.sub("", recipe_id.lower())
@@ -366,7 +378,8 @@ def _merged() -> dict:
 
     Recipes carry their folder `path` here; `list_recipes` drops it for the API.
     """
-    scans = [(source_label(s["url"], s.get("name")), s["url"], _repo_cache(s["url"])) for s in enabled_sources()]
+    labels = source_labels(settings_store.recipe_sources()[0])
+    scans = [(labels[s["url"]], s["url"], _repo_cache(s["url"])) for s in enabled_sources()]
     scans.append((SOURCE_LOCAL, None, _local_dir()))
 
     merged: dict[str, dict] = {}
@@ -383,10 +396,9 @@ def _merged() -> dict:
     return {"recipes": merged, "invalid": invalid, "shadowed": shadowed}
 
 
-def _source_status(source: dict, counts: dict[str, int]) -> dict:
+def _source_status(source: dict, label: str, counts: dict[str, int]) -> dict:
     """One source as the UI shows it: what it is, and whether it has ever synced."""
     cache = _repo_cache(source["url"])
-    label = source_label(source["url"], source.get("name"))
     synced = (cache / ".git").is_dir()
     return {
         "url": source["url"],
@@ -407,13 +419,14 @@ def list_recipes() -> dict:
     for recipe in recipes:
         counts[recipe["source"]] = counts.get(recipe["source"], 0) + 1
     sources, sources_source = settings_store.recipe_sources()
+    labels = source_labels(sources)
     return {
         "recipes": [{k: v for k, v in r.items() if k != "path"} for r in recipes],
         "invalid": merged["invalid"],
         "shadowed": merged["shadowed"],
         # So the wizard's empty state can tell "no sources configured" apart from
         # "configured but never synced" — two very different things to tell the user.
-        "sources": [_source_status(s, counts) for s in sources],
+        "sources": [_source_status(s, labels[s["url"]], counts) for s in sources],
         "sources_source": sources_source,
         "local_count": counts.get(SOURCE_LOCAL, 0),
     }
@@ -468,9 +481,10 @@ def sync_recipes(url: str | None = None) -> dict:
     if not targets:
         raise RecipeError("no recipe sources are enabled — add one in Settings > General")
 
+    labels = source_labels(settings_store.recipe_sources()[0])
     results: list[dict] = []
     for source in targets:
-        label = source_label(source["url"], source.get("name"))
+        label = labels[source["url"]]
         try:
             results.append({"url": source["url"], "label": label, "ok": True, "output": _sync_one(source["url"])})
         except RecipeError as exc:
