@@ -21,8 +21,12 @@ function renderPanel({
   ] as unknown[],
   saveStatus = 200,
   saveDetail = "",
+  settingsStatus = 200,
 } = {}) {
   const fetchMock = vi.fn(async (path: string, options?: RequestInit) => {
+    if (path === SETTINGS && !options?.method && settingsStatus !== 200) {
+      return new Response("{}", { status: settingsStatus, headers: { "Content-Type": "application/json" } });
+    }
     if (path === SETTINGS && options?.method === "PUT") {
       return new Response(JSON.stringify(saveStatus === 200 ? {} : { detail: saveDetail }), {
         status: saveStatus,
@@ -101,7 +105,8 @@ test("removing the last source saves an empty list rather than nothing", async (
 test("a new source is appended, so it cannot outrank the existing ones by accident", async () => {
   const { saved } = renderPanel();
 
-  fireEvent.change(await screen.findByLabelText("Recipe source URL"), {
+  await screen.findByText(BUILTIN);
+  fireEvent.change(screen.getByLabelText("Recipe source URL"), {
     target: { value: `  ${EXTRA}  ` },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -113,13 +118,25 @@ test("a new source is appended, so it cannot outrank the existing ones by accide
   ]);
 });
 
+test("a source can't be added until the stored list has loaded", async () => {
+  // Every save is the whole list, so adding to the empty placeholder would wipe it.
+  const { fetchMock, saved } = renderPanel({ settingsStatus: 500 });
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(SETTINGS, expect.anything()));
+  fireEvent.change(screen.getByLabelText("Recipe source URL"), { target: { value: EXTRA } });
+  expect((screen.getByRole("button", { name: "Add" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.keyDown(screen.getByLabelText("Recipe source URL"), { key: "Enter" });
+  expect(saved()).toEqual([]);
+});
+
 test("a rejected list surfaces the backend's reason", async () => {
   renderPanel({
     saveStatus: 422,
     saveDetail: "Recipe source must be an http:// or https:// git URL — got 'nope'",
   });
 
-  fireEvent.change(await screen.findByLabelText("Recipe source URL"), {
+  await screen.findByText(BUILTIN);
+  fireEvent.change(screen.getByLabelText("Recipe source URL"), {
     target: { value: "nope" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add" }));

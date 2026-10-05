@@ -84,7 +84,9 @@ export function RecipeSources() {
 
   function add() {
     const url = draft.trim();
-    if (!url) return;
+    // Every save is the whole list: before settings load, `sources` is [] and appending
+    // to it would wipe every stored row.
+    if (!url || !settings) return;
     setDraft("");
     save.mutate([...sources, { url, enabled: true }]);
   }
@@ -189,7 +191,7 @@ export function RecipeSources() {
         <button
           type="button"
           onClick={add}
-          disabled={!draft.trim() || save.isPending}
+          disabled={!draft.trim() || !settings || save.isPending}
           className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
         >
           {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
