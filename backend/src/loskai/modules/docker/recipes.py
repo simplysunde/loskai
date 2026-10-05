@@ -142,7 +142,9 @@ def resolve_answers(env_spec: list[dict], answers: dict) -> dict[str, str]:
     values: dict[str, str] = {}
     for entry in env_spec:
         given = answers.get(entry["key"])
-        value = str(given if given is not None else entry.get("default", ""))
+        if given is None:
+            given = entry.get("default")  # a bare `default:` is None too, not "None"
+        value = "" if given is None else str(given)
         if entry.get("type") == "path":
             # Always required: an empty source makes `:/data`, which Compose rejects —
             # after the stack folder has been made.

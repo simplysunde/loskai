@@ -93,6 +93,12 @@ def test_none_counts_as_missing():
     assert recipes.resolve_answers(SPEC, {"PORT": None})["PORT"] == "8081"
 
 
+def test_a_bare_default_is_empty_not_none():
+    """`default:` with no value parses as None, which used to be written as the text "None"."""
+    spec = [{"key": "PW", "label": "Password", "default": None}]
+    assert recipes.resolve_answers(spec, {}) == {"PW": ""}
+
+
 def test_answers_are_written_in_manifest_order_as_strings():
     assert list(recipes.resolve_answers(SPEC, {"PW": "x", "PORT": 9000}).items()) == [
         ("PORT", "9000"),
