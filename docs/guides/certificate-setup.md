@@ -129,11 +129,21 @@ proxies to its own `:80` file server. Being an owned, routed instance, it's swee
 served over HTTPS, so first-timers still use the by-IP link; the name is a post-trust
 convenience.
 
-## Customising the page
+## The two pages say the same thing
 
-The `:80` page's `home.lan` strings (title, footer, step text) are just the base-domain
-label — edit `caddy/setup/index.html` to your domain, or leave them. Loskai's Certificate
-page needs no such edit; it names nothing domain-specific.
+The `:80` page is a static copy of Loskai's Certificate page — the same three steps, the
+same per-OS tabs and wording, the same look — so a device sees one set of instructions
+whichever it reached. Neither names anything domain-specific, so there is nothing to
+customise. It is hand-kept in step: change `frontend/src/pages/Certificate.tsx`, change
+`caddy/setup/index.html` too.
+
+**Updating a running Caddy.** The co-located container bakes the page into its image, so
+rebuild it. A Caddy LXC fetched it once at creation (`create-caddy-lxc.sh`); re-run that
+fetch inside the LXC — `file_server` reads the file fresh, so no restart is needed:
+
+```bash
+curl -fsSL "$REPO_RAW_BASE/caddy/setup/index.html" -o /srv/setup/index.html
+```
 
 ## Trust-store commands differ by distro
 

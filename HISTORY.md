@@ -1,5 +1,21 @@
 # Loskai — History
 
+## 2026-10-05 — Caddy's `:80` page becomes a copy of the Certificate tab
+
+The `:80` onboarding page predated Loskai's Certificate tab and had fallen behind it: no
+"Place all certificates in the following store" step on Windows (the default store choice
+leaves the warning in place), no iPhone/iPad trust switch, a vaguer Firefox note, and
+detect-only platform display with no way to another OS's steps. Sunde asked for it to say
+what the tab says; it now does, in Loskai's look, **English only** — the Norwegian toggle
+and the hard-coded `home.lan` branding went with the old theme, since two languages are a
+second thing to keep in step with a page that is already hand-mirrored.
+
+Its copy buttons had never worked where the page is actually used: `navigator.clipboard`
+needs a secure context, and the page is plain HTTP by IP by design. They now fall back to
+selecting the command.
+
+- Key files: `caddy/setup/index.html`, `docs/guides/certificate-setup.md`
+
 ## 2026-10-05 — Machines get their own tab (Phase 30a)
 
 **A walk-back of Phase 21's "a second button, not a second tab".** That decision kept one

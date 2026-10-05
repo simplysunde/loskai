@@ -26,8 +26,8 @@ const PLATFORMS: { id: Platform; label: string }[] = [
 ];
 
 // Preselect a tab from the user agent. Only a guess — every tab stays one click away,
-// which is the whole reason this is a tab strip rather than the :80 page's detect-only
-// display: a phone browsing to a desktop's instructions had no way back.
+// which is the whole reason this is a tab strip rather than a detect-only display: a phone
+// browsing to a desktop's instructions had no way back.
 function detectPlatform(): Platform {
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
   if (/Windows/i.test(ua)) return "windows";
@@ -36,7 +36,8 @@ function detectPlatform(): Platform {
 }
 
 // The public certificate page: hand out Caddy's internal root and walk one device
-// through trusting it. Public like the Dashboard, and reachable over plain HTTP by IP —
+// through trusting it. Caddy's :80 page (caddy/setup/index.html) mirrors this one, steps and
+// wording alike — change one, change the other. Public like the Dashboard, and reachable over plain HTTP by IP —
 // a device that doesn't trust the internal CA yet can't be asked to use the HTTPS route
 // to fix exactly that.
 export function Certificate() {
@@ -206,7 +207,7 @@ function MacOS({ file }: { file: string }) {
       <Code label="Run in Terminal — you'll be asked for your password">
         {`sudo security add-trusted-cert -d -r trustRoot \\\n  -k /Library/Keychains/System.keychain ~/Downloads/${file}`}
       </Code>
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mb-3 mt-2 text-sm text-slate-400">
         That covers Safari and Chrome. iPhone and iPad need a second step: after opening
         the file, go to Settings → General → About → Certificate Trust Settings and switch
         it on.
@@ -238,7 +239,7 @@ function Linux({ file }: { file: string }) {
       <Code label="Chrome and Chromium keep a separate store on Linux — add it there too">
         {`certutil -d sql:$HOME/.pki/nssdb -A -t "C,," \\\n  -n "Caddy Local Authority" -i ~/Downloads/${file}`}
       </Code>
-      <p className="text-sm text-slate-400">
+      <p className="mb-3 text-sm text-slate-400">
         <span className="font-mono text-slate-300">certutil</span> comes from{" "}
         <span className="font-mono text-slate-300">nss-tools</span> (Fedora) or{" "}
         <span className="font-mono text-slate-300">libnss3-tools</span> (Debian).
