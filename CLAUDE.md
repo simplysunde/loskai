@@ -160,8 +160,11 @@ of the machines you have named (by declared `kind`) and **links the route to it*
 a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
 own host — and **never links**. Switching to Machine never guesses a link from a matching
 IP. A linked row reads `<machine>:<port>` in the Routing table. The
-**Docker tab displays routed state but never creates routes** (a routed container links to
-its FQDN; a Settings > Network panel's link-out prefers the HTTPS route). Per-row "Change URL"
+**Docker tab displays routed state, and creates a route in exactly one place** — the install
+wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
+idempotency key, so it edits the install's own record) and pre-fills through
+`containerPrefill`; anything beyond a prefix is left to the Routing tab. (A routed container
+links to its FQDN; a Settings > Network panel's link-out prefers the HTTPS route.) Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`); on an *unrouted* row the
 same button reads "Assign a URL". **Both forms pre-fill a container through one helper,
 `containerPrefill`** — they used to disagree (the row read only the stored record, so a fresh

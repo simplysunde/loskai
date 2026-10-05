@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { InstallWizard } from "./InstallWizard";
@@ -40,11 +41,20 @@ function renderWizard({
   sources = SOURCES as unknown[],
   local_count = 0,
   install = { ok: true, output: "Started", container: "grafana-app-1" } as unknown,
+  containers = [
+    { name: "grafana-app-1", instance_id: "grafana", subdomain: null, suggested_upstream: "grafana:3000" },
+  ] as unknown[],
 } = {}) {
-  const fetchMock = vi.fn(async (path: string) => {
+  const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
     const body = path.endsWith("/install")
       ? install
-      : { recipes, invalid, shadowed, sources, local_count };
+      : path === "/api/docker/containers"
+        ? containers
+        : path === "/api/settings"
+          ? { base_domain: { value: "example.no", source: "stored", secret: false } }
+          : path === "/api/routes"
+            ? { url: "https://grafana.example.no", warning: null }
+            : { recipes, invalid, shadowed, sources, local_count };
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -54,7 +64,9 @@ function renderWizard({
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     <QueryClientProvider client={client}>
-      <InstallWizard onClose={() => {}} />
+      <MemoryRouter>
+        <InstallWizard onClose={() => {}} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return fetchMock;
@@ -181,14 +193,92 @@ test("an install that cannot identify its container surfaces the warning", async
   expect(await screen.findByText(/could not be identified/)).toBeInTheDocument();
 });
 
-test("a failed install offers no subdomain suggestion", async () => {
+test("a failed install offers no route", async () => {
   renderWizard({ install: { ok: false, output: "port is allocated", container: null } });
   await pickGrafana();
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
 
   await waitFor(() => expect(screen.getByText(/Finished with errors/)).toBeInTheDocument());
-  expect(screen.queryByText(/Suggested subdomain/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Route it")).not.toBeInTheDocument();
+  // The output is what explains a failure, so it starts open.
+  expect(screen.getByText("port is allocated")).toBeVisible();
+});
+
+// --- Phase 30d: the catalog, the steps, and routing from the last one ---
+
+const JELLYFIN_ONLY = {
+  id: "jellyfin", name: "Jellyfin", type: "pull", description: "Media server", env: [],
+  instructions: "", source: "loskai-recipes",
+};
+
+test("search filters the catalog by name or description", async () => {
+  renderWizard({ recipes: [GRAFANA, JELLYFIN_ONLY] });
+  await screen.findByText("Grafana");
+
+  fireEvent.change(screen.getByRole("textbox", { name: "Search recipes" }), { target: { value: "media" } });
+  expect(screen.queryByText("Grafana")).not.toBeInTheDocument();
+  expect(screen.getByText("Jellyfin")).toBeInTheDocument();
+
+  fireEvent.change(screen.getByRole("textbox", { name: "Search recipes" }), { target: { value: "zzz" } });
+  expect(screen.getByText(/No recipe matches/)).toBeInTheDocument();
+});
+
+test("the steps say where you are, and an earlier one takes you back", async () => {
+  renderWizard();
+  await pickGrafana();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(screen.getByRole("button", { name: /Configure/ })).toHaveAttribute("aria-current", "step");
+  fireEvent.click(screen.getByRole("button", { name: /Choose/ }));
+  expect(await screen.findByRole("textbox", { name: "Search recipes" })).toBeInTheDocument();
+});
+
+async function deployGrafana() {
+  await pickGrafana();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+}
+
+test("the last step routes the install: its suggested name, following its container", async () => {
+  const fetchMock = renderWizard();
+  await deployGrafana();
+
+  expect(await screen.findByRole("textbox", { name: "Subdomain prefix" })).toHaveValue("grafana");
+  // Once routed, there is no going back to change the answers.
+  expect(screen.getByRole("button", { name: /Configure/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(await screen.findByRole("link", { name: "https://grafana.example.no" })).toBeInTheDocument();
+  const post = fetchMock.mock.calls.find(([path]) => path === "/api/routes");
+  expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+    prefix: "grafana",
+    upstream: "grafana:3000",
+    container: "grafana-app-1",
+    follow_container: true,
+  });
+});
+
+test("a reinstall that kept its route says so instead of offering another", async () => {
+  renderWizard({
+    containers: [
+      { name: "grafana-app-1", instance_id: "grafana", subdomain: "graf", suggested_upstream: "grafana:3000" },
+    ],
+  });
+  await deployGrafana();
+
+  expect(await screen.findByText("graf.example.no")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Add route" })).not.toBeInTheDocument();
+});
+
+test("a container whose port Docker can't name is sent to the Routing tab", async () => {
+  renderWizard({
+    containers: [{ name: "grafana-app-1", instance_id: "grafana", subdomain: null, suggested_upstream: null }],
+  });
+  await deployGrafana();
+
+  expect(await screen.findByRole("link", { name: "Routing tab" })).toHaveAttribute("href", "/routing");
+  expect(screen.queryByRole("button", { name: "Add route" })).not.toBeInTheDocument();
 });
 
 test("an install that reused a kept folder says so", async () => {

@@ -396,10 +396,14 @@ daemon; it invents no new deployment method.
      vars it will ask for, which source it came from) plus the recipe's `instructions.md`
   2. Fill in required values (data path, passwords, ports — with the recipe's defaults),
      the form rendered from the manifest's `env:` schema
-  3. **No assign step here.** Route creation is consolidated in the Routing tab's Add route
-     picker (see the Docker tab rule above), so the wizard surfaces the manifest's
-     `suggested_subdomain` and sends you there — a subdomain step inside the wizard would be
-     the second surface that creates routes, which is the thing that consolidation removed
+  3. **Route it, from the last step** (Phase 30 — until then, deliberately no assign step:
+     a second surface that creates routes is what the Add route consolidation removed). The
+     risks that consolidation guarded against are met another way: the step posts the same
+     `/api/routes` with `container`, the idempotency key, so it edits the install's own
+     record rather than making a second; it pre-fills through `containerPrefill`, the one
+     helper every route form uses; and it asks only for the prefix (the manifest's
+     `suggested_subdomain`), following the container. Anything more particular — a scheme,
+     a machine, a port Docker can't name — sends you to the Routing tab
   4. Confirm → creates the directories, writes `compose.yml` + the generated `.env`, runs the
      `type`'s install command, and registers the service as a `docker` instance — linked to
      the container name the daemon actually created (`<project>-<service>-1`, read back from

@@ -16,6 +16,34 @@ surface (Routing's Add route), and the store is still one `instances.json` — b
 - Key files: `frontend/src/pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
   `components/routing/machine.ts` (`isMachine`, moved out of the deleted `ViewFilter.tsx`)
 
+## 2026-10-05 — Machine or Address; Docker by stack; the wizard routes (Phase 30b–d)
+
+**The upstream host became a toggle** rather than one combobox that offered machines beside
+addresses. Phase 29 had merged them on request, and the merge was fine to type into but hid
+the one thing that mattered: whether the route was *linked*. A picked machine just looked
+like its IP. Now Machine selects by name (and links), Address types or picks (and never
+links), and switching to Machine never guesses a link from a matching IP — the same rule
+21a's "no automatic migration" set. A linked row reads `nas:32400`.
+
+**The Docker tab is organised by stack.** Containers and Stacks were two flat tabs, and a
+container never said which stack ran it. One table now nests each container under its compose
+project, stack actions on the header row; a **Volumes** tab lists named volumes with what
+mounts them. Read-only: the useful act is *seeing* that nothing mounts a volume. The first
+real run showed exactly that — three volumes, all unused, because every container on the dev
+VM bind-mounts (the recipes' `./data` convention).
+
+**The install wizard routes its install — a walk-back.** `PLAN.md` had "No assign step
+here", so that Add route stayed the one surface creating routes. What that consolidation
+protected against is a duplicate record and prefills that drift between forms; the last step
+avoids both by posting `container` (the server's idempotency key) and pre-filling through
+`containerPrefill`. It offers only the prefix, following the container; anything more is the
+Routing tab's. Sunde asked for it outright, with the alternative (a pointer to the Routing
+tab) being what was there.
+
+- Key files: `components/routing/RouteFields.tsx`, `components/docker/StackGroups.tsx`,
+  `groupByStack.ts`, `VolumeList.tsx`, `InstallWizard.tsx` (`Steps`, `RouteNow`);
+  `modules/docker/logic.py` (`volume_rows`)
+
 ## 2026-10-04 — The recipe schema gets a copy in the recipes repo, and a checker
 
 Sunde wanted to write recipes with Claude Code opened in `loskai-recipes`, without relying on

@@ -1,9 +1,12 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { api, ApiError } from "../../lib/api";
-import { pathProblem } from "../../lib/validation";
+import type { SettingsView } from "../../lib/settings";
+import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
+import { containerPrefill, suggestPrefix, type PrefillSource } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
 
 interface RecipeEnv {
@@ -48,9 +51,10 @@ interface InstallResult {
   reused_data?: boolean;
 }
 
-// Multi-step wizard: pick a recipe -> read what it will do -> fill the manifest's env
-// form -> deploy. Recipes are the merged set from every enabled source in priority order
-// (first one to define an id wins; the losers are flagged, never hidden).
+// Multi-step wizard: choose a recipe -> review what it will do -> configure the manifest's
+// env form -> deploy, and route it from the last step. Recipes are the merged set from every
+// enabled source in priority order (first one to define an id wins; the losers are flagged,
+// never hidden).
 export function InstallWizard({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Recipe | null>(null);
@@ -102,8 +106,17 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     return "Install from a recipe";
   }, [selected, result]);
 
+  const step = result ? 3 : selected && reviewed ? 2 : selected ? 1 : 0;
+  // Earlier steps stay reachable until the install has run; after it, there is no undo.
+  const goTo = (target: number) => {
+    if (result || target >= step) return;
+    if (target === 0) setSelected(null);
+    if (target <= 1) setReviewed(false);
+  };
+
   return (
     <Modal title={title} onClose={onClose} wide>
+      <Steps current={step} onGo={goTo} locked={result !== null} />
       {result ? (
         <ResultStep result={result} recipe={selected} onClose={onClose} />
       ) : selected && reviewed ? (
@@ -155,6 +168,56 @@ function EmptyState({ data }: { data?: RecipeList }) {
   );
 }
 
+const STEPS = ["Choose", "Review", "Configure", "Done"];
+
+function Steps({
+  current,
+  onGo,
+  locked,
+}: {
+  current: number;
+  onGo: (step: number) => void;
+  locked: boolean;
+}) {
+  return (
+    <ol className="mb-5 flex items-center gap-1.5 text-xs">
+      {STEPS.map((label, i) => {
+        const done = i < current;
+        const reachable = done && !locked;
+        return (
+          <Fragment key={label}>
+            {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-700" />}
+            <li>
+              <button
+                type="button"
+                disabled={!reachable}
+                onClick={() => onGo(i)}
+                aria-current={i === current ? "step" : undefined}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1 ${
+                  i === current
+                    ? "bg-teal-500/15 text-teal-200"
+                    : done
+                      ? `text-slate-300 ${reachable ? "hover:bg-slate-800" : ""}`
+                      : "text-slate-600"
+                }`}
+              >
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${
+                    done ? "bg-teal-600 text-white" : i === current ? "bg-teal-500/30" : "bg-slate-800"
+                  }`}
+                >
+                  {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
+                </span>
+                {label}
+              </button>
+            </li>
+          </Fragment>
+        );
+      })}
+    </ol>
+  );
+}
+
 function PickStep({
   data,
   loading,
@@ -168,13 +231,34 @@ function PickStep({
   onRefresh: () => void;
   onPick: (r: Recipe) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const recipes = (data?.recipes ?? []).filter(
+    (r) =>
+      !q ||
+      r.name.toLowerCase().includes(q) ||
+      r.id.toLowerCase().includes(q) ||
+      (r.description ?? "").toLowerCase().includes(q),
+  );
   return (
     <div>
-      <div className="mb-3 flex justify-end">
+      <div className="mb-4 flex gap-2">
+        <label className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input
+            autoFocus
+            aria-label="Search recipes"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search recipes"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2 pl-9 pr-3 text-sm text-slate-100 outline-none focus:border-teal-500"
+          />
+        </label>
         <button
           onClick={onRefresh}
           disabled={refreshing}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+          title="Pull every enabled recipe source"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh recipes
         </button>
@@ -185,21 +269,28 @@ function PickStep({
         </div>
       ) : !data?.recipes.length ? (
         <EmptyState data={data} />
+      ) : !recipes.length ? (
+        <p className="py-10 text-center text-sm text-slate-500">No recipe matches “{query.trim()}”.</p>
       ) : (
-        <div className="grid gap-2">
-          {data.recipes.map((r) => (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {recipes.map((r) => (
             <button
               key={r.id}
               onClick={() => onPick(r)}
-              className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-left hover:border-teal-600/50"
+              className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-left transition hover:border-teal-600/50 hover:bg-slate-900"
             >
-              <div className="min-w-0">
-                <div className="font-medium text-slate-100">{r.name}</div>
-                <div className="truncate text-xs text-slate-500">{r.description ?? r.type}</div>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-sm font-semibold text-teal-300">
+                  {r.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 truncate font-medium text-slate-100">{r.name}</span>
               </div>
+              <p className="line-clamp-2 min-h-[2.5rem] text-xs text-slate-400">
+                {r.description ?? "No description."}
+              </p>
               <span
                 title={r.source_url ?? "data/recipes"}
-                className="ml-3 shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400"
+                className="mt-auto self-start rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-500"
               >
                 {r.source} · {r.type}
               </span>
@@ -340,20 +431,139 @@ function ResultStep({
           {result.warning}
         </p>
       )}
-      <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-300">
-        {result.output || "(no output)"}
-      </pre>
-      {result.ok && recipe?.suggested_subdomain && (
-        <p className="text-sm text-slate-400">
-          Suggested subdomain: <span className="text-teal-300">{recipe.suggested_subdomain}</span> —
-          assign it from the Routing tab.
-        </p>
+      {result.ok && result.container && recipe && (
+        <RouteNow recipe={recipe} containerName={result.container} />
       )}
+      <details className="text-xs text-slate-500" open={!result.ok}>
+        <summary className="cursor-pointer select-none hover:text-slate-300">Output</summary>
+        <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-300">
+          {result.output || "(no output)"}
+        </pre>
+      </details>
       <div className="flex justify-end">
         <button onClick={onClose} className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500">
           Done
         </button>
       </div>
+    </div>
+  );
+}
+
+interface RouteResult {
+  url: string;
+  warning: string | null;
+}
+
+// The install's last step routes it: the recipe's suggested name, and an upstream that
+// follows the container (the server derives it from Docker, as the route forms do). Anything
+// more particular — a scheme, a machine, a port Docker can't name — is the Routing tab's.
+function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: string }) {
+  const qc = useQueryClient();
+  const containers = useQuery({
+    queryKey: ["docker-containers"],
+    queryFn: () =>
+      api.get<(PrefillSource & { subdomain: string | null })[]>("/api/docker/containers"),
+    retry: false,
+  });
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<SettingsView>("/api/settings"),
+  });
+  const container = containers.data?.find((c) => c.name === containerName);
+  const prefill = container ? containerPrefill(container) : null;
+  const [prefix, setPrefix] = useState<string | null>(null);
+  const value = prefix ?? (recipe.suggested_subdomain ? suggestPrefix(recipe.suggested_subdomain) : prefill?.prefix ?? "");
+  const baseDomain = settings.data?.base_domain?.value ?? null;
+
+  const route = useMutation({
+    mutationFn: () =>
+      api.post<RouteResult>("/api/routes", {
+        prefix: value,
+        upstream: prefill?.upstream ?? "",
+        container: containerName,
+        follow_container: true,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const box = "rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm";
+  if (containers.isLoading) {
+    return (
+      <div className={`${box} flex items-center gap-2 text-slate-500`}>
+        <Loader2 className="h-4 w-4 animate-spin" /> Looking up its container…
+      </div>
+    );
+  }
+  if (route.data) {
+    return (
+      <div className={`${box} text-emerald-300`}>
+        Routed at{" "}
+        <a href={route.data.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+          {route.data.url}
+        </a>
+        {route.data.warning && <span className="mt-1 block text-amber-300">{route.data.warning}</span>}
+      </div>
+    );
+  }
+  // A reinstall keeps its earlier record, route included.
+  if (container?.subdomain) {
+    return (
+      <div className={`${box} text-slate-400`}>
+        Already routed at{" "}
+        <span className="text-teal-300">
+          {baseDomain ? assembleFqdn(container.subdomain, baseDomain) : container.subdomain}
+        </span>
+        .
+      </div>
+    );
+  }
+  if (!container?.suggested_upstream) {
+    return (
+      <div className={`${box} text-slate-400`}>
+        Docker can't name this container's port, so route it from the{" "}
+        <Link to="/routing" className="text-teal-300 underline underline-offset-2">
+          Routing tab
+        </Link>{" "}
+        — Add route → Container, where you can type it.
+      </div>
+    );
+  }
+
+  const ok = isValidPrefix(value);
+  return (
+    <div className={box}>
+      <p className="mb-2 font-medium text-slate-200">Route it</p>
+      <div className="flex items-center gap-2">
+        <input
+          aria-label="Subdomain prefix"
+          value={value}
+          onChange={(e) => setPrefix(e.target.value.toLowerCase())}
+          className="w-40 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+        />
+        <span className="min-w-0 truncate text-slate-500">.{baseDomain ?? "BASE_DOMAIN"}</span>
+        <button
+          onClick={() => route.mutate()}
+          disabled={!ok || route.isPending}
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+        >
+          {route.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Add route
+        </button>
+      </div>
+      <p className="mt-1.5 text-xs text-slate-500">
+        {value && !ok
+          ? "Single DNS label only: lowercase letters, digits, hyphens."
+          : `→ ${container.suggested_upstream}, following the container if its port changes. Scheme and the rest are on the Routing tab.`}
+      </p>
+      {route.error && (
+        <p className="mt-1 text-xs text-rose-400">
+          {route.error instanceof ApiError ? route.error.message : "Routing failed"}
+        </p>
+      )}
     </div>
   );
 }

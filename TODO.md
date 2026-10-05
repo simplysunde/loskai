@@ -1161,11 +1161,18 @@ side bar separating them from routes to make it more defined)"._
       frontend (`groupByStack` ×4, the grouped table ×2, volumes ×1)
 
 **30d — the recipe flow**
-- [ ] Catalog: search, a grid, the source shown quietly
-- [ ] Step indicator: Choose → Review → Configure → Done
-- [ ] Done step routes the install: the suggested prefix + the container's upstream,
+- [x] Catalog: search, a grid, the source shown quietly
+- [x] Step indicator: Choose → Review → Configure → Done
+- [x] Done step routes the install: the suggested prefix + the container's upstream,
       following by default, posted to `/api/routes`
 - [x] Install recipe in the Docker header, not only on the Stacks tab (landed with 30c)
+- [x] **A walk-back, recorded:** `PLAN.md` had "No assign step here". The step posts
+      `container` (the idempotency key) and pre-fills through `containerPrefill`, so it can
+      neither duplicate a record nor drift from the other forms; it offers the prefix only.
+      A reinstall that kept its route says so; a port Docker can't name links to Routing
+- [x] The install output folds away on success (open on failure, where it is the point)
+- [x] Tests: +6 (search, the steps and going back, the route posted, the kept route, the
+      unnameable port, the failed install offering no route)
 
 **Verification**
 - [ ] `pytest` + `npm test` + `npm run build` + `check-docs.sh`
