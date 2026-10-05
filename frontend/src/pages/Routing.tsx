@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
+import { copyText } from "../lib/clipboard";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
@@ -475,8 +476,8 @@ function CopyCertLink({ url }: { url: string | null }) {
     <button
       type="button"
       title={`Copy ${url}`}
-      onClick={() => {
-        navigator.clipboard.writeText(url);
+      onClick={async () => {
+        if (!(await copyText(url))) return;
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}

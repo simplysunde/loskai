@@ -12,7 +12,11 @@ second thing to keep in step with a page that is already hand-mirrored.
 
 Its copy buttons had never worked where the page is actually used: `navigator.clipboard`
 needs a secure context, and the page is plain HTTP by IP by design. They now fall back to
-selecting the command.
+selecting the command. **Loskai had the same bug** in both its copy buttons (the
+Certificate tab's commands, Routing's cert-page link) whenever it is opened by IP — which is
+how the Certificate tab is meant to be reached. They now go through `lib/clipboard.ts`
+(`copyText`: the Clipboard API where it exists, `execCommand` where it doesn't), and show
+the tick only when the copy worked.
 
 - Key files: `caddy/setup/index.html`, `docs/guides/certificate-setup.md`
 

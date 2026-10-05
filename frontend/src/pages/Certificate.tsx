@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
+import { copyText } from "../lib/clipboard";
 
 interface RootCert {
   pem: string;
@@ -283,8 +284,8 @@ function Code({ label, children }: { label: string; children: string }) {
         <button
           type="button"
           title="Copy"
-          onClick={() => {
-            navigator.clipboard.writeText(children);
+          onClick={async () => {
+            if (!(await copyText(children))) return;
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }}
