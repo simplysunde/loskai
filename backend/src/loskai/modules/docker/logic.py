@@ -107,6 +107,15 @@ def declared_services(compose_text: str) -> set[str]:
     return set(services) if isinstance(services, dict) else set()
 
 
+def sets_project_name(compose_text: str) -> bool:
+    """True if a compose file names its own project with a top-level `name:`."""
+    try:
+        doc = yaml.safe_load(compose_text)
+    except yaml.YAMLError:
+        return False
+    return isinstance(doc, dict) and "name" in doc
+
+
 def suggested_container_port(ports: dict | None) -> str | None:
     """The container-side port to route to, best-effort. Prefers the single *published*
     binding (e.g. AdGuard exposes many ports but publishes only 3000); falls back to a

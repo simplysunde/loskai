@@ -50,7 +50,9 @@ grafana/
 
 - **`compose.yml`** is a genuine compose file — directly `docker compose up`-testable and
   SSH-editable. It uses standard `${VAR}` interpolation; it is **not** embedded in the
-  manifest (it is itself YAML — keeping it separate preserves tooling).
+  manifest (it is itself YAML — keeping it separate preserves tooling). It must **not**
+  set a top-level `name:`: the recipe folder names the compose project, and the install
+  finds its container by that name — a recipe that sets one is listed as skipped.
 - **`instructions.md`** is displayed as-is. It is never executed.
 - **There is no `.env` in the folder.** The `.env` is *generated* at install time from the
   user's wizard answers (see below), because it holds per-install values and secrets.

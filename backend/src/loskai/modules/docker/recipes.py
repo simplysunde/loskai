@@ -292,6 +292,10 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
     compose = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
     if compose is None:
         errors.append("compose.yml missing")
+    elif logic.sets_project_name(compose.read_text(encoding="utf-8")):
+        # The project is named after the recipe folder: that is what the install reads its
+        # container back by, and what the Stacks tab's own compose runs would disagree with.
+        errors.append("compose.yml sets a top-level 'name:' — remove it; the recipe folder names the project")
     mounts = None
     if not errors and "mounts" in data:
         service, problem = _mount_service(compose.read_text(encoding="utf-8"), data.get("service"))
