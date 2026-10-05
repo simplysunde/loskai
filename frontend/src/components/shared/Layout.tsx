@@ -24,12 +24,13 @@ import { getTheme, setTheme, type Theme } from "../../lib/theme";
 // scripts/check-docs.sh subtracts before comparing this list to CLAUDE.md's admin tabs —
 // add a tab without it and the docs check will ask you to call it an admin tab.
 const NAV = [
+  // The public tabs first: they are what a logged-out visitor sees.
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true, public: true },
+  { to: "/certificate", label: "Certificate", icon: ShieldCheck, end: false, public: true },
   { to: "/docker", label: "Docker", icon: Container, end: false },
   { to: "/routing", label: "Routing", icon: RouteIcon, end: false },
   { to: "/machines", label: "Machines", icon: Server, end: false },
   { to: "/settings", label: "Settings", icon: SettingsIcon, end: false },
-  { to: "/certificate", label: "Certificate", icon: ShieldCheck, end: false, public: true },
 ] as const;
 
 const DOT: Record<ModuleState, string> = {
