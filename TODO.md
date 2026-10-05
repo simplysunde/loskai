@@ -1,6 +1,7 @@
 # Loskai — TODO
 
-**Now:** **Phase 29** (below) is built and verified live — a Docker route follows its
+**Now:** **Phase 30** (below) — UI polish across machines, routing, Docker and the recipe
+wizard — is built and verified live (2026-10-05). **Phase 29** is built and verified live — a Docker route follows its
 container, so a port changed even over SSH re-points the route by itself. Only the
 daemon-restart check is unrun (it needs root). **Phase 28** also has **run live and passed**
 (2026-10-03): the first real recipe
@@ -1175,9 +1176,15 @@ side bar separating them from routes to make it more defined)"._
       unnameable port, the failed install offering no route)
 
 **Verification**
-- [ ] `pytest` + `npm test` + `npm run build` + `check-docs.sh`
-- [ ] Live: the rig — a recipe installed and routed from the wizard's last step; a route
-      linked to a machine through Machine mode, then the machine moved
+- [x] `pytest` (443) + `npm test` (169) + `npm run build` + `check-docs.sh`. The build
+      caught a test-only type error `npm test` didn't — the fetch mock's signature
+- [x] **Live**, the rig (smoke Caddy as `-p loskai-smoke`, a `:8010` backend on scratch
+      state, Playwright driving the built UI): searched the catalog, installed a recipe, and
+      routed it from the last step — **one** record (`echo`, linked to `echo-echo-1`,
+      following), Caddy dialling `192.168.10.220:8091`, and the route answered with whoami's
+      body `Via: Caddy`. Named a machine, added a route on it from its row (the picker opened
+      linked to it), Routing read `box:8081`; moving the machine to `.231` reported
+      `relinked: ["hello"]` and **Caddy's dial moved**; moving it back served whoami again
 
 ---
 

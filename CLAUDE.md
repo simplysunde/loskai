@@ -9,11 +9,12 @@ All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-compl
 install wizard) has run live and passed** (2026-10-03), git sync included — open for one
 bug: the root container leaves root-owned files on the host. **Phase 29** (a Docker route
 follows its container) is built and verified live, bar a daemon-restart check that needs
-root. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
+root. **Phase 30** (UI polish — a Machines tab, Machine/Address upstreams, Docker by stack +
+volumes, the recipe catalog that routes its install) is built and verified live. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (438 + 155 + docs).
+All three checks pass (443 + 169 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
