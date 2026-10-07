@@ -160,7 +160,8 @@ is the sibling verb, `/api/machines`, from the Machines tab).
 of the machines you have named (by declared `kind`) and **links the route to it**; Address is
 a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
 own host — and **never links**. Switching to Machine never guesses a link from a matching
-IP. A linked row reads `<machine>:<port>` in the Routing table. The
+IP. A linked row reads `<machine>:<port>` in the Routing table, and a route that follows its
+container is tagged `follows`. The
 **Docker tab displays routed state, and creates a route in exactly one place** — the install
 wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
 idempotency key, so it edits the install's own record) and pre-fills through

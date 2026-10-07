@@ -206,3 +206,17 @@ test("a routed name opens the site — over http when that is all it serves", ()
   );
   expect(screen.getByText("not routed")).toBeInTheDocument();
 });
+
+test("a route that follows its container says so; a fixed one does not", () => {
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "echo", name: "echo", follow_container: true }),
+        row({ id: "grafana", name: "grafana", follow_container: false }),
+      ]}
+    />,
+  );
+
+  expect(screen.getAllByText("follows")).toHaveLength(1);
+  expect(screen.getByText("follows").closest("tr")).toHaveTextContent("echo");
+});

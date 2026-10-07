@@ -138,6 +138,16 @@ export function ServiceTable({
                     https
                   </span>
                 )}
+                {/* Like a machine link: the address is rewritten on its own (when the
+                    container starts on another port), so the row says so. */}
+                {row.follow_container && (
+                  <span
+                    title="Follows its container — if it starts on another port, this updates"
+                    className="ml-1.5 rounded bg-teal-500/10 px-1 py-0.5 text-[10px] text-teal-300"
+                  >
+                    follows
+                  </span>
+                )}
                 {row.route_mode === "dns_only" && (
                   <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
                     dns-only
