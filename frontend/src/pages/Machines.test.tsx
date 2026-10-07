@@ -44,7 +44,10 @@ beforeEach(() => {
         path === "/api/caddy/routes"
           ? ROUTES
           : path === "/api/adguard/status"
-            ? { answer_ip: null, instances: [{ id: "nas", domain: "nas.example.no", present: true, conflict: false }] }
+            ? { answer_ip: null, instances: [
+                { id: "nas", domain: "nas.example.no", present: true, conflict: false },
+                { id: "plex", domain: "plex.example.no", present: false, conflict: false },
+              ] }
             : path === "/api/docker/containers"
               ? []
             : path === "/api/machines"
@@ -84,6 +87,18 @@ test("lists machines only, each with the routes hosted on it beneath", async () 
   // A service on no machine has no business on this tab.
   expect(screen.queryByText("grafana")).not.toBeInTheDocument();
   expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
+});
+
+test("a hosted route links out, its DNS state under the DNS column", async () => {
+  renderPage();
+  const plexRow = (await screen.findByText("plex")).closest("tr") as HTMLElement;
+
+  expect(within(plexRow).getByRole("link", { name: "plex.example.no" })).toHaveAttribute(
+    "href",
+    "https://plex.example.no",
+  );
+  // The DNS column — where the FQDN used to sit.
+  expect(within(plexRow).getAllByRole("cell")[2]).toHaveTextContent("missing");
 });
 
 test("deleting a machine names the routes that will stop following it", async () => {

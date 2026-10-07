@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { CornerDownRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
+import { RouteLink } from "../shared/RouteLink";
 import { splitUpstream } from "../../lib/validation";
 import { dependentsOf } from "./machine";
 import { DnsCell, type RouteRow } from "./ServiceTable";
@@ -95,12 +96,19 @@ export function MachineTable({
                             <CornerDownRight className="h-3.5 w-3.5 text-slate-600" />
                             {d.name}
                           </div>
+                          <div className="mt-1 pl-5">
+                            {d.fqdn ? (
+                              <RouteLink host={d.fqdn} scheme={d.scheme} />
+                            ) : (
+                              <span className="text-slate-600">not routed</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-1.5 font-mono text-slate-500">
                           :{splitUpstream(d.upstream ?? "").port || "—"}
                         </td>
-                        <td className="px-4 py-1.5 text-slate-500" colSpan={2}>
-                          {d.fqdn ?? <span className="text-slate-600">not routed</span>}
+                        <td className="px-4 py-1.5" colSpan={2}>
+                          {d.routed && <DnsCell present={d.dnsPresent} conflict={d.dnsConflict} />}
                         </td>
                       </tr>
                     ))
