@@ -116,9 +116,9 @@ test("start and stop are one toggle: Stop only once everything is up", async () 
   await screen.findByText("immich-server");
 
   // Half up: Start brings the rest up.
-  expect(within(header("immich")).queryByRole("button", { name: /Stop/ })).not.toBeInTheDocument();
-  fireEvent.click(within(header("immich")).getByRole("button", { name: /Start/ }));
-  fireEvent.click(within(header("whoami")).getByRole("button", { name: /Stop/ }));
+  expect(within(header("immich")).queryByRole("button", { name: "Compose down" })).not.toBeInTheDocument();
+  fireEvent.click(within(header("immich")).getByRole("button", { name: "Compose up" }));
+  fireEvent.click(within(header("whoami")).getByRole("button", { name: "Compose down" }));
 
   await vi.waitFor(() => expect(calls).toHaveLength(2));
   expect(calls).toEqual([

@@ -307,14 +307,11 @@ function GroupHeader({
             {/* One toggle: Stop only once everything is up, so a half-started stack
                 still offers to bring the rest up. */}
             {status.label === "up" ? (
-              <Act
-                title="Stop — compose down; the containers go, the data stays"
-                onClick={() => onAction("down")}
-              >
+              <Act title="Compose down" onClick={() => onAction("down")}>
                 <Square className="h-3.5 w-3.5" />
               </Act>
             ) : (
-              <Act title="Start — compose up" onClick={() => onAction("up")}>
+              <Act title="Compose up" onClick={() => onAction("up")}>
                 <Play className="h-3.5 w-3.5" />
               </Act>
             )}
