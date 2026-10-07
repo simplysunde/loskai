@@ -1,5 +1,30 @@
 # Loskai — History
 
+## 2026-10-07 — The Docker tab: a stack's row is its controls; Loskai sits apart
+
+Sunde found the stack table bloated — on a one-container stack, eleven buttons doing about
+five jobs, because the stack header and its container row both carried start/stop/restart.
+The header is now the stack's one row of state and control: a single status pill (`up`,
+`1/2 up`, `down` — it replaces the badge *and* the "1 of 1 running" text), the stack's route
+links, and its actions, with **Up and Down merged into one Start/Stop toggle** — Stop only
+once every declared service is running, so a half-started stack still offers Start. The
+other actions stay as buttons; Sunde wanted them visible, not in a menu. A container row
+keeps only Logs and Terminal visible; Start/Stop/Restart/Remove moved to a `⋯` menu.
+
+The table splits into **Stacks** and **Other containers — not managed by Loskai** (other
+compose projects and plain `docker run`), and **Loskai's own container leaves the table**
+for a strip above it with Logs only — stopping or removing it from Loskai takes down the
+page doing it. The backend marks it `self`, matched by Docker's default hostname (the
+first 12 digits of the container id); a container given its own `hostname:` is never
+matched and is listed like any other, which is the safe failure.
+
+Considered and not done: borderless icon buttons (Sunde kept the bordered style), and
+folding a one-container stack into a single row (a row would mean different things by
+container count).
+
+- Key files: `frontend/src/components/docker/StackGroups.tsx`, `groupByStack.ts`
+  (`groupStatus`), `components/shared/RowMenu.tsx`, `backend/.../docker/logic.py` (`is_self`)
+
 ## 2026-10-05 — Caddy's `:80` page becomes a copy of the Certificate tab
 
 The `:80` onboarding page predated Loskai's Certificate tab and had fallen behind it: no

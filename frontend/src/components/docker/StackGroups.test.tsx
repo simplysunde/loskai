@@ -12,12 +12,17 @@ const container = (name: string, project: string | null, status = "running") => 
 
 const RESPONSES: Record<string, unknown> = {
   "/api/docker/containers": [
-    container("immich-server", "immich"),
+    { ...container("immich-server", "immich"), subdomain: "photos" },
     container("immich-db", "immich", "exited"),
-    container("loskai", "loskai"),
-    container("portainer", null),
+    { ...container("whoami-whoami-1", "whoami"), subdomain: "whoami" },
+    container("other-app", "other"),
+    { ...container("portainer", null), subdomain: "portainer" },
+    { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
   ],
-  "/api/docker/stacks": [{ name: "immich", services: ["server", "db"], status: "partial" }],
+  "/api/docker/stacks": [
+    { name: "immich", services: ["server", "db"], status: "partial" },
+    { name: "whoami", services: ["whoami"], status: "up" },
+  ],
   "/api/docker/volumes": [
     { name: "immich_pgdata", driver: "local", size: 2048, project: "immich", anonymous: false, used_by: ["immich-db"] },
     { name: "f".repeat(64), driver: "local", size: null, project: null, anonymous: true, used_by: [] },
@@ -60,12 +65,104 @@ test("a managed stack carries its actions; a project from elsewhere and standalo
   groups();
   await screen.findByText("immich-server");
 
-  expect(within(header("immich")).getByTitle("Up")).toBeInTheDocument();
-  expect(within(header("immich")).getByText("1 of 2 running")).toBeInTheDocument();
-  expect(within(header("loskai")).queryByTitle("Up")).not.toBeInTheDocument();
-  expect(within(header("loskai")).getByText("not in stacks folder")).toBeInTheDocument();
-  expect(within(header("Standalone")).queryByTitle("Up")).not.toBeInTheDocument();
+  expect(within(header("immich")).getByTitle("Edit")).toBeInTheDocument();
+  expect(within(header("immich")).getByText("1/2 up")).toBeInTheDocument();
+  expect(within(header("other")).queryByTitle("Edit")).not.toBeInTheDocument();
+  expect(within(header("Standalone")).queryByTitle("Edit")).not.toBeInTheDocument();
   expect(screen.getByText("portainer")).toBeInTheDocument();
+});
+
+test("stacks come first, then the containers Loskai doesn't manage", async () => {
+  groups();
+  await screen.findByText("immich-server");
+
+  const text = document.querySelector("tbody")!.textContent!;
+  expect(text.indexOf("Stacks")).toBeLessThan(text.indexOf("immich"));
+  expect(text.indexOf("whoami")).toBeLessThan(text.indexOf("Other containers"));
+  expect(text.indexOf("Other containers")).toBeLessThan(text.indexOf("other-app"));
+  expect(screen.getByText("· not managed by Loskai")).toBeInTheDocument();
+});
+
+test("start and stop are one toggle: Stop only once everything is up", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    if (init?.method === "POST") calls.push({ path: String(path), body: JSON.parse(String(init.body)) });
+    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  groups();
+  await screen.findByText("immich-server");
+
+  // Half up: Start brings the rest up.
+  expect(within(header("immich")).queryByRole("button", { name: /Stop/ })).not.toBeInTheDocument();
+  fireEvent.click(within(header("immich")).getByRole("button", { name: /Start/ }));
+  fireEvent.click(within(header("whoami")).getByRole("button", { name: /Stop/ }));
+
+  await vi.waitFor(() => expect(calls).toHaveLength(2));
+  expect(calls).toEqual([
+    { path: "/api/docker/stacks/immich/action", body: { action: "up" } },
+    { path: "/api/docker/stacks/whoami/action", body: { action: "down" } },
+  ]);
+});
+
+test("a stack's links sit on its header; a standalone container keeps its own", async () => {
+  groups();
+  await screen.findByText("immich-server");
+
+  expect(within(header("immich")).getByRole("link", { name: "photos.example.no" })).toBeInTheDocument();
+  const portainerRow = screen.getByText("portainer").closest("tr")!;
+  expect(within(portainerRow).getByRole("link", { name: "portainer.example.no" })).toBeInTheDocument();
+  // Once, not again on the container row beneath the header.
+  expect(screen.getAllByRole("link", { name: "photos.example.no" })).toHaveLength(1);
+});
+
+test("a container shows logs and terminal; the rest is behind its menu", async () => {
+  const onRemove = vi.fn();
+  renderWith(
+    <StackGroups
+      baseDomain="example.no"
+      onLogs={noop}
+      onTerminal={noop}
+      onRemove={onRemove}
+      onEditStack={noop}
+      onDeleteStack={noop}
+    />,
+  );
+  const row = (await screen.findByText("immich-server")).closest("tr")!;
+
+  expect(within(row).getByTitle("Logs")).toBeInTheDocument();
+  expect(within(row).queryByTitle("Stop")).not.toBeInTheDocument();
+  fireEvent.click(within(row).getByRole("button", { name: "More for immich-server" }));
+  expect(screen.getByRole("menuitem", { name: "Stop" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Remove" }));
+
+  expect(onRemove).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+});
+
+test("Loskai's own container sits apart, offering only its logs", async () => {
+  const onLogs = vi.fn();
+  renderWith(
+    <StackGroups
+      baseDomain="example.no"
+      onLogs={onLogs}
+      onTerminal={noop}
+      onRemove={noop}
+      onEditStack={noop}
+      onDeleteStack={noop}
+    />,
+  );
+  await screen.findByText("immich-server");
+
+  expect(screen.getByText("this app")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "loskai.example.no" })).toBeInTheDocument();
+  // Not in the table, and nothing to stop or remove it with.
+  expect(document.querySelector("tbody")!.textContent).not.toMatch(/loskai/);
+  expect(screen.queryByRole("button", { name: "More for loskai" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("this app").parentElement!.querySelector('[title="Logs"]')!);
+  expect(onLogs).toHaveBeenCalledWith(expect.objectContaining({ name: "loskai" }));
 });
 
 test("collapsing a stack hides its containers, not the others", async () => {

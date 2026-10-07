@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { groupByStack, type Container, type Stack } from "./groupByStack";
+import { groupByStack, groupStatus, type Container, type Stack } from "./groupByStack";
 
 function c(name: string, project: string | null = null): Container {
   return {
@@ -48,4 +48,22 @@ test("no container is lost or listed twice", () => {
 test("with nothing loose, there is no standalone group", () => {
   const groups = groupByStack([c("a", "jellyfin")], [s("jellyfin")]);
   expect(groups.map((g) => g.key)).toEqual(["stack:jellyfin"]);
+});
+
+test("Loskai's own container is never grouped", () => {
+  const groups = groupByStack([{ ...c("loskai", "loskai"), self: true }, c("a", "jellyfin")], [s("jellyfin")]);
+  expect(groups.map((g) => g.key)).toEqual(["stack:jellyfin"]);
+});
+
+test("a group's status: up, down, or how many of how many", () => {
+  const stopped = { ...c("db", "immich"), status: "exited" };
+  const status = (containers: Container[], stack = s("immich", "partial")) =>
+    groupStatus({ kind: "stack", key: "k", stack, containers }).label;
+
+  expect(status([c("web", "immich")], s("immich"))).toBe("up");
+  expect(status([c("web", "immich"), stopped])).toBe("1/2 up");
+  expect(status([stopped], s("immich", "down"))).toBe("down");
+  // Declared but never created still counts: everything that exists running isn't "up".
+  expect(status([c("web", "immich")], { ...s("immich", "partial"), services: ["web", "db"] })).toBe("1/2 up");
+  expect(status([], s("immich", "unknown"))).toBe("unknown");
 });

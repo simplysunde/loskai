@@ -455,9 +455,12 @@ daemon; it invents no new deployment method.
 One view of the host, organised by stack (Phase 30 — before it, two tabs):
 - **Containers** — *every* container (live, from the socket), nested under the stack that
   started it by its `com.docker.compose.project` label. A stack in `STACKS_DIR` (editable
-  files) carries the stack actions on its header row; a compose project from elsewhere is
-  listed but not managed; a bare `docker run` container sits under **Standalone** (nothing
-  to edit — it has no compose file). Runtime control + logs + terminal per container.
+  files) carries its status, route links and actions on its header row (start and stop are
+  one toggle); below the stacks, under **Other containers**, a compose project from
+  elsewhere is listed but not managed, and a bare `docker run` container sits under
+  **Standalone** (nothing to edit — it has no compose file). Runtime control + logs +
+  terminal per container. **Loskai's own container is shown apart, with logs only** — no
+  stop or remove for the container serving the page (marked `self` by the backend).
 - **Volumes** — named volumes, read-only: size, stack, and which containers mount each, so
   one nothing uses is visible. Bind mounts (the recipes' `./data`) are folders, not volumes.
 

@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Anchor,
   ChevronDown,
   ChevronRight,
   Layers,
@@ -18,20 +19,20 @@ import {
 import { api } from "../../lib/api";
 import { formatPercent, formatUptime } from "../../lib/format";
 import { RouteLink } from "../shared/RouteLink";
+import { RowMenu } from "../shared/RowMenu";
 import { StatusBadge } from "../shared/StatusBadge";
-import { groupByStack, type Container, type Group, type Stack } from "./groupByStack";
+import {
+  groupByStack,
+  groupStatus,
+  type Container,
+  type Group,
+  type Stack,
+} from "./groupByStack";
 
-const STACK_STATUS: Record<string, string> = {
-  up: "healthy",
-  partial: "degraded",
-  down: "unconfigured",
-  unknown: "unknown",
-};
-
-// Every container on the host, nested under the stack that started it. A stack's header row
-// carries the stack's own actions (up, down, edit its compose file…); a compose project from
-// outside the stacks directory is listed but not managed; a plain `docker run` container sits
-// under Standalone. One table, so a container and its stack are never two tabs apart.
+// Every container on the host, nested under the stack that started it — in two sections:
+// the stacks Loskai manages (their header row is where their links, status and actions
+// live), then everything else, listed but not managed. Loskai's own container sits apart
+// above both. One table, so a container and its stack are never two tabs apart.
 export function StackGroups({
   baseDomain,
   onLogs,
@@ -85,14 +86,10 @@ export function StackGroups({
     );
   }
 
+  const self = (containers.data ?? []).find((c) => c.self);
   const groups = groupByStack(containers.data ?? [], stacks.data ?? []);
-  if (groups.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
-        No containers or stacks yet. Install a recipe, or create a stack.
-      </div>
-    );
-  }
+  const managed = groups.filter((g) => g.kind === "stack");
+  const others = groups.filter((g) => g.kind !== "stack");
 
   const toggle = (key: string) =>
     setCollapsed((prev) => {
@@ -102,70 +99,136 @@ export function StackGroups({
       return next;
     });
 
-  return (
-    <div className="overflow-x-auto rounded-xl border border-slate-800">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
+  const renderGroup = (group: Group) => {
+    const open = !collapsed.has(group.key);
+    // A stack's links sit on its header with its status; a standalone container is
+    // unrelated to its neighbours, so its link stays on its own row.
+    const linksOnHeader = group.kind !== "standalone";
+    return (
+      <Fragment key={group.key}>
+        <GroupHeader
+          group={group}
+          baseDomain={linksOnHeader ? baseDomain : undefined}
+          open={open}
+          onToggle={() => toggle(group.key)}
+          busy={
+            stackAction.isPending &&
+            group.kind === "stack" &&
+            stackAction.variables?.name === group.stack.name
+          }
+          onAction={(verb) =>
+            group.kind === "stack" && stackAction.mutate({ name: group.stack.name, verb })
+          }
+          onEdit={() => group.kind === "stack" && onEditStack(group.stack.name)}
+          onDelete={() => group.kind === "stack" && onDeleteStack(group.stack)}
+        />
+        {open && group.containers.length === 0 && (
           <tr>
-            <th className="px-4 py-2.5 font-medium">Container</th>
-            <th className="px-4 py-2.5 font-medium">Status</th>
-            <th className="px-4 py-2.5 font-medium">Uptime</th>
-            <th className="px-4 py-2.5 font-medium">CPU</th>
-            <th className="px-4 py-2.5 font-medium">Mem</th>
-            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+            <td colSpan={COLS} className="px-4 pb-3 pl-11 text-xs text-slate-600">
+              No containers — start the stack to create them.
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {groups.map((group) => {
-            const open = !collapsed.has(group.key);
-            return (
-              <Fragment key={group.key}>
-                <GroupHeader
-                  group={group}
-                  open={open}
-                  onToggle={() => toggle(group.key)}
-                  busy={
-                    stackAction.isPending &&
-                    group.kind === "stack" &&
-                    stackAction.variables?.name === group.stack.name
-                  }
-                  onAction={(verb) =>
-                    group.kind === "stack" && stackAction.mutate({ name: group.stack.name, verb })
-                  }
-                  onEdit={() => group.kind === "stack" && onEditStack(group.stack.name)}
-                  onDelete={() => group.kind === "stack" && onDeleteStack(group.stack)}
-                />
-                {open && group.containers.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 pb-3 pl-11 text-xs text-slate-600">
-                      No containers — bring the stack up to create them.
-                    </td>
-                  </tr>
-                )}
-                {open &&
-                  group.containers.map((c) => (
-                    <ContainerRow
-                      key={c.id}
-                      c={c}
-                      baseDomain={baseDomain}
-                      busy={containerAction.isPending && containerAction.variables?.id === c.id}
-                      onAction={(verb) => containerAction.mutate({ id: c.id, verb })}
-                      onLogs={() => onLogs(c)}
-                      onTerminal={() => onTerminal(c)}
-                      onRemove={() => onRemove(c)}
-                    />
-                  ))}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+        )}
+        {open &&
+          group.containers.map((c) => (
+            <ContainerRow
+              key={c.id}
+              c={c}
+              baseDomain={linksOnHeader ? undefined : baseDomain}
+              busy={containerAction.isPending && containerAction.variables?.id === c.id}
+              onAction={(verb) => containerAction.mutate({ id: c.id, verb })}
+              onLogs={() => onLogs(c)}
+              onTerminal={() => onTerminal(c)}
+              onRemove={() => onRemove(c)}
+            />
+          ))}
+      </Fragment>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
+      {groups.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
+          No containers or stacks yet. Install a recipe, or create a stack.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Container</th>
+                <th className="px-4 py-2.5 font-medium">Uptime</th>
+                <th className="px-4 py-2.5 font-medium">CPU</th>
+                <th className="px-4 py-2.5 font-medium">Mem</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {managed.length > 0 && <Section title="Stacks" />}
+              {managed.map(renderGroup)}
+              {others.length > 0 && (
+                <Section title="Other containers" note="not managed by Loskai" />
+              )}
+              {others.map(renderGroup)}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const COLS = 5;
+
+function Section({ title, note }: { title: string; note?: string }) {
+  return (
+    <tr className="border-t border-slate-800">
+      <td
+        colSpan={COLS}
+        className="px-4 pb-1.5 pt-4 text-[11px] font-medium uppercase tracking-wide text-slate-500"
+      >
+        {title}
+        {note && <span className="ml-2 normal-case tracking-normal text-slate-600">· {note}</span>}
+      </td>
+    </tr>
+  );
+}
+
+// Loskai's own container, out of the list: stopping or removing it from here would take
+// down the page doing it, so all it offers is its logs.
+function SelfStrip({
+  c,
+  baseDomain,
+  onLogs,
+}: {
+  c: Container;
+  baseDomain: string | null;
+  onLogs: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-teal-500/20 bg-teal-500/5 px-4 py-2.5 text-sm">
+      <Anchor className="h-4 w-4 text-teal-300" />
+      <span className="font-medium text-slate-100">Loskai</span>
+      <span className="text-xs text-slate-500">this app</span>
+      {c.subdomain && baseDomain && (
+        <RouteLink host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
+      )}
+      <span className="ml-auto text-xs text-slate-500">
+        {formatUptime(c.uptime)} · {formatPercent(c.cpu)} CPU · {formatPercent(c.mem?.percent)} mem ·{" "}
+        <span className="font-mono">{c.image}</span>
+      </span>
+      <Act title="Logs" onClick={onLogs}>
+        <ScrollText className="h-3.5 w-3.5" />
+      </Act>
     </div>
   );
 }
 
 function GroupHeader({
   group,
+  baseDomain,
   open,
   onToggle,
   busy,
@@ -174,6 +237,8 @@ function GroupHeader({
   onDelete,
 }: {
   group: Group;
+  // Set when the group's route links belong on its header; undefined leaves them on rows.
+  baseDomain: string | null | undefined;
   open: boolean;
   onToggle: () => void;
   busy: boolean;
@@ -182,54 +247,56 @@ function GroupHeader({
   onDelete: () => void;
 }) {
   const Chevron = open ? ChevronDown : ChevronRight;
-  const running = group.containers.filter((c) => c.status === "running").length;
+  const status = groupStatus(group);
+  const muted = group.kind !== "stack";
+  const links = baseDomain ? group.containers.filter((c) => c.subdomain) : [];
   return (
-    <tr className="border-t border-slate-800 bg-slate-900/50">
-      <td colSpan={5} className="px-4 py-2">
-        <button
-          onClick={onToggle}
-          aria-expanded={open}
-          className="flex items-center gap-2 text-left text-slate-200"
-        >
-          <Chevron className="h-4 w-4 text-slate-500" />
-          {group.kind === "standalone" ? (
-            <span className="font-medium text-slate-300">Standalone</span>
-          ) : (
-            <>
-              <Layers className="h-3.5 w-3.5 text-teal-300/70" />
-              <span className="font-medium">
-                {group.kind === "stack" ? group.stack.name : group.name}
-              </span>
-            </>
-          )}
-          {group.kind === "stack" && (
-            <StatusBadge status={STACK_STATUS[group.stack.status]} label={group.stack.status} />
-          )}
-          <span className="text-xs text-slate-500">
-            {group.containers.length > 0
-              ? `${running} of ${group.containers.length} running`
-              : "no containers"}
-          </span>
-          {group.kind === "project" && (
-            <span
-              title="Started by a compose file outside the stacks directory — Loskai lists it but doesn't manage it"
-              className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400"
-            >
-              not in stacks folder
-            </span>
-          )}
-        </button>
+    <tr className={`border-t border-slate-800 bg-slate-900/50 ${muted ? "opacity-80" : ""}`}>
+      <td colSpan={COLS - 1} className="px-4 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onToggle}
+            aria-expanded={open}
+            className="flex items-center gap-2 text-left text-slate-200"
+          >
+            <Chevron className="h-4 w-4 text-slate-500" />
+            {group.kind === "standalone" ? (
+              <span className="font-medium text-slate-300">Standalone</span>
+            ) : (
+              <>
+                <Layers className={`h-3.5 w-3.5 ${muted ? "text-slate-500" : "text-teal-300/70"}`} />
+                <span className="font-medium">
+                  {group.kind === "stack" ? group.stack.name : group.name}
+                </span>
+              </>
+            )}
+          </button>
+          {group.containers.length > 0 || group.kind === "stack" ? (
+            <StatusBadge status={status.tone} label={status.label} />
+          ) : null}
+          {links.map((c) => (
+            <RouteLink key={c.id} host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
+          ))}
+        </div>
       </td>
       <td className="px-4 py-2">
         {group.kind === "stack" && (
           <div className="flex items-center justify-end gap-1">
             {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
-            <Act title="Up" onClick={() => onAction("up")}>
-              <Play className="h-3.5 w-3.5" />
-            </Act>
-            <Act title="Down" onClick={() => onAction("down")}>
-              <Square className="h-3.5 w-3.5" />
-            </Act>
+            {/* One toggle: Stop only once everything is up, so a half-started stack
+                still offers to bring the rest up. */}
+            {status.label === "up" ? (
+              <Toggle
+                title="Stop — compose down; the containers go, the data stays"
+                onClick={() => onAction("down")}
+              >
+                <Square className="h-3.5 w-3.5" /> Stop
+              </Toggle>
+            ) : (
+              <Toggle title="Start — compose up" start onClick={() => onAction("up")}>
+                <Play className="h-3.5 w-3.5" /> Start
+              </Toggle>
+            )}
             <Act title="Restart" onClick={() => onAction("restart")}>
               <RotateCw className="h-3.5 w-3.5" />
             </Act>
@@ -249,6 +316,13 @@ function GroupHeader({
   );
 }
 
+const DOT: Record<string, string> = {
+  running: "bg-emerald-400",
+  restarting: "bg-amber-400",
+  paused: "bg-amber-400",
+  dead: "bg-rose-400",
+};
+
 function ContainerRow({
   c,
   baseDomain,
@@ -259,7 +333,8 @@ function ContainerRow({
   onRemove,
 }: {
   c: Container;
-  baseDomain: string | null;
+  // Set when the link belongs on this row rather than on its group's header.
+  baseDomain: string | null | undefined;
   busy: boolean;
   onAction: (verb: string) => void;
   onLogs: () => void;
@@ -271,8 +346,13 @@ function ContainerRow({
     <tr className="border-t border-slate-800/50 hover:bg-slate-900/40">
       <td className="py-3 pl-11 pr-4">
         <div className="flex items-center gap-2 font-medium text-slate-100">
+          <span
+            title={c.status}
+            aria-label={c.status}
+            className={`h-2 w-2 shrink-0 rounded-full ${DOT[c.status] ?? "bg-slate-600"}`}
+          />
           {c.name}
-          {c.subdomain &&
+          {c.subdomain && baseDomain !== undefined &&
             (baseDomain ? (
               <RouteLink host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
             ) : (
@@ -281,10 +361,7 @@ function ContainerRow({
               </span>
             ))}
         </div>
-        <div className="font-mono text-xs text-slate-500">{c.image}</div>
-      </td>
-      <td className="px-4 py-3">
-        <StatusBadge status={running ? "healthy" : "unconfigured"} label={c.status} />
+        <div className="pl-4 font-mono text-xs text-slate-500">{c.image}</div>
       </td>
       <td className="px-4 py-3 text-slate-400">{formatUptime(c.uptime)}</td>
       <td className="px-4 py-3 text-slate-400">{formatPercent(c.cpu)}</td>
@@ -292,32 +369,53 @@ function ContainerRow({
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
           {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
-          {running ? (
-            <>
-              <Act title="Stop" onClick={() => onAction("stop")}>
-                <Square className="h-3.5 w-3.5" />
-              </Act>
-              <Act title="Restart" onClick={() => onAction("restart")}>
-                <RotateCw className="h-3.5 w-3.5" />
-              </Act>
-            </>
-          ) : (
-            <Act title="Start" onClick={() => onAction("start")}>
-              <Play className="h-3.5 w-3.5" />
-            </Act>
-          )}
           <Act title="Logs" onClick={onLogs}>
             <ScrollText className="h-3.5 w-3.5" />
           </Act>
           <Act title="Terminal" onClick={onTerminal} disabled={!running}>
             <TerminalSquare className="h-3.5 w-3.5" />
           </Act>
-          <Act title="Remove" danger onClick={onRemove}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </Act>
+          <RowMenu
+            label={`More for ${c.name}`}
+            items={[
+              ...(running
+                ? [
+                    { label: "Stop", icon: <Square className="h-3.5 w-3.5" />, onClick: () => onAction("stop") },
+                    { label: "Restart", icon: <RotateCw className="h-3.5 w-3.5" />, onClick: () => onAction("restart") },
+                  ]
+                : [{ label: "Start", icon: <Play className="h-3.5 w-3.5" />, onClick: () => onAction("start") }]),
+              { label: "Remove", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: onRemove, danger: true },
+            ]}
+          />
         </div>
       </td>
     </tr>
+  );
+}
+
+function Toggle({
+  title,
+  onClick,
+  children,
+  start = false,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  start?: boolean;
+}) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${
+        start
+          ? "border-teal-600/50 text-teal-200 hover:bg-teal-500/10"
+          : "border-slate-700 text-slate-200 hover:bg-slate-800"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
