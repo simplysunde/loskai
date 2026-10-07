@@ -286,16 +286,16 @@ function GroupHeader({
             {/* One toggle: Stop only once everything is up, so a half-started stack
                 still offers to bring the rest up. */}
             {status.label === "up" ? (
-              <Toggle
+              <Act
                 title="Stop — compose down; the containers go, the data stays"
                 onClick={() => onAction("down")}
               >
-                <Square className="h-3.5 w-3.5" /> Stop
-              </Toggle>
+                <Square className="h-3.5 w-3.5" />
+              </Act>
             ) : (
-              <Toggle title="Start — compose up" start onClick={() => onAction("up")}>
-                <Play className="h-3.5 w-3.5" /> Start
-              </Toggle>
+              <Act title="Start — compose up" onClick={() => onAction("up")}>
+                <Play className="h-3.5 w-3.5" />
+              </Act>
             )}
             <Act title="Restart" onClick={() => onAction("restart")}>
               <RotateCw className="h-3.5 w-3.5" />
@@ -390,32 +390,6 @@ function ContainerRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-function Toggle({
-  title,
-  onClick,
-  children,
-  start = false,
-}: {
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  start?: boolean;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${
-        start
-          ? "border-teal-600/50 text-teal-200 hover:bg-teal-500/10"
-          : "border-slate-700 text-slate-200 hover:bg-slate-800"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
