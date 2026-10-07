@@ -11,8 +11,9 @@ once every declared service is running, so a half-started stack still offers Sta
 other actions stay as buttons; Sunde wanted them visible, not in a menu. A container row
 keeps only Logs and Terminal visible; Start/Stop/Restart/Remove moved to a `⋯` menu.
 
-The table splits into **Stacks** and **Other containers — not managed by Loskai** (other
-compose projects and plain `docker run`), and **Loskai's own container leaves the table**
+The table splits in two, each under its own heading — **Stacks**, and **Other
+containers — not managed by Loskai** (other compose projects and plain `docker run`),
+which is left out entirely when there are none — and **Loskai's own container leaves the table**
 for a strip above it with Logs only — stopping or removing it from Loskai takes down the
 page doing it. The backend marks it `self`, matched by Docker's default hostname (the
 first 12 digits of the container id); a container given its own `hostname:` is never

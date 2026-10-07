@@ -72,15 +72,35 @@ test("a managed stack carries its actions; a project from elsewhere and standalo
   expect(screen.getByText("portainer")).toBeInTheDocument();
 });
 
-test("stacks come first, then the containers Loskai doesn't manage", async () => {
+test("stacks and the containers Loskai doesn't manage are separate tables", async () => {
   groups();
   await screen.findByText("immich-server");
 
-  const text = document.querySelector("tbody")!.textContent!;
-  expect(text.indexOf("Stacks")).toBeLessThan(text.indexOf("immich"));
-  expect(text.indexOf("whoami")).toBeLessThan(text.indexOf("Other containers"));
-  expect(text.indexOf("Other containers")).toBeLessThan(text.indexOf("other-app"));
-  expect(screen.getByText("· not managed by Loskai")).toBeInTheDocument();
+  const [stacksTable, othersTable] = screen.getAllByRole("table");
+  expect(within(stacksTable).getByText("whoami-whoami-1")).toBeInTheDocument();
+  expect(within(stacksTable).queryByText("other-app")).not.toBeInTheDocument();
+  expect(within(othersTable).getByText("other-app")).toBeInTheDocument();
+  expect(within(othersTable).getByText("portainer")).toBeInTheDocument();
+  expect(screen.getByText(/not managed by Loskai/)).toBeInTheDocument();
+});
+
+test("with nothing unmanaged, there is no second table", async () => {
+  const containers = RESPONSES["/api/docker/containers"] as { project: string | null }[];
+  vi.mocked(fetch).mockImplementation(async (path) => {
+    const data =
+      path === "/api/docker/containers"
+        ? containers.filter((c) => c.project === "immich" || c.project === "whoami")
+        : (RESPONSES[String(path)] ?? {});
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  groups();
+  await screen.findByText("immich-server");
+
+  expect(screen.getAllByRole("table")).toHaveLength(1);
+  expect(screen.queryByText("Other containers")).not.toBeInTheDocument();
 });
 
 test("start and stop are one toggle: Stop only once everything is up", async () => {

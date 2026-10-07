@@ -149,32 +149,20 @@ export function StackGroups({
   return (
     <div className="space-y-3">
       {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
-      {groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
-          No containers or stacks yet. Install a recipe, or create a stack.
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Container</th>
-                <th className="px-4 py-2.5 font-medium">Uptime</th>
-                <th className="px-4 py-2.5 font-medium">CPU</th>
-                <th className="px-4 py-2.5 font-medium">Mem</th>
-                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {managed.length > 0 && <Section title="Stacks" />}
-              {managed.map(renderGroup)}
-              {others.length > 0 && (
-                <Section title="Other containers" note="not managed by Loskai" />
-              )}
-              {others.map(renderGroup)}
-            </tbody>
-          </table>
-        </div>
+      <Section title="Stacks">
+        {managed.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
+            No stacks yet. Install a recipe, or create a stack.
+          </div>
+        ) : (
+          <GroupTable>{managed.map(renderGroup)}</GroupTable>
+        )}
+      </Section>
+      {/* Its own table, and none at all when there is nothing Loskai doesn't manage. */}
+      {others.length > 0 && (
+        <Section title="Other containers" note="not managed by Loskai — started outside the stacks folder">
+          <GroupTable>{others.map(renderGroup)}</GroupTable>
+        </Section>
       )}
     </div>
   );
@@ -182,17 +170,50 @@ export function StackGroups({
 
 const COLS = 5;
 
-function Section({ title, note }: { title: string; note?: string }) {
+function Section({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <tr className="border-t border-slate-800">
-      <td
-        colSpan={COLS}
-        className="px-4 pb-1.5 pt-4 text-[11px] font-medium uppercase tracking-wide text-slate-500"
-      >
+    <section className="pt-2">
+      <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
         {title}
         {note && <span className="ml-2 normal-case tracking-normal text-slate-600">· {note}</span>}
-      </td>
-    </tr>
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+// Both sections' tables share fixed column widths, so their columns line up across the gap.
+function GroupTable({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-800">
+      <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+        <colgroup>
+          <col />
+          <col className="w-28" />
+          <col className="w-20" />
+          <col className="w-20" />
+          <col className="w-56" />
+        </colgroup>
+        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Container</th>
+            <th className="px-4 py-2.5 font-medium">Uptime</th>
+            <th className="px-4 py-2.5 font-medium">CPU</th>
+            <th className="px-4 py-2.5 font-medium">Mem</th>
+            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
   );
 }
 
