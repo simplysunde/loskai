@@ -238,3 +238,6 @@ stacks/*
 # Legacy name for the state volume, before it moved to ./data. Kept ignored so an install
 # that predates the move doesn't show an untracked directory while it is being migrated.
 loskai-settings/
+
+# Claude Code makes its worktrees here (`claude --worktree`) — each is a full checkout.
+.claude/worktrees/
