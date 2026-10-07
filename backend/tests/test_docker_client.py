@@ -204,6 +204,17 @@ def test_a_container_carries_its_compose_project(monkeypatch, data_dir):
     assert rows["portainer"]["project"] is None
 
 
+def test_loskais_own_container_is_marked(monkeypatch, data_dir):
+    me, other = FakeContainer("loskai"), FakeContainer("web")
+    me.id = "3f2a9c1b7e4d" + "0" * 52  # a real id is hex; Docker's hostname is its first 12
+    _use(monkeypatch, FakeDocker([me, other]))
+    monkeypatch.setattr(client_mod.socket, "gethostname", lambda: me.id[:12])
+
+    rows = {r["name"]: r for r in DockerClient().list_containers(with_stats=False)}
+    assert rows["loskai"]["self"] is True
+    assert rows["web"]["self"] is False
+
+
 def test_list_volumes_joins_df_to_the_mounts_of_every_container(monkeypatch, data_dir):
     db = FakeContainer("immich-db", running=False)  # stopped still holds its volume
     db.attrs["Mounts"] = [{"Type": "volume", "Name": "immich_pgdata"}]

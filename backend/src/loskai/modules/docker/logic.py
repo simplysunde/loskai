@@ -73,6 +73,15 @@ def image_name(container_attrs: dict, image_tags: list[str] | None) -> str:
     return image_id[:19] if image_id else "<none>"
 
 
+def is_self(container_id: str, hostname: str) -> bool:
+    """Whether this container is the one Loskai runs in. Docker names a container's host
+    after the first 12 hex digits of its id unless told otherwise, so only a hostname of
+    exactly that shape can match — a bare-metal dev host never does, and a container given
+    its own hostname is simply listed like any other."""
+    h = hostname.lower()
+    return len(h) == 12 and all(ch in "0123456789abcdef" for ch in h) and container_id.startswith(h)
+
+
 def format_ports(attrs: dict) -> list[str]:
     """"host->container/proto" strings from a container's NetworkSettings.Ports."""
     ports = (attrs.get("NetworkSettings") or {}).get("Ports") or {}

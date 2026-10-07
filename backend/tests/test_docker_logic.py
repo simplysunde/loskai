@@ -370,3 +370,13 @@ def test_volume_rows_flag_anonymous_volumes():
         [],
     )
     assert {r["name"]: r["anonymous"] for r in rows} == {ANON: True, "named": True, "data": False}
+
+
+def test_is_self_matches_dockers_default_hostname_only():
+    cid = "3f2a9c1b7e4d" + "0" * 52
+    assert logic.is_self(cid, "3f2a9c1b7e4d")
+    assert not logic.is_self(cid, "aaaaaaaaaaaa")
+    # A bare-metal host, or a container given its own hostname, never matches — even one
+    # that happens to prefix the id.
+    assert not logic.is_self(cid, "3f2a")
+    assert not logic.is_self("devbox" + cid, "devbox")

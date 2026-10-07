@@ -5,6 +5,7 @@ joins). Requires the socket mounted at /var/run/docker.sock.
 """
 
 import logging
+import socket
 from collections.abc import Iterator
 
 import docker
@@ -60,6 +61,7 @@ class DockerClient:
         # a lookup per container. `caddy_host` is CADDY_ADMIN_URL's hostname; None when
         # Caddy is addressed by IP (it is off-box, so there is nothing here to match).
         caddy_nets = self._caddy_networks(containers, caddy_host)
+        own_host = socket.gethostname()
         out: list[dict] = []
         for c in containers:
             attrs = c.attrs
@@ -77,6 +79,9 @@ class DockerClient:
                 # The compose project it belongs to — a stack's folder name, for one
                 # Loskai manages. The Docker tab groups containers under their stack by it.
                 "project": labels.get("com.docker.compose.project"),
+                # Loskai's own container: the Docker tab shows it apart, without the
+                # controls that would stop the page you are clicking them on.
+                "self": logic.is_self(c.id, own_host),
                 "status": c.status,
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
