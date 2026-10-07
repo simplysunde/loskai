@@ -183,6 +183,7 @@ function GroupTable({
   children,
 }: {
   title: string;
+  // Hover text for the title.
   note?: string;
   children: React.ReactNode;
 }) {
@@ -198,11 +199,11 @@ function GroupTable({
         </colgroup>
         <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
           <tr>
-            <th className="px-4 py-2.5 font-medium text-slate-300">
+            <th
+              title={note}
+              className={`px-4 py-2.5 font-medium text-slate-300 ${note ? "cursor-help" : ""}`}
+            >
               {title}
-              {note && (
-                <span className="ml-2 font-normal normal-case text-slate-600">· {note}</span>
-              )}
             </th>
             <th className="px-4 py-2.5 font-medium">Uptime</th>
             <th className="px-4 py-2.5 font-medium">CPU</th>

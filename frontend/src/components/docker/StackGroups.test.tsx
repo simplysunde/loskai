@@ -81,7 +81,7 @@ test("stacks and the containers Loskai doesn't manage are separate tables", asyn
   expect(within(stacksTable).queryByText("other-app")).not.toBeInTheDocument();
   expect(within(othersTable).getByText("other-app")).toBeInTheDocument();
   expect(within(othersTable).getByText("portainer")).toBeInTheDocument();
-  expect(screen.getByText(/not managed by Loskai/)).toBeInTheDocument();
+  expect(screen.getByTitle(/not managed by Loskai/)).toHaveTextContent("Other containers");
 });
 
 test("with nothing unmanaged, there is no second table", async () => {
