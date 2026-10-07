@@ -100,7 +100,7 @@ test("with nothing unmanaged, there is no second table", async () => {
   await screen.findByText("immich-server");
 
   expect(screen.getAllByRole("table")).toHaveLength(1);
-  expect(screen.queryByText("Other containers")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Other containers/)).not.toBeInTheDocument();
 });
 
 test("start and stop are one toggle: Stop only once everything is up", async () => {

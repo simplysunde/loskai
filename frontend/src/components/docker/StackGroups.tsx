@@ -149,20 +149,25 @@ export function StackGroups({
   return (
     <div className="space-y-3">
       {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
-      <Section title="Stacks">
+      <GroupTable title="Stacks">
         {managed.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
-            No stacks yet. Install a recipe, or create a stack.
-          </div>
+          <tr>
+            <td colSpan={COLS} className="px-4 py-10 text-center text-sm text-slate-500">
+              No stacks yet. Install a recipe, or create a stack.
+            </td>
+          </tr>
         ) : (
-          <GroupTable>{managed.map(renderGroup)}</GroupTable>
+          managed.map(renderGroup)
         )}
-      </Section>
+      </GroupTable>
       {/* Its own table, and none at all when there is nothing Loskai doesn't manage. */}
       {others.length > 0 && (
-        <Section title="Other containers" note="not managed by Loskai — started outside the stacks folder">
-          <GroupTable>{others.map(renderGroup)}</GroupTable>
-        </Section>
+        <GroupTable
+          title="Other containers"
+          note="not managed by Loskai — started outside the stacks folder"
+        >
+          {others.map(renderGroup)}
+        </GroupTable>
       )}
     </div>
   );
@@ -170,7 +175,9 @@ export function StackGroups({
 
 const COLS = 5;
 
-function Section({
+// Each section is its own table, titled in its header row. Both share fixed column
+// widths, so their columns line up across the gap.
+function GroupTable({
   title,
   note,
   children,
@@ -179,19 +186,6 @@ function Section({
   note?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <section className="pt-2">
-      <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-        {title}
-        {note && <span className="ml-2 normal-case tracking-normal text-slate-600">· {note}</span>}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-// Both sections' tables share fixed column widths, so their columns line up across the gap.
-function GroupTable({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-800">
       <table className="w-full min-w-[760px] table-fixed text-left text-sm">
@@ -204,7 +198,12 @@ function GroupTable({ children }: { children: React.ReactNode }) {
         </colgroup>
         <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
           <tr>
-            <th className="px-4 py-2.5 font-medium">Container</th>
+            <th className="px-4 py-2.5 font-medium text-slate-300">
+              {title}
+              {note && (
+                <span className="ml-2 font-normal normal-case text-slate-600">· {note}</span>
+              )}
+            </th>
             <th className="px-4 py-2.5 font-medium">Uptime</th>
             <th className="px-4 py-2.5 font-medium">CPU</th>
             <th className="px-4 py-2.5 font-medium">Mem</th>
