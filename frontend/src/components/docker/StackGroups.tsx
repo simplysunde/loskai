@@ -69,6 +69,17 @@ export function StackGroups({
       api.post(`/api/docker/containers/${id}/${verb}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-containers"] }),
   });
+  // A compose project started elsewhere has no compose file here, so its toggle is plain
+  // docker start/stop on each container — it pauses and resumes, it cannot recreate one.
+  const projectAction = useMutation({
+    mutationFn: ({ containers, verb }: { name: string; containers: Container[]; verb: "start" | "stop" }) =>
+      Promise.all(
+        containers
+          .filter((c) => (c.status === "running") === (verb === "stop"))
+          .map((c) => api.post(`/api/docker/containers/${c.id}/${verb}`)),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-containers"] }),
+  });
   const stackAction = useMutation({
     mutationFn: ({ name, verb }: { name: string; verb: string }) =>
       api.post(`/api/docker/stacks/${name}/action`, { action: verb }),
@@ -112,13 +123,17 @@ export function StackGroups({
           open={open}
           onToggle={() => toggle(group.key)}
           busy={
-            stackAction.isPending &&
-            group.kind === "stack" &&
-            stackAction.variables?.name === group.stack.name
+            group.kind === "stack"
+              ? stackAction.isPending && stackAction.variables?.name === group.stack.name
+              : group.kind === "project" &&
+                projectAction.isPending &&
+                projectAction.variables?.name === group.name
           }
-          onAction={(verb) =>
-            group.kind === "stack" && stackAction.mutate({ name: group.stack.name, verb })
-          }
+          onAction={(verb) => {
+            if (group.kind === "stack") stackAction.mutate({ name: group.stack.name, verb });
+            else if (group.kind === "project" && (verb === "start" || verb === "stop"))
+              projectAction.mutate({ name: group.name, containers: group.containers, verb });
+          }}
           onEdit={() => group.kind === "stack" && onEditStack(group.stack.name)}
           onDelete={() => group.kind === "stack" && onDeleteStack(group.stack)}
         />
@@ -301,6 +316,22 @@ function GroupHeader({
         </div>
       </td>
       <td className="px-4 py-2">
+        {/* The same toggle, in the same place, for a project started elsewhere. Unmanaged
+            standalone containers share a group only by being loose — no toggle for them. */}
+        {group.kind === "project" && (
+          <div className="flex items-center justify-end gap-1">
+            {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+            {status.label === "up" ? (
+              <Act title="Stop all" onClick={() => onAction("stop")}>
+                <Square className="h-3.5 w-3.5" />
+              </Act>
+            ) : (
+              <Act title="Start all" onClick={() => onAction("start")}>
+                <Play className="h-3.5 w-3.5" />
+              </Act>
+            )}
+          </div>
+        )}
         {group.kind === "stack" && (
           <div className="flex items-center justify-end gap-1">
             {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}

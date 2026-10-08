@@ -16,6 +16,7 @@ const RESPONSES: Record<string, unknown> = {
     container("immich-db", "immich", "exited"),
     { ...container("whoami-whoami-1", "whoami"), subdomain: "whoami" },
     container("other-app", "other"),
+    container("other-worker", "other", "exited"),
     { ...container("portainer", null), subdomain: "portainer" },
     { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
   ],
@@ -125,6 +126,27 @@ test("start and stop are one toggle: Stop only once everything is up", async () 
     { path: "/api/docker/stacks/immich/action", body: { action: "up" } },
     { path: "/api/docker/stacks/whoami/action", body: { action: "down" } },
   ]);
+});
+
+test("a project from elsewhere gets the toggle too, as plain start/stop per container", async () => {
+  // No compose file here to run `compose up` with — so it starts what is stopped.
+  const calls: string[] = [];
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    if (init?.method === "POST") calls.push(String(path));
+    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  groups();
+  await screen.findByText("other-app");
+
+  expect(within(header("other")).queryByRole("button", { name: "Stop all" })).not.toBeInTheDocument();
+  fireEvent.click(within(header("other")).getByRole("button", { name: "Start all" }));
+
+  await vi.waitFor(() => expect(calls).toEqual(["/api/docker/containers/other-worker/start"]));
+  // Loose containers share a group by accident, not by belonging: no toggle there.
+  expect(within(header("Standalone")).queryByRole("button", { name: /all$/ })).not.toBeInTheDocument();
 });
 
 test("a stack's links sit on its header; a standalone container keeps its own", async () => {
