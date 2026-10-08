@@ -153,14 +153,16 @@ present. Present = synced; missing = not pushed. This is a **display-only compar
 Loskai never auto-corrects a mismatch (that would be the drift/reconcile loop we
 deliberately dropped); it just surfaces the "Sync" action when something is missing.
 
-### 7. Upstream health
+### 7. Upstream health — not used
 
 ```
 GET /reverse_proxy/upstreams
 ```
 
-Reports each proxy backend's status (up/down, request count). Surfaced per row in the
-route list.
+Lists each proxy backend with a `fails` count. **Loskai no longer reads it** (removed
+2026-10-08): Caddy only counts failures when a route has health checks, and Loskai's routes
+have none, so every loaded upstream reported healthy — a dead one included. Passive checks
+would not fix that for an idle service, since they only count failed real requests.
 
 ### 8. The internal CA's root certificate
 

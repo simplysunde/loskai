@@ -1,5 +1,17 @@
 # Loskai — History
 
+## 2026-10-08 — The Routing table's Live column is gone
+
+It read Caddy's `/reverse_proxy/upstreams` and showed `up` when an upstream had no
+`fails`. But Caddy only counts failures on a route with health checks, and Loskai's routes
+have none — so every loaded upstream read `up`, a dead one included (checked live:
+`192.168.10.222:80` answered nothing and reported 0 fails). It said no more than Route did.
+Sunde chose removal over making it real: Route is Caddy's column, DNS is AdGuard's, and a
+reachability probe of Loskai's own would be a third thing to keep honest. Caddy's passive
+checks were not an option either — they count failed *real* requests, so an idle service
+would still read `up`. Field, client call and tests went with it; `caddy-api.md` §7 records
+why the endpoint is unused.
+
 ## 2026-10-07 — The Docker tab: a stack's row is its controls; Loskai sits apart
 
 Sunde found the stack table bloated — on a one-container stack, eleven buttons doing about

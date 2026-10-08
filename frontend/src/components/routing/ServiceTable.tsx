@@ -25,7 +25,6 @@ export interface RouteRow {
   icon?: string | null;
   routed: boolean;
   synced: boolean | null;
-  upstream_healthy: boolean | null;
   // Merged in from /api/adguard/status (routed rows only):
   dnsPresent?: boolean | null;
   dnsConflict?: boolean;
@@ -79,7 +78,6 @@ export function ServiceTable({
             <th className="px-4 py-2.5 font-medium">Service</th>
             <th className="px-4 py-2.5 font-medium">Upstream</th>
             <th title={ROUTE_HINT} className="cursor-help px-4 py-2.5 font-medium">Route</th>
-            <th title={LIVE_HINT} className="cursor-help px-4 py-2.5 font-medium">Live</th>
             <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
             {hasActions && <th className="px-4 py-2.5 font-medium text-right">Actions</th>}
           </tr>
@@ -159,15 +157,6 @@ export function ServiceTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                {!row.routed || row.route_mode === "dns_only" || row.upstream_healthy === null ? (
-                  <Dash />
-                ) : row.upstream_healthy ? (
-                  <StatusBadge status="healthy" label="up" />
-                ) : (
-                  <StatusBadge status="unreachable" label="down" />
-                )}
-              </td>
-              <td className="px-4 py-3">
                 {row.routed ? (
                   <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
                 ) : (
@@ -227,11 +216,8 @@ export function ServiceTable({
   );
 }
 
-// Header tooltips: what each status column checks. All three are re-read every 15 seconds.
+// Header tooltips: what each status column checks. Both are re-read every 15 seconds.
 const ROUTE_HINT = "Is the route loaded in Caddy? \"not pushed\" = Loskai has it but Caddy doesn't; Sync fixes it.";
-// Caddy only counts failures with health checks on, and Loskai's routes have none — so
-// this cannot tell a dead service from a working one.
-const LIVE_HINT = "Caddy's own health mark for the upstream. Without health checks it stays up even when the service is down.";
 export const DNS_HINT = "Does AdGuard answer this name with the right address? \"conflict\" = another answer exists for it too.";
 
 function Dash() {

@@ -9,22 +9,22 @@ const ROUTES = [
   {
     id: "nas", name: "Storage box", type: "external", kind: "machine", subdomain: "nas",
     fqdn: "nas.example.no", upstream: "192.168.10.50", route_mode: "dns_only",
-    private: false, routed: true, synced: null, upstream_healthy: null,
+    private: false, routed: true, synced: null,
   },
   {
     id: "pve", name: "pve", type: "external", kind: "machine", subdomain: "pve",
     fqdn: "pve.example.no", upstream: "192.168.10.10", route_mode: "dns_only",
-    private: false, routed: true, synced: null, upstream_healthy: null,
+    private: false, routed: true, synced: null,
   },
   {
     id: "plex", name: "plex", type: "external", kind: "service", subdomain: "plex",
     fqdn: "plex.example.no", upstream: "192.168.10.50:32400", machine: "nas",
-    private: false, routed: true, synced: true, upstream_healthy: true,
+    private: false, routed: true, synced: true,
   },
   {
     id: "grafana", name: "grafana", type: "docker", kind: "service", subdomain: "grafana",
     fqdn: "grafana.example.no", upstream: "grafana:3000",
-    private: false, routed: true, synced: true, upstream_healthy: true,
+    private: false, routed: true, synced: true,
   },
 ];
 

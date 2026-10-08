@@ -79,16 +79,6 @@ async def test_delete_route_raises_on_500(httpx_mock):
         await _client().delete_route("grafana")
 
 
-async def test_upstreams_parsed(httpx_mock):
-    httpx_mock.add_response(
-        method="GET",
-        url=f"{BASE}/reverse_proxy/upstreams",
-        json=[{"address": "192.168.10.100:3000", "num_requests": 2, "fails": 0}],
-    )
-    ups = await _client().upstreams()
-    assert ups[0]["address"] == "192.168.10.100:3000"
-
-
 async def test_health_healthy(httpx_mock):
     httpx_mock.add_response(
         method="GET", url=f"{BASE}/config/apps/http/servers", json={"srv0": {}}

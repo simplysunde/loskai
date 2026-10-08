@@ -315,7 +315,6 @@ const MACHINES = [
     private: false,
     routed: true,
     synced: null,
-    upstream_healthy: null,
   },
   // A proxied service: host:port, not an address — must not be offered as a machine.
   {
@@ -330,7 +329,6 @@ const MACHINES = [
     private: false,
     routed: true,
     synced: true,
-    upstream_healthy: true,
   },
 ];
 

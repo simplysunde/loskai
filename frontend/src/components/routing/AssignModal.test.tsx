@@ -114,12 +114,12 @@ const MACHINES = [
   {
     id: "nas", name: "nas", type: "external" as const, kind: "machine" as const,
     subdomain: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50",
-    private: false, routed: true, synced: null, upstream_healthy: null,
+    private: false, routed: true, synced: null,
   },
   {
     id: "web", name: "web", type: "external" as const, kind: "service" as const,
     subdomain: "web", fqdn: "web.example.no", upstream: "192.168.10.60:80",
-    private: false, routed: true, synced: true, upstream_healthy: true,
+    private: false, routed: true, synced: true,
   },
 ];
 

@@ -7,7 +7,7 @@ function row(over: Partial<RouteRow>): RouteRow {
   return {
     id: "x", name: "x", type: "external", subdomain: "x", fqdn: "x.example.no",
     upstream: "192.168.10.50:3000", private: false, routed: true, synced: true,
-    upstream_healthy: true, ...over,
+    ...over,
   };
 }
 

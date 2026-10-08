@@ -113,9 +113,8 @@ class FakeClient:
     `http_live_ids` in the `:80` one. `has_http_server=False` models a Caddy with no `:80`
     site at all, where a plain-HTTP route has nowhere to go."""
 
-    def __init__(self, live_ids=(), fails_map=None, http_live_ids=(), has_http_server=True):
+    def __init__(self, live_ids=(), http_live_ids=(), has_http_server=True):
         self._live_ids = set(live_ids)
-        self._fails_map = fails_map or {}
         self._http_live_ids = set(http_live_ids)
         self._has_http_server = has_http_server
         self.pushed: list[str] = []
@@ -127,9 +126,6 @@ class FakeClient:
 
     async def list_live_http_routes(self):
         return [{"@id": i} for i in self._http_live_ids]
-
-    async def upstreams(self):
-        return [{"address": addr, "fails": fails} for addr, fails in self._fails_map.items()]
 
     async def delete_route(self, route_id):
         self.deleted.append(route_id)
@@ -143,18 +139,17 @@ class FakeClient:
         self.http_pushed.append(route["@id"])
 
 
-async def test_list_with_sync_dns_only_row_is_na_for_route_and_live():
+async def test_list_with_sync_dns_only_row_is_na_for_route():
     instances_store.upsert_instance(
         Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
                  upstream="192.168.10.55", route_mode="dns_only")
     )
-    rows = await service.list_with_sync(FakeClient(live_ids=[], fails_map={}), BASE)
+    rows = await service.list_with_sync(FakeClient(live_ids=[]), BASE)
     row = rows[0]
     assert row["route_mode"] == "dns_only"
     assert row["routed"] is True  # has a subdomain
     assert row["fqdn"] == "vm1.example.no"
     assert row["synced"] is None  # N/A — no Caddy route exists to be synced
-    assert row["upstream_healthy"] is None  # N/A — Caddy never proxies this upstream
 
 
 async def test_list_with_sync_proxy_row_unaffected():
@@ -162,13 +157,10 @@ async def test_list_with_sync_proxy_row_unaffected():
         Instance(id="grafana", name="Grafana", type="docker",
                  subdomain="grafana", upstream="192.168.10.100:3000")
     )
-    rows = await service.list_with_sync(
-        FakeClient(live_ids=["grafana"], fails_map={"192.168.10.100:3000": 0}), BASE
-    )
+    rows = await service.list_with_sync(FakeClient(live_ids=["grafana"]), BASE)
     row = rows[0]
     assert row["route_mode"] == "proxy"
     assert row["synced"] is True
-    assert row["upstream_healthy"] is True
 
 
 async def test_push_all_skips_dns_only_instances():

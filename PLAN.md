@@ -221,7 +221,7 @@ this (a dedicated tab, or just pointing people at AdGuard's own UI), it is a sec
 skips Caddy entirely.
 
 - **No Caddy route is pushed or expected** for a `dns_only` instance — `push_all`,
-  `list_with_sync`'s synced/live columns, and the routing table's Route/Live columns all
+  `list_with_sync`'s synced column, and the routing table's Route column all
   treat it as not-applicable, not "missing."
 - **`upstream` *is* the AdGuard answer.** A `dns_only` instance's `upstream` is a bare IPv4
   address (not `host:port` — there's no dial, no port to speak of), and that address is
@@ -528,12 +528,11 @@ route, so it never appears in `push_all` or the live-sync check.
 - Every instance in a clean table — routed rows show route/DNS status, unrouted rows offer
   "Change URL". Per-row actions: remove-route (keep the instance) for any routed row; delete
   (route + record) for any instance — a deleted docker instance leaves its container alone
-- Each row: subdomain → upstream (host:port, optionally HTTPS), synced + live + DNS status
+- Each row: subdomain → upstream (host:port, optionally HTTPS), synced + DNS status
 - **Synced status** — Loskai fetches Caddy's live routes (`GET …/routes`) and checks each
   instance's `@id` against them. Present = synced; missing = not pushed (offer "Sync").
   This is a **read-only comparison for display only** — it never auto-corrects, so it can't
   reintroduce a drift/reconcile loop.
-- **Live status** — upstream reachability, from Caddy's `/reverse_proxy/upstreams`
 - "Sync" button — re-pushes every Caddy route from the instance list **and** reconciles
   AdGuard rewrites (adds missing, migrates stale, sweeps orphaned); the one-click recovery
   + refresh action

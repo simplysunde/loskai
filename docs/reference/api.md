@@ -79,7 +79,7 @@ Module status lives in the aggregate `GET /api/health`, not a per-module route.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /routes` | **All** instances (routed or not) annotated with `kind` (`"service"`/`"machine"`), `route_mode`, `routed` + `synced` (in Caddy) + `upstream_healthy`, and their `container`/`origin`/`machine` links and `follow_container` (so the UI can find a container's or Network service's route, and knows whether its upstream is locked). Route fields are null when unrouted **or** `route_mode: "dns_only"` (no Caddy route exists for those — not "missing"). Display-only comparison — never auto-corrects. |
+| `GET /routes` | **All** instances (routed or not) annotated with `kind` (`"service"`/`"machine"`), `route_mode`, `routed` + `synced` (in Caddy), and their `container`/`origin`/`machine` links and `follow_container` (so the UI can find a container's or Network service's route, and knows whether its upstream is locked). Route fields are null when unrouted **or** `route_mode: "dns_only"` (no Caddy route exists for those — not "missing"). Display-only comparison — never auto-corrects. |
 | `POST /push` | Rebuild every route from the instance list (recovery backstop). Only touches instance `@id`s; skips `dns_only` instances (nothing to push). |
 | `GET /root-certificate` | **Public.** Caddy's internal root CA as `{ pem, common_name, filename }`, read live from its Admin API — the download behind the [Certificate page](../guides/certificate-setup.md). `409` when Caddy runs no internal CA (a public-ACME deployment has nothing to install); `502` when Caddy is unreachable or unconfigured. |
 

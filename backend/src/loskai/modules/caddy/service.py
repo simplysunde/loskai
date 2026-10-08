@@ -179,9 +179,9 @@ def build_route(
 
 async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[dict]:
     """Every instance (routed or not) annotated with `routed` + synced (@id present in
-    Caddy) + live upstream status. The routing view manages all instances, so unrouted
+    Caddy). The routing view manages all instances, so unrouted
     ones appear here too (with null route fields). A `route_mode: "dns_only"` instance is
-    `routed` (it has a subdomain) but `synced`/`upstream_healthy` stay null — it has no
+    `routed` (it has a subdomain) but `synced` stays null — it has no
     Caddy route at all, so neither concept applies. Read-only — never auto-corrects."""
     instances = instances_store.list_instances()
 
@@ -195,13 +195,6 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
     except (httpx.HTTPError, CaddyError):
         live_ids = None  # Caddy unreachable — sync status is unknown, not "missing"
 
-    upstream_fails: dict[str, int] | None
-    try:
-        ups = await client.upstreams()
-        upstream_fails = {u["address"]: u.get("fails", 0) for u in ups if u.get("address")}
-    except (httpx.HTTPError, CaddyError):
-        upstream_fails = None
-
     rows: list[dict] = []
     for inst in instances:
         routed = inst.subdomain is not None
@@ -212,10 +205,6 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         else:
             expected = expected_route_ids(inst)
             synced = bool(expected) and all(rid in live_ids for rid in expected)
-        if not is_proxy or upstream_fails is None or inst.upstream is None:
-            upstream_healthy = None
-        else:
-            upstream_healthy = inst.upstream in upstream_fails and upstream_fails[inst.upstream] == 0
         rows.append(
             {
                 "id": inst.id,
@@ -238,7 +227,6 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
             "kind": inst.kind,
                 "routed": routed,
                 "synced": synced,
-                "upstream_healthy": upstream_healthy,
             }
         )
     return rows

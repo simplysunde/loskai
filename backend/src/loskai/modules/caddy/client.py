@@ -140,12 +140,6 @@ class CaddyClient:
             r.raise_for_status()
             return r.json() or {}
 
-    async def upstreams(self) -> list[dict]:
-        async with self._client() as c:
-            r = await c.get("/reverse_proxy/upstreams")
-            r.raise_for_status()
-            return r.json() or []
-
     async def health(self) -> dict:
         """Reachability + refresh the cached server name. Never raises."""
         if not self.base_url():
