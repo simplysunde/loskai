@@ -76,6 +76,16 @@ const pickGrafana = async () => fireEvent.click(await screen.findByText("Grafana
 
 afterEach(() => vi.unstubAllGlobals());
 
+test("a recipe with an icon shows it in the catalog; one without keeps its letter", async () => {
+  renderWizard({ recipes: [{ ...GRAFANA, icon: true }, { ...GRAFANA, id: "whoami", name: "Whoami" }] });
+
+  const grafana = (await screen.findByText("Grafana")).closest("button")!;
+  expect(grafana.querySelector("img")).toHaveAttribute("src", "/api/docker/recipes/grafana/icon");
+  const whoami = screen.getByText("Whoami").closest("button")!;
+  expect(whoami.querySelector("img")).toBeNull();
+  expect(whoami).toHaveTextContent("W");
+});
+
 test("the review step shows the recipe's instructions before the form", async () => {
   renderWizard();
   await pickGrafana();

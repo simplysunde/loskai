@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from docker.errors import APIError, NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
+from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 
 from ...shared import assign as assign_mod
@@ -299,6 +300,16 @@ def refresh_recipes(payload: dict = Body(default={})) -> dict:
         return recipes_mod.sync_recipes(payload.get("url"))
     except RecipeError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/recipes/{recipe_id}/icon")
+def recipe_icon(recipe_id: str) -> FileResponse:
+    """The recipe's icon.png, for the wizard's thumbnail. Checked as an image when the
+    recipe was loaded, so this only serves it."""
+    try:
+        return FileResponse(recipes_mod.icon_path(recipe_id), media_type="image/png")
+    except RecipeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.post("/recipes/{recipe_id}/install")

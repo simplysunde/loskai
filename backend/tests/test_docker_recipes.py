@@ -752,3 +752,67 @@ def test_a_bad_folder_fails_before_touching_disk(jellyfin):
     with pytest.raises(recipes.RecipeError, match="is a Docker volume"):
         recipes.install_recipe("jellyfin", {}, ["anime"])
     assert not jellyfin.exists()
+
+
+# --- Icon: an optional icon.png, applied to the route record at install ---
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+def test_a_recipe_with_an_icon_says_so(installable):
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+
+    listed = {r["id"]: r for r in recipes.list_recipes()["recipes"]}
+    assert listed["grafana"]["icon"] is True
+    assert recipes.icon_path("grafana").read_bytes() == PNG
+
+
+def test_a_recipe_without_an_icon_has_none(installable):
+    assert recipes.get_recipe("grafana")["icon"] is False
+    with pytest.raises(recipes.RecipeError):
+        recipes.icon_path("grafana")
+
+
+@pytest.mark.parametrize(
+    "data,reason",
+    [
+        (b"\xff\xd8\xff" + b"\x00" * 32, "not a PNG"),  # a JPEG named .png
+        (b'<svg xmlns="http://www.w3.org/2000/svg"/>', "unsupported image"),
+        (PNG + b"\x00" * (512 * 1024), "larger than"),
+    ],
+)
+def test_a_bad_icon_skips_the_recipe_with_the_reason(installable, data, reason):
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(data)
+
+    skipped = {r["id"]: r["error"] for r in recipes.list_recipes()["invalid"]}
+    assert reason in skipped["grafana"]
+
+
+def test_install_gives_the_route_the_recipe_icon(installable, monkeypatch):
+    from loskai.shared import icons
+
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    recipes.install_recipe("grafana", {})
+
+    inst = instances_store.get_instance("grafana")
+    assert inst.icon == "grafana.png"
+    assert icons.path_for(inst.icon).read_bytes() == PNG
+
+
+def test_reinstall_never_replaces_an_icon_chosen_by_hand(installable, monkeypatch):
+    from loskai.shared import icons
+    from loskai.shared.instances import Instance
+
+    mine = b"\x89PNG\r\n\x1a\n" + b"\x01" * 64
+    icons.save("grafana", mine)
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker", container="grafana-old-1", icon="grafana.png")
+    )
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    recipes.install_recipe("grafana", {})
+
+    assert icons.path_for(instances_store.get_instance("grafana").icon).read_bytes() == mine

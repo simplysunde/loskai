@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 import yaml
 
 from ...config import settings
+from ...shared import icons
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ...shared.instances import Instance
@@ -308,6 +309,15 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         # The project is named after the recipe folder: that is what the install reads its
         # container back by, and what the Stacks tab's own compose runs would disagree with.
         errors.append("compose.yml sets a top-level 'name:' — remove it; the recipe folder names the project")
+    # Optional. Checked by the same rules as an uploaded icon, and PNG only — it ends up
+    # served publicly from Loskai's own origin, like any launcher icon.
+    icon = folder / ICON_FILE
+    if icon.is_file():
+        try:
+            if icons.sniff(icon.read_bytes())[0] != "png":
+                errors.append(f"{ICON_FILE} is not a PNG")
+        except icons.IconError as exc:
+            errors.append(f"{ICON_FILE}: {exc}")
     mounts = None
     if not errors and "mounts" in data:
         service, problem = _mount_service(compose.read_text(encoding="utf-8"), data.get("service"))
@@ -334,11 +344,23 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         # (logic.primary_container). Optional — one service needs no declaration.
         "service": data.get("service"),
         "mounts": mounts,
+        "icon": icon.is_file(),
         "instructions": instructions.read_text(encoding="utf-8") if instructions.is_file() else "",
         "source": source,
         "source_url": source_url,
         "path": str(folder),
     }
+
+
+ICON_FILE = "icon.png"
+
+
+def icon_path(recipe_id: str) -> Path:
+    """The recipe's icon file, for the wizard's thumbnail. RecipeError when it has none."""
+    recipe = get_recipe(recipe_id)
+    if not recipe["icon"]:
+        raise RecipeError(f"recipe '{recipe_id}' has no icon")
+    return Path(recipe["path"]) / ICON_FILE
 
 
 def _mount_service(compose_text: str, declared: str | None) -> tuple[str | None, str | None]:
@@ -582,6 +604,14 @@ def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None 
         if slot
         else Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
     )
+    # The recipe's icon becomes the route's launcher icon — only where there is none yet, so
+    # an icon chosen by hand survives a reinstall. Best-effort: an icon never fails an install.
+    if recipe["icon"] and not record.icon:
+        try:
+            filename = icons.save(recipe_id, (folder / ICON_FILE).read_bytes())
+            record = record.model_copy(update={"icon": filename})
+        except (OSError, icons.IconError) as exc:
+            logger.warning("recipe %s: icon not applied: %s", recipe_id, exc)
     instances_store.upsert_instance(record)
     return {
         "ok": True, "output": result["output"], "instance_id": recipe_id, "container": container,

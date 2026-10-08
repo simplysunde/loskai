@@ -46,6 +46,7 @@ grafana/
   recipe.yml       # the manifest — described below
   compose.yml      # a real, standalone compose file (native ${VAR} interpolation)
   instructions.md  # guided walk-through text, shown in the wizard (Markdown)
+  icon.png         # optional — the recipe's icon (see below)
 ```
 
 - **`compose.yml`** is a genuine compose file — directly `docker compose up`-testable and
@@ -54,6 +55,14 @@ grafana/
   set a top-level `name:`: the recipe folder names the compose project, and the install
   finds its container by that name — a recipe that sets one is listed as skipped.
 - **`instructions.md`** is displayed as-is. It is never executed.
+- **`icon.png`** is optional. The wizard shows it beside the recipe, and the install gives
+  it to the route it creates, so the dashboard card and the Routing row have it without an
+  upload. A reinstall adds it only to a route that has no icon — one chosen by hand is never
+  replaced. It must be a real PNG (checked by its bytes, not its name) of at most 512 KB:
+  the same rules as an uploaded icon, because it ends up served from Loskai's own origin.
+  **SVG is not accepted** — an SVG can carry a script. Square, at least 128 px, on a
+  transparent background reads best on both themes. A brand's logo is its owner's
+  trademark; use it unaltered, to identify the software the recipe installs.
 - **There is no `.env` in the folder.** The `.env` is *generated* at install time from the
   user's wizard answers (see below), because it holds per-install values and secrets.
 
@@ -316,6 +325,7 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
   the generated `.env`).
 - `compose.yml` is missing.
+- `icon.png` is present but is not a PNG, or is larger than 512 KB.
 
 Validation never runs recipe content — it only parses and checks fields. A rejected recipe
 affects nothing else; the rest of the list still loads.

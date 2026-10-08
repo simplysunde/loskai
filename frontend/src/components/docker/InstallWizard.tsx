@@ -31,6 +31,8 @@ interface Recipe {
   // instructions.md, verbatim. Shown before the form — it is the recipe's own
   // walk-through, and the only place a recipe author can say "log in with admin/admin".
   instructions: string;
+  // The recipe ships an icon.png — shown here, and given to the route at install.
+  icon?: boolean;
   source: string;
   source_url?: string | null;
 }
@@ -280,9 +282,17 @@ function PickStep({
               className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-left transition hover:border-teal-600/50 hover:bg-slate-900"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-sm font-semibold text-teal-300">
-                  {r.name.slice(0, 1).toUpperCase()}
-                </span>
+                {r.icon ? (
+                  <img
+                    src={`/api/docker/recipes/${encodeURIComponent(r.id)}/icon`}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-lg bg-slate-800/60 object-contain p-1"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-sm font-semibold text-teal-300">
+                    {r.name.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
                 <span className="min-w-0 truncate font-medium text-slate-100">{r.name}</span>
               </div>
               <p className="line-clamp-2 min-h-[2.5rem] text-xs text-slate-400">

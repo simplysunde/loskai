@@ -1,5 +1,18 @@
 # Loskai — History
 
+## 2026-10-08 — A recipe can ship an icon, PNG only
+
+A recipe folder may hold an `icon.png`: the wizard shows it in the catalog, and the install
+gives it to the route it creates (only where there is no icon yet, so one chosen by hand
+survives a reinstall). It is checked by the same rules as an uploaded icon, and a recipe
+whose icon fails them is skipped with the reason — `check_recipes` says so before a push.
+
+**SVG was considered and dropped.** Simple Icons, the obvious source, is SVG only, and SVG is
+safe enough with an active-content check plus a `sandbox` CSP on the response; that was half
+built. Sunde chose PNG only instead: it keeps the one rule icons already had (an SVG can carry
+a script, and these are served publicly from Loskai's origin) with nothing new to get right.
+Simple Icons' coloured CDN renders can be converted to PNG for a recipe.
+
 ## 2026-10-08 — A lone container is a group of one
 
 The Docker tab had three layouts: a managed stack, a compose project from elsewhere, and
