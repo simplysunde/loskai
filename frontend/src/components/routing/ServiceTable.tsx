@@ -3,7 +3,7 @@ import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { splitUpstream } from "../../lib/validation";
-import { isMachine, machineLabel } from "./machine";
+import { isMachine, machineAt, machineLabel } from "./machine";
 
 export interface RouteRow {
   id: string;
@@ -83,133 +83,144 @@ export function ServiceTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/70">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-slate-900/40">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2 font-medium text-slate-100">
-                  {onIcon && !isMachine(row) && (
-                    <IconPicker row={row} onPick={onIcon} onClear={onClearIcon} />
-                  )}
-                  {row.name}
-                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-                    {row.type}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs">
-                  {row.fqdn ? (
-                    <RouteLink host={row.fqdn} scheme={row.scheme} />
-                  ) : (
-                    <span className="text-slate-600">not routed</span>
-                  )}
-                </div>
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                {/* A linked upstream reads as the machine it follows; the address it
-                    resolves to right now sits beneath. Otherwise the link is invisible —
-                    the address looks hand-typed until the machine moves. */}
-                {row.machine ? (
-                  <span
-                    title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
-                    className="text-teal-300"
-                  >
-                    {machineLabel(row.machine, machines)}:{splitUpstream(row.upstream ?? "").port}
-                  </span>
-                ) : (
-                  (row.upstream ?? "—")
-                )}
-                {/* Only when it differs from the default: a tag on every row would be
-                    noise, and https is what almost everything should be. */}
-                {row.scheme && row.scheme !== "https" && (
-                  <span
-                    title={
-                      row.scheme === "http"
-                        ? "Plain HTTP only — no certificate is issued for this name"
-                        : "Served on both 443 and 80"
-                    }
-                    className="ml-1.5 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300"
-                  >
-                    {row.scheme}
-                  </span>
-                )}
-                {row.upstream_tls && (
-                  <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
-                    https
-                  </span>
-                )}
-                {row.route_mode === "dns_only" && (
-                  <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
-                    dns-only
-                  </span>
-                )}
-                {row.machine && row.upstream && (
-                  <div className="text-[11px] text-slate-600">{row.upstream}</div>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                {!row.routed || row.route_mode === "dns_only" ? (
-                  <Dash />
-                ) : row.synced === null ? (
-                  <StatusBadge status="unknown" label="unknown" />
-                ) : row.synced ? (
-                  <StatusBadge status="synced" label="synced" />
-                ) : (
-                  <StatusBadge status="unsynced" label="not pushed" />
-                )}
-              </td>
-              <td className="px-4 py-3">
-                {row.routed ? (
-                  <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
-                ) : (
-                  <Dash />
-                )}
-              </td>
-              {hasActions && (
+          {rows.map((row) => {
+            const sameAddress = row.machine ? undefined : machineAt(row.upstream, machines);
+            return (
+              <tr key={row.id} className="hover:bg-slate-900/40">
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {row.routed && onTogglePrivate && (
-                      <IconButton
-                        busy={privateBusyId === row.id}
-                        title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
-                        onClick={() => onTogglePrivate(row)}
-                        icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      />
+                  <div className="flex items-center gap-2 font-medium text-slate-100">
+                    {onIcon && !isMachine(row) && (
+                      <IconPicker row={row} onPick={onIcon} onClear={onClearIcon} />
                     )}
-                    {onAssign && (
-                      <IconButton
-                        busy={false}
-                        title={row.routed ? "Change URL" : "Assign a URL"}
-                        onClick={() => onAssign(row)}
-                        icon={
-                          row.routed ? (
-                            <Pencil className="h-3.5 w-3.5" />
-                          ) : (
-                            <Plus className="h-3.5 w-3.5" />
-                          )
-                        }
-                      />
-                    )}
-                    {row.routed && onRemoveRoute && (
-                      <IconButton
-                        busy={actionBusyId === row.id}
-                        title="Remove route (keep the instance)"
-                        onClick={() => onRemoveRoute(row)}
-                        icon={<Unlink className="h-3.5 w-3.5" />}
-                      />
-                    )}
-                    {onDelete && (
-                      <IconButton
-                        busy={actionBusyId === row.id}
-                        title="Delete instance"
-                        danger
-                        onClick={() => onDelete(row)}
-                        icon={<Trash2 className="h-3.5 w-3.5" />}
-                      />
+                    {row.name}
+                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                      {row.type}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs">
+                    {row.fqdn ? (
+                      <RouteLink host={row.fqdn} scheme={row.scheme} />
+                    ) : (
+                      <span className="text-slate-600">not routed</span>
                     )}
                   </div>
                 </td>
-              )}
-            </tr>
-          ))}
+                <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                  {/* A linked upstream reads as the machine it follows; the address it
+                      resolves to right now sits beneath. Otherwise the link is invisible —
+                      the address looks hand-typed until the machine moves. */}
+                  {row.machine ? (
+                    <span
+                      title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
+                      className="text-teal-300"
+                    >
+                      {machineLabel(row.machine, machines)}:{splitUpstream(row.upstream ?? "").port}
+                    </span>
+                  ) : (
+                    (row.upstream ?? "—")
+                  )}
+                  {/* Only when it differs from the default: a tag on every row would be
+                      noise, and https is what almost everything should be. */}
+                  {row.scheme && row.scheme !== "https" && (
+                    <span
+                      title={
+                        row.scheme === "http"
+                          ? "Plain HTTP only — no certificate is issued for this name"
+                          : "Served on both 443 and 80"
+                      }
+                      className="ml-1.5 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300"
+                    >
+                      {row.scheme}
+                    </span>
+                  )}
+                  {row.upstream_tls && (
+                    <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
+                      https
+                    </span>
+                  )}
+                  {row.route_mode === "dns_only" && (
+                    <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
+                      dns-only
+                    </span>
+                  )}
+                  {row.machine && row.upstream && (
+                    <div className="text-[11px] text-slate-600">{row.upstream}</div>
+                  )}
+                  {sameAddress && (
+                    <div
+                      title={`The address of the machine "${sameAddress.name}" — not linked: Change URL → Machine to follow it`}
+                      className="text-[11px] text-slate-500"
+                    >
+                      {sameAddress.fqdn ?? sameAddress.name}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {!row.routed || row.route_mode === "dns_only" ? (
+                    <Dash />
+                  ) : row.synced === null ? (
+                    <StatusBadge status="unknown" label="unknown" />
+                  ) : row.synced ? (
+                    <StatusBadge status="synced" label="synced" />
+                  ) : (
+                    <StatusBadge status="unsynced" label="not pushed" />
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {row.routed ? (
+                    <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
+                  ) : (
+                    <Dash />
+                  )}
+                </td>
+                {hasActions && (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {row.routed && onTogglePrivate && (
+                        <IconButton
+                          busy={privateBusyId === row.id}
+                          title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
+                          onClick={() => onTogglePrivate(row)}
+                          icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        />
+                      )}
+                      {onAssign && (
+                        <IconButton
+                          busy={false}
+                          title={row.routed ? "Change URL" : "Assign a URL"}
+                          onClick={() => onAssign(row)}
+                          icon={
+                            row.routed ? (
+                              <Pencil className="h-3.5 w-3.5" />
+                            ) : (
+                              <Plus className="h-3.5 w-3.5" />
+                            )
+                          }
+                        />
+                      )}
+                      {row.routed && onRemoveRoute && (
+                        <IconButton
+                          busy={actionBusyId === row.id}
+                          title="Remove route (keep the instance)"
+                          onClick={() => onRemoveRoute(row)}
+                          icon={<Unlink className="h-3.5 w-3.5" />}
+                        />
+                      )}
+                      {onDelete && (
+                        <IconButton
+                          busy={actionBusyId === row.id}
+                          title="Delete instance"
+                          danger
+                          onClick={() => onDelete(row)}
+                          icon={<Trash2 className="h-3.5 w-3.5" />}
+                        />
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

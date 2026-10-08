@@ -211,3 +211,24 @@ test("each status header explains itself on hover", () => {
     expect(screen.getByRole("columnheader", { name })).toHaveAttribute("title");
   }
 });
+
+test("an unlinked upstream on a machine's address names that machine, without linking", () => {
+  render(
+    <ServiceTable
+      rows={[
+        row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400" }),
+        row({ id: "linked", name: "linked", upstream: "192.168.10.50:8080", machine: "nas" }),
+        row({ id: "elsewhere", name: "elsewhere", upstream: "192.168.10.99:80" }),
+      ]}
+      machines={[
+        row({ id: "nas", name: "nas", upstream: "192.168.10.50", fqdn: "nas.example.no", kind: "machine" }),
+      ]}
+    />,
+  );
+
+  const hint = screen.getByText("nas.example.no");
+  expect(hint.closest("tr")).toHaveTextContent("plex");
+  expect(hint.closest("tr")).toHaveTextContent("192.168.10.50:32400");
+  // The linked row already reads as the machine; the unrelated one names nothing.
+  expect(screen.getAllByText("nas.example.no")).toHaveLength(1);
+});

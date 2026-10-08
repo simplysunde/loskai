@@ -1,3 +1,4 @@
+import { splitUpstream } from "../../lib/validation";
 import type { RouteRow } from "./ServiceTable";
 
 /** A machine is an address rather than a service — the thing routes link to via `machine`.
@@ -21,4 +22,11 @@ export function dependentsOf(machineId: string, rows: RouteRow[]): RouteRow[] {
   return rows
     .filter((r) => r.machine === machineId)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The machine whose address an unlinked upstream's host is — display only. Matching never
+// links the route (that stays a choice in the form); it just shows whose address this is.
+export function machineAt(upstream: string | null, rows: RouteRow[]): RouteRow | undefined {
+  const host = upstream ? splitUpstream(upstream).host : "";
+  return host ? rows.find((r) => isMachine(r) && r.upstream === host) : undefined;
 }
