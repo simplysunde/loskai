@@ -287,7 +287,7 @@ export function Routing() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Routing</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Caddy routes and AdGuard DNS rewrites, one row per service.
+            Web addresses for your services — Caddy serves them, AdGuard points the names there.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">

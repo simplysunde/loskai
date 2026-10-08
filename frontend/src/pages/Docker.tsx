@@ -75,7 +75,7 @@ export function Docker() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Docker</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Containers by the stack that runs them, and the volumes they keep.
+            Your containers, grouped by stack — start, stop, update and install apps.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
