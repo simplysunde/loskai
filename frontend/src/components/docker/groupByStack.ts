@@ -4,6 +4,8 @@ export interface Container {
   image: string;
   // The compose project — a managed stack's folder name; null for a plain `docker run`.
   project?: string | null;
+  // The folder compose was run from (a host path) — null when compose didn't start it.
+  compose_dir?: string | null;
   // The container Loskai itself runs in — shown apart, never grouped.
   self?: boolean;
   status: string;

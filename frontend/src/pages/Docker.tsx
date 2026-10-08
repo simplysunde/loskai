@@ -28,6 +28,9 @@ export function Docker() {
   const [logsFor, setLogsFor] = useState<Container | null>(null);
   const [terminalFor, setTerminalFor] = useState<Container | null>(null);
   const [removeContainer, setRemoveContainer] = useState<Container | null>(null);
+  const [removeProject, setRemoveProject] = useState<{ name: string; containers: Container[] } | null>(
+    null,
+  );
   const [stackEditor, setStackEditor] = useState<{ name: string | null } | null>(null);
   const [deleteStack, setDeleteStack] = useState<Stack | null>(null);
   const [deleteData, setDeleteData] = useState(false);
@@ -43,6 +46,15 @@ export function Docker() {
     mutationFn: (c: Container) => api.del(`/api/docker/containers/${c.id}`),
     onSuccess: () => {
       setRemoveContainer(null);
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+    },
+  });
+
+  const removeProjectMut = useMutation({
+    mutationFn: (p: { containers: Container[] }) =>
+      Promise.all(p.containers.map((c) => api.del(`/api/docker/containers/${c.id}`))),
+    onSuccess: () => {
+      setRemoveProject(null);
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
     },
   });
@@ -102,6 +114,7 @@ export function Docker() {
           onLogs={setLogsFor}
           onTerminal={setTerminalFor}
           onRemove={setRemoveContainer}
+          onRemoveProject={setRemoveProject}
           onEditStack={(name) => setStackEditor({ name })}
           onDeleteStack={(stack) => {
             setDeleteData(false); // never carried over from a previous dialog
@@ -129,6 +142,26 @@ export function Docker() {
       >
         Remove <span className="font-medium text-slate-200">{removeContainer?.name}</span>? This
         force-removes the container.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={removeProject !== null}
+        title="Remove containers"
+        destructive
+        confirmLabel="Remove"
+        onCancel={() => setRemoveProject(null)}
+        onConfirm={() => removeProject && removeProjectMut.mutate(removeProject)}
+      >
+        Remove the {removeProject?.containers.length} containers of{" "}
+        <span className="font-medium text-slate-200">{removeProject?.name}</span>? They are
+        force-removed; its compose files are not Loskai's and stay where they are
+        {removeProject?.containers[0]?.compose_dir && (
+          <>
+            {" "}
+            (<span className="font-mono">{removeProject.containers[0].compose_dir}</span>)
+          </>
+        )}
+        .
       </ConfirmDialog>
 
       <ConfirmDialog

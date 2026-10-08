@@ -79,6 +79,9 @@ class DockerClient:
                 # The compose project it belongs to — a stack's folder name, for one
                 # Loskai manages. The Docker tab groups containers under their stack by it.
                 "project": labels.get("com.docker.compose.project"),
+                # Where compose was run — for a project started outside the stacks folder,
+                # the only way to find its files again. A host path, as compose saw it.
+                "compose_dir": labels.get("com.docker.compose.project.working_dir"),
                 # Loskai's own container: the Docker tab shows it apart, without the
                 # controls that would stop the page you are clicking them on.
                 "self": logic.is_self(c.id, own_host),

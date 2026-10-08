@@ -15,8 +15,8 @@ const RESPONSES: Record<string, unknown> = {
     { ...container("immich-server", "immich"), subdomain: "photos" },
     container("immich-db", "immich", "exited"),
     { ...container("whoami-whoami-1", "whoami"), subdomain: "whoami" },
-    container("other-app", "other"),
-    container("other-worker", "other", "exited"),
+    { ...container("other-app", "other"), compose_dir: "/home/someone/other" },
+    { ...container("other-worker", "other", "exited"), compose_dir: "/home/someone/other" },
     { ...container("portainer", null), subdomain: "portainer" },
     { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
   ],
@@ -58,6 +58,7 @@ const groups = () =>
       onRemove={noop}
       onEditStack={noop}
       onDeleteStack={noop}
+      onRemoveProject={noop}
     />,
   );
 const header = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}`) }).closest("tr")!;
@@ -149,6 +150,50 @@ test("a project from elsewhere gets the toggle too, as plain start/stop per cont
   expect(within(header("Standalone")).queryByRole("button", { name: /all$/ })).not.toBeInTheDocument();
 });
 
+test("a project from elsewhere says where it was started, and removes its containers", async () => {
+  const onRemoveProject = vi.fn();
+  renderWith(
+    <StackGroups
+      baseDomain="example.no"
+      onLogs={noop}
+      onTerminal={noop}
+      onRemove={noop}
+      onEditStack={noop}
+      onDeleteStack={noop}
+      onRemoveProject={onRemoveProject}
+    />,
+  );
+  await screen.findByText("other-app");
+
+  expect(within(header("other")).getByRole("img", { name: "Started from /home/someone/other" })).toBeInTheDocument();
+  fireEvent.click(within(header("other")).getByRole("button", { name: "Remove containers" }));
+  expect(onRemoveProject).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "other", containers: expect.arrayContaining([expect.objectContaining({ name: "other-worker" })]) }),
+  );
+});
+
+test("a standalone container's row carries its own controls, no menu", async () => {
+  const onRemove = vi.fn();
+  renderWith(
+    <StackGroups
+      baseDomain="example.no"
+      onLogs={noop}
+      onTerminal={noop}
+      onRemove={onRemove}
+      onEditStack={noop}
+      onDeleteStack={noop}
+      onRemoveProject={noop}
+    />,
+  );
+  const row = (await screen.findByText("portainer")).closest("tr")!;
+
+  expect(within(row).getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  expect(within(row).getByRole("button", { name: "Restart" })).toBeInTheDocument();
+  expect(within(row).queryByRole("button", { name: /^More for/ })).not.toBeInTheDocument();
+  fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
+  expect(onRemove).toHaveBeenCalledOnce();
+});
+
 test("a stack's links sit on its header; a standalone container keeps its own", async () => {
   groups();
   await screen.findByText("immich-server");
@@ -170,6 +215,7 @@ test("a container shows logs and terminal; the rest is behind its menu", async (
       onRemove={onRemove}
       onEditStack={noop}
       onDeleteStack={noop}
+      onRemoveProject={noop}
     />,
   );
   const row = (await screen.findByText("immich-server")).closest("tr")!;
@@ -194,6 +240,7 @@ test("Loskai's own container sits apart, offering only its logs", async () => {
       onRemove={noop}
       onEditStack={noop}
       onDeleteStack={noop}
+      onRemoveProject={noop}
     />,
   );
   await screen.findByText("immich-server");

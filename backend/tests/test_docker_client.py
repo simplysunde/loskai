@@ -197,11 +197,14 @@ def test_a_container_carries_its_compose_project(monkeypatch, data_dir):
     its folder name."""
     stacked = FakeContainer("immich-db")
     stacked.labels["com.docker.compose.project"] = "immich"
+    stacked.labels["com.docker.compose.project.working_dir"] = "/srv/immich"
     _use(monkeypatch, FakeDocker([stacked, FakeContainer("portainer")]))
 
     rows = {r["name"]: r for r in DockerClient().list_containers(with_stats=False)}
     assert rows["immich-db"]["project"] == "immich"
     assert rows["portainer"]["project"] is None
+    assert rows["immich-db"]["compose_dir"] == "/srv/immich"
+    assert rows["portainer"]["compose_dir"] is None
 
 
 def test_loskais_own_container_is_marked(monkeypatch, data_dir):

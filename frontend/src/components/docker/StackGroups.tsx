@@ -4,6 +4,7 @@ import {
   Anchor,
   ChevronDown,
   ChevronRight,
+  HelpCircle,
   Layers,
   Loader2,
   Pencil,
@@ -40,6 +41,7 @@ export function StackGroups({
   onRemove,
   onEditStack,
   onDeleteStack,
+  onRemoveProject,
 }: {
   baseDomain: string | null;
   onLogs: (c: Container) => void;
@@ -47,6 +49,8 @@ export function StackGroups({
   onRemove: (c: Container) => void;
   onEditStack: (name: string) => void;
   onDeleteStack: (stack: Stack) => void;
+  // A compose project from elsewhere: remove its containers (its files are not Loskai's).
+  onRemoveProject: (project: { name: string; containers: Container[] }) => void;
 }) {
   const qc = useQueryClient();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -135,7 +139,11 @@ export function StackGroups({
               projectAction.mutate({ name: group.name, containers: group.containers, verb });
           }}
           onEdit={() => group.kind === "stack" && onEditStack(group.stack.name)}
-          onDelete={() => group.kind === "stack" && onDeleteStack(group.stack)}
+          onDelete={() => {
+            if (group.kind === "stack") onDeleteStack(group.stack);
+            else if (group.kind === "project")
+              onRemoveProject({ name: group.name, containers: group.containers });
+          }}
         />
         {open && group.containers.length === 0 && (
           <tr>
@@ -150,6 +158,7 @@ export function StackGroups({
               key={c.id}
               c={c}
               baseDomain={linksOnHeader ? undefined : baseDomain}
+              standalone={group.kind === "standalone"}
               busy={containerAction.isPending && containerAction.variables?.id === c.id}
               onAction={(verb) => containerAction.mutate({ id: c.id, verb })}
               onLogs={() => onLogs(c)}
@@ -286,6 +295,8 @@ function GroupHeader({
   const status = groupStatus(group);
   const muted = group.kind !== "stack";
   const links = baseDomain ? group.containers.filter((c) => c.subdomain) : [];
+  // Every container of a project carries the same label; the first that has it will do.
+  const composeDir = group.containers.find((c) => c.compose_dir)?.compose_dir;
   return (
     <tr className={`border-t border-slate-800 bg-slate-900/50 ${muted ? "opacity-80" : ""}`}>
       <td colSpan={COLS - 1} className="px-4 py-2">
@@ -330,6 +341,19 @@ function GroupHeader({
                 <Play className="h-3.5 w-3.5" />
               </Act>
             )}
+            {composeDir && (
+              <span
+                role="img"
+                title={`Started from ${composeDir}`}
+                aria-label={`Started from ${composeDir}`}
+                className="cursor-help rounded-lg border border-slate-700 p-1.5 text-slate-300"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <Act title="Remove containers" danger onClick={onDelete}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Act>
           </div>
         )}
         {group.kind === "stack" && (
@@ -375,6 +399,7 @@ const DOT: Record<string, string> = {
 function ContainerRow({
   c,
   baseDomain,
+  standalone,
   busy,
   onAction,
   onLogs,
@@ -384,6 +409,9 @@ function ContainerRow({
   c: Container;
   // Set when the link belongs on this row rather than on its group's header.
   baseDomain: string | null | undefined;
+  // A container no compose file started is its own unit: its row is its header, so its
+  // controls sit on it, as a stack's do, rather than behind a menu.
+  standalone: boolean;
   busy: boolean;
   onAction: (verb: string) => void;
   onLogs: () => void;
@@ -418,24 +446,46 @@ function ContainerRow({
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
           {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+          {standalone && (
+            <>
+              {running ? (
+                <Act title="Stop" onClick={() => onAction("stop")}>
+                  <Square className="h-3.5 w-3.5" />
+                </Act>
+              ) : (
+                <Act title="Start" onClick={() => onAction("start")}>
+                  <Play className="h-3.5 w-3.5" />
+                </Act>
+              )}
+              <Act title="Restart" onClick={() => onAction("restart")} disabled={!running}>
+                <RotateCw className="h-3.5 w-3.5" />
+              </Act>
+            </>
+          )}
           <Act title="Logs" onClick={onLogs}>
             <ScrollText className="h-3.5 w-3.5" />
           </Act>
           <Act title="Terminal" onClick={onTerminal} disabled={!running}>
             <TerminalSquare className="h-3.5 w-3.5" />
           </Act>
-          <RowMenu
-            label={`More for ${c.name}`}
-            items={[
-              ...(running
-                ? [
-                    { label: "Stop", icon: <Square className="h-3.5 w-3.5" />, onClick: () => onAction("stop") },
-                    { label: "Restart", icon: <RotateCw className="h-3.5 w-3.5" />, onClick: () => onAction("restart") },
-                  ]
-                : [{ label: "Start", icon: <Play className="h-3.5 w-3.5" />, onClick: () => onAction("start") }]),
-              { label: "Remove", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: onRemove, danger: true },
-            ]}
-          />
+          {standalone ? (
+            <Act title="Remove" danger onClick={onRemove}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Act>
+          ) : (
+            <RowMenu
+              label={`More for ${c.name}`}
+              items={[
+                ...(running
+                  ? [
+                      { label: "Stop", icon: <Square className="h-3.5 w-3.5" />, onClick: () => onAction("stop") },
+                      { label: "Restart", icon: <RotateCw className="h-3.5 w-3.5" />, onClick: () => onAction("restart") },
+                    ]
+                  : [{ label: "Start", icon: <Play className="h-3.5 w-3.5" />, onClick: () => onAction("start") }]),
+                { label: "Remove", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: onRemove, danger: true },
+              ]}
+            />
+          )}
         </div>
       </td>
     </tr>
