@@ -14,6 +14,7 @@ function s(name: string, status: Stack["status"] = "up"): Stack {
 
 const CONTAINERS = [
   c("portainer"),
+  c("adminer"),
   c("immich-server", "immich"),
   c("loskai", "loskai"),
   c("immich-db", "immich"),
@@ -21,7 +22,7 @@ const CONTAINERS = [
 ];
 const STACKS = [s("immich", "partial"), s("jellyfin"), s("paperless", "down")];
 
-test("containers nest under their stack, other projects next, standalone last", () => {
+test("containers nest under their stack, other projects next, each lone container last", () => {
   const groups = groupByStack(CONTAINERS, STACKS);
 
   expect(groups.map((g) => g.key)).toEqual([
@@ -29,7 +30,9 @@ test("containers nest under their stack, other projects next, standalone last", 
     "stack:jellyfin",
     "stack:paperless",
     "project:loskai",
-    "standalone",
+    // A group of one each, by name — not one shared bucket.
+    "standalone:adminer",
+    "standalone:portainer",
   ]);
   expect(groups[0].containers.map((x) => x.name)).toEqual(["immich-db", "immich-server"]);
 });
@@ -45,7 +48,7 @@ test("no container is lost or listed twice", () => {
   expect(listed.sort()).toEqual(CONTAINERS.map((x) => x.name).sort());
 });
 
-test("with nothing loose, there is no standalone group", () => {
+test("with nothing loose, there are no standalone groups", () => {
   const groups = groupByStack([c("a", "jellyfin")], [s("jellyfin")]);
   expect(groups.map((g) => g.key)).toEqual(["stack:jellyfin"]);
 });

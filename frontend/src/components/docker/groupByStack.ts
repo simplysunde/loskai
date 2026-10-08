@@ -28,11 +28,11 @@ export interface Stack {
 
 // A managed stack (a folder in the stacks directory, so it has actions and a file to edit),
 // a compose project started from somewhere else (listed, not managed),
-// or the containers no compose file started.
+// or a container no compose file started — a group of one, so it reads like the rest.
 export type Group =
   | { kind: "stack"; key: string; stack: Stack; containers: Container[] }
   | { kind: "project"; key: string; name: string; containers: Container[] }
-  | { kind: "standalone"; key: string; containers: Container[] };
+  | { kind: "standalone"; key: string; name: string; containers: Container[] };
 
 /** Every container lands in exactly one group — except Loskai's own, which is shown apart —
  *  and every stack has one even with no containers (a stack that is down and never created
@@ -61,8 +61,9 @@ export function groupByStack(all: Container[], stacks: Stack[]): Group[] {
     });
   }
 
-  const loose = containers.filter((c) => !c.project).sort(byName);
-  if (loose.length) groups.push({ kind: "standalone", key: "standalone", containers: loose });
+  for (const c of containers.filter((c) => !c.project).sort(byName)) {
+    groups.push({ kind: "standalone", key: `standalone:${c.name}`, name: c.name, containers: [c] });
+  }
   return groups;
 }
 

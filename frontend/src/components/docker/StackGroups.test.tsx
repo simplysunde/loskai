@@ -63,15 +63,14 @@ const groups = () =>
   );
 const header = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}`) }).closest("tr")!;
 
-test("a managed stack carries its actions; a project from elsewhere and standalone don't", async () => {
+test("a managed stack carries its actions; a project from elsewhere and a lone container don't", async () => {
   groups();
   await screen.findByText("immich-server");
 
   expect(within(header("immich")).getByTitle("Edit")).toBeInTheDocument();
   expect(within(header("immich")).getByText("1/2 up")).toBeInTheDocument();
   expect(within(header("other")).queryByTitle("Edit")).not.toBeInTheDocument();
-  expect(within(header("Standalone")).queryByTitle("Edit")).not.toBeInTheDocument();
-  expect(screen.getByText("portainer")).toBeInTheDocument();
+  expect(within(header("portainer")).queryByTitle("Edit")).not.toBeInTheDocument();
 });
 
 test("stacks and the containers Loskai doesn't manage are separate tables", async () => {
@@ -82,7 +81,7 @@ test("stacks and the containers Loskai doesn't manage are separate tables", asyn
   expect(within(stacksTable).getByText("whoami-whoami-1")).toBeInTheDocument();
   expect(within(stacksTable).queryByText("other-app")).not.toBeInTheDocument();
   expect(within(othersTable).getByText("other-app")).toBeInTheDocument();
-  expect(within(othersTable).getByText("portainer")).toBeInTheDocument();
+  expect(within(othersTable).getByRole("button", { name: "More for portainer" })).toBeInTheDocument();
   expect(screen.getByTitle(/not managed by Loskai/)).toHaveTextContent("Other containers");
 });
 
@@ -146,8 +145,6 @@ test("a project from elsewhere gets the toggle too, as plain start/stop per cont
   fireEvent.click(within(header("other")).getByRole("button", { name: "Start all" }));
 
   await vi.waitFor(() => expect(calls).toEqual(["/api/docker/containers/other-worker/start"]));
-  // Loose containers share a group by accident, not by belonging: no toggle there.
-  expect(within(header("Standalone")).queryByRole("button", { name: /all$/ })).not.toBeInTheDocument();
 });
 
 test("a project from elsewhere says where it was started, and removes its containers", async () => {
@@ -172,7 +169,7 @@ test("a project from elsewhere says where it was started, and removes its contai
   );
 });
 
-test("a standalone container's row carries its own controls, no menu", async () => {
+test("a lone container is a group of one, laid out like every other group", async () => {
   const onRemove = vi.fn();
   renderWith(
     <StackGroups
@@ -185,24 +182,28 @@ test("a standalone container's row carries its own controls, no menu", async () 
       onRemoveProject={noop}
     />,
   );
-  const row = (await screen.findByText("portainer")).closest("tr")!;
+  await screen.findByText("immich-server");
 
-  expect(within(row).getByRole("button", { name: "Stop" })).toBeInTheDocument();
-  expect(within(row).getByRole("button", { name: "Restart" })).toBeInTheDocument();
-  expect(within(row).queryByRole("button", { name: /^More for/ })).not.toBeInTheDocument();
-  fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
-  expect(onRemove).toHaveBeenCalledOnce();
+  // Its header: status, link, toggle, Remove — as a project's.
+  const head = header("portainer");
+  expect(within(head).getByText("up")).toBeInTheDocument();
+  expect(within(head).getByRole("link", { name: "portainer.example.no" })).toBeInTheDocument();
+  expect(within(head).getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  fireEvent.click(within(head).getByRole("button", { name: "Remove" }));
+  expect(onRemove).toHaveBeenCalledWith(expect.objectContaining({ name: "portainer" }));
+  // Beneath it, the same container row as anywhere else: logs, terminal, a menu.
+  const row = screen.getByRole("button", { name: "More for portainer" }).closest("tr")!;
+  expect(within(row).getByTitle("Logs")).toBeInTheDocument();
+  expect(screen.queryByText("Standalone")).not.toBeInTheDocument();
 });
 
-test("a stack's links sit on its header; a standalone container keeps its own", async () => {
+test("links sit on each group's header, never again on the rows beneath", async () => {
   groups();
   await screen.findByText("immich-server");
 
   expect(within(header("immich")).getByRole("link", { name: "photos.example.no" })).toBeInTheDocument();
-  const portainerRow = screen.getByText("portainer").closest("tr")!;
-  expect(within(portainerRow).getByRole("link", { name: "portainer.example.no" })).toBeInTheDocument();
-  // Once, not again on the container row beneath the header.
   expect(screen.getAllByRole("link", { name: "photos.example.no" })).toHaveLength(1);
+  expect(screen.getAllByRole("link", { name: "portainer.example.no" })).toHaveLength(1);
 });
 
 test("a container shows logs and terminal; the rest is behind its menu", async () => {
@@ -261,7 +262,7 @@ test("collapsing a stack hides its containers, not the others", async () => {
   fireEvent.click(screen.getByRole("button", { name: /^immich/ }));
 
   expect(screen.queryByText("immich-server")).not.toBeInTheDocument();
-  expect(screen.getByText("portainer")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "More for portainer" })).toBeInTheDocument();
 });
 
 test("volumes show what mounts them, and flag the ones nothing does", async () => {

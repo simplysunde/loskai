@@ -460,8 +460,8 @@ One view of the host, organised by stack (Phase 30 — before it, two tabs):
   elsewhere is listed but not managed — its header gets the same toggle, as plain docker
   start/stop on each container (there is no compose file here to `up`), a **?** naming the
   folder it was started from (`compose_dir`), and Remove, which removes its containers and
-  leaves its files — and a bare `docker run` container sits under **Standalone** (nothing to
-  edit — it has no compose file), each with its controls on its own row. Runtime control + logs +
+  leaves its files — and a bare `docker run` container is a **group of one**, with the same
+  header (status, link, toggle, Remove) and the same row beneath as any other group. Runtime control + logs +
   terminal per container. **Loskai's own container is shown apart, with logs only** — no
   stop or remove for the container serving the page (marked `self` by the backend).
 - **Volumes** — named volumes, read-only: size, stack, and which containers mount each, so

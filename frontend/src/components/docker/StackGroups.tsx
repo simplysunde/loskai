@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
+  Box,
   ChevronDown,
   ChevronRight,
   HelpCircle,
@@ -116,26 +117,21 @@ export function StackGroups({
 
   const renderGroup = (group: Group) => {
     const open = !collapsed.has(group.key);
-    // A stack's links sit on its header with its status; a standalone container is
-    // unrelated to its neighbours, so its link stays on its own row.
-    const linksOnHeader = group.kind !== "standalone";
     return (
       <Fragment key={group.key}>
         <GroupHeader
           group={group}
-          baseDomain={linksOnHeader ? baseDomain : undefined}
+          baseDomain={baseDomain}
           open={open}
           onToggle={() => toggle(group.key)}
           busy={
             group.kind === "stack"
               ? stackAction.isPending && stackAction.variables?.name === group.stack.name
-              : group.kind === "project" &&
-                projectAction.isPending &&
-                projectAction.variables?.name === group.name
+              : projectAction.isPending && projectAction.variables?.name === group.name
           }
           onAction={(verb) => {
             if (group.kind === "stack") stackAction.mutate({ name: group.stack.name, verb });
-            else if (group.kind === "project" && (verb === "start" || verb === "stop"))
+            else if (verb === "start" || verb === "stop")
               projectAction.mutate({ name: group.name, containers: group.containers, verb });
           }}
           onEdit={() => group.kind === "stack" && onEditStack(group.stack.name)}
@@ -143,6 +139,7 @@ export function StackGroups({
             if (group.kind === "stack") onDeleteStack(group.stack);
             else if (group.kind === "project")
               onRemoveProject({ name: group.name, containers: group.containers });
+            else onRemove(group.containers[0]);
           }}
         />
         {open && group.containers.length === 0 && (
@@ -157,8 +154,6 @@ export function StackGroups({
             <ContainerRow
               key={c.id}
               c={c}
-              baseDomain={linksOnHeader ? undefined : baseDomain}
-              standalone={group.kind === "standalone"}
               busy={containerAction.isPending && containerAction.variables?.id === c.id}
               onAction={(verb) => containerAction.mutate({ id: c.id, verb })}
               onLogs={() => onLogs(c)}
@@ -294,6 +289,8 @@ function GroupHeader({
   const Chevron = open ? ChevronDown : ChevronRight;
   const status = groupStatus(group);
   const muted = group.kind !== "stack";
+  const Icon = group.kind === "standalone" ? Box : Layers;
+  const single = group.kind === "standalone";
   const links = baseDomain ? group.containers.filter((c) => c.subdomain) : [];
   // Every container of a project carries the same label; the first that has it will do.
   const composeDir = group.containers.find((c) => c.compose_dir)?.compose_dir;
@@ -307,16 +304,11 @@ function GroupHeader({
             className="flex items-center gap-2 text-left text-slate-200"
           >
             <Chevron className="h-4 w-4 text-slate-500" />
-            {group.kind === "standalone" ? (
-              <span className="font-medium text-slate-300">Standalone</span>
-            ) : (
-              <>
-                <Layers className={`h-3.5 w-3.5 ${muted ? "text-slate-500" : "text-teal-300/70"}`} />
-                <span className="font-medium">
-                  {group.kind === "stack" ? group.stack.name : group.name}
-                </span>
-              </>
-            )}
+            {/* A box for a lone container, layers for a project of them. */}
+            <Icon className={`h-3.5 w-3.5 ${muted ? "text-slate-500" : "text-teal-300/70"}`} />
+            <span className="font-medium">
+              {group.kind === "stack" ? group.stack.name : group.name}
+            </span>
           </button>
           {group.containers.length > 0 || group.kind === "stack" ? (
             <StatusBadge status={status.tone} label={status.label} />
@@ -327,17 +319,17 @@ function GroupHeader({
         </div>
       </td>
       <td className="px-4 py-2">
-        {/* The same toggle, in the same place, for a project started elsewhere. Unmanaged
-            standalone containers share a group only by being loose — no toggle for them. */}
-        {group.kind === "project" && (
+        {/* The same toggle, in the same place, for a project started elsewhere or a lone
+            container — plain docker start/stop, as there is no compose file here to run. */}
+        {group.kind !== "stack" && (
           <div className="flex items-center justify-end gap-1">
             {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
             {status.label === "up" ? (
-              <Act title="Stop all" onClick={() => onAction("stop")}>
+              <Act title={single ? "Stop" : "Stop all"} onClick={() => onAction("stop")}>
                 <Square className="h-3.5 w-3.5" />
               </Act>
             ) : (
-              <Act title="Start all" onClick={() => onAction("start")}>
+              <Act title={single ? "Start" : "Start all"} onClick={() => onAction("start")}>
                 <Play className="h-3.5 w-3.5" />
               </Act>
             )}
@@ -351,7 +343,7 @@ function GroupHeader({
                 <HelpCircle className="h-3.5 w-3.5" />
               </span>
             )}
-            <Act title="Remove containers" danger onClick={onDelete}>
+            <Act title={single ? "Remove" : "Remove containers"} danger onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" />
             </Act>
           </div>
@@ -398,8 +390,6 @@ const DOT: Record<string, string> = {
 
 function ContainerRow({
   c,
-  baseDomain,
-  standalone,
   busy,
   onAction,
   onLogs,
@@ -407,11 +397,6 @@ function ContainerRow({
   onRemove,
 }: {
   c: Container;
-  // Set when the link belongs on this row rather than on its group's header.
-  baseDomain: string | null | undefined;
-  // A container no compose file started is its own unit: its row is its header, so its
-  // controls sit on it, as a stack's do, rather than behind a menu.
-  standalone: boolean;
   busy: boolean;
   onAction: (verb: string) => void;
   onLogs: () => void;
@@ -429,14 +414,6 @@ function ContainerRow({
             className={`h-2 w-2 shrink-0 rounded-full ${DOT[c.status] ?? "bg-slate-600"}`}
           />
           {c.name}
-          {c.subdomain && baseDomain !== undefined &&
-            (baseDomain ? (
-              <RouteLink host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
-            ) : (
-              <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] text-teal-300">
-                {c.subdomain}
-              </span>
-            ))}
         </div>
         <div className="pl-4 font-mono text-xs text-slate-500">{c.image}</div>
       </td>
@@ -446,46 +423,24 @@ function ContainerRow({
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
           {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
-          {standalone && (
-            <>
-              {running ? (
-                <Act title="Stop" onClick={() => onAction("stop")}>
-                  <Square className="h-3.5 w-3.5" />
-                </Act>
-              ) : (
-                <Act title="Start" onClick={() => onAction("start")}>
-                  <Play className="h-3.5 w-3.5" />
-                </Act>
-              )}
-              <Act title="Restart" onClick={() => onAction("restart")} disabled={!running}>
-                <RotateCw className="h-3.5 w-3.5" />
-              </Act>
-            </>
-          )}
           <Act title="Logs" onClick={onLogs}>
             <ScrollText className="h-3.5 w-3.5" />
           </Act>
           <Act title="Terminal" onClick={onTerminal} disabled={!running}>
             <TerminalSquare className="h-3.5 w-3.5" />
           </Act>
-          {standalone ? (
-            <Act title="Remove" danger onClick={onRemove}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Act>
-          ) : (
-            <RowMenu
-              label={`More for ${c.name}`}
-              items={[
-                ...(running
-                  ? [
-                      { label: "Stop", icon: <Square className="h-3.5 w-3.5" />, onClick: () => onAction("stop") },
-                      { label: "Restart", icon: <RotateCw className="h-3.5 w-3.5" />, onClick: () => onAction("restart") },
-                    ]
-                  : [{ label: "Start", icon: <Play className="h-3.5 w-3.5" />, onClick: () => onAction("start") }]),
-                { label: "Remove", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: onRemove, danger: true },
-              ]}
-            />
-          )}
+          <RowMenu
+            label={`More for ${c.name}`}
+            items={[
+              ...(running
+                ? [
+                    { label: "Stop", icon: <Square className="h-3.5 w-3.5" />, onClick: () => onAction("stop") },
+                    { label: "Restart", icon: <RotateCw className="h-3.5 w-3.5" />, onClick: () => onAction("restart") },
+                  ]
+                : [{ label: "Start", icon: <Play className="h-3.5 w-3.5" />, onClick: () => onAction("start") }]),
+              { label: "Remove", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: onRemove, danger: true },
+            ]}
+          />
         </div>
       </td>
     </tr>

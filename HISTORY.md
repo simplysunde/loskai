@@ -1,5 +1,15 @@
 # Loskai — History
 
+## 2026-10-08 — A lone container is a group of one
+
+The Docker tab had three layouts: a managed stack, a compose project from elsewhere, and
+**Standalone** — one heading over every container no compose file started. That heading
+stood for nothing (the containers under it are unrelated), so it could have no toggle, and
+each container's row had grown the controls and the link a header would carry. Sunde asked
+why standalone always looked different and chose uniform: each such container is now its own
+group, with a project's header — status, link, start/stop, Remove — and the same container
+row beneath. One extra row each; one layout and no special case in exchange.
+
 ## 2026-10-08 — A route on a machine's IP is matched, not linked
 
 Sunde asked for routes on a machine's address to show as that machine's without having to
