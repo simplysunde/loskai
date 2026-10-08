@@ -5,6 +5,8 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   HelpCircle,
   Layers,
   Loader2,
@@ -55,7 +57,13 @@ export function StackGroups({
   onRemoveProject: (project: { name: string; containers: Container[] }) => void;
 }) {
   const qc = useQueryClient();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Groups start collapsed; the ones opened are remembered for this browser tab's session,
+  // so a refresh or a visit to another page keeps them, and a new tab starts tidy again.
+  const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
+  const keep = (next: Set<string>) => {
+    setExpanded(next);
+    writeExpanded(next);
+  };
 
   const containers = useQuery({
     queryKey: ["docker-containers"],
@@ -108,16 +116,26 @@ export function StackGroups({
   const managed = groups.filter((g) => g.kind === "stack");
   const others = groups.filter((g) => g.kind !== "stack");
 
-  const toggle = (key: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const toggle = (key: string) => {
+    const next = new Set(expanded);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    keep(next);
+  };
+  // One table's groups at once: collapse them all if any is open, else open them all.
+  const toggleAll = (table: Group[]) => {
+    const next = new Set(expanded);
+    const anyOpen = table.some((g) => next.has(g.key));
+    for (const g of table) {
+      if (anyOpen) next.delete(g.key);
+      else next.add(g.key);
+    }
+    keep(next);
+  };
+  const anyOpen = (table: Group[]) => table.some((g) => expanded.has(g.key));
 
   const renderGroup = (group: Group) => {
-    const open = !collapsed.has(group.key);
+    const open = expanded.has(group.key);
     return (
       <Fragment key={group.key}>
         <GroupHeader
@@ -169,7 +187,11 @@ export function StackGroups({
   return (
     <div className="space-y-3">
       {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
-      <GroupTable title="Stacks">
+      <GroupTable
+        title="Stacks"
+        anyOpen={anyOpen(managed)}
+        onToggleAll={managed.length ? () => toggleAll(managed) : undefined}
+      >
         {managed.length === 0 ? (
           <tr>
             <td colSpan={COLS} className="px-4 py-10 text-center text-sm text-slate-500">
@@ -185,6 +207,8 @@ export function StackGroups({
         <GroupTable
           title="Other containers"
           note="not managed by Loskai — started outside the stacks folder"
+          anyOpen={anyOpen(others)}
+          onToggleAll={() => toggleAll(others)}
         >
           {others.map(renderGroup)}
         </GroupTable>
@@ -195,18 +219,45 @@ export function StackGroups({
 
 const COLS = 5;
 
+const EXPANDED_KEY = "loskai.docker.expanded";
+
+// Browser storage can be missing or refuse (a private window, blocked site data): then the
+// tab simply starts collapsed each time.
+function readExpanded(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(EXPANDED_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeExpanded(keys: Set<string>) {
+  try {
+    sessionStorage.setItem(EXPANDED_KEY, JSON.stringify([...keys]));
+  } catch {
+    // Not kept — harmless.
+  }
+}
+
 // Each section is its own table, titled in its header row. Both share fixed column
 // widths, so their columns line up across the gap.
 function GroupTable({
   title,
   note,
+  anyOpen,
+  onToggleAll,
   children,
 }: {
   title: string;
   // Hover text for the title.
   note?: string;
+  anyOpen: boolean;
+  // Absent when there is nothing to expand.
+  onToggleAll?: () => void;
   children: React.ReactNode;
 }) {
+  const AllIcon = anyOpen ? ChevronsDownUp : ChevronsUpDown;
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-800">
       <table className="w-full min-w-[760px] table-fixed text-left text-sm">
@@ -219,11 +270,22 @@ function GroupTable({
         </colgroup>
         <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
           <tr>
-            <th
-              title={note}
-              className={`px-4 py-2.5 font-medium text-slate-300 ${note ? "cursor-help" : ""}`}
-            >
-              {title}
+            <th className="px-4 py-2.5 font-medium text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <span title={note} className={note ? "cursor-help" : ""}>
+                  {title}
+                </span>
+                {onToggleAll && (
+                  <button
+                    onClick={onToggleAll}
+                    title={anyOpen ? "Collapse all" : "Expand all"}
+                    aria-label={`${anyOpen ? "Collapse" : "Expand"} all ${title.toLowerCase()}`}
+                    className="rounded p-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  >
+                    <AllIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </th>
             <th className="px-4 py-2.5 font-medium">Uptime</th>
             <th className="px-4 py-2.5 font-medium">CPU</th>

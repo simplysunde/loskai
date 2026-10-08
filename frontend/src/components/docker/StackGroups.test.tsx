@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { StackGroups } from "./StackGroups";
@@ -30,7 +30,12 @@ const RESPONSES: Record<string, unknown> = {
   ],
 };
 
+// Groups start collapsed; most tests look inside them, so they begin with every one open
+// — as a session that had opened them would.
+const ALL_OPEN = ["stack:immich", "stack:whoami", "project:other", "standalone:portainer"];
+
 beforeEach(() => {
+  sessionStorage.setItem("loskai.docker.expanded", JSON.stringify(ALL_OPEN));
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) =>
@@ -41,7 +46,10 @@ beforeEach(() => {
     ),
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+});
 
 function renderWith(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -268,6 +276,38 @@ test("a collapsed group carries its containers' stats in their columns", async (
   expect(cells[1]).toHaveTextContent("1m");
   expect(cells[2]).toHaveTextContent("2.0%");
   expect(cells[3]).toHaveTextContent("4.0%");
+});
+
+test("a fresh session starts with every group collapsed; what is opened is remembered", async () => {
+  sessionStorage.clear();
+  groups();
+  await screen.findByRole("button", { name: /^immich/ });
+  expect(screen.queryByText("immich-server")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /^immich/ }));
+  expect(screen.getByText("immich-server")).toBeInTheDocument();
+  expect(JSON.parse(sessionStorage.getItem("loskai.docker.expanded")!)).toEqual(["stack:immich"]);
+
+  // A refresh, or coming back to the tab: the same groups open.
+  cleanup();
+  groups();
+  expect(await screen.findByText("immich-server")).toBeInTheDocument();
+  expect(screen.queryByText("whoami-whoami-1")).not.toBeInTheDocument();
+});
+
+test("one button per table expands or collapses all of its groups", async () => {
+  sessionStorage.clear();
+  groups();
+  fireEvent.click(await screen.findByRole("button", { name: "Expand all stacks" }));
+  expect(screen.getByText("immich-server")).toBeInTheDocument();
+  expect(screen.getByText("whoami-whoami-1")).toBeInTheDocument();
+  // The other table is left alone.
+  expect(screen.queryByText("other-app")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Collapse all stacks" }));
+  expect(screen.queryByText("immich-server")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Expand all other containers" }));
+  expect(screen.getByText("other-app")).toBeInTheDocument();
 });
 
 test("collapsing a stack hides its containers, not the others", async () => {
