@@ -62,7 +62,14 @@ def containers() -> list[dict]:
     # container is found; an IP host matches nothing, which is correct — Caddy is off-box.
     caddy_host = urlparse(settings_store.value("caddy_admin_url") or "").hostname
     host_ip = settings_store.value("host_ip")
-    return _docker_call(docker_client.list_containers, True, caddy_host, host_ip)
+    return _docker_call(docker_client.list_containers, caddy_host, host_ip)
+
+
+@router.get("/containers/stats")
+def container_stats() -> dict[str, dict]:
+    # Apart from the list because it is the slow half (~2s): the Docker tab renders the
+    # list at once and fills these in, and the pages that only need the list never wait.
+    return _docker_call(docker_client.container_stats)
 
 
 @router.post("/containers/{container_id}/start")

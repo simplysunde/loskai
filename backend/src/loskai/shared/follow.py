@@ -40,7 +40,7 @@ def derived_upstreams() -> dict[str, str | None]:
     Raises the Docker client's errors — callers decide what "unreachable" means to them."""
     caddy_host = urlparse(settings_store.value("caddy_admin_url") or "").hostname
     host_ip = settings_store.value("host_ip")
-    rows = docker_client.list_containers(with_stats=False, caddy_host=caddy_host, host_ip=host_ip)
+    rows = docker_client.list_containers(caddy_host=caddy_host, host_ip=host_ip)
     return {row["name"]: row["suggested_upstream"] for row in rows}
 
 

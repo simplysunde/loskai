@@ -14,8 +14,9 @@ export interface Container {
   subdomain: string | null;
   scheme?: "https" | "both" | "http" | null;
   suggested_upstream: string | null;
-  cpu: number | null;
-  mem: { percent: number | null } | null;
+  // Not in the list itself: merged in from /containers/stats, which answers ~2s later.
+  cpu?: number | null;
+  mem?: { percent: number | null } | null;
 }
 
 export interface Stack {

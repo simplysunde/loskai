@@ -71,6 +71,15 @@ export function StackGroups({
     refetchInterval: 5_000,
     retry: false,
   });
+  // The slow half (~2s, Docker samples CPU twice): its own query, so the tables render as
+  // soon as the list is in and CPU/memory fill in after. Nothing waits on it.
+  const stats = useQuery({
+    queryKey: ["docker-container-stats"],
+    queryFn: () =>
+      api.get<Record<string, Pick<Container, "cpu" | "mem">>>("/api/docker/containers/stats"),
+    refetchInterval: 5_000,
+    retry: false,
+  });
   const stacks = useQuery({
     queryKey: ["docker-stacks"],
     queryFn: () => api.get<Stack[]>("/api/docker/stacks"),
@@ -111,8 +120,13 @@ export function StackGroups({
     );
   }
 
-  const self = (containers.data ?? []).find((c) => c.self);
-  const groups = groupByStack(containers.data ?? [], stacks.data ?? []);
+  // Running ones only: stats lag the list by a poll, and a container just stopped should
+  // not keep showing the CPU it had.
+  const all = (containers.data ?? []).map((c) =>
+    c.status === "running" ? { ...c, ...stats.data?.[c.id] } : c,
+  );
+  const self = all.find((c) => c.self);
+  const groups = groupByStack(all, stacks.data ?? []);
   const managed = groups.filter((g) => g.kind === "stack");
   const others = groups.filter((g) => g.kind !== "stack");
 

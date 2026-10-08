@@ -75,7 +75,7 @@ def test_health_unreachable(monkeypatch):
     assert result["status"] == "unreachable"
 
 
-def test_list_containers_joins_instance_and_computes_stats(monkeypatch, data_dir):
+def test_list_containers_joins_instance(monkeypatch, data_dir):
     instances_store.upsert_instance(
         Instance(id="grafana", name="Grafana", type="docker", container="grafana", subdomain="graf")
     )
@@ -92,15 +92,24 @@ def test_list_containers_joins_instance_and_computes_stats(monkeypatch, data_dir
     # pre-fill — the user types it. See test_upstream_* below for the decided cases.
     assert row["upstream_mode"] == "lan"
     assert row["suggested_upstream"] is None
-    assert row["cpu"] == 10.0  # cpu_delta 100 / system_delta 1000 * 1 cpu * 100
-    assert row["mem"]["percent"] == 10.0
+    # Stats are their own call — the list never waits ~2s per container for them.
+    assert "cpu" not in row and "mem" not in row
 
 
-def test_stats_skipped_for_stopped_container(monkeypatch, data_dir):
+def test_container_stats_are_computed_per_running_container(monkeypatch, data_dir):
+    _use(monkeypatch, FakeDocker([FakeContainer("grafana"), FakeContainer("db", running=False)]))
+
+    stats = DockerClient().container_stats()
+    assert list(stats) == ["grafana01234"]  # the list's short id; stopped ones have none
+    assert stats["grafana01234"]["cpu"] == 10.0  # cpu_delta 100 / system_delta 1000 * 1 cpu * 100
+    assert stats["grafana01234"]["mem"]["percent"] == 10.0
+
+
+def test_a_stopped_container_has_no_uptime(monkeypatch, data_dir):
     _use(monkeypatch, FakeDocker([FakeContainer("db", running=False)]))
     row = DockerClient().list_containers()[0]
     assert row["status"] == "exited"
-    assert row["cpu"] is None and row["uptime"] is None
+    assert row["uptime"] is None
 
 
 # --- Which upstream form each container gets (Phase 16 Stage A) ---
@@ -200,7 +209,7 @@ def test_a_container_carries_its_compose_project(monkeypatch, data_dir):
     stacked.labels["com.docker.compose.project.working_dir"] = "/srv/immich"
     _use(monkeypatch, FakeDocker([stacked, FakeContainer("portainer")]))
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(with_stats=False)}
+    rows = {r["name"]: r for r in DockerClient().list_containers()}
     assert rows["immich-db"]["project"] == "immich"
     assert rows["portainer"]["project"] is None
     assert rows["immich-db"]["compose_dir"] == "/srv/immich"
@@ -213,7 +222,7 @@ def test_loskais_own_container_is_marked(monkeypatch, data_dir):
     _use(monkeypatch, FakeDocker([me, other]))
     monkeypatch.setattr(client_mod.socket, "gethostname", lambda: me.id[:12])
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(with_stats=False)}
+    rows = {r["name"]: r for r in DockerClient().list_containers()}
     assert rows["loskai"]["self"] is True
     assert rows["web"]["self"] is False
 
@@ -251,12 +260,12 @@ def test_stats_are_fetched_side_by_side_not_one_after_another(monkeypatch, data_
     containers = [Slow(f"c{i}") for i in range(4)] + [FakeContainer("stopped", running=False)]
     monkeypatch.setattr(DockerClient, "_get", lambda self: FakeDocker(containers))
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(True)}
-    assert all(rows[f"c{i}"]["cpu"] is not None for i in range(4))
-    assert rows["stopped"]["cpu"] is None
+    stats = DockerClient().container_stats()
+    assert len(stats) == 4  # the stopped one has none
+    assert all(s["cpu"] is not None for s in stats.values())
 
 
-def test_a_container_whose_stats_fail_still_lists(monkeypatch, data_dir):
+def test_a_container_whose_stats_fail_gets_none(monkeypatch, data_dir):
     class Gone(FakeContainer):
         def stats(self, stream=False):
             raise DockerException("container exited")
@@ -264,6 +273,6 @@ def test_a_container_whose_stats_fail_still_lists(monkeypatch, data_dir):
     containers = [Gone("leaving"), FakeContainer("staying")]
     monkeypatch.setattr(DockerClient, "_get", lambda self: FakeDocker(containers))
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(True)}
-    assert rows["leaving"]["cpu"] is None and rows["leaving"]["mem"] is None
-    assert rows["staying"]["cpu"] is not None
+    stats = DockerClient().container_stats()
+    assert stats["leaving01234"] == {"cpu": None, "mem": None}
+    assert stats["staying01234"]["cpu"] is not None

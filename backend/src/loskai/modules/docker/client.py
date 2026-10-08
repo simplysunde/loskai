@@ -51,10 +51,11 @@ class DockerClient:
 
     def list_containers(
         self,
-        with_stats: bool = True,
         caddy_host: str | None = None,
         host_ip: str | None = None,
     ) -> list[dict]:
+        """Every container, from one list call — no stats: those take ~2s from Docker, so
+        they are their own request (`container_stats`) and nothing waits on them."""
         client = self._get()
         instances = instances_store.list_instances()
         containers = client.containers.list(all=True)
@@ -104,21 +105,22 @@ class DockerClient:
                 "suggested_host": logic.suggested_host(
                     c.name, service, ports, upstream_mode, host_ip, labels, host_network
                 ),
-                "cpu": None,
-                "mem": None,
             }
             out.append(summary)
-        if with_stats:
-            running = [(c, s) for c, s in zip(containers, out) if c.status == "running"]
-            # One stats call takes ~2s — Docker samples CPU twice, a second apart — so they
-            # run side by side: the list costs one sample, not one per running container.
-            # Capped at docker-py's connection pool (10), beyond which it would only queue.
-            if running:
-                with ThreadPoolExecutor(max_workers=min(10, len(running))) as pool:
-                    results = pool.map(self._stats, [c for c, _ in running])
-                    for (_, summary), (cpu, mem) in zip(running, results):
-                        summary["cpu"], summary["mem"] = cpu, mem
         return out
+
+    def container_stats(self) -> dict[str, dict]:
+        """CPU and memory per running container, keyed by the short id the list uses.
+
+        One stats call takes ~2s — Docker samples CPU twice, a second apart — so they run
+        side by side: this costs one sample, not one per container. Capped at docker-py's
+        connection pool (10), beyond which they would only queue."""
+        running = [c for c in self._get().containers.list() if c.status == "running"]
+        if not running:
+            return {}
+        with ThreadPoolExecutor(max_workers=min(10, len(running))) as pool:
+            results = list(pool.map(self._stats, running))
+        return {c.id[:12]: {"cpu": cpu, "mem": mem} for c, (cpu, mem) in zip(running, results)}
 
     @staticmethod
     def _stats(c) -> tuple[float | None, dict | None]:

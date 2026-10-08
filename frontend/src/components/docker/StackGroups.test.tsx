@@ -354,3 +354,34 @@ test("only an unused volume can be deleted, and only after confirming", async ()
     expect(calls).toContainEqual({ path: `/api/docker/volumes/${anon}`, method: "DELETE" }),
   );
 });
+
+test("the tables render from the list alone; CPU and memory fill in from their own request", async () => {
+  // The list without stats, as the backend now sends it — the stats arrive separately.
+  const bare = (RESPONSES["/api/docker/containers"] as Record<string, unknown>[]).map(
+    ({ cpu: _cpu, mem: _mem, ...rest }) => rest,
+  );
+  let releaseStats: () => void = () => {};
+  const statsReady = new Promise<void>((resolve) => (releaseStats = resolve));
+  vi.mocked(fetch).mockImplementation(async (path) => {
+    if (path === "/api/docker/containers/stats") await statsReady;
+    const data =
+      path === "/api/docker/containers"
+        ? bare
+        : path === "/api/docker/containers/stats"
+          ? { "immich-server": { cpu: 12.5, mem: { percent: 30 } } }
+          : (RESPONSES[String(path)] ?? {});
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  groups();
+
+  // Up before the stats answer, with dashes where they will go.
+  const row = (await screen.findByText("immich-server")).closest("tr")!;
+  expect(within(row).getAllByText("—").length).toBeGreaterThan(0);
+
+  releaseStats();
+  expect(await within(row).findByText("12.5%")).toBeInTheDocument();
+  expect(within(row).getByText("30.0%")).toBeInTheDocument();
+});
