@@ -330,3 +330,27 @@ test("volumes show what mounts them, and flag the ones nothing does", async () =
   expect(screen.getByText(`${"f".repeat(12)}…`)).toBeInTheDocument();
   expect(screen.getByText(/1 unused/)).toBeInTheDocument();
 });
+
+test("only an unused volume can be deleted, and only after confirming", async () => {
+  const calls: { path: string; method: string }[] = [];
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    calls.push({ path: String(path), method: init?.method ?? "GET" });
+    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  renderWith(<VolumeList />);
+  await screen.findByText("immich_pgdata");
+
+  // Mounted by immich-db: no delete offered at all.
+  expect(screen.queryByRole("button", { name: "Delete volume immich_pgdata" })).not.toBeInTheDocument();
+  const anon = "f".repeat(64);
+  fireEvent.click(screen.getByRole("button", { name: `Delete volume ${anon}` }));
+  expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await vi.waitFor(() =>
+    expect(calls).toContainEqual({ path: `/api/docker/volumes/${anon}`, method: "DELETE" }),
+  );
+});

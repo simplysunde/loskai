@@ -231,6 +231,11 @@ class DockerClient:
         ]
         return logic.volume_rows(volumes, containers)
 
+    def remove_volume(self, name: str) -> None:
+        # Never forced: Docker refuses a volume any container still mounts, stopped ones
+        # included — that refusal is the safety check, current as of this call.
+        self._get().volumes.get(name).remove()
+
     # --- Interactive exec (driven by the WebSocket handler in the router) ---
 
     def exec_create(self, container_id: str, cmd: list[str]) -> str:

@@ -10,7 +10,7 @@ import json
 import logging
 from urllib.parse import urlparse
 
-from docker.errors import NotFound
+from docker.errors import APIError, NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
 from sse_starlette.sse import EventSourceResponse
 
@@ -310,6 +310,24 @@ def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
 @router.get("/volumes")
 def volumes() -> list[dict]:
     return _docker_call(docker_client.list_volumes)
+
+
+@router.delete("/volumes/{name}")
+def remove_volume(name: str) -> dict:
+    """Delete a named volume, and its data with it. Only one nothing mounts: Docker answers
+    409 for one in use, and that is passed on rather than forced — the list the request
+    came from can be stale, and a container created since then must keep its data."""
+    try:
+        docker_client.remove_volume(name)
+    except NotFound:
+        raise HTTPException(status_code=404, detail="volume not found")
+    except APIError as exc:
+        if exc.status_code == 409:
+            raise HTTPException(status_code=409, detail="volume is in use by a container")
+        raise HTTPException(status_code=502, detail=describe_error(exc))
+    except DOCKER_ERRORS as exc:
+        raise HTTPException(status_code=502, detail=describe_error(exc))
+    return {"ok": True}
 
 
 # --- Host stats ---

@@ -467,8 +467,9 @@ One view of the host, organised by stack (Phase 30 — before it, two tabs):
   (`sessionStorage`), and each table's title has an expand/collapse-all button. Runtime control + logs +
   terminal per container. **Loskai's own container is shown apart, with logs only** — no
   stop or remove for the container serving the page (marked `self` by the backend).
-- **Volumes** — named volumes, read-only: size, stack, and which containers mount each, so
-  one nothing uses is visible. Bind mounts (the recipes' `./data`) are folders, not volumes.
+- **Volumes** — named volumes: size, stack, and which containers mount each, so one nothing
+  uses is visible — and can be deleted (only those; Docker refuses one in use, and Loskai
+  never forces it). Bind mounts (the recipes' `./data`) are folders, not volumes.
 
 | ✅ Can do | ❌ Can't do (by design) |
 |---|---|

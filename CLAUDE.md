@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (445 + 201 + docs).
+All three checks pass (449 + 202 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -43,7 +43,7 @@ describes today. The authoritative sources are:
 - **`docs/reference/`** — contracts. Read the relevant one **before** touching that
   integration; each documents constraints that are not obvious from the code.
   `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 45 HTTP routes plus the exec WebSocket;
+  `api.md` is Loskai's own API surface — 46 HTTP routes plus the exec WebSocket;
   `recipe-schema.md` is the install-wizard manifest — **copied into the loskai-recipes repo**
   (at its root) so a session authoring recipes has it; edit it here only, then run
   `bash scripts/sync-recipe-schema.sh`. The docs check fails while the copy differs.

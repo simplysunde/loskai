@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Trash2 } from "lucide-react";
 
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export interface Volume {
   name: string;
@@ -15,10 +17,20 @@ export interface Volume {
   used_by: string[];
 }
 
-// Named volumes on the host, read-only: what each one is for (its stack), how big it is,
-// and what mounts it — so a volume nothing uses is visible as such. Removing one stays a
-// `docker volume rm` on the host; this is the map, not the tool.
+// Named volumes on the host: what each one is for (its stack), how big it is, and what
+// mounts it — so a volume nothing uses is visible as such, and can be deleted. Only those:
+// one in use offers no delete, and the backend never forces it either.
 export function VolumeList() {
+  const qc = useQueryClient();
+  const [confirm, setConfirm] = useState<Volume | null>(null);
+  const remove = useMutation({
+    mutationFn: (v: Volume) => api.del(`/api/docker/volumes/${encodeURIComponent(v.name)}`),
+    onSuccess: () => {
+      setConfirm(null);
+      qc.invalidateQueries({ queryKey: ["docker-volumes"] });
+    },
+    onError: () => setConfirm(null),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["docker-volumes"],
     queryFn: () => api.get<Volume[]>("/api/docker/volumes"),
@@ -49,6 +61,12 @@ export function VolumeList() {
 
   return (
     <div>
+      {remove.error && (
+        <div className="mb-2 rounded-lg border border-rose-600/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          Couldn't delete the volume:{" "}
+          {remove.error instanceof ApiError ? remove.error.message : "request failed"}
+        </div>
+      )}
       <p className="mb-2 text-xs text-slate-500">
         {rows.length} {rows.length === 1 ? "volume" : "volumes"} · {formatBytes(total)}
         {unused > 0 && <span className="text-amber-300/80"> · {unused} unused</span>}
@@ -61,6 +79,7 @@ export function VolumeList() {
               <th className="px-4 py-2.5 font-medium">Stack</th>
               <th className="px-4 py-2.5 font-medium text-right">Size</th>
               <th className="px-4 py-2.5 font-medium">Used by</th>
+              <th className="px-4 py-2.5 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/70">
@@ -92,11 +111,42 @@ export function VolumeList() {
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end">
+                    {v.used_by.length === 0 && (
+                      <button
+                        title="Delete volume"
+                        aria-label={`Delete volume ${v.name}`}
+                        onClick={() => setConfirm(v)}
+                        className="rounded-lg border border-slate-700 p-1.5 text-rose-300 hover:bg-rose-500/10"
+                      >
+                        {remove.isPending && remove.variables?.name === v.name ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        title="Delete volume"
+        destructive
+        confirmLabel="Delete"
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => confirm && remove.mutate(confirm)}
+      >
+        Delete <span className="font-mono text-slate-200">{confirm?.name}</span>
+        {confirm?.size ? ` (${formatBytes(confirm.size)})` : ""}? Its data is gone for good —
+        there is no undo.
+      </ConfirmDialog>
     </div>
   );
 }
