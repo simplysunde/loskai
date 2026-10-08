@@ -233,3 +233,37 @@ def test_list_volumes_joins_df_to_the_mounts_of_every_container(monkeypatch, dat
         ("immich_pgdata", ["immich-db"]),
         ("orphan", []),
     ]
+
+
+def test_stats_are_fetched_side_by_side_not_one_after_another(monkeypatch, data_dir):
+    # Docker takes ~2s per stats call; one after another, the tab waited that long per
+    # running container. Every call here waits until all of them are in flight at once —
+    # one at a time, the first would time out and the list would raise.
+    import threading
+
+    barrier = threading.Barrier(4, timeout=2)
+
+    class Slow(FakeContainer):
+        def stats(self, stream=False):
+            barrier.wait()
+            return super().stats(stream)
+
+    containers = [Slow(f"c{i}") for i in range(4)] + [FakeContainer("stopped", running=False)]
+    monkeypatch.setattr(DockerClient, "_get", lambda self: FakeDocker(containers))
+
+    rows = {r["name"]: r for r in DockerClient().list_containers(True)}
+    assert all(rows[f"c{i}"]["cpu"] is not None for i in range(4))
+    assert rows["stopped"]["cpu"] is None
+
+
+def test_a_container_whose_stats_fail_still_lists(monkeypatch, data_dir):
+    class Gone(FakeContainer):
+        def stats(self, stream=False):
+            raise DockerException("container exited")
+
+    containers = [Gone("leaving"), FakeContainer("staying")]
+    monkeypatch.setattr(DockerClient, "_get", lambda self: FakeDocker(containers))
+
+    rows = {r["name"]: r for r in DockerClient().list_containers(True)}
+    assert rows["leaving"]["cpu"] is None and rows["leaving"]["mem"] is None
+    assert rows["staying"]["cpu"] is not None

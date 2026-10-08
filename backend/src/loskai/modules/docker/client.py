@@ -7,6 +7,7 @@ joins). Requires the socket mounted at /var/run/docker.sock.
 import logging
 import socket
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 import docker
 from docker.errors import DockerException
@@ -106,17 +107,29 @@ class DockerClient:
                 "cpu": None,
                 "mem": None,
             }
-            if with_stats and running:
-                try:
-                    stats = c.stats(stream=False)
-                    summary["cpu"] = logic.compute_cpu_percent(stats)
-                    summary["mem"] = logic.compute_memory(stats)
-                except DOCKER_ERRORS as exc:
-                    # Debug, not warning: a container exiting mid-poll trips this on a
-                    # loop over every container, and the row still renders (cpu/mem null).
-                    logger.debug("stats unavailable for %s: %s", c.name, exc)
             out.append(summary)
+        if with_stats:
+            running = [(c, s) for c, s in zip(containers, out) if c.status == "running"]
+            # One stats call takes ~2s — Docker samples CPU twice, a second apart — so they
+            # run side by side: the list costs one sample, not one per running container.
+            # Capped at docker-py's connection pool (10), beyond which it would only queue.
+            if running:
+                with ThreadPoolExecutor(max_workers=min(10, len(running))) as pool:
+                    results = pool.map(self._stats, [c for c, _ in running])
+                    for (_, summary), (cpu, mem) in zip(running, results):
+                        summary["cpu"], summary["mem"] = cpu, mem
         return out
+
+    @staticmethod
+    def _stats(c) -> tuple[float | None, dict | None]:
+        try:
+            stats = c.stats(stream=False)
+        except DOCKER_ERRORS as exc:
+            # Debug, not warning: a container exiting mid-poll trips this, and the row
+            # still renders (cpu/mem null).
+            logger.debug("stats unavailable for %s: %s", c.name, exc)
+            return None, None
+        return logic.compute_cpu_percent(stats), logic.compute_memory(stats)
 
     @staticmethod
     def _caddy_networks(containers: list, caddy_host: str | None) -> set[str] | None:
