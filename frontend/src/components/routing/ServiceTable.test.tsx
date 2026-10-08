@@ -221,16 +221,18 @@ test("an unlinked upstream on a machine's address names that machine, without li
         row({ id: "elsewhere", name: "elsewhere", upstream: "192.168.10.99:80" }),
       ]}
       machines={[
-        row({ id: "nas", name: "nas", upstream: "192.168.10.50", fqdn: "nas.example.no", kind: "machine" }),
+        row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", fqdn: "nas.example.no", kind: "machine" }),
       ]}
     />,
   );
 
-  const hint = screen.getByText("nas.example.no");
+  // Its name, not its FQDN — the upstream cell is busy enough.
+  const hint = screen.getByText("Storage box");
   expect(hint.closest("tr")).toHaveTextContent("plex");
   expect(hint.closest("tr")).toHaveTextContent("192.168.10.50:32400");
   expect(within(hint.closest("tr")!).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
   expect(screen.getByRole("img", { name: /^Linked/ }).closest("tr")).toHaveTextContent("linked");
   // The linked row already reads as the machine; the unrelated one names nothing.
-  expect(screen.getAllByText("nas.example.no")).toHaveLength(1);
+  expect(screen.getAllByText("Storage box")).toHaveLength(1);
+  expect(screen.queryByText("nas.example.no")).not.toBeInTheDocument();
 });

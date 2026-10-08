@@ -148,7 +148,7 @@ export function ServiceTable({
                   {sameAddress && (
                     <div className="flex items-center gap-1 text-[11px] text-slate-500">
                       <MachineLinkIcon auto />
-                      {sameAddress.fqdn ?? sameAddress.name}
+                      {sameAddress.name}
                     </div>
                   )}
                 </td>
