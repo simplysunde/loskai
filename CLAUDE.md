@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (446 + 187 + docs).
+All three checks pass (446 + 186 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -160,8 +160,7 @@ is the sibling verb, `/api/machines`, from the Machines tab).
 of the machines you have named (by declared `kind`) and **links the route to it**; Address is
 a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
 own host — and **never links**. Switching to Machine never guesses a link from a matching
-IP. A linked row reads `<machine>:<port>` in the Routing table, and a route that follows its
-container is tagged `follows`. The
+IP. A linked row reads `<machine>:<port>` in the Routing table. The
 **Docker tab displays routed state, and creates a route in exactly one place** — the install
 wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
 idempotency key, so it edits the install's own record) and pre-fills through
