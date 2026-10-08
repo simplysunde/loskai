@@ -21,7 +21,7 @@ function row(overrides: Partial<RouteRow> = {}): RouteRow {
 
 test("renders the DNS column states", () => {
   const { rerender } = render(<ServiceTable rows={[row({ dnsPresent: true })]} />);
-  expect(screen.getByText("rewrite set")).toBeInTheDocument();
+  expect(screen.getByText("set")).toBeInTheDocument();
 
   rerender(<ServiceTable rows={[row({ dnsPresent: false })]} />);
   expect(screen.getByText("missing")).toBeInTheDocument();

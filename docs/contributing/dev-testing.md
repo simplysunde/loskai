@@ -76,7 +76,7 @@ Open <http://localhost:5173> and log in with `LOSKAI_PASSWORD`.
   curl -s http://127.0.0.1:2019/config/apps/http/servers    # the route is in Caddy
   ```
   and in the AdGuard UI → **Filters → DNS rewrites** you'll see `test.lvh.me → 127.0.0.1`.
-  (Loskai's Routing table also shows *synced* + *rewrite set*.)
+  (Loskai's Routing table also shows *synced* + *set*.)
 - **Docker tab** — because the backend runs on your host, it uses your real Docker socket:
   you'll see your actual containers (including this rig), and stacks under `STACKS_DIR`.
 

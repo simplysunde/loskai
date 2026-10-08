@@ -237,7 +237,7 @@ export function DnsCell({ present, conflict }: { present?: boolean | null; confl
       {present === undefined || present === null ? (
         <StatusBadge status="unknown" label="unknown" />
       ) : present ? (
-        <StatusBadge status="synced" label="rewrite set" />
+        <StatusBadge status="synced" label="set" />
       ) : (
         <StatusBadge status="unsynced" label="missing" />
       )}
