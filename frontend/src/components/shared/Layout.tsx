@@ -17,6 +17,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuthStatus } from "../../lib/useAuth";
 import { useDashboard } from "../../lib/useDashboard";
+import { navDots } from "../../lib/navDots";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
 import { getTheme, setTheme, type Theme } from "../../lib/theme";
 
@@ -39,13 +40,6 @@ const DOT: Record<ModuleState, string> = {
   unreachable: "bg-rose-400",
   unconfigured: "bg-slate-600",
 };
-
-// Show the worst of a set of module states (problems win) as the nav dot.
-function worst(...states: (ModuleState | undefined)[]): ModuleState | undefined {
-  const order: ModuleState[] = ["unreachable", "degraded", "unconfigured", "healthy"];
-  for (const s of order) if (states.includes(s)) return s;
-  return undefined;
-}
 
 // The persistent left-sidebar shell (Lutris-inspired): brand, nav, and a main content
 // area rendered via <Outlet/>. Always visible — the API is the real gate, so showing
@@ -74,12 +68,7 @@ export function Layout() {
   const showCert = certTab === "public" || (certTab === "admin" && authed);
   const nav = NAV.filter((item) => item.to !== "/certificate" || showCert);
 
-  const h = health.data;
-  const dotFor: Record<string, ModuleState | undefined> = {
-    "/docker": h?.docker.status,
-    "/routing": worst(h?.caddy.status, h?.adguard.status),
-    "/machines": h?.adguard.status,
-  };
+  const dotFor = health.data ? navDots(health.data) : {};
 
   async function logout() {
     await api.post("/api/logout");
@@ -117,7 +106,10 @@ export function Layout() {
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
               {authed && dotFor[to] && (
-                <span className={`h-1.5 w-1.5 rounded-full ${DOT[dotFor[to]!]}`} />
+                <span
+                  title={dotFor[to]!.title}
+                  className={`h-1.5 w-1.5 rounded-full ${DOT[dotFor[to]!.state]}`}
+                />
               )}
             </NavLink>
           ))}

@@ -23,6 +23,8 @@ export interface ConsistencyWarning {
   id: string;
   domain: string;
   kind: "dns_missing" | "dns_conflict";
+  // On the Machines tab rather than Routing.
+  machine?: boolean;
   detail: string;
 }
 

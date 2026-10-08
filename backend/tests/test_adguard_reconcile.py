@@ -213,6 +213,14 @@ def test_consistency_missing_rewrite():
     assert warns[0]["id"] == "grafana"
 
 
+def test_consistency_says_whether_it_is_a_machine():
+    # The sidebar flags Routing for a service and Machines for a machine — each its own.
+    nas = Instance(id="nas", name="nas", type="external", kind="machine", subdomain="nas",
+                   upstream="192.168.10.50", route_mode="dns_only")
+    warns = service.consistency_warnings([inst("grafana", "grafana"), nas], [], BASE, IP)
+    assert {w["id"]: w["machine"] for w in warns} == {"grafana": False, "nas": True}
+
+
 def test_consistency_conflict_on_foreign_answer():
     existing = [rw("grafana.example.no", IP), rw("grafana.example.no", "10.9.9.9")]
     warns = service.consistency_warnings([inst("grafana", "grafana", IP)], existing, BASE, IP)

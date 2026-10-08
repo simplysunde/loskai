@@ -177,7 +177,9 @@ def consistency_warnings(
     Flags a routed instance whose LAN name won't resolve (a route exists but no AdGuard
     rewrite points at the Caddy IP) or whose domain also carries a foreign answer (a
     manual conflict — Loskai never auto-overwrites it). Returns `[]` when drift can't be
-    determined (AdGuard unreachable, or no base domain / answer IP)."""
+    determined (AdGuard unreachable, or no base domain / answer IP). `machine` says which
+    tab the instance is on, so each sidebar entry can flag only its own."""
+    machines = {i.id for i in instances if i.kind == "machine"}
     warnings: list[dict] = []
     for row in dns_status_rows(instances, rewrites, base_domain, current_ip):
         if row["present"] is None:
@@ -186,6 +188,7 @@ def consistency_warnings(
             warnings.append({
                 "id": row["id"],
                 "domain": row["domain"],
+                "machine": row["id"] in machines,
                 "kind": "dns_missing",
                 "detail": f"{row['domain']} has a route but no AdGuard rewrite to "
                           f"{row['target']}; it won't resolve on the LAN until one is added.",
@@ -194,6 +197,7 @@ def consistency_warnings(
             warnings.append({
                 "id": row["id"],
                 "domain": row["domain"],
+                "machine": row["id"] in machines,
                 "kind": "dns_conflict",
                 "detail": f"{row['domain']} has a DNS rewrite pointing somewhere other "
                           f"than {row['target']}; resolve it manually — Loskai won't overwrite it.",
