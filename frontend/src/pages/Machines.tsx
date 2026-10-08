@@ -108,7 +108,7 @@ export function Machines() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Machines</h1>
           <p className="mt-1 text-sm text-slate-500">
-            LAN machines by name. Routes hosted on one follow it when its address changes.
+            Machines on your network, each with its DNS name and the routes it hosts.
           </p>
         </div>
         <button
