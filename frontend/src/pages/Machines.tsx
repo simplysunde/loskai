@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HardDrive, Loader2, Shield } from "lucide-react";
+import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
-import { InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { dependentsOf, isMachine } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import type { RouteRow } from "../components/routing/ServiceTable";
@@ -123,30 +122,23 @@ export function Machines() {
         </button>
       </header>
 
-      <div className="mb-4 space-y-3">
-        <InfraStatusPill
-          icon={<Shield className="h-4 w-4" />}
-          name="AdGuard"
-          health={health.data?.adguard}
-          url={health.data?.adguard?.url}
-          linkLabel="Open AdGuard"
-        />
-        {result && (
-          <div
-            className={`rounded-lg border px-3 py-2 text-sm ${
-              result.warning
-                ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
-                : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
-            }`}
-          >
-            <span className="font-medium">{result.url}</span> —{" "}
-            {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
-            {result.relinked && result.relinked.length > 0 && (
-              <> Moved {result.relinked.join(", ")} with it.</>
-            )}
-          </div>
-        )}
-      </div>
+      {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
+          state is in its row. */}
+      {result && (
+        <div
+          className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
+            result.warning
+              ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
+              : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
+          }`}
+        >
+          <span className="font-medium">{result.url}</span> —{" "}
+          {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
+          {result.relinked && result.relinked.length > 0 && (
+            <> Moved {result.relinked.join(", ")} with it.</>
+          )}
+        </div>
+      )}
 
       {routes.isLoading ? (
         <div className="flex justify-center py-16 text-slate-500">
