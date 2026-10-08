@@ -83,3 +83,19 @@ export function groupStatus(group: Group): { tone: string; label: string } {
   if (running >= total) return { tone: "healthy", label: "up" };
   return { tone: "degraded", label: `${running}/${total} up` };
 }
+
+/** What a collapsed group shows in the stat columns: the longest uptime (how long it has
+ *  been up at all), and CPU and memory added up across its containers. Null where no
+ *  container reports one — a stopped one has none. */
+export function groupTotals(group: Group): { uptime: number | null; cpu: number | null; mem: number | null } {
+  const sum = (xs: (number | null | undefined)[]) => {
+    const known = xs.filter((x): x is number => x != null);
+    return known.length ? known.reduce((a, b) => a + b, 0) : null;
+  };
+  const uptimes = group.containers.map((c) => c.uptime).filter((u): u is number => u != null);
+  return {
+    uptime: uptimes.length ? Math.max(...uptimes) : null,
+    cpu: sum(group.containers.map((c) => c.cpu)),
+    mem: sum(group.containers.map((c) => c.mem?.percent)),
+  };
+}

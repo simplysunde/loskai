@@ -255,6 +255,21 @@ test("Loskai's own container sits apart, offering only its logs", async () => {
   expect(onLogs).toHaveBeenCalledWith(expect.objectContaining({ name: "loskai" }));
 });
 
+test("a collapsed group carries its containers' stats in their columns", async () => {
+  groups();
+  await screen.findByText("immich-server");
+  // Open, the header leaves the stat columns to its rows.
+  expect(within(header("immich")).queryByText("2.0%")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /^immich/ }));
+
+  // Both fixture containers report 1m, 1% CPU and 2% mem: the longest uptime, the sums.
+  const cells = within(header("immich")).getAllByRole("cell");
+  expect(cells[1]).toHaveTextContent("1m");
+  expect(cells[2]).toHaveTextContent("2.0%");
+  expect(cells[3]).toHaveTextContent("4.0%");
+});
+
 test("collapsing a stack hides its containers, not the others", async () => {
   groups();
   await screen.findByText("immich-server");

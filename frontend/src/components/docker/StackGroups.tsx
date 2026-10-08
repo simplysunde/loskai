@@ -26,6 +26,7 @@ import { StatusBadge } from "../shared/StatusBadge";
 import {
   groupByStack,
   groupStatus,
+  groupTotals,
   type Container,
   type Group,
   type Stack,
@@ -292,11 +293,13 @@ function GroupHeader({
   const Icon = group.kind === "standalone" ? Box : Layers;
   const single = group.kind === "standalone";
   const links = baseDomain ? group.containers.filter((c) => c.subdomain) : [];
+  // Collapsed, the header stands in for its rows, so it carries their stats in their columns.
+  const totals = open ? null : groupTotals(group);
   // Every container of a project carries the same label; the first that has it will do.
   const composeDir = group.containers.find((c) => c.compose_dir)?.compose_dir;
   return (
     <tr className={`border-t border-slate-800 bg-slate-900/50 ${muted ? "opacity-80" : ""}`}>
-      <td colSpan={COLS - 1} className="px-4 py-2">
+      <td className="px-4 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onToggle}
@@ -318,6 +321,9 @@ function GroupHeader({
           ))}
         </div>
       </td>
+      <td className="px-4 py-2 text-slate-400">{totals && formatUptime(totals.uptime)}</td>
+      <td className="px-4 py-2 text-slate-400">{totals && formatPercent(totals.cpu)}</td>
+      <td className="px-4 py-2 text-slate-400">{totals && formatPercent(totals.mem)}</td>
       <td className="px-4 py-2">
         {/* The same toggle, in the same place, for a project started elsewhere or a lone
             container — plain docker start/stop, as there is no compose file here to run. */}

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { groupByStack, groupStatus, type Container, type Stack } from "./groupByStack";
+import { groupByStack, groupStatus, groupTotals, type Container, type Stack } from "./groupByStack";
 
 function c(name: string, project: string | null = null): Container {
   return {
@@ -69,4 +69,18 @@ test("a group's status: up, down, or how many of how many", () => {
   // Declared but never created still counts: everything that exists running isn't "up".
   expect(status([c("web", "immich")], { ...s("immich", "partial"), services: ["web", "db"] })).toBe("1/2 up");
   expect(status([], s("immich", "unknown"))).toBe("unknown");
+});
+
+test("a collapsed group's stats: the longest uptime, CPU and memory added up", () => {
+  const up = (name: string, uptime: number, cpu: number, mem: number): Container => ({
+    ...c(name, "immich"), uptime, cpu, mem: { percent: mem },
+  });
+  const stopped = { ...c("db", "immich"), status: "exited", uptime: null, cpu: null, mem: null };
+  const group = { kind: "stack" as const, key: "stack:immich", stack: s("immich"), containers: [
+    up("server", 3600, 1.5, 2), up("ml", 7200, 0.5, 3), stopped,
+  ] };
+
+  expect(groupTotals(group)).toEqual({ uptime: 7200, cpu: 2, mem: 5 });
+  // All stopped: nothing to report, not zero.
+  expect(groupTotals({ ...group, containers: [stopped] })).toEqual({ uptime: null, cpu: null, mem: null });
 });
