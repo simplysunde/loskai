@@ -60,3 +60,19 @@ test("an existing body overflow is restored, not blanked", () => {
   unmount();
   expect(document.body.style.overflow).toBe("scroll");
 });
+
+test("inside the app shell, the scrolling region is frozen too, and keeps its own style", () => {
+  // The sidebar stays put because <main> scrolls, not the page — and overlays render
+  // inside <main>, so freezing only the body would leave the wheel scrolling behind them.
+  const main = document.createElement("main");
+  main.setAttribute("data-scroll-root", "");
+  main.style.overflow = "auto";
+  document.body.appendChild(main);
+
+  const { unmount } = render(<Overlay />);
+  expect(main.style.overflow).toBe("hidden");
+
+  unmount();
+  expect(main.style.overflow).toBe("auto");
+  main.remove();
+});

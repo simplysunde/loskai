@@ -77,7 +77,8 @@ export function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-200">
+    // Exactly the window's height: the sidebar stays put and only <main> scrolls.
+    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-200">
       <aside className="flex w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
         <div className="flex items-center gap-2 px-5 py-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
@@ -133,7 +134,8 @@ export function Layout() {
         )}
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
+      {/* The one scrolling region — useScrollLock freezes it by this attribute. */}
+      <main data-scroll-root className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
     </div>

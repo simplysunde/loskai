@@ -9,6 +9,10 @@ let restore: (() => void) | null = null;
 
 /** Freeze the page while an overlay is up, so the wheel can't scroll what's behind it.
  *
+ * Inside the app shell the page does not scroll — `<main data-scroll-root>` does, and the
+ * overlays are rendered inside it, so that is what has to be frozen. The body is frozen
+ * too, for a page outside the shell (login).
+ *
  * Pair it with `overscroll-contain` on any scrollable region *inside* the overlay: this
  * stops the page moving, that stops the gesture being handed over at all. */
 export function useScrollLock(active: boolean) {
@@ -17,17 +21,14 @@ export function useScrollLock(active: boolean) {
 
     if (locks === 0) {
       const { body } = document;
-      const prevOverflow = body.style.overflow;
-      const prevPadding = body.style.paddingRight;
-      // Hiding the scrollbar gives its width back to the layout, which shifts the page
+      const root = document.querySelector<HTMLElement>("[data-scroll-root]");
+      // Hiding a scrollbar gives its width back to the layout, which shifts the content
       // sideways as the dialog opens. Pad by exactly that width to hold it still.
-      const gap = window.innerWidth - document.documentElement.clientWidth;
-      body.style.overflow = "hidden";
-      if (gap > 0) body.style.paddingRight = `${gap}px`;
-      restore = () => {
-        body.style.overflow = prevOverflow;
-        body.style.paddingRight = prevPadding;
-      };
+      const releases = [
+        freeze(body, window.innerWidth - document.documentElement.clientWidth),
+        ...(root ? [freeze(root, root.offsetWidth - root.clientWidth)] : []),
+      ];
+      restore = () => releases.forEach((release) => release());
     }
     locks += 1;
 
@@ -39,4 +40,15 @@ export function useScrollLock(active: boolean) {
       }
     };
   }, [active]);
+}
+
+function freeze(el: HTMLElement, gap: number): () => void {
+  const prevOverflow = el.style.overflow;
+  const prevPadding = el.style.paddingRight;
+  el.style.overflow = "hidden";
+  if (gap > 0) el.style.paddingRight = `${gap}px`;
+  return () => {
+    el.style.overflow = prevOverflow;
+    el.style.paddingRight = prevPadding;
+  };
 }
