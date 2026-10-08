@@ -78,9 +78,9 @@ export function ServiceTable({
           <tr>
             <th className="px-4 py-2.5 font-medium">Service</th>
             <th className="px-4 py-2.5 font-medium">Upstream</th>
-            <th className="px-4 py-2.5 font-medium">Route</th>
-            <th className="px-4 py-2.5 font-medium">Live</th>
-            <th className="px-4 py-2.5 font-medium">DNS</th>
+            <th title={ROUTE_HINT} className="cursor-help px-4 py-2.5 font-medium">Route</th>
+            <th title={LIVE_HINT} className="cursor-help px-4 py-2.5 font-medium">Live</th>
+            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
             {hasActions && <th className="px-4 py-2.5 font-medium text-right">Actions</th>}
           </tr>
         </thead>
@@ -226,6 +226,13 @@ export function ServiceTable({
     </div>
   );
 }
+
+// Header tooltips: what each status column checks. All three are re-read every 15 seconds.
+const ROUTE_HINT = "Is the route loaded in Caddy? \"not pushed\" = Loskai has it but Caddy doesn't; Sync fixes it.";
+// Caddy only counts failures with health checks on, and Loskai's routes have none — so
+// this cannot tell a dead service from a working one.
+const LIVE_HINT = "Caddy's own health mark for the upstream. Without health checks it stays up even when the service is down.";
+export const DNS_HINT = "Does AdGuard answer this name with the right address? \"conflict\" = another answer exists for it too.";
 
 function Dash() {
   return <span className="text-xs text-slate-600">—</span>;

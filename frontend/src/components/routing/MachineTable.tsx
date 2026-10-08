@@ -4,7 +4,7 @@ import { CornerDownRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { RouteLink } from "../shared/RouteLink";
 import { splitUpstream } from "../../lib/validation";
 import { dependentsOf } from "./machine";
-import { DnsCell, type RouteRow } from "./ServiceTable";
+import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
 // Each machine, with the routes hosted on it listed directly beneath — the dependency the
 // `machine` link records, which is the reason a machine is named at all. A route lists only
@@ -42,7 +42,7 @@ export function MachineTable({
           <tr>
             <th className="px-4 py-2.5 font-medium">Machine</th>
             <th className="px-4 py-2.5 font-medium">Address</th>
-            <th className="px-4 py-2.5 font-medium">DNS</th>
+            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
             <th className="px-4 py-2.5 font-medium text-right">Actions</th>
           </tr>
         </thead>

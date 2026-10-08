@@ -206,3 +206,11 @@ test("a routed name opens the site — over http when that is all it serves", ()
   );
   expect(screen.getByText("not routed")).toBeInTheDocument();
 });
+
+test("each status header explains itself on hover", () => {
+  render(<ServiceTable rows={[row({ id: "echo", name: "echo" })]} />);
+
+  for (const name of ["Route", "Live", "DNS"]) {
+    expect(screen.getByRole("columnheader", { name })).toHaveAttribute("title");
+  }
+});
