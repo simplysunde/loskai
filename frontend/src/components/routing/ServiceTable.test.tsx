@@ -101,17 +101,21 @@ test("a proxy row with known sync state shows a real badge, not a dash", () => {
   expect(screen.queryByText("dns-only")).not.toBeInTheDocument();
 });
 
-test("a linked upstream reads as its machine, the address beneath", () => {
+test("a linked upstream shows its address, the machine it follows beneath", () => {
   // Otherwise the link is invisible: the address looks hand-typed right up until the
-  // machine moves and this row quietly follows it.
+  // machine moves and this row quietly follows it. The address stays on top — a machine's
+  // name is not an address (`adguard.lxc:3000` would not resolve).
   render(
     <ServiceTable
       rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
       machines={[row({ id: "nas", name: "nas", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  expect(screen.getByText("nas:32400")).toBeInTheDocument();
   expect(screen.getByText("192.168.10.50:32400")).toBeInTheDocument();
+  expect(screen.getByText("nas").closest("div")).toContainElement(
+    screen.getByRole("img", { name: /^Linked/ }),
+  );
+  expect(screen.queryByText("nas:32400")).not.toBeInTheDocument();
 });
 
 test("an unlinked route shows its address as it is", () => {
@@ -128,12 +132,12 @@ test("a linked upstream follows a rename", () => {
       machines={[row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  expect(screen.getByText("Storage box:32400")).toBeInTheDocument();
+  expect(screen.getByText("Storage box")).toBeInTheDocument();
 });
 
 test("a machine that is no longer listed falls back to its id", () => {
   render(<ServiceTable rows={[row({ id: "plex", upstream: "192.168.10.50:32400", machine: "ghost" })]} />);
-  expect(screen.getByText("ghost:32400")).toBeInTheDocument();
+  expect(screen.getByText("ghost")).toBeInTheDocument();
 });
 
 test("a non-default scheme is tagged, https is not", () => {
@@ -227,12 +231,14 @@ test("an unlinked upstream on a machine's address names that machine, without li
   );
 
   // Its name, not its FQDN — the upstream cell is busy enough.
-  const hint = screen.getByText("Storage box");
-  expect(hint.closest("tr")).toHaveTextContent("plex");
-  expect(hint.closest("tr")).toHaveTextContent("192.168.10.50:32400");
-  expect(within(hint.closest("tr")!).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
-  expect(screen.getByRole("img", { name: /^Linked/ }).closest("tr")).toHaveTextContent("linked");
-  // The linked row already reads as the machine; the unrelated one names nothing.
-  expect(screen.getAllByText("Storage box")).toHaveLength(1);
+  const plex = screen.getByText("plex").closest("tr") as HTMLElement;
+  expect(plex).toHaveTextContent("192.168.10.50:32400");
+  expect(within(plex).getByText("Storage box")).toBeInTheDocument();
+  expect(within(plex).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
+  // The linked row names the machine too, with the other icon; the unrelated one, nothing.
+  const linked = screen.getByText("linked").closest("tr") as HTMLElement;
+  expect(within(linked).getByRole("img", { name: /^Linked/ })).toBeInTheDocument();
+  expect(within(linked).queryByRole("img", { name: /^Matched by IP/ })).not.toBeInTheDocument();
+  expect(screen.getAllByText("Storage box")).toHaveLength(2);
   expect(screen.queryByText("nas.example.no")).not.toBeInTheDocument();
 });

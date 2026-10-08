@@ -162,10 +162,12 @@ is the sibling verb, `/api/machines`, from the Machines tab.
 of the machines you have named (by declared `kind`) and **links the route to it**; Address is
 a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
 own host — and **never links**. Switching to Machine never guesses a link from a matching
-IP. A linked row reads `<machine>:<port>` in the Routing table; an unlinked row whose host
-is a machine's address is **matched** — Routing names the machine beneath it and Machines
-lists it under the machine (a chain icon marks a link, a wand a match). A match is display
-only, never a link: it keeps its address when the machine moves, and simply stops matching. The
+IP. A linked row shows its address with the machine beneath (never `<machine>:<port>` — a
+dotted machine name like `adguard.lxc` would read as a hostname that does not resolve); an
+unlinked row whose host is a machine's address is **matched** — Routing names the machine
+beneath it and Machines lists it under the machine (a chain icon marks a link, a wand a
+match). A match is display only, never a link: it keeps its address when the machine moves,
+and simply stops matching. The
 **Docker tab displays routed state, and creates a route in exactly one place** — the install
 wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
 idempotency key, so it edits the install's own record) and pre-fills through

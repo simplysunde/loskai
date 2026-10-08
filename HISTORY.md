@@ -12,6 +12,11 @@ matching. Setting the link automatically was the alternative, and it would break
 rule that a matching IP never creates a link — a route someone typed by hand would quietly
 start moving with a machine.
 
+The same day, a linked row stopped reading `<machine>:<port>` (Phase 30's `nas:32400`): a
+machine named `adguard.lxc` made it `adguard.lxc:3000`, which looks like an address and is
+not one — the name resolves only with the base domain on. Every row now shows its real
+address, and the machine (linked or matched, by icon) sits beneath it.
+
 ## 2026-10-08 — The Routing table's Live column is gone
 
 It read Caddy's `/reverse_proxy/upstreams` and showed `up` when an upstream had no

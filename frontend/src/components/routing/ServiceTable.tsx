@@ -2,7 +2,6 @@ import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from
 
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
-import { splitUpstream } from "../../lib/validation";
 import { isMachine, machineAt, machineLabel } from "./machine";
 import { MachineLinkIcon } from "./MachineLinkIcon";
 
@@ -107,17 +106,10 @@ export function ServiceTable({
                   </div>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                  {/* A linked upstream reads as the machine it follows; the address it
-                      resolves to right now sits beneath. Otherwise the link is invisible —
-                      the address looks hand-typed until the machine moves. */}
-                  {row.machine ? (
-                    <span className="inline-flex items-center gap-1 text-teal-300">
-                      <MachineLinkIcon auto={false} />
-                      {machineLabel(row.machine, machines)}:{splitUpstream(row.upstream ?? "").port}
-                    </span>
-                  ) : (
-                    (row.upstream ?? "—")
-                  )}
+                  {/* The address on top, always: a machine's name is not one (a dotted
+                      name like `adguard.lxc` would read as a hostname that does not
+                      resolve). The machine it is linked to or matches sits beneath. */}
+                  {row.upstream ?? "—"}
                   {/* Only when it differs from the default: a tag on every row would be
                       noise, and https is what almost everything should be. */}
                   {row.scheme && row.scheme !== "https" && (
@@ -142,14 +134,18 @@ export function ServiceTable({
                       dns-only
                     </span>
                   )}
-                  {row.machine && row.upstream && (
-                    <div className="text-[11px] text-slate-600">{row.upstream}</div>
-                  )}
-                  {sameAddress && (
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                      <MachineLinkIcon auto />
-                      {sameAddress.name}
+                  {row.machine ? (
+                    <div className="flex items-center gap-1 text-[11px] text-teal-300">
+                      <MachineLinkIcon auto={false} />
+                      {machineLabel(row.machine, machines)}
                     </div>
+                  ) : (
+                    sameAddress && (
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                        <MachineLinkIcon auto />
+                        {sameAddress.name}
+                      </div>
+                    )
                   )}
                 </td>
                 <td className="px-4 py-3">
