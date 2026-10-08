@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { containerPrefill, suggestPrefix } from "./containerPrefill";
+import { containerLabel, containerPrefill, suggestPrefix } from "./containerPrefill";
 
 // Both route forms read this, so these are the pre-fills a user sees either way.
 
@@ -40,4 +40,23 @@ test("an instance id that isn't a valid label is cleaned like a container name",
 test("suggestPrefix makes a container name a valid label", () => {
   expect(suggestPrefix("My_App.1")).toBe("my-app-1");
   expect(suggestPrefix("--edge--")).toBe("edge");
+});
+
+test("a stack's only container is named and prefixed after the stack", () => {
+  const whoami = { name: "whoami-whoami-1", project: "whoami" };
+  const immich = [
+    { name: "immich-server", project: "immich" },
+    { name: "immich-db", project: "immich" },
+  ];
+  const loose = { name: "portainer", project: null };
+  const all = [whoami, ...immich, loose];
+
+  expect(containerLabel(whoami, all)).toBe("whoami");
+  expect(containerPrefill(whoami, all).prefix).toBe("whoami");
+  // Several containers: the stack's name would not say which one.
+  expect(containerLabel(immich[0], all)).toBe("immich-server");
+  // No compose project at all.
+  expect(containerLabel(loose, all)).toBe("portainer");
+  // A recipe install's own id still wins for the prefix.
+  expect(containerPrefill({ ...whoami, instance_id: "who" }, all).prefix).toBe("who");
 });

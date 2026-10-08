@@ -242,6 +242,25 @@ test("a container with no linked instance keeps its own name as the prefix", asy
   expect(screen.getByPlaceholderText("grafana")).toHaveValue("grafana");
 });
 
+test("a stack's only container is named and prefixed after the stack", async () => {
+  // Compose names it `whoami-whoami-1`; nobody calls it that. The link stays the container.
+  RESPONSES["/api/docker/containers"] = [
+    {
+      id: "w", name: "whoami-whoami-1", project: "whoami", image: "traefik/whoami",
+      subdomain: null, suggested_upstream: "192.168.10.220:8081", upstream_mode: "lan",
+    },
+  ];
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(await screen.findByText("whoami-whoami-1"));
+  expect(prefixInput()).toHaveValue("whoami");
+
+  fireEvent.click(screen.getByRole("button", { name: /Add route/ }));
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ prefix: "whoami", name: "whoami", container: "whoami-whoami-1" }),
+  );
+});
+
 test("a container whose address is known is followed by default, locked", async () => {
   RESPONSES["/api/docker/containers"] = CONTAINERS;
   const { onSubmit } = renderPicker();

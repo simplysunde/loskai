@@ -7,7 +7,7 @@ import { api } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
 import { useScrollLock } from "../../lib/useScrollLock";
-import { containerPrefill, type PrefillSource } from "./containerPrefill";
+import { containerLabel, containerPrefill, type PrefillSource } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
@@ -150,10 +150,10 @@ export function AddRouteModal({
 
   const pickContainer = (c: ContainerRow) => {
     setPickedMode(c.upstream_mode ?? null);
-    fields.set(containerPrefill(c));
+    fields.set(containerPrefill(c, containers.data));
     setDerived(c.suggested_upstream ?? null);
     setFollow(Boolean(c.suggested_upstream));
-    setLink({ container: c.name, name: c.name });
+    setLink({ container: c.name, name: containerLabel(c, containers.data ?? []) });
     setPicked(c.id);
   };
   const pickNetwork = (s: (typeof networkItems)[number]) => {
