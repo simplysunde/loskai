@@ -94,7 +94,7 @@ test("lists machines only, each with the routes hosted on it beneath", async () 
   expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
 });
 
-test("a hosted route links out under URL, its DNS state under DNS", async () => {
+test("a hosted route links out under URL; DNS state is the machine's alone", async () => {
   renderPage();
   const plexRow = (await screen.findByText("plex")).closest("tr") as HTMLElement;
   const [, url, address, dns] = within(plexRow).getAllByRole("cell");
@@ -104,7 +104,9 @@ test("a hosted route links out under URL, its DNS state under DNS", async () => 
     "https://plex.example.no",
   );
   expect(address).toHaveTextContent(":32400");
-  expect(dns).toHaveTextContent("missing");
+  // plex's rewrite is missing, but that is Routing's to say; the machine's row says "set".
+  expect(dns).toBeEmptyDOMElement();
+  expect(within(nasRow()).getByText("set")).toBeInTheDocument();
   // The machine's own name sits in the same URL column, on its row.
   const [, nasUrl] = within(nasRow()).getAllByRole("cell");
   expect(nasUrl).toHaveTextContent("nas.example.no");

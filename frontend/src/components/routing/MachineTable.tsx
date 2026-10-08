@@ -114,9 +114,9 @@ export function MachineTable({
                         <td className="px-4 py-1 font-mono text-slate-500">
                           :{splitUpstream(d.upstream ?? "").port || "—"}
                         </td>
-                        <td className="px-4 py-1" colSpan={2}>
-                          {d.routed && <DnsCell present={d.dnsPresent} conflict={d.dnsConflict} />}
-                        </td>
+                        {/* No DNS state here: a route's own is the Routing tab's to show. These
+                            rows say what the machine hosts; its DNS is the row above. */}
+                        <td colSpan={2} />
                       </tr>
                     ))
                   )}
