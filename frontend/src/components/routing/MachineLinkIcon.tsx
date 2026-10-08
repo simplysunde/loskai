@@ -5,7 +5,7 @@ import { Link2, WandSparkles } from "lucide-react";
 // address and the match simply ends.
 export function MachineLinkIcon({ auto }: { auto: boolean }) {
   const label = auto
-    ? "Matched by IP — not linked: if the machine moves, this keeps its address. Link it: Change URL → Machine."
+    ? "Matched by IP — not linked"
     : "Linked — follows the machine when its address changes";
   const Icon = auto ? WandSparkles : Link2;
   return (
