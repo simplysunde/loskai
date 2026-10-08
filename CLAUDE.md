@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (445 + 187 + docs).
+All three checks pass (445 + 189 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -151,10 +151,12 @@ then writes the AdGuard rewrite (**best-effort** — warns, never fails the assi
 and AdGuard modules never write on their own; they are read + push only.
 
 **Route creation is consolidated in the "Add route" picker** (frontend `AddRouteModal`) —
-the single surface, opened from the Routing tab or from a machine's row on the Machines tab
+the main surface, opened from the Routing tab or from a machine's row on the Machines tab
 (preset to that machine), with three sources (Container / Network service / External) that
-pre-fill and post to `/api/routes` with `container` / `origin` / neither (naming a machine
-is the sibling verb, `/api/machines`, from the Machines tab).
+pre-fill and post to `/api/routes` with `container` / `origin` / neither. One shortcut: the
+Routing tab's AdGuard pill routes AdGuard in one click, posting exactly what the Network
+source would, so it carries the same `origin`. Naming a machine
+is the sibling verb, `/api/machines`, from the Machines tab.
 **The upstream is two fields on one row — host and port** — in both route forms (they share
 `RouteFields`). The host is **Machine or Address**, a toggle (Phase 30): Machine picks one
 of the machines you have named (by declared `kind`) and **links the route to it**; Address is
@@ -165,7 +167,7 @@ IP. A linked row reads `<machine>:<port>` in the Routing table. The
 wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
 idempotency key, so it edits the install's own record) and pre-fills through
 `containerPrefill`; anything beyond a prefix is left to the Routing tab. (A routed container
-links to its FQDN; a Settings > Network panel's link-out prefers the HTTPS route.) Per-row "Change URL"
+links to its FQDN; the AdGuard pill's link-out opens its route once it has one.) Per-row "Change URL"
 on the Routing table edits an existing route (passes `instance_id`); on an *unrouted* row the
 same button reads "Assign a URL". **Both forms pre-fill a container through one helper,
 `containerPrefill`** — they used to disagree (the row read only the stored record, so a fresh

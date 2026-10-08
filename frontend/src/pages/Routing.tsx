@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  Link2,
   Loader2,
   Lock,
   Plus,
@@ -17,7 +18,12 @@ import { api, ApiError } from "../lib/api";
 import { copyText } from "../lib/clipboard";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
-import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
+import {
+  AddRouteModal,
+  NETWORK_SERVICES,
+  urlToUpstream,
+  type NewRoute,
+} from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill, type PrefillSource } from "../components/routing/containerPrefill";
 import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
@@ -124,6 +130,17 @@ export function Routing() {
     (routes.data ?? []).filter((r) => r.origin && r.routed).map((r) => r.origin as string),
   );
 
+  // Once AdGuard is routed (from its pill or the picker — both set `origin`), its link-out
+  // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
+  const adguardRoute = (routes.data ?? []).find((r) => r.origin === "adguard" && r.fqdn);
+  const adguardUrl = adguardRoute
+    ? `${adguardRoute.scheme === "http" ? "http" : "https"}://${adguardRoute.fqdn}`
+    : h?.adguard?.url;
+  const adguardService = NETWORK_SERVICES.find((s) => s.origin === "adguard")!;
+  const adguardUpstream = urlToUpstream(h?.adguard?.url);
+  const canRouteAdguard =
+    routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
+
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const allRows: RouteRow[] = (routes.data ?? []).map((r) => {
     const d = dnsById.get(r.id);
@@ -177,6 +194,16 @@ export function Routing() {
       invalidate();
     },
     onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Add route failed"),
+  });
+
+  // AdGuard's pill routes it in one click — the same request the Add route picker's Network
+  // source sends, so the instance carries `origin: "adguard"` either way.
+  const routeAdguard = useMutation({
+    mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/routes", r),
+    onSuccess: (data) => {
+      setResult(data);
+      invalidate();
+    },
   });
 
   const setIcon = useMutation({
@@ -293,8 +320,34 @@ export function Routing() {
             icon={<Shield className="h-4 w-4" />}
             name="AdGuard"
             health={h?.adguard}
-            url={h?.adguard?.url}
-            linkLabel="Open AdGuard"
+            url={adguardUrl}
+            linkLabel={adguardRoute ? `Open AdGuard at ${adguardRoute.fqdn}` : "Open AdGuard"}
+            action={
+              canRouteAdguard && (
+                <button
+                  onClick={() =>
+                    routeAdguard.mutate({
+                      prefix: adguardService.prefix,
+                      upstream: adguardUpstream,
+                      upstream_tls: false,
+                      scheme: "https",
+                      origin: adguardService.origin,
+                      name: adguardService.name,
+                    })
+                  }
+                  disabled={routeAdguard.isPending}
+                  title={`Route AdGuard at ${adguardService.prefix}.${baseDomain}`}
+                  aria-label="Route AdGuard"
+                  className={`${ICON_BUTTON} disabled:opacity-50`}
+                >
+                  {routeAdguard.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Link2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              )
+            }
           >
             {h?.adguard?.answer_ip && (
               <span
@@ -366,6 +419,12 @@ export function Routing() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+        {routeAdguard.error && (
+          <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+            Couldn't route AdGuard:{" "}
+            {routeAdguard.error instanceof ApiError ? routeAdguard.error.message : "request failed"}
           </div>
         )}
         {result && (

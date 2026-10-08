@@ -247,7 +247,7 @@ runtime dependency. The graceful-degradation guarantees (each module still works
 | Module | Relationship to the instance list |
 |---|---|
 | **Docker Manager** | Surfaces each container as a `docker` instance (live data joined via `container`); a routed container shows its FQDN inline. Routing itself is created in the Routing tab, not here |
-| **Caddy Routing** | The single route-creation surface (the **Add route** picker). Reads instances that have a `subdomain` and pushes them as routes; owns that projection. External instances need no container at all |
+| **Caddy Routing** | The route-creation surface (the **Add route** picker; AdGuard's pill has a one-click shortcut to the same request). Reads instances that have a `subdomain` and pushes them as routes; owns that projection. External instances need no container at all |
 | **AdGuard DNS** | For each instance-with-subdomain, best-effort creates the matching DNS rewrite; reads rewrites back from AdGuard to show which instances are in sync |
 | **WireGuard** | None — a standalone status card, not part of the instance model |
 
@@ -537,7 +537,7 @@ route, so it never appears in `push_all` or the live-sync check.
   AdGuard rewrites (adds missing, migrates stale, sweeps orphaned); the one-click recovery
   + refresh action
 
-**Add route** (the single route-creation surface — a source picker over one assign form)
+**Add route** (the route-creation surface — a source picker over one assign form)
 - Source selector `[ Container | Network service | External ]` — pick an *unrouted* container
   or built-in service (pre-fills subdomain + upstream), or enter an external target by hand.
   Routed items are filtered out. Submitting posts `container` / `origin` / neither to
@@ -940,7 +940,9 @@ a main "library" content area, with contextual action buttons per item.
 - **Configuration and live status are split by kind, not by service.** Settings > Network is
   **fields-only** (auto-saving on blur); the health + link-out for **AdGuard** and **Caddy**
   lives in the **Routing tab**, because Routing is what actually pushes their state — a status
-  pill belongs next to the thing it gates. **WireGuard is the exception**: Loskai never writes
+  pill belongs next to the thing it gates. AdGuard's pill also routes AdGuard in one click
+  (as the picker's Network source, `origin: "adguard"`) and, once routed, links to the name
+  rather than the address. **WireGuard is the exception**: Loskai never writes
   to it, so it has no presence in Routing and keeps a plain link-out beside its config field.
   (This replaced a standalone Network tab, which had bundled all three concerns per service.)
   **Docker tab** = containers + stacks + wizard; a routed container shows its FQDN as a link.
