@@ -136,6 +136,8 @@ export function Routing() {
   const adguardUrl = adguardRoute
     ? `${adguardRoute.scheme === "http" ? "http" : "https"}://${adguardRoute.fqdn}`
     : h?.adguard?.url;
+  // What the pill shows beside its name: where its link goes, minus the scheme.
+  const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
   const adguardService = NETWORK_SERVICES.find((s) => s.origin === "adguard")!;
   const adguardUpstream = urlToUpstream(h?.adguard?.url);
   const canRouteAdguard =
@@ -349,12 +351,12 @@ export function Routing() {
               )
             }
           >
-            {h?.adguard?.answer_ip && (
+            {adguardAddress && (
               <span
-                title="The address every DNS rewrite answers with — where Caddy listens"
+                title={adguardRoute ? "AdGuard's route" : "AdGuard's URL, from Settings › Network"}
                 className="min-w-0 truncate font-mono text-xs text-slate-500"
               >
-                → {h.adguard.answer_ip}
+                {adguardAddress}
               </span>
             )}
           </InfraStatusPill>
@@ -366,7 +368,16 @@ export function Routing() {
             url={certUrl}
             linkLabel={`Cert page — share it to trust *.${baseDomain ?? "domain"}`}
             action={<CopyCertLink url={certUrl} />}
-          />
+          >
+            {h?.adguard?.answer_ip && (
+              <span
+                title="Where Caddy listens — every DNS rewrite answers with this address"
+                className="min-w-0 truncate font-mono text-xs text-slate-500"
+              >
+                {h.adguard.answer_ip}
+              </span>
+            )}
+          </InfraStatusPill>
         </div>
         {syncNote && (
           <div className="rounded-lg border border-teal-600/40 bg-teal-500/10 px-3 py-2 text-sm text-teal-200">

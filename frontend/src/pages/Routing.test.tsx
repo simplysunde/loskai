@@ -64,6 +64,9 @@ test("an unrouted AdGuard is routed from its pill, as the picker's Network sourc
     "href",
     "http://192.168.10.230:3000",
   );
+  // Each pill names its own address: AdGuard where it is reached, Caddy where rewrites point.
+  expect(screen.getByText("192.168.10.230:3000")).toBeInTheDocument();
+  expect(screen.getByText("192.168.10.216")).toBeInTheDocument();
   fireEvent.click(await screen.findByRole("button", { name: "Route AdGuard" }));
 
   await waitFor(() => expect(calls.some((c) => c.path === "/api/routes")).toBe(true));
@@ -81,4 +84,5 @@ test("a routed AdGuard opens at its name, and offers no second route", async () 
     await screen.findByRole("link", { name: "Open AdGuard at adguard.example.no" }),
   ).toHaveAttribute("href", "https://adguard.example.no");
   expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
+  expect(screen.getByText("adguard.example.no", { selector: "span" })).toBeInTheDocument();
 });
