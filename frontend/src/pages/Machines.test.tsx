@@ -22,6 +22,11 @@ const ROUTES = [
     private: false, routed: true, synced: true,
   },
   {
+    id: "jellyfin", name: "jellyfin", type: "external", kind: "service", subdomain: "tv",
+    fqdn: "tv.example.no", upstream: "192.168.10.50:8096",
+    private: false, routed: true, synced: true,
+  },
+  {
     id: "grafana", name: "grafana", type: "docker", kind: "service", subdomain: "grafana",
     fqdn: "grafana.example.no", upstream: "grafana:3000",
     private: false, routed: true, synced: true,
@@ -108,6 +113,18 @@ test("deleting a machine names the routes that will stop following it", async ()
   fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
 
   expect(screen.getByText(/1 route points/)).toHaveTextContent("(plex)");
+});
+
+test("an unlinked route on a machine's address is listed under it, marked as matched", async () => {
+  renderPage();
+  const row = (await screen.findByText("jellyfin")).closest("tr") as HTMLElement;
+
+  expect(within(row).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
+  expect(within(row).getByText(":8096")).toBeInTheDocument();
+  // The linked route says so instead — it follows the machine.
+  const plex = screen.getByText("plex").closest("tr") as HTMLElement;
+  expect(within(plex).getByRole("img", { name: /^Linked/ })).toBeInTheDocument();
+  expect(within(plex).queryByRole("img", { name: /^Matched by IP/ })).not.toBeInTheDocument();
 });
 
 test("editing a machine posts its id, and the banner says what moved with it", async () => {

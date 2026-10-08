@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { ServiceTable, type RouteRow } from "./ServiceTable";
@@ -229,6 +229,8 @@ test("an unlinked upstream on a machine's address names that machine, without li
   const hint = screen.getByText("nas.example.no");
   expect(hint.closest("tr")).toHaveTextContent("plex");
   expect(hint.closest("tr")).toHaveTextContent("192.168.10.50:32400");
+  expect(within(hint.closest("tr")!).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: /^Linked/ }).closest("tr")).toHaveTextContent("linked");
   // The linked row already reads as the machine; the unrelated one names nothing.
   expect(screen.getAllByText("nas.example.no")).toHaveLength(1);
 });

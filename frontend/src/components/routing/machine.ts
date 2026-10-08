@@ -30,3 +30,11 @@ export function machineAt(upstream: string | null, rows: RouteRow[]): RouteRow |
   const host = upstream ? splitUpstream(upstream).host : "";
   return host ? rows.find((r) => isMachine(r) && r.upstream === host) : undefined;
 }
+
+// The other half of `machineAt`: unlinked routes whose host is this machine's address.
+// They sit on it today but keep their address if it moves — unlike `dependentsOf`.
+export function onAddressOf(machine: RouteRow, rows: RouteRow[]): RouteRow[] {
+  return rows
+    .filter((r) => !r.machine && !isMachine(r) && machineAt(r.upstream, [machine]))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

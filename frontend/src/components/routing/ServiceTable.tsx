@@ -4,6 +4,7 @@ import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { splitUpstream } from "../../lib/validation";
 import { isMachine, machineAt, machineLabel } from "./machine";
+import { MachineLinkIcon } from "./MachineLinkIcon";
 
 export interface RouteRow {
   id: string;
@@ -110,10 +111,8 @@ export function ServiceTable({
                       resolves to right now sits beneath. Otherwise the link is invisible —
                       the address looks hand-typed until the machine moves. */}
                   {row.machine ? (
-                    <span
-                      title={`Follows the machine "${machineLabel(row.machine, machines)}" — move it and this address updates`}
-                      className="text-teal-300"
-                    >
+                    <span className="inline-flex items-center gap-1 text-teal-300">
+                      <MachineLinkIcon auto={false} />
                       {machineLabel(row.machine, machines)}:{splitUpstream(row.upstream ?? "").port}
                     </span>
                   ) : (
@@ -147,10 +146,8 @@ export function ServiceTable({
                     <div className="text-[11px] text-slate-600">{row.upstream}</div>
                   )}
                   {sameAddress && (
-                    <div
-                      title={`The address of the machine "${sameAddress.name}" — not linked: Change URL → Machine to follow it`}
-                      className="text-[11px] text-slate-500"
-                    >
+                    <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                      <MachineLinkIcon auto />
                       {sameAddress.fqdn ?? sameAddress.name}
                     </div>
                   )}

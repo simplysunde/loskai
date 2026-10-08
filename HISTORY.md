@@ -1,5 +1,17 @@
 # Loskai — History
 
+## 2026-10-08 — A route on a machine's IP is matched, not linked
+
+Sunde asked for routes on a machine's address to show as that machine's without having to
+link each one. Both tabs now do: Routing names the machine under the address, and Machines
+lists the route under it; a wand icon marks a match, a chain a link. It is a **match, worked
+out on display** — the route's `machine` field is never set by it. So the two kinds behave
+differently when a machine's address changes, and Sunde chose that on purpose: a linked
+route is rewritten to the new address; a matched one keeps the old one and simply stops
+matching. Setting the link automatically was the alternative, and it would break Phase 30's
+rule that a matching IP never creates a link — a route someone typed by hand would quietly
+start moving with a machine.
+
 ## 2026-10-08 — The Routing table's Live column is gone
 
 It read Caddy's `/reverse_proxy/upstreams` and showed `up` when an upstream had no
