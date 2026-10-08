@@ -18,15 +18,11 @@ import { api, ApiError } from "../lib/api";
 import { copyText } from "../lib/clipboard";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
-import {
-  AddRouteModal,
-  NETWORK_SERVICES,
-  urlToUpstream,
-  type NewRoute,
-} from "../components/routing/AddRouteModal";
+import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill, type PrefillSource } from "../components/routing/containerPrefill";
 import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
+import { NETWORK_SERVICES, urlToUpstream } from "../components/routing/networkServices";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
