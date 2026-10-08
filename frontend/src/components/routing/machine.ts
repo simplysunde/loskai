@@ -11,10 +11,12 @@ export function isMachine(row: RouteRow): boolean {
 
 // The link is stored by instance id, which never changes — but the id is the name the
 // machine was *created* under. Renaming it would otherwise leave every route tagged with a
-// name the machine no longer answers to, so resolve to what it is called now.
+// name the machine no longer answers to, so resolve to what it is called now: its full name,
+// so nothing shown is a partial one (a dotted `adguard.lxc` resolves only with the base
+// domain on), or its plain name when it has none.
 export function machineLabel(machineId: string, rows: RouteRow[]): string {
   const machine = rows.find((r) => r.id === machineId);
-  return machine?.name ?? machineId;
+  return machine ? (machine.fqdn ?? machine.name) : machineId;
 }
 
 // Routes hosted on a machine — read off the rows already fetched, no extra request.

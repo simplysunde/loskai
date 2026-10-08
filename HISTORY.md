@@ -15,7 +15,8 @@ start moving with a machine.
 The same day, a linked row stopped reading `<machine>:<port>` (Phase 30's `nas:32400`): a
 machine named `adguard.lxc` made it `adguard.lxc:3000`, which looks like an address and is
 not one — the name resolves only with the base domain on. Every row now shows its real
-address, and the machine (linked or matched, by icon) sits beneath it.
+address, and the machine (linked or matched, by icon) sits beneath it — by its **full**
+name, `adguard.lxc.sunde.home`, for the same reason: the short one is not an address either.
 
 ## 2026-10-08 — The Routing table's Live column is gone
 

@@ -108,11 +108,12 @@ test("a linked upstream shows its address, the machine it follows beneath", () =
   render(
     <ServiceTable
       rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
-      machines={[row({ id: "nas", name: "nas", upstream: "192.168.10.50", kind: "machine" })]}
+      machines={[row({ id: "nas", name: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
   expect(screen.getByText("192.168.10.50:32400")).toBeInTheDocument();
-  expect(screen.getByText("nas").closest("div")).toContainElement(
+  // The full name — `nas` alone would not resolve.
+  expect(screen.getByText("nas.example.no").closest("div")).toContainElement(
     screen.getByRole("img", { name: /^Linked/ }),
   );
   expect(screen.queryByText("nas:32400")).not.toBeInTheDocument();
@@ -129,9 +130,10 @@ test("a linked upstream follows a rename", () => {
   render(
     <ServiceTable
       rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
-      machines={[row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", kind: "machine" })]}
+      machines={[row({ id: "nas", name: "Storage box", fqdn: null, upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
+  // No DNS name, so the plain one — the current one, not the id.
   expect(screen.getByText("Storage box")).toBeInTheDocument();
 });
 
@@ -230,15 +232,13 @@ test("an unlinked upstream on a machine's address names that machine, without li
     />,
   );
 
-  // Its name, not its FQDN — the upstream cell is busy enough.
   const plex = screen.getByText("plex").closest("tr") as HTMLElement;
   expect(plex).toHaveTextContent("192.168.10.50:32400");
-  expect(within(plex).getByText("Storage box")).toBeInTheDocument();
+  expect(within(plex).getByText("nas.example.no")).toBeInTheDocument();
   expect(within(plex).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
   // The linked row names the machine too, with the other icon; the unrelated one, nothing.
   const linked = screen.getByText("linked").closest("tr") as HTMLElement;
   expect(within(linked).getByRole("img", { name: /^Linked/ })).toBeInTheDocument();
   expect(within(linked).queryByRole("img", { name: /^Matched by IP/ })).not.toBeInTheDocument();
-  expect(screen.getAllByText("Storage box")).toHaveLength(2);
-  expect(screen.queryByText("nas.example.no")).not.toBeInTheDocument();
+  expect(screen.getAllByText("nas.example.no")).toHaveLength(2);
 });
