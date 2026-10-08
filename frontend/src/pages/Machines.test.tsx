@@ -94,16 +94,20 @@ test("lists machines only, each with the routes hosted on it beneath", async () 
   expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
 });
 
-test("a hosted route links out, its DNS state under the DNS column", async () => {
+test("a hosted route links out under URL, its DNS state under DNS", async () => {
   renderPage();
   const plexRow = (await screen.findByText("plex")).closest("tr") as HTMLElement;
+  const [, url, address, dns] = within(plexRow).getAllByRole("cell");
 
-  expect(within(plexRow).getByRole("link", { name: "plex.example.no" })).toHaveAttribute(
+  expect(within(url).getByRole("link", { name: "plex.example.no" })).toHaveAttribute(
     "href",
     "https://plex.example.no",
   );
-  // The DNS column — where the FQDN used to sit.
-  expect(within(plexRow).getAllByRole("cell")[2]).toHaveTextContent("missing");
+  expect(address).toHaveTextContent(":32400");
+  expect(dns).toHaveTextContent("missing");
+  // The machine's own name sits in the same URL column, on its row.
+  const [, nasUrl] = within(nasRow()).getAllByRole("cell");
+  expect(nasUrl).toHaveTextContent("nas.example.no");
 });
 
 test("deleting a machine names the routes that will stop following it", async () => {

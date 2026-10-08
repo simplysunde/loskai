@@ -43,6 +43,7 @@ export function MachineTable({
         <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
           <tr>
             <th className="px-4 py-2.5 font-medium">Machine</th>
+            <th className="px-4 py-2.5 font-medium">URL</th>
             <th className="px-4 py-2.5 font-medium">Address</th>
             <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
             <th className="px-4 py-2.5 font-medium text-right">Actions</th>
@@ -59,15 +60,15 @@ export function MachineTable({
               return (
                 <Fragment key={m.id}>
                   <tr className="border-t border-slate-800/70 hover:bg-slate-900/40">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-100">{m.name}</div>
-                      <div className="text-xs text-slate-500">{m.fqdn}</div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2 font-medium text-slate-100">{m.name}</td>
+                    {/* Plain text, not a link: a machine's name is DNS only, so nothing
+                        is promised to answer on it over https. */}
+                    <td className="px-4 py-2 text-xs text-slate-400">{m.fqdn ?? "—"}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
+                    <td className="px-4 py-2">
                       <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1.5">
                         {onAddRoute && (
                           <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
@@ -89,31 +90,31 @@ export function MachineTable({
                   </tr>
                   {deps.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 pb-3 pl-10 text-xs text-slate-600">
+                      <td colSpan={5} className="px-4 pb-2 pl-10 text-xs text-slate-600">
                         No routes on this machine.
                       </td>
                     </tr>
                   ) : (
                     deps.map(({ d, linked }) => (
                       <tr key={d.id} className="text-xs hover:bg-slate-900/40">
-                        <td className="py-1.5 pl-6 pr-4">
+                        <td className="py-1 pl-6 pr-4">
                           <div className="flex items-center gap-1.5 text-slate-300">
                             <CornerDownRight className="h-3.5 w-3.5 text-slate-600" />
                             {d.name}
                             <MachineLinkIcon auto={!linked} />
                           </div>
-                          <div className="mt-1 pl-5">
-                            {d.fqdn ? (
-                              <RouteLink host={d.fqdn} scheme={d.scheme} />
-                            ) : (
-                              <span className="text-slate-600">not routed</span>
-                            )}
-                          </div>
                         </td>
-                        <td className="px-4 py-1.5 font-mono text-slate-500">
+                        <td className="px-4 py-1">
+                          {d.fqdn ? (
+                            <RouteLink host={d.fqdn} scheme={d.scheme} />
+                          ) : (
+                            <span className="text-slate-600">not routed</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-1 font-mono text-slate-500">
                           :{splitUpstream(d.upstream ?? "").port || "—"}
                         </td>
-                        <td className="px-4 py-1.5" colSpan={2}>
+                        <td className="px-4 py-1" colSpan={2}>
                           {d.routed && <DnsCell present={d.dnsPresent} conflict={d.dnsConflict} />}
                         </td>
                       </tr>
