@@ -6,6 +6,16 @@ A single Docker container that acts as the control plane for your entire homelab
 four independent modules (Docker, Caddy, AdGuard, WireGuard) behind one web UI. Each
 degrades gracefully; nothing depends on another module being healthy.
 
+![The Routing tab](docs/images/routing.png)
+
+- **A name for every service** — `jellyfin.home.lan` instead of `192.168.10.20:8096`, over
+  HTTPS. One step sets both the Caddy route and the AdGuard DNS entry.
+- **Machines by name** — routes on a machine follow it when its address changes.
+- **Docker, grouped by stack** — start, stop, update, edit, and install apps from recipes.
+- **A dashboard** — every service as a launcher card, usable without logging in.
+
+What each tab does: [Using Loskai](docs/guides/using-loskai.md).
+
 ## Run it (Docker)
 
 ```bash
@@ -67,7 +77,7 @@ make frontend           # Vite on :5173, proxies /api/* -> :8000
 make test-backend       # pytest      (one test: cd backend && uv run pytest tests/test_x.py::test_name)
 make test-frontend      # vitest
 
-make check-docs         # doc links, anchors and orphans (see docs/README.md)
+make check-docs         # doc links, and this repo's docs against the code (see docs/README.md)
 ```
 
 Dev is two servers (`:8000` API + `:5173` UI); production is one process on `:8080`
@@ -81,10 +91,11 @@ serving the API and the built bundle together. That bundle is
 **[Full documentation index →](docs/README.md)** — grouped into guides, reference and
 contributing, each page labelled with when to read it.
 
-The four most people need:
+The five most people need:
 
 - [Install guide](docs/guides/install.md) — start here. Step by step for the recommended
   Proxmox layout: AdGuard + Caddy LXCs, then Loskai in Docker.
+- [Using Loskai](docs/guides/using-loskai.md) — what each tab is for, with an example.
 - [Topologies](docs/guides/topologies.md) — read *before* installing if you're unsure where
   each piece should run. Compares the three layouts and recommends two.
 - [Deploying the container](docs/guides/deployment.md) — env vars, volumes, cold start.

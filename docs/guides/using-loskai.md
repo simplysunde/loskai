@@ -13,6 +13,8 @@ Nothing else is stored.
 
 ## Dashboard
 
+![Dashboard](../images/dashboard.png)
+
 A launcher: one card per routed service, public so the whole household can use it. Hide a
 card with the eye on its Routing row; give it an icon with the image button on the same row.
 
@@ -25,6 +27,8 @@ This page hands out that certificate with install steps per OS. Once per device 
 ## Docker
 
 Your containers, grouped by compose project.
+
+![Docker](../images/docker.png)
 
 - **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
   pull + update, edit the `compose.yml`/`.env`, or delete — **Delete keeps `./data` unless you
@@ -45,6 +49,8 @@ Recipes come from git repos listed in **Settings › General**, plus any you dro
 `data/recipes/` ([recipe-schema.md](../reference/recipe-schema.md)).
 
 ## Routing
+
+![Routing](../images/routing.png)
 
 Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has it) and
 **DNS** (AdGuard has it).
@@ -68,6 +74,8 @@ button to route AdGuard's own UI; **Caddy** shows the address every name answers
 ## Machines
 
 The computers on your network, by name — a name with no port.
+
+![Machines](../images/machines.png)
 
 > *Example:* name `192.168.10.177` **proxmox** and it gets `proxmox.home.lan`. Add a route
 > for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
