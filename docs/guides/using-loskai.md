@@ -1,0 +1,87 @@
+# Using Loskai
+
+**Read this after installing**, when the UI is up and you want to know what each tab is
+for. One section per tab, each with an example. The examples use `home.lan` as the base
+domain and `192.168.10.20` as the Docker host.
+
+## The idea in one paragraph
+
+Every service gets a name like `jellyfin.home.lan`. **Caddy** answers that name and
+forwards to the service (the *route*); **AdGuard** tells your devices where the name lives
+(the *DNS rewrite*). Loskai does both in one step and remembers it in `data/instances.json`.
+Nothing else is stored.
+
+## Dashboard
+
+A launcher: one card per routed service, public so the whole household can use it. Hide a
+card with the eye on its Routing row; give it an icon with the image button on the same row.
+
+## Certificate
+
+Loskai's names use Caddy's own certificate authority, which your devices don't trust yet.
+This page hands out that certificate with install steps per OS. Once per device — see
+[certificate-setup.md](certificate-setup.md).
+
+## Docker
+
+Your containers, grouped by compose project.
+
+- **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
+  pull + update, edit the `compose.yml`/`.env`, or delete — **Delete keeps `./data` unless you
+  tick it**, so installing again picks the data back up.
+- **Other containers** were started elsewhere (another compose folder, `docker run`).
+  Start, stop and remove work; editing doesn't — the files aren't Loskai's.
+- **Volumes** lists Docker volumes and which containers use them. An unused one can be
+  deleted.
+
+**Install recipe** opens the catalog. A recipe is a ready-made `compose.yml` plus the
+questions it needs answered.
+
+> *Example:* pick **Jellyfin**, add your media folder, press Install. Loskai writes
+> `stacks/jellyfin/`, runs it, and offers a prefix — type `jellyfin` and it is live at
+> `https://jellyfin.home.lan`.
+
+Recipes come from git repos listed in **Settings › General**, plus any you drop into
+`data/recipes/` ([recipe-schema.md](../reference/recipe-schema.md)).
+
+## Routing
+
+Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has it) and
+**DNS** (AdGuard has it).
+
+**Add route** offers three sources:
+
+| Source | For | Example |
+|---|---|---|
+| Container | a container on this host | `whoami` → `whoami.home.lan` → `192.168.10.20:8081` |
+| Network service | AdGuard, your router, Caddy itself | `adguard.home.lan` → AdGuard's web UI |
+| External | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
+
+A container route can **follow its container** (on by default when Loskai can work out its
+address): if it comes back on another port, the route is updated. Per route you can also
+pick **HTTPS** (the default), **HTTP** for a device that can't trust the certificate, or
+**Both**.
+
+The two pills at the top: **AdGuard** shows whether DNS is reachable, and has a one-click
+button to route AdGuard's own UI; **Caddy** shows the address every name answers with.
+
+## Machines
+
+The computers on your network, by name — a name with no port.
+
+> *Example:* name `192.168.10.177` **proxmox** and it gets `proxmox.home.lan`. Add a route
+> for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
+> machine once and the route moves with it.
+
+Under each machine are the routes it hosts, with one of two icons:
+
+- **Chain — linked.** Made with the machine as the host. Follows it when its address changes.
+- **Wand — matched.** Just happens to use the same IP. Shown for convenience, but keeps its
+  address if the machine moves.
+
+## Settings
+
+- **General** — base domain, the Docker host's IP, recipe sources, export a backup.
+- **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
+  Each service is optional: one that is unset or down greys out only its own part of the UI.
+- **Security** — the admin password.

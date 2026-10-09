@@ -18,6 +18,7 @@ and [`todo-archive.md`](../todo-archive.md) (completed phases 1–13).
 | I want to… | Go to |
 |---|---|
 | **Install Loskai** for the first time | [Install guide](guides/install.md) |
+| Know **what each tab does** once it's running | [Using Loskai](guides/using-loskai.md) |
 | **Decide how to lay it out** across my machines | [Topologies](guides/topologies.md) |
 | **Configure a running container** — env vars, volumes | [Deployment](guides/deployment.md) |
 | **Fix a 502**, a redirect loop, a name that won't resolve | [Troubleshooting](guides/troubleshooting.md) |
@@ -35,6 +36,7 @@ Operating Loskai. Read in roughly this order the first time.
 | Page | When to read it |
 |---|---|
 | [install.md](guides/install.md) | Setting Loskai up from nothing. Walks the recommended Proxmox layout end to end — both LXCs, then the container — and carries a second walkthrough for split DNS, the recommendation without Proxmox. Start here. |
+| [using-loskai.md](guides/using-loskai.md) | Right after installing. One section per tab — what it is for, with an example — and the two link icons on Machines. |
 | [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which two are recommended, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
@@ -50,7 +52,7 @@ Exact contracts. Two kinds, and the difference matters:
 
 | Page | When to read it |
 |---|---|
-| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 36 routes; the live `/docs` (Swagger) is authoritative. |
+| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 48 routes; the live `/docs` (Swagger) is authoritative. |
 | [recipe-schema.md](reference/recipe-schema.md) | Authoring a `recipe.yml`, or changing the install wizard's validation. Recipes are declarative data — validated, never executed. |
 
 **External APIs Loskai calls** — the subset it depends on, and *why* each call is made.
