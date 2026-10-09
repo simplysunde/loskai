@@ -490,6 +490,7 @@ def test_install_writes_the_generated_env(installable, monkeypatch):
     recipes.install_recipe("grafana", {"PORT": "3000", "PW": "pa$word1"})
     stack = recipes.stacks.stacks_dir() / "grafana"
     assert (stack / ".env").read_text() == 'PORT="3000"\nPW="pa\\$word1"\n'
+    assert (stack / ".env").stat().st_mode & 0o777 == 0o600  # only its owner reads the password
     assert "image: x" in (stack / "compose.yml").read_text()
 
 

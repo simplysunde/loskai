@@ -20,6 +20,7 @@ from starlette.responses import JSONResponse
 
 from ..config import settings as env
 from . import settings as settings_store
+from . import store
 
 _ph = PasswordHasher()
 
@@ -74,7 +75,7 @@ def _session_secret() -> str:
         return path.read_text(encoding="utf-8").strip()
     secret = secrets.token_urlsafe(48)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(secret, encoding="utf-8")
+    store.write_private(path, secret)
     return secret
 
 

@@ -75,3 +75,15 @@ def update_json(path: str | Path, default: Any, mutate: Callable[[Any], Any]) ->
         data = mutate(read_json(path, default))
         write_json(path, data)
         return data
+
+
+def write_private(path: str | Path, text: str) -> None:
+    """Write a text file only its owner can read — an `.env` or a secret.
+
+    `write_text` would leave it world-readable (0644 under the usual umask), and an existing
+    file keeps whatever mode it had, so the mode is set on the open file as well."""
+    p = Path(path)
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        os.fchmod(f.fileno(), 0o600)
+        f.write(text)

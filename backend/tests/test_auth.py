@@ -27,6 +27,12 @@ def test_session_sign_and_verify():
     assert not auth.valid_session(None)
 
 
+def test_the_session_secret_is_owner_only(tmp_path):
+    # Whoever can read it can sign an admin session.
+    auth.make_session()
+    assert (tmp_path / "session_secret").stat().st_mode & 0o777 == 0o600
+
+
 def test_ensure_seeded_sets_hash_from_env(monkeypatch):
     assert not auth.password_set()
     monkeypatch.setattr(config.settings, "loskai_password", "seeded-password")

@@ -80,6 +80,7 @@ def test_create_stack_writes_files(stacks_dir, monkeypatch):
     stacks.create_stack("new", COMPOSE, "SECRET=x\n")
     assert (stacks_dir / "new" / "compose.yml").read_text() == COMPOSE
     assert (stacks_dir / "new" / ".env").read_text() == "SECRET=x\n"
+    assert (stacks_dir / "new" / ".env").stat().st_mode & 0o777 == 0o600  # it holds passwords
 
 
 def test_create_refuses_when_dir_missing(stacks_dir, monkeypatch):
@@ -94,6 +95,14 @@ def test_update_stack_file_guards_filename(stacks_dir):
         stacks.update_stack_file("web", "evil.sh", "rm -rf /")
     stacks.update_stack_file("web", ".env", "K=V\n")
     assert (stacks_dir / "web" / ".env").read_text() == "K=V\n"
+
+
+def test_saving_an_env_makes_it_owner_only(stacks_dir):
+    # A .env written by an older Loskai, or by hand, was world-readable; saving it fixes that.
+    d = _make_stack(stacks_dir, "web", env="PW=old\n")
+    (d / ".env").chmod(0o644)
+    stacks.update_stack_file("web", ".env", "PW=new\n")
+    assert (d / ".env").stat().st_mode & 0o777 == 0o600
 
 
 def test_delete_stack_removes_dir(stacks_dir, monkeypatch):

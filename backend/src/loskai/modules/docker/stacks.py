@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from ...config import settings
+from ...shared import store
 from . import logic
 from .client import DOCKER_ERRORS, docker_client
 
@@ -181,7 +182,7 @@ def create_stack(name: str, compose_content: str, env_content: str = "") -> dict
     directory, _ = claim_dir(name)
     (directory / "compose.yml").write_text(compose_content, encoding="utf-8")
     if env_content:
-        (directory / ".env").write_text(env_content, encoding="utf-8")
+        store.write_private(directory / ".env", env_content)
     return _run_compose(directory, "up", "-d")
 
 
@@ -191,7 +192,10 @@ def update_stack_file(name: str, file: str, content: str) -> None:
     directory = _stack_dir(name)
     if not directory.is_dir():
         raise StackError(f"stack '{name}' not found")
-    (directory / file).write_text(content, encoding="utf-8")
+    if file == ".env":
+        store.write_private(directory / file, content)
+    else:
+        (directory / file).write_text(content, encoding="utf-8")
 
 
 def delete_stack(name: str, delete_data: bool = False) -> dict:

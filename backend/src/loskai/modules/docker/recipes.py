@@ -21,6 +21,7 @@ from ...config import settings
 from ...shared import icons
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
+from ...shared import store
 from ...shared.instances import Instance
 from . import logic, stacks
 from .client import DOCKER_ERRORS, describe_error, docker_client
@@ -559,7 +560,7 @@ def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None 
         _git_clone(recipe["git_repo"], target)
 
     (target / "compose.yml").write_text(compose_src.read_text(encoding="utf-8"), encoding="utf-8")
-    (target / ".env").write_text(render_env(values), encoding="utf-8")
+    store.write_private(target / ".env", render_env(values))
     override = target / stacks.OVERRIDE_NAME
     if pairs:
         spec = recipe["mounts"]
