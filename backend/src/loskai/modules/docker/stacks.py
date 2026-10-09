@@ -16,7 +16,7 @@ from pathlib import Path
 from ...config import settings
 from ...shared import store
 from . import logic
-from .client import DOCKER_ERRORS, docker_client
+from .client import DOCKER_ERRORS, describe_error, docker_client
 
 _COMPOSE_NAMES = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
 # Compose merges an override beside the compose file on its own. The install wizard writes
@@ -213,7 +213,15 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
     if _compose_file(directory) is not None:
         result = _run_compose(directory, "down")
     if delete_data:
-        shutil.rmtree(directory)
+        try:
+            shutil.rmtree(directory)
+        except PermissionError:
+            # Files the app wrote as its own user, which Loskai's user can't remove.
+            try:
+                docker_client.clear_folder(str(directory))
+            except DOCKER_ERRORS as exc:
+                raise StackError(f"could not delete the data: {describe_error(exc)}")
+            directory.rmdir()
         return {**result, "kept": []}
     for n in _CONFIG_NAMES:
         (directory / n).unlink(missing_ok=True)

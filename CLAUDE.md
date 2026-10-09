@@ -6,15 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
 `backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
-install wizard) has run live and passed** (2026-10-03), git sync included — open for one
-bug: the root container leaves root-owned files on the host. **Phase 29** (a Docker route
+install wizard) has run live and passed** (2026-10-03), git sync included; its last bug (root-owned files on the host) was fixed
+2026-10-09 — the app now runs as the owner of `./data`. **Phase 29** (a Docker route
 follows its container) is built and verified live, bar a daemon-restart check that needs
 root. **Phase 30** (UI polish — a Machines tab, Machine/Address upstreams, Docker by stack +
 volumes, the recipe catalog that routes its install) is built and verified live. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (459 + 204 + docs).
+All three checks pass (463 + 204 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -229,6 +229,10 @@ must replay except the AdGuard password; its *own* admin password is stored only
   sync needs both present and teardown removes both. Routes go in at **index 0 of each** —
   `:80` for the same reason as `:443`, plus its catch-all setup site and Caddy's own
   HTTP→HTTPS redirects, which would otherwise win.
+- **The app runs as the owner of `./data`, not root** (`scripts/container-entrypoint.sh`
+  drops to it, plus the socket's group). Anything Loskai writes on the host must work owned
+  by that user, and anything holding a secret goes through `store.write_private` (`0600`).
+  Never `chown` below a stack's own files — `stacks/<name>/data/` is the app's.
 - **Loskai never handles the ACME/DNS-challenge token or private-registry credentials** —
   those live with Caddy / the Docker host. Registry `docker login` is a host precondition.
 - **Recipes are declarative data, validated but never executed** — synced from any number

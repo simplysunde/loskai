@@ -160,6 +160,29 @@ def test_delete_with_data_removes_the_folder(stacks_dir, monkeypatch):
     assert not (stacks_dir / "web").exists()
 
 
+def test_data_loskai_cannot_delete_is_removed_through_the_daemon(stacks_dir, monkeypatch):
+    # A database writes its files as its own user; Loskai, not root, can't remove them.
+    d = _with_data(stacks_dir, "web")
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    real_rmtree = stacks.shutil.rmtree
+
+    def denied(path):
+        raise PermissionError(13, "Permission denied")
+
+    def clear(path):
+        cleared.append(path)
+        for child in d.iterdir():
+            real_rmtree(child) if child.is_dir() else child.unlink()
+
+    cleared = []
+    monkeypatch.setattr(stacks.shutil, "rmtree", denied)
+    monkeypatch.setattr(stacks.docker_client, "clear_folder", clear)
+
+    assert stacks.delete_stack("web", delete_data=True)["kept"] == []
+    assert cleared == [str(d)]
+    assert not d.exists()
+
+
 def test_delete_always_stops_the_stack_first(stacks_dir, monkeypatch):
     _with_data(stacks_dir, "web")
     ran = []

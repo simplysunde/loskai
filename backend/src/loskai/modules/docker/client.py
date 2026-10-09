@@ -246,6 +246,17 @@ class DockerClient:
         ]
         return logic.volume_rows(volumes, containers)
 
+    def clear_folder(self, path: str) -> None:
+        """Empty a folder Loskai's own user cannot: an app's data, written as the app's user.
+        A throwaway container from Loskai's own image does it as root. Stacks are mounted at
+        the same path inside and out, so `path` means the same thing to the daemon."""
+        client = self._get()
+        me = client.containers.get(socket.gethostname())  # NotFound outside a container
+        client.containers.run(
+            me.image.id, ["/target", "-mindepth", "1", "-delete"], entrypoint="find", user="0",
+            volumes={path: {"bind": "/target", "mode": "rw"}}, remove=True,
+        )
+
     def remove_volume(self, name: str) -> None:
         # Never forced: Docker refuses a volume any container still mounts, stopped ones
         # included — that refusal is the safety check, current as of this call.

@@ -276,3 +276,21 @@ def test_a_container_whose_stats_fail_gets_none(monkeypatch, data_dir):
     stats = DockerClient().container_stats()
     assert stats["leaving01234"] == {"cpu": None, "mem": None}
     assert stats["staying01234"]["cpu"] is not None
+
+
+def test_clear_folder_runs_find_as_root_from_loskais_own_image(monkeypatch):
+    me = FakeContainer("loskai")
+    me.image = SimpleNamespace(id="sha256:loskai")
+    runs = []
+    fake = FakeDocker([])
+    fake.containers.get = lambda name: me if name == "3f2a9c1b7e4d" else None
+    fake.containers.run = lambda image, command, **kw: runs.append((image, command, kw))
+    _use(monkeypatch, fake)
+    monkeypatch.setattr(client_mod.socket, "gethostname", lambda: "3f2a9c1b7e4d")
+
+    DockerClient().clear_folder("/srv/stacks/db")
+    image, command, kw = runs[0]
+    assert image == "sha256:loskai"
+    assert kw["entrypoint"] == "find" and command == ["/target", "-mindepth", "1", "-delete"]
+    assert kw["user"] == "0" and kw["remove"] is True
+    assert kw["volumes"] == {"/srv/stacks/db": {"bind": "/target", "mode": "rw"}}

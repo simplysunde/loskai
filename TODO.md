@@ -7,9 +7,8 @@ daemon-restart check is unrun (it needs root). **Phase 28** also has **run live 
 (2026-10-03): the first real recipe
 installed, linked to the right container, routed without a duplicate — and the run found and
 fixed `.env` generation silently corrupting secrets; the git sync path works too. Reinstall
-now keeps the route record, and a stack's Delete keeps its data unless asked. **One bug left,
-needing a decision:** the container runs as root, so its files on the host — state and
-wizard-created stacks — are root-owned (which user should it run as).
+now keeps the route record, and a stack's Delete keeps its data unless asked. Its last bug —
+root-owned files on the host — is fixed (2026-10-09): the app runs as the owner of `./data`.
 
 Phases 13–27 are closed and **Phase 12 is complete** — 12a in Phase 19, 12b as Phase 22, 12c
 as Phase 26 (2026-09-27). Phase 25 removed ACME support the same day: the internal CA is the
@@ -1002,7 +1001,7 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       `01cd37ce877168ed`, mounts on `stacks/bambuddy/data`, its route record kept. Once it
       matches, remove the pre-migration volumes `bambuddy_bambuddy_data` and
       `bambuddy_bambuddy_logs` and `stacks/bambuddy/compose.yml.volumes-backup`
-- [ ] **The container runs as root, so everything it writes on the host is root-owned** (found
+- [x] **The container runs as root, so everything it writes on the host is root-owned** (found
       2026-10-03, the first time the redeployed container wrote state). `data/instances.json`
       became `root:root 0600` — unreadable to the host user, which also breaks a dev backend
       run against the same `data/` — and a wizard-created stack is `root:root`, so it **can't
@@ -1010,6 +1009,16 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
       `.env` is `0644`, world-readable, which matters once a recipe asks for a password.
       Phase 18's `.gitkeep`s only covered the directories. Needs a decision on the container's
       user: it also needs the docker socket's group
+      **Fixed 2026-10-09** — Sunde chose "match the folder's owner": an entrypoint drops to the
+      owner of `./data` plus the socket's group, and hands back what root wrote (`data/`, each
+      stack's folder, compose files and `.env`; never `stacks/<name>/data/`). `.env` and
+      `session_secret` are `0600`. Delete-with-data falls back to a throwaway root container
+      for files the app wrote as its own user. **Live on this VM:** the app runs as `vm`
+      (1000, groups 988,1000); `instances.json`, `recipes-cache`, both stacks back to `vm`;
+      `bambuddy/data` untouched; as that user — 7 containers listed, git sync, `whoami`
+      restart, and Delete-with-data on a stack holding 999-owned `0700` files, all OK. The
+      first run found source files `0600` in the working tree, unreadable once not root —
+      the image now `chmod a+rX`es them
 - [x] **The git sync path — worked, run by Sunde** (2026-10-03): pushed, synced from Settings,
       and `whoami` installed from it into `stacks/whoami`. The cache
       `data/recipes-cache/loskai-recipes-2bc51ad3` is at `5b94ac7`, matching `origin/main`,

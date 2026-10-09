@@ -17,3 +17,4 @@ docs
 *.md
 !backend/README.md
 scripts
+!scripts/container-entrypoint.sh

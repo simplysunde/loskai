@@ -44,12 +44,19 @@ RUN uv sync --frozen --no-dev
 
 # The built bundle, served as static files (config default: static_dir="static").
 COPY --from=frontend /app/dist ./static
+# Readable by the user the app drops to (see the entrypoint), whatever mode the files had
+# in the working tree they were copied from.
+RUN chmod -R a+rX src static
 
 # State lives on the bind mount, stated here rather than left to the config default:
 # that default is anchored to the source tree's root, which lands on `/` in this image
 # only by accident of how deep `src/loskai/` sits. Every compose file passes this too;
 # this is what makes a plain `docker run -v ./data:/data` correct as well.
 ENV LOSKAI_DATA_DIR=/data
+
+# Starts as root only to run the app as whoever owns ./data — see the script.
+COPY scripts/container-entrypoint.sh /usr/local/bin/loskai-entrypoint
+ENTRYPOINT ["loskai-entrypoint"]
 
 EXPOSE 8080
 # --no-sync: never touch the locked env at runtime (it's already synced).

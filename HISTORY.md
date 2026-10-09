@@ -1,5 +1,23 @@
 # Loskai — History
 
+## 2026-10-09 — Loskai runs as the owner of `./data`, not root
+
+The container ran as root, so everything it wrote on the host was `root:root`: state you
+couldn't read, a wizard-created stack you couldn't edit over SSH without `sudo`, and a `.env`
+of install passwords left `0644` for every user. Three ways out were weighed: a fixed
+`user:` in compose (every user looks up their UID and their host's docker group number —
+988 here, 999 elsewhere — and a wrong one shows as "Docker unreachable"); staying root and
+`chown`ing after each write (seven places today, and every future one has to remember); or
+an entrypoint that reads both numbers off the host. **Sunde chose the entrypoint**: zero
+config, and the owner comes out right whoever cloned the repo.
+
+It also hands back what a root-run Loskai left, but stops at a stack's own files —
+`stacks/<name>/data/` is the app's, often a database's uid 999, and chowning it would break
+that app. That same data is why Delete-with-data gained a fallback: what Loskai's user can't
+remove, a throwaway container from Loskai's own image removes as root, so dropping root
+loses nothing the UI could do before. `user:` set by hand, or a `./data` owned by root, runs
+exactly as before.
+
 ## 2026-10-08 — A recipe can ship an icon, PNG only
 
 A recipe folder may hold an `icon.png`: the wizard shows it in the catalog, and the install

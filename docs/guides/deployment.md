@@ -107,6 +107,29 @@ Three mounts on the `loskai` service:
 
 Root-equivalent on the host. Loskai must be the **only** container with it mounted.
 
+### Who owns the files Loskai writes
+
+The app runs as **whoever owns `./data`**, not as root, so the files it writes on the host
+are yours: you can read its state and edit a stack's `compose.yml` over SSH without `sudo`.
+Clone the repo as `vm` (uid 1000) and Loskai writes as uid 1000. Nothing to configure. The
+container starts as root only for its entrypoint
+([`scripts/container-entrypoint.sh`](../../scripts/container-entrypoint.sh)), which looks
+that owner up and drops to it, adding the socket's group (`stat -c %g /var/run/docker.sock`
+— 988 on one host, 999 on another, which is why it is read, not set).
+
+On the way it hands back what an older, root-run Loskai left: everything in `./data`, and in
+each stack the folder, its compose files and `.env`. **Never deeper** — `stacks/<name>/data/`
+belongs to the user the app inside runs as (a database's files are often uid 999), and
+changing it could stop that app starting. A stack's **Delete with data** still removes those
+files: what Loskai's user can't, a throwaway container from Loskai's own image removes as
+root.
+
+- A `.env` and the session secret are written `0600`, readable by their owner only.
+- `./data` owned by root (a clone made with `sudo`), or `user:` set on the service: Loskai
+  runs as that, exactly as before.
+- `STACKS_DIR` set to a folder the same user can't write (`/srv/stacks` owned by root):
+  creating a stack fails. `chown` the folder to the owner of `./data`.
+
 ### `STACKS_DIR` — why the same path on both sides
 
 The host and container paths are deliberately **identical**. Loskai runs
