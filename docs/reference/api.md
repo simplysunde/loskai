@@ -158,4 +158,4 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 Recipe manifest format: [recipe-schema.md](recipe-schema.md).
 
-[PLAN.md → Security & Access]: ../PLAN.md
+[PLAN.md → Security & Access]: ../project/PLAN.md#security--access

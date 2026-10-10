@@ -4,7 +4,7 @@
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
 # Seven checks:
-#   1. Relative links that point at a file which doesn't exist.
+#   1. Relative links (inline or reference-style) that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
 #   4. docs/ paths cited from source and config (comments in .py, compose files, .env.example)
@@ -68,10 +68,16 @@ anchors = {
     for f, body in bodies.items()
 }
 
+def links(body: str) -> list[str]:
+    """Inline link targets, `[text](target)`, and reference definitions, `[label]: target`
+    — the second form was invisible here until a broken one turned up in api.md."""
+    return re.findall(r"\]\(([^)\s]+)\)", body) + re.findall(r"^\[[^\]]+\]:\s*(\S+)", body, re.M)
+
+
 problems = []
 for f, body in bodies.items():
     base = os.path.dirname(f) or "."
-    for target in re.findall(r"\]\(([^)\s]+)\)", body):
+    for target in links(body):
         if target.startswith(("http://", "https://", "mailto:")):
             continue
         path, _, frag = target.partition("#")
@@ -89,7 +95,7 @@ while queue:
         continue
     seen.add(cur)
     base = os.path.dirname(cur) or "."
-    for target in re.findall(r"\]\(([^)\s]+)\)", bodies[cur]):
+    for target in links(bodies[cur]):
         if target.startswith(("http://", "https://", "mailto:")):
             continue
         path = target.split("#")[0]
@@ -130,10 +136,12 @@ for p in sorted(pathlib.Path(".").rglob("*")):
         if not pathlib.Path(ref).exists():
             problems.append(f"  {p.as_posix()}: cites a doc that moved or is gone -> {ref}")
 
-# Paths written out in the docs that describe the repo as it is now. TODO.md and HISTORY.md
-# are excluded on purpose: they are chronological records, and a completed phase naming the
-# path a file had at the time is correct, not stale.
-CURRENT_STATE = [f for f in bodies if f.startswith("docs/") or f in ("README.md", "CLAUDE.md", "PLAN.md")]
+# Paths written out in the docs that describe the repo as it is now. TODO, HISTORY and the
+# archive are excluded on purpose: they are chronological records, and a completed phase
+# naming the path a file had at the time is correct, not stale.
+CHRONOLOGICAL = {"docs/project/TODO.md", "docs/project/HISTORY.md", "docs/project/todo-archive.md"}
+ROOT_PAGES = ("README.md", "CLAUDE.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md")
+CURRENT_STATE = [f for f in bodies if (f.startswith("docs/") and f not in CHRONOLOGICAL) or f in ROOT_PAGES]
 written = 0
 for f in CURRENT_STATE:
     for ref in set(re.findall(r"docs/[\w./-]+\.md", bodies[f])):

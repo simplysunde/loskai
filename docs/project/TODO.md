@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Project](../README.md#project)
+
 # Loskai — TODO
+
+**Read this when** you want what is being built now, or the backlog.
 
 **Now:** **Phase 30** (below) — UI polish across machines, routing, Docker and the recipe
 wizard — is built and verified live (2026-10-05). **Phase 29** is built and verified live — a Docker route follows its
@@ -30,7 +34,7 @@ public Certificate page). `pytest` (379) + `npm test` (131) + `check-docs.sh` al
   209 unit and contract tests never saw it and `/api/caddy/routes` reported `synced: true` and
   `upstream_healthy: true` the whole time. Full write-up in
   [`todo-archive.md`](todo-archive.md) Phase 16; the operator-facing version is
-  [`troubleshooting.md`](docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200).
+  [`troubleshooting.md`](../guides/troubleshooting.md#a-blank-page-or-an-empty-200).
 - **Nothing lives in `/opt` any more** (Phase 18, below). State is `./data:/data`, stacks
   default to `./stacks` beside the compose file, both directories are tracked with a
   `.gitkeep`, and a fresh `git clone` + `docker compose up -d` works with no `.env` and no
@@ -58,7 +62,7 @@ visible without unpacking a phase back out. The checklists stay in
     the `:80` server since August — the same rule the 2026-09-05 defect turned out to need
     for `:443`, a month later and at the cost of a day
   - ~~**12c** — Caddy as ACME server for HTTPS-native backends~~ **done 2026-09-27** —
-    [`backend-certificates.md`](docs/guides/backend-certificates.md). **Phase 12 is complete.**
+    [`backend-certificates.md`](../guides/backend-certificates.md). **Phase 12 is complete.**
 - ~~**Two live smokes that were never run** — Phases 10a and 13~~ **both ran 2026-09-16 and
   passed**, 10a together with Phase 19's browser check (below). Results are in each phase's
   checklist in [`todo-archive.md`](todo-archive.md)
@@ -748,7 +752,7 @@ pair of example configs and a build stage._
 ## Phase 26 — 12c: backend certificates, and Phase 12 closes
 
 _The last item of Phase 12, approved 2026-08-03 and documentation-only:
-[`docs/guides/backend-certificates.md`](docs/guides/backend-certificates.md). Caddy runs an
+[`docs/guides/backend-certificates.md`](../guides/backend-certificates.md). Caddy runs an
 `acme_server` against its **existing internal CA**, and a backend's own ACME client gets a
 leaf signed by the root every LAN device already trusts — so Proxmox's `:8006` is trusted
 **directly**, not only through the proxy._

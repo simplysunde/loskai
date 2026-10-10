@@ -1,7 +1,7 @@
 # Changelog
 
 What changed for someone running Loskai, newest first. The reasons behind each change are
-in [`HISTORY.md`](HISTORY.md).
+in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased — first public release
 

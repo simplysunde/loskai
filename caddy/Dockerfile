@@ -5,7 +5,7 @@
 # serve it on :80.
 #
 # Public ACME certs (DNS-01) were supported here until 2026-09-27 and removed deliberately —
-# see HISTORY.md. Loskai only inserts routes by `@id` and never writes this Caddyfile, so
+# see docs/project/HISTORY.md. Loskai only inserts routes by `@id` and never writes this Caddyfile, so
 # swapping `local_certs` for a `tls { dns <provider> … }` block and rebuilding with the
 # matching caddy-dns plugin is entirely a Caddy concern that Loskai will not notice.
 

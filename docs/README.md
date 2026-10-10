@@ -7,11 +7,7 @@ question they answer.
 - **[Guides](#guides)** — you want to run Loskai, or fix something that's misbehaving.
 - **[Reference](#reference)** — you want the exact contract: an endpoint, a payload, a schema.
 - **[Contributing](#contributing)** — you want to change the code.
-
-Project direction, history and the live task list are **not** here — they live at the repo
-root: [`PLAN.md`](../PLAN.md) (architecture and the *why*), [`TODO.md`](../TODO.md) (what's
-being built now), [`HISTORY.md`](../HISTORY.md) (what landed, when, and what it walked back),
-and [`todo-archive.md`](../todo-archive.md) (completed phases 1–13).
+- **[Project](#project)** — you want to know why it was built the way it was.
 
 ## Start here
 
@@ -71,6 +67,18 @@ are not obvious from the code.
 | [dev-testing.md](contributing/dev-testing.md) | Running Loskai locally — backend on `:8000`, Vite on `:5173`, throwaway Caddy + AdGuard containers. Includes a dev-rig-specific troubleshooting table. |
 | [lxc-script-authoring.md](contributing/lxc-script-authoring.md) | Adding a new `create-<service>-lxc.sh`. The safety invariants, the shared library to copy verbatim, and an authoring checklist. |
 
+## Project
+
+The maintainers' working files — long, chronological, and written for whoever builds
+Loskai next. Nobody needs them to run it.
+
+| Page | When to read it |
+|---|---|
+| [PLAN.md](project/PLAN.md) | You want the architecture and the *why* behind each module. |
+| [HISTORY.md](project/HISTORY.md) | Before reversing a decision: what landed, when, and what it walked back. |
+| [TODO.md](project/TODO.md) | What is being built now, and the backlog. |
+| [todo-archive.md](project/todo-archive.md) | How a finished phase (1–17) was built. |
+
 ## Conventions
 
 ### Where information goes
@@ -87,7 +95,7 @@ everywhere else.
 | Upgrader | What changed? | [CHANGELOG.md](../CHANGELOG.md) |
 | Security-minded | What can it touch on my host? | [SECURITY.md](../SECURITY.md) |
 | Contributor | How do I change it? | [CONTRIBUTING.md](../CONTRIBUTING.md), then [Contributing](#contributing) |
-| Maintainer | Why is it built this way? | [`PLAN.md`](../PLAN.md), [`HISTORY.md`](../HISTORY.md), [`TODO.md`](../TODO.md) |
+| Maintainer | Why is it built this way? | [Project](#project): plan, history, task list |
 
 **The app says *what* something is; the docs say *how* and *why*.** UI text stays a label
 or a one-line tooltip — never a paragraph.

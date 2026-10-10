@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Project](../README.md#project)
+
 # Loskai — Project Plan
+
+**Read this when** you want the architecture, and the *why* behind each module.
 
 ## Vision
 
@@ -232,7 +236,7 @@ skips Caddy entirely.
 - **The orphan sweep is widened accordingly**: it matches a leftover rewrite against either
   the shared Caddy IP or any currently-routed instance's own `dns_answer`, so `dns_only`
   leftovers get cleaned up the same way proxy ones do. This is a deliberate, slightly wider
-  blast radius than the old single-IP-only sweep — see [docs/reference/adguard-api.md](docs/reference/adguard-api.md).
+  blast radius than the old single-IP-only sweep — see [docs/reference/adguard-api.md](../reference/adguard-api.md).
 - **v1 scope**: the Routing UI only offers the dns_only toggle for `external`-type
   instances (a container's own IP is rarely the point — this is a frontend-only
   restriction, not a backend one) and only accepts bare IPv4 (no IPv6 yet).
@@ -374,7 +378,7 @@ daemon; it invents no new deployment method.
   against a fixed schema and drives it with its own engine — it never runs recipe-supplied
   code. A malformed recipe fails validation and is skipped; it can't push Loskai outside
   its three known install paths.
-- The `recipe.yml` schema is documented in [docs/reference/recipe-schema.md](docs/reference/recipe-schema.md) —
+- The `recipe.yml` schema is documented in [docs/reference/recipe-schema.md](../reference/recipe-schema.md) —
   the contract to author against (by hand or with an AI coder); there is no authoring UI.
 - **One folder per recipe** (same shape in either source):
   - `recipe.yml` — the manifest: `type`, display name, the `.env` question schema (`env:` —
@@ -632,7 +636,7 @@ Routes are not stored as their own thing. A route is simply an **instance** (see
 [Core Data Model](#core-data-model--instances)) that has a `subdomain` assigned. The
 Caddy live config is a **projection** of "every instance with a subdomain" — Loskai
 pushes those to Caddy via the Admin API by `id` (= Caddy `@id`). The exact endpoints are
-documented in [`docs/reference/caddy-api.md`](docs/reference/caddy-api.md).
+documented in [`docs/reference/caddy-api.md`](../reference/caddy-api.md).
 
 - **Flat sibling routes.** Each route is an independent top-level entry in the server's
   `routes` array, matching a single specific host (`grafana.example.no`) and keyed by
@@ -717,11 +721,11 @@ delete (the API has no bulk op), so **no automatic path touches a manually-added
 — a hand-added entry on the same domain is surfaced as a conflict, not overwritten. The
 one way a foreign rewrite is ever removed is the explicit reset in Settings › Network,
 which wipes the whole list and reconciles Loskai's own back (see
-[docs/reference/adguard-api.md](docs/reference/adguard-api.md) — Ownership). Each
+[docs/reference/adguard-api.md](../reference/adguard-api.md) — Ownership). Each
 instance records the answer Loskai last wrote for it (`dns_answer`), so if the Caddy IP
 ever changes a re-push deletes each instance's old entry and re-adds the new one — cleaning
 its own orphans while leaving anything it never set alone. Rationale and edge cases are in
-[docs/reference/adguard-api.md](docs/reference/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
+[docs/reference/adguard-api.md](../reference/adguard-api.md). (Unrelated to Caddy's wildcard TLS cert, which
 stays.)
 
 ### Features
@@ -1100,7 +1104,7 @@ the cert method, and Loskai handles zero certificate material either way.
 **Default — Caddy's internal CA.** Caddy runs with `local_certs` and signs every
 `*.BASE_DOMAIN` name with its own root: no real domain, no ACME/DNS token, no external
 dependency. LAN devices install that root **once** via the certificate-onboarding page
-(plain-HTTP on `:80` — see [`docs/guides/certificate-setup.md`](docs/guides/certificate-setup.md)); after
+(plain-HTTP on `:80` — see [`docs/guides/certificate-setup.md`](../guides/certificate-setup.md)); after
 that every current and future `*.BASE_DOMAIN` name is trusted. This is the mode Loskai
 targets today, in **both dev and production** — stock Caddy is enough, no xcaddy build needed.
 
@@ -1132,7 +1136,7 @@ Caddy is run as a systemd service with **`caddy run --resume`**. Because Caddy a
 its full config to disk after every Admin API change, `--resume` restores every route on
 restart with no action from Loskai — this is the normal reboot path. "Sync"
 (rebuilding routes from `instances.json`) is only the rare-case backstop for when that
-autosave is gone (fresh Caddy, wiped data dir). See [`docs/reference/caddy-api.md`](docs/reference/caddy-api.md).
+autosave is gone (fresh Caddy, wiped data dir). See [`docs/reference/caddy-api.md`](../reference/caddy-api.md).
 
 ### Caddyfile (bootstrap only — all routes come from Loskai via the Admin API)
 
@@ -1204,7 +1208,7 @@ otherwise single-process image.
 
 The full comparison — which ports each layout contests, which admin channels it leaves on the
 LAN, and the reasoning behind that recommendation — is
-[docs/guides/topologies.md](docs/guides/topologies.md), which also records the merged container
+[docs/guides/topologies.md](../guides/topologies.md), which also records the merged container
 above as the one considered-and-rejected arrangement. That page is the single source of truth
 for topology; this section
 deliberately carries only the summary, because the same port table previously lived here, in
@@ -1372,7 +1376,7 @@ The UI is split in two, so authentication lives **inside Loskai** (not a blanket
   **Machines are not services** and never appear: an address has no port to link to — put a
   machine's UI on the dashboard by routing it under a second name, which is also the only
   way to have both a proxied name and a directly-certified one (see
-  [backend-certificates.md](docs/guides/backend-certificates.md)).
+  [backend-certificates.md](../guides/backend-certificates.md)).
   Each card can carry an uploaded **icon** (`GET /api/instances/{id}/icon`, public because
   the wall is). **`GET /api/launcher`** is the same list *including private* services, behind
   the session — for a desktop launcher building shortcuts; `private` means "not on the public

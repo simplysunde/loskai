@@ -21,7 +21,7 @@
 # TLS is Caddy's internal CA (local_certs): it signs every name Loskai pushes, and LAN devices
 # install its root once via the onboarding page at http://<lxc-ip>/ — or Loskai's own
 # /certificate page. Public ACME certs were supported here until 2026-09-27 and removed
-# deliberately (see HISTORY.md): Loskai only inserts routes by @id and never writes this
+# deliberately (see docs/project/HISTORY.md): Loskai only inserts routes by @id and never writes this
 # Caddyfile, so anyone wanting DNS-01 can add a `tls` block themselves without Loskai caring.
 #
 # Infrastructure scaffolding — read it before running. It cannot be tested outside a

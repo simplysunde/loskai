@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Project](../README.md#project)
+
 # Loskai — TODO archive
+
+**Read this when** you want to know how a finished phase (1–17) was built.
 
 Completed phases, moved out of [`TODO.md`](TODO.md) to keep the file that is read at every
 session start small — **phases 1–13 on 2026-08-27** (Phase 15, D1) and **14–17 on
@@ -11,8 +15,8 @@ Two entries here are worth knowing about even if you never read the rest:
 - **Phase 16** carries the route-ordering defect — every route Loskai pushed was dead behind
   the Caddyfile's terminal wildcard block, and it failed as an empty `200` rather than a
   `502`. The current-state versions live in
-  [`caddy-api.md`](docs/reference/caddy-api.md#2-add--assign-a-route) and
-  [`troubleshooting.md`](docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200).
+  [`caddy-api.md`](../reference/caddy-api.md#2-add--assign-a-route) and
+  [`troubleshooting.md`](../guides/troubleshooting.md#a-blank-page-or-an-empty-200).
 - **Not everything in here is finished.** "Completed phases" was optimistic: **Phase 12** has
   no completion marker and every item unchecked. **Phases 10a and 13** each carried a live
   smoke that went unrun for weeks; both ran and passed on 2026-09-16. `TODO.md`'s *Open, not in flight* section is the index; this file
@@ -115,7 +119,7 @@ Two entries here are worth knowing about even if you never read the rest:
 ---
 
 ## Phase 4 — AdGuard Module
-_Contract: [docs/adguard-api.md](docs/reference/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
+_Contract: [docs/adguard-api.md](../reference/adguard-api.md). Explicit per-instance rewrites, no wildcard rewrite; answer = Caddy LAN IP (host of `CADDY_ADMIN_URL`, or `CADDY_HOST_IP` fallback)._
 **Backend**
 - [x] `modules/adguard/client.py` — async httpx wrapper for AdGuard `/control` API (Basic Auth)
   - `health()` — `GET /control/status`, reachable + `running`
@@ -209,7 +213,7 @@ _Contract: [docs/adguard-api.md](docs/reference/adguard-api.md). Explicit per-in
   - `create_stack(name, compose_content, env_content)` — write files + run up -d
   - `update_stack_file(name, file, content)` — write compose.yml or .env
   - `delete_stack(name)` — `docker compose down` then remove the stack directory (with confirmation)
-- [x] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](docs/reference/recipe-schema.md) (authored by hand/AI, no authoring UI)
+- [x] `modules/docker/recipes.py` — recipe engine: recipes are **declarative data synced from a public repo**, never executable code. Schema contract: [docs/recipe-schema.md](../reference/recipe-schema.md) (authored by hand/AI, no authoring UI)
   - **Two sources, one merged list**: the synced public repo (canonical) + a local dir `/opt/loskai/recipes/` in the settings volume (dev/testing scratchpad, no new mount). Both optional; both scanned identically
   - `sync_recipes()` — `git clone`/`pull` the public `recipes_repo_url` into a cache in the settings volume; no auth (public repo). Explicit only: called by the "Refresh recipes" action and optionally once on startup — no background polling. Falls back to the last-synced cache if the repo is unreachable
   - `list_recipes()` — scan both the repo cache and the local dir, read each folder's `recipe.yml`, validate against the manifest schema, skip + report malformed ones (never `exec` recipe content). On a name clash the **repo wins**; the shadowed local copy is flagged, not dropped silently. Empty when neither source has recipes
@@ -420,7 +424,7 @@ paid either way. Every case here disappears under the Backlog's real-domain path
       insert-at-0 request shape
 
 **12c — Caddy as ACME server for HTTPS-native backends** _(config + docs, no Loskai code)_
-**Done 2026-09-27** → [`docs/guides/backend-certificates.md`](docs/guides/backend-certificates.md)
+**Done 2026-09-27** → [`docs/guides/backend-certificates.md`](../guides/backend-certificates.md)
 - [x] Document running Caddy's `acme_server` backed by the existing internal CA, and pointing
       **Proxmox's built-in ACME client** at it. Proxmox then serves a leaf signed by the root
       LAN devices already trust — so `:8006` is trusted **directly**, not only through the
@@ -808,7 +812,7 @@ remainder ran on the dev VM once it had Docker, and both paths behaved as design
 _Origin (2026-08-30): a review of what Loskai can actually be deployed onto, prompted by the
 question "would AdGuard separate + Caddy & Loskai in one Docker stack be better than the
 current two options?". Comparing the layouts on **port ownership** produced
-[`docs/topologies.md`](docs/guides/topologies.md) (landed with this phase write-up) and surfaced one
+[`docs/topologies.md`](../guides/topologies.md) (landed with this phase write-up) and surfaced one
 real defect. Two layouts ship today (A split-LXC, B all-in-Docker); **C** (split DNS) is the
 one to build._
 
@@ -818,7 +822,7 @@ conflict (the only contested port is `53` against the host resolver, which is ho
 and survives the merge), it puts DNS, TLS and the root-equivalent Docker socket in one blast
 radius, and it would grow a supervisor onto the single-process image everyone else runs. B
 already answers "one box, nothing else set up" without any of that. The reasoning is kept in
-[`topologies.md` → Considered and not supported](docs/guides/topologies.md#considered-and-not-supported)
+[`topologies.md` → Considered and not supported](../guides/topologies.md#considered-and-not-supported)
 so it doesn't come back open. **The recommendation is now three-tier: A and C recommended, B
 the supported alternative with its caveats stated, D rejected.** Stage D is deleted; Stages
 A–C are unchanged in substance._
@@ -962,7 +966,7 @@ here; the I/O wiring lands after):
       `caddy:2019` over; Loskai itself stays off the edge network, which is for Caddy→backend
       traffic only
 - [x] Document joining a stack to `loskai-edge` (external network stanza) in
-      [`docs/topologies.md`](docs/guides/topologies.md) and [`docs/migration.md`](docs/guides/migration.md).
+      [`docs/topologies.md`](../guides/topologies.md) and [`docs/migration.md`](../guides/migration.md).
       topologies.md gets the stanzas + the four things that bite (keep `default` in the
       service's list or it loses its siblings; `external: true` means the Loskai stack comes up
       first; the port must still be discoverable; the mechanism is not C-exclusive).
@@ -977,7 +981,7 @@ here; the I/O wiring lands after):
       information. Revisit only if the edge network turns out to need *managing* from Loskai
       (joining/leaving a stack), which is a different feature
 - [x] Update `scripts/deploy.sh`'s `COMPOSE_FILE` note and the README run section for the third file
-- [x] [`docs/install.md`](docs/guides/install.md) currently walks through layout A only. Since C is
+- [x] [`docs/install.md`](../guides/install.md) currently walks through layout A only. Since C is
       the recommended path for anyone without Proxmox, it needs its own walkthrough —
       AdGuard on a Pi/mini-PC first, then the compose stack — or the guide splits at step 1.
       **Own walkthrough, not a split at step 1:** C is three steps to A's four (Caddy comes up
@@ -986,7 +990,7 @@ here; the I/O wiring lands after):
       converge at the end. The old "No Proxmox?" pointer section is replaced by C1/C2/C3, which
       reuse A's Step 1 post-setup list and Step 4 by link rather than restating them, and B
       keeps a short paragraph at the end as the no-second-box answer
-- [x] **[`topologies.md`](docs/guides/topologies.md) described C as unbuilt** — the comparison
+- [x] **[`topologies.md`](../guides/topologies.md) described C as unbuilt** — the comparison
       table's `Status` row said `planned` and the section blockquote said "Planned — see
       `TODO.md` Phase 16". Done in the follow-up pass below, which also settled the
       half-finished lead-in above "Three things follow from that table"

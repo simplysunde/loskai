@@ -26,17 +26,21 @@ compose file, re-run the live rig rather than trusting the suite; the recipe is 
 
 **Check `TODO.md` for the current unchecked items before assuming something is missing** — and
 note that a completed phase's write-up describes the repo *as it was then*; only the Now tier
-describes today. The authoritative sources are:
+describes today. The authoritative sources are — the first four in **`docs/project/`**
+(moved from the repo root 2026-10-10, so an older entry naming a root path means there):
 
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
-  `todo-archive.md` at the repo root (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
+  `todo-archive.md` beside it (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
   for how a finished thing was built. **Phases 18–29 are still written out in `TODO.md`** —
   twelve of them, so it is the longer file now; archive the older ones when it gets unwieldy.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
-  Start there when you don't know which page you need.
+  Start there when you don't know which page you need. Its Conventions say which reader's
+  question is answered where, and every page opens with a breadcrumb and `Read this when`.
+- **`SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`** at the root — for visitors. Add a
+  user-facing change to `CHANGELOG.md`; the *why* still goes in `HISTORY.md`.
 
 ### Which doc answers which question
 

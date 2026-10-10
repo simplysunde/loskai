@@ -25,12 +25,12 @@ make check-docs                       # links, page headers, and the docs agains
 - **Update the docs in the same commit as the behaviour.** Drifting docs are this project's
   most common bug, which is what `check-docs` is for. Where each kind of information goes is
   in [docs/README.md](docs/README.md#conventions).
-- **Read [`HISTORY.md`](HISTORY.md) before reversing a decision.** Several current ones are
-  walk-backs of earlier attempts, with the reason recorded.
+- **Read [`HISTORY.md`](docs/project/HISTORY.md) before reversing a decision.** Several
+  current ones are walk-backs of earlier attempts, with the reason recorded.
 - **Keep I/O out of the logic.** Each module's `client.py` only talks to the network; all
   decisions live in pure functions, which is what lets the tests run without one.
 - **Recipes live in their own repo** — the format is
   [recipe-schema.md](docs/reference/recipe-schema.md).
 
-The architecture and the reasons behind it are in [`PLAN.md`](PLAN.md); what is being worked
-on is in [`TODO.md`](TODO.md).
+The architecture and the reasons behind it are in [`PLAN.md`](docs/project/PLAN.md); what
+is being worked on is in [`TODO.md`](docs/project/TODO.md).

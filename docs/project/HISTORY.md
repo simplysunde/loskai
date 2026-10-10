@@ -1,4 +1,23 @@
+[Docs](../README.md) › [Project](../README.md#project)
+
 # Loskai — History
+
+**Read this when** you are about to reverse a decision — newest first, with the reasons.
+
+## 2026-10-10 — The docs get a shape for publishing
+
+Ahead of publishing, Sunde asked what a good repo looks like. The answer taken: the README
+is a landing page, not a report's introduction; one index (`docs/README.md`) instead of a
+hand-written table of contents per page, since GitHub draws an outline for every file; a
+breadcrumb back to that index and a `Read this when` line on every page, now checked; and a
+table in the index's Conventions of which reader's question is answered where — including
+that the app says *what* in a tooltip and the docs say *how* and *why*.
+
+**The working files moved to `docs/project/`** — PLAN, HISTORY, TODO and the archive, 6,500
+lines of maintainers' notes that sat beside the README and were the first thing a visitor
+saw. `CLAUDE.md` stays at the root, where Claude Code reads it. `SECURITY.md`,
+`CONTRIBUTING.md` and `CHANGELOG.md` were added, the files a visitor looks for; CHANGELOG
+says *what* changed for someone running Loskai, this file still says *why*.
 
 ## 2026-10-09 — Loskai runs as the owner of `./data`, not root
 

@@ -6,8 +6,8 @@
 
 Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls internal`) —
 Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS
-token required. Publicly trusted certs are a possible future alternative — see `TODO.md`'s
-backlog — but Loskai ships no mode for them: it never writes the Caddyfile, so that choice is
+token required. Publicly trusted certs are a possible future alternative — see the
+[backlog](../project/TODO.md#backlog--future-ideas) — but Loskai ships no mode for them: it never writes the Caddyfile, so that choice is
 made in Caddy's own config.
 
 Teaching a *backend* to serve a certificate your devices already trust — Proxmox on `:8006`,

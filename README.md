@@ -101,5 +101,4 @@ The five most people need:
 - [Deploying the container](docs/guides/deployment.md) — env vars, volumes, cold start.
 - [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS, certs, VPN.
 
-Architecture and direction live at the repo root: [`PLAN.md`](PLAN.md), [`TODO.md`](TODO.md),
-[`HISTORY.md`](HISTORY.md).
+How and why it was built — plan, history, task list — is in [docs/project](docs/README.md#project).

@@ -16,7 +16,7 @@
 # docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200.
 #
 # (Production differs: the real wildcard `*.BASE_DOMAIN` cert is obtained via DNS challenge,
-# so there Caddy DOES need BASE_DOMAIN in its own env — see the root Caddyfile + PLAN.md.)
+# so there Caddy DOES need BASE_DOMAIN in its own env — see the root Caddyfile + docs/project/PLAN.md.)
 
 {
 	admin 0.0.0.0:2019
