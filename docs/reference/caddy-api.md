@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Reference](../README.md#reference)
+
 # Caddy Admin API — Endpoints Loskai Uses
+
+**Read this when** you are changing how Loskai talks to Caddy.
 
 Loskai drives Caddy entirely through its [Admin API](https://caddyserver.com/docs/api)
 (default `:2019`, firewalled to the Docker host). It never edits the Caddyfile per change —

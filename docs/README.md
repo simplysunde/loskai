@@ -73,13 +73,38 @@ are not obvious from the code.
 
 ## Conventions
 
-- **Guides describe Loskai's behaviour; reference pages describe contracts.** If a fact
-  about an external API appears in a guide, the reference page is the source of truth.
-- Every page states **when to read it** at the top, not just what it contains.
-- **These conventions are enforced.** `bash scripts/check-docs.sh` (or `make check-docs`)
-  fails on a broken link, a dead heading anchor, or a page here that this index doesn't
-  reach. Adding a page means adding it above — an unlisted page is a failure, not an
-  oversight.
+### Where information goes
+
+Each reader arrives with one question. Answer it in one place, and link there from
+everywhere else.
+
+| Reader | Their question | Where |
+|---|---|---|
+| Visitor | What is it, is it for me? | the repo [README](../README.md) — a screenshot and four lines |
+| Installer | How do I get it running? | [install.md](guides/install.md), [topologies.md](guides/topologies.md) if unsure |
+| User | What does this tab or button do? | a short tooltip in the app; [using-loskai.md](guides/using-loskai.md) for more |
+| Stuck user | Why is this broken? | [troubleshooting.md](guides/troubleshooting.md) |
+| Upgrader | What changed? | [CHANGELOG.md](../CHANGELOG.md) |
+| Security-minded | What can it touch on my host? | [SECURITY.md](../SECURITY.md) |
+| Contributor | How do I change it? | [CONTRIBUTING.md](../CONTRIBUTING.md), then [Contributing](#contributing) |
+| Maintainer | Why is it built this way? | [`PLAN.md`](../PLAN.md), [`HISTORY.md`](../HISTORY.md), [`TODO.md`](../TODO.md) |
+
+**The app says *what* something is; the docs say *how* and *why*.** UI text stays a label
+or a one-line tooltip — never a paragraph.
+
+### Rules
+
+- **One fact, one place.** Other pages link to it rather than repeat it. If a fact about
+  an external API appears in a guide, the reference page is the source of truth.
+- **Every page opens the same way:** a breadcrumb back to this index, the title, then one
+  `**Read this when**` line. Pages read in order end with `**Next:**`.
+- **No hand-written tables of contents** except this index — GitHub shows an outline for
+  every file.
+- **The repo README stays short** (about 100 lines). Anything longer belongs in a guide.
+- **Guides describe Loskai's behaviour; reference pages describe contracts.**
+- **These rules are checked.** `bash scripts/check-docs.sh` (or `make check-docs`) fails on
+  a broken link or image, a dead heading anchor, a page this index doesn't reach, or a page
+  missing its breadcrumb or `Read this when` line. Adding a page means adding it above.
 - Layouts are named consistently across all pages — **A** split-LXC (three-way split),
   **B** split DNS (two-way split), **C** all-in-Docker (one box). All three ship;
   [topologies.md](guides/topologies.md) defines them and records the one merged-container

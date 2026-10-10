@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Reference](../README.md#reference)
+
 # AdGuard Home REST API — Endpoints Loskai Uses
+
+**Read this when** you are changing how Loskai talks to AdGuard.
 
 Loskai talks to AdGuard Home through its
 [REST API](https://github.com/AdguardTeam/AdGuardHome/blob/master/openapi/openapi.yaml)

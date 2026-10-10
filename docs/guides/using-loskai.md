@@ -1,7 +1,10 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Using Loskai
 
-**Read this after installing**, when the UI is up and you want to know what each tab is
-for. One section per tab, each with an example. The examples use `home.lan` as the base
+**Read this when** the install is done and you want to know what each tab is for.
+
+One section per tab, each with an example. The examples use `home.lan` as the base
 domain and `192.168.10.20` as the Docker host.
 
 ## The idea in one paragraph
@@ -93,3 +96,7 @@ Under each machine are the routes it hosts, with one of two icons:
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
 - **Security** — the admin password.
+
+---
+
+**Next:** something not working? [Troubleshooting →](troubleshooting.md)

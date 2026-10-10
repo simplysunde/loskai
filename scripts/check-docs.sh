@@ -3,7 +3,7 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Six checks, all of which have caught real breakage:
+# Seven checks:
 #   1. Relative links that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
@@ -16,6 +16,8 @@
 #      those survived Phase 17 in PLAN.md and lxc-script-authoring.md.
 #   6. The loskai-recipes repo's copy of recipe-schema.md, when that repo is checked out
 #      beside this one (scripts/sync-recipe-schema.sh). Skipped, not failed, without it.
+#   7. Every page under docs/ opens the same way: a breadcrumb linking back to the index,
+#      the title, then a `**Read this when**` line (docs/README.md, Conventions).
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -99,6 +101,15 @@ orphans = sorted(docs - seen)
 for o in orphans:
     problems.append(f"  {o}: not reachable from {INDEX} — add it to the index")
 
+# Every page opens with a breadcrumb back to the index, its title, and when to read it — the
+# index's Conventions. Without the check, the rule was claimed and almost no page followed it.
+for f in sorted(docs - {INDEX}):
+    lines = [l for l in bodies[f].splitlines() if l.strip()][:3]
+    rel = os.path.relpath(INDEX, os.path.dirname(f))
+    if len(lines) < 3 or not lines[0].startswith(f"[Docs]({rel})") or not lines[1].startswith("# ") \
+            or not lines[2].startswith("**Read this when**"):
+        problems.append(f"  {f}: must open with a [Docs]({rel}) breadcrumb, the title, then **Read this when**")
+
 # Source and config cite docs by path in comments ("see docs/guides/deployment.md"). Those
 # are pointers a reader follows, and nothing above reads them — .md files are the only input
 # to checks 1-3. Restricted to docs/ paths: a bare filename in prose is not a path.
@@ -137,7 +148,7 @@ if problems:
     print(f"\n{len(problems)} problem(s):")
     print("\n".join(problems))
     sys.exit(1)
-print("\nno broken links, anchors, orphans or stale source citations")
+print("\nno broken links, anchors, orphans, stale source citations or unheaded pages")
 PY
 
 log "Checking CLAUDE.md's enumerations against the code"

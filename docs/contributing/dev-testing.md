@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Contributing](../README.md#contributing)
+
 # Running Loskai locally (dev) against Caddy + AdGuard containers
+
+**Read this when** you want to run Loskai from source and change it.
 
 Loskai runs on the host (uv + Vite); Caddy and AdGuard run as throwaway containers you
 point it at. No domain, ACME token, or Proxmox needed — Caddy uses its internal CA.

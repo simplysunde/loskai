@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Install guide — AdGuard + Caddy + Loskai
+
+**Read this when** you are setting Loskai up from nothing. Step by step for the recommended
+Proxmox layout, with a second walkthrough for split DNS.
 
 Steps 1–4 walk the **preferred layout** (**A**): AdGuard Home and Caddy each in their own
 Proxmox LXC, with Loskai in Docker driving both over the LAN. Splitting them means rebuilding
@@ -226,3 +231,7 @@ option — but it is the only layout that needs the host reconfigured before it 
 with `compose.colocated.yml`, dropping `ADGUARD_URL` (that file points at the AdGuard
 container). [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
 ownership and states C's costs at the point of choice.
+
+---
+
+**Next:** [Using Loskai →](using-loskai.md) — what each tab is for, now that it runs.

@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Contributing](../README.md#contributing)
+
 # Authoring a `create-<service>-lxc.sh` script
+
+**Read this when** you are adding a `create-<service>-lxc.sh` script.
 
 A reference for writing new Proxmox LXC provisioning scripts in the style of
 [`scripts/create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) and

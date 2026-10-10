@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Reference](../README.md#reference)
+
 # Loskai Internal API
+
+**Read this when** you are adding or changing an endpoint, or calling Loskai's API yourself.
 
 The API the React frontend consumes. All paths are under `/api`. A live, interactive
 version is always available at **`/docs`** (Swagger UI) and **`/openapi.json`** when the

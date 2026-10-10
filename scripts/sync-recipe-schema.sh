@@ -24,7 +24,9 @@ render() {
   printf '%s\n%s\n\n' \
     "> **A copy** of loskai's \`docs/reference/recipe-schema.md\`, written by its" \
     "> \`scripts/sync-recipe-schema.sh\`. Don't edit it here — change it in loskai and re-run that script."
-  cat "$SRC"
+  # The breadcrumb back to loskai's docs index would point nowhere in the recipes repo; the
+  # note above takes its place.
+  awk 'NR == 1 && /^\[Docs\]/ { skip = 1; next } skip && NR == 2 && /^$/ { next } { print }' "$SRC"
 }
 
 if [ ! -d "$RECIPES" ]; then

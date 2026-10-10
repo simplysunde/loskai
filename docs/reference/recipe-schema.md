@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Reference](../README.md#reference)
+
 # Install-Wizard Recipe Schema
+
+**Read this when** you are writing a recipe for the install wizard.
 
 A **recipe** is the input to Loskai's Install Wizard: a declarative description of a
 service to deploy. Loskai **validates and interprets** a recipe against the fixed schema

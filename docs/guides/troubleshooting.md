@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Troubleshooting
+
+**Read this when** something is broken: a 502, a redirect loop, a name that won't resolve, a
+greyed-out card.
 
 Common failures once Loskai is routing traffic, and how to tell them apart. The recurring
 theme: **DNS, TLS, and the route can all be fine while the *upstream* (the backend Caddy

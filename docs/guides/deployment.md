@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Running the Loskai container
+
+**Read this when** you are configuring the container: an env var, a volume, who owns its
+files, or a cold start.
 
 Loskai ships as a single image: one FastAPI process serves the API **and** the built
 React UI on **:8080**. This doc is the reference for deploying it — the environment

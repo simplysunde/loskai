@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Trusting a backend's own certificate (Proxmox and friends)
+
+**Read this when** you open a backend on its own port (Proxmox `:8006`, a NAS UI) and want
+no warning there either.
 
 Some services insist on serving their own HTTPS: Proxmox on `:8006`, a NAS admin UI, an
 IPMI board. Loskai proxies those happily — tick **Backend speaks HTTPS** when you assign the

@@ -1,4 +1,8 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Certificate onboarding (internal-CA mode)
+
+**Read this when** a browser warns about the certificate on a Loskai name.
 
 Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls internal`) —
 Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS

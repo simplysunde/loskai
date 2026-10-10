@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Deployment topologies and port ownership
+
+**Read this when** you are unsure where AdGuard, Caddy and Loskai should run — **before**
+installing.
 
 Loskai's three components — **AdGuard** (LAN DNS), **Caddy** (TLS + routing) and **Loskai**
 itself — can be arranged across machines in several ways. This page is the reference for

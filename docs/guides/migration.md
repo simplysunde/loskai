@@ -1,4 +1,9 @@
+[Docs](../README.md) › [Guides](../README.md#guides)
+
 # Migrating an Existing Project into a Loskai Stack
+
+**Read this when** you want an existing compose project managed by Loskai, or are moving
+Loskai itself.
 
 Loskai's Stack Manager watches a single directory, `STACKS_DIR`, and treats each
 immediate subfolder that contains a compose file as a managed stack. The filesystem is
