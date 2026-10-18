@@ -24,6 +24,7 @@ from ..adguard.client import adguard
 from ..caddy.client import caddy
 from . import logic
 from . import recipes as recipes_mod
+from . import stackform as stackform_mod
 from . import stacks as stacks_mod
 from . import updates as updates_mod
 from .client import DOCKER_ERRORS, describe_error, docker_client
@@ -272,6 +273,30 @@ def stack_action(name: str, payload: dict = Body(...)) -> dict:
 def update_stack_file(name: str, payload: dict = Body(...)) -> dict:
     try:
         stacks_mod.update_stack_file(name, payload.get("file", ""), payload.get("content", ""))
+    except StackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+@router.get("/stacks/{name}/form")
+def get_stack_form(name: str) -> dict:
+    """The stack's files as fields: settings (.env), folders (the override), the app."""
+    try:
+        return stackform_mod.get_form(name)
+    except StackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.put("/stacks/{name}/form")
+def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
+    """`settings`: the changed values; `folders`: the whole list. Either may be left out."""
+    settings_in, folders = payload.get("settings"), payload.get("folders")
+    if settings_in is not None and not isinstance(settings_in, dict):
+        raise HTTPException(status_code=422, detail="settings must be an object")
+    if folders is not None and not isinstance(folders, list):
+        raise HTTPException(status_code=422, detail="folders must be a list")
+    try:
+        stackform_mod.save_form(name, settings_in, folders)
     except StackError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}

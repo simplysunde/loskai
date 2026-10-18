@@ -191,26 +191,30 @@ def resolve_mounts(spec: dict | None, folders: list) -> list[tuple[str, str]]:
     return pairs
 
 
+# Heads every override Loskai writes: the file is the user's, and an update never touches it.
+OVERRIDE_HEADER = "# Your folders and changes, merged over compose.yml. Edit them on the stack in Loskai.\n"
+
+
+def bind_volume(source: str, target: str, read_only: bool) -> dict:
+    """One folder as an override volume. Long syntax with `create_host_path: false`: a
+    mistyped folder fails the deploy with "bind source path does not exist", where the
+    short form has Docker create an empty, root-owned folder and mount that — a library
+    that installs fine and stays empty. `$` is doubled because Compose interpolates the
+    override like any other file."""
+    return {
+        "type": "bind",
+        "source": source.replace("$", "$$"),
+        "target": target.replace("$", "$$"),
+        "read_only": read_only,
+        "bind": {"create_host_path": False},
+    }
+
+
 def render_override(service: str, pairs: list[tuple[str, str]], read_only: bool) -> str:
     """The compose.override.yml holding the folders added at install. Compose merges it
-    into compose.yml by itself, so the recipe's own file is never rewritten.
-
-    Long syntax with `create_host_path: false`: a mistyped folder fails the deploy with
-    "bind source path does not exist", where the short form has Docker create an empty,
-    root-owned folder and mount that — a library that installs fine and stays empty.
-    `$` is doubled because Compose interpolates this file like any other."""
-    volumes = [
-        {
-            "type": "bind",
-            "source": source.replace("$", "$$"),
-            "target": target.replace("$", "$$"),
-            "read_only": read_only,
-            "bind": {"create_host_path": False},
-        }
-        for source, target in pairs
-    ]
-    body = yaml.safe_dump({"services": {service: {"volumes": volumes}}}, sort_keys=False)
-    return "# Folders added in Loskai's install wizard. Reinstall to change them.\n" + body
+    into compose.yml by itself, so the recipe's own file is never rewritten."""
+    volumes = [bind_volume(source, target, read_only) for source, target in pairs]
+    return OVERRIDE_HEADER + yaml.safe_dump({"services": {service: {"volumes": volumes}}}, sort_keys=False)
 
 
 def _env_escape(value: str) -> str:
