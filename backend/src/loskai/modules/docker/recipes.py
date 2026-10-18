@@ -10,6 +10,7 @@ Validation + the merge are pure/filesystem (unit-tested). Sync (git) and install
 """
 
 import hashlib
+import json
 import logging
 import re
 import subprocess
@@ -559,7 +560,9 @@ def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None 
     if recipe["type"] == "git_build":
         _git_clone(recipe["git_repo"], target)
 
-    (target / "compose.yml").write_text(compose_src.read_text(encoding="utf-8"), encoding="utf-8")
+    compose_text = compose_src.read_text(encoding="utf-8")
+    (target / "compose.yml").write_text(compose_text, encoding="utf-8")
+    write_record(target, recipe, compose_text)
     store.write_private(target / ".env", render_env(values))
     override = target / stacks.OVERRIDE_NAME
     if pairs:
@@ -618,6 +621,47 @@ def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None 
         "ok": True, "output": result["output"], "instance_id": recipe_id, "container": container,
         "reused_data": reused,
     }
+
+
+def fingerprint(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def write_record(stack_dir: Path, recipe: dict, compose_text: str) -> None:
+    """Remember which recipe a stack came from and the compose.yml it was given — what
+    Check for updates compares against, to tell the recipe moving on from a hand edit."""
+    record = {
+        "recipe": recipe["id"],
+        "source": recipe["source_url"],
+        "commit": source_commit(recipe["source_url"]),
+        "compose": fingerprint(compose_text),
+    }
+    (stack_dir / stacks.RECORD_NAME).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
+
+def read_record(stack_dir: Path) -> dict | None:
+    try:
+        record = json.loads((stack_dir / stacks.RECORD_NAME).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) and record.get("recipe") else None
+
+
+def source_commit(url: str | None) -> str | None:
+    """The commit a git source's cache is at; None for the local folder or a cache git
+    can't read."""
+    if url is None:
+        return None
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(_repo_cache(url)), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
 
 
 def _instance_slot(recipe_id: str) -> Instance | None:

@@ -23,8 +23,10 @@ _COMPOSE_NAMES = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-c
 # this one for the folders added at install (recipes.render_override).
 OVERRIDE_NAME = "compose.override.yml"
 _OVERRIDE_NAMES = [OVERRIDE_NAME, "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"]
+# Which recipe a stack was installed from, and what its compose.yml was then (recipes.py).
+RECORD_NAME = ".loskai-recipe.json"
 # What a stack *is*, as opposed to the data it keeps — what Delete removes by default.
-_CONFIG_NAMES = {*_COMPOSE_NAMES, *_OVERRIDE_NAMES, ".env"}
+_CONFIG_NAMES = {*_COMPOSE_NAMES, *_OVERRIDE_NAMES, ".env", RECORD_NAME}
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
 _ACTIONS = {"up", "down", "restart", "pull"}
 _COMPOSE_TIMEOUT = 300  # seconds

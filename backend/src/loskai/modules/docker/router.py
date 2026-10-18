@@ -25,6 +25,7 @@ from ..caddy.client import caddy
 from . import logic
 from . import recipes as recipes_mod
 from . import stacks as stacks_mod
+from . import updates as updates_mod
 from .client import DOCKER_ERRORS, describe_error, docker_client
 from .quick_commands import quick_commands_for
 from .recipes import RecipeError
@@ -276,6 +277,15 @@ def update_stack_file(name: str, payload: dict = Body(...)) -> dict:
     return {"ok": True}
 
 
+@router.post("/stacks/{name}/update-from-recipe")
+def update_from_recipe(name: str) -> dict:
+    """Replace the stack's compose.yml with its recipe's; the override is never touched."""
+    try:
+        return updates_mod.apply_update(name)
+    except (RecipeError, StackError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.delete("/stacks/{name}")
 def delete_stack(name: str, delete_data: bool = False) -> dict:
     """Keeps the folder's data unless `?delete_data=true`."""
@@ -300,6 +310,12 @@ def refresh_recipes(payload: dict = Body(default={})) -> dict:
         return recipes_mod.sync_recipes(payload.get("url"))
     except RecipeError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/recipes/updates")
+def recipe_updates() -> list[dict]:
+    """Installed recipes and whether each can be updated. Reads the caches as synced."""
+    return updates_mod.list_updates()
 
 
 @router.get("/recipes/{recipe_id}/icon")
