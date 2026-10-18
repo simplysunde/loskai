@@ -105,6 +105,52 @@ def test_saving_an_env_makes_it_owner_only(stacks_dir):
     assert (d / ".env").stat().st_mode & 0o777 == 0o600
 
 
+def test_the_override_can_be_edited(stacks_dir):
+    d = _make_stack(stacks_dir, "media")
+    ov = "services:\n  app:\n    volumes:\n      - /srv/films:/media/films\n"
+    stacks.update_stack_file("media", "compose.override.yml", ov)
+    assert (d / "compose.override.yml").read_text() == ov
+    assert stacks.get_stack("media")["override"] == ov
+
+
+def test_emptying_the_override_removes_it(stacks_dir):
+    d = _make_stack(stacks_dir, "media")
+    (d / "compose.override.yml").write_text("services: {}\n")
+    stacks.update_stack_file("media", "compose.override.yml", "  \n")
+    assert not (d / "compose.override.yml").exists()
+    stacks.update_stack_file("media", "compose.override.yml", "")  # none there: still fine
+
+
+def test_edits_go_to_the_files_the_stack_already_has(stacks_dir):
+    # A migrated stack keeps docker-compose.yml; a second compose.yml beside it would
+    # quietly become the one Compose reads.
+    d = stacks_dir / "old"
+    d.mkdir()
+    (d / "docker-compose.yml").write_text(COMPOSE)
+    (d / "docker-compose.override.yml").write_text("services: {}\n")
+    stacks.update_stack_file("old", "compose.yml", COMPOSE + "# edited\n")
+    stacks.update_stack_file("old", "compose.override.yml", "services: {app: {}}\n")
+    assert sorted(p.name for p in d.iterdir()) == ["docker-compose.override.yml", "docker-compose.yml"]
+    assert (d / "docker-compose.yml").read_text().endswith("# edited\n")
+
+
+def test_yaml_that_wont_load_is_refused_with_its_line_and_nothing_written(stacks_dir):
+    d = _make_stack(stacks_dir, "web")
+    with pytest.raises(StackError, match=r"^compose\.yml line 3: indented with a tab"):
+        stacks.update_stack_file("web", "compose.yml", "services:\n  app:\n\timage: x\n")
+    with pytest.raises(StackError, match=r"^compose\.override\.yml line 2: mapping values"):
+        stacks.update_stack_file("web", "compose.override.yml", "services:\n  app: image: x\n")
+    assert (d / "compose.yml").read_text() == COMPOSE
+    assert not (d / "compose.override.yml").exists()
+
+
+def test_create_refuses_yaml_that_wont_load(stacks_dir, monkeypatch):
+    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": "up"})
+    with pytest.raises(StackError, match="compose.yml line"):
+        stacks.create_stack("new", "services:\n\tapp:\n")
+    assert not (stacks_dir / "new").exists()
+
+
 def test_delete_stack_removes_dir(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "web")
     monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})

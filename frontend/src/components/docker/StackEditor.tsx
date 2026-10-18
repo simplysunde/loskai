@@ -1,12 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { Modal } from "../shared/Modal";
+import { TabButton } from "../shared/TabButton";
 
-// Edit an existing stack's compose.yml + .env, or the raw create path (paste a finished
-// compose + .env and `up`). Docker auto-creates bind-mount dirs, so no directory step.
+type FileKey = "compose" | "env" | "override";
+
+// The names the API takes; the server maps them to whatever the stack's files are called.
+const FILE_NAMES: Record<FileKey, string> = {
+  compose: "compose.yml",
+  env: ".env",
+  override: "compose.override.yml",
+};
+
+const HINTS: Record<FileKey, string | null> = {
+  compose: null,
+  env: "Values compose.yml reads as ${KEY}.",
+  override: "Merged over compose.yml — your own folders and changes. Reinstalling a recipe replaces it.",
+};
+
+// Edit an existing stack's files, one tab each, then re-up; or the raw create path (paste a
+// finished compose + .env and `up`). Docker auto-creates bind-mount dirs, so no directory step.
 export function StackEditor({
   name,
   onClose,
@@ -17,46 +33,73 @@ export function StackEditor({
   const qc = useQueryClient();
   const creating = name === null;
   const [stackName, setStackName] = useState("");
-  const [compose, setCompose] = useState(
-    creating ? "services:\n  app:\n    image: \n" : "",
-  );
-  const [env, setEnv] = useState("");
-  const [override, setOverride] = useState<{ file: string; text: string } | null>(null);
+  const initial = { compose: creating ? "services:\n  app:\n    image: \n" : "", env: "", override: "" };
+  const [files, setFiles] = useState<Record<FileKey, string>>(initial);
+  const [saved, setSaved] = useState<Record<FileKey, string>>(initial);
+  const [labels, setLabels] = useState<Record<FileKey, string>>(FILE_NAMES);
+  const [service, setService] = useState("app");
+  const [tab, setTab] = useState<FileKey>("compose");
   const [loading, setLoading] = useState(!creating);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [output, setOutput] = useState<string | null>(null);
 
   useEffect(() => {
     if (creating) return;
     api
-      .get<{ compose: string; env: string; override: string | null; override_file: string | null }>(
-        `/api/docker/stacks/${name}`,
-      )
+      .get<{
+        compose: string;
+        compose_file: string;
+        env: string;
+        override: string | null;
+        override_file: string | null;
+        services: string[];
+      }>(`/api/docker/stacks/${name}`)
       .then((s) => {
-        setCompose(s.compose);
-        setEnv(s.env);
-        if (s.override !== null && s.override_file) setOverride({ file: s.override_file, text: s.override });
+        const loaded = { compose: s.compose, env: s.env, override: s.override ?? "" };
+        setFiles(loaded);
+        setSaved(loaded);
+        setLabels({ ...FILE_NAMES, compose: s.compose_file, override: s.override_file ?? FILE_NAMES.override });
+        if (s.services[0]) setService(s.services[0]);
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [name, creating]);
 
+  const keys: FileKey[] = creating ? ["compose", "env"] : ["compose", "env", "override"];
+  const dirty = (k: FileKey) => files[k] !== saved[k];
+
   async function save() {
     setError(null);
+    setOutput(null);
     setBusy(true);
+    let current: FileKey = "compose";
     try {
       if (creating) {
-        await api.post("/api/docker/stacks", { name: stackName, compose, env });
+        await api.post("/api/docker/stacks", { name: stackName, compose: files.compose, env: files.env });
       } else {
-        await api.put(`/api/docker/stacks/${name}/file`, { file: "compose.yml", content: compose });
-        await api.put(`/api/docker/stacks/${name}/file`, { file: ".env", content: env });
+        for (const k of keys.filter(dirty)) {
+          current = k;
+          await api.put(`/api/docker/stacks/${name}/file`, { file: FILE_NAMES[k], content: files[k] });
+          setSaved((s) => ({ ...s, [k]: files[k] }));
+        }
+        const up = await api.post<{ ok: boolean; output: string }>(`/api/docker/stacks/${name}/action`, {
+          action: "up",
+        });
+        if (!up.ok) {
+          // Saved, but Compose refused it: keep the dialog open on what it said.
+          setOutput(up.output || "docker compose up failed");
+          return;
+        }
       }
-      qc.invalidateQueries({ queryKey: ["docker-stacks"] });
       onClose();
     } catch (e) {
+      setTab(current);
       setError(e instanceof ApiError ? e.message : "Save failed");
     } finally {
       setBusy(false);
+      qc.invalidateQueries({ queryKey: ["docker-stacks"] });
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
     }
   }
 
@@ -76,21 +119,30 @@ export function StackEditor({
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
             />
           )}
-          <Editor label="compose.yml" value={compose} onChange={setCompose} rows={14} />
-          <Editor label=".env" value={env} onChange={setEnv} rows={5} />
-          {override && (
-            // Read-only: Compose merges it into compose.yml, so it is shown to keep the
-            // stack's whole definition visible — the install wizard's folders live here.
-            <div>
-              <span className="mb-1 block text-xs font-medium text-slate-400">
-                {override.file} — merged in by Compose; read-only here
-              </span>
-              <pre className="max-h-48 overflow-auto rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 font-mono text-xs text-slate-400">
-                {override.text}
-              </pre>
-            </div>
-          )}
+          <div role="tablist" className="flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
+            {keys.map((k) => (
+              <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
+                <span className="font-mono text-xs">{labels[k]}</span>
+                {dirty(k) && <span className="ml-1.5 text-teal-400" title="Unsaved">•</span>}
+              </TabButton>
+            ))}
+          </div>
+          {HINTS[tab] && <p className="text-xs text-slate-500">{HINTS[tab]}</p>}
+          <Editor
+            key={tab}
+            label={labels[tab]}
+            value={files[tab]}
+            onChange={(v) => setFiles((f) => ({ ...f, [tab]: v }))}
+            placeholder={
+              tab === "override" ? `services:\n  ${service}:\n    volumes:\n      - /host/folder:/folder/in/container\n` : undefined
+            }
+          />
           {error && <p className="text-sm text-rose-400">{error}</p>}
+          {output && (
+            <pre className="max-h-40 overflow-auto rounded-lg border border-rose-900/60 bg-slate-950 px-3 py-2 font-mono text-xs text-rose-300">
+              {output}
+            </pre>
+          )}
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
               Cancel
@@ -110,27 +162,75 @@ export function StackEditor({
   );
 }
 
+// A plain textarea with what YAML needs from an editor: line numbers (errors name a line),
+// Tab inserting spaces (YAML refuses tabs), and Enter keeping the line's indent, one level
+// deeper after a `key:`. Shift+Tab still moves focus out, so the keyboard isn't trapped.
 function Editor({
   label,
   value,
   onChange,
-  rows,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  rows: number;
+  placeholder?: string;
 }) {
+  const gutter = useRef<HTMLDivElement>(null);
+  const area = useRef<HTMLTextAreaElement>(null);
+  const caret = useRef<number | null>(null);
+  const lines = (value || placeholder || "").split("\n").length;
+
+  useLayoutEffect(() => {
+    if (caret.current !== null && area.current) {
+      area.current.setSelectionRange(caret.current, caret.current);
+      caret.current = null;
+    }
+  }, [value]);
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    let insert: string;
+    if (e.key === "Tab" && !e.shiftKey) {
+      insert = "  ";
+    } else if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      const line = value.slice(value.lastIndexOf("\n", start - 1) + 1, start);
+      const indent = /^ */.exec(line)![0] + (line.trimEnd().endsWith(":") ? "  " : "");
+      if (!indent) return;
+      insert = "\n" + indent;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    caret.current = start + insert.length;
+    onChange(value.slice(0, start) + insert + value.slice(end));
+  }
+
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+    <div className="flex h-80 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 focus-within:border-teal-500">
+      <div
+        ref={gutter}
+        aria-hidden
+        className="select-none overflow-hidden border-r border-slate-800 py-2 pb-6 pl-3 pr-2 text-right font-mono text-xs leading-5 text-slate-600"
+      >
+        {Array.from({ length: lines }, (_, i) => (
+          <div key={i}>{i + 1}</div>
+        ))}
+      </div>
       <textarea
+        ref={area}
+        aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        rows={rows}
+        onKeyDown={onKeyDown}
+        onScroll={(e) => {
+          if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop;
+        }}
+        placeholder={placeholder}
+        wrap="off"
         spellCheck={false}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-teal-500"
+        className="flex-1 resize-none bg-transparent px-3 py-2 font-mono text-xs leading-5 text-slate-200 outline-none placeholder:text-slate-600"
       />
-    </label>
+    </div>
   );
 }

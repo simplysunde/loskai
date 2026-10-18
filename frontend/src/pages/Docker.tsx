@@ -16,6 +16,7 @@ import { VolumeList } from "../components/docker/VolumeList";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { DeleteStackOptions } from "../components/docker/DeleteStackOptions";
 import { ModuleStatus } from "../components/shared/ModuleStatus";
+import { TabButton } from "../components/shared/TabButton";
 
 type Tab = "containers" | "volumes";
 
@@ -99,7 +100,7 @@ export function Docker() {
         <StatsBar />
       </div>
 
-      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
+      <div role="tablist" className="mb-4 flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
         <TabButton active={tab === "containers"} onClick={() => setTab("containers")}>
           Containers
         </TabButton>
@@ -179,26 +180,5 @@ export function Docker() {
         )}
       </ConfirmDialog>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-md px-3 py-1 text-sm ${
-        active ? "bg-teal-500/15 text-teal-200" : "text-slate-400 hover:text-slate-200"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

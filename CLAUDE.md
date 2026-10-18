@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (463 + 204 + docs).
+All three checks pass (470 + 209 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced

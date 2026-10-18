@@ -56,6 +56,10 @@ def _compose_file(directory: Path) -> Path | None:
     return None
 
 
+def _override_file(directory: Path) -> Path | None:
+    return next((directory / n for n in _OVERRIDE_NAMES if (directory / n).is_file()), None)
+
+
 def _stack_dir(name: str) -> Path:
     _validate_name(name)
     return stacks_dir() / name
@@ -123,7 +127,7 @@ def get_stack(name: str) -> dict:
     if compose is None:
         raise StackError(f"stack '{name}' not found")
     env_file = directory / ".env"
-    override = next((directory / n for n in _OVERRIDE_NAMES if (directory / n).is_file()), None)
+    override = _override_file(directory)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     try:
         projects = docker_client.compose_projects()
@@ -137,8 +141,7 @@ def get_stack(name: str) -> dict:
         "compose": compose.read_text(encoding="utf-8"),
         "compose_file": compose.name,
         "env": env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
-        # Shown read-only: Compose merges it in, so a stack that has one isn't described by
-        # compose.yml alone.
+        # Compose merges it in, so a stack that has one isn't described by compose.yml alone.
         "override": override.read_text(encoding="utf-8") if override else None,
         "override_file": override.name if override else None,
     }
@@ -179,6 +182,9 @@ def create_stack(name: str, compose_content: str, env_content: str = "") -> dict
     """The raw path: write a finished compose.yml + .env and `up`."""
     if not stacks_dir_ok():
         raise StackError("stacks directory not found — check the compose mount")
+    problem = logic.yaml_problem(compose_content)
+    if problem:
+        raise StackError(f"compose.yml {problem}")
     directory, _ = claim_dir(name)
     (directory / "compose.yml").write_text(compose_content, encoding="utf-8")
     if env_content:
@@ -187,15 +193,28 @@ def create_stack(name: str, compose_content: str, env_content: str = "") -> dict
 
 
 def update_stack_file(name: str, file: str, content: str) -> None:
-    if file not in ("compose.yml", ".env"):
-        raise StackError("only compose.yml or .env may be edited")
+    """Save one file from the stack editor. `compose.yml` and `compose.override.yml` mean
+    the stack's own, whatever it is called on disk — writing a second compose file beside a
+    `docker-compose.yml` would quietly change which one Compose reads. YAML that won't load
+    is refused before anything is written. An emptied override is removed, as an install
+    with no folders does."""
+    if file not in ("compose.yml", OVERRIDE_NAME, ".env"):
+        raise StackError("only compose.yml, compose.override.yml or .env may be edited")
     directory = _stack_dir(name)
     if not directory.is_dir():
         raise StackError(f"stack '{name}' not found")
     if file == ".env":
         store.write_private(directory / file, content)
-    else:
-        (directory / file).write_text(content, encoding="utf-8")
+        return
+    existing = _compose_file(directory) if file == "compose.yml" else _override_file(directory)
+    target = existing or directory / file
+    if file == OVERRIDE_NAME and not content.strip():
+        target.unlink(missing_ok=True)
+        return
+    problem = logic.yaml_problem(content)
+    if problem:
+        raise StackError(f"{target.name} {problem}")
+    target.write_text(content, encoding="utf-8")
 
 
 def delete_stack(name: str, delete_data: bool = False) -> dict:

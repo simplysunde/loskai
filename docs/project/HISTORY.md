@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-18 — The stack editor edits the override too
+
+Moving a real Jellyfin into a stack showed that a recipe's folders, once installed, could only
+be changed over SSH or by deleting and reinstalling: the editor showed
+`compose.override.yml` read-only. Two ways were priced: make the file editable (small, every
+stack gets it) or a Folders form that reads the override back into the wizard's rows (nicer,
+but a feature for recipes alone). **Sunde chose the file.** The editor became a tab per file,
+and since editing YAML in a text box is where the mistakes are, it got what YAML needs from
+an editor — line numbers, Tab typing spaces, Enter keeping the indent — and the server checks
+each YAML file before writing it, refusing with the line (a tab in the indentation said
+plainly, because YAML's own words for it don't).
+
+Two bugs went with it. **"Save + re-up" never re-upped** — it only saved, so an edit sat on
+disk until something else ran `up`; it now runs `up` and stays open on Compose's output when
+that fails. And **saving wrote `compose.yml` even beside a `docker-compose.yml`**, which a
+migrated stack keeps — Compose would then read the new file and ignore the old one. A save now
+goes to the file the stack already has. An emptied override is removed, as an install with no
+folders does.
+
 ## 2026-10-10 — The docs get a shape for publishing
 
 Ahead of publishing, Sunde asked what a good repo looks like. The answer taken: the README

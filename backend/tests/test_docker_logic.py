@@ -380,3 +380,16 @@ def test_is_self_matches_dockers_default_hostname_only():
     # that happens to prefix the id.
     assert not logic.is_self(cid, "3f2a")
     assert not logic.is_self("devbox" + cid, "devbox")
+
+
+def test_yaml_problem_names_the_line():
+    assert logic.yaml_problem("services:\n  app:\n    image: nginx\n") is None
+    assert logic.yaml_problem("services:\n\tapp: {}\n") == "line 2: indented with a tab — YAML needs spaces"
+    assert logic.yaml_problem("a: 1\nb: [\n").startswith("line 3: ")
+    assert logic.yaml_problem("") == "is empty"
+    assert logic.yaml_problem("- a\n- b\n") == "must start with a key, like services:"
+
+
+def test_a_tab_inside_a_value_is_not_blamed():
+    # Only a tab in the indentation is illegal; one in a quoted value is fine.
+    assert logic.yaml_problem('a: "x\ty"\n') is None

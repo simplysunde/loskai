@@ -4,6 +4,7 @@ Stats math (CPU%/memory), attribute extraction, the container↔instance join, a
 status all live here; `client.py` does the socket I/O and calls these.
 """
 
+import re
 from datetime import datetime, timezone
 
 import yaml
@@ -114,6 +115,26 @@ def declared_services(compose_text: str) -> set[str]:
         return set()
     services = doc.get("services")
     return set(services) if isinstance(services, dict) else set()
+
+
+def yaml_problem(text: str) -> str | None:
+    """Why a compose file or override won't load, starting with its line — None when it
+    loads as a mapping. Only what YAML itself checks: what Compose makes of the keys is
+    for `up` to say."""
+    try:
+        doc = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        # A tab in the indentation is the usual cause, and YAML's own words for it
+        # ("found character that cannot start any token") don't say so.
+        for number, line in enumerate(text.splitlines(), 1):
+            if re.match(r" *\t", line):
+                return f"line {number}: indented with a tab — YAML needs spaces"
+        mark = getattr(exc, "problem_mark", None)
+        problem = getattr(exc, "problem", None) or str(exc)
+        return f"line {mark.line + 1}: {problem}" if mark else problem
+    if not isinstance(doc, dict):
+        return "is empty" if doc is None else "must start with a key, like services:"
+    return None
 
 
 def sets_project_name(compose_text: str) -> bool:

@@ -138,10 +138,10 @@ IP for peer DNS; any HTTP response counts as reachable).
 | Method & path | Purpose |
 |---|---|
 | `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, data }]`. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. Folders end in `/`. |
-| `POST /stacks` | Body `{ name, compose, env? }` — the raw create path (write files + `up -d`). A folder left by a Delete that kept its data (no compose file) is taken over; one that still has a compose file is a live stack, refused. |
+| `POST /stacks` | Body `{ name, compose, env? }` — the raw create path (write files + `up -d`). A folder left by a Delete that kept its data (no compose file) is taken over; one that still has a compose file is a live stack, refused. A `compose` that won't load as YAML → `400` with its line. |
 | `GET /stacks/{name}` | Stack detail incl. `compose` + `env` file contents, and `override` + `override_file` — a `compose.override.yml` beside it, which Compose merges in (the install wizard's folders live there), or `null`. |
 | `POST /stacks/{name}/action` | Body `{ action: up\|down\|restart\|pull }`. |
-| `PUT /stacks/{name}/file` | Body `{ file: "compose.yml"\|".env", content }`. |
+| `PUT /stacks/{name}/file` | Body `{ file: "compose.yml"\|"compose.override.yml"\|".env", content }`. The two YAML names mean the stack's own files, whatever they are called on disk (`docker-compose.yml` included). YAML that won't load → `400` naming the file and line (`compose.override.yml line 4: indented with a tab — YAML needs spaces`), and nothing is written. An empty override is removed. Saving does not re-up — the editor calls `action: up` after. |
 | `DELETE /stacks/{name}` | `down` (never `-v`), then remove `compose.yml`, any `compose.override.yml` and `.env` — **the rest of the folder stays** (it is the service's data) unless `?delete_data=true`, which removes the folder. A folder left empty is removed either way. Returns `{ ok, output, kept }`. |
 
 ### Recipes & stats
