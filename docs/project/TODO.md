@@ -4,8 +4,10 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 30** (below) — UI polish across machines, routing, Docker and the recipe
-wizard — is built and verified live (2026-10-05). **Phase 29** is built and verified live — a Docker route follows its
+**Now:** **Phase 31** (below) — recipe updates: Check for updates lists installed recipes,
+shows what changed, and replaces the recipe's `compose.yml` while your override stays.
+**Phase 30** (UI polish across machines, routing, Docker and the recipe wizard) is built
+and verified live (2026-10-05). **Phase 29** is built and verified live — a Docker route follows its
 container, so a port changed even over SSH re-points the route by itself. Only the
 daemon-restart check is unrun (it needs root). **Phase 28** also has **run live and passed**
 (2026-10-03): the first real recipe
@@ -1198,6 +1200,58 @@ side bar separating them from routes to make it more defined)"._
       body `Via: Caddy`. Named a machine, added a route on it from its row (the picker opened
       linked to it), Routing read `box:8081`; moving the machine to `.231` reported
       `relinked: ["hello"]` and **Caddy's dial moved**; moving it back served whoami again
+
+## Phase 31 — Recipe updates: the recipe owns compose.yml, you own the override
+
+_Origin (2026-10-18, Sunde): "if we're using override to set custom settings, doesn't that
+mean we can let the main compose file be static and updated through the recipes? … a simple
+unintrusive button called check for updates up together with the new stack and install
+recipe. it would simply list the installed recipes and give a notification or update symbol
+if something can be updated … both the list and the instructions of what changes from
+version to version"._
+
+**Decisions (Sunde, 2026-10-18)**
+- **Each file has one owner.** `compose.yml` is the recipe's — an update replaces it.
+  `.env` is your answers — kept, and a question a new version adds gets its default.
+  `compose.override.yml` is yours — an update never touches it
+- **One button, "Check for updates", in the Docker header** beside New stack and Install
+  recipe — nothing on the stack rows. It syncs the recipe sources (explicit, as sync always
+  is), then lists the installed recipes in a dialog, marking those with an update
+- **What changes** is shown per recipe: the recipe's commit messages since the install (git
+  sources), and the difference in `compose.yml` (always)
+
+**31a — remember what was installed**
+- [ ] Install writes `.loskai-recipe.json` beside the compose file: recipe id, source URL,
+      the source's commit, and a fingerprint of the `compose.yml` it wrote. One of the
+      stack's config files, so Delete removes it with them
+- [ ] A stack from before this, named like a recipe, has none: shown as "installed before
+      updates were tracked", with the difference; updating it writes the record
+
+**31b — the check and the update (backend)**
+- [ ] `GET /api/recipes/updates`: sync, then each installed recipe with a status —
+      up to date · update available · `compose.yml` edited by hand · recipe no longer in
+      any source — plus the changes (commits, the diff, new `.env` questions)
+- [ ] `POST /api/recipes/updates/{stack}`: refuse unless `docker compose config` loads the
+      new `compose.yml` with the existing override and `.env`; then replace the file, add
+      the new questions' defaults to `.env` (never rewrite an existing line), update the
+      record, pull + up. A new question with no default → refused, reinstall to answer it
+- [ ] Edited by hand: the update is allowed, but the dialog says what is lost and suggests
+      moving the edit into the override first. `git_build` recipes: not offered
+
+**31c — the dialog (frontend)**
+- [ ] The button; a list with an update mark; a recipe opens its commits, its diff and an
+      Update button; the output of `up` on failure, as the stack editor does
+
+**31d — the recipe authors' promise**
+- [ ] `recipe-schema.md` and the recipes repo's checklist: within one recipe id, keep the
+      service names, the mount target, the `.env` keys and the data folders — what an
+      override and an `.env` hang on. A change to one is a new id or a note in the commit
+- [ ] Recipe instructions stop saying "raise the image tag in compose.yml"
+
+**Verification**
+- [ ] Tests both sides; `pytest` + `npm test` + `npm run build` + `check-docs.sh`
+- [ ] Live: install a recipe, commit a version bump to a scratch recipe repo, Check for
+      updates shows it with the commit and the diff, Update runs, the override survives
 
 ---
 
