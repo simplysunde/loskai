@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (470 + 209 + docs).
+All three checks pass (487 + 214 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -255,6 +255,12 @@ must replay except the AdGuard password; its *own* admin password is stored only
   not a folder), a `:`. A recipe's `mounts` (folders the user adds) go into a generated
   `compose.override.yml`, long syntax with `create_host_path: false` — never into the
   recipe's own `compose.yml`.
+- **An installed recipe's files each have one owner** (Phase 31): `compose.yml` is the
+  recipe's — an update replaces it; `.env` is the answers — an update only *adds* a line for
+  a new question; `compose.override.yml` is the user's — an update never touches it, and is
+  refused unless `docker compose config` loads the new file with it. `.loskai-recipe.json`
+  records the install (recipe, source, commit, compose fingerprint) — it is how an update
+  tells the recipe moving on from a hand edit. Don't fold user settings into `compose.yml`.
 - **An installed recipe's instance links to the container name the daemon created**, read
   back from the compose project label — never the recipe id, which is only the project
   name. No container identified → no instance, and the wizard says so. A reinstall keeps

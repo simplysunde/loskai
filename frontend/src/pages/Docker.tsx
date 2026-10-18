@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FilePlus2, PackagePlus } from "lucide-react";
+import { ArrowUpCircle, FilePlus2, PackagePlus } from "lucide-react";
 
 import { api } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
@@ -8,6 +8,7 @@ import { useHealth } from "../lib/useHealth";
 import type { Container, Stack } from "../components/docker/groupByStack";
 import { InstallWizard } from "../components/docker/InstallWizard";
 import { LogViewer } from "../components/docker/LogViewer";
+import { RecipeUpdates } from "../components/docker/RecipeUpdates";
 import { StackEditor } from "../components/docker/StackEditor";
 import { StackGroups } from "../components/docker/StackGroups";
 import { StatsBar } from "../components/docker/StatsBar";
@@ -33,6 +34,7 @@ export function Docker() {
     null,
   );
   const [stackEditor, setStackEditor] = useState<{ name: string | null } | null>(null);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
   const [deleteStack, setDeleteStack] = useState<Stack | null>(null);
   const [deleteData, setDeleteData] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -80,6 +82,12 @@ export function Docker() {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => setUpdatesOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+          >
+            <ArrowUpCircle className="h-4 w-4" /> Check for updates
+          </button>
           <button
             onClick={() => setStackEditor({ name: null })}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
@@ -132,6 +140,7 @@ export function Docker() {
         <StackEditor name={stackEditor.name} onClose={() => setStackEditor(null)} />
       )}
       {wizardOpen && <InstallWizard onClose={() => setWizardOpen(false)} />}
+      {updatesOpen && <RecipeUpdates onClose={() => setUpdatesOpen(false)} />}
 
       <ConfirmDialog
         open={removeContainer !== null}

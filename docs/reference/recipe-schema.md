@@ -273,8 +273,8 @@ Where they go: the recipe's `service`, or its only service. A multi-service reci
 `mounts` must name its `service`.
 
 The override is configuration, not data: a stack's Delete removes it with `compose.yml`, and
-installing again writes it from the new rows. The stack editor shows it read-only — to change
-the folders, reinstall (the data is kept) or edit the file over SSH.
+installing again writes it from the new rows. After install it is the user's: the stack editor
+edits it (its own tab), and an [update](#updating-an-installed-recipe) never touches it.
 
 **Where this stops.** One group of folders per recipe, mounted into one service, all
 read-only or all writable, each at `target/<name>`. A recipe that needs more — two groups,
@@ -309,6 +309,36 @@ and a route that follows its container (the default) is rewritten when the port 
 invalid value is ignored, not trusted.
 
 ---
+
+## Updating an installed recipe
+
+An install records where it came from in `.loskai-recipe.json` beside the compose file — the
+recipe id, its source and commit, and a fingerprint of the `compose.yml` it wrote. **Check for
+updates** on the Docker tab compares that with the recipe now, and **Update** replaces the
+stack's `compose.yml` with the recipe's. Each file has one owner:
+
+| File | Owner | An update |
+|---|---|---|
+| `compose.yml` | the recipe | replaces it |
+| `.env` | the user's answers | keeps every line; adds one for a new question, with its default |
+| `compose.override.yml` | the user | never touches it |
+
+**A new version is a commit to the recipe's folder** — raise the image tag. The dialog shows
+the folder's commit messages since the install beside the diff, so write the message for
+someone running the app: what changes for them, a migration that can't be undone, a backup to
+take first. Trailers (`Co-Authored-By:`) are left out.
+
+**Within one recipe id, keep what an installed stack hangs on:**
+
+- the service names — an override names them;
+- the `mounts` target and the data folders (`./config`) — the user's data is there;
+- the `.env` keys — add a new one with a `default`. One without a default can't be added by
+  an update; the dialog says to reinstall.
+
+Changing one of these is a new recipe id, or a commit message that says what to change by
+hand. Either way, an update is refused before anything is written unless `docker compose
+config` loads the new `compose.yml` with the stack's own override and `.env`. A `git_build`
+recipe isn't offered — it updates by reinstalling.
 
 ## Validation
 

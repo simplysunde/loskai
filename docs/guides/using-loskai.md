@@ -46,7 +46,9 @@ Your containers, grouped by compose project.
   deleted.
 
 **Install recipe** opens the catalog. A recipe is a ready-made `compose.yml` plus the
-questions it needs answered.
+questions it needs answered. **Check for updates** lists what you installed from recipes and
+marks the ones whose recipe has a newer version: open one to see what changes, then Update.
+Only the recipe's `compose.yml` is replaced — your answers and `compose.override.yml` stay.
 
 > *Example:* pick **Jellyfin**, add your media folder, press Install. Loskai writes
 > `stacks/jellyfin/`, runs it, and offers a prefix — type `jellyfin` and it is live at

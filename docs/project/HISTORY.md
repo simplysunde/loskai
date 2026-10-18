@@ -4,6 +4,31 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-18 — Recipe updates: the recipe owns compose.yml, you own the override
+
+Once the override was editable, Sunde saw what it made possible: if everything a user sets
+lives in `.env` and the override, `compose.yml` can stay exactly the recipe's — and then a
+recipe's new version can simply replace it. Before, updating meant raising the image tag in
+`compose.yml` by hand, after which the file no longer matched its recipe and nothing could
+tell an update from an edit.
+
+**Each file got one owner** — `compose.yml` the recipe's, `.env` the answers (an update only
+adds), the override the user's (an update never touches it). An install now writes
+`.loskai-recipe.json`: the recipe, its source and commit, and a fingerprint of the
+`compose.yml` it wrote — the one thing that tells "the recipe moved on" apart from "you edited
+it", which a plain comparison can't. A stack from before has no record and is found by its
+name, shown as "differs from the recipe" rather than guessed at.
+
+**Sunde chose one quiet button**, "Check for updates" beside New stack and Install recipe,
+over a mark on every stack row: it syncs (explicitly, as every sync is), lists the installed
+recipes, and a recipe opens to what changes. "What changes" is the recipe folder's own commit
+messages since the install plus the `compose.yml` diff — the commit message costs an author
+nothing extra and is already written for a reader, so recipe commits are now written for
+someone *running* the app. An update is refused before anything is written unless `docker
+compose config` loads the new file with the stack's own override and `.env`, and recipe
+authors now promise to keep what those hang on — service names, the mount target, data
+folders, `.env` keys — or change the recipe id.
+
 ## 2026-10-18 — The stack editor edits the override too
 
 Moving a real Jellyfin into a stack showed that a recipe's folders, once installed, could only

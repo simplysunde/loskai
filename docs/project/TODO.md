@@ -1221,37 +1221,45 @@ version to version"._
   sources), and the difference in `compose.yml` (always)
 
 **31a — remember what was installed**
-- [ ] Install writes `.loskai-recipe.json` beside the compose file: recipe id, source URL,
+- [x] Install writes `.loskai-recipe.json` beside the compose file: recipe id, source URL,
       the source's commit, and a fingerprint of the `compose.yml` it wrote. One of the
       stack's config files, so Delete removes it with them
-- [ ] A stack from before this, named like a recipe, has none: shown as "installed before
+- [x] A stack from before this, named like a recipe, has none: shown as "installed before
       updates were tracked", with the difference; updating it writes the record
 
 **31b — the check and the update (backend)**
-- [ ] `GET /api/recipes/updates`: sync, then each installed recipe with a status —
+- [x] `GET /api/recipes/updates`: sync, then each installed recipe with a status —
       up to date · update available · `compose.yml` edited by hand · recipe no longer in
       any source — plus the changes (commits, the diff, new `.env` questions)
-- [ ] `POST /api/recipes/updates/{stack}`: refuse unless `docker compose config` loads the
+- [x] `POST /api/recipes/updates/{stack}`: refuse unless `docker compose config` loads the
       new `compose.yml` with the existing override and `.env`; then replace the file, add
       the new questions' defaults to `.env` (never rewrite an existing line), update the
       record, pull + up. A new question with no default → refused, reinstall to answer it
-- [ ] Edited by hand: the update is allowed, but the dialog says what is lost and suggests
+- [x] Edited by hand: the update is allowed, but the dialog says what is lost and suggests
       moving the edit into the override first. `git_build` recipes: not offered
 
 **31c — the dialog (frontend)**
-- [ ] The button; a list with an update mark; a recipe opens its commits, its diff and an
+- [x] The button; a list with an update mark; a recipe opens its commits, its diff and an
       Update button; the output of `up` on failure, as the stack editor does
 
 **31d — the recipe authors' promise**
-- [ ] `recipe-schema.md` and the recipes repo's checklist: within one recipe id, keep the
+- [x] `recipe-schema.md` and the recipes repo's checklist: within one recipe id, keep the
       service names, the mount target, the `.env` keys and the data folders — what an
       override and an `.env` hang on. A change to one is a new id or a note in the commit
-- [ ] Recipe instructions stop saying "raise the image tag in compose.yml"
+- [x] Recipe instructions stop saying "raise the image tag in compose.yml"
 
 **Verification**
-- [ ] Tests both sides; `pytest` + `npm test` + `npm run build` + `check-docs.sh`
-- [ ] Live: install a recipe, commit a version bump to a scratch recipe repo, Check for
-      updates shows it with the commit and the diff, Update runs, the override survives
+- [x] Tests both sides: +17 backend (status matrix, diff, image headline, new questions,
+      trailers, the record, every status, the update and its refusals, a real git log), +5
+      frontend. `pytest` (487) + `npm test` (214) + `npm run build` + `check-docs.sh`
+- [x] **Live** (scratch backend, a local git repo as the source's cache, Playwright): installed
+      `hello` on whoami v1.10.0 and added an override mounting a folder; committed "Hello
+      1.11" (v1.11.0 + a `TZ` question) to the source. The dialog read "1 of 1 installed
+      recipes can be updated", the unreachable source's note, the commit's subject and body
+      (trailer dropped), `TZ` as a new setting, and the diff. Update → "Up to date";
+      `compose.yml` was the recipe's, the override byte-for-byte unchanged, `.env` gained
+      `TZ="Europe/Oslo"` under the untouched `PORT` line (still `0600`), the container ran
+      v1.11.0 with `/extra` still mounted, and the record held the new commit
 
 ---
 

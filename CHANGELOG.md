@@ -15,6 +15,8 @@ Everything so far:
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,
   stack editing, and unused-volume cleanup.
 - **Install wizard** — apps from recipe repos, with their own icons, routed on install.
+  **Check for updates** shows which installed recipes have a newer version and what
+  changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **Security** — one admin password; the app runs as the owner of its data folder, not root;
