@@ -274,7 +274,8 @@ Where they go: the recipe's `service`, or its only service. A multi-service reci
 
 The override is configuration, not data: a stack's Delete removes it with `compose.yml`, and
 installing again writes it from the new rows. After install it is the user's: the stack editor
-edits it (its own tab), and an [update](#updating-an-installed-recipe) never touches it.
+edits it (Folders on its form, or the file as text), and an
+[update](#updating-an-installed-recipe) never touches it.
 
 **Where this stops.** One group of folders per recipe, mounted into one service, all
 read-only or all writable, each at `target/<name>`. A recipe that needs more — two groups,

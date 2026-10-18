@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { Modal } from "../shared/Modal";
 import { TabButton } from "../shared/TabButton";
+import { EditorFooter, SwitchView } from "./EditorFooter";
+import { useSaveAndUp } from "./useSaveAndUp";
+import { StackForm } from "./StackForm";
 
 type FileKey = "compose" | "env" | "override";
 
@@ -21,8 +23,9 @@ const HINTS: Record<FileKey, string | null> = {
   override: "Merged over compose.yml — your own folders and changes. Reinstalling a recipe replaces it.",
 };
 
-// Edit an existing stack's files, one tab each, then re-up; or the raw create path (paste a
-// finished compose + .env and `up`). Docker auto-creates bind-mount dirs, so no directory step.
+// Edit an existing stack — as a form by default, or its files as text — then re-up; or the
+// raw create path (paste a finished compose + .env and `up`), which is text only, as there
+// is no compose file yet for a form to read.
 export function StackEditor({
   name,
   onClose,
@@ -30,7 +33,28 @@ export function StackEditor({
   name: string | null; // null = create a new stack
   onClose: () => void;
 }) {
-  const qc = useQueryClient();
+  const [view, setView] = useState<"form" | "text">("form");
+  return (
+    <Modal title={name === null ? "New stack" : `Edit ${name}`} onClose={onClose} wide>
+      {name !== null && view === "form" ? (
+        <StackForm name={name} onClose={onClose} onTextView={() => setView("text")} />
+      ) : (
+        <TextFiles name={name} onClose={onClose} onFormView={name === null ? undefined : () => setView("form")} />
+      )}
+    </Modal>
+  );
+}
+
+// The stack's files, one tab each.
+function TextFiles({
+  name,
+  onClose,
+  onFormView,
+}: {
+  name: string | null;
+  onClose: () => void;
+  onFormView?: () => void;
+}) {
   const creating = name === null;
   const [stackName, setStackName] = useState("");
   const initial = { compose: creating ? "services:\n  app:\n    image: \n" : "", env: "", override: "" };
@@ -40,9 +64,8 @@ export function StackEditor({
   const [service, setService] = useState("app");
   const [tab, setTab] = useState<FileKey>("compose");
   const [loading, setLoading] = useState(!creating);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [output, setOutput] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const saving = useSaveAndUp(name, onClose);
 
   useEffect(() => {
     if (creating) return;
@@ -62,7 +85,7 @@ export function StackEditor({
         setLabels({ ...FILE_NAMES, compose: s.compose_file, override: s.override_file ?? FILE_NAMES.override });
         if (s.services[0]) setService(s.services[0]);
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"))
+      .catch((e) => setLoadError(e instanceof ApiError ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [name, creating]);
 
@@ -70,95 +93,72 @@ export function StackEditor({
   const dirty = (k: FileKey) => files[k] !== saved[k];
 
   async function save() {
-    setError(null);
-    setOutput(null);
-    setBusy(true);
     let current: FileKey = "compose";
-    try {
-      if (creating) {
-        await api.post("/api/docker/stacks", { name: stackName, compose: files.compose, env: files.env });
-      } else {
+    const ok = await saving.run(
+      async () => {
+        if (creating) {
+          await api.post("/api/docker/stacks", { name: stackName, compose: files.compose, env: files.env });
+          return;
+        }
         for (const k of keys.filter(dirty)) {
           current = k;
           await api.put(`/api/docker/stacks/${name}/file`, { file: FILE_NAMES[k], content: files[k] });
           setSaved((s) => ({ ...s, [k]: files[k] }));
         }
-        const up = await api.post<{ ok: boolean; output: string }>(`/api/docker/stacks/${name}/action`, {
-          action: "up",
-        });
-        if (!up.ok) {
-          // Saved, but Compose refused it: keep the dialog open on what it said.
-          setOutput(up.output || "docker compose up failed");
-          return;
-        }
-      }
-      onClose();
-    } catch (e) {
-      setTab(current);
-      setError(e instanceof ApiError ? e.message : "Save failed");
-    } finally {
-      setBusy(false);
-      qc.invalidateQueries({ queryKey: ["docker-stacks"] });
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
-    }
+      },
+      { up: !creating },
+    );
+    if (!ok) setTab(current);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-10 text-slate-500">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <Modal title={creating ? "New stack" : `Edit ${name}`} onClose={onClose} wide>
-      {loading ? (
-        <div className="flex justify-center py-10 text-slate-500">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {creating && (
-            <input
-              value={stackName}
-              onChange={(e) => setStackName(e.target.value)}
-              placeholder="stack name"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
-            />
-          )}
-          <div role="tablist" className="flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
-            {keys.map((k) => (
-              <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
-                <span className="font-mono text-xs">{labels[k]}</span>
-                {dirty(k) && <span className="ml-1.5 text-teal-400" title="Unsaved">•</span>}
-              </TabButton>
-            ))}
-          </div>
-          {HINTS[tab] && <p className="text-xs text-slate-500">{HINTS[tab]}</p>}
-          <Editor
-            key={tab}
-            label={labels[tab]}
-            value={files[tab]}
-            onChange={(v) => setFiles((f) => ({ ...f, [tab]: v }))}
-            placeholder={
-              tab === "override" ? `services:\n  ${service}:\n    volumes:\n      - /host/folder:/folder/in/container\n` : undefined
-            }
-          />
-          {error && <p className="text-sm text-rose-400">{error}</p>}
-          {output && (
-            <pre className="max-h-40 overflow-auto rounded-lg border border-rose-900/60 bg-slate-950 px-3 py-2 font-mono text-xs text-rose-300">
-              {output}
-            </pre>
-          )}
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
-              Cancel
-            </button>
-            <button
-              onClick={save}
-              disabled={busy || (creating && !stackName)}
-              className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {creating ? "Create + up" : "Save + re-up"}
-            </button>
-          </div>
-        </div>
+    <div className="space-y-3">
+      {creating && (
+        <input
+          value={stackName}
+          onChange={(e) => setStackName(e.target.value)}
+          placeholder="stack name"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+        />
       )}
-    </Modal>
+      <div role="tablist" className="flex w-fit gap-1 rounded-lg border border-slate-800 p-1">
+        {keys.map((k) => (
+          <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
+            <span className="font-mono text-xs">{labels[k]}</span>
+            {dirty(k) && <span className="ml-1.5 text-teal-400" title="Unsaved">•</span>}
+          </TabButton>
+        ))}
+      </div>
+      {HINTS[tab] && <p className="text-xs text-slate-500">{HINTS[tab]}</p>}
+      <Editor
+        key={tab}
+        label={labels[tab]}
+        value={files[tab]}
+        onChange={(v) => setFiles((f) => ({ ...f, [tab]: v }))}
+        placeholder={
+          tab === "override" ? `services:\n  ${service}:\n    volumes:\n      - /host/folder:/folder/in/container\n` : undefined
+        }
+      />
+      {loadError && <p className="text-sm text-rose-400">{loadError}</p>}
+      <EditorFooter
+        left={onFormView && <SwitchView to="Edit as form" onClick={onFormView} dirty={keys.some(dirty)} />}
+        error={saving.error}
+        output={saving.output}
+        busy={saving.busy}
+        disabled={creating && !stackName}
+        label={creating ? "Create + up" : "Save + re-up"}
+        onCancel={onClose}
+        onSave={save}
+      />
+    </div>
   );
 }
 

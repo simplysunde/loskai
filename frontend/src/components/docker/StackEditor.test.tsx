@@ -6,11 +6,20 @@ import { StackEditor } from "./StackEditor";
 
 const COMPOSE = "services:\n  jellyfin:\n    image: jellyfin/jellyfin:12.2\n";
 const OVERRIDE = "services:\n  jellyfin:\n    volumes:\n      - /srv/films:/media/films\n";
+const FORM = {
+  settings: [{ key: "PORT", label: "Host port", value: "8096", default: "8096" }],
+  folders: [{ service: "jellyfin", source: "/srv/films", target: "/media/films", writable: true }],
+  override_other: false,
+  override_comments: false,
+  services: ["jellyfin"],
+  app: [{ service: "jellyfin", image: "jellyfin/jellyfin:12.2", network: null, ports: ["8096 → 8096"], volumes: [] }],
+  from_recipe: "Jellyfin",
+};
 
-// The editor is where a stack's folders are changed after install, so what's pinned: every
-// file has its tab, only what changed is saved, the stack is re-upped, and a refusal — the
-// server's or Compose's — lands where it can be fixed.
-function renderEditor({
+// The text view, behind the form's Edit as text: every file has its tab, only what changed
+// is saved, the stack is re-upped, and a refusal — the server's or Compose's — lands where
+// it can be fixed.
+async function renderEditor({
   override = OVERRIDE as string | null,
   put = (_file: string) => new Response("{}", { status: 200 }),
   up = { ok: true, output: "Started" },
@@ -20,7 +29,9 @@ function renderEditor({
     if (init?.method === "PUT") return put(JSON.parse(String(init.body)).file);
     const body = path.endsWith("/action")
       ? up
-      : {
+      : path.endsWith("/form")
+        ? FORM
+        : {
           compose: COMPOSE,
           compose_file: "compose.yml",
           env: 'PORT="8096"\n',
@@ -37,6 +48,7 @@ function renderEditor({
       <StackEditor name="jellyfin" onClose={onClose} />
     </QueryClientProvider>,
   );
+  fireEvent.click(await screen.findByText("Edit as text"));
   return { fetchMock, onClose };
 }
 
@@ -48,7 +60,7 @@ const calls = (fetchMock: ReturnType<typeof vi.fn>) =>
 afterEach(() => vi.unstubAllGlobals());
 
 test("each file has a tab, and the override's can be edited", async () => {
-  const { fetchMock, onClose } = renderEditor();
+  const { fetchMock, onClose } = await renderEditor();
 
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));
   const editor = screen.getByLabelText("compose.override.yml");
@@ -70,7 +82,7 @@ test("each file has a tab, and the override's can be edited", async () => {
 });
 
 test("a stack without an override offers one, with an example to start from", async () => {
-  renderEditor({ override: null });
+  await renderEditor({ override: null });
 
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));
   expect(screen.getByLabelText("compose.override.yml")).toHaveValue("");
@@ -81,7 +93,7 @@ test("a stack without an override offers one, with an example to start from", as
 });
 
 test("a file the server refuses opens its tab and says why", async () => {
-  const { onClose } = renderEditor({
+  const { onClose } = await renderEditor({
     put: () =>
       new Response(JSON.stringify({ detail: "compose.override.yml line 4: indented with a tab — YAML needs spaces" }), {
         status: 400,
@@ -100,7 +112,7 @@ test("a file the server refuses opens its tab and says why", async () => {
 });
 
 test("when Compose refuses the saved stack, the dialog stays open on its output", async () => {
-  const { onClose } = renderEditor({ up: { ok: false, output: "invalid mount config: bind source path does not exist" } });
+  const { onClose } = await renderEditor({ up: { ok: false, output: "invalid mount config: bind source path does not exist" } });
 
   fireEvent.click(await screen.findByText("Save + re-up"));
 
@@ -109,7 +121,7 @@ test("when Compose refuses the saved stack, the dialog stays open on its output"
 });
 
 test("Tab types spaces, and Enter keeps the indent — one deeper after a key", async () => {
-  renderEditor({ override: null });
+  await renderEditor({ override: null });
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));
   const editor = screen.getByLabelText("compose.override.yml") as HTMLTextAreaElement;
 

@@ -4,6 +4,27 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-18 — The stack editor opens as a form
+
+The tab-per-file editor (below) answered *where* a setting could be changed, not *which line*:
+the recipes' `compose.yml` files were mostly comments, and Sunde found it hard to see the
+values among them. **Sunde asked for the files read as fields** — the Folders form priced and
+passed over the same morning, now for every stack rather than recipes alone.
+
+**Edit opens a form**: Settings (the `.env`, one field per variable the stack reads, labelled
+with the recipe's question), Folders (the override's bind mounts as rows) and the App —
+`compose.yml` as its values, **read-only by Sunde's choice**: Phase 31 made it the recipe's,
+so a field there would invite an edit the next update wipes. "Edit as text" keeps the files.
+The parsing is on the server, which already has a YAML library, and the form changes only
+what it shows — an unchanged `.env` line stays as written, an override keeps its other keys,
+and rewriting one through YAML drops its comments, which the form says before saving.
+
+**And the comments moved** (also Sunde's choice): only `compose.yml` is copied into a stack,
+so the author notes went into `recipe.yml`, which stays in the repo, and each `compose.yml`
+now carries a two-line header saying whose file it is. Doing so surfaced a Phase 31 leftover:
+Jellyfin's hardware transcoding said to uncomment lines in `compose.yml`, which an update
+would now silently undo — it is an override snippet in the instructions instead.
+
 ## 2026-10-18 — Recipe updates: the recipe owns compose.yml, you own the override
 
 Once the override was editable, Sunde saw what it made possible: if everything a user sets

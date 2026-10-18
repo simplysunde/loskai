@@ -4,8 +4,10 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 31** (below) — recipe updates: Check for updates lists installed recipes,
-shows what changed, and replaces the recipe's `compose.yml` while your override stays.
+**Now:** **Phase 32** (below) — the stack editor opens as a form: settings, folders, and the
+app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
+lists installed recipes, shows what changed, and replaces the recipe's `compose.yml` while
+your override stays.
 **Phase 30** (UI polish across machines, routing, Docker and the recipe wizard) is built
 and verified live (2026-10-05). **Phase 29** is built and verified live — a Docker route follows its
 container, so a port changed even over SSH re-points the route by itself. Only the
@@ -1260,6 +1262,51 @@ version to version"._
       `compose.yml` was the recipe's, the override byte-for-byte unchanged, `.env` gained
       `TZ="Europe/Oslo"` under the untouched `PORT` line (still `0600`), the container ran
       v1.11.0 with `/extra` still mounted, and the record held the new commit
+
+---
+
+## Phase 32 — The stack editor as a form
+
+_Origin (2026-10-18, Sunde): "a parser so that we could read the compose, env and override
+as input fields instead of the raw compose, since you keep putting so many comments into the
+compose file that i dont really know where to look for the proper values"._
+
+**Decisions (Sunde, 2026-10-18)**
+- **`compose.yml` is shown, not edited**: it is the recipe's (Phase 31), so an edit there is
+  lost to the next update. Settings and folders are where changes go
+- **The recipes' comments move out of `compose.yml`** — into `recipe.yml`, which never
+  reaches a stack
+
+**32a — backend**
+- [x] `stackform.py`, pure parse/build + I/O: `.env` values (as Compose reads them, written
+      back line by line), the variables `compose.yml` reads (from the loaded YAML, so not
+      from comments), the app's image/ports/folders interpolated, the override's bind mounts
+      as rows and back. `GET`/`PUT /api/docker/stacks/{name}/form`
+- [x] Folders get the install's path checks; everything is checked before anything is
+      written. A cleared setting removes its line, so the default applies again
+- [x] The override header no longer says "Reinstall to change them"; the old one isn't
+      counted as the user's comment
+
+**32b — frontend**
+- [x] Edit opens the form; "Edit as text" (and back) once nothing is unsaved. The two
+      views share one save-then-up and footer. New stack stays text — there is nothing to read
+
+**32c — recipes**
+- [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;
+      Jellyfin's `/dev/dri` is an override snippet in its instructions; the authoring rules
+      say so
+
+**Verification**
+- [x] +16 backend, +5 frontend. `pytest` (503) + `npm test` (219) + `npm run build` +
+      `oxlint` + `check-docs.sh`; recipe validator 3 valid, each `compose.yml` passes
+      `docker compose config`
+- [x] **Live** (scratch backend + stack, Playwright): the form showed "Host port"/"Time zone"
+      from the recipe, the folder from an override with the old header (no comment
+      warning), and the app as `8091 → 80`. Port 8092, `TZ` UTC and a read-only folder
+      added → `.env` `PORT="8092"` + `TZ="UTC"` (`0600`), the override in long syntax, and
+      the container on `:8092` with `/media/films` `rw=false`, `/media/anime` `rw=true`,
+      `TZ=UTC`. A missing folder failed `up` with "bind source path does not exist" (none
+      created); an empty list removed the override; `~/x` was refused
 
 ---
 

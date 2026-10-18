@@ -35,11 +35,13 @@ Your containers, grouped by compose project.
 
 - **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
   pull + update, edit, or delete — **Delete keeps `./data` unless you tick it**, so installing
-  again picks the data back up. Edit has a tab per file: `compose.yml`, `.env`, and
-  `compose.override.yml`, where the folders you gave a recipe are.
+  again picks the data back up. Edit opens as a form: **Settings** (the `.env`, labelled
+  with the recipe's questions), **Folders** (host folder → path in the container, writable or
+  not) and **App** — what `compose.yml` runs, shown but not edited, since it is the recipe's.
+  **Edit as text** opens the files themselves, a tab each.
 
-  > *Example:* to give Jellyfin another library, add a line under `volumes:` in
-  > `compose.override.yml` — `- /srv/media/books:/media/books` — and Save + re-up.
+  > *Example:* to give Jellyfin another library, Edit → Add folder → `/srv/media/books` →
+  > `/media/books` → Save + re-up.
 - **Other containers** were started elsewhere (another compose folder, `docker run`).
   Start, stop and remove work; editing doesn't — the files aren't Loskai's.
 - **Volumes** lists Docker volumes and which containers use them. An unused one can be

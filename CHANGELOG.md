@@ -13,7 +13,8 @@ Everything so far:
 - **Machines** — name the computers on your network; a route linked to one follows it when
   its address changes. A Docker route can follow its container the same way.
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,
-  stack editing, and unused-volume cleanup.
+  stack editing — a form for settings and folders, or the files as text — and unused-volume
+  cleanup.
 - **Install wizard** — apps from recipe repos, with their own icons, routed on install.
   **Check for updates** shows which installed recipes have a newer version and what
   changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
