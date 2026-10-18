@@ -212,3 +212,12 @@ def test_a_bad_folder_writes_nothing(stack):
 def test_a_setting_must_be_a_variable_name(stack):
     with pytest.raises(StackError, match="not a variable name"):
         stackform.save_form("jellyfin", {"BAD KEY": "x"}, None)
+
+
+def test_only_the_users_own_comments_are_warned_about(stack):
+    override = stack / "compose.override.yml"
+    body = "services:\n  jellyfin:\n    volumes:\n      - /srv/a:/a\n"
+    override.write_text("# Folders added in Loskai's install wizard. Reinstall to change them.\n" + body)
+    assert not stackform.get_form("jellyfin")["override_comments"]
+    override.write_text("# my note\n" + body)
+    assert stackform.get_form("jellyfin")["override_comments"]

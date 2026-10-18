@@ -23,6 +23,11 @@ _VAR_RE = re.compile(r"\$\$|\$\{([A-Za-z_]\w*)(?:(:?[-?+])([^}]*))?\}|\$([A-Za-z
 _ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$")
 _KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _UNESCAPE = {"n": "\n", "r": "\r", "t": "\t"}
+# The headers Loskai writes — not the user's comments. The first is from before Phase 31.
+_OWN_HEADERS = {
+    "# Folders added in Loskai's install wizard. Reinstall to change them.",
+    recipes.OVERRIDE_HEADER.strip(),
+}
 
 
 # --- Pure: .env ---
@@ -307,7 +312,7 @@ def get_form(name: str) -> dict:
         "override_other": other,
         # Saving folders rewrites the file through YAML, which drops comments: said first.
         "override_comments": any(
-            line.lstrip().startswith("#") and line != recipes.OVERRIDE_HEADER.strip()
+            line.lstrip().startswith("#") and line.strip() not in _OWN_HEADERS
             for line in override_text.splitlines()
         ),
         "services": sorted(logic.declared_services(compose.read_text(encoding="utf-8"))),
