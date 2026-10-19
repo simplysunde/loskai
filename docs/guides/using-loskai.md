@@ -39,10 +39,11 @@ Your containers, grouped by compose project.
   with the recipe's questions), **Folders** (host folder → path in the container, writable or
   not) and **App** — what `compose.yml` runs, shown but not edited, since it is the recipe's.
   **Edit as text** opens the files themselves, a tab each; switching either way keeps what
-  you haven't saved yet.
+  you haven't saved yet. The button reads **Save** once something changed — it saves and
+  re-ups the stack — and **Restart** while nothing has.
 
   > *Example:* to give Jellyfin another library, Edit → Add folder → `/srv/media/books` →
-  > `/media/books` → Save + re-up.
+  > `/media/books` → Save.
 - **Other containers** were started elsewhere (another compose folder, `docker run`).
   Start, stop and remove work; editing doesn't — the files aren't Loskai's.
 - **Volumes** lists Docker volumes and which containers use them. An unused one can be

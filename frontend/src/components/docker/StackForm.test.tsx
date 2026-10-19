@@ -69,15 +69,26 @@ test("the stack opens as labelled values, the app read-only", async () => {
   expect(screen.getByText("./config")).toBeInTheDocument();
   expect(screen.getByText("/cache")).toBeInTheDocument();
   expect(screen.getByTitle(/From the Jellyfin recipe/)).toBeInTheDocument();
-  // Nothing changed yet: nothing to save.
-  expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
+  // Nothing changed yet: nothing to save, so the button restarts.
+  expect(screen.getByText("Restart").closest("button")).toBeEnabled();
+  expect(screen.queryByText("Save")).not.toBeInTheDocument();
+});
+
+test("with nothing changed, the button restarts the stack", async () => {
+  const { fetchMock, onClose } = renderForm();
+
+  fireEvent.click(await screen.findByText("Restart"));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(sent(fetchMock)).toEqual([]);
+  const action = fetchMock.mock.calls.find(([p]) => p.endsWith("/action"));
+  expect(JSON.parse(String(action![1]!.body))).toEqual({ action: "restart" });
 });
 
 test("saving sends only the changed values, and the folders when they changed", async () => {
   const { fetchMock, onClose } = renderForm();
 
   fireEvent.change(await screen.findByLabelText("Host port"), { target: { value: "9000" } });
-  fireEvent.click(screen.getByText("Save + re-up"));
+  fireEvent.click(screen.getByText("Save"));
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(sent(fetchMock)).toEqual([{ settings: { PORT: "9000" } }]);
   expect(fetchMock.mock.calls.some(([p]) => p === "/api/docker/stacks/jellyfin/action")).toBe(true);
@@ -90,7 +101,7 @@ test("a folder is added as a row: host, container, writable", async () => {
   fireEvent.change(screen.getByLabelText("Folder 2 on the host"), { target: { value: "/srv/media/films" } });
   fireEvent.change(screen.getByLabelText("Folder 2 in the container"), { target: { value: "/media/films" } });
   fireEvent.click(screen.getByLabelText("Folder 2 writable"));
-  fireEvent.click(screen.getByText("Save + re-up"));
+  fireEvent.click(screen.getByText("Save"));
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(sent(fetchMock)).toEqual([
@@ -109,14 +120,14 @@ test("a folder the server would refuse is said before saving", async () => {
 
   fireEvent.change(await screen.findByLabelText("Folder 1 on the host"), { target: { value: "~/media" } });
   expect(screen.getByText(/write the full path|\/root/)).toBeInTheDocument();
-  expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
+  expect(screen.getByText("Save").closest("button")).toBeDisabled();
 });
 
 test("an added folder left empty is not a change", async () => {
   renderForm();
 
   fireEvent.click(await screen.findByText("Add folder"));
-  expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
+  expect(screen.getByText("Restart")).toBeInTheDocument();
   expect(screen.getByText("Edit as text").closest("button")).toBeEnabled();
 });
 
@@ -145,7 +156,7 @@ test("Edit as form carries the text's unsaved changes back, and saves on top of 
   const read = fetchMock.mock.calls.find(([p, i]) => p.endsWith("/form") && i?.method === "POST");
   expect(JSON.parse(String(read![1]!.body))).toEqual({ env: 'PORT="9100"\n', override: "" });
 
-  fireEvent.click(screen.getByText("Save + re-up"));
+  fireEvent.click(screen.getByText("Save"));
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(sent(fetchMock)).toEqual([{ settings: {}, base: { env: 'PORT="9100"\n', override: "" } }]);
 });

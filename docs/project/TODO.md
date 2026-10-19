@@ -1312,6 +1312,10 @@ compose file that i dont really know where to look for the proper values"._
       the override → back to the form (port and both folders there, "other settings
       kept") → port again → Save: `.env` 8099, the override with the environment line and
       both folders, the container on `:8099` with `EXTRA=1`
+- [x] The button says what it will do (Sunde: "should say save when we've done some
+      changes, and restart otherwise"): **Save** (then re-up) with changes, **Restart**
+      (`docker compose restart`) without — in both views. It was "Save + re-up", greyed out
+      with nothing to save, which read as something being wrong
 
 **32c — recipes**
 - [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;

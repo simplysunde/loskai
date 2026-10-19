@@ -66,7 +66,7 @@ test("each file has a tab, and the override's can be edited", async () => {
   const editor = screen.getByLabelText("compose.override.yml");
   expect(editor).toHaveValue(OVERRIDE);
   fireEvent.change(editor, { target: { value: OVERRIDE + "      - /srv/music:/media/music\n" } });
-  fireEvent.click(screen.getByText("Save + re-up"));
+  fireEvent.click(screen.getByText("Save"));
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   // Only the changed file is written, and the stack is re-upped so it takes effect.
@@ -104,7 +104,7 @@ test("a file the server refuses opens its tab and says why", async () => {
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));
   fireEvent.change(screen.getByLabelText("compose.override.yml"), { target: { value: "services:\n\tx: {}\n" } });
   fireEvent.click(screen.getByRole("tab", { name: "compose.yml" }));
-  fireEvent.click(screen.getByText("Save + re-up"));
+  fireEvent.click(screen.getByText("Save"));
 
   expect(await screen.findByText(/line 4: indented with a tab/)).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: /compose\.override\.yml/ })).toHaveAttribute("aria-selected", "true");
@@ -114,7 +114,9 @@ test("a file the server refuses opens its tab and says why", async () => {
 test("when Compose refuses the saved stack, the dialog stays open on its output", async () => {
   const { onClose } = await renderEditor({ up: { ok: false, output: "invalid mount config: bind source path does not exist" } });
 
-  fireEvent.click(await screen.findByText("Save + re-up"));
+  fireEvent.click(await screen.findByRole("tab", { name: ".env" }));
+  fireEvent.change(screen.getByLabelText(".env"), { target: { value: 'PORT="9000"\n' } });
+  fireEvent.click(screen.getByText("Save"));
 
   expect(await screen.findByText(/bind source path does not exist/)).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
