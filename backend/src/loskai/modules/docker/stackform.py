@@ -272,7 +272,27 @@ def _recipe(directory) -> dict | None:
         return None
 
 
-def get_form(name: str) -> dict:
+def _base(base: object) -> tuple[str, str] | None:
+    """Unsaved `.env` and override text from the text view, or None for the files on disk."""
+    if base is None:
+        return None
+    if not isinstance(base, dict) or not isinstance(base.get("env"), str) or not isinstance(base.get("override"), str):
+        raise StackError("base needs env and override as text")
+    return base["env"], base["override"]
+
+
+def _disk(directory) -> tuple[str, str]:
+    env_file = directory / ".env"
+    override = stacks._override_file(directory)
+    return (
+        env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
+        override.read_text(encoding="utf-8") if override else "",
+    )
+
+
+def get_form(name: str, base: dict | None = None) -> dict:
+    """The stack as fields — from its files, or from `base`: the text view's unsaved `.env`
+    and override, so switching back to the form keeps what was typed there."""
     directory = stacks._stack_dir(name)
     compose = stacks._compose_file(directory)
     if compose is None:
@@ -281,8 +301,11 @@ def get_form(name: str) -> dict:
         doc = yaml.safe_load(compose.read_text(encoding="utf-8"))
     except yaml.YAMLError:
         raise StackError(f"{compose.name} doesn't load — use Edit as text")
-    env_file = directory / ".env"
-    env = parse_env(env_file.read_text(encoding="utf-8") if env_file.is_file() else "")
+    env_text, override_text = _base(base) or _disk(directory)
+    problem = override_text.strip() and logic.yaml_problem(override_text)
+    if problem:
+        raise StackError(f"compose.override.yml {problem}")
+    env = parse_env(env_text)
     recipe = _recipe(directory)
     questions = {str(q["key"]): q for q in (recipe["env"] if recipe else [])}
 
@@ -300,12 +323,7 @@ def get_form(name: str) -> dict:
             "default": None if default is None else str(default),
         })
 
-    override = stacks._override_file(directory)
-    override_text = override.read_text(encoding="utf-8") if override else ""
-    try:
-        folders, other = parse_override(override_text)
-    except yaml.YAMLError:
-        raise StackError(f"{override.name} doesn't load — use Edit as text")
+    folders, other = parse_override(override_text)
     return {
         "settings": settings,
         "folders": folders,
@@ -322,22 +340,25 @@ def get_form(name: str) -> dict:
 
 
 def save_form(
-    name: str, settings: dict[str, str] | None, folders: list[dict] | None, preview: bool = False
+    name: str,
+    settings: dict[str, str] | None,
+    folders: list[dict] | None,
+    preview: bool = False,
+    base: dict | None = None,
 ) -> dict | None:
     """Write what the form changed: `settings` are the changed values only, `folders` the
-    whole list when it changed — a row left blank is skipped. Everything is checked before
+    whole list when it changed — a row left blank is skipped — applied to the files on disk,
+    or to `base`, the text view's unsaved `.env` and override. Everything is checked before
     anything is written. `preview` writes nothing and returns the `.env` and override the
     save would leave, for the text view to open with."""
     directory = stacks._stack_dir(name)
     compose = stacks._compose_file(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found")
-    override = stacks._override_file(directory)
-    override_text = override.read_text(encoding="utf-8") if override else ""
-    env_file = directory / ".env"
-    env_text = env_file.read_text(encoding="utf-8") if env_file.is_file() else ""
+    disk_env, disk_override = _disk(directory)
+    env_text, override_text = _base(base) or (disk_env, disk_override)
 
-    new_override = override_text or None
+    new_override = override_text
     if folders is not None:
         rows = []
         for f in folders:
@@ -354,7 +375,14 @@ def save_form(
         problem = folders_problem(rows, logic.declared_services(compose.read_text(encoding="utf-8")))
         if problem:
             raise StackError(problem)
-        new_override = build_override(override_text, rows)
+        try:
+            new_override = build_override(override_text, rows) or ""
+        except yaml.YAMLError:
+            raise StackError(f"compose.override.yml {logic.yaml_problem(override_text)}")
+    elif new_override.strip():
+        problem = logic.yaml_problem(new_override)
+        if problem:
+            raise StackError(f"compose.override.yml {problem}")
     new_env = env_text
     if settings:
         bad = [k for k in settings if not _KEY_RE.match(str(k))]
@@ -369,13 +397,13 @@ def save_form(
         new_env = set_env(env_text, {str(k): str(v) for k, v in settings.items()})
 
     if preview:
-        return {"env": new_env, "override": new_override or ""}
-    if new_env != env_text:
-        store.write_private(env_file, new_env)
-    if folders is not None:
-        target = override or directory / stacks.OVERRIDE_NAME
-        if new_override is None:
-            target.unlink(missing_ok=True)
-        else:
+        return {"env": new_env, "override": new_override}
+    if new_env != disk_env:
+        store.write_private(directory / ".env", new_env)
+    if new_override != disk_override:
+        target = stacks._override_file(directory) or directory / stacks.OVERRIDE_NAME
+        if new_override.strip():
             target.write_text(new_override, encoding="utf-8")
+        else:
+            target.unlink(missing_ok=True)
     return None

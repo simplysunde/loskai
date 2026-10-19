@@ -1305,6 +1305,13 @@ compose file that i dont really know where to look for the proper values"._
       may not read back as fields. Live: port + a folder + an empty row → the text view
       showed both files marked unsaved, the row dropped; Save + re-up put the container
       on the new port with the folder mounted
+- [x] …and back (Sunde: "now i cant go back to edit as form"): `POST /form` reads the form
+      from the text view's unsaved `.env` and override, and `PUT /form` takes them as
+      `base` to save on top of. Only an unsaved `compose.yml` holds the switch — the form
+      doesn't edit it. Live: port + folder in the form → an `environment:` line typed in
+      the override → back to the form (port and both folders there, "other settings
+      kept") → port again → Save: `.env` 8099, the override with the environment line and
+      both folders, the container on `:8099` with `EXTRA=1`
 
 **32c — recipes**
 - [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;

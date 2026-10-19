@@ -27,10 +27,12 @@ const INPUT =
 // what changed; the server keeps everything the form doesn't show.
 export function StackForm({
   name,
+  base,
   onClose,
   onTextView,
 }: {
   name: string;
+  base: Carried | null; // the text view's unsaved .env and override, read as the form
   onClose: () => void;
   onTextView: (carried: Carried | null) => void;
 }) {
@@ -42,22 +44,23 @@ export function StackForm({
   const saving = useSaveAndUp(name, onClose);
 
   useEffect(() => {
-    api
-      .get<StackFormData>(`/api/docker/stacks/${name}/form`)
+    const path = `/api/docker/stacks/${name}/form`;
+    (base ? api.post<StackFormData>(path, base) : api.get<StackFormData>(path))
       .then((f) => {
         setForm(f);
         setValues(Object.fromEntries(f.settings.map((s) => [s.key, s.value])));
         setFolders(f.folders);
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
-  }, [name]);
+  }, [name, base]);
 
   if (!form) {
-    // A file the form can't read (YAML that won't load) still opens as text.
+    // A file the form can't read (YAML that won't load) still opens as text — with what was
+    // typed there, when that is what didn't load.
     return error ? (
       <div className="space-y-3">
         <p className="text-sm text-rose-400">{error}</p>
-        <SwitchView to="Edit as text" onClick={() => onTextView(null)} />
+        <SwitchView to="Edit as text" onClick={() => onTextView(base)} />
       </div>
     ) : (
       <div className="flex justify-center py-10 text-slate-500">
@@ -72,8 +75,9 @@ export function StackForm({
   // A row with nothing typed in it is not a change — the server skips it too.
   const filled = folders.filter((f) => f.source.trim() || f.target.trim());
   const foldersChanged = JSON.stringify(filled) !== JSON.stringify(form.folders);
-  const dirty = Object.keys(changed).length > 0 || foldersChanged;
-  const payload = { settings: changed, folders: foldersChanged ? filled : undefined };
+  // Text carried over from the text view is unsaved too: the form saves on top of it.
+  const dirty = base !== null || Object.keys(changed).length > 0 || foldersChanged;
+  const payload = { settings: changed, folders: foldersChanged ? filled : undefined, base: base ?? undefined };
   const problems = folders.map((f) => folderProblem(f, folders));
   const setFolder = (i: number, patch: Partial<Folder>) =>
     setFolders(folders.map((f, j) => (j === i ? { ...f, ...patch } : f)));

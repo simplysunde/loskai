@@ -40,6 +40,7 @@ export function StackEditor({
       {name !== null && view === "form" ? (
         <StackForm
           name={name}
+          base={carried}
           onClose={onClose}
           onTextView={(c) => {
             setCarried(c);
@@ -51,7 +52,14 @@ export function StackEditor({
           name={name}
           carried={carried}
           onClose={onClose}
-          onFormView={name === null ? undefined : () => setView("form")}
+          onFormView={
+            name === null
+              ? undefined
+              : (c) => {
+                  setCarried(c);
+                  setView("form");
+                }
+          }
         />
       )}
     </Modal>
@@ -71,7 +79,7 @@ function TextFiles({
   name: string | null;
   carried: Carried | null;
   onClose: () => void;
-  onFormView?: () => void;
+  onFormView?: (carried: Carried | null) => void;
 }) {
   const creating = name === null;
   const [stackName, setStackName] = useState("");
@@ -167,7 +175,18 @@ function TextFiles({
       />
       {loadError && <p className="text-sm text-rose-400">{loadError}</p>}
       <EditorFooter
-        left={onFormView && <SwitchView to="Edit as form" onClick={onFormView} blocked={keys.some(dirty) ? "Save or cancel first" : null} />}
+        left={
+          onFormView && (
+            <SwitchView
+              to="Edit as form"
+              // The form doesn't edit compose.yml, so an unsaved change to it would be lost.
+              blocked={dirty("compose") ? `${labels.compose} isn't in the form — save it first` : null}
+              onClick={() =>
+                onFormView(dirty("env") || dirty("override") ? { env: files.env, override: files.override } : null)
+              }
+            />
+          )
+        }
         error={saving.error}
         output={saving.output}
         busy={saving.busy}

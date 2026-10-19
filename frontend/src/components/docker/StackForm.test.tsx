@@ -36,9 +36,11 @@ function renderForm(form: StackFormData = FORM) {
       ? { ok: true, output: "Started" }
       : init?.method === "PUT" && JSON.parse(String(init.body)).preview
         ? { env: 'PORT="9000"\n', override: "" }
-        : path.endsWith("/form")
-          ? form
-          : detail;
+        : path.endsWith("/form") && init?.method === "POST"
+          ? { ...form, settings: [{ ...form.settings[0], value: "9100" }, ...form.settings.slice(1)] }
+          : path.endsWith("/form")
+            ? form
+            : detail;
     return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -129,4 +131,29 @@ test("Edit as text carries the form's unsaved changes over, as unsaved edits", a
   // Previewed, not saved: the tab is marked unsaved.
   expect(screen.getByRole("tab", { name: /^\.env/ })).toHaveTextContent("•");
   expect(sent(fetchMock)).toEqual([{ settings: { PORT: "9000" }, preview: true }]);
+});
+
+test("Edit as form carries the text's unsaved changes back, and saves on top of them", async () => {
+  const { fetchMock, onClose } = renderForm();
+
+  fireEvent.click(await screen.findByText("Edit as text"));
+  fireEvent.click(await screen.findByRole("tab", { name: /^\.env/ }));
+  fireEvent.change(screen.getByLabelText(".env"), { target: { value: 'PORT="9100"\n' } });
+  fireEvent.click(screen.getByText("Edit as form"));
+
+  expect(await screen.findByLabelText("Host port")).toHaveValue("9100");
+  const read = fetchMock.mock.calls.find(([p, i]) => p.endsWith("/form") && i?.method === "POST");
+  expect(JSON.parse(String(read![1]!.body))).toEqual({ env: 'PORT="9100"\n', override: "" });
+
+  fireEvent.click(screen.getByText("Save + re-up"));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(sent(fetchMock)).toEqual([{ settings: {}, base: { env: 'PORT="9100"\n', override: "" } }]);
+});
+
+test("an unsaved compose.yml keeps you in the text view", async () => {
+  renderForm();
+
+  fireEvent.click(await screen.findByText("Edit as text"));
+  fireEvent.change(await screen.findByLabelText("compose.yml"), { target: { value: "services: {}\n" } });
+  expect(screen.getByText("Edit as form").closest("button")).toBeDisabled();
 });

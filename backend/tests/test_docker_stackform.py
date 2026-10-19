@@ -246,3 +246,37 @@ def test_a_preview_returns_the_files_and_writes_nothing(stack):
 def test_a_blank_folder_row_is_skipped_not_refused(stack):
     stackform.save_form("jellyfin", None, [{"service": "jellyfin", "source": " ", "target": "", "writable": True}])
     assert not (stack / "compose.override.yml").exists()
+
+
+def test_the_form_reads_unsaved_text_and_saves_on_top_of_it(stack):
+    disk_override = (stack / "compose.override.yml").read_text()
+    base = {
+        "env": 'PORT="9100"\n',
+        "override": "services:\n  jellyfin:\n    devices:\n      - /dev/dri:/dev/dri\n"
+        "    volumes:\n      - /srv/a:/a\n",
+    }
+    form = stackform.get_form("jellyfin", base)
+    assert form["settings"][0]["value"] == "9100"
+    assert [f["target"] for f in form["folders"]] == ["/a"]
+    assert form["override_other"]
+    assert (stack / "compose.override.yml").read_text() == disk_override
+
+    # Saved with no further change: the text view's files are what lands.
+    stackform.save_form("jellyfin", None, None, base=base)
+    assert (stack / ".env").read_text() == base["env"]
+    assert (stack / "compose.override.yml").read_text() == base["override"]
+
+    # A folder changed on top keeps the text's devices line.
+    stackform.save_form(
+        "jellyfin", {"PORT": "9200"},
+        [{"service": "jellyfin", "source": "/srv/b", "target": "/b", "writable": True}], base=base,
+    )
+    svc = yaml.safe_load((stack / "compose.override.yml").read_text())["services"]["jellyfin"]
+    assert svc["devices"] == ["/dev/dri:/dev/dri"]
+    assert [v["target"] for v in svc["volumes"]] == ["/b"]
+    assert (stack / ".env").read_text() == 'PORT="9200"\n'
+
+
+def test_unsaved_text_that_doesnt_load_is_refused_with_its_line(stack):
+    with pytest.raises(StackError, match="compose.override.yml line 2"):
+        stackform.get_form("jellyfin", {"env": "", "override": "services:\n\tx: {}\n"})

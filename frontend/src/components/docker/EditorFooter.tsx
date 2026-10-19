@@ -48,8 +48,8 @@ export function EditorFooter({
   );
 }
 
-// Switches between the form and the text files. The form's unsaved changes carry over; the
-// text's don't — half-typed YAML may not read back as fields — so `blocked` says why not.
+// Switches between the form and the text files, carrying unsaved changes both ways —
+// `blocked` says why it can't, when it can't.
 export function SwitchView({ to, onClick, blocked }: { to: string; onClick: () => void; blocked?: string | null }) {
   return (
     <button

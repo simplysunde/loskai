@@ -287,9 +287,19 @@ def get_stack_form(name: str) -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.post("/stacks/{name}/form")
+def read_stack_form(name: str, payload: dict = Body(...)) -> dict:
+    """The form for unsaved `{env, override}` text — the text view switching back."""
+    try:
+        return stackform_mod.get_form(name, payload)
+    except StackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.put("/stacks/{name}/form")
 def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
     """`settings`: the changed values; `folders`: the whole list. Either may be left out.
+    `base` is the text view's unsaved `{env, override}` to apply them to instead of the files.
     `preview: true` writes nothing and returns `{env, override}` as the save would leave them."""
     settings_in, folders = payload.get("settings"), payload.get("folders")
     if settings_in is not None and not isinstance(settings_in, dict):
@@ -297,7 +307,9 @@ def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
     if folders is not None and not isinstance(folders, list):
         raise HTTPException(status_code=422, detail="folders must be a list")
     try:
-        preview = stackform_mod.save_form(name, settings_in, folders, bool(payload.get("preview")))
+        preview = stackform_mod.save_form(
+            name, settings_in, folders, bool(payload.get("preview")), payload.get("base")
+        )
     except StackError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return preview or {"ok": True}

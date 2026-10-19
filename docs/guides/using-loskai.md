@@ -38,8 +38,8 @@ Your containers, grouped by compose project.
   again picks the data back up. Edit opens as a form: **Settings** (the `.env`, labelled
   with the recipe's questions), **Folders** (host folder → path in the container, writable or
   not) and **App** — what `compose.yml` runs, shown but not edited, since it is the recipe's.
-  **Edit as text** opens the files themselves, a tab each — with anything unsaved in the
-  form carried over.
+  **Edit as text** opens the files themselves, a tab each; switching either way keeps what
+  you haven't saved yet.
 
   > *Example:* to give Jellyfin another library, Edit → Add folder → `/srv/media/books` →
   > `/media/books` → Save + re-up.
