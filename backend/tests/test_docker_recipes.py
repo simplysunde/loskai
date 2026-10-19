@@ -1,6 +1,8 @@
 """Tier-1: recipe validation, .env/var rendering, the multi-source merge, and the
 container the install links its instance to."""
 
+import subprocess
+
 import pytest
 
 from loskai import config
@@ -391,6 +393,30 @@ def test_sync_reports_each_source_separately(data_dir, monkeypatch):
         ("recipes-b", True),
     ]
     assert "could not resolve host" in result["output"]
+
+
+def test_sync_follows_a_rewritten_history(data_dir, tmp_path):
+    def git(*args, cwd=None):
+        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+    origin = tmp_path / "origin.git"
+    work = tmp_path / "work"
+    git("init", "--bare", "-b", "main", str(origin))
+    git("clone", str(origin), str(work))
+    git("config", "user.email", "t@example.invalid", cwd=work)
+    git("config", "user.name", "t", cwd=work)
+    (work / "a.txt").write_text("one\n")
+    git("add", ".", cwd=work)
+    git("commit", "-m", "one", cwd=work)
+    git("push", "origin", "main", cwd=work)
+    url = origin.as_uri()
+    recipes._sync_one(url)
+
+    (work / "a.txt").write_text("rewritten\n")
+    git("commit", "-a", "--amend", "-m", "rewritten", cwd=work)
+    git("push", "--force", "origin", "main", cwd=work)
+    recipes._sync_one(url)
+    assert (recipes._repo_cache(url) / "a.txt").read_text() == "rewritten\n"
 
 
 def test_sync_can_target_one_source(data_dir, monkeypatch):

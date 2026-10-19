@@ -645,10 +645,17 @@ def _sync_one(url: str) -> str:
     cache = _repo_cache(url)
     try:
         if (cache / ".git").is_dir():
+            # The cache is a mirror, so it follows the source even when its history was
+            # rewritten — a pull would refuse a force-push and stop syncing for good.
             proc = subprocess.run(
-                ["git", "-C", str(cache), "pull", "--ff-only"],
+                ["git", "-C", str(cache), "fetch", "origin"],
                 capture_output=True, text=True, timeout=_GIT_TIMEOUT,
             )
+            if proc.returncode == 0:
+                proc = subprocess.run(
+                    ["git", "-C", str(cache), "reset", "--hard", "@{upstream}"],
+                    capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+                )
         else:
             cache.parent.mkdir(parents=True, exist_ok=True)
             proc = subprocess.run(

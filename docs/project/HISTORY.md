@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-19 — Recipe sync follows a rewritten history
+
+Sunde's global CLAUDE.md says commits carry no AI attribution lines, and most of both repos'
+history did — so their history was rewritten and force-pushed. **A sync was `git pull
+--ff-only`, which refuses a force-pushed source**: every Loskai with the recipes repo synced
+would have stopped syncing it until someone deleted the cache by hand. The cache is a mirror
+Loskai never commits to, so it now fetches and resets to the source instead. An install
+record naming a commit the rewrite replaced only loses its "What changed" list; status reads
+the compose fingerprint, not the commit.
+
 ## 2026-10-19 — Recipe options: optional features as checkboxes
 
 Jellyfin's hardware transcoding was a snippet in its instructions, pasted into the override

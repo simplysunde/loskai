@@ -352,7 +352,7 @@ daemon; it invents no new deployment method.
 - **Recipes are never baked into the image** — they come from two kinds of source, scanned
   the same way and merged into one list:
   - **Git repos you own** — as many as you like (`recipes_repos`, managed in Settings >
-    General). Loskai syncs each (a plain `git clone`/`pull` — public, so no auth) into its
+    General). Loskai syncs each (a plain `git clone`, then fetch and reset — public, so no auth) into its
     own cache in the state volume. Adding or fixing a service is a push to a repo, no Loskai
     rebuild. If a repo is unreachable, its last-synced cache still renders and the other
     sources are unaffected — each reports separately. Sync is explicit: a "Refresh recipes"
