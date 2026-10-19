@@ -20,8 +20,12 @@ it can't drift from the file, and a snippet pasted by hand before options existe
 ticked. An option may only *add* (`devices`, `group_add`, `environment`, `cap_add`, `ports`):
 an option that could set `image` or `volumes` would be a second, hidden compose file. Living
 in the override, options are the user's under Phase 31's ownership, untouched by updates.
-Jellyfin's is Intel/AMD only: the image runs as root, so no `render` group is needed, and
-NVIDIA's toolkit-plus-reservation is a different option, left until a host needs it.
+Jellyfin's first was Intel/AMD — the image runs as root, so `/dev/dri` alone, no `render`
+group. **The same day Sunde asked for NVIDIA too**, which Docker hands over as a reservation
+(`deploy.resources.reservations.devices`), not a device — a nested mapping, so options learnt
+to merge mappings key by key, refusing rather than overwriting a value set otherwise. The
+image already sets `NVIDIA_DRIVER_CAPABILITIES=compute,video,utility` (checked on the 12.1
+image), so NVENC needs no environment line.
 
 ## 2026-10-18 — The stack editor opens as a form
 

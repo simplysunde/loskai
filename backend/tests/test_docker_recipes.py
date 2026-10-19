@@ -826,6 +826,46 @@ def test_an_override_the_option_cant_switch_is_said():
         recipes.set_options(weird, [HWACCEL], {"hwaccel": True})
 
 
+NVIDIA = {
+    "id": "nvidia", "label": "NVIDIA", "help": None, "service": "app",
+    "set": {"deploy": {"resources": {"reservations": {"devices": [
+        {"driver": "nvidia", "count": "all", "capabilities": ["gpu"]}
+    ]}}}},
+}
+
+
+def test_a_gpu_reservation_is_added_and_removed_inside_what_is_there():
+    import yaml
+
+    base = "services:\n  app:\n    deploy:\n      resources:\n        limits:\n          memory: 4g\n"
+    on = recipes.set_options(base, [NVIDIA], {"nvidia": True})
+    deploy = yaml.safe_load(on)["services"]["app"]["deploy"]
+    assert deploy["resources"]["limits"] == {"memory": "4g"}
+    assert deploy["resources"]["reservations"]["devices"][0]["driver"] == "nvidia"
+    assert recipes.option_on(on, NVIDIA)
+    off = recipes.set_options(on, [NVIDIA], {"nvidia": False})
+    assert yaml.safe_load(off)["services"]["app"]["deploy"] == {"resources": {"limits": {"memory": "4g"}}}
+    assert recipes.set_options(recipes.set_options("", [NVIDIA], {"nvidia": True}), [NVIDIA], {"nvidia": False}) == ""
+
+
+def test_an_option_never_overwrites_a_value_set_otherwise():
+    clash = {**NVIDIA, "set": {"deploy": {"replicas": 1}}}
+    with pytest.raises(recipes.RecipeError, match="is already 3"):
+        recipes.set_options("services:\n  app:\n    deploy:\n      replicas: 3\n", [clash], {"nvidia": True})
+
+
+def test_a_port_reads_the_same_as_a_number_or_text():
+    dlna = {"id": "dlna", "label": "DLNA", "help": None, "service": "app", "set": {"ports": ["1900:1900/udp", 7359]}}
+    assert recipes.option_on("services:\n  app:\n    ports:\n    - 1900:1900/udp\n    - '7359'\n", dlna)
+
+
+def test_deploy_must_be_a_mapping():
+    errors = recipes.validate_manifest(
+        {"name": "X", "type": "pull", "options": [{"id": "gpu", "label": "GPU", "set": {"deploy": ["nvidia"]}}]}
+    )
+    assert any("'deploy' must be a mapping" in e for e in errors), errors
+
+
 @pytest.fixture
 def gpu_recipe(installable, monkeypatch):
     _make_recipe(installable / "recipes", "jellyfin", "Jellyfin", MEDIA + GPU)

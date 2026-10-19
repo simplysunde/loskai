@@ -126,7 +126,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `options[].label` | ✅ | — | The checkbox's text. |
 | `options[].help` | — | — | One line under it: what the host needs, what to do after. |
 | `options[].service` | — | — | The compose service it is for; defaults to the recipe's `service`, or its only one. |
-| `options[].set` | ✅ | — | The lines it adds: `devices`, `group_add`, `environment`, `cap_add` or `ports`, each a list. |
+| `options[].set` | ✅ | — | The lines it adds: `devices`, `group_add`, `environment`, `cap_add` or `ports`, each a list — or `deploy`, a mapping, for a GPU reservation. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
@@ -313,9 +313,26 @@ those, and nothing else in the file changes. **Whether it is on is read from the
 not stored: a stack where the user pasted the same lines by hand shows it ticked.
 
 `set` takes only keys that *add* to a service — `devices`, `group_add`, `environment` (the
-`- KEY=value` list form), `cap_add`, `ports` — each a list. Anything that would replace what
-the recipe set up (`image`, `volumes`, `command`) is refused: an option extends the app, it
-doesn't swap it.
+`- KEY=value` list form), `cap_add`, `ports` — each a list, and `deploy`, a mapping, for an
+NVIDIA GPU, which Docker hands over as a reservation rather than a device:
+
+```yaml
+  - id: nvidia
+    label: Hardware transcoding (NVIDIA)
+    set:
+      deploy:
+        resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+```
+
+Lists gain the items they lack and lose exactly those; a mapping is merged key by key, so a
+`deploy.resources.limits` the user set stays. A value already set to something else is
+refused, never overwritten. Anything that would replace what the recipe set up (`image`,
+`volumes`, `command`) is refused: an option extends the app, it doesn't swap it.
 
 Since the lines live in the user's override, an [update](#updating-an-installed-recipe) never
 touches them. Changing an option's `set` in a later version leaves installed stacks with the
@@ -397,7 +414,8 @@ Loskai rejects a recipe (skips it, surfaces why) when:
 - an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
   the generated `.env`).
 - an `options` entry has no valid `id` (or repeats one), no `label`, no `set`, a `set` key
-  outside `devices`/`group_add`/`environment`/`cap_add`/`ports`, or a value that isn't a list;
+  outside `devices`/`group_add`/`environment`/`cap_add`/`ports`/`deploy`, a list key whose
+  value isn't a list, or a `deploy` that isn't a mapping;
   or it is in a multi-service recipe with no `service` to say which.
 - `compose.yml` is missing.
 - `icon.png` is present but is not a PNG, or is larger than 512 KB.

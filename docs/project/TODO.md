@@ -1349,7 +1349,8 @@ such cases"._
   Edit form. Not always-on: a missing device stops the container
 - **On adds exactly an option's lines to the override, off removes exactly those**; whether
   one is on is read from the override, never stored
-- Jellyfin's first option is Intel/AMD hardware transcoding; NVIDIA waits for a host with one
+- Jellyfin gets Intel/AMD hardware transcoding, and NVIDIA (Sunde: "lets make one for the
+  nvidia option too then, so that is covered")
 
 **33a — backend**
 - [x] `options` validated: id, label, optional help and service, `set` limited to
@@ -1374,6 +1375,11 @@ such cases"._
       on again → `devices: [{/dev/dri /dev/dri rwm}]`. An option for a missing device
       failed `up` with "error gathering device information … /dev/nope"; unticking it
       brought the stack back up
+- [x] NVIDIA: options may add `deploy` (a mapping, merged key by key; a value set otherwise
+      refused). +4 backend tests (529). Live, no NVIDIA here: both options ticked → `docker
+      compose config` accepted the override; `up` failed with "could not select device
+      driver "nvidia" with capabilities: [[gpu]]"; unticked → only its block went, the
+      `/dev/dri` line stayed, and the stack came back up
 
 ---
 

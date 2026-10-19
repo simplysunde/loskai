@@ -39,8 +39,9 @@ ENV_TYPES = {"text", "path"}
 # space, a newline) would split or merge lines in the generated file.
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _OPTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
-# What an option may add to a service: lists that extend it, never replace what the recipe set.
-OPTION_KEYS = ("devices", "group_add", "environment", "cap_add", "ports")
+# What an option may add to a service: lists that extend it, and `deploy` for a GPU
+# reservation — never anything that replaces what the recipe set up.
+OPTION_KEYS = ("devices", "group_add", "environment", "cap_add", "ports", "deploy")
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]")
 # Compose derives a project name from the directory it runs in, lowercased and stripped
 # of anything outside this set. Mirrored here so container discovery asks the daemon for
@@ -144,6 +145,10 @@ def _options_problems(options: object) -> list[str]:
         for key, values in fragment.items():
             if key not in OPTION_KEYS:
                 errors.append(f"options[{i}] can't set '{key}' — only {', '.join(OPTION_KEYS)}")
+            elif key == "deploy":
+                # A GPU reservation (NVIDIA): `resources.reservations.devices`, a mapping.
+                if not isinstance(values, dict) or not values:
+                    errors.append(f"options[{i}] 'deploy' must be a mapping, like resources: reservations: …")
             elif (
                 not isinstance(values, list)
                 or not values
@@ -237,19 +242,67 @@ def resolve_mounts(spec: dict | None, folders: list) -> list[tuple[str, str]]:
     return pairs
 
 
+def _canon(value: object) -> str:
+    """One form to compare an option's line with the file's: `1900` and `"1900"` are one
+    port, and a device reservation is a mapping."""
+    return json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else str(value)
+
+
+def _has(have: object, want: object) -> bool:
+    if isinstance(want, dict):
+        return isinstance(have, dict) and all(k in have and _has(have[k], v) for k, v in want.items())
+    if isinstance(want, list):
+        return isinstance(have, list) and {_canon(w) for w in want} <= {_canon(h) for h in have}
+    return have is not None and _canon(have) == _canon(want)
+
+
+def _add(have: object, want: object, where: str) -> object:
+    """`want` merged into `have`: a list gains the items it lacks, a mapping each key, and a
+    value already set to something else is refused rather than overwritten."""
+    if isinstance(want, dict):
+        if have is None:
+            have = {}
+        if not isinstance(have, dict):
+            raise RecipeError(f"compose.override.yml: {where} isn't a mapping — use Edit as text")
+        for key, value in want.items():
+            have[key] = _add(have.get(key), value, f"{where}.{key}")
+        return have
+    if isinstance(want, list):
+        if have is None:
+            have = []
+        if not isinstance(have, list):
+            raise RecipeError(f"compose.override.yml: {where} isn't a list — use Edit as text")
+        known = {_canon(h) for h in have}
+        return have + [w for w in want if _canon(w) not in known]
+    if have is not None and _canon(have) != _canon(want):
+        raise RecipeError(f"compose.override.yml: {where} is already {have} — use Edit as text")
+    return want
+
+
+def _remove(have: object, want: object) -> object:
+    """`have` without what `want` added; None when nothing is left of it."""
+    if isinstance(want, dict) and isinstance(have, dict):
+        for key, value in want.items():
+            if key in have:
+                rest = _remove(have[key], value)
+                if rest is None:
+                    del have[key]
+                else:
+                    have[key] = rest
+        return have or None
+    if isinstance(want, list) and isinstance(have, list):
+        drop = {_canon(w) for w in want}
+        return [h for h in have if _canon(h) not in drop] or None
+    return None if have is not None and _canon(have) == _canon(want) else have
+
+
 def option_on(override_text: str, option: dict) -> bool:
     """An option is on when the override has every line it adds — read from the file, so a
     hand edit or an older pasted snippet shows as it is."""
     doc = yaml.safe_load(override_text) if override_text.strip() else None
     services = doc.get("services") if isinstance(doc, dict) else None
     svc = services.get(option["service"]) if isinstance(services, dict) else None
-    if not isinstance(svc, dict):
-        return False
-    for key, values in option["set"].items():
-        have = svc.get(key)
-        if not isinstance(have, list) or not {str(v) for v in values} <= {str(h) for h in have}:
-            return False
-    return True
+    return isinstance(svc, dict) and _has(svc, option["set"])
 
 
 def set_options(override_text: str, options: list[dict], on: dict[str, bool]) -> str:
@@ -265,19 +318,15 @@ def set_options(override_text: str, options: list[dict], on: dict[str, bool]) ->
         svc = services.get(name, {})
         if not isinstance(svc, dict):
             raise RecipeError(f"compose.override.yml: '{name}' isn't a mapping — use Edit as text")
-        for key, values in option["set"].items():
-            have = svc.get(key, [])
-            if not isinstance(have, list):
-                raise RecipeError(f"compose.override.yml: {name}'s '{key}' isn't a list — use Edit as text")
-            wanted = [str(v) for v in values]
+        for key, want in option["set"].items():
             if on[option["id"]]:
-                have = have + [v for v in wanted if v not in {str(h) for h in have}]
+                svc[key] = _add(svc.get(key), want, f"{name}'s '{key}'")
             else:
-                have = [h for h in have if str(h) not in wanted]
-            if have:
-                svc[key] = have
-            else:
-                svc.pop(key, None)
+                rest = _remove(svc.get(key), want)
+                if rest is None:
+                    svc.pop(key, None)
+                else:
+                    svc[key] = rest
         if svc:
             services[name] = svc
         else:
@@ -454,7 +503,7 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
             errors.append(problem)
         options.append({
             "id": opt["id"], "label": opt["label"], "help": opt.get("help"), "service": service,
-            "set": {k: [str(v) for v in vals] for k, vals in opt["set"].items()},
+            "set": opt["set"],
         })
     if errors:
         raise RecipeError("; ".join(errors))
