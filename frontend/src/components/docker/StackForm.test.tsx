@@ -30,9 +30,15 @@ const FORM: StackFormData = {
 // what changed is sent, a bad folder is said before saving, and the app is shown, not edited.
 function renderForm(form: StackFormData = FORM) {
   const onClose = vi.fn();
-  const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
+  const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     const detail = { compose: "", compose_file: "compose.yml", env: "", override: null, override_file: null, services: [] };
-    const body = path.endsWith("/action") ? { ok: true, output: "Started" } : path.endsWith("/form") ? form : detail;
+    const body = path.endsWith("/action")
+      ? { ok: true, output: "Started" }
+      : init?.method === "PUT" && JSON.parse(String(init.body)).preview
+        ? { env: 'PORT="9000"\n', override: "" }
+        : path.endsWith("/form")
+          ? form
+          : detail;
     return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -104,12 +110,23 @@ test("a folder the server would refuse is said before saving", async () => {
   expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
 });
 
-test("unsaved changes keep you in the form; Edit as text opens the files", async () => {
+test("an added folder left empty is not a change", async () => {
   renderForm();
 
+  fireEvent.click(await screen.findByText("Add folder"));
+  expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
+  expect(screen.getByText("Edit as text").closest("button")).toBeEnabled();
+});
+
+test("Edit as text carries the form's unsaved changes over, as unsaved edits", async () => {
+  const { fetchMock } = renderForm();
+
   fireEvent.change(await screen.findByLabelText("Host port"), { target: { value: "9000" } });
-  expect(screen.getByText("Edit as text")).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("Host port"), { target: { value: "8096" } });
   fireEvent.click(screen.getByText("Edit as text"));
-  expect(await screen.findByRole("tab", { name: "compose.yml" })).toBeInTheDocument();
+
+  fireEvent.click(await screen.findByRole("tab", { name: /^\.env/ }));
+  expect(screen.getByLabelText(".env")).toHaveValue('PORT="9000"\n');
+  // Previewed, not saved: the tab is marked unsaved.
+  expect(screen.getByRole("tab", { name: /^\.env/ })).toHaveTextContent("•");
+  expect(sent(fetchMock)).toEqual([{ settings: { PORT: "9000" }, preview: true }]);
 });

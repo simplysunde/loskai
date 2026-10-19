@@ -1298,6 +1298,13 @@ compose file that i dont really know where to look for the proper values"._
       mapping a chip, a folder told from a Docker volume — then Settings and Folders as two
       panels side by side (stacked on a phone). The form now returns `recipe` `{id, name,
       icon}` in place of `from_recipe`
+- [x] Edit as text from a form with unsaved changes (Sunde: "edit as text stops working
+      when we add a folder"): an empty folder row is no longer a change, and real changes
+      carry over — `PUT /form` with `preview: true` returns the files the save would
+      leave, opened as unsaved edits. Text → form still waits for a save: half-typed YAML
+      may not read back as fields. Live: port + a folder + an empty row → the text view
+      showed both files marked unsaved, the row dropped; Save + re-up put the container
+      on the new port with the folder mounted
 
 **32c — recipes**
 - [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;

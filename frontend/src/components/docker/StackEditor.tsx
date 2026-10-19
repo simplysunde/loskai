@@ -20,7 +20,7 @@ const FILE_NAMES: Record<FileKey, string> = {
 const HINTS: Record<FileKey, string | null> = {
   compose: null,
   env: "Values compose.yml reads as ${KEY}.",
-  override: "Merged over compose.yml — your own folders and changes. Reinstalling a recipe replaces it.",
+  override: "Merged over compose.yml — your own folders and changes. Updates never touch it.",
 };
 
 // Edit an existing stack — as a form by default, or its files as text — then re-up; or the
@@ -34,24 +34,42 @@ export function StackEditor({
   onClose: () => void;
 }) {
   const [view, setView] = useState<"form" | "text">("form");
+  const [carried, setCarried] = useState<Carried | null>(null);
   return (
     <Modal title={name === null ? "New stack" : `Edit ${name}`} onClose={onClose} wide>
       {name !== null && view === "form" ? (
-        <StackForm name={name} onClose={onClose} onTextView={() => setView("text")} />
+        <StackForm
+          name={name}
+          onClose={onClose}
+          onTextView={(c) => {
+            setCarried(c);
+            setView("text");
+          }}
+        />
       ) : (
-        <TextFiles name={name} onClose={onClose} onFormView={name === null ? undefined : () => setView("form")} />
+        <TextFiles
+          name={name}
+          carried={carried}
+          onClose={onClose}
+          onFormView={name === null ? undefined : () => setView("form")}
+        />
       )}
     </Modal>
   );
 }
 
+// The form's unsaved changes, as the files they would make — opened as unsaved edits.
+export type Carried = { env: string; override: string };
+
 // The stack's files, one tab each.
 function TextFiles({
   name,
+  carried,
   onClose,
   onFormView,
 }: {
   name: string | null;
+  carried: Carried | null;
   onClose: () => void;
   onFormView?: () => void;
 }) {
@@ -80,14 +98,14 @@ function TextFiles({
       }>(`/api/docker/stacks/${name}`)
       .then((s) => {
         const loaded = { compose: s.compose, env: s.env, override: s.override ?? "" };
-        setFiles(loaded);
+        setFiles(carried ? { ...loaded, ...carried } : loaded);
         setSaved(loaded);
         setLabels({ ...FILE_NAMES, compose: s.compose_file, override: s.override_file ?? FILE_NAMES.override });
         if (s.services[0]) setService(s.services[0]);
       })
       .catch((e) => setLoadError(e instanceof ApiError ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
-  }, [name, creating]);
+  }, [name, creating, carried]);
 
   const keys: FileKey[] = creating ? ["compose", "env"] : ["compose", "env", "override"];
   const dirty = (k: FileKey) => files[k] !== saved[k];
@@ -149,7 +167,7 @@ function TextFiles({
       />
       {loadError && <p className="text-sm text-rose-400">{loadError}</p>}
       <EditorFooter
-        left={onFormView && <SwitchView to="Edit as form" onClick={onFormView} dirty={keys.some(dirty)} />}
+        left={onFormView && <SwitchView to="Edit as form" onClick={onFormView} blocked={keys.some(dirty) ? "Save or cancel first" : null} />}
         error={saving.error}
         output={saving.output}
         busy={saving.busy}

@@ -4,6 +4,7 @@ import { CornerDownRight, Database, Folder as FolderIcon, Loader2, Lock, Plus, X
 import { api, ApiError } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
 import { EditorFooter, SwitchView } from "./EditorFooter";
+import type { Carried } from "./StackEditor";
 import { useSaveAndUp } from "./useSaveAndUp";
 
 export type Folder = { service: string; source: string; target: string; writable: boolean };
@@ -31,12 +32,13 @@ export function StackForm({
 }: {
   name: string;
   onClose: () => void;
-  onTextView: () => void;
+  onTextView: (carried: Carried | null) => void;
 }) {
   const [form, setForm] = useState<StackFormData | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [folders, setFolders] = useState<Folder[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const saving = useSaveAndUp(name, onClose);
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export function StackForm({
     return error ? (
       <div className="space-y-3">
         <p className="text-sm text-rose-400">{error}</p>
-        <SwitchView to="Edit as text" onClick={onTextView} dirty={false} />
+        <SwitchView to="Edit as text" onClick={() => onTextView(null)} />
       </div>
     ) : (
       <div className="flex justify-center py-10 text-slate-500">
@@ -67,8 +69,11 @@ export function StackForm({
   const changed = Object.fromEntries(
     form.settings.filter((s) => values[s.key] !== s.value).map((s) => [s.key, values[s.key]]),
   );
-  const foldersChanged = JSON.stringify(folders) !== JSON.stringify(form.folders);
+  // A row with nothing typed in it is not a change — the server skips it too.
+  const filled = folders.filter((f) => f.source.trim() || f.target.trim());
+  const foldersChanged = JSON.stringify(filled) !== JSON.stringify(form.folders);
   const dirty = Object.keys(changed).length > 0 || foldersChanged;
+  const payload = { settings: changed, folders: foldersChanged ? filled : undefined };
   const problems = folders.map((f) => folderProblem(f, folders));
   const setFolder = (i: number, patch: Partial<Folder>) =>
     setFolders(folders.map((f, j) => (j === i ? { ...f, ...patch } : f)));
@@ -175,8 +180,21 @@ export function StackForm({
       </div>
 
       <EditorFooter
-        left={<SwitchView to="Edit as text" onClick={onTextView} dirty={dirty} />}
-        error={saving.error}
+        left={
+          <SwitchView
+            to="Edit as text"
+            blocked={problems.some(Boolean) ? "Fix the folder first" : null}
+            onClick={async () => {
+              if (!dirty) return onTextView(null);
+              try {
+                onTextView(await api.put<Carried>(`/api/docker/stacks/${name}/form`, { ...payload, preview: true }));
+              } catch (e) {
+                setSwitchError(e instanceof ApiError ? e.message : "Couldn't carry the changes over");
+              }
+            }}
+          />
+        }
+        error={switchError ?? saving.error}
         output={saving.output}
         busy={saving.busy}
         disabled={!dirty || problems.some(Boolean)}
@@ -184,10 +202,7 @@ export function StackForm({
         onCancel={onClose}
         onSave={() =>
           saving.run(async () => {
-            await api.put(`/api/docker/stacks/${name}/form`, {
-              settings: changed,
-              folders: foldersChanged ? folders : undefined,
-            });
+            await api.put(`/api/docker/stacks/${name}/form`, payload);
           })
         }
       />

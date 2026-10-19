@@ -321,30 +321,41 @@ def get_form(name: str) -> dict:
     }
 
 
-def save_form(name: str, settings: dict[str, str] | None, folders: list[dict] | None) -> None:
+def save_form(
+    name: str, settings: dict[str, str] | None, folders: list[dict] | None, preview: bool = False
+) -> dict | None:
     """Write what the form changed: `settings` are the changed values only, `folders` the
-    whole list when it changed. Everything is checked before anything is written."""
+    whole list when it changed — a row left blank is skipped. Everything is checked before
+    anything is written. `preview` writes nothing and returns the `.env` and override the
+    save would leave, for the text view to open with."""
     directory = stacks._stack_dir(name)
     compose = stacks._compose_file(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found")
     override = stacks._override_file(directory)
-    new_override = None
+    override_text = override.read_text(encoding="utf-8") if override else ""
+    env_file = directory / ".env"
+    env_text = env_file.read_text(encoding="utf-8") if env_file.is_file() else ""
+
+    new_override = override_text or None
     if folders is not None:
         rows = []
         for f in folders:
             if not isinstance(f, dict):
                 raise StackError("each folder needs service, source, target and writable")
-            rows.append({
+            row = {
                 "service": str(f.get("service", "")),
                 "source": str(f.get("source", "")),
                 "target": str(f.get("target", "")),
                 "writable": bool(f.get("writable", True)),
-            })
+            }
+            if row["source"].strip() or row["target"].strip():
+                rows.append(row)
         problem = folders_problem(rows, logic.declared_services(compose.read_text(encoding="utf-8")))
         if problem:
             raise StackError(problem)
-        new_override = build_override(override.read_text(encoding="utf-8") if override else "", rows)
+        new_override = build_override(override_text, rows)
+    new_env = env_text
     if settings:
         bad = [k for k in settings if not _KEY_RE.match(str(k))]
         if bad:
@@ -355,12 +366,16 @@ def save_form(name: str, settings: dict[str, str] | None, folders: list[dict] | 
                 problem = recipes.path_problem(str(value))
                 if problem:
                     raise StackError(f"{questions[key]['label']}: {problem}")
-        env_file = directory / ".env"
-        text = env_file.read_text(encoding="utf-8") if env_file.is_file() else ""
-        store.write_private(env_file, set_env(text, {str(k): str(v) for k, v in settings.items()}))
+        new_env = set_env(env_text, {str(k): str(v) for k, v in settings.items()})
+
+    if preview:
+        return {"env": new_env, "override": new_override or ""}
+    if new_env != env_text:
+        store.write_private(env_file, new_env)
     if folders is not None:
         target = override or directory / stacks.OVERRIDE_NAME
         if new_override is None:
             target.unlink(missing_ok=True)
         else:
             target.write_text(new_override, encoding="utf-8")
+    return None

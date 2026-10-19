@@ -289,17 +289,18 @@ def get_stack_form(name: str) -> dict:
 
 @router.put("/stacks/{name}/form")
 def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
-    """`settings`: the changed values; `folders`: the whole list. Either may be left out."""
+    """`settings`: the changed values; `folders`: the whole list. Either may be left out.
+    `preview: true` writes nothing and returns `{env, override}` as the save would leave them."""
     settings_in, folders = payload.get("settings"), payload.get("folders")
     if settings_in is not None and not isinstance(settings_in, dict):
         raise HTTPException(status_code=422, detail="settings must be an object")
     if folders is not None and not isinstance(folders, list):
         raise HTTPException(status_code=422, detail="folders must be a list")
     try:
-        stackform_mod.save_form(name, settings_in, folders)
+        preview = stackform_mod.save_form(name, settings_in, folders, bool(payload.get("preview")))
     except StackError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return {"ok": True}
+    return preview or {"ok": True}
 
 
 @router.post("/stacks/{name}/update-from-recipe")

@@ -221,3 +221,28 @@ def test_only_the_users_own_comments_are_warned_about(stack):
     assert not stackform.get_form("jellyfin")["override_comments"]
     override.write_text("# my note\n" + body)
     assert stackform.get_form("jellyfin")["override_comments"]
+
+
+def test_a_preview_returns_the_files_and_writes_nothing(stack):
+    env_before = (stack / ".env").read_text()
+    override_before = (stack / "compose.override.yml").read_text()
+    out = stackform.save_form(
+        "jellyfin",
+        {"PORT": "9000"},
+        [
+            {"service": "jellyfin", "source": "/srv/media/anime", "target": "/media/anime", "writable": True},
+            {"service": "jellyfin", "source": "", "target": "", "writable": True},
+        ],
+        preview=True,
+    )
+    assert out["env"] == '# kept\nPORT="9000"\n'
+    assert stackform.parse_override(out["override"])[0] == [
+        {"service": "jellyfin", "source": "/srv/media/anime", "target": "/media/anime", "writable": True}
+    ]
+    assert (stack / ".env").read_text() == env_before
+    assert (stack / "compose.override.yml").read_text() == override_before
+
+
+def test_a_blank_folder_row_is_skipped_not_refused(stack):
+    stackform.save_form("jellyfin", None, [{"service": "jellyfin", "source": " ", "target": "", "writable": True}])
+    assert not (stack / "compose.override.yml").exists()
