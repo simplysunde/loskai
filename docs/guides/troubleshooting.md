@@ -3,7 +3,7 @@
 # Troubleshooting
 
 **Read this when** something is broken: a 502, a redirect loop, a name that won't resolve, a
-greyed-out card.
+greyed-out card, a stack that won't start.
 
 Common failures once Loskai is routing traffic, and how to tell them apart. The recurring
 theme: **DNS, TLS, and the route can all be fine while the *upstream* (the backend Caddy
@@ -21,6 +21,7 @@ Quickest triage — a name that's routed but failing almost always falls into on
 | Cert warning / "not secure" | TLS trust | [Cert warning](#certificate-warning) |
 | VPN clients ignore AdGuard | routing | [VPN DNS](#vpn-clients-arent-using-adguard) |
 | A dashboard card is greyed out | reachability | [Greyed card](#a-module-card-is-greyed-out) |
+| A stack fails after Save or install | the Docker host | [Stack won't start](#a-stack-wont-start-after-save) |
 
 ---
 
@@ -189,3 +190,21 @@ API. Each module degrades independently — a greyed card never blocks the other
   API to the Docker host, confirm that host is actually the source. AdGuard REST is `:3000`,
   Caddy admin is `:2019`.
 - `curl` the API from the Docker host to confirm before blaming Loskai.
+
+---
+
+## A stack won't start after Save
+
+Save (or the install wizard) writes the files, then runs `docker compose up -d`; when that
+fails, the editor shows Compose's output under the button and the files stay saved. The
+usual causes are on the Docker host, not in Loskai:
+
+- **`bind source path does not exist`** — a folder under Folders isn't there, or is
+  mistyped. Loskai mounts folders with `create_host_path: false` on purpose, so a typo fails
+  instead of mounting an empty folder. Create it on the Docker host, or fix the row.
+- **`error gathering device information`** — an option passes a device the host lacks
+  (Jellyfin's Intel/AMD transcoding needs `/dev/dri/renderD128`; `ls /dev/dri` shows it).
+- **`could not select device driver "nvidia"`** — the NVIDIA option is ticked but the host
+  has no NVIDIA driver or Container Toolkit; `nvidia-smi` must work there first.
+
+Either way, untick the option (or fix the folder) under Edit and Save again.

@@ -10,7 +10,8 @@ install wizard) has run live and passed** (2026-10-03), git sync included; its l
 2026-10-09 — the app now runs as the owner of `./data`. **Phase 29** (a Docker route
 follows its container) is built and verified live, bar a daemon-restart check that needs
 root. **Phase 30** (UI polish — a Machines tab, Machine/Address upstreams, Docker by stack +
-volumes, the recipe catalog that routes its install) is built and verified live. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
+volumes, the recipe catalog that routes its install) is built and verified live, and so are
+**Phases 31–33** — recipe updates, the stack editor as a form, recipe options. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
@@ -32,8 +33,8 @@ describes today. The authoritative sources are — the first four in **`docs/pro
 - **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
 - **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
   `todo-archive.md` beside it (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. **Phases 18–29 are still written out in `TODO.md`** —
-  twelve of them, so it is the longer file now; archive the older ones when it gets unwieldy.
+  for how a finished thing was built. **Phases 18–33 are still written out in `TODO.md`** —
+  sixteen of them, so it is the longer file now; archive the older ones when it gets unwieldy.
 - **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
   before reversing anything; several current decisions are walk-backs of earlier ones.
 - **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
