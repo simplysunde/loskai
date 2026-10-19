@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { FileCode, ListChecks, Loader2 } from "lucide-react";
 
 export function EditorFooter({
   left,
@@ -56,8 +56,9 @@ export function SwitchView({ to, onClick, dirty }: { to: string; onClick: () => 
       onClick={onClick}
       disabled={dirty}
       title={dirty ? "Save or cancel first" : undefined}
-      className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-transparent"
+      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-transparent"
     >
+      {to === "Edit as text" ? <FileCode className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
       {to}
     </button>
   );

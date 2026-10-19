@@ -1290,6 +1290,9 @@ compose file that i dont really know where to look for the proper values"._
 **32b — frontend**
 - [x] Edit opens the form; "Edit as text" (and back) once nothing is unsaved. The two
       views share one save-then-up and footer. New stack stays text — there is nothing to read
+- [x] Layout pass (2026-10-19, Sunde: "tighten up the formatting and layout"): the app on
+      top, settings in two columns with the label above (as the wizard), folders under one
+      header row — two lines each at phone width — and the hints in tooltips
 
 **32c — recipes**
 - [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;

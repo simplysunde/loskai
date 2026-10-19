@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { Loader2, Lock, Plus, X } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
@@ -19,7 +19,7 @@ export type StackFormData = {
 };
 
 const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
+  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 // A stack's files as fields: Settings are the .env, Folders the override's bind mounts, and
 // the app is compose.yml as values — read-only, as it is the recipe's. Saving sends only
@@ -73,83 +73,124 @@ export function StackForm({
   const setFolder = (i: number, patch: Partial<Folder>) =>
     setFolders(folders.map((f, j) => (j === i ? { ...f, ...patch } : f)));
 
+  // Phone width: the host folder gets its own line, the rest of the row beneath it.
+  const grid =
+    form.services.length > 1
+      ? "grid-cols-[1fr_auto_auto] sm:grid-cols-[auto_3fr_auto_2fr_auto_auto]"
+      : "grid-cols-[1fr_auto_auto] sm:grid-cols-[3fr_auto_2fr_auto_auto]";
+
   return (
     <div className="space-y-5">
+      <Section
+        title="App"
+        aside={
+          <span
+            title={`${form.from_recipe ? `From the ${form.from_recipe} recipe — Check for updates replaces it.` : "compose.yml."} Change it under Edit as text.`}
+            className="flex items-center gap-1 normal-case tracking-normal"
+          >
+            <Lock className="h-3 w-3" /> {form.from_recipe ? `${form.from_recipe} recipe` : "compose.yml"}
+          </span>
+        }
+      >
+        {form.app.map((a) => (
+          <div key={a.service} className="rounded-lg border border-slate-800 px-3 py-2">
+            <p className="flex items-baseline gap-2">
+              <span className="text-sm text-slate-200">{a.service}</span>
+              <span className="truncate font-mono text-xs text-slate-400">{a.image ?? "no image"}</span>
+            </p>
+            <div className="mt-1 flex flex-wrap gap-x-5 gap-y-0.5 text-xs">
+              {a.network && <Fact term="Network" items={[a.network]} />}
+              {a.ports.length > 0 && <Fact term="Ports" items={a.ports} />}
+              {a.volumes.length > 0 && <Fact term="Data" items={a.volumes} />}
+            </div>
+          </div>
+        ))}
+      </Section>
+
       {form.settings.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-xs font-medium text-slate-400">Settings</h3>
-          {form.settings.map((s) => (
-            <label key={s.key} className="flex items-center gap-3">
-              <span className="w-40 shrink-0 text-sm text-slate-300">
-                {s.label ?? <span className="font-mono text-xs">{s.key}</span>}
-                {s.label && <span className="block font-mono text-[11px] text-slate-600">{s.key}</span>}
-              </span>
-              <input
-                value={values[s.key] ?? ""}
-                onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
-                placeholder={s.default ?? undefined}
-                aria-label={s.label ?? s.key}
-                className={INPUT}
-              />
-            </label>
-          ))}
-          <p className="text-xs text-slate-500">Empty uses the default shown.</p>
-        </section>
+        <Section title="Settings">
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            {form.settings.map((s) => (
+              <label key={s.key} className="block min-w-0">
+                <span className="mb-1 block text-xs text-slate-400" title={s.key}>
+                  {s.label ?? <span className="font-mono">{s.key}</span>}
+                </span>
+                <input
+                  value={values[s.key] ?? ""}
+                  onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
+                  placeholder={s.default ?? undefined}
+                  title={s.default ? `Empty uses the default, ${s.default}` : undefined}
+                  aria-label={s.label ?? s.key}
+                  className={INPUT}
+                />
+              </label>
+            ))}
+          </div>
+        </Section>
       )}
 
-      <section className="space-y-2">
-        <h3 className="text-xs font-medium text-slate-400">Folders</h3>
-        {folders.map((f, i) => (
-          <div key={i}>
-            <div className="flex items-center gap-2">
-              {form.services.length > 1 && (
-                <select
-                  value={f.service}
-                  onChange={(e) => setFolder(i, { service: e.target.value })}
-                  aria-label={`Folder ${i + 1} service`}
-                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100"
-                >
-                  {form.services.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              )}
-              <input
-                value={f.source}
-                onChange={(e) => setFolder(i, { source: e.target.value })}
-                placeholder="/srv/media/films"
-                aria-label={`Folder ${i + 1} on the host`}
-                title={f.source}
-                className={`${INPUT} min-w-0 flex-[3]`}
-              />
-              <span className="text-slate-500">→</span>
-              <input
-                value={f.target}
-                onChange={(e) => setFolder(i, { target: e.target.value })}
-                placeholder="/media/films"
-                aria-label={`Folder ${i + 1} in the container`}
-                className={`${INPUT} min-w-0 flex-[2]`}
-              />
-              <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
+      <Section title="Folders">
+        {folders.length > 0 && (
+          <div className={`grid ${grid} items-center gap-x-2 gap-y-2`}>
+            {form.services.length > 1 && <span className="text-xs text-slate-500 max-sm:hidden">Service</span>}
+            <span className="text-xs text-slate-500 max-sm:hidden">On the Docker host</span>
+            <span className="max-sm:hidden" />
+            <span className="text-xs text-slate-500 max-sm:hidden">In the container</span>
+            <span className="text-xs text-slate-500 max-sm:hidden" title="Off mounts it read-only">
+              Writable
+            </span>
+            <span className="max-sm:hidden" />
+            {folders.map((f, i) => (
+              <Fragment key={i}>
+                {form.services.length > 1 && (
+                  <select
+                    value={f.service}
+                    onChange={(e) => setFolder(i, { service: e.target.value })}
+                    aria-label={`Folder ${i + 1} service`}
+                    className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-100 max-sm:col-span-full"
+                  >
+                    {form.services.map((s) => (
+                      <option key={s}>{s}</option>
+                    ))}
+                  </select>
+                )}
+                <input
+                  value={f.source}
+                  onChange={(e) => setFolder(i, { source: e.target.value })}
+                  placeholder="/srv/media/films"
+                  aria-label={`Folder ${i + 1} on the host`}
+                  title={f.source}
+                  className={`${INPUT} min-w-0 font-mono text-xs max-sm:col-span-full max-sm:mt-2`}
+                />
+                <span className="text-slate-500 max-sm:hidden">→</span>
+                <input
+                  value={f.target}
+                  onChange={(e) => setFolder(i, { target: e.target.value })}
+                  placeholder="/media/films"
+                  aria-label={`Folder ${i + 1} in the container`}
+                  className={`${INPUT} min-w-0 font-mono text-xs`}
+                />
                 <input
                   type="checkbox"
                   checked={f.writable}
                   onChange={(e) => setFolder(i, { writable: e.target.checked })}
-                  className="h-4 w-4 accent-teal-500"
+                  aria-label={`Folder ${i + 1} writable`}
+                  title="Writable"
+                  className="h-4 w-4 justify-self-center accent-teal-500"
                 />
-                Writable
-              </label>
-              <button
-                onClick={() => setFolders(folders.filter((_, j) => j !== i))}
-                aria-label="Remove folder"
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            {problems[i] && <span className="mt-1 block text-xs text-rose-400">{problems[i]}</span>}
+                <button
+                  onClick={() => setFolders(folders.filter((_, j) => j !== i))}
+                  aria-label="Remove folder"
+                  title="Remove"
+                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {problems[i] && <span className="col-span-full -mt-1 text-xs text-rose-400">{problems[i]}</span>}
+              </Fragment>
+            ))}
           </div>
-        ))}
+        )}
         <button
           onClick={() =>
             setFolders([...folders, { service: form.services[0] ?? "", source: "", target: "", writable: true }])
@@ -159,33 +200,12 @@ export function StackForm({
           <Plus className="h-3.5 w-3.5" /> Add folder
         </button>
         {form.override_other && (
-          <p className="text-xs text-slate-500">compose.override.yml also sets other things — kept as they are.</p>
+          <p className="text-xs text-slate-500">The override's other settings are kept — see Edit as text.</p>
         )}
         {foldersChanged && form.override_comments && (
           <p className="text-xs text-amber-300">Saving rewrites compose.override.yml without its comments.</p>
         )}
-      </section>
-
-      <section className="space-y-2">
-        <h3 className="text-xs font-medium text-slate-400">
-          App{" "}
-          <span className="font-normal text-slate-500">
-            {form.from_recipe ? `— from the ${form.from_recipe} recipe, updated by Check for updates` : "— compose.yml"}
-          </span>
-        </h3>
-        {form.app.map((a) => (
-          <div key={a.service} className="rounded-lg border border-slate-800 px-3 py-2 text-xs">
-            <p className="text-sm text-slate-200">
-              {a.service} <span className="ml-2 font-mono text-xs text-slate-400">{a.image ?? "no image"}</span>
-            </p>
-            <dl className="mt-1 grid grid-cols-[5rem_1fr] gap-x-2 gap-y-0.5 font-mono text-slate-400">
-              {a.network && <Row term="Network" items={[a.network]} />}
-              {a.ports.length > 0 && <Row term="Ports" items={a.ports} />}
-              {a.volumes.length > 0 && <Row term="Data" items={a.volumes} />}
-            </dl>
-          </div>
-        ))}
-      </section>
+      </Section>
 
       <EditorFooter
         left={<SwitchView to="Edit as text" onClick={onTextView} dirty={dirty} />}
@@ -208,12 +228,24 @@ export function StackForm({
   );
 }
 
-function Row({ term, items }: { term: string; items: string[] }) {
+function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <>
-      <dt className="font-sans text-slate-500">{term}</dt>
-      <dd>{items.join(" · ")}</dd>
-    </>
+    <section className="space-y-2">
+      <h3 className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+        {title}
+        {aside}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function Fact({ term, items }: { term: string; items: string[] }) {
+  return (
+    <span className="flex gap-2">
+      <span className="text-slate-500">{term}</span>
+      <span className="font-mono text-slate-400">{items.join(" · ")}</span>
+    </span>
   );
 }
 

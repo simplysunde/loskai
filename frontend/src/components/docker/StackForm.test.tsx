@@ -59,7 +59,7 @@ test("the stack opens as labelled values, the app read-only", async () => {
   expect(screen.getByLabelText("Folder 1 in the container")).toHaveValue("/media/anime");
   expect(screen.getByText("jellyfin/jellyfin:12.2")).toBeInTheDocument();
   expect(screen.getByText("./config → /config · cache → /cache")).toBeInTheDocument();
-  expect(screen.getByText(/from the Jellyfin recipe/)).toBeInTheDocument();
+  expect(screen.getByTitle(/From the Jellyfin recipe/)).toBeInTheDocument();
   // Nothing changed yet: nothing to save.
   expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();
 });
@@ -80,7 +80,7 @@ test("a folder is added as a row: host, container, writable", async () => {
   fireEvent.click(await screen.findByText("Add folder"));
   fireEvent.change(screen.getByLabelText("Folder 2 on the host"), { target: { value: "/srv/media/films" } });
   fireEvent.change(screen.getByLabelText("Folder 2 in the container"), { target: { value: "/media/films" } });
-  fireEvent.click(screen.getAllByLabelText("Writable")[1]);
+  fireEvent.click(screen.getByLabelText("Folder 2 writable"));
   fireEvent.click(screen.getByText("Save + re-up"));
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
