@@ -280,3 +280,27 @@ def test_the_form_reads_unsaved_text_and_saves_on_top_of_it(stack):
 def test_unsaved_text_that_doesnt_load_is_refused_with_its_line(stack):
     with pytest.raises(StackError, match="compose.override.yml line 2"):
         stackform.get_form("jellyfin", {"env": "", "override": "services:\n\tx: {}\n"})
+
+
+def test_a_recipes_options_are_switches_on_the_form(stack, tmp_path):
+    folder = tmp_path / "data" / "recipes" / "jellyfin"
+    folder.mkdir(parents=True)
+    (folder / "recipe.yml").write_text(
+        "name: Jellyfin\ntype: pull\noptions:\n  - id: hwaccel\n    label: Hardware transcoding\n"
+        "    set:\n      devices:\n        - /dev/dri:/dev/dri\n"
+    )
+    (folder / "compose.yml").write_text(COMPOSE)
+    [opt] = stackform.get_form("jellyfin")["options"]
+    assert (opt["id"], opt["on"]) == ("hwaccel", False)
+
+    stackform.save_form("jellyfin", None, None, options={"hwaccel": True})
+    form = stackform.get_form("jellyfin")
+    assert form["options"][0]["on"]
+    # The option's own lines aren't "other settings", and the folders are untouched.
+    assert not form["override_other"]
+    assert [f["target"] for f in form["folders"]] == ["/media/anime"]
+
+    stackform.save_form("jellyfin", None, None, options={"hwaccel": False})
+    assert not stackform.get_form("jellyfin")["options"][0]["on"]
+    with pytest.raises(StackError, match="no option nvidia"):
+        stackform.save_form("jellyfin", None, None, options={"nvidia": True})

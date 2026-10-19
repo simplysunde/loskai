@@ -755,6 +755,104 @@ def test_a_bad_folder_fails_before_touching_disk(jellyfin):
     assert not jellyfin.exists()
 
 
+# --- options: features switched on in the form or the wizard ---
+
+GPU = (
+    "options:\n  - id: hwaccel\n    label: Hardware transcoding\n    help: Needs /dev/dri\n"
+    "    set:\n      devices:\n        - /dev/dri:/dev/dri\n"
+)
+HWACCEL = {
+    "id": "hwaccel", "label": "Hardware transcoding", "help": "Needs /dev/dri", "service": "app",
+    "set": {"devices": ["/dev/dri:/dev/dri"]},
+}
+
+
+@pytest.mark.parametrize(
+    "options,problem",
+    [
+        ("gpu", "must be a list"),
+        ([{"label": "GPU", "set": {"devices": ["/dev/dri"]}}], "needs an 'id'"),
+        ([{"id": "GPU!", "label": "GPU", "set": {"devices": ["/dev/dri"]}}], "needs an 'id'"),
+        ([{"id": "gpu", "set": {"devices": ["/dev/dri"]}}], "needs a 'label'"),
+        ([{"id": "gpu", "label": "GPU"}], "needs 'set'"),
+        ([{"id": "gpu", "label": "GPU", "set": {"image": ["evil"]}}], "can't set 'image'"),
+        ([{"id": "gpu", "label": "GPU", "set": {"volumes": ["/:/host"]}}], "can't set 'volumes'"),
+        ([{"id": "gpu", "label": "GPU", "set": {"devices": "/dev/dri"}}], "must be a list"),
+        (
+            [{"id": "gpu", "label": "A", "set": {"devices": ["/a"]}}, {"id": "gpu", "label": "B", "set": {"devices": ["/b"]}}],
+            "used twice",
+        ),
+    ],
+)
+def test_options_are_validated(options, problem):
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "options": options})
+    assert any(problem in e for e in errors), errors
+
+
+def test_an_option_goes_into_the_only_service(data_dir):
+    _make_recipe(data_dir / "recipes", "jellyfin", "Jellyfin", GPU)
+    assert recipes.get_recipe("jellyfin")["options"] == [HWACCEL]
+
+
+def test_an_option_in_a_multi_service_recipe_needs_its_service(data_dir):
+    folder = _make_recipe(data_dir / "recipes", "jellyfin", "Jellyfin", GPU)
+    (folder / "compose.yml").write_text("services:\n  app:\n    image: x\n  db:\n    image: y\n")
+    assert any("options[0] needs 'service'" in i["error"] for i in recipes.list_recipes()["invalid"])
+
+
+def test_switching_an_option_adds_and_removes_exactly_its_lines():
+    import yaml
+
+    base = "services:\n  app:\n    devices:\n      - /dev/ttyUSB0:/dev/ttyUSB0\n"
+    on = recipes.set_options(base, [HWACCEL], {"hwaccel": True})
+    assert yaml.safe_load(on)["services"]["app"]["devices"] == ["/dev/ttyUSB0:/dev/ttyUSB0", "/dev/dri:/dev/dri"]
+    assert recipes.option_on(on, HWACCEL) and not recipes.option_on(base, HWACCEL)
+    # On twice is still once.
+    assert recipes.set_options(on, [HWACCEL], {"hwaccel": True}) == on
+    off = recipes.set_options(on, [HWACCEL], {"hwaccel": False})
+    assert yaml.safe_load(off)["services"]["app"]["devices"] == ["/dev/ttyUSB0:/dev/ttyUSB0"]
+    # Off with nothing else left: no override at all.
+    assert recipes.set_options(recipes.set_options("", [HWACCEL], {"hwaccel": True}), [HWACCEL], {"hwaccel": False}) == ""
+
+
+def test_a_hand_pasted_snippet_reads_as_on():
+    pasted = "services:\n  app:\n    devices:\n    - /dev/dri:/dev/dri\n"
+    assert recipes.option_on(pasted, HWACCEL)
+
+
+def test_an_override_the_option_cant_switch_is_said():
+    weird = "services:\n  app:\n    devices: /dev/dri\n"
+    with pytest.raises(recipes.RecipeError, match="isn't a list"):
+        recipes.set_options(weird, [HWACCEL], {"hwaccel": True})
+
+
+@pytest.fixture
+def gpu_recipe(installable, monkeypatch):
+    _make_recipe(installable / "recipes", "jellyfin", "Jellyfin", MEDIA + GPU)
+    _fake_project(monkeypatch, [_c("app", "jellyfin-app-1")])
+    return recipes.stacks.stacks_dir() / "jellyfin"
+
+
+def test_install_writes_the_chosen_options_beside_the_folders(gpu_recipe):
+    import yaml
+
+    recipes.install_recipe("jellyfin", {}, ["/srv/media/anime"], ["hwaccel"])
+    svc = yaml.safe_load((gpu_recipe / "compose.override.yml").read_text())["services"]["app"]
+    assert svc["devices"] == ["/dev/dri:/dev/dri"]
+    assert [v["target"] for v in svc["volumes"]] == ["/media/anime"]
+
+
+def test_install_with_an_option_and_no_folders_still_writes_it(gpu_recipe):
+    recipes.install_recipe("jellyfin", {}, [], ["hwaccel"])
+    assert recipes.option_on((gpu_recipe / "compose.override.yml").read_text(), HWACCEL)
+
+
+def test_an_unknown_option_fails_before_touching_disk(gpu_recipe):
+    with pytest.raises(recipes.RecipeError, match="no option nvidia"):
+        recipes.install_recipe("jellyfin", {}, [], ["nvidia"])
+    assert not gpu_recipe.exists()
+
+
 # --- Icon: an optional icon.png, applied to the route record at install ---
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64

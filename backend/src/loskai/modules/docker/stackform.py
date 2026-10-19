@@ -323,7 +323,15 @@ def get_form(name: str, base: dict | None = None) -> dict:
             "default": None if default is None else str(default),
         })
 
-    folders, other = parse_override(override_text)
+    options = (recipe or {}).get("options") or []
+    # An option's own lines aren't "something else" in the override: read the rest with
+    # every option off. One the form can't switch (not a list) leaves it as it is.
+    try:
+        rest = recipes.set_options(override_text, options, {o["id"]: False for o in options})
+    except RecipeError:
+        rest = override_text
+    folders, _ = parse_override(override_text)
+    _, other = parse_override(rest)
     return {
         "settings": settings,
         "folders": folders,
@@ -335,6 +343,10 @@ def get_form(name: str, base: dict | None = None) -> dict:
         ),
         "services": sorted(logic.declared_services(compose.read_text(encoding="utf-8"))),
         "app": app_summary(doc, env),
+        "options": [
+            {"id": o["id"], "label": o["label"], "help": o["help"], "on": recipes.option_on(override_text, o)}
+            for o in options
+        ],
         "recipe": {"id": recipe["id"], "name": recipe["name"], "icon": recipe["icon"]} if recipe else None,
     }
 
@@ -345,9 +357,11 @@ def save_form(
     folders: list[dict] | None,
     preview: bool = False,
     base: dict | None = None,
+    options: dict[str, bool] | None = None,
 ) -> dict | None:
     """Write what the form changed: `settings` are the changed values only, `folders` the
-    whole list when it changed — a row left blank is skipped — applied to the files on disk,
+    whole list when it changed — a row left blank is skipped — `options` the switches that
+    changed, by id; all applied to the files on disk,
     or to `base`, the text view's unsaved `.env` and override. Everything is checked before
     anything is written. `preview` writes nothing and returns the `.env` and override the
     save would leave, for the text view to open with."""
@@ -383,6 +397,17 @@ def save_form(
         problem = logic.yaml_problem(new_override)
         if problem:
             raise StackError(f"compose.override.yml {problem}")
+    if options:
+        spec = (_recipe(directory) or {}).get("options") or []
+        unknown = sorted(set(options) - {o["id"] for o in spec})
+        if unknown:
+            raise StackError(f"this stack's recipe has no option {', '.join(unknown)}")
+        try:
+            new_override = recipes.set_options(new_override, spec, {k: bool(v) for k, v in options.items()})
+        except RecipeError as exc:
+            raise StackError(str(exc))
+        except yaml.YAMLError:
+            raise StackError(f"compose.override.yml {logic.yaml_problem(new_override)}")
     new_env = env_text
     if settings:
         bad = [k for k in settings if not _KEY_RE.match(str(k))]

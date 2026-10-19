@@ -38,6 +38,9 @@ ENV_TYPES = {"text", "path"}
 # A .env key Compose can read back as one: shell-identifier shape. Anything else (`=`, a
 # space, a newline) would split or merge lines in the generated file.
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_OPTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+# What an option may add to a service: lists that extend it, never replace what the recipe set.
+OPTION_KEYS = ("devices", "group_add", "environment", "cap_add", "ports")
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]")
 # Compose derives a project name from the directory it runs in, lowercased and stripped
 # of anything outside this set. Mirrored here so container discovery asks the daemon for
@@ -74,6 +77,8 @@ def validate_manifest(data: object) -> list[str]:
         errors.append("'directories' is no longer supported — declare a `type: path` env entry")
     if "mounts" in data:
         errors.extend(_mounts_problems(data["mounts"]))
+    if "options" in data:
+        errors.extend(_options_problems(data["options"]))
     for i, entry in enumerate(data.get("env") or []):
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
@@ -104,6 +109,47 @@ def _mounts_problems(mounts: object) -> list[str]:
         errors.append("mounts 'target' must be an absolute container path, like /media")
     if not isinstance(mounts.get("read_only", True), bool):
         errors.append("mounts 'read_only' must be true or false")
+    return errors
+
+
+def _options_problems(options: object) -> list[str]:
+    """`options`: features the user switches on — a GPU, a USB device, an extra port. Each is
+    a fragment of Compose for one service, added to the override when on and removed when
+    off. Only keys that add to a service without replacing what the recipe set up."""
+    if not isinstance(options, list):
+        return ["'options' must be a list"]
+    errors: list[str] = []
+    seen: set[str] = set()
+    for i, opt in enumerate(options):
+        if not isinstance(opt, dict):
+            errors.append(f"options[{i}] must be a mapping")
+            continue
+        oid = opt.get("id")
+        if not isinstance(oid, str) or not _OPTION_ID_RE.match(oid):
+            errors.append(f"options[{i}] needs an 'id' of lowercase letters, digits, - and _")
+        elif oid in seen:
+            errors.append(f"options[{i}] id '{oid}' is used twice")
+        else:
+            seen.add(oid)
+        if not isinstance(opt.get("label"), str) or not opt["label"]:
+            errors.append(f"options[{i}] needs a 'label'")
+        if "help" in opt and not isinstance(opt["help"], str):
+            errors.append(f"options[{i}] 'help' must be text")
+        if "service" in opt and not isinstance(opt["service"], str):
+            errors.append(f"options[{i}] 'service' must be a compose service name")
+        fragment = opt.get("set")
+        if not isinstance(fragment, dict) or not fragment:
+            errors.append(f"options[{i}] needs 'set': the Compose keys it adds")
+            continue
+        for key, values in fragment.items():
+            if key not in OPTION_KEYS:
+                errors.append(f"options[{i}] can't set '{key}' — only {', '.join(OPTION_KEYS)}")
+            elif (
+                not isinstance(values, list)
+                or not values
+                or not all(isinstance(v, (str, int)) and not isinstance(v, bool) for v in values)
+            ):
+                errors.append(f"options[{i}] '{key}' must be a list, like - /dev/dri:/dev/dri")
     return errors
 
 
@@ -191,6 +237,58 @@ def resolve_mounts(spec: dict | None, folders: list) -> list[tuple[str, str]]:
     return pairs
 
 
+def option_on(override_text: str, option: dict) -> bool:
+    """An option is on when the override has every line it adds — read from the file, so a
+    hand edit or an older pasted snippet shows as it is."""
+    doc = yaml.safe_load(override_text) if override_text.strip() else None
+    services = doc.get("services") if isinstance(doc, dict) else None
+    svc = services.get(option["service"]) if isinstance(services, dict) else None
+    if not isinstance(svc, dict):
+        return False
+    for key, values in option["set"].items():
+        have = svc.get(key)
+        if not isinstance(have, list) or not {str(v) for v in values} <= {str(h) for h in have}:
+            return False
+    return True
+
+
+def set_options(override_text: str, options: list[dict], on: dict[str, bool]) -> str:
+    """The override with these options switched: on adds the lines an option lists, off
+    removes exactly those, and nothing else changes. "" when nothing is left."""
+    doc = yaml.safe_load(override_text) if override_text.strip() else None
+    doc = doc if isinstance(doc, dict) else {}
+    services = doc.get("services") if isinstance(doc.get("services"), dict) else {}
+    for option in options:
+        if option["id"] not in on:
+            continue
+        name = option["service"]
+        svc = services.get(name, {})
+        if not isinstance(svc, dict):
+            raise RecipeError(f"compose.override.yml: '{name}' isn't a mapping — use Edit as text")
+        for key, values in option["set"].items():
+            have = svc.get(key, [])
+            if not isinstance(have, list):
+                raise RecipeError(f"compose.override.yml: {name}'s '{key}' isn't a list — use Edit as text")
+            wanted = [str(v) for v in values]
+            if on[option["id"]]:
+                have = have + [v for v in wanted if v not in {str(h) for h in have}]
+            else:
+                have = [h for h in have if str(h) not in wanted]
+            if have:
+                svc[key] = have
+            else:
+                svc.pop(key, None)
+        if svc:
+            services[name] = svc
+        else:
+            services.pop(name, None)
+    if services:
+        doc["services"] = services
+    else:
+        doc.pop("services", None)
+    return OVERRIDE_HEADER + yaml.safe_dump(doc, sort_keys=False) if doc else ""
+
+
 # Heads every override Loskai writes: the file is the user's, and an update never touches it.
 OVERRIDE_HEADER = "# Your folders and changes, merged over compose.yml. Edit them on the stack in Loskai.\n"
 
@@ -208,6 +306,17 @@ def bind_volume(source: str, target: str, read_only: bool) -> dict:
         "read_only": read_only,
         "bind": {"create_host_path": False},
     }
+
+
+def resolve_options(spec: list[dict], chosen: list) -> dict[str, bool]:
+    """The options switched on at install, by id. An id the recipe doesn't have is refused."""
+    if not isinstance(chosen, list):
+        raise RecipeError("'options' must be a list of option ids")
+    known = {o["id"] for o in spec}
+    unknown = sorted({str(c) for c in chosen} - known)
+    if unknown:
+        raise RecipeError(f"this recipe has no option {', '.join(unknown)}")
+    return {str(c): True for c in chosen}
 
 
 def render_override(service: str, pairs: list[tuple[str, str]], read_only: bool) -> str:
@@ -335,6 +444,18 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
             "read_only": data["mounts"].get("read_only", True),
             "service": service,
         }
+    options = []
+    # Only once the manifest is valid: each option's service is read from compose.yml.
+    for i, opt in enumerate((data.get("options") or []) if not errors else []):
+        service, problem = _mount_service(
+            compose.read_text(encoding="utf-8"), opt.get("service") or data.get("service"), f"options[{i}]"
+        )
+        if problem:
+            errors.append(problem)
+        options.append({
+            "id": opt["id"], "label": opt["label"], "help": opt.get("help"), "service": service,
+            "set": {k: [str(v) for v in vals] for k, vals in opt["set"].items()},
+        })
     if errors:
         raise RecipeError("; ".join(errors))
     instructions = folder / "instructions.md"
@@ -350,6 +471,7 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         # (logic.primary_container). Optional — one service needs no declaration.
         "service": data.get("service"),
         "mounts": mounts,
+        "options": options,
         "icon": icon.is_file(),
         "instructions": instructions.read_text(encoding="utf-8") if instructions.is_file() else "",
         "source": source,
@@ -369,8 +491,8 @@ def icon_path(recipe_id: str) -> Path:
     return Path(recipe["path"]) / ICON_FILE
 
 
-def _mount_service(compose_text: str, declared: str | None) -> tuple[str | None, str | None]:
-    """The service a recipe's `mounts` go into — its `service`, or its only one."""
+def _mount_service(compose_text: str, declared: str | None, what: str = "'mounts'") -> tuple[str | None, str | None]:
+    """The service a recipe's `mounts` (or an option) go into — its `service`, or its only one."""
     services = logic.declared_services(compose_text)
     if declared:
         if declared in services:
@@ -378,7 +500,7 @@ def _mount_service(compose_text: str, declared: str | None) -> tuple[str | None,
         return None, f"'service: {declared}' is not a service in compose.yml"
     if len(services) == 1:
         return next(iter(services)), None
-    return None, "'mounts' needs 'service' to say which compose service gets the folders"
+    return None, f"{what} needs 'service' to say which compose service it is for"
 
 
 def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, dict], list[dict]]:
@@ -528,16 +650,19 @@ def sync_recipes(url: str | None = None) -> dict:
 # --- Install (compose I/O) ---
 
 
-def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None = None) -> dict:
+def install_recipe(
+    recipe_id: str, answers: dict[str, str], mounts: list | None = None, options: list | None = None
+) -> dict:
     """Create the stack dir, write compose.yml + a generated .env (+ an override holding
-    the folders added at install), run the type's command, and register a docker
-    instance. Never executes recipe-supplied code."""
+    the folders added at install and the options switched on), run the type's command,
+    and register a docker instance. Never executes recipe-supplied code."""
     if not stacks.stacks_dir_ok():
         raise RecipeError("stacks directory not found — check the compose mount")
     recipe = get_recipe(recipe_id)
     # Before any side effect: an undeclared key fails here, not after the mkdir.
     values = resolve_answers(recipe["env"], answers)
     pairs = resolve_mounts(recipe["mounts"], mounts or [])
+    chosen = resolve_options(recipe["options"], options or [])
     folder = Path(recipe["path"])
     compose_src = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
     if compose_src is None:
@@ -569,9 +694,11 @@ def install_recipe(recipe_id: str, answers: dict[str, str], mounts: list | None 
     write_record(target, recipe, compose_text)
     store.write_private(target / ".env", render_env(values))
     override = target / stacks.OVERRIDE_NAME
-    if pairs:
-        spec = recipe["mounts"]
-        override.write_text(render_override(spec["service"], pairs, spec["read_only"]), encoding="utf-8")
+    spec = recipe["mounts"]
+    override_text = render_override(spec["service"], pairs, spec["read_only"]) if pairs else ""
+    override_text = set_options(override_text, recipe["options"], chosen)
+    if override_text:
+        override.write_text(override_text, encoding="utf-8")
     else:
         override.unlink(missing_ok=True)
 

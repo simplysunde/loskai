@@ -298,17 +298,20 @@ def read_stack_form(name: str, payload: dict = Body(...)) -> dict:
 
 @router.put("/stacks/{name}/form")
 def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
-    """`settings`: the changed values; `folders`: the whole list. Either may be left out.
+    """`settings`: the changed values; `folders`: the whole list; `options`: the switches that
+    changed. Any may be left out.
     `base` is the text view's unsaved `{env, override}` to apply them to instead of the files.
     `preview: true` writes nothing and returns `{env, override}` as the save would leave them."""
-    settings_in, folders = payload.get("settings"), payload.get("folders")
+    settings_in, folders, options = payload.get("settings"), payload.get("folders"), payload.get("options")
     if settings_in is not None and not isinstance(settings_in, dict):
         raise HTTPException(status_code=422, detail="settings must be an object")
     if folders is not None and not isinstance(folders, list):
         raise HTTPException(status_code=422, detail="folders must be a list")
+    if options is not None and not isinstance(options, dict):
+        raise HTTPException(status_code=422, detail="options must be an object of id: true|false")
     try:
         preview = stackform_mod.save_form(
-            name, settings_in, folders, bool(payload.get("preview")), payload.get("base")
+            name, settings_in, folders, bool(payload.get("preview")), payload.get("base"), options
         )
     except StackError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -370,7 +373,7 @@ def recipe_icon(recipe_id: str) -> FileResponse:
 def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
     try:
         return recipes_mod.install_recipe(
-            recipe_id, payload.get("answers", {}), payload.get("mounts") or []
+            recipe_id, payload.get("answers", {}), payload.get("mounts") or [], payload.get("options") or []
         )
     except RecipeError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
