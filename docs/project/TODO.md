@@ -1293,6 +1293,11 @@ compose file that i dont really know where to look for the proper values"._
 - [x] Layout pass (2026-10-19, Sunde: "tighten up the formatting and layout"): the app on
       top, settings in two columns with the label above (as the wizard), folders under one
       header row — two lines each at phone width — and the hints in tooltips
+- [x] Second pass (Sunde: "more professional … a small image … host port and folders side
+      by side"): a header with the recipe's icon and what it runs — each port and data
+      mapping a chip, a folder told from a Docker volume — then Settings and Folders as two
+      panels side by side (stacked on a phone). The form now returns `recipe` `{id, name,
+      icon}` in place of `from_recipe`
 
 **32c — recipes**
 - [x] Each `compose.yml` keeps a two-line header; the author notes are `recipe.yml` comments;

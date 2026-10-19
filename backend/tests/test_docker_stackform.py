@@ -157,7 +157,7 @@ def test_the_form_reads_the_stacks_files(stack):
     assert form["services"] == ["jellyfin"]
     assert form["app"][0]["ports"] == ["8096 → 8096"]
     assert not form["override_other"] and not form["override_comments"]
-    assert form["from_recipe"] is None
+    assert form["recipe"] is None
 
 
 def test_a_recipe_stack_labels_its_settings_with_the_questions(stack, tmp_path):
@@ -169,7 +169,7 @@ def test_a_recipe_stack_labels_its_settings_with_the_questions(stack, tmp_path):
     )
     (folder / "compose.yml").write_text(COMPOSE)
     form = stackform.get_form("jellyfin")
-    assert form["from_recipe"] == "Jellyfin"
+    assert form["recipe"] == {"id": "jellyfin", "name": "Jellyfin", "icon": False}
     assert form["settings"] == [
         {"key": "PORT", "label": "Host port", "value": "8096", "default": "8096"},
         {"key": "TZ", "label": "Time zone", "value": "", "default": "Europe/Oslo"},

@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useState } from "react";
-import { Loader2, Lock, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CornerDownRight, Database, Folder as FolderIcon, Loader2, Lock, Plus, X } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
@@ -15,7 +15,7 @@ export type StackFormData = {
   override_comments: boolean;
   services: string[];
   app: { service: string; image: string | null; network: string | null; ports: string[]; volumes: string[] }[];
-  from_recipe: string | null;
+  recipe: { id: string; name: string; icon: boolean } | null;
 };
 
 const INPUT =
@@ -73,45 +73,15 @@ export function StackForm({
   const setFolder = (i: number, patch: Partial<Folder>) =>
     setFolders(folders.map((f, j) => (j === i ? { ...f, ...patch } : f)));
 
-  // Phone width: the host folder gets its own line, the rest of the row beneath it.
-  const grid =
-    form.services.length > 1
-      ? "grid-cols-[1fr_auto_auto] sm:grid-cols-[auto_3fr_auto_2fr_auto_auto]"
-      : "grid-cols-[1fr_auto_auto] sm:grid-cols-[3fr_auto_2fr_auto_auto]";
-
   return (
-    <div className="space-y-5">
-      <Section
-        title="App"
-        aside={
-          <span
-            title={`${form.from_recipe ? `From the ${form.from_recipe} recipe — Check for updates replaces it.` : "compose.yml."} Change it under Edit as text.`}
-            className="flex items-center gap-1 normal-case tracking-normal"
-          >
-            <Lock className="h-3 w-3" /> {form.from_recipe ? `${form.from_recipe} recipe` : "compose.yml"}
-          </span>
-        }
-      >
-        {form.app.map((a) => (
-          <div key={a.service} className="rounded-lg border border-slate-800 px-3 py-2">
-            <p className="flex items-baseline gap-2">
-              <span className="text-sm text-slate-200">{a.service}</span>
-              <span className="truncate font-mono text-xs text-slate-400">{a.image ?? "no image"}</span>
-            </p>
-            <div className="mt-1 flex flex-wrap gap-x-5 gap-y-0.5 text-xs">
-              {a.network && <Fact term="Network" items={[a.network]} />}
-              {a.ports.length > 0 && <Fact term="Ports" items={a.ports} />}
-              {a.volumes.length > 0 && <Fact term="Data" items={a.volumes} />}
-            </div>
-          </div>
-        ))}
-      </Section>
+    <div className="space-y-4">
+      <AppHeader form={form} stack={name} />
 
-      {form.settings.length > 0 && (
-        <Section title="Settings">
-          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+      <div className={`grid gap-4 ${form.settings.length > 0 ? "md:grid-cols-[2fr_3fr]" : ""}`}>
+        {form.settings.length > 0 && (
+          <Panel title="Settings">
             {form.settings.map((s) => (
-              <label key={s.key} className="block min-w-0">
+              <label key={s.key} className="block">
                 <span className="mb-1 block text-xs text-slate-400" title={s.key}>
                   {s.label ?? <span className="font-mono">{s.key}</span>}
                 </span>
@@ -125,87 +95,84 @@ export function StackForm({
                 />
               </label>
             ))}
-          </div>
-        </Section>
-      )}
+          </Panel>
+        )}
 
-      <Section title="Folders">
-        {folders.length > 0 && (
-          <div className={`grid ${grid} items-center gap-x-2 gap-y-2`}>
-            {form.services.length > 1 && <span className="text-xs text-slate-500 max-sm:hidden">Service</span>}
-            <span className="text-xs text-slate-500 max-sm:hidden">On the Docker host</span>
-            <span className="max-sm:hidden" />
-            <span className="text-xs text-slate-500 max-sm:hidden">In the container</span>
-            <span className="text-xs text-slate-500 max-sm:hidden" title="Off mounts it read-only">
-              Writable
-            </span>
-            <span className="max-sm:hidden" />
-            {folders.map((f, i) => (
-              <Fragment key={i}>
-                {form.services.length > 1 && (
-                  <select
-                    value={f.service}
-                    onChange={(e) => setFolder(i, { service: e.target.value })}
-                    aria-label={`Folder ${i + 1} service`}
-                    className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-100 max-sm:col-span-full"
-                  >
-                    {form.services.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                )}
-                <input
-                  value={f.source}
-                  onChange={(e) => setFolder(i, { source: e.target.value })}
-                  placeholder="/srv/media/films"
-                  aria-label={`Folder ${i + 1} on the host`}
-                  title={f.source}
-                  className={`${INPUT} min-w-0 font-mono text-xs max-sm:col-span-full max-sm:mt-2`}
-                />
-                <span className="text-slate-500 max-sm:hidden">→</span>
+        <Panel
+          title="Folders"
+          aside={
+            <button
+              onClick={() =>
+                setFolders([...folders, { service: form.services[0] ?? "", source: "", target: "", writable: true }])
+              }
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 normal-case tracking-normal text-teal-300 hover:bg-slate-800"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add folder
+            </button>
+          }
+        >
+          {folders.length === 0 && <p className="text-xs text-slate-500">No folders mounted.</p>}
+          {folders.map((f, i) => (
+            <div key={i} className="space-y-1.5 border-t border-slate-800/70 pt-3 first:border-t-0 first:pt-0">
+              {form.services.length > 1 && (
+                <select
+                  value={f.service}
+                  onChange={(e) => setFolder(i, { service: e.target.value })}
+                  aria-label={`Folder ${i + 1} service`}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+                >
+                  {form.services.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              )}
+              <input
+                value={f.source}
+                onChange={(e) => setFolder(i, { source: e.target.value })}
+                placeholder="/srv/media/films — on the Docker host"
+                aria-label={`Folder ${i + 1} on the host`}
+                title={f.source}
+                className={`${INPUT} font-mono text-xs`}
+              />
+              <div className="flex items-center gap-2">
+                <CornerDownRight className="ml-2 h-4 w-4 shrink-0 text-slate-600" />
                 <input
                   value={f.target}
                   onChange={(e) => setFolder(i, { target: e.target.value })}
-                  placeholder="/media/films"
+                  placeholder="/media/films — in the container"
                   aria-label={`Folder ${i + 1} in the container`}
                   className={`${INPUT} min-w-0 font-mono text-xs`}
                 />
-                <input
-                  type="checkbox"
-                  checked={f.writable}
-                  onChange={(e) => setFolder(i, { writable: e.target.checked })}
-                  aria-label={`Folder ${i + 1} writable`}
-                  title="Writable"
-                  className="h-4 w-4 justify-self-center accent-teal-500"
-                />
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400" title="Off mounts it read-only">
+                  <input
+                    type="checkbox"
+                    checked={f.writable}
+                    onChange={(e) => setFolder(i, { writable: e.target.checked })}
+                    aria-label={`Folder ${i + 1} writable`}
+                    className="h-4 w-4 accent-teal-500"
+                  />
+                  Writable
+                </label>
                 <button
                   onClick={() => setFolders(folders.filter((_, j) => j !== i))}
                   aria-label="Remove folder"
                   title="Remove"
-                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  className="rounded-lg p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
                 >
                   <X className="h-4 w-4" />
                 </button>
-                {problems[i] && <span className="col-span-full -mt-1 text-xs text-rose-400">{problems[i]}</span>}
-              </Fragment>
-            ))}
-          </div>
-        )}
-        <button
-          onClick={() =>
-            setFolders([...folders, { service: form.services[0] ?? "", source: "", target: "", writable: true }])
-          }
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-        >
-          <Plus className="h-3.5 w-3.5" /> Add folder
-        </button>
-        {form.override_other && (
-          <p className="text-xs text-slate-500">The override's other settings are kept — see Edit as text.</p>
-        )}
-        {foldersChanged && form.override_comments && (
-          <p className="text-xs text-amber-300">Saving rewrites compose.override.yml without its comments.</p>
-        )}
-      </Section>
+              </div>
+              {problems[i] && <p className="text-xs text-rose-400">{problems[i]}</p>}
+            </div>
+          ))}
+          {form.override_other && (
+            <p className="text-xs text-slate-500">The override's other settings are kept — see Edit as text.</p>
+          )}
+          {foldersChanged && form.override_comments && (
+            <p className="text-xs text-amber-300">Saving rewrites compose.override.yml without its comments.</p>
+          )}
+        </Panel>
+      </div>
 
       <EditorFooter
         left={<SwitchView to="Edit as text" onClick={onTextView} dirty={dirty} />}
@@ -228,24 +195,97 @@ export function StackForm({
   );
 }
 
-function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
+// What the stack runs, from compose.yml — shown, not edited: it is the recipe's, and Check
+// for updates replaces it.
+function AppHeader({ form, stack }: { form: StackFormData; stack: string }) {
+  const name = form.recipe?.name ?? stack;
   return (
-    <section className="space-y-2">
-      <h3 className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+      {form.recipe?.icon ? (
+        <img
+          src={`/api/docker/recipes/${encodeURIComponent(form.recipe.id)}/icon`}
+          alt=""
+          className="h-11 w-11 shrink-0 rounded-lg bg-slate-800/60 object-contain p-1.5"
+        />
+      ) : (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-base font-semibold text-teal-300">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-semibold text-slate-100">{name}</p>
+          <span
+            title={`${form.recipe ? `From the ${form.recipe.name} recipe — Check for updates replaces it.` : "From compose.yml."} Change it under Edit as text.`}
+            className="flex shrink-0 items-center gap-1 rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-400"
+          >
+            <Lock className="h-3 w-3" /> {form.recipe ? "Recipe" : "compose.yml"}
+          </span>
+        </div>
+        {form.app.map((a) => (
+          <div key={a.service} className="min-w-0">
+            <p className="truncate font-mono text-xs text-slate-300">
+              {form.app.length > 1 && <span className="mr-2 font-sans text-slate-400">{a.service}</span>}
+              {a.image ?? "no image"}
+            </p>
+            {(a.network || a.ports.length > 0 || a.volumes.length > 0) && (
+              <dl className="mt-1.5 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1.5 text-xs">
+                {a.network && <Fact term="Network" items={[a.network]} />}
+                {a.ports.length > 0 && <Fact term="Ports" items={a.ports} />}
+                {a.volumes.length > 0 && <Fact term="Data" items={a.volumes} data />}
+              </dl>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-slate-800 bg-slate-950/40">
+      <h3 className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-400">
         {title}
         {aside}
       </h3>
-      {children}
+      <div className="space-y-3 p-3">{children}</div>
     </section>
   );
 }
 
-function Fact({ term, items }: { term: string; items: string[] }) {
+// One line of what the app runs: each mapping a chip — host side first, then where it lands
+// inside — and for data, whether it is a folder or a Docker volume.
+function Fact({ term, items, data = false }: { term: string; items: string[]; data?: boolean }) {
   return (
-    <span className="flex gap-2">
-      <span className="text-slate-500">{term}</span>
-      <span className="font-mono text-slate-400">{items.join(" · ")}</span>
-    </span>
+    <>
+      <dt className="pt-0.5 text-slate-500">{term}</dt>
+      <dd className="flex min-w-0 flex-wrap gap-1.5">
+        {items.map((item) => {
+          const [host, inside] = item.split(" → ");
+          const readOnly = inside?.endsWith(" (read-only)");
+          const folder = /^[./~]/.test(host);
+          const Icon = folder ? FolderIcon : Database;
+          return (
+            <span
+              key={item}
+              title={data ? (folder ? "A folder beside the stack or on the host" : "A Docker volume") : undefined}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-slate-800/70 px-2 py-0.5 font-mono"
+            >
+              {data && <Icon className="h-3 w-3 shrink-0 text-slate-500" />}
+              <span className="truncate text-slate-200">{host}</span>
+              {inside !== undefined && (
+                <>
+                  <span className="text-slate-600">→</span>
+                  <span className="truncate text-slate-400">{inside.replace(" (read-only)", "")}</span>
+                </>
+              )}
+              {readOnly && <span className="font-sans text-[10px] uppercase text-amber-300/80">ro</span>}
+            </span>
+          );
+        })}
+      </dd>
+    </>
   );
 }
 

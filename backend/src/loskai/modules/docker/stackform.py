@@ -317,7 +317,7 @@ def get_form(name: str) -> dict:
         ),
         "services": sorted(logic.declared_services(compose.read_text(encoding="utf-8"))),
         "app": app_summary(doc, env),
-        "from_recipe": recipe["name"] if recipe else None,
+        "recipe": {"id": recipe["id"], "name": recipe["name"], "icon": recipe["icon"]} if recipe else None,
     }
 
 

@@ -23,7 +23,7 @@ const FORM: StackFormData = {
       volumes: ["./config → /config", "cache → /cache"],
     },
   ],
-  from_recipe: "Jellyfin",
+  recipe: { id: "jellyfin", name: "Jellyfin", icon: false },
 };
 
 // The form is what Edit opens to, so what's pinned: the files read as labelled values, only
@@ -58,7 +58,8 @@ test("the stack opens as labelled values, the app read-only", async () => {
   expect(screen.getByLabelText("Folder 1 on the host")).toHaveValue("/srv/media/anime");
   expect(screen.getByLabelText("Folder 1 in the container")).toHaveValue("/media/anime");
   expect(screen.getByText("jellyfin/jellyfin:12.2")).toBeInTheDocument();
-  expect(screen.getByText("./config → /config · cache → /cache")).toBeInTheDocument();
+  expect(screen.getByText("./config")).toBeInTheDocument();
+  expect(screen.getByText("/cache")).toBeInTheDocument();
   expect(screen.getByTitle(/From the Jellyfin recipe/)).toBeInTheDocument();
   // Nothing changed yet: nothing to save.
   expect(screen.getByText("Save + re-up").closest("button")).toBeDisabled();

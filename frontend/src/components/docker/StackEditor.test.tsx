@@ -13,7 +13,7 @@ const FORM = {
   override_comments: false,
   services: ["jellyfin"],
   app: [{ service: "jellyfin", image: "jellyfin/jellyfin:12.2", network: null, ports: ["8096 → 8096"], volumes: [] }],
-  from_recipe: "Jellyfin",
+  recipe: { id: "jellyfin", name: "Jellyfin", icon: false },
 };
 
 // The text view, behind the form's Edit as text: every file has its tab, only what changed
