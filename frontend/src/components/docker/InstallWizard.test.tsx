@@ -373,3 +373,35 @@ test("a removed folder is gone from the form", async () => {
   expect(screen.queryByLabelText("Media folders 1")).not.toBeInTheDocument();
   expect(deploy()).toBeEnabled();
 });
+
+// --- options — features switched on at install, off by default ---
+
+test("an option is off until ticked, and only the ticked ones are sent", async () => {
+  const fetchMock = renderWizard({
+    recipes: [
+      {
+        ...JELLYFIN,
+        mounts: null,
+        options: [
+          { id: "hwaccel", label: "Hardware transcoding (Intel/AMD)", help: "Needs /dev/dri" },
+          { id: "dlna", label: "DLNA", help: null },
+        ],
+      },
+    ],
+  });
+  fireEvent.click(await screen.findByText("Jellyfin"));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  const gpu = screen.getByRole("checkbox", { name: /Hardware transcoding/ });
+  expect(gpu).not.toBeChecked();
+  expect(screen.getByText("Needs /dev/dri")).toBeInTheDocument();
+  fireEvent.click(gpu);
+  fireEvent.click(deploy());
+
+  await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => path.endsWith("/install"))).toBe(true));
+  const [, init] = fetchMock.mock.calls.find(([path]) => path.endsWith("/install")) as unknown as [
+    string,
+    RequestInit,
+  ];
+  expect(JSON.parse(String(init.body)).options).toEqual(["hwaccel"]);
+});

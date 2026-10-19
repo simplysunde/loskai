@@ -121,6 +121,12 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `mounts.label` | ✅ | — | The heading over the folder rows. |
 | `mounts.target` | ✅ | — | Absolute container path; each folder lands at `target/<its name>`. |
 | `mounts.read_only` | — | — | Defaults `true`. One setting for every folder. |
+| `options` | — | all | Features the user switches on — a GPU, a USB device, an extra port — see [Options](#options--features-the-user-switches-on). |
+| `options[].id` | ✅ | — | Lowercase letters, digits, `-` and `_`; unique in the recipe. |
+| `options[].label` | ✅ | — | The checkbox's text. |
+| `options[].help` | — | — | One line under it: what the host needs, what to do after. |
+| `options[].service` | — | — | The compose service it is for; defaults to the recipe's `service`, or its only one. |
+| `options[].set` | ✅ | — | The lines it adds: `devices`, `group_add`, `environment`, `cap_add` or `ports`, each a list. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
@@ -284,6 +290,37 @@ asks with fixed `type: path` questions instead. Past these limits it is a volume
 
 ---
 
+## Options — features the user switches on
+
+Some features need something only some hosts have: a GPU for transcoding, a USB stick for a
+Zigbee bridge. Put in `compose.yml`, a device the host lacks stops the container from
+starting; left to the user, it is YAML pasted into the override by hand. An **option** is the
+recipe saying it once:
+
+```yaml
+options:
+  - id: hwaccel
+    label: Hardware transcoding (Intel/AMD)
+    help: Needs /dev/dri on the Docker host, or Jellyfin won't start.
+    set:
+      devices:
+        - /dev/dri:/dev/dri
+```
+
+Each is a checkbox — in the wizard, and in the stack's Edit form — **off by default**. On adds
+exactly the lines under `set` to that service in `compose.override.yml`; off removes exactly
+those, and nothing else in the file changes. **Whether it is on is read from the override**,
+not stored: a stack where the user pasted the same lines by hand shows it ticked.
+
+`set` takes only keys that *add* to a service — `devices`, `group_add`, `environment` (the
+`- KEY=value` list form), `cap_add`, `ports` — each a list. Anything that would replace what
+the recipe set up (`image`, `volumes`, `command`) is refused: an option extends the app, it
+doesn't swap it.
+
+Since the lines live in the user's override, an [update](#updating-an-installed-recipe) never
+touches them. Changing an option's `set` in a later version leaves installed stacks with the
+old lines, now unticked — say so in the commit message, or add the change as a new id.
+
 ## Telling Loskai the port — `loskai.port`
 
 Routing a container needs its port, and Docker can report one only when the container
@@ -359,6 +396,9 @@ Loskai rejects a recipe (skips it, surfaces why) when:
   service in `compose.yml`.
 - an `env` key is not a variable name (a space, `=` or newline would split or merge lines in
   the generated `.env`).
+- an `options` entry has no valid `id` (or repeats one), no `label`, no `set`, a `set` key
+  outside `devices`/`group_add`/`environment`/`cap_add`/`ports`, or a value that isn't a list;
+  or it is in a multi-service recipe with no `service` to say which.
 - `compose.yml` is missing.
 - `icon.png` is present but is not a PNG, or is larger than 512 KB.
 

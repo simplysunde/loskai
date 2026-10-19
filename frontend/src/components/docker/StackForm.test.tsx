@@ -24,6 +24,7 @@ const FORM: StackFormData = {
     },
   ],
   recipe: { id: "jellyfin", name: "Jellyfin", icon: false },
+  options: [{ id: "hwaccel", label: "Hardware transcoding", help: "Needs /dev/dri", on: false }],
 };
 
 // The form is what Edit opens to, so what's pinned: the files read as labelled values, only
@@ -156,4 +157,16 @@ test("an unsaved compose.yml keeps you in the text view", async () => {
   fireEvent.click(await screen.findByText("Edit as text"));
   fireEvent.change(await screen.findByLabelText("compose.yml"), { target: { value: "services: {}\n" } });
   expect(screen.getByText("Edit as form").closest("button")).toBeDisabled();
+});
+
+test("an option is a checkbox, and switching it sends only that change", async () => {
+  const { fetchMock, onClose } = renderForm();
+
+  const gpu = await screen.findByRole("checkbox", { name: /Hardware transcoding/ });
+  expect(gpu).not.toBeChecked();
+  fireEvent.click(gpu);
+  fireEvent.click(screen.getByText("Save"));
+
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(sent(fetchMock)).toEqual([{ settings: {}, options: { hwaccel: true } }]);
 });

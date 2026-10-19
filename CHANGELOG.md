@@ -18,6 +18,8 @@ Everything so far:
 - **Install wizard** — apps from recipe repos, with their own icons, routed on install.
   **Check for updates** shows which installed recipes have a newer version and what
   changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
+  Optional features a recipe offers — Jellyfin's hardware transcoding — are checkboxes, at
+  install or later under Edit.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **Security** — one admin password; the app runs as the owner of its data folder, not root;

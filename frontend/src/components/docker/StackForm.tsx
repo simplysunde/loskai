@@ -4,6 +4,7 @@ import { CornerDownRight, Database, Folder as FolderIcon, Loader2, Lock, Plus, X
 import { api, ApiError } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
 import { EditorFooter, SwitchView } from "./EditorFooter";
+import { OptionList, type RecipeOption } from "./RecipeOptions";
 import type { Carried } from "./StackEditor";
 import { useSaveAndUp } from "./useSaveAndUp";
 
@@ -17,6 +18,7 @@ export type StackFormData = {
   services: string[];
   app: { service: string; image: string | null; network: string | null; ports: string[]; volumes: string[] }[];
   recipe: { id: string; name: string; icon: boolean } | null;
+  options: (RecipeOption & { on: boolean })[];
 };
 
 const INPUT =
@@ -39,6 +41,7 @@ export function StackForm({
   const [form, setForm] = useState<StackFormData | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [optionsOn, setOptionsOn] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const saving = useSaveAndUp(name, onClose);
@@ -50,6 +53,7 @@ export function StackForm({
         setForm(f);
         setValues(Object.fromEntries(f.settings.map((s) => [s.key, s.value])));
         setFolders(f.folders);
+        setOptionsOn(Object.fromEntries(f.options.map((o) => [o.id, o.on])));
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
   }, [name, base]);
@@ -75,9 +79,19 @@ export function StackForm({
   // A row with nothing typed in it is not a change — the server skips it too.
   const filled = folders.filter((f) => f.source.trim() || f.target.trim());
   const foldersChanged = JSON.stringify(filled) !== JSON.stringify(form.folders);
+  const switched = Object.fromEntries(
+    form.options.filter((o) => optionsOn[o.id] !== o.on).map((o) => [o.id, optionsOn[o.id]]),
+  );
+  const optionsChanged = Object.keys(switched).length > 0;
   // Text carried over from the text view is unsaved too: the form saves on top of it.
-  const dirty = base !== null || Object.keys(changed).length > 0 || foldersChanged;
-  const payload = { settings: changed, folders: foldersChanged ? filled : undefined, base: base ?? undefined };
+  const dirty = base !== null || Object.keys(changed).length > 0 || foldersChanged || optionsChanged;
+  const leftColumn = form.settings.length > 0 || form.options.length > 0;
+  const payload = {
+    settings: changed,
+    folders: foldersChanged ? filled : undefined,
+    options: optionsChanged ? switched : undefined,
+    base: base ?? undefined,
+  };
   const problems = folders.map((f) => folderProblem(f, folders));
   const setFolder = (i: number, patch: Partial<Folder>) =>
     setFolders(folders.map((f, j) => (j === i ? { ...f, ...patch } : f)));
@@ -86,25 +100,38 @@ export function StackForm({
     <div className="space-y-4">
       <AppHeader form={form} stack={name} />
 
-      <div className={`grid gap-4 ${form.settings.length > 0 ? "md:grid-cols-[2fr_3fr]" : ""}`}>
-        {form.settings.length > 0 && (
-          <Panel title="Settings">
-            {form.settings.map((s) => (
-              <label key={s.key} className="block">
-                <span className="mb-1 block text-xs text-slate-400" title={s.key}>
-                  {s.label ?? <span className="font-mono">{s.key}</span>}
-                </span>
-                <input
-                  value={values[s.key] ?? ""}
-                  onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
-                  placeholder={s.default ?? undefined}
-                  title={s.default ? `Empty uses the default, ${s.default}` : undefined}
-                  aria-label={s.label ?? s.key}
-                  className={INPUT}
+      <div className={`grid items-start gap-4 ${leftColumn ? "md:grid-cols-[2fr_3fr]" : ""}`}>
+        {leftColumn && (
+          <div className="space-y-4">
+            {form.settings.length > 0 && (
+              <Panel title="Settings">
+                {form.settings.map((s) => (
+                  <label key={s.key} className="block">
+                    <span className="mb-1 block text-xs text-slate-400" title={s.key}>
+                      {s.label ?? <span className="font-mono">{s.key}</span>}
+                    </span>
+                    <input
+                      value={values[s.key] ?? ""}
+                      onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
+                      placeholder={s.default ?? undefined}
+                      title={s.default ? `Empty uses the default, ${s.default}` : undefined}
+                      aria-label={s.label ?? s.key}
+                      className={INPUT}
+                    />
+                  </label>
+                ))}
+              </Panel>
+            )}
+            {form.options.length > 0 && (
+              <Panel title="Options">
+                <OptionList
+                  options={form.options}
+                  on={optionsOn}
+                  onChange={(id, value) => setOptionsOn({ ...optionsOn, [id]: value })}
                 />
-              </label>
-            ))}
-          </Panel>
+              </Panel>
+            )}
+          </div>
         )}
 
         <Panel

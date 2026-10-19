@@ -14,6 +14,7 @@ const FORM = {
   services: ["jellyfin"],
   app: [{ service: "jellyfin", image: "jellyfin/jellyfin:12.2", network: null, ports: ["8096 → 8096"], volumes: [] }],
   recipe: { id: "jellyfin", name: "Jellyfin", icon: false },
+  options: [{ id: "hwaccel", label: "Hardware transcoding", help: "Needs /dev/dri", on: false }],
 };
 
 // The text view, behind the form's Edit as text: every file has its tab, only what changed

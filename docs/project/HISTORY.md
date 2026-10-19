@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-19 — Recipe options: optional features as checkboxes
+
+Jellyfin's hardware transcoding was a snippet in its instructions, pasted into the override
+with Edit as text — exactly the hand-written YAML the form had just removed. Asked whether to
+add the line or not, **Sunde wanted "a default way to handle such cases"** rather than a
+Jellyfin answer. Always adding it was out: a container whose device the host lacks doesn't
+start, and Jellyfin doesn't find a GPU by itself anyway (the device must be passed in, then
+picked in its dashboard).
+
+So a recipe declares **`options`**: each a fragment of Compose for one service, a checkbox in
+the wizard and the Edit form, **off by default**. On adds exactly those lines to the override;
+off removes exactly those. **Whether one is on is read from the override, never stored** — so
+it can't drift from the file, and a snippet pasted by hand before options existed shows
+ticked. An option may only *add* (`devices`, `group_add`, `environment`, `cap_add`, `ports`):
+an option that could set `image` or `volumes` would be a second, hidden compose file. Living
+in the override, options are the user's under Phase 31's ownership, untouched by updates.
+Jellyfin's is Intel/AMD only: the image runs as root, so no `render` group is needed, and
+NVIDIA's toolkit-plus-reservation is a different option, left until a host needs it.
+
 ## 2026-10-18 — The stack editor opens as a form
 
 The tab-per-file editor (below) answered *where* a setting could be changed, not *which line*:

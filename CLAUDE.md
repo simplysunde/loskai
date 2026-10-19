@@ -14,7 +14,7 @@ volumes, the recipe catalog that routes its install) is built and verified live.
 as `docs/guides/backend-certificates.md`. The two archived live
 smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
 2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (507 + 222 + docs).
+All three checks pass (525 + 224 + docs).
 
 **Loskai has now actually been run** (2026-09-05), which it never had been before: everything
 up to that point was unit tests and static validation. Two of the three defects that surfaced
@@ -254,7 +254,10 @@ must replay except the AdGuard password; its *own* admin password is stored only
   runs as root inside Loskai's container, so it means `/root`), a bare name (a named volume,
   not a folder), a `:`. A recipe's `mounts` (folders the user adds) go into a generated
   `compose.override.yml`, long syntax with `create_host_path: false` — never into the
-  recipe's own `compose.yml`.
+  recipe's own `compose.yml`. So do its **`options`** (a GPU, say): on adds exactly the lines an
+  option lists, off removes exactly those, and whether one is on is *read from the
+  override*, never stored. An option may only add (`devices`, `group_add`, `environment`,
+  `cap_add`, `ports`), never replace what the recipe set up.
 - **An installed recipe's files each have one owner** (Phase 31): `compose.yml` is the
   recipe's — an update replaces it; `.env` is the answers — an update only *adds* a line for
   a new question; `compose.override.yml` is the user's — an update never touches it, and is

@@ -37,7 +37,8 @@ Your containers, grouped by compose project.
   pull + update, edit, or delete — **Delete keeps `./data` unless you tick it**, so installing
   again picks the data back up. Edit opens as a form: **Settings** (the `.env`, labelled
   with the recipe's questions), **Folders** (host folder → path in the container, writable or
-  not) and **App** — what `compose.yml` runs, shown but not edited, since it is the recipe's.
+  not), the recipe's **Options** (a GPU for transcoding, say — off until ticked) and **App** —
+  what `compose.yml` runs, shown but not edited, since it is the recipe's.
   **Edit as text** opens the files themselves, a tab each; switching either way keeps what
   you haven't saved yet. **Save** — greyed out until something changed — saves and
   re-ups the stack.

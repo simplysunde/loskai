@@ -8,6 +8,7 @@ import type { SettingsView } from "../../lib/settings";
 import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix, type PrefillSource } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
+import { OptionList, type RecipeOption } from "./RecipeOptions";
 
 interface RecipeEnv {
   key: string;
@@ -28,6 +29,8 @@ interface Recipe {
   // Folders the user adds at install, however many they have: each lands at
   // `target/<its name>`. Written to compose.override.yml, never into the recipe's file.
   mounts?: { label: string; target: string; read_only: boolean } | null;
+  // Features switched on at install (a GPU, say), each added to the override when on.
+  options?: RecipeOption[];
   // instructions.md, verbatim. Shown before the form — it is the recipe's own
   // walk-through, and the only place a recipe author can say "log in with admin/admin".
   instructions: string;
@@ -63,6 +66,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   const [reviewed, setReviewed] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [folders, setFolders] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<InstallResult | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -81,6 +85,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
       api.post<InstallResult>(`/api/docker/recipes/${recipe.id}/install`, {
         answers,
         mounts: folders.filter((f) => f.trim() !== ""),
+        options: Object.keys(chosen).filter((id) => chosen[id]),
       }),
     onSuccess: (r) => {
       setResult(r);
@@ -99,6 +104,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     setAnswers(seed);
     // One empty row to start, so the field reads as something to fill in.
     setFolders(recipe.mounts ? [""] : []);
+    setChosen({});
     setResult(null);
   }
 
@@ -128,6 +134,8 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           setAnswers={setAnswers}
           folders={folders}
           setFolders={setFolders}
+          chosen={chosen}
+          setChosen={setChosen}
           pending={install.isPending}
           error={install.error instanceof ApiError ? install.error.message : null}
           onBack={() => setReviewed(false)}
@@ -584,6 +592,8 @@ function FillStep({
   setAnswers,
   folders,
   setFolders,
+  chosen,
+  setChosen,
   pending,
   error,
   onBack,
@@ -594,6 +604,8 @@ function FillStep({
   setAnswers: (a: Record<string, string>) => void;
   folders: string[];
   setFolders: (f: string[]) => void;
+  chosen: Record<string, boolean>;
+  setChosen: (c: Record<string, boolean>) => void;
   pending: boolean;
   error: string | null;
   onBack: () => void;
@@ -620,6 +632,16 @@ function FillStep({
       ))}
       {recipe.mounts && (
         <FolderRows spec={recipe.mounts} folders={folders} setFolders={setFolders} />
+      )}
+      {recipe.options && recipe.options.length > 0 && (
+        <div>
+          <span className="mb-1.5 block text-xs font-medium text-slate-400">Options</span>
+          <OptionList
+            options={recipe.options}
+            on={chosen}
+            onChange={(id, value) => setChosen({ ...chosen, [id]: value })}
+          />
+        </div>
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
       <div className="flex justify-between">

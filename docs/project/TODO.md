@@ -4,8 +4,9 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 32** (below) — the stack editor opens as a form: settings, folders, and the
-app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
+**Now:** **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
+transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
+a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
 lists installed recipes, shows what changed, and replaces the recipe's `compose.yml` while
 your override stays.
 **Phase 30** (UI polish across machines, routing, Docker and the recipe wizard) is built
@@ -1334,6 +1335,45 @@ compose file that i dont really know where to look for the proper values"._
       the container on `:8092` with `/media/films` `rw=false`, `/media/anime` `rw=true`,
       `TZ=UTC`. A missing folder failed `up` with "bind source path does not exist" (none
       created); an empty list removed the override; `~/x` was refused
+
+---
+
+## Phase 33 — Recipe options: optional features as checkboxes
+
+_Origin (2026-10-19, Sunde): "what do we do about extra variable toggles like the graphic
+card transcoding that jellyfin has? … it would be nice if we have a default way to handle
+such cases"._
+
+**Decisions (Sunde, 2026-10-19)**
+- **A recipe declares `options`**, each a checkbox — off by default — in the wizard and the
+  Edit form. Not always-on: a missing device stops the container
+- **On adds exactly an option's lines to the override, off removes exactly those**; whether
+  one is on is read from the override, never stored
+- Jellyfin's first option is Intel/AMD hardware transcoding; NVIDIA waits for a host with one
+
+**33a — backend**
+- [x] `options` validated: id, label, optional help and service, `set` limited to
+      `devices`/`group_add`/`environment`/`cap_add`/`ports`, each a list
+- [x] `option_on` / `set_options` (pure); install takes option ids; the form reports each
+      option's state, saves switches, and doesn't count option lines as "other settings"
+
+**33b — frontend**
+- [x] `OptionList` (checkboxes with a help line) in the wizard's fill step and an Options
+      panel under Settings in the form
+
+**33c — recipes and docs**
+- [x] Jellyfin's `hwaccel` option replaces its paste-this-snippet instructions; the authoring
+      rules say optional hardware is an option; `recipe-schema.md` gets an Options section
+
+**Verification**
+- [x] +18 backend, +2 frontend. `pytest` (525) + `npm test` (224) + `npm run build` +
+      `oxlint` + `check-docs.sh`; recipe validator 3 valid
+- [x] **Live** (scratch backend, the real Jellyfin recipe as `gputest` on whoami, Playwright;
+      this VM has `/dev/dri/card0`): installed with the option ticked → the form showed it
+      ticked; unticked + Save → the override was removed and the container had no devices;
+      on again → `devices: [{/dev/dri /dev/dri rwm}]`. An option for a missing device
+      failed `up` with "error gathering device information … /dev/nope"; unticking it
+      brought the stack back up
 
 ---
 
