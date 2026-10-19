@@ -69,19 +69,8 @@ test("the stack opens as labelled values, the app read-only", async () => {
   expect(screen.getByText("./config")).toBeInTheDocument();
   expect(screen.getByText("/cache")).toBeInTheDocument();
   expect(screen.getByTitle(/From the Jellyfin recipe/)).toBeInTheDocument();
-  // Nothing changed yet: nothing to save, so the button restarts.
-  expect(screen.getByText("Restart").closest("button")).toBeEnabled();
-  expect(screen.queryByText("Save")).not.toBeInTheDocument();
-});
-
-test("with nothing changed, the button restarts the stack", async () => {
-  const { fetchMock, onClose } = renderForm();
-
-  fireEvent.click(await screen.findByText("Restart"));
-  await waitFor(() => expect(onClose).toHaveBeenCalled());
-  expect(sent(fetchMock)).toEqual([]);
-  const action = fetchMock.mock.calls.find(([p]) => p.endsWith("/action"));
-  expect(JSON.parse(String(action![1]!.body))).toEqual({ action: "restart" });
+  // Nothing changed yet: nothing to save.
+  expect(screen.getByText("Save").closest("button")).toBeDisabled();
 });
 
 test("saving sends only the changed values, and the folders when they changed", async () => {
@@ -127,7 +116,7 @@ test("an added folder left empty is not a change", async () => {
   renderForm();
 
   fireEvent.click(await screen.findByText("Add folder"));
-  expect(screen.getByText("Restart")).toBeInTheDocument();
+  expect(screen.getByText("Save").closest("button")).toBeDisabled();
   expect(screen.getByText("Edit as text").closest("button")).toBeEnabled();
 });
 

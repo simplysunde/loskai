@@ -201,16 +201,14 @@ export function StackForm({
         error={switchError ?? saving.error}
         output={saving.output}
         busy={saving.busy}
-        disabled={problems.some(Boolean)}
-        label={dirty ? "Save" : "Restart"}
-        title={dirty ? "Save, then re-up the stack" : "Nothing to save — restart the stack"}
+        disabled={!dirty || problems.some(Boolean)}
+        label="Save"
+        title={dirty ? "Save, then re-up the stack" : "Nothing changed yet"}
         onCancel={onClose}
         onSave={() =>
-          dirty
-            ? saving.run(async () => {
-                await api.put(`/api/docker/stacks/${name}/form`, payload);
-              })
-            : saving.run(async () => {}, { action: "restart" })
+          saving.run(async () => {
+            await api.put(`/api/docker/stacks/${name}/form`, payload);
+          })
         }
       />
     </div>

@@ -39,8 +39,8 @@ Your containers, grouped by compose project.
   with the recipe's questions), **Folders** (host folder → path in the container, writable or
   not) and **App** — what `compose.yml` runs, shown but not edited, since it is the recipe's.
   **Edit as text** opens the files themselves, a tab each; switching either way keeps what
-  you haven't saved yet. The button reads **Save** once something changed — it saves and
-  re-ups the stack — and **Restart** while nothing has.
+  you haven't saved yet. **Save** — greyed out until something changed — saves and
+  re-ups the stack.
 
   > *Example:* to give Jellyfin another library, Edit → Add folder → `/srv/media/books` →
   > `/media/books` → Save.

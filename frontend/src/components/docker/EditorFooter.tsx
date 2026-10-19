@@ -16,7 +16,7 @@ export function EditorFooter({
   error: string | null;
   output: string | null;
   busy: boolean;
-  disabled: boolean;
+  disabled: boolean; // nothing to save yet, or something to fix first
   label: string;
   title?: string;
   onCancel: () => void;
@@ -40,7 +40,7 @@ export function EditorFooter({
             onClick={onSave}
             disabled={busy || disabled}
             title={title}
-            className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50 disabled:hover:bg-teal-600"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {label}

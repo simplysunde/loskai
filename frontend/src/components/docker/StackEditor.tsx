@@ -133,7 +133,7 @@ function TextFiles({
           setSaved((s) => ({ ...s, [k]: files[k] }));
         }
       },
-      { action: creating ? null : changed ? "up" : "restart" },
+      { up: !creating },
     );
     if (!ok) setTab(current);
   }
@@ -191,9 +191,9 @@ function TextFiles({
         error={saving.error}
         output={saving.output}
         busy={saving.busy}
-        disabled={creating && !stackName}
-        label={creating ? "Create + up" : changed ? "Save" : "Restart"}
-        title={creating ? undefined : changed ? "Save, then re-up the stack" : "Nothing to save — restart the stack"}
+        disabled={creating ? !stackName : !changed}
+        label={creating ? "Create + up" : "Save"}
+        title={creating ? undefined : changed ? "Save, then re-up the stack" : "Nothing changed yet"}
         onCancel={onClose}
         onSave={save}
       />
