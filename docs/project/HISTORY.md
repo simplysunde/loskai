@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-20 — An option's help starts with what happens without it
+
+Jellyfin's GPU options opened with "Needs /dev/dri on the Docker host, or Jellyfin won't
+start" — read on its own, that says Jellyfin needs a GPU. **Sunde: "its important that we
+dont make the user think it wont run without a gpu when it will simply use the cpu."** Every
+option's `help` now starts with what happens without it ("Without it, Jellyfin transcodes on
+the CPU"), then what the host needs if ticked. The schema's `help` row and the recipes repo's
+authoring rule say so, so a new option is written that way from the start.
+
 ## 2026-10-19 — Recipe sync follows a rewritten history
 
 Sunde's global CLAUDE.md says commits carry no AI attribution lines, and most of both repos'

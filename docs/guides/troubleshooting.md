@@ -207,4 +207,5 @@ usual causes are on the Docker host, not in Loskai:
 - **`could not select device driver "nvidia"`** — the NVIDIA option is ticked but the host
   has no NVIDIA driver or Container Toolkit; `nvidia-smi` must work there first.
 
-Either way, untick the option (or fix the folder) under Edit and Save again.
+Either way, untick the option (or fix the folder) under Edit and Save again. An option is
+never required: unticked, Jellyfin still runs and transcodes on the CPU.

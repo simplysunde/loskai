@@ -124,7 +124,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `options` | — | all | Features the user switches on — a GPU, a USB device, an extra port — see [Options](#options--features-the-user-switches-on). |
 | `options[].id` | ✅ | — | Lowercase letters, digits, `-` and `_`; unique in the recipe. |
 | `options[].label` | ✅ | — | The checkbox's text. |
-| `options[].help` | — | — | One line under it: what the host needs, what to do after. |
+| `options[].help` | — | — | One line under it: what happens without it, what the host needs, what to do after. |
 | `options[].service` | — | — | The compose service it is for; defaults to the recipe's `service`, or its only one. |
 | `options[].set` | ✅ | — | The lines it adds: `devices`, `group_add`, `environment`, `cap_add` or `ports`, each a list — or `deploy`, a mapping, for a GPU reservation. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
@@ -301,7 +301,7 @@ recipe saying it once:
 options:
   - id: hwaccel
     label: Hardware transcoding (Intel/AMD)
-    help: Needs /dev/dri on the Docker host, or Jellyfin won't start.
+    help: Without it, Jellyfin transcodes on the CPU. Tick it only if the Docker host has /dev/dri/renderD128, or Jellyfin won't start.
     set:
       devices:
         - /dev/dri:/dev/dri
