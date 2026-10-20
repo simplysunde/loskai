@@ -411,6 +411,8 @@ def test_sync_follows_a_rewritten_history(data_dir, tmp_path):
     git("push", "origin", "main", cwd=work)
     url = origin.as_uri()
     recipes._sync_one(url)
+    # A cache seen live had no fetch refspec, so no remote-tracking branch to reset to.
+    git("config", "--unset-all", "remote.origin.fetch", cwd=recipes._repo_cache(url))
 
     (work / "a.txt").write_text("rewritten\n")
     git("commit", "-a", "--amend", "-m", "rewritten", cwd=work)

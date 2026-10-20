@@ -646,14 +646,15 @@ def _sync_one(url: str) -> str:
     try:
         if (cache / ".git").is_dir():
             # The cache is a mirror, so it follows the source even when its history was
-            # rewritten — a pull would refuse a force-push and stop syncing for good.
+            # rewritten — a pull would refuse a force-push and stop syncing for good. FETCH_HEAD,
+            # not a tracking branch: an older cache may have no fetch refspec to make one.
             proc = subprocess.run(
-                ["git", "-C", str(cache), "fetch", "origin"],
+                ["git", "-C", str(cache), "fetch", "origin", "HEAD"],
                 capture_output=True, text=True, timeout=_GIT_TIMEOUT,
             )
             if proc.returncode == 0:
                 proc = subprocess.run(
-                    ["git", "-C", str(cache), "reset", "--hard", "@{upstream}"],
+                    ["git", "-C", str(cache), "reset", "--hard", "FETCH_HEAD"],
                     capture_output=True, text=True, timeout=_GIT_TIMEOUT,
                 )
         else:
