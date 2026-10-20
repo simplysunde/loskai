@@ -262,16 +262,6 @@ def build_override(text: str, folders: list[dict]) -> str | None:
 # --- I/O ---
 
 
-def _recipe(directory) -> dict | None:
-    """The recipe a stack came from — by its record, or by its name — for its labels."""
-    record = recipes.read_record(directory)
-    rid = record["recipe"] if record else directory.name
-    try:
-        return recipes._merged()["recipes"].get(rid)
-    except (OSError, RecipeError):
-        return None
-
-
 def _base(base: object) -> tuple[str, str] | None:
     """Unsaved `.env` and override text from the text view, or None for the files on disk."""
     if base is None:
@@ -306,7 +296,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
     if problem:
         raise StackError(f"compose.override.yml {problem}")
     env = parse_env(env_text)
-    recipe = _recipe(directory)
+    recipe = recipes.stack_recipe(directory)
     questions = {str(q["key"]): q for q in (recipe["env"] if recipe else [])}
 
     variables = referenced(doc)
@@ -398,7 +388,7 @@ def save_form(
         if problem:
             raise StackError(f"compose.override.yml {problem}")
     if options:
-        spec = (_recipe(directory) or {}).get("options") or []
+        spec = (recipes.stack_recipe(directory) or {}).get("options") or []
         unknown = sorted(set(options) - {o["id"] for o in spec})
         if unknown:
             raise StackError(f"this stack's recipe has no option {', '.join(unknown)}")
@@ -413,7 +403,7 @@ def save_form(
         bad = [k for k in settings if not _KEY_RE.match(str(k))]
         if bad:
             raise StackError(f"not a variable name: {', '.join(bad)}")
-        questions = {str(q["key"]): q for q in ((_recipe(directory) or {}).get("env") or [])}
+        questions = {str(q["key"]): q for q in ((recipes.stack_recipe(directory) or {}).get("env") or [])}
         for key, value in settings.items():
             if questions.get(key, {}).get("type") == "path" and str(value).strip():
                 problem = recipes.path_problem(str(value))

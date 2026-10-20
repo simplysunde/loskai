@@ -212,6 +212,10 @@ class DockerClient:
             })
         return out
 
+    def project_of(self, container: str) -> str | None:
+        """The compose project a container belongs to; None for one started without compose."""
+        return (self._get().containers.get(container).labels or {}).get("com.docker.compose.project")
+
     def image_of(self, container_id: str) -> str:
         c = self._get().containers.get(container_id)
         return logic.image_name(c.attrs, c.image.tags if c.image else [])

@@ -31,6 +31,7 @@ from ..modules.adguard.client import AdGuardError, adguard
 from ..modules.adguard.service import target_answer
 from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
+from ..modules.docker import recipes
 from ..modules.docker.client import docker_client
 from . import follow
 from . import instances as instances_store
@@ -239,6 +240,14 @@ async def assign(
         else:
             instances_store.upsert_instance(prev)  # type: ignore[arg-type]
         raise AssignError(502, f"Caddy step failed: {describe_error(exc)}")
+
+    # A new record for a recipe stack's container gets the recipe's icon, as an install
+    # would have given it. Only a new one: an existing record keeps its icon, or none if
+    # it was removed by hand.
+    if created_new and inst.container:
+        iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
+        if iconed.icon:
+            inst = instances_store.upsert_instance(iconed)
 
     # Step 2 — AdGuard rewrite (best effort). Answer is the shared Caddy IP for proxy,
     # or the instance's own upstream IP for dns_only.

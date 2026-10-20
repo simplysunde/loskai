@@ -61,8 +61,10 @@ grafana/
 - **`instructions.md`** is displayed as-is. It is never executed.
 - **`icon.png`** is optional. The wizard shows it beside the recipe, and the install gives
   it to the route it creates, so the dashboard card and the Routing row have it without an
-  upload. A reinstall adds it only to a route that has no icon — one chosen by hand is never
-  replaced. It must be a real PNG (checked by its bytes, not its name) of at most 512 KB:
+  upload. A route added later for the stack's container — after its route was deleted, or
+  for a stack moved in by hand under the recipe's name — gets it the same way. A reinstall
+  adds it only to a route that has no icon — one chosen by hand is never replaced, and an
+  edit never brings back one that was removed. It must be a real PNG (checked by its bytes, not its name) of at most 512 KB:
   the same rules as an uploaded icon, because it ends up served from Loskai's own origin.
   **SVG is not accepted** — an SVG can carry a script. Square, at least 128 px, on a
   transparent background reads best on both themes. A brand's logo is its owner's

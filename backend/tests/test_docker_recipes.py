@@ -968,6 +968,51 @@ def test_install_gives_the_route_the_recipe_icon(installable, monkeypatch):
     assert icons.path_for(inst.icon).read_bytes() == PNG
 
 
+def _routed(container="grafana-app-1"):
+    from loskai.shared.instances import Instance
+
+    return Instance(id="graf", name="graf", type="docker", container=container)
+
+
+def test_a_new_route_for_an_installed_recipe_gets_its_icon(installable, monkeypatch):
+    """The install's record was deleted (its route removed), so a route added later makes a
+    new one — which should get the icon the install gave."""
+    from loskai.shared import icons
+
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    recipes.install_recipe("grafana", {})
+    instances_store.delete_instance("grafana")
+    monkeypatch.setattr(recipes.docker_client, "project_of", lambda name: "grafana")
+
+    inst = recipes.recipe_icon(_routed())
+    assert inst.icon == "graf.png"
+    assert icons.path_for(inst.icon).read_bytes() == PNG
+
+
+def test_a_stack_moved_in_by_hand_gets_its_recipes_icon_by_name(installable, monkeypatch):
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    stack = recipes.stacks.stacks_dir() / "grafana"
+    stack.mkdir(parents=True)
+    (stack / "compose.yml").write_text("services: {}\n")
+    monkeypatch.setattr(recipes.docker_client, "project_of", lambda name: "grafana")
+    assert recipes.recipe_icon(_routed()).icon == "graf.png"
+
+
+@pytest.mark.parametrize(
+    "project_of",
+    [
+        lambda name: "elsewhere",  # a compose project outside the stacks folder
+        lambda name: None,  # started without compose
+        lambda name: (_ for _ in ()).throw(OSError("no socket")),  # Docker unreachable
+    ],
+)
+def test_no_icon_for_a_container_outside_a_recipe_stack(installable, monkeypatch, project_of):
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    monkeypatch.setattr(recipes.docker_client, "project_of", project_of)
+    assert recipes.recipe_icon(_routed()).icon is None
+
+
 def test_reinstall_never_replaces_an_icon_chosen_by_hand(installable, monkeypatch):
     from loskai.shared import icons
     from loskai.shared.instances import Instance

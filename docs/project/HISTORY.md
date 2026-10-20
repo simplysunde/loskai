@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-20 — A route for a recipe's container gets the recipe's icon
+
+**Sunde: a route added for a recipe's container didn't get its image.** The install was
+the only place a recipe's icon reached a record. A route deleted on Routing removes its
+record, icon included, and the next Add route made a new one without; so did a stack moved
+in by hand, or an install that couldn't name its container. Now `assign()` gives a **new**
+docker record the icon of the recipe its container's stack came from — the compose project
+label → `stacks/<project>` → the install record, or the recipe of that name (the same lookup
+as the form and Check for updates). Only a new record: an icon removed by hand stays removed
+when the route is edited. Best-effort, like the install's — Docker or the recipes being
+unreadable never stops a route.
+
 ## 2026-10-20 — An option's help starts with what happens without it
 
 Jellyfin's GPU options opened with "Needs /dev/dri on the Docker host, or Jellyfin won't

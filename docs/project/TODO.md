@@ -1381,6 +1381,17 @@ such cases"._
       driver "nvidia" with capabilities: [[gpu]]"; unticked → only its block went, the
       `/dev/dri` line stayed, and the stack came back up
 
+**After it (2026-10-20)**
+- [x] An option's help starts with what happens without it — Jellyfin's GPU boxes read as
+      if Jellyfin needed a GPU, when off it transcodes on the CPU
+- [x] Recipe sync fetches and resets to `FETCH_HEAD` instead of `pull --ff-only`, so a
+      force-pushed source keeps syncing. Live, the real cache (no fetch refspec) moved from
+      the pre-rewrite `6b07a13` to the forge's `a067db8`
+- [x] A new route for a recipe stack's container gets the recipe's icon (Sunde: the image
+      didn't follow a route added later). +7 backend tests (537). Live, in the rebuilt
+      container: `jellyfin-jellyfin-1` → the Jellyfin icon; `whoami-whoami-1` → none (its
+      recipe has none); `loskai` → none (not in the stacks folder)
+
 ---
 
 ## Backlog / Future ideas

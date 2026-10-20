@@ -796,19 +796,51 @@ def install_recipe(
         if slot
         else Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
     )
-    # The recipe's icon becomes the route's launcher icon — only where there is none yet, so
-    # an icon chosen by hand survives a reinstall. Best-effort: an icon never fails an install.
-    if recipe["icon"] and not record.icon:
-        try:
-            filename = icons.save(recipe_id, (folder / ICON_FILE).read_bytes())
-            record = record.model_copy(update={"icon": filename})
-        except (OSError, icons.IconError) as exc:
-            logger.warning("recipe %s: icon not applied: %s", recipe_id, exc)
-    instances_store.upsert_instance(record)
+    instances_store.upsert_instance(with_icon(record, recipe))
     return {
         "ok": True, "output": result["output"], "instance_id": recipe_id, "container": container,
         "reused_data": reused,
     }
+
+
+def with_icon(record: Instance, recipe: dict) -> Instance:
+    """The recipe's icon as the record's launcher icon — only where there is none yet, so an
+    icon chosen by hand survives a reinstall. Best-effort: an icon never fails an install or
+    a route."""
+    if not recipe["icon"] or record.icon:
+        return record
+    try:
+        filename = icons.save(record.id, (Path(recipe["path"]) / ICON_FILE).read_bytes())
+    except (OSError, icons.IconError) as exc:
+        logger.warning("recipe %s: icon not applied: %s", recipe["id"], exc)
+        return record
+    return record.model_copy(update={"icon": filename})
+
+
+def stack_recipe(directory: Path) -> dict | None:
+    """The recipe a stack came from — by its install record, or by its name for one from
+    before records (or moved in by hand). None when no source has it."""
+    record = read_record(directory)
+    rid = record["recipe"] if record else directory.name
+    try:
+        return _merged()["recipes"].get(rid)
+    except (OSError, RecipeError):
+        return None
+
+
+def recipe_icon(record: Instance) -> Instance:
+    """A new route record for a container in a recipe's stack, given the recipe's icon as
+    the install would have — for a route deleted and added again, or a stack the wizard
+    didn't install. The stack is the container's compose project in the stacks folder."""
+    try:
+        project = docker_client.project_of(record.container) if record.container else None
+        directory = stacks._stack_dir(project) if project else None
+    except (*DOCKER_ERRORS, StackError):
+        return record
+    if directory is None or not directory.is_dir():
+        return record
+    recipe = stack_recipe(directory)
+    return with_icon(record, recipe) if recipe else record
 
 
 def fingerprint(text: str) -> str:

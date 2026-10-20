@@ -148,6 +148,32 @@ async def test_assign_with_container_creates_docker_instance():
     assert inst.type == "docker" and inst.container == "grafana"
 
 
+async def test_a_new_container_route_gets_its_recipes_icon(monkeypatch):
+    monkeypatch.setattr(
+        assign.recipes, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
+    )
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
+        base_domain=BASE, current_ip=IP, container="grafana-app-1",
+    )
+    assert instances_store.get_instance("grafana").icon == "grafana.png"
+
+
+async def test_an_existing_record_keeps_no_icon_once_removed(monkeypatch):
+    # The user removed the icon; changing the route's URL mustn't bring it back.
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker", container="grafana-app-1", subdomain="grafana")
+    )
+    monkeypatch.setattr(
+        assign.recipes, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
+    )
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="dashboards", upstream="192.168.10.100:3000",
+        base_domain=BASE, current_ip=IP, container="grafana-app-1",
+    )
+    assert instances_store.get_instance("grafana").icon is None
+
+
 async def test_container_assign_is_idempotent_no_duplicate():
     # Assign a URL to a container, then change it — must reuse the same instance.
     await assign.assign(
