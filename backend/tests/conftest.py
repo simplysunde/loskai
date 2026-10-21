@@ -18,6 +18,7 @@ live state.
 import pytest
 
 from loskai.config import Settings, settings
+from loskai.modules.docker.client import docker_client
 from loskai.shared import follow
 
 
@@ -45,3 +46,11 @@ def _no_follower(monkeypatch):
         return None
 
     monkeypatch.setattr(follow, "watch", idle)
+
+
+@pytest.fixture(autouse=True)
+def _no_docker_labels(monkeypatch):
+    """A new container route looks up its recipe's icon (recipes.recipe_icon), which asks
+    Docker for the container's labels. No compose labels means no icon, so route tests
+    never reach the developer's daemon; the icon tests set their own."""
+    monkeypatch.setattr(docker_client, "labels_of", lambda container: {})

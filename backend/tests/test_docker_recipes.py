@@ -979,6 +979,12 @@ def _routed(container="grafana-app-1"):
     return Instance(id="graf", name="graf", type="docker", container=container)
 
 
+def _ran_in(monkeypatch, folder, project="grafana"):
+    """The labels compose gives a container it started from `folder`."""
+    labels = {"com.docker.compose.project": project, "com.docker.compose.project.working_dir": str(folder)}
+    monkeypatch.setattr(recipes.docker_client, "labels_of", lambda name: labels)
+
+
 def test_a_new_route_for_an_installed_recipe_gets_its_icon(installable, monkeypatch):
     """The install's record was deleted (its route removed), so a route added later makes a
     new one — which should get the icon the install gave."""
@@ -988,33 +994,56 @@ def test_a_new_route_for_an_installed_recipe_gets_its_icon(installable, monkeypa
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
     recipes.install_recipe("grafana", {})
     instances_store.delete_instance("grafana")
-    monkeypatch.setattr(recipes.docker_client, "project_of", lambda name: "grafana")
+    _ran_in(monkeypatch, recipes.stacks.stacks_dir() / "grafana")
 
     inst = recipes.recipe_icon(_routed())
     assert inst.icon == "graf.png"
     assert icons.path_for(inst.icon).read_bytes() == PNG
 
 
-def test_a_stack_moved_in_by_hand_gets_its_recipes_icon_by_name(installable, monkeypatch):
+def _moved_in(installable, name="grafana"):
     (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    stack = recipes.stacks.stacks_dir() / "grafana"
+    stack = recipes.stacks.stacks_dir() / name
     stack.mkdir(parents=True)
     (stack / "compose.yml").write_text("services: {}\n")
-    monkeypatch.setattr(recipes.docker_client, "project_of", lambda name: "grafana")
+    return stack
+
+
+def test_a_stack_moved_in_by_hand_gets_its_recipes_icon_by_name(installable, monkeypatch):
+    _ran_in(monkeypatch, _moved_in(installable))
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
     assert recipes.recipe_icon(_routed()).icon == "graf.png"
 
 
+def test_the_stack_is_found_by_its_folder_not_its_project_name(installable, monkeypatch):
+    """Compose lowercases the folder name and drops a dot to make the project name."""
+    stack = _moved_in(installable, "Graf.Ana")
+    (stack / recipes.stacks.RECORD_NAME).write_text('{"recipe": "grafana"}')
+    _ran_in(monkeypatch, stack, project="grafana")
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    assert recipes.recipe_icon(_routed()).icon == "graf.png"
+
+
+def test_only_the_recipes_own_container_gets_its_icon(installable, monkeypatch):
+    _ran_in(monkeypatch, _moved_in(installable))
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1", published=True), _c("db", "grafana-db-1")])
+    assert recipes.recipe_icon(_routed("grafana-app-1")).icon == "graf.png"
+    assert recipes.recipe_icon(_routed("grafana-db-1")).icon is None
+
+
 @pytest.mark.parametrize(
-    "project_of",
+    "labels_of",
     [
-        lambda name: "elsewhere",  # a compose project outside the stacks folder
-        lambda name: None,  # started without compose
+        # Run from a same-named folder outside the stacks folder.
+        lambda name: {"com.docker.compose.project": "grafana", "com.docker.compose.project.working_dir": "/home/me/grafana"},
+        lambda name: {},  # started without compose
         lambda name: (_ for _ in ()).throw(OSError("no socket")),  # Docker unreachable
     ],
 )
-def test_no_icon_for_a_container_outside_a_recipe_stack(installable, monkeypatch, project_of):
-    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    monkeypatch.setattr(recipes.docker_client, "project_of", project_of)
+def test_no_icon_for_a_container_outside_a_recipe_stack(installable, monkeypatch, labels_of):
+    _moved_in(installable)
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    monkeypatch.setattr(recipes.docker_client, "labels_of", labels_of)
     assert recipes.recipe_icon(_routed()).icon is None
 
 

@@ -831,16 +831,26 @@ def stack_recipe(directory: Path) -> dict | None:
 def recipe_icon(record: Instance) -> Instance:
     """A new route record for a container in a recipe's stack, given the recipe's icon as
     the install would have — for a route deleted and added again, or a stack the wizard
-    didn't install. The stack is the container's compose project in the stacks folder."""
+    didn't install. The stack is the folder compose ran in (its `working_dir` label, not the
+    project name, which compose lowercases and strips), and only one in the stacks folder.
+    As at install, only the recipe's primary container gets it, never a database beside it."""
     try:
-        project = docker_client.project_of(record.container) if record.container else None
-        directory = stacks._stack_dir(project) if project else None
-    except (*DOCKER_ERRORS, StackError):
+        labels = docker_client.labels_of(record.container) if record.container else {}
+        working_dir = labels.get("com.docker.compose.project.working_dir")
+        if not working_dir:
+            return record
+        directory = Path(working_dir).resolve()
+        if directory.parent != stacks.stacks_dir().resolve() or not directory.is_dir():
+            return record
+        recipe = stack_recipe(directory)
+        if recipe is None:
+            return record
+        containers = docker_client.containers_in_project(labels["com.docker.compose.project"])
+    except DOCKER_ERRORS:
         return record
-    if directory is None or not directory.is_dir():
+    if logic.primary_container(containers, recipe.get("service")) != record.container:
         return record
-    recipe = stack_recipe(directory)
-    return with_icon(record, recipe) if recipe else record
+    return with_icon(record, recipe)
 
 
 def fingerprint(text: str) -> str:
