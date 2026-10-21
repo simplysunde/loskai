@@ -243,11 +243,16 @@ async def assign(
 
     # A new record for a recipe stack's container gets the recipe's icon, as an install
     # would have given it. Only a new one: an existing record keeps its icon, or none if
-    # it was removed by hand.
+    # it was removed by hand. Best-effort: the route is already live, so nothing here may
+    # fail it.
     if created_new and inst.container:
-        iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
+        try:
+            iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
+        except Exception:
+            logger.exception("recipe icon for '%s' not applied", inst.container)
+            iconed = inst
         if iconed.icon:
-            inst = instances_store.upsert_instance(iconed)
+            inst = instances_store.give_icon(inst.id, iconed.icon) or inst
 
     # Step 2 — AdGuard rewrite (best effort). Answer is the shared Caddy IP for proxy,
     # or the instance's own upstream IP for dns_only.

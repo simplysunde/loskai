@@ -159,6 +159,37 @@ async def test_a_new_container_route_gets_its_recipes_icon(monkeypatch):
     assert instances_store.get_instance("grafana").icon == "grafana.png"
 
 
+async def test_a_failed_icon_lookup_never_fails_the_route(monkeypatch):
+    # The route is already in Caddy by then: it must still get its DNS rewrite.
+    def broken(inst):
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+    monkeypatch.setattr(assign.recipes, "recipe_icon", broken)
+    adguard = FakeAdGuard()
+    result = await assign.assign(
+        FakeCaddy(), adguard, prefix="grafana", upstream="192.168.10.100:3000",
+        base_domain=BASE, current_ip=IP, container="grafana-app-1",
+    )
+    assert result["caddy"] == "ok"
+    assert adguard.added == [(f"grafana.{BASE}", IP)]
+    assert instances_store.get_instance("grafana").icon is None
+
+
+async def test_the_icon_keeps_a_change_made_while_it_was_looked_up(monkeypatch):
+    # The follower re-points the route meanwhile; writing the icon mustn't undo that.
+    def slow(inst):
+        instances_store.follow_upstream(inst.id, inst.upstream, "192.168.10.100:3001")
+        return inst.model_copy(update={"icon": "grafana.png"})
+
+    monkeypatch.setattr(assign.recipes, "recipe_icon", slow)
+    await assign.assign(
+        FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
+        base_domain=BASE, current_ip=IP, container="grafana-app-1", follow_container=True,
+    )
+    inst = instances_store.get_instance("grafana")
+    assert inst.icon == "grafana.png" and inst.upstream == "192.168.10.100:3001"
+
+
 async def test_an_existing_record_keeps_no_icon_once_removed(monkeypatch):
     # The user removed the icon; changing the route's URL mustn't bring it back.
     instances_store.upsert_instance(

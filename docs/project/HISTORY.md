@@ -4,6 +4,24 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-21 — A second review: the icon lookup, and the form's read-back
+
+A review of the same work found more, mostly in the icon lookup added the day before. **It
+read the compose project name as the stack's folder name**, but Compose makes the name by
+lowercasing the folder and dropping dots: `stacks/Home.Assistant` runs as `homeassistant`
+and was never found, while a project of the same name started from a folder elsewhere was.
+It now reads the `working_dir` label compose writes, and wants it in `STACKS_DIR`. It also
+gave the icon to whichever container was routed — a recipe's database included — where the
+install only ever gives it to the primary one (`logic.primary_container`); now it asks the
+same question.
+
+The step ran after Caddy had the route, and caught only Docker's errors: anything else (a
+recipe file that isn't UTF-8) turned a route that was already live into a `500` with no DNS
+rewrite. It is best-effort in fact now, and it writes only the icon, under the store lock
+(`instances.give_icon`) — writing back the whole record would undo the follower re-pointing
+it during the lookup. The route tests had also started asking the developer's own Docker
+daemon for labels; `conftest.py` stubs that now.
+
 ## 2026-10-21 — A review of the stack form and options
 
 Asked whether anything had been overlooked, a read of Phases 31–33 found three bugs the

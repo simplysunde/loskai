@@ -170,6 +170,22 @@ def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> In
     return updated[0] if updated else None
 
 
+def give_icon(instance_id: str, icon: str) -> Instance | None:
+    """Set the icon of a record that has none, and nothing else — under the store lock, so a
+    change made while the icon was looked up (the follower re-pointing it) is kept."""
+    updated: list[Instance] = []
+
+    def set_icon(instances: list[Instance]) -> list[Instance]:
+        for idx, inst in enumerate(instances):
+            if inst.id == instance_id and not inst.icon:
+                instances[idx] = inst.model_copy(update={"icon": icon})
+                updated.append(instances[idx])
+        return instances
+
+    _update(set_icon)
+    return updated[0] if updated else None
+
+
 def delete_instance(instance_id: str) -> bool:
     deleted = False
 
