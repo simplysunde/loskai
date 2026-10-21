@@ -405,9 +405,10 @@ def test_sync_follows_a_rewritten_history(data_dir, tmp_path):
     git("clone", str(origin), str(work))
     git("config", "user.email", "t@example.invalid", cwd=work)
     git("config", "user.name", "t", cwd=work)
-    (work / "a.txt").write_text("one\n")
-    git("add", ".", cwd=work)
-    git("commit", "-m", "one", cwd=work)
+    for n in ("one", "two"):
+        (work / "a.txt").write_text(f"{n}\n")
+        git("add", ".", cwd=work)
+        git("commit", "-m", n, cwd=work)
     git("push", "origin", "main", cwd=work)
     url = origin.as_uri()
     recipes._sync_one(url)
@@ -418,7 +419,11 @@ def test_sync_follows_a_rewritten_history(data_dir, tmp_path):
     git("commit", "-a", "--amend", "-m", "rewritten", cwd=work)
     git("push", "--force", "origin", "main", cwd=work)
     recipes._sync_one(url)
-    assert (recipes._repo_cache(url) / "a.txt").read_text() == "rewritten\n"
+    cache = recipes._repo_cache(url)
+    assert (cache / "a.txt").read_text() == "rewritten\n"
+    # Still only the tip, as the clone took: not the rewritten head's whole history.
+    count = subprocess.run(["git", "-C", str(cache), "rev-list", "--count", "HEAD"], capture_output=True, text=True)
+    assert count.stdout.strip() == "1"
 
 
 def test_sync_can_target_one_source(data_dir, monkeypatch):
@@ -846,6 +851,12 @@ def test_switching_an_option_adds_and_removes_exactly_its_lines():
 def test_an_option_for_an_empty_service_entry_is_added():
     on = recipes.set_options("services:\n  app:\n", [HWACCEL], {"hwaccel": True})
     assert recipes.option_on(on, HWACCEL)
+
+
+@pytest.mark.parametrize("entry", ["[]", '""'])
+def test_an_option_never_replaces_a_service_entry_that_isnt_a_mapping(entry):
+    with pytest.raises(recipes.RecipeError, match="isn't a mapping"):
+        recipes.set_options(f"services:\n  app: {entry}\n", [HWACCEL], {"hwaccel": True})
 
 
 def test_a_hand_pasted_snippet_reads_as_on():

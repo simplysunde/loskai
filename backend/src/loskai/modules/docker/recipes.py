@@ -315,7 +315,9 @@ def set_options(override_text: str, options: list[dict], on: dict[str, bool]) ->
         if option["id"] not in on:
             continue
         name = option["service"]
-        svc = services.get(name) or {}  # `jellyfin:` with nothing under it is None
+        svc = services.get(name)
+        if svc is None:  # absent, or `jellyfin:` with nothing under it
+            svc = {}
         if not isinstance(svc, dict):
             raise RecipeError(f"compose.override.yml: '{name}' isn't a mapping — use Edit as text")
         for key, want in option["set"].items():
@@ -647,9 +649,10 @@ def _sync_one(url: str) -> str:
         if (cache / ".git").is_dir():
             # The cache is a mirror, so it follows the source even when its history was
             # rewritten — a pull would refuse a force-push and stop syncing for good. FETCH_HEAD,
-            # not a tracking branch: an older cache may have no fetch refspec to make one.
+            # not a tracking branch: an older cache may have no fetch refspec to make one. Only
+            # the tip, as the clone took: the new head's history would otherwise come with it.
             proc = subprocess.run(
-                ["git", "-C", str(cache), "fetch", "origin", "HEAD"],
+                ["git", "-C", str(cache), "fetch", "--depth", "1", "origin", "HEAD"],
                 capture_output=True, text=True, timeout=_GIT_TIMEOUT,
             )
             if proc.returncode == 0:
