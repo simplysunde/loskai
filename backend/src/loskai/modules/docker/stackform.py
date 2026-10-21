@@ -273,10 +273,9 @@ def _base(base: object) -> tuple[str, str] | None:
     return base["env"], base["override"]
 
 
-def _options(recipe: dict | None, compose_text: str) -> list[dict]:
+def _options(recipe: dict | None, declared: set[str]) -> list[dict]:
     """The recipe's options this stack can take. A stack named like a recipe but written by
     hand may not have the option's service, and switching it on would add one to the override."""
-    declared = logic.declared_services(compose_text)
     return [o for o in (recipe or {}).get("options") or [] if o["service"] in declared]
 
 
@@ -296,8 +295,9 @@ def get_form(name: str, base: dict | None = None) -> dict:
     compose = stacks._compose_file(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found")
+    compose_text = compose.read_text(encoding="utf-8")
     try:
-        doc = yaml.safe_load(compose.read_text(encoding="utf-8"))
+        doc = yaml.safe_load(compose_text)
     except yaml.YAMLError:
         raise StackError(f"{compose.name} doesn't load — use Edit as text")
     env_text, override_text = _base(base) or _disk(directory)
@@ -322,7 +322,8 @@ def get_form(name: str, base: dict | None = None) -> dict:
             "default": None if default is None else str(default),
         })
 
-    options = _options(recipe, compose.read_text(encoding="utf-8"))
+    declared = logic.declared_services(compose_text)
+    options = _options(recipe, declared)
     # An option's own lines aren't "something else" in the override: read the rest with
     # every option off. One the form can't switch (not a list) leaves it as it is.
     try:
@@ -340,7 +341,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
             line.lstrip().startswith("#") and line.strip() not in _OWN_HEADERS
             for line in override_text.splitlines()
         ),
-        "services": sorted(logic.declared_services(compose.read_text(encoding="utf-8"))),
+        "services": sorted(declared),
         "app": app_summary(doc, env),
         "options": [
             {"id": o["id"], "label": o["label"], "help": o["help"], "on": recipes.option_on(override_text, o)}
@@ -370,6 +371,9 @@ def save_form(
         raise StackError(f"stack '{name}' not found")
     disk_env, disk_override = _disk(directory)
     env_text, override_text = _base(base) or (disk_env, disk_override)
+    declared = logic.declared_services(compose.read_text(encoding="utf-8"))
+    # Looked up once: it scans every recipe source.
+    recipe = recipes.stack_recipe(directory) if options or settings else None
 
     new_override = override_text
     if folders is not None:
@@ -385,7 +389,7 @@ def save_form(
             }
             if row["source"].strip() or row["target"].strip():
                 rows.append(row)
-        problem = folders_problem(rows, logic.declared_services(compose.read_text(encoding="utf-8")))
+        problem = folders_problem(rows, declared)
         if problem:
             raise StackError(problem)
         try:
@@ -397,7 +401,7 @@ def save_form(
         if problem:
             raise StackError(f"compose.override.yml {problem}")
     if options:
-        spec = _options(recipes.stack_recipe(directory), compose.read_text(encoding="utf-8"))
+        spec = _options(recipe, declared)
         unknown = sorted(set(options) - {o["id"] for o in spec})
         if unknown:
             raise StackError(f"this stack has no option {', '.join(unknown)}")
@@ -412,7 +416,7 @@ def save_form(
         bad = [k for k in settings if not _KEY_RE.match(str(k))]
         if bad:
             raise StackError(f"not a variable name: {', '.join(bad)}")
-        questions = {str(q["key"]): q for q in ((recipes.stack_recipe(directory) or {}).get("env") or [])}
+        questions = {str(q["key"]): q for q in ((recipe or {}).get("env") or [])}
         for key, value in settings.items():
             if questions.get(key, {}).get("type") == "path" and str(value).strip():
                 problem = recipes.path_problem(str(value))

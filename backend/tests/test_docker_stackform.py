@@ -313,6 +313,23 @@ def test_a_recipes_options_are_switches_on_the_form(stack, tmp_path):
         stackform.save_form("jellyfin", None, None, options={"nvidia": True})
 
 
+def test_a_save_looks_the_recipe_up_once(stack, tmp_path, monkeypatch):
+    # The lookup scans every recipe source; a save of options and settings needs it twice.
+    folder = tmp_path / "data" / "recipes" / "jellyfin"
+    folder.mkdir(parents=True)
+    (folder / "recipe.yml").write_text(
+        "name: Jellyfin\ntype: pull\noptions:\n  - id: hwaccel\n    label: Hardware transcoding\n"
+        "    set:\n      devices:\n        - /dev/dri:/dev/dri\n"
+    )
+    (folder / "compose.yml").write_text(COMPOSE)
+    calls = []
+    real = recipes.stack_recipe
+    monkeypatch.setattr(recipes, "stack_recipe", lambda d: calls.append(d) or real(d))
+    saved = stackform.save_form("jellyfin", {"PORT": "8097"}, None, preview=True, options={"hwaccel": True})
+    assert 'PORT="8097"' in saved["env"] and "/dev/dri" in saved["override"]
+    assert len(calls) == 1
+
+
 def test_an_option_for_a_service_the_stack_lacks_is_hidden_and_refused(stack, tmp_path):
     # A stack written by hand under a recipe's name, its service called something else.
     folder = tmp_path / "data" / "recipes" / "jellyfin"
