@@ -170,3 +170,35 @@ test("an option is a checkbox, and switching it sends only that change", async (
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(sent(fetchMock)).toEqual([{ settings: {}, options: { hwaccel: true } }]);
 });
+
+test("after a save whose up failed, undoing the change can be saved", async () => {
+  // The server remembers what was saved, and `up` fails — a GPU the host doesn't have.
+  let on = false;
+  const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+    if (init?.method === "PUT") on = JSON.parse(String(init.body)).options?.hwaccel ?? on;
+    const body = path.endsWith("/action")
+      ? { ok: false, output: "error gathering device information" }
+      : init?.method === "PUT"
+        ? { ok: true }
+        : { ...FORM, options: [{ ...FORM.options[0], on }] };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  render(
+    <QueryClientProvider client={client}>
+      <StackEditor name="jellyfin" onClose={vi.fn()} />
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
+  fireEvent.click(screen.getByText("Save"));
+  expect(await screen.findByText("error gathering device information")).toBeInTheDocument();
+
+  // The form now reads what was saved, so unticking is a change again.
+  await waitFor(() => expect(screen.getByText("Save").closest("button")).toBeDisabled());
+  fireEvent.click(screen.getByRole("checkbox", { name: /Hardware transcoding/ }));
+  expect(screen.getByText("Save").closest("button")).toBeEnabled();
+  fireEvent.click(screen.getByText("Save"));
+  await waitFor(() => expect(sent(fetchMock)).toEqual([{ settings: {}, options: { hwaccel: true } }, { settings: {}, options: { hwaccel: false } }]));
+});

@@ -4,6 +4,23 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-21 — A review of the stack form and options
+
+Asked whether anything had been overlooked, a read of Phases 31–33 found three bugs the
+suite didn't. **The worst failed as a success** — the project's recurring shape: a folder
+added for a service the override named with nothing under it (`jellyfin:`, which YAML loads
+as None) was skipped by `build_override`, so Save said it worked and the folder never
+existed. A stack matched to a recipe only by name was offered options for a service it
+might not have. And the form never re-read the files after a Save, so when `up` failed —
+a GPU the host doesn't have — undoing the change compared equal to the stale form and
+couldn't be saved: the very recovery the troubleshooting page tells users to do. The form
+now reloads after writing, and the text it carried over counts as saved.
+
+Left as they are, deliberately: an update replaces `compose.yml` without a backup (the
+dialog shows the diff and warns for a hand-edited or untracked file), and turning an option
+off removes its lines even if the user had typed the same ones by hand — whether it is on is
+read from the file, by design.
+
 ## 2026-10-20 — A route for a recipe's container gets the recipe's icon
 
 **Sunde: a route added for a recipe's container didn't get its image.** The install was

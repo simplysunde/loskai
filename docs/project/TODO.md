@@ -1391,6 +1391,15 @@ such cases"._
       didn't follow a route added later). +7 backend tests (537). Live, in the rebuilt
       container: `jellyfin-jellyfin-1` → the Jellyfin icon; `whoami-whoami-1` → none (its
       recipe has none); `loskai` → none (not in the stacks folder)
+- [x] Review of Phases 31–33 (Sunde: "any oversight we might have done?"), three fixes:
+      a folder added for an empty service entry (`jellyfin:` with nothing under it) was
+      dropped while Save reported success; a stack written by hand under a recipe's name
+      got options for a service it doesn't have; and after a Save whose `up` failed, the
+      form still read the old files, so unticking the option that broke it was "no change"
+      and Save stayed grey. +3 backend (540), +1 frontend (225). Live (scratch backend, a
+      `gputest` recipe adding `/dev/nope`, Playwright): ticked + Save → up failed and was
+      shown; the box read ticked, Save grey; unticked → Save enabled → saved, the override
+      removed, the container running with no devices
 
 ---
 

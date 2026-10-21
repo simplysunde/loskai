@@ -42,6 +42,7 @@ export function StackEditor({
           name={name}
           base={carried}
           onClose={onClose}
+          onSaved={() => setCarried(null)}
           onTextView={(c) => {
             setCarried(c);
             setView("text");

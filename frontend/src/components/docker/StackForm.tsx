@@ -32,11 +32,13 @@ export function StackForm({
   base,
   onClose,
   onTextView,
+  onSaved,
 }: {
   name: string;
   base: Carried | null; // the text view's unsaved .env and override, read as the form
   onClose: () => void;
   onTextView: (carried: Carried | null) => void;
+  onSaved: () => void; // the carried text is on disk now
 }) {
   const [form, setForm] = useState<StackFormData | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -44,6 +46,7 @@ export function StackForm({
   const [optionsOn, setOptionsOn] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
   const saving = useSaveAndUp(name, onClose);
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export function StackForm({
         setOptionsOn(Object.fromEntries(f.options.map((o) => [o.id, o.on])));
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
-  }, [name, base]);
+  }, [name, base, loads]);
 
   if (!form) {
     // A file the form can't read (YAML that won't load) still opens as text — with what was
@@ -235,6 +238,9 @@ export function StackForm({
         onSave={() =>
           saving.run(async () => {
             await api.put(`/api/docker/stacks/${name}/form`, payload);
+            // Read back what was saved: if `up` then fails, undoing the change is a change.
+            onSaved();
+            setLoads((n) => n + 1);
           })
         }
       />
