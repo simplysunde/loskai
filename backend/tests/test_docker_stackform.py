@@ -311,3 +311,18 @@ def test_a_recipes_options_are_switches_on_the_form(stack, tmp_path):
     assert not stackform.get_form("jellyfin")["options"][0]["on"]
     with pytest.raises(StackError, match="no option nvidia"):
         stackform.save_form("jellyfin", None, None, options={"nvidia": True})
+
+
+def test_an_option_for_a_service_the_stack_lacks_is_hidden_and_refused(stack, tmp_path):
+    # A stack written by hand under a recipe's name, its service called something else.
+    folder = tmp_path / "data" / "recipes" / "jellyfin"
+    folder.mkdir(parents=True)
+    (folder / "recipe.yml").write_text(
+        "name: Jellyfin\ntype: pull\noptions:\n  - id: hwaccel\n    label: Hardware transcoding\n"
+        "    set:\n      devices:\n        - /dev/dri:/dev/dri\n"
+    )
+    (folder / "compose.yml").write_text(COMPOSE)
+    (stack / "compose.yml").write_text(COMPOSE.replace("jellyfin:", "media:"))
+    assert stackform.get_form("jellyfin")["options"] == []
+    with pytest.raises(StackError, match="no option hwaccel"):
+        stackform.save_form("jellyfin", None, None, options={"hwaccel": True})

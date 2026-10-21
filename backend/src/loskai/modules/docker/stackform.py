@@ -273,6 +273,13 @@ def _base(base: object) -> tuple[str, str] | None:
     return base["env"], base["override"]
 
 
+def _options(recipe: dict | None, compose_text: str) -> list[dict]:
+    """The recipe's options this stack can take. A stack named like a recipe but written by
+    hand may not have the option's service, and switching it on would add one to the override."""
+    declared = logic.declared_services(compose_text)
+    return [o for o in (recipe or {}).get("options") or [] if o["service"] in declared]
+
+
 def _disk(directory) -> tuple[str, str]:
     env_file = directory / ".env"
     override = stacks._override_file(directory)
@@ -315,7 +322,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
             "default": None if default is None else str(default),
         })
 
-    options = (recipe or {}).get("options") or []
+    options = _options(recipe, compose.read_text(encoding="utf-8"))
     # An option's own lines aren't "something else" in the override: read the rest with
     # every option off. One the form can't switch (not a list) leaves it as it is.
     try:
@@ -390,10 +397,10 @@ def save_form(
         if problem:
             raise StackError(f"compose.override.yml {problem}")
     if options:
-        spec = (recipes.stack_recipe(directory) or {}).get("options") or []
+        spec = _options(recipes.stack_recipe(directory), compose.read_text(encoding="utf-8"))
         unknown = sorted(set(options) - {o["id"] for o in spec})
         if unknown:
-            raise StackError(f"this stack's recipe has no option {', '.join(unknown)}")
+            raise StackError(f"this stack has no option {', '.join(unknown)}")
         try:
             new_override = recipes.set_options(new_override, spec, {k: bool(v) for k, v in options.items()})
         except RecipeError as exc:
