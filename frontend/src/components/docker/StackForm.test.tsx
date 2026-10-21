@@ -202,3 +202,47 @@ test("after a save whose up failed, undoing the change can be saved", async () =
   fireEvent.click(screen.getByText("Save"));
   await waitFor(() => expect(sent(fetchMock)).toEqual([{ settings: {}, options: { hwaccel: true } }, { settings: {}, options: { hwaccel: false } }]));
 });
+
+test("a read-back after a failed up that fails says so", async () => {
+  let loads = 0;
+  const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path.endsWith("/form") && !init?.method) {
+      loads += 1;
+      if (loads > 1) return new Response(JSON.stringify({ detail: "disk gone" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+    const body = path.endsWith("/action") ? { ok: false, output: "up failed" } : init?.method === "PUT" ? { ok: true } : FORM;
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  render(
+    <QueryClientProvider client={client}>
+      <StackEditor name="jellyfin" onClose={vi.fn()} />
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
+  fireEvent.click(screen.getByText("Save"));
+  expect(await screen.findByText(/Couldn't read the stack back: disk gone/)).toBeInTheDocument();
+});
+
+test("a save that closes the editor reads nothing back", async () => {
+  const onClose = vi.fn();
+  const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+    const body = path.endsWith("/action") ? { ok: true, output: "" } : init?.method === "PUT" ? { ok: true } : FORM;
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  render(
+    <QueryClientProvider client={client}>
+      <StackEditor name="jellyfin" onClose={onClose} />
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
+  fireEvent.click(screen.getByText("Save"));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  const formGets = fetchMock.mock.calls.filter(([p, i]) => String(p).endsWith("/form") && !i?.method);
+  expect(formGets).toHaveLength(1);
+});

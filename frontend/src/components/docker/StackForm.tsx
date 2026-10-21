@@ -53,6 +53,7 @@ export function StackForm({
     const path = `/api/docker/stacks/${name}/form`;
     (base ? api.post<StackFormData>(path, base) : api.get<StackFormData>(path))
       .then((f) => {
+        setError(null);
         setForm(f);
         setValues(Object.fromEntries(f.settings.map((s) => [s.key, s.value])));
         setFolders(f.folders);
@@ -228,21 +229,23 @@ export function StackForm({
             }}
           />
         }
-        error={switchError ?? saving.error}
+        error={switchError ?? (error && `Couldn't read the stack back: ${error}`) ?? saving.error}
         output={saving.output}
         busy={saving.busy}
         disabled={!dirty || problems.some(Boolean)}
         label="Save"
         title={dirty ? "Save, then re-up the stack" : "Nothing changed yet"}
         onCancel={onClose}
-        onSave={() =>
-          saving.run(async () => {
+        onSave={async () => {
+          const result = await saving.run(async () => {
             await api.put(`/api/docker/stacks/${name}/form`, payload);
-            // Read back what was saved: if `up` then fails, undoing the change is a change.
+          });
+          // Saved, but `up` failed: read back what was saved, so undoing the change is a change.
+          if (result === "kept") {
             onSaved();
             setLoads((n) => n + 1);
-          })
-        }
+          }
+        }}
       />
     </div>
   );

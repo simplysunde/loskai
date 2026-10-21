@@ -22,6 +22,14 @@ rewrite. It is best-effort in fact now, and it writes only the icon, under the s
 it during the lookup. The route tests had also started asking the developer's own Docker
 daemon for labels; `conftest.py` stubs that now.
 
+The form's read-back after a Save had a hole of its own: a read that failed set an error
+the form only shows before it has loaded, so Save went grey again with nothing said — the
+bug the read-back was there to fix. It is shown beside Save now, and the read happens only
+when `up` failed and the dialog stays open. Smaller: an option replaced a service entry that
+isn't a mapping (`app: []`) instead of refusing it, a sync after a rewritten history pulled
+the new head's whole history into a depth-1 cache, and a Save scanned every recipe source
+twice.
+
 ## 2026-10-21 — A review of the stack form and options
 
 Asked whether anything had been overlooked, a read of Phases 31–33 found three bugs the
