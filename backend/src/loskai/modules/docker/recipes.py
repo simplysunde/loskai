@@ -315,7 +315,7 @@ def set_options(override_text: str, options: list[dict], on: dict[str, bool]) ->
         if option["id"] not in on:
             continue
         name = option["service"]
-        svc = services.get(name, {})
+        svc = services.get(name) or {}  # `jellyfin:` with nothing under it is None
         if not isinstance(svc, dict):
             raise RecipeError(f"compose.override.yml: '{name}' isn't a mapping — use Edit as text")
         for key, want in option["set"].items():

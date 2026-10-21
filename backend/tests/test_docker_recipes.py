@@ -843,6 +843,11 @@ def test_switching_an_option_adds_and_removes_exactly_its_lines():
     assert recipes.set_options(recipes.set_options("", [HWACCEL], {"hwaccel": True}), [HWACCEL], {"hwaccel": False}) == ""
 
 
+def test_an_option_for_an_empty_service_entry_is_added():
+    on = recipes.set_options("services:\n  app:\n", [HWACCEL], {"hwaccel": True})
+    assert recipes.option_on(on, HWACCEL)
+
+
 def test_a_hand_pasted_snippet_reads_as_on():
     pasted = "services:\n  app:\n    devices:\n    - /dev/dri:/dev/dri\n"
     assert recipes.option_on(pasted, HWACCEL)

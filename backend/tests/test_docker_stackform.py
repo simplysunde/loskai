@@ -123,6 +123,13 @@ def test_no_folders_and_nothing_else_removes_the_override():
     assert stackform.build_override(install, []) is None
 
 
+def test_a_folder_for_an_empty_service_entry_is_kept():
+    # `jellyfin:` with nothing under it loads as None; the folder used to be dropped silently.
+    row = {"service": "jellyfin", "source": "/srv/a", "target": "/media/a", "writable": True}
+    out = stackform.build_override("services:\n  jellyfin:\n", [row])
+    assert stackform.parse_override(out)[0] == [row]
+
+
 def test_folders_are_checked_before_anything_is_written():
     ok = {"service": "app", "source": "/srv/a", "target": "/a", "writable": True}
     assert stackform.folders_problem([ok], {"app"}) is None

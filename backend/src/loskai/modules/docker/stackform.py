@@ -235,7 +235,9 @@ def build_override(text: str, folders: list[dict]) -> str | None:
     doc = doc if isinstance(doc, dict) else {}
     services = doc.get("services") if isinstance(doc.get("services"), dict) else {}
     for f in folders:
-        services.setdefault(f["service"], {})
+        # `jellyfin:` with nothing under it loads as None: an empty service, not "other".
+        if services.get(f["service"]) is None:
+            services[f["service"]] = {}
     for name in list(services):
         svc = services[name]
         if not isinstance(svc, dict):
