@@ -1400,6 +1400,16 @@ such cases"._
       `gputest` recipe adding `/dev/nope`, Playwright): ticked + Save → up failed and was
       shown; the box read ticked, Save grey; unticked → Save enabled → saved, the override
       removed, the container running with no devices
+- [x] A second review (`/code-review`), nine fixes: the icon lookup read the compose project
+      name as the folder (Compose lowercases it and drops dots) and gave a recipe's database
+      the icon too — it reads the `working_dir` label now, for the primary container only;
+      the icon step could turn a live route into a `500`, and wrote back the whole record
+      over a follower change; route tests asked the real Docker daemon; a failed read-back
+      in the form showed nothing; `app: []` was replaced, not refused; the sync fetch had
+      no `--depth 1`; a Save scanned the recipes twice. +7 backend (547), +2 frontend (227).
+      Live, in the rebuilt container: `jellyfin-jellyfin-1` and `bambuddy-bambuddy-1` → their
+      icons; `whoami-whoami-1` → none (its recipe has none); `loskai` → none (its folder is
+      not in the stacks folder)
 
 ---
 
