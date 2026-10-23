@@ -229,7 +229,7 @@ export function StackForm({
             }}
           />
         }
-        error={switchError ?? (error && `Couldn't read the stack back: ${error}`) ?? saving.error}
+        error={switchError ?? saving.error ?? (error && `Couldn't read the stack back: ${error}`)}
         output={saving.output}
         busy={saving.busy}
         disabled={!dirty || problems.some(Boolean)}
@@ -240,7 +240,8 @@ export function StackForm({
           const result = await saving.run(async () => {
             await api.put(`/api/docker/stacks/${name}/form`, payload);
           });
-          // Saved, but `up` failed: read back what was saved, so undoing the change is a change.
+          // Saved, but `up` failed or couldn't run: read back what was saved, so undoing the
+          // change is a change.
           if (result === "kept") {
             onSaved();
             setLoads((n) => n + 1);

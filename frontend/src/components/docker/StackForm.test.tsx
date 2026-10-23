@@ -246,3 +246,29 @@ test("a save that closes the editor reads nothing back", async () => {
   const formGets = fetchMock.mock.calls.filter(([p, i]) => String(p).endsWith("/form") && !i?.method);
   expect(formGets).toHaveLength(1);
 });
+
+test("a save whose up couldn't run reads the stack back too", async () => {
+  // The files are written, then `up` itself errors (no docker CLI, a timeout).
+  let on = false;
+  const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+    if (init?.method === "PUT") on = JSON.parse(String(init.body)).options?.hwaccel ?? on;
+    if (path.endsWith("/action"))
+      return new Response(JSON.stringify({ detail: "docker CLI not found in the container" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    const body = init?.method === "PUT" ? { ok: true } : { ...FORM, options: [{ ...FORM.options[0], on }] };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  render(
+    <QueryClientProvider client={client}>
+      <StackEditor name="jellyfin" onClose={vi.fn()} />
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
+  fireEvent.click(screen.getByText("Save"));
+  expect(await screen.findByText("docker CLI not found in the container")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText("Save").closest("button")).toBeDisabled());
+  fireEvent.click(screen.getByRole("checkbox", { name: /Hardware transcoding/ }));
+  expect(screen.getByText("Save").closest("button")).toBeEnabled();
+});

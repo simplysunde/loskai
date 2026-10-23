@@ -1410,6 +1410,10 @@ such cases"._
       Live, in the rebuilt container: `jellyfin-jellyfin-1` and `bambuddy-bambuddy-1` → their
       icons; `whoami-whoami-1` → none (its recipe has none); `loskai` → none (its folder is
       not in the stacks folder)
+- [x] A read of those fixes found one more in them: the read-back ran only when `up`
+      *reported* a failure, not when the request itself errored (no docker CLI, a Compose
+      timeout — a `400`) after the files were written, so Save went grey again. A save
+      reports "kept" once the files are written, whatever `up` does. +1 frontend (228)
 
 ---
 

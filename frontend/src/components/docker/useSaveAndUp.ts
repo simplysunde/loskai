@@ -5,7 +5,7 @@ import { api, ApiError } from "../../lib/api";
 
 // Both stack editor views save the same way: write the files, then `up` — and a failed `up`
 // keeps the dialog open on what Compose said, since the files are already saved. Resolves
-// "closed", "kept" (saved, `up` failed) or false (not saved).
+// "closed", "kept" (saved, `up` failed or couldn't run) or false (not saved).
 export function useSaveAndUp(name: string | null, onClose: () => void) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -16,8 +16,10 @@ export function useSaveAndUp(name: string | null, onClose: () => void) {
     setError(null);
     setOutput(null);
     setBusy(true);
+    let saved = false;
     try {
       await save();
+      saved = true;
       if (up && name) {
         const r = await api.post<{ ok: boolean; output: string }>(`/api/docker/stacks/${name}/action`, {
           action: "up",
@@ -31,7 +33,7 @@ export function useSaveAndUp(name: string | null, onClose: () => void) {
       return "closed";
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Save failed");
-      return false;
+      return saved ? "kept" : false;
     } finally {
       setBusy(false);
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
