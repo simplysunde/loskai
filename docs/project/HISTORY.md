@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-23 — CLAUDE.md describes Loskai as it is
+
+CLAUDE.md had grown one phase at a time: a status section that was a phase log, "(was
+`/opt/stacks`)"-style notes beside current facts, and test counts no check verified. Asked
+whether it would be better based on the current state, it was rewritten that way — what
+Loskai is, the principles, a code map (new), commands and checks, the architecture, the
+invariants grouped by area. Every rule in the old file was checked present in the new one;
+what was cut is history already recorded here or in `todo-archive.md`. The principles and
+two routines (`npm run build` typechecks the tests; test isolation) came from Claude's
+session memory, so every session — and any contributor's — reads them, not only Sunde's.
+Test counts are no longer written down: they went stale with every commit.
+
 ## 2026-10-23 — The migration guide is for someone new to Loskai
 
 **Sunde: the migration is "more about moving other containers into loskai, if someone

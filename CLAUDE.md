@@ -2,282 +2,285 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project state
+## What Loskai is
 
-All four modules (Docker, Caddy, AdGuard, WireGuard) are built and feature-complete;
-`backend/` and `frontend/` are real, working code. Phases 13–27 are closed; **Phase 28 (the
-install wizard) has run live and passed** (2026-10-03), git sync included; its last bug (root-owned files on the host) was fixed
-2026-10-09 — the app now runs as the owner of `./data`. **Phase 29** (a Docker route
-follows its container) is built and verified live, bar a daemon-restart check that needs
-root. **Phase 30** (UI polish — a Machines tab, Machine/Address upstreams, Docker by stack +
-volumes, the recipe catalog that routes its install) is built and verified live, and so are
-**Phases 31–33** — recipe updates, the stack editor as a form, recipe options. **Phase 12 is finally complete** (2026-09-27): 12a in Phase 19, 12b as Phase 22, 12c
-as `docs/guides/backend-certificates.md`. The two archived live
-smokes (Phases 10a and 13) both ran and passed on 2026-09-16. **ACME support was removed
-2026-09-27** (Phase 25) — the internal CA is the only TLS mode Loskai's configs ship.
-All three checks pass (547 + 228 + docs).
+A homelab control panel in one container. It gives any service an HTTPS name in one step —
+a Caddy route plus an AdGuard DNS rewrite — manages Docker stacks, and installs apps from
+recipe repos. Four modules (Docker, Caddy, AdGuard, WireGuard), all built; the project is
+preparing its first public release, and runs day to day on a real homelab.
 
-**Loskai has now actually been run** (2026-09-05), which it never had been before: everything
-up to that point was unit tests and static validation. Two of the three defects that surfaced
-were invisible to 209 passing tests, and **both failed as successes** — an empty `200` where a
-proxied response was expected, and a documented migration command that quietly nested state one
-directory too deep. When you change route pushing, the Caddyfile, upstream detection or a
-compose file, re-run the live rig rather than trusting the suite; the recipe is in
-`todo-archive.md` Phase 16's Verification block.
+- **What is being worked on:** `docs/project/TODO.md` — its open items, and the backlog at
+  the end. Check it before assuming something is missing; a finished phase's write-up
+  there describes the repo *as it was then*.
+- **Why anything is the way it is:** `docs/project/HISTORY.md`, newest first. Read it before
+  reversing a decision — several current ones are walk-backs of earlier ones.
+- **The architecture in depth:** `docs/project/PLAN.md`. Finished phases 1–17:
+  `docs/project/todo-archive.md`.
+- **Everything else:** [`docs/README.md`](docs/README.md) indexes the docs by reader.
+  `SECURITY.md`, `CONTRIBUTING.md` and `CHANGELOG.md` at the root are for visitors — a
+  user-facing change goes in `CHANGELOG.md`, its *why* in `HISTORY.md`.
 
-**Check `TODO.md` for the current unchecked items before assuming something is missing** — and
-note that a completed phase's write-up describes the repo *as it was then*; only the Now tier
-describes today. The authoritative sources are — the first four in **`docs/project/`**
-(moved from the repo root 2026-10-10, so an older entry naming a root path means there):
+## Principles
 
-- **`PLAN.md`** — architecture reference (the "why" and the shape of every module).
-- **`TODO.md`** — the live phase + backlog. Completed phases **1–17** live in
-  `todo-archive.md` beside it (1–13 moved 2026-08-27, 14–17 on 2026-09-09); look there
-  for how a finished thing was built. **Phases 18–33 are still written out in `TODO.md`** —
-  sixteen of them, so it is the longer file now; archive the older ones when it gets unwieldy.
-- **`HISTORY.md`** — chronological record of decisions and *why* they were made. Read it
-  before reversing anything; several current decisions are walk-backs of earlier ones.
-- **`docs/`** — segmented by audience, indexed at **[`docs/README.md`](docs/README.md)**.
-  Start there when you don't know which page you need. Its Conventions say which reader's
-  question is answered where, and every page opens with a breadcrumb and `Read this when`.
-- **`SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`** at the root — for visitors. Add a
-  user-facing change to `CHANGELOG.md`; the *why* still goes in `HISTORY.md`.
+- **Simple and functional.** Judge a change by what it makes simpler or what it fixes; "it's
+  tidier" or "it's symmetrical" is not a reason. Each decision lives in one place — the
+  worst bugs here were one decision made twice (two ways to compute an address).
+- **Removal is an option.** When a feature is questioned, price deleting it — what goes,
+  what is lost, which commits would restore it — beside fixing it. One mode beats a
+  half-used second one: ACME support was deleted outright for that reason.
+- **Assert the effect, not the response.** This project's worst defects **failed as
+  successes**: an empty `200` where a proxied response was expected, a `.env` that
+  truncated a password while `up` exited 0, a Save that reported success and dropped a
+  folder. Check the bytes, the container, the file — not the status code.
+- **UI:** minimal visible text, details in a short `title` tooltip; one layout, reusing the
+  existing pattern rather than a variant; never show something that looks like an address
+  but isn't (show the real address or the full FQDN); show a status only on the tab that owns it.
 
-### Which doc answers which question
+## Code map
 
-- **`docs/reference/`** — contracts. Read the relevant one **before** touching that
-  integration; each documents constraints that are not obvious from the code.
-  `caddy-api.md` and `adguard-api.md` are the external API subsets Loskai calls;
-  `api.md` is Loskai's own API surface — 53 HTTP routes plus the exec WebSocket;
-  `recipe-schema.md` is the install-wizard manifest — **copied into the loskai-recipes repo**
-  (at its root) so a session authoring recipes has it; edit it here only, then run
-  `bash scripts/sync-recipe-schema.sh`. The docs check fails while the copy differs.
-- **`docs/guides/`** — how Loskai is run. `topologies.md` is the single source of truth for
-  deployment layout (A split-LXC · B split DNS · C all-in-Docker; **A and B recommended, C the
-  supported alternative** — all three ship. **The letters were reassigned 2026-09-04**, split
-  DNS B↔C all-in-Docker, so a letter in an older `HISTORY.md`/`TODO.md` entry is the pre-swap
-  one. A merged single-container layout is recorded there as considered-and-rejected — don't
-  re-propose it; the all-in-one *LXC* variant was deleted the same day, as it was never a real
-  option). `deployment.md` is the env-var/volume reference, `install.md` the walkthrough,
-  `certificate-setup.md` the internal-CA onboarding (**two** paths: Loskai's public
-  `/certificate` page, and Caddy's own `:80` site), `backend-certificates.md` the mirror image
-  — Caddy as an ACME server so a backend (Proxmox `:8006`) serves a cert devices already
-  trust, with **no Loskai involvement at all**, `migration.md` bringing in containers you already run (the recipe over your data first) *and*
-  relocating Loskai itself, `troubleshooting.md` symptom-indexed triage.
-- **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
-  (adding a `create-<service>-lxc.sh`).
+Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
 
-Facts about an external API belong in `docs/reference/`; if a guide and a reference page
-disagree, the reference page wins. Topology facts belong in `guides/topologies.md` — that
-duplication is what Phase 17 removed.
+- `main.py` (app, static files), `config.py` (the env layer of settings).
+- `modules/<name>/` — `client.py` is I/O only; logic is pure (`service.py`, `logic.py`);
+  `router.py` is the HTTP surface. WireGuard is only a reachability probe and a peer DNS hint.
+- `modules/docker/` — `stacks.py` (a stack is a folder in `STACKS_DIR`; compose runs),
+  `recipes.py` (sources, sync, validation, install, options, the recipe icon),
+  `stackform.py` (the editor's form), `updates.py` (Check for updates),
+  `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
+- `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
+  the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
+  `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,
+  `health.py`, `export.py`.
+
+Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (one per tab,
+`settings/` its sub-pages), `components/{docker,routing,settings,shared}/`, `lib/` (`api.ts`,
+hooks, `docs.ts` — the repo's address, for links to the docs).
+
+Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
+(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `caddy/` (the
+Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `check-docs.sh`,
+`sync-recipe-schema.sh`, the LXC scripts, `container-entrypoint.sh`). `data/` and
+`stacks/` are a running Loskai's state — tracked only as `.gitkeep`.
+
+**The recipes live in a sibling repo, `../loskai-recipes`**, with its own `CLAUDE.md`. Its
+commit messages are user-facing — Check for updates shows them as "What changed".
 
 ## Commands
 
-Backend is Python + FastAPI + `uv` (in `backend/`); frontend is React + TS + Vite (in `frontend/`).
-
-- Backend dev server: `uv run uvicorn loskai.main:app --reload --port 8000`
-- Frontend dev server: `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`)
-- Backend tests: `uv run pytest` — single test: `uv run pytest tests/test_x.py::test_name`
-- Frontend tests: `npm test` (Vitest)
-- Docs check: `bash scripts/check-docs.sh` (or `make check-docs`) — **six checks:** broken
-  links; dead heading anchors; pages under `docs/` unreachable from `docs/README.md`;
-  `docs/` paths cited from source and config that no longer resolve; `docs/` paths written
-  out in the current-state docs (prose, backticks, or a link's *display text* — check 1
-  validates where a link points, never what it claims to); **this file's enumerations
-  against the code** (module names, admin tabs, HTTP route count, public routes); and the
-  recipes repo's copy of `recipe-schema.md`, when `../loskai-recipes` is checked out.
-- Recipe check: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`)
-  — the wizard's own validator over a recipe folder or a whole recipes repo.
-- **Production** serves on `:8080` — one FastAPI process serves the API *and* the built
-  React bundle as static files (single container, single port). Dev is two servers; prod is one.
+- Backend (in `backend/`): `uv run uvicorn loskai.main:app --reload --port 8000`;
+  tests `uv run pytest`, one test `uv run pytest tests/test_x.py::test_name`.
+- Frontend (in `frontend/`): `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`);
+  tests `npm test`; `npm run build`; lint `npx oxlint src`.
+- Docs: `bash scripts/check-docs.sh` (or `make check-docs`).
+- Recipes: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`) —
+  the wizard's own validator over a recipe folder or a whole recipes repo.
+- A compose file: `docker compose -f <file> config` — renders it without a daemon.
+- Production serves on `:8080`: one FastAPI process serves the API *and* the built React
+  bundle. Dev is two servers; prod is one. Deploy is `bash scripts/deploy.sh` on the host
+  (always `--build`: a plain `up -d` keeps the old image).
 
 ### Before you finish
 
-There is **no CI** — deliberately (Forgejo Actions is in the backlog, `PLAN.md`). Nothing runs
-these for you, so run all three before reporting work done, and paste the real output:
+There is **no CI**, deliberately (Forgejo Actions is in the backlog). Run all of these and
+paste the real output:
 
 ```
-cd backend && uv run pytest        # or: make test-backend
-cd frontend && npm test            # or: make test-frontend
-bash scripts/check-docs.sh         # or: make check-docs
+cd backend && uv run pytest
+cd frontend && npm test && npm run build && npx oxlint src
+bash scripts/check-docs.sh
 ```
 
-`check-docs.sh` is the one that is easy to skip and the one that catches the most, because
-**documentation drift is this project's recurring failure**, not broken code. On 2026-09-02
-an audit found four wrong facts in this very file — a dissolved nav tab, an incomplete list
-of public routes, a moved archive path, a stale phase status — each of which had been
-silently propagating into new work. Run it after moving/renaming any `.md`, after adding a
-route or a nav tab, and after editing the enumerated lists here. When something it checks
-changes, fix the doc **in the same commit as the behaviour**, not afterwards.
+- **`npm run build` is not optional:** `tsc -b` typechecks the test files, which `npm test`
+  doesn't, and the Docker image build runs it — a type error in a test fails the image.
+- **`check-docs.sh` catches the most**, because **documentation drift is this project's
+  recurring failure**, not broken code. Its checks: broken links; dead heading anchors;
+  pages unreachable from `docs/README.md`; `docs/` paths cited from source that no longer
+  resolve; `docs/` paths written out in the current-state docs; this file's enumerations
+  against the code (modules, admin tabs, the HTTP route count, the public routes); and the
+  recipes repo's copy of `recipe-schema.md`. When something it checks changes, fix the doc
+  **in the same commit as the behaviour**.
+- **The suite mocks Caddy, so it can't see a route placed wrong.** After changing route
+  pushing, the Caddyfile, upstream detection or a compose file, run it live — the rig is
+  in `todo-archive.md`, Phase 16's Verification block.
+- **Tests never reach real state.** `tests/conftest.py` points `data_dir`/`stacks_dir` at a
+  temp dir and stubs the Docker follower and container labels. A new code path that asks
+  the daemon needs the same. A scratch backend outside the tests must be given every env
+  var: `config.py` falls back to the repo-root `.env`, which may name real infrastructure,
+  and the repo's `data/` is a running Loskai's live state.
 
 ## Architecture — the load-bearing ideas
 
-**One image, four independent modules** (Docker, Caddy, AdGuard, WireGuard). Each degrades
-gracefully and never blocks another; a module going unreachable greys out only its own card.
+**One image, four independent modules.** Each degrades gracefully and never blocks another;
+a module going unreachable greys out only its own card.
 
-**The `instance` is the single domain object.** `instances.json` (a flat file — *there is no
-database*, only `settings.json` + `instances.json` in a mounted volume) is the shared spine
-every module reads. A Docker container and an external LAN service (NAS, Proxmox, any
-`IP:port`) are the same struct with a different `type`. **A route is not stored separately —
-it is simply an instance that has a `subdomain`.** Runtime container state (status/CPU/RAM)
-is never persisted; it is read live from the Docker socket and joined at display time via
-the `container` field, so the store cannot drift from reality. Two link fields are the
-idempotency keys: `container` (a docker instance ↔ its container) and `origin` (an external
-instance ↔ a built-in Network service: `adguard`/`gateway`/`caddy`) — re-routing either edits
-its existing instance rather than making a duplicate (`get_by_container`/`get_by_origin`).
-Services and machines are one store read by two tabs: **Routing** lists services, and
-**Machines** lists each machine with the routes hosted on it beneath (Phase 30 — before it,
-one table with views).
-A third link, **`machine`**, is not an idempotency key but a dependency: it names the instance
-that owns this upstream's *host* half — and what may be linked to is **declared** by
-`kind: "service" | "machine"` on the record (set from the verb that assigned it, back-filled
-from the upstream's shape for older records), never re-derived at a call site. Moving that machine rewrites every dependent's upstream
-and re-pushes its route in the same assign (`list_by_machine`); deleting it **unlinks** rather
-than blocks — the routes keep the address they have and simply stop following it.
-**`follow_container` is the container counterpart** (Phase 29): a docker route that follows its
-container has its upstream *derived* from the live container (`logic.suggested_upstream` — the
-same function the route forms pre-fill from) and rewritten when the container starts on a
-different port. The trigger is Docker's event stream, in `shared/follow.py` — **Loskai's only
-background task**: it never blocks startup, backs off when the daemon is gone, catches up at
-startup and on every reconnect, and writes compare-and-set so a hand edit made meanwhile wins.
-Declared, defaulting `False` — a record that predates it keeps its stored upstream exactly.
+**The `instance` is the single domain object.** `instances.json` — a flat file; **there is
+no database**, only it and `settings.json` in `data/` — is the spine every module reads. A
+Docker container and an external LAN service (NAS, Proxmox, any `IP:port`) are the same
+struct with a different `type`. **A route is not stored separately: it is an instance with
+a `subdomain`.** Runtime container state (status, CPU, RAM) is never persisted; it is read
+live and joined at display time on the `container` field, so the store can't drift.
 
-**`client.py` (I/O) vs pure logic is a hard seam — keep it.** Thin `client.py` wrappers do
-only HTTP/socket calls; all decision logic (reconcile, route/Caddyfile builders, answer-IP
-derivation) lives in pure functions. This is what makes the logic testable without a network
-(unit tests mock nothing, contract tests mock the client). Do not tangle I/O into logic.
+The links on a record:
 
-**Creation is two endpoints over one cross-module action** (in `shared/assign.py`):
-**`POST /api/routes`** publishes a service and **`POST /api/machines`** names a LAN address,
-each with its own request model — a machine has no port, no TLS and may be dotted; a route
-has all three and may link to a machine. They converge on one `assign()`, which sets the
-instance's subdomain, pushes the Caddy route (**required** — aborts+rolls back on failure),
-then writes the AdGuard rewrite (**best-effort** — warns, never fails the assign). The Caddy
-and AdGuard modules never write on their own; they are read + push only.
+- `container` (docker instance ↔ its container) and `origin` (external instance ↔ a
+  built-in network service: `adguard`/`gateway`/`caddy`) are **idempotency keys** —
+  routing either again edits the existing record (`get_by_container`/`get_by_origin`).
+- `machine` is a **dependency**: the instance that owns this upstream's host. What may be
+  linked to is **declared** by `kind: "service" | "machine"` (set by the verb that created
+  it), never re-derived at a call site. Moving a machine rewrites every dependent's upstream
+  and re-pushes it in the same assign (`list_by_machine`); deleting one **unlinks** — the
+  routes keep their address and stop following.
+- `follow_container` makes a docker route **follow its container**: the upstream is derived
+  from the live container (`logic.suggested_upstream`, the same function the route forms
+  pre-fill from) and rewritten when it starts on a different port. The trigger is Docker's
+  event stream in `shared/follow.py` — it never blocks startup, backs off while the daemon
+  is gone, catches up at startup and on every reconnect, and writes compare-and-set so a
+  hand edit made meanwhile wins. Defaults to `False`.
 
-**Route creation is consolidated in the "Add route" picker** (frontend `AddRouteModal`) —
-the main surface, opened from the Routing tab or from a machine's row on the Machines tab
-(preset to that machine), with three sources (Container / Network service / External) that
-pre-fill and post to `/api/routes` with `container` / `origin` / neither. One shortcut: the
-Routing tab's AdGuard pill routes AdGuard in one click, posting exactly what the Network
-source would, so it carries the same `origin`. Naming a machine
-is the sibling verb, `/api/machines`, from the Machines tab.
-**The upstream is two fields on one row — host and port** — in both route forms (they share
-`RouteFields`). The host is **Machine or Address**, a toggle (Phase 30): Machine picks one
-of the machines you have named (by declared `kind`) and **links the route to it**; Address is
-a combobox (`HostSelect`) — type anything, or pick the Docker host or a picked container's
-own host — and **never links**. Switching to Machine never guesses a link from a matching
-IP. A linked row shows its address with the machine's full name beneath (never `<machine>:<port>` — a
-dotted machine name like `adguard.lxc` would read as a hostname that does not resolve); an
-unlinked row whose host is a machine's address is **matched** — Routing names the machine
-beneath it and Machines lists it under the machine (a chain icon marks a link, a wand a
-match). A match is display only, never a link: it keeps its address when the machine moves,
-and simply stops matching. The
-**Docker tab displays routed state, and creates a route in exactly one place** — the install
-wizard's last step (Phase 30), which posts the same `/api/routes` with `container` (the
-idempotency key, so it edits the install's own record) and pre-fills through
-`containerPrefill`; anything beyond a prefix is left to the Routing tab. (A routed container
-links to its FQDN; the AdGuard pill's link-out opens its route once it has one.) Per-row "Change URL"
-on the Routing table edits an existing route (passes `instance_id`); on an *unrouted* row the
-same button reads "Assign a URL". **Both forms pre-fill a container through one helper,
-`containerPrefill`** — they used to disagree (the row read only the stored record, so a fresh
-recipe install opened empty); a third route form must use it too. This is what prevents a
-co-located infra container from being double-routed from competing tabs.
+Routing lists services; Machines lists each machine with the routes on it beneath — one
+store, two tabs.
 
-**Security is enforced on the API, never the frontend.** Single admin password (no accounts),
-hashed, `HttpOnly` session cookie. Middleware gates **every `/api/*` except `GET /api/dashboard`
-and the login flow** — `GET /api/auth/status`, `POST /api/login`, `POST /api/logout`,
-`POST /api/auth/setup` (you can't authenticate if login itself requires auth) — plus
-`GET /api/caddy/root-certificate`, which hands out Caddy's internal **root CA**: public
-material every LAN device is meant to install, fetched by devices that have no admin
-password and can't yet trust the HTTPS route. That set is `PUBLIC_ROUTES` in `shared/auth.py`, plus one *pattern* in `PUBLIC_PATTERNS`
-beside it — **`GET /api/instances/{id}/icon`**, the launcher icons, which cannot be an exact
-tuple because the path carries the instance id. A card has to render its icon before anyone
-logs in. Uploads are sniffed by magic bytes and SVG is refused, because these are
-user-supplied bytes served back from Loskai's own origin.
-**One route sits outside the middleware entirely:** the
-container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) — WebSockets never traverse the
-HTTP middleware, so it checks the session cookie itself and closes with 1008 if it fails. It
-opens a root shell; never add a second WS route without repeating that check.
-The entire React bundle is served *unauthenticated* — it's just static JS; `RequireAuth` only
-decides what renders. **Never gate the static files or SPA routes** — the lock is 100% on the API.
-The public Dashboard is a launcher and the public **Certificate** page hands out Caddy's
-internal root CA (`certificate_tab` in settings moves its sidebar link, never its access);
-the admin tabs (Docker, Routing, Machines, Settings) sit behind login. The frontend merges Caddy + AdGuard into one **Routing** view, but the *backends* stay
-independent modules.
+**`client.py` (I/O) vs pure logic is a hard seam — keep it.** Clients only make the HTTP or
+socket call; every decision (reconcile, the route and Caddyfile builders, the answer IP) is a
+pure function. Unit tests mock nothing; contract tests mock the client.
 
-**Settings priority: env var > `settings.json` > unset**, each value tagged with its source.
-Everything is optional (configurable via UI or env). Loskai stores no third-party secret it
-must replay except the AdGuard password; its *own* admin password is stored only as a hash.
+**Creation is two endpoints over one action** (`shared/assign.py`): **`POST /api/routes`**
+publishes a service, **`POST /api/machines`** names a LAN address (no port, no TLS, may be
+dotted). Both run `assign()`: set the subdomain, push the Caddy route (**required** — abort
+and roll back on failure), then write the AdGuard rewrite (**best-effort** — warn, never
+fail). Anything after the Caddy push is best-effort too, such as a new container route
+getting its recipe's icon. The Caddy and AdGuard modules never write on their own.
+
+**Where routes are made in the UI:**
+
+- The **Add route** picker (`AddRouteModal`) is the main surface — from the Routing tab, or a
+  machine's row (preset to it). Three sources — Container, Network service, External — post
+  `/api/routes` with `container`, `origin` or neither. The Routing tab's AdGuard pill posts
+  exactly what the Network source would.
+- The upstream is **host and port** (`RouteFields`, shared by both route forms). The host is
+  **Machine or Address**: Machine picks a named machine and **links** to it; Address
+  (`HostSelect`) takes anything and **never links**, and switching never guesses a link
+  from a matching IP. An unlinked route whose host is a machine's address is **matched** —
+  shown under that machine (a chain icon marks a link, a wand a match) — display only.
+- **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
+  the same button reads **Assign a URL**.
+- The **Docker tab creates a route in one place only**: the install wizard's last step.
+- Every route form pre-fills a container through **`containerPrefill`** — a new one must
+  too. Two forms once disagreed, which is how a container gets routed twice.
+
+**Security is enforced on the API, never the frontend.** One admin password (no accounts),
+hashed, an `HttpOnly` session cookie. Middleware gates **every `/api/*`** except the set in
+`PUBLIC_ROUTES` (`shared/auth.py`):
+
+- `GET /api/dashboard` — the public launcher.
+- `GET /api/auth/status`, `POST /api/login`, `POST /api/logout`, `POST /api/auth/setup` —
+  you can't authenticate if login itself requires it.
+- `GET /api/caddy/root-certificate` — Caddy's internal root CA, public material fetched by
+  devices that can't yet trust the HTTPS route.
+- And one pattern in `PUBLIC_PATTERNS`: `GET /api/instances/{id}/icon`, the launcher icons
+  a card renders before anyone logs in. Uploads are sniffed by magic bytes and SVG is
+  refused — user bytes served from Loskai's own origin.
+
+**The container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) sits outside the
+middleware** — WebSockets never traverse it — so it checks the cookie itself and closes with
+1008. It opens a root shell; never add a second WS route without repeating that check. The
+React bundle is served unauthenticated; **never gate the static files or SPA routes** —
+`RequireAuth` only decides what renders. The Dashboard and Certificate pages are public
+(`certificate_tab` moves the Certificate link, never its access).
+The admin tabs (Docker, Routing, Machines, Settings) sit behind login.
+The frontend merges Caddy and AdGuard into one Routing view; the backends stay independent.
+
+**Settings: env var > `settings.json` > unset**, each value tagged with its source, and
+everything optional. Loskai stores no third-party secret except the AdGuard password; its
+own admin password only as a hash.
 
 ## Invariants that are easy to violate
 
-- **`STACKS_DIR` must be bind-mounted at the *same path* in and out** (`${STACKS_DIR}:${STACKS_DIR}`)
-  **and** passed into the container env — the compose CLI hands bind paths to the host daemon,
-  so the in-container scan path must equal the mount. It is env/compose-only, never UI-editable.
-  Since 2026-09-05 it defaults to **`${PWD}/stacks`** (was `/opt/stacks`), so compose must be
-  run from the project directory; `deploy.sh` `cd`s there. Loskai's own state is `./data:/data`
-  (was `./loskai-settings:/opt/loskai`) — **nothing lives in `/opt` any more**, and both
-  directories are tracked with a `.gitkeep` so Docker can't create them root-owned.
-- **AdGuard rewrites are deleted by the exact `(domain, answer)` pair, never by domain** — this
-  is what protects hand-added rewrites. **One deliberate exception:** `POST
-  /api/adguard/rewrites/clear` (Settings › Network) wipes the entire list, foreign entries
-  included, then reconciles Loskai's own back in the same call. It is destructive, confirmed
-  in a dialog, and never a side effect — every automatic path still leaves foreign rewrites
-  alone. There is **no wildcard DNS rewrite**: one explicit
-  rewrite per routed instance. (Caddy's wildcard *TLS cert* is a separate, unrelated concern.)
-- **Caddy routes are keyed by `@id` = the instance `id`; editing a route is delete-then-add,
-  never `PATCH`.** The server name is discovered at startup — never hardcode `srv0`.
-  **Both servers are discovered**: the routing one by its `:443` listener and, since 12b, the
-  plain-HTTP one by `:80`. An instance's `scheme` (`https` default / `both` / `http`) decides
-  which it is pushed into; `both` means **two routes, two ids** (`<id>` and `<id>-http`), so
-  sync needs both present and teardown removes both. Routes go in at **index 0 of each** —
-  `:80` for the same reason as `:443`, plus its catch-all setup site and Caddy's own
-  HTTP→HTTPS redirects, which would otherwise win.
+**Deployment and the host**
+
+- **`STACKS_DIR` is bind-mounted at the *same path* in and out** (`${STACKS_DIR}:${STACKS_DIR}`)
+  **and** passed in the env: the compose CLI hands bind paths to the host daemon. It is
+  env/compose-only, never UI-editable, and defaults to `${PWD}/stacks` — compose must be run
+  from the project directory (`deploy.sh` `cd`s there). Loskai's own state is `./data:/data`.
+  Both folders are tracked with a `.gitkeep` so Docker can't create them root-owned.
 - **The app runs as the owner of `./data`, not root** (`scripts/container-entrypoint.sh`
-  drops to it, plus the socket's group). Anything Loskai writes on the host must work owned
-  by that user, and anything holding a secret goes through `store.write_private` (`0600`).
-  Never `chown` below a stack's own files — `stacks/<name>/data/` is the app's.
-- **Loskai never handles the ACME/DNS-challenge token or private-registry credentials** —
-  those live with Caddy / the Docker host. Registry `docker login` is a host precondition.
-- **Recipes are declarative data, validated but never executed** — synced from any number
-  of public git repos (`recipes_repos`: a list of `{url, enabled}` rows, seeded with
-  `config.DEFAULT_RECIPES_REPO`, each cached under its own slug) plus the local
-  `data/recipes/` dir, which is always scanned last and cannot be disabled. First source to
-  define a recipe id wins; the losers are flagged, never dropped. A stored **empty list**
-  means "no git sources" and is never re-seeded. **Sources have no env var** — the only
-  entry in `STORED_ONLY_KEYS`, so the editor is never read-only; nothing about them is
-  needed before the UI is up. The `.env` is generated at install, never committed — and
-  **every value in it is double-quoted and escaped** (`resolve_answers` + `render_env`).
-  Written verbatim, Compose interpolates `$` and cuts at ` #`, so a password arrives altered
-  while `up` still exits 0. Don't "simplify" it back to `KEY=value`. A `type: path` answer
-  is checked the same way, for the cases Compose accepts and mounts wrongly: `~` (compose
-  runs as root inside Loskai's container, so it means `/root`), a bare name (a named volume,
-  not a folder), a `:`. A recipe's `mounts` (folders the user adds) go into a generated
-  `compose.override.yml`, long syntax with `create_host_path: false` — never into the
-  recipe's own `compose.yml`. So do its **`options`** (a GPU, say): on adds exactly the lines an
-  option lists, off removes exactly those, and whether one is on is *read from the
-  override*, never stored. An option may only add (`devices`, `group_add`, `environment`,
-  `cap_add`, `ports`, and `deploy` for an NVIDIA reservation), never replace what the recipe
-  set up — a value already set otherwise is refused, not overwritten.
-- **An installed recipe's files each have one owner** (Phase 31): `compose.yml` is the
-  recipe's — an update replaces it; `.env` is the answers — an update only *adds* a line for
-  a new question; `compose.override.yml` is the user's — an update never touches it, and is
-  refused unless `docker compose config` loads the new file with it. `.loskai-recipe.json`
-  records the install (recipe, source, commit, compose fingerprint) — it is how an update
-  tells the recipe moving on from a hand edit. Don't fold user settings into `compose.yml`.
+  drops to it, plus the socket's group). Anything written on the host must work owned by
+  that user; anything holding a secret goes through `store.write_private` (`0600`). Never
+  `chown` below a stack's own files — `stacks/<name>/data/` is the app's.
+- **Loskai never handles an ACME/DNS token or registry credentials** — those live with Caddy
+  and the Docker host. The internal CA is the only TLS mode Loskai's configs ship.
+
+**Caddy and AdGuard**
+
+- **Caddy routes are keyed by `@id` = the instance id; editing is delete-then-add, never
+  `PATCH`.** Server names are discovered at startup — never hardcode `srv0` — both the
+  `:443` one and the `:80` one. A route's `scheme` (`https` default / `both` / `http`)
+  decides which it goes into; `both` is **two routes, `<id>` and `<id>-http`**, so sync needs
+  both and teardown removes both. Routes go in at **index 0** of each server, ahead of the
+  Caddyfile's catch-all sites and Caddy's own HTTP→HTTPS redirects, which would otherwise win.
+- **AdGuard rewrites are deleted by the exact `(domain, answer)` pair, never by domain** —
+  that protects hand-added ones. The one exception is `POST /api/adguard/rewrites/clear`
+  (Settings › Network): destructive, confirmed in a dialog, never a side effect, and it puts
+  Loskai's own back in the same call. **No wildcard DNS rewrite** — one per routed instance.
+  (Caddy's wildcard TLS cert is unrelated.)
+
+**Stacks and recipes**
+
+- **A stack is a folder in `STACKS_DIR` with a compose file** (`compose.yml`, `compose.yaml`
+  or `docker-compose.y(a)ml`). Compose names the project after the folder, lowercased and
+  stripped — so read a container's folder from its `working_dir` label, never by turning the
+  project name back into a path.
+- **Delete keeps a stack's data unless asked** (`delete_data`): only the compose file, the
+  override and `.env` go, because recipes keep data beside them. Don't turn it into a plain
+  `rmtree`. A folder with data and no compose file is taken over by the next stack or
+  install of that name (`claim_dir`) — that is how a reinstall, or someone bringing their
+  own data, gets it picked up.
+- **Recipes are declarative data, validated but never executed.** Sources: any number of
+  public git repos (`recipes_repos`, rows of `{url, enabled}`, seeded with
+  `config.DEFAULT_RECIPES_REPO`, each cached under its own slug) plus `data/recipes/`,
+  scanned last and always on. The first source to define an id wins; the losers are flagged,
+  not dropped. A stored **empty list** means "no git sources" and is never re-seeded. Sources
+  have **no env var** — the only entry in `STORED_ONLY_KEYS`. A cache is a **mirror**:
+  `clone --depth 1`, then `fetch --depth 1` + `reset --hard FETCH_HEAD`, so a rewritten
+  source keeps syncing.
+- **Every value in a generated `.env` is double-quoted and escaped** (`resolve_answers` +
+  `render_env`). Written as `KEY=value`, Compose interpolates `$` and cuts at ` #`, and a
+  password arrives altered while `up` exits 0. Don't simplify it back. A `type: path` answer
+  is refused where Compose would mount it wrongly: `~` (compose runs as root in the
+  container, so it means `/root`), a bare name (a named volume), a `:`.
+- **An installed recipe's files each have one owner:** `compose.yml` is the recipe's (an
+  update replaces it); `.env` holds the answers (an update only *adds* a line for a new
+  question); `compose.override.yml` is the user's (an update never touches it, and is
+  refused unless `docker compose config` loads the new file with it);
+  `.loskai-recipe.json` records the install (recipe, source, commit, compose fingerprint) —
+  how an update tells the recipe moving on from a hand edit. Don't fold user settings into
+  `compose.yml`.
+- **A recipe's `mounts` and `options` go in `compose.override.yml`** — mounts in long syntax
+  with `create_host_path: false`. An option on adds exactly its lines and off removes
+  exactly those; whether it is on is **read from the override, never stored**. An option may
+  only add (`devices`, `group_add`, `environment`, `cap_add`, `ports`, and `deploy` for an
+  NVIDIA reservation) — a value already set otherwise is refused, not overwritten — and is
+  offered only for a service the stack has.
 - **An installed recipe's instance links to the container name the daemon created**, read
-  back from the compose project label — never the recipe id, which is only the project
-  name. No container identified → no instance, and the wizard says so. A reinstall keeps
-  the earlier record and only re-points `container`; an id that names something else is
-  refused, never overwritten.
-- **A stack's Delete keeps its data unless asked** (`delete_data`): only `compose.yml`, an override and
-  `.env` go, because recipes keep data beside them (`./data`). Don't turn it back into a
-  plain `rmtree`. A kept folder (no compose file) is taken over by the next stack of that
-  name (`claim_dir`).
+  back from the compose project label — never the recipe id. No container identified → no
+  instance, and the wizard says so. A reinstall keeps the earlier record and only
+  re-points `container`; an id naming something else (an external route, a container that
+  still exists) is refused, never overwritten.
+- **A recipe's icon goes only where there is none** — at install, and on a *new* route
+  record for the recipe's primary container. An icon removed or chosen by hand stays.
 
-## Module build order
+## Docs
 
-Caddy → AdGuard → WireGuard → Docker (Docker is the most complex, built last). Tiers 1–2
-tests are written *alongside* each module (see `todo-archive.md` Phase 8b for the full
-test strategy).
+- **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
+  API subsets Loskai calls), `api.md` (Loskai's own: 53 HTTP routes plus the exec
+  WebSocket) and `recipe-schema.md`. Read the relevant one **before** touching that
+  integration. If a guide and a reference page disagree, the reference wins.
+- **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run
+  `bash scripts/sync-recipe-schema.sh`; the docs check fails while the copy differs.
+- **`docs/guides/topologies.md` is the single source for deployment layouts**: A split-LXC,
+  B split DNS, C all-in-Docker — A and B recommended, C supported, all three shipped. A
+  merged single-container layout was considered and rejected; don't re-propose it. The
+  letters were reassigned on 2026-09-04 (B↔C), so a letter in an older `HISTORY.md` or
+  `TODO.md` entry may be the old one.
+- **The app links to the docs** through `frontend/src/lib/docs.ts`, which holds the repo's
+  forge address — cite a page there by its `docs/…` path so the docs check sees it.
