@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { api } from "../../lib/api";
+import { docUrl } from "../../lib/docs";
 import { formatPercent, formatUptime } from "../../lib/format";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
@@ -221,6 +222,7 @@ export function StackGroups({
         <GroupTable
           title="Other containers"
           note="not managed by Loskai — started outside the stacks folder"
+          guide={docUrl("docs/guides/migration.md")}
           anyOpen={anyOpen(others)}
           onToggleAll={() => toggleAll(others)}
         >
@@ -259,6 +261,7 @@ function writeExpanded(keys: Set<string>) {
 function GroupTable({
   title,
   note,
+  guide,
   anyOpen,
   onToggleAll,
   children,
@@ -266,6 +269,8 @@ function GroupTable({
   title: string;
   // Hover text for the title.
   note?: string;
+  // A doc page about this section, linked beside the title.
+  guide?: string;
   anyOpen: boolean;
   // Absent when there is nothing to expand.
   onToggleAll?: () => void;
@@ -289,6 +294,18 @@ function GroupTable({
                 <span title={note} className={note ? "cursor-help" : ""}>
                   {title}
                 </span>
+                {guide && (
+                  <a
+                    href={guide}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="How to bring these into Loskai"
+                    aria-label="How to bring these into Loskai"
+                    className="rounded p-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </a>
+                )}
                 {onToggleAll && (
                   <button
                     onClick={onToggleAll}

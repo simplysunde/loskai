@@ -4,6 +4,26 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-23 — The migration guide is for someone new to Loskai
+
+**Sunde: the migration is "more about moving other containers into loskai, if someone
+suddenly found the service and wants to use it."** The guide was written for tidying one's
+own server — move a compose folder in — and told a `docker run` container to stay where it
+was, which is the wrong answer for someone switching to Loskai. It now starts from what a
+newcomer has, three ways in, the recipe first: copy the data to where the recipe keeps it in
+`stacks/<id>/`, then install. That path needed no code — `claim_dir` already takes over a
+folder with data and no compose file, and the install already takes over a route of its
+name once the old container is removed (`_instance_slot`) — it just wasn't written down.
+Keeping one's own compose file under a recipe's name is described with its catch: an update
+replaces it, and a different data layout then starts the app with its data unmounted.
+
+The guide also said to rename `docker-compose.yml` to `compose.yml`, which was never needed:
+all four names are found. Two messages assumed the stack had been installed by Loskai
+("left by an earlier install", "Installed before updates were tracked") and now don't. The
+Docker tab's **Other containers** heading links the guide — the first link from the app to
+its docs, so the repo's address now lives in one more place, listed for the publishing step.
+A hint on a container a recipe exists for is in the backlog, not built.
+
 ## 2026-10-21 — A second review: the icon lookup, and the form's read-back
 
 A review of the same work found more, mostly in the icon lookup added the day before. **It

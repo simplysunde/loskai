@@ -62,7 +62,7 @@ describes today. The authoritative sources are — the first four in **`docs/pro
   `certificate-setup.md` the internal-CA onboarding (**two** paths: Loskai's public
   `/certificate` page, and Caddy's own `:80` site), `backend-certificates.md` the mirror image
   — Caddy as an ACME server so a backend (Proxmox `:8006`) serves a cert devices already
-  trust, with **no Loskai involvement at all**, `migration.md` stack adoption *and*
+  trust, with **no Loskai involvement at all**, `migration.md` bringing in containers you already run (the recipe over your data first) *and*
   relocating Loskai itself, `troubleshooting.md` symptom-indexed triage.
 - **`docs/contributing/`** — `dev-testing.md` (local dev rig), `lxc-script-authoring.md`
   (adding a `create-<service>-lxc.sh`).

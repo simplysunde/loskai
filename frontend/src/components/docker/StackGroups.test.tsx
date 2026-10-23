@@ -91,6 +91,10 @@ test("stacks and the containers Loskai doesn't manage are separate tables", asyn
   expect(within(othersTable).getByText("other-app")).toBeInTheDocument();
   expect(within(othersTable).getByRole("button", { name: "More for portainer" })).toBeInTheDocument();
   expect(screen.getByTitle(/not managed by Loskai/)).toHaveTextContent("Other containers");
+  // A user who already ran these is pointed at how to bring them in.
+  const guide = within(othersTable).getByRole("link", { name: "How to bring these into Loskai" });
+  expect(guide.getAttribute("href")).toMatch(/docs\/guides\/migration\.md$/);
+  expect(within(stacksTable).queryByRole("link", { name: /bring these/ })).not.toBeInTheDocument();
 });
 
 test("with nothing unmanaged, there is no second table", async () => {

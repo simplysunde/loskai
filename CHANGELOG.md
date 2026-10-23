@@ -14,7 +14,8 @@ Everything so far:
   its address changes. A Docker route can follow its container the same way.
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,
   stack editing — a form for settings and folders, or the files as text — and unused-volume
-  cleanup.
+  cleanup. Containers you already run are listed from the start, with a guide to bringing
+  them in — installing the recipe over your existing data, where there is one.
 - **Install wizard** — apps from recipe repos, with their own icons, routed on install.
   **Check for updates** shows which installed recipes have a newer version and what
   changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
