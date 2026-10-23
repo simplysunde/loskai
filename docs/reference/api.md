@@ -12,7 +12,7 @@ app is running — this document is the human-readable overview.
 
 - **Auth.** Every `/api/*` endpoint requires a valid session cookie **except** the ones
   marked _public_ below (the dashboard, the login flow, and the root-certificate
-  download). The gate is server-side middleware — see [PLAN.md → Security & Access].
+  download). The gate is server-side middleware — see [architecture.md → Security and access].
   Unauthenticated calls get `401`.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie. The frontend redirects to `/login` on any `401`.
@@ -163,4 +163,4 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 Recipe manifest format: [recipe-schema.md](recipe-schema.md).
 
-[PLAN.md → Security & Access]: ../project/PLAN.md#security--access
+[architecture.md → Security and access]: ../project/architecture.md#security-and-access

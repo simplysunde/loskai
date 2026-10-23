@@ -4,7 +4,7 @@ Assigning or clearing a subdomain spans the instance store, Caddy, and AdGuard. 
 Caddy and AdGuard modules themselves are read + push only; this is the only cross-module
 writer.
 
-Order (see PLAN, "The Assign URL Action"):
+Order (see docs/project/architecture.md, Routing):
   Step 0 — persist intent on the instance (durable record).
   Step 1 — Caddy route (REQUIRED for `route_mode: "proxy"`). On failure: roll back and abort.
            For `route_mode: "dns_only"` this instead tears down any stale Caddy route

@@ -2,7 +2,7 @@
 
 The module health payload is served through the aggregate /api/health, not a route of
 its own, and rewrites are written only by the assign flow and reconcile — never
-directly over HTTP (see PLAN: the AdGuard module is read + push only). The one exception
+directly over HTTP (see docs/project/architecture.md: the AdGuard module is read + push only). The one exception
 is the explicit reset, /rewrites/clear, which deletes every rewrite (hand-added ones
 included) and reconciles Loskai's own back; it writes nothing of its own choosing."""
 

@@ -14,7 +14,8 @@ preparing its first public release, and runs day to day on a real homelab.
   there describes the repo *as it was then*.
 - **Why anything is the way it is:** `docs/project/HISTORY.md`, newest first. Read it before
   reversing a decision — several current ones are walk-backs of earlier ones.
-- **The architecture in depth:** `docs/project/PLAN.md`. Finished phases 1–17:
+- **The architecture in depth:** `docs/project/architecture.md` — the three components
+  (Routing, Docker, Machines), how each works and why. Finished phases 1–17:
   `docs/project/todo-archive.md`.
 - **Everything else:** [`docs/README.md`](docs/README.md) indexes the docs by reader.
   `SECURITY.md`, `CONTRIBUTING.md` and `CHANGELOG.md` at the root are for visitors — a

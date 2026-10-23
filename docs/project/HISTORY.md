@@ -4,6 +4,33 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-23 — PLAN.md becomes architecture.md, around three components
+
+PLAN.md (1,483 lines) had been written as the plan and amended phase by phase. Much of it
+was copies — the compose file (with a `ghcr.io/youruser` image that never existed), the
+Dockerfile, `.env.example`, the settings table, Caddy install steps — and some was plan
+that was never built: per-container CPU graphs, a container event log, a raw Caddy config
+view, a test-tier rig and CI. The xcaddy build instructions only served the deleted ACME
+mode. It is now `docs/project/architecture.md` (556 lines): copies replaced by links, and
+the plan by what runs.
+
+**Sunde: Loskai "has mostly became a 3 part component system, with routing, docker and
+machine"; WireGuard "is really just dedicated to a quick link in settings."** So the
+document is organised by those three components — each with what it's for, how it works,
+its decisions, what it doesn't do, and where its code is — with the Dashboard, Settings,
+WireGuard, health and backup as supporting pieces. The backend's four modules stay as they
+are: they are one per external system, an integration boundary, while the components are
+product boundaries. Both are stated, so neither is mistaken for the other.
+
+**The Machines tab's direction is recorded: "a sort of ssh connection manager"**, its hosts a
+real SSH config file edited in place rather than a store of Loskai's own — the same rule as
+the stacks folder. **Sunde: the config lives "inside the container, with a export option in
+the settings"** — Loskai's own, in `data/`, exported for the SSH client on one's own
+computer; a config Loskai could only reach by mounting it (the Docker host's) would serve
+nobody's laptop. Open, to settle before any code: where private keys live — an in-browser session means Loskai holds a key to every machine, the largest change
+to its security model since the Docker socket. PLAN's other future ideas moved to the TODO
+backlog; the Tailscale one was dropped, WireGuard being only a link now.
+
 ## 2026-10-23 — CLAUDE.md describes Loskai as it is
 
 CLAUDE.md had grown one phase at a time: a status section that was a phase log, "(was

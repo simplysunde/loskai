@@ -1,6 +1,6 @@
 // A subdomain is a single DNS label: lowercase letters, digits, hyphens; not starting
 // or ending with a hyphen. Single-label only keeps every name under the one
-// *.BASE_DOMAIN wildcard cert (see PLAN, Assign URL). Only applies to `proxy` routes —
+// *.BASE_DOMAIN wildcard cert (see docs/project/architecture.md, Routing). Only applies to `proxy` routes —
 // `dns_only` has no cert involved, see isValidDnsOnlyPrefix below (mirrors assign.py's
 // validate_prefix split).
 const LABEL = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

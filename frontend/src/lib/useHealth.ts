@@ -32,7 +32,7 @@ export type HealthMap = Record<ModuleName, ModuleHealth> & {
   consistency?: ConsistencyWarning[];
 };
 
-// Polls the aggregate health every 30s (PLAN: one poll, all modules, no reload on a
+// Polls the aggregate health every 30s (docs/project/architecture.md: one poll, all modules, no reload on a
 // single module going down). Disabled when logged out — /api/health is gated, so
 // polling it unauthenticated would 401-redirect the public dashboard.
 export function useHealth(enabled = true) {

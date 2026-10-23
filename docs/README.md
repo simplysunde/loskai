@@ -74,7 +74,7 @@ Loskai next. Nobody needs them to run it.
 
 | Page | When to read it |
 |---|---|
-| [PLAN.md](project/PLAN.md) | You want the architecture and the *why* behind each module. |
+| [architecture.md](project/architecture.md) | You want how Loskai is put together — its three components (Routing, Docker, Machines), what each does and doesn't, and why. |
 | [HISTORY.md](project/HISTORY.md) | Before reversing a decision: what landed, when, and what it walked back. |
 | [TODO.md](project/TODO.md) | What is being built now, and the backlog. |
 | [todo-archive.md](project/todo-archive.md) | How a finished phase (1–17) was built. |

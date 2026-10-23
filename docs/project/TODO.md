@@ -1422,6 +1422,17 @@ such cases"._
 ---
 
 ## Backlog / Future ideas
+- **Machines as an SSH connection manager** (Sunde, 2026-10-23: "a sort of ssh connection
+  manager") — the Machines tab as the list of hosts with user, port and key, and one action
+  to connect. The hosts are a real SSH config file of Loskai's own in `data/`, edited in
+  place, with an export in Settings for the SSH client on your own computer. Decide first
+  where keys live — in Loskai (a browser terminal; a key that opens every machine, the
+  biggest change to the security model since the Docker socket) or on your computer (Loskai
+  hands out the config only) — and how an exported config's `IdentityFile` paths point at
+  your own keys. [`architecture.md`](architecture.md#direction--an-ssh-connection-manager)
+- **Uptime monitoring** — ping each upstream, keep response-time history
+- **Notifications** — a container crashed, AdGuard down, a certificate near expiry
+- **Multi-host** — a read-only agent on a second Docker host, in the same Docker tab
 - **"There's a recipe for this"** (Sunde, 2026-10-23: "a good future feature") — an
   unmanaged container whose image a recipe also uses gets a hint on its row, opening the
   wizard on that recipe. The manual path it would shorten is `migration.md`'s *An app the

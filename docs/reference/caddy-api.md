@@ -70,6 +70,11 @@ when the array is empty). Body is one route object carrying its `@id`:
 }
 ```
 
+For an instance with `upstream_tls: true` (an HTTPS-only backend such as Proxmox), the
+`reverse_proxy` handler also carries
+`"transport": { "protocol": "http", "tls": { "insecure_skip_verify": true } }` — dial the
+upstream over TLS, certificate unverified. The `dial` stays a bare `host:port`.
+
 **Order matters, and this is why it is `PUT …/0` and not `POST …/routes` (which appends).**
 Loskai's own routes really are order-independent — each matches one specific host, so they
 are disjoint from each other. But they are not the only entries in the array: the bootstrap
@@ -137,8 +142,8 @@ Rebuilds the full route set from Loskai's instance list. Two equivalent strategi
 - **Per route:** `POST …/routes` for each instance that has a subdomain **and**
   `route_mode: "proxy"`. Idempotent by `@id` — re-pushing an existing route replaces it
   rather than duplicating. A `dns_only` instance has a subdomain but is skipped entirely —
-  it never has a Caddy route to begin with (see PLAN.md's
-  ["DNS-only routing"](../project/PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), which
+  it never has a Caddy route to begin with (see the architecture's
+  ["Machines"](../project/architecture.md#machines)), which
   is also why it never appears in `GET .../routes` / the raw config below.
 - **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
   everything at once. Prefer the per-route loop so any human-added route with a non-instance
@@ -240,4 +245,4 @@ For clarity, endpoints Loskai deliberately does **not** call:
   #8. They cover only the internal `local` CA and return PEM blobs with no structured
   expiry, and the public wildcard cert is never exposed at `/config` or `/pki`. The
   Certificate Status feature is **deferred**; when revisited it will use a TLS probe to a
-  routed name (read the served cert's `notAfter`), not the Admin API. See PLAN.md Future Ideas.
+  routed name (read the served cert's `notAfter`), not the Admin API. See [architecture.md → Future](../project/architecture.md#future).

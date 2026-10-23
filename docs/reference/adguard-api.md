@@ -57,8 +57,8 @@ LAN IP for every proxy rewrite. Because it is served to other machines it must b
 **LAN IP, never `localhost`/`127.0.0.1`**, even when AdGuard and Caddy are co-located on
 one box.
 
-For a **`dns_only`** instance (no Caddy involved — see PLAN.md's
-["DNS-only routing"](../project/PLAN.md#dns-only-routing--decoupling-adguard-from-caddy)), there is
+For a **`dns_only`** instance (no Caddy involved — see the architecture's
+["Machines"](../project/architecture.md#machines)), there is
 no reverse proxy to point at: `answer` is that instance's own `upstream`, which is itself a
 bare IP (not `host:port`). Each `dns_only` instance can have a *different* answer — the
 "one shared value" rule above only ever applied to proxy instances.

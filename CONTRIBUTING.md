@@ -32,5 +32,5 @@ make check-docs                       # links, page headers, and the docs agains
 - **Recipes live in their own repo** — the format is
   [recipe-schema.md](docs/reference/recipe-schema.md).
 
-The architecture and the reasons behind it are in [`PLAN.md`](docs/project/PLAN.md); what
+The architecture and the reasons behind it are in [`architecture.md`](docs/project/architecture.md); what
 is being worked on is in [`TODO.md`](docs/project/TODO.md).
