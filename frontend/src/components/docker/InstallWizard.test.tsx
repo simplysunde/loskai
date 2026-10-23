@@ -299,7 +299,7 @@ test("an install that reused a kept folder says so", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
 
-  expect(await screen.findByText(/Picked up the data left in its folder/)).toBeInTheDocument();
+  expect(await screen.findByText(/Picked up the data already in its folder/)).toBeInTheDocument();
 });
 
 // --- mounts — the folders the user adds, however many they have ---

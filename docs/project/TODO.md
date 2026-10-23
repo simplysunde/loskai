@@ -72,6 +72,10 @@ visible without unpacking a phase back out. The checklists stay in
   passed**, 10a together with Phase 19's browser check (below). Results are in each phase's
   checklist in [`todo-archive.md`](todo-archive.md)
 - Phase 8b's Tier-3 integration rig + Forgejo CI are unchecked **by choice** — see the backlog
+- **Before publishing: the forge addresses.** Two places name this repo's LAN Forgejo and
+  must follow it to wherever it is published: `config.DEFAULT_RECIPES_REPO` (the seeded
+  recipe source) and `REPO_URL` in `frontend/src/lib/docs.ts` (the Docker tab's link to
+  `migration.md`)
 
 ---
 
@@ -1002,7 +1006,7 @@ so the only part of the wizard anyone had ever seen was its empty state. Reading
 - [x] **A synced source reported its `.git` as a skipped recipe** (2026-10-04). Every folder
       in a source was scanned, and a clone has `.git`. Hidden folders are skipped now
 - [ ] **Bambuddy reinstall, run by Sunde — then clear the migration's fallbacks.** Delete
-      (data kept) and install again from the synced recipe; expect "Picked up the data left
+      (data kept) and install again from the synced recipe; expect "Picked up the data already
       in its folder". Compare against the fingerprint taken 2026-10-04 before it: lasting
       tables `announcements=2 archive_fts_config=1 archive_fts_data=2 color_catalog=638
       groups=3 maintenance_types=9 notification_templates=38 settings=11
@@ -1418,6 +1422,10 @@ such cases"._
 ---
 
 ## Backlog / Future ideas
+- **"There's a recipe for this"** (Sunde, 2026-10-23: "a good future feature") — an
+  unmanaged container whose image a recipe also uses gets a hint on its row, opening the
+  wizard on that recipe. The manual path it would shorten is `migration.md`'s *An app the
+  catalog has*: copy the data into `stacks/<id>/` where the recipe keeps it, then install
 - **Prune orphaned recipe caches** — removing a source leaves its clone in
   `data/recipes-cache/<slug>/`. Harmless (nothing scans it once the row is gone) and
   deliberately not auto-deleted: the alternative is Loskai removing directories on a settings

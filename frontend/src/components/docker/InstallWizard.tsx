@@ -440,7 +440,7 @@ function ResultStep({
       </p>
       {result.ok && result.reused_data && (
         <p className="text-sm text-slate-300">
-          Picked up the data left in its folder by an earlier install.
+          Picked up the data already in its folder.
         </p>
       )}
       {result.warning && (

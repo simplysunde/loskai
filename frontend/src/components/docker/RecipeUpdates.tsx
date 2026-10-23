@@ -164,8 +164,8 @@ function UpdateRow({
           )}
           {u.status === "untracked" && (
             <p className="text-xs text-amber-300">
-              Installed before updates were tracked, so this is everything that differs — including any
-              change made by hand.
+              Not installed by this Loskai, or before updates were tracked, so this is everything that
+              differs — your own changes too. Updating replaces compose.yml: check its volumes first.
             </p>
           )}
           {u.images.length > 1 && (
