@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-23 — Machines will hold SSH keys
+
+**Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the
+machines and update them quickly, search for other docker or services running on those
+machines and quickly administrate them" — the Proxmox UI "feels a bit restrictive or slow
+compared to if we build something ourself with quick and prebuild commands". That is the
+largest change to Loskai's security model since the Docker socket: a compromised Loskai
+would hold the key to every machine it manages. So the safeguards are part of the decision,
+recorded in `architecture.md` before any code: Loskai's **own** key pair (revocable per
+machine, never the user's key, never in an export), its own `known_hosts` with host keys
+checked, secrets owner-only, the terminal checking the session itself, and `SECURITY.md`
+and CLAUDE.md's secrets rule changing in the commit that adds the key. Not built.
+
 ## 2026-10-23 — PLAN.md becomes architecture.md, around three components
 
 PLAN.md (1,483 lines) had been written as the plan and amended phase by phase. Much of it

@@ -1422,17 +1422,20 @@ such cases"._
 ---
 
 ## Backlog / Future ideas
-- **Machines as an SSH connection manager** (Sunde, 2026-10-23: "a sort of ssh connection
-  manager") — the Machines tab as the list of hosts with user, port and key, and one action
-  to connect. The hosts are a real SSH config file of Loskai's own in `data/`, edited in
-  place, with an export in Settings for the SSH client on your own computer. Decide first
-  where keys live — in Loskai (a browser terminal; a key that opens every machine, the
-  biggest change to the security model since the Docker socket) or on your computer (Loskai
-  hands out the config only) — and how an exported config's `IdentityFile` paths point at
-  your own keys. [`architecture.md`](architecture.md#direction--an-ssh-connection-manager)
+- **Machines managed over SSH** (Sunde, 2026-10-23: "a sort of ssh connection manager";
+  keys in Loskai so it can "manage the machines and update them quickly, search for other
+  docker or services running on those machines and quickly administrate them") — connect
+  in the browser, prepared commands (system update, disks, services), find the containers
+  and services on each machine. The hosts are an SSH config file of Loskai's own in
+  `data/`, edited in place, exported from Settings with `IdentityFile` pointing at your own
+  key. Loskai generates its own key pair (public key shown to copy) and keeps its own
+  `known_hosts`. **The commit that adds the key also updates `SECURITY.md` and CLAUDE.md's
+  secrets rule.** Open: login user and root, several machines at once, a log of what ran.
+  [`architecture.md`](architecture.md#direction--managing-the-machines-over-ssh)
 - **Uptime monitoring** — ping each upstream, keep response-time history
 - **Notifications** — a container crashed, AdGuard down, a certificate near expiry
-- **Multi-host** — a read-only agent on a second Docker host, in the same Docker tab
+- **Multi-host** — a second Docker host in the same Docker tab — a read-only agent, or over
+  SSH once Machines can reach it (above)
 - **"There's a recipe for this"** (Sunde, 2026-10-23: "a good future feature") — an
   unmanaged container whose image a recipe also uses gets a hint on its row, opening the
   wizard on that recipe. The manual path it would shorten is `migration.md`'s *An app the

@@ -270,35 +270,50 @@ The Machines tab lists each machine with the routes hosted on it beneath, and ad
 on a machine through the same Add route picker, preset to it. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-### Direction — an SSH connection manager
+### Direction — managing the machines over SSH
 
-The Machines tab is meant to grow into an **SSH connection manager for the machines**: the
-list of hosts, searchable, with the user, port and key for each, and one action to connect.
-Not built; in the backlog. Decided:
+The Machines tab is meant to grow from a list of names into **where the machines are run
+from**: connect to one in the browser, run prepared commands on it — update the system,
+check disks and services — find the Docker containers and services running on it, and
+administer it without opening a hypervisor's UI. A UI like Proxmox's does everything, but
+everyday upkeep there is slow; prepared commands make the common jobs one click, the same
+idea as the container terminal's quick commands. Not built; in the backlog.
 
-- **The SSH config is the record.** Loskai reads and edits a real SSH config file —
-  preserving its formatting and comments — rather than keeping hosts in a store of its own.
-  It is the same rule as the stacks folder: the file is the truth, and editing it by hand or
-  through Loskai touch the same thing.
-- **It is Loskai's own**, kept in its data folder (`data/`) so it survives a rebuild, not
-  the Docker host's or the user's. **Settings exports it**, to use with the SSH client on
-  your own computer.
+Decided:
+
+- **The SSH config is the record.** The hosts are a real SSH config file, edited in place —
+  its formatting and comments kept — not a store of Loskai's own: the same rule as the
+  stacks folder. It is **Loskai's**, in `data/`, so it survives a rebuild; **Settings
+  exports it** for the SSH client on your own computer.
 - **One list.** A connection belongs to a machine, not to a second list of hosts — the same
   lesson as routes being instances. How a config `Host` entry and a machine record are
   matched (by name, by address) is part of the design.
+- **The keys live in Loskai**, and sessions and commands run from its container.
 
-What is open, and decided before any code:
+What that commits to — designed in from the start, not added after:
 
-- **Where the private keys live.** Loskai stores no third-party secret today except the
-  AdGuard password. An in-browser SSH session means Loskai holds a key that opens every
-  machine — the biggest change to its security model since the Docker socket — and keeps it
-  owner-only in `data/`, like any secret. Without that, the config names keys the user keeps
-  on their own computer, and Loskai only hands out the config.
-- **`IdentityFile` in an export.** A path inside Loskai's container means nothing on the
-  user's computer, so an exported config needs its key paths to be the user's — written
-  that way from the start, or rewritten on export.
-- **The terminal.** If sessions run in the browser, they ride a WebSocket like container
-  exec — outside the HTTP middleware, so it repeats the session check itself.
+- **Loskai becomes the key to every machine it manages.** Today a compromised Loskai owns
+  the Docker host, through the socket; with this, every machine. The protections it already
+  has become load-bearing — LAN-only, remote access through WireGuard, one admin password,
+  the gate on the API — and `SECURITY.md` and the "no third-party secret but AdGuard's"
+  rule change in the same commit that adds the key.
+- **Loskai's own key, never yours.** Loskai generates its own key pair; you add its public
+  key to each machine (shown on the Machines tab, ready to copy). Its access can then be
+  revoked on one machine without touching your own key, and no export ever carries a
+  private key. The key is written owner-only, like every secret in `data/`.
+- **Host keys are checked.** Loskai keeps its own `known_hosts` in `data/`: the first
+  connection shows the fingerprint to accept, and a changed key is refused, not trusted.
+- **An export points at your key, not Loskai's.** `IdentityFile` is rewritten to the path of
+  your own key (a setting), since Loskai's never leaves it.
+- **The browser terminal is a WebSocket like container exec** — outside the HTTP
+  middleware, so it checks the session itself.
+- **Prepared commands are data, shipped with the code** — like `quick_commands.py`, keyed by
+  what the machine runs — and run visibly in the terminal, never behind your back.
+- **Finding Docker on a machine over SSH** overlaps the backlog's multi-host idea: SSH may
+  replace the agent it proposes, with nothing to install on the machine.
+
+Open: which user Loskai logs in as and how it gets root (`sudo` rules, or root login); running
+one command on several machines at once; a log of what was run, and from where.
 
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
 (`list_by_machine`); frontend `pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
@@ -554,10 +569,11 @@ Forgejo Actions is in the backlog). Every check runs by hand before a change is 
 
 In the backlog (`TODO.md`), not built:
 
-- **Machines as an SSH connection manager** — [above](#direction--an-ssh-connection-manager).
+- **Machines managed over SSH** — [above](#direction--managing-the-machines-over-ssh).
 - **"There's a recipe for this"** — a hint on an unmanaged container whose image a recipe uses.
 - **Certificate status** — expiry and issuer per name, as a TLS probe of the served
   certificate (it would cover any CA, not only the internal one).
 - **Uptime monitoring** and **notifications** — a container crashed, AdGuard down.
-- **Multi-host** — a read-only agent on a second Docker host.
+- **Multi-host** — a second Docker host in the same Docker tab; perhaps over SSH from Machines
+  rather than an agent.
 - **A real domain with DNS-01** — publicly trusted certificates, no root to install.
