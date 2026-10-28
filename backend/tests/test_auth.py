@@ -118,3 +118,37 @@ def test_loskai_s_own_page_opens_the_terminal(client, monkeypatch):
     ) as ws:
         # Past the gate: the shell itself is what failed.
         assert ws.receive_text().startswith("exec failed")
+
+
+# --- Log out ---
+
+
+def test_log_out_ends_the_session_not_just_the_cookie(client):
+    client.post("/api/login", json={"password": PASSWORD})
+    stolen = client.cookies.get(auth.SESSION_COOKIE)
+
+    client.post("/api/logout")
+
+    assert not auth.valid_session(stolen)
+    client.cookies.set(auth.SESSION_COOKIE, stolen)
+    assert client.get("/api/launcher").status_code == 401
+
+
+def test_log_out_ends_every_session(client):
+    with TestClient(app) as phone:
+        phone.post("/api/login", json={"password": PASSWORD})
+        client.post("/api/login", json={"password": PASSWORD})
+
+        client.post("/api/logout")
+
+        assert phone.get("/api/launcher").status_code == 401
+
+
+def test_a_signed_out_logout_ends_nothing(client):
+    client.post("/api/login", json={"password": PASSWORD})
+    session = client.cookies.get(auth.SESSION_COOKIE)
+
+    with TestClient(app) as stranger:
+        stranger.post("/api/logout")
+
+    assert auth.valid_session(session)

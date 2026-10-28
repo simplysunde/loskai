@@ -127,6 +127,7 @@ export function Layout() {
         {authed && (
           <button
             onClick={logout}
+            title="Signs out every device"
             className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
           >
             <LogOut className="h-4 w-4" /> Log out

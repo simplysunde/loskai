@@ -16,6 +16,13 @@ and the terminal WebSocket now need an `Origin` matching the address they were s
 none at all still passes, because only a browser page is the threat and browsers always send
 one. The dev proxy keeps the page's `Host` (`changeOrigin: false`) so the two still match.
 
+**Log out now ends the session, not just the browser's copy.** The cookie is signed, not
+stored, so logging out used to leave a copied cookie valid for its full 7 days. Logout
+replaces the signing secret instead, which ends every session on every device: revoking one
+would mean storing sessions, and with one admin password all of them are the same person's.
+Only a signed-in logout does it — `/api/logout` is public, and anyone could otherwise sign
+the admin out.
+
 ## 2026-10-23 — Machines will hold SSH keys
 
 **Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the

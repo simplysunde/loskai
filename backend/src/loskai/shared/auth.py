@@ -68,16 +68,31 @@ def verify_password(hashed: str, password: str) -> bool:
 # --- Session cookie (signed, not encrypted — payload is just a marker) ---
 
 
+def _secret_path() -> Path:
+    return Path(env.data_dir) / "session_secret"
+
+
 def _session_secret() -> str:
     """Read the persisted session secret, generating it once on first use so sessions
     survive restarts. Lives in the data volume, outside the settings API surface."""
-    path = Path(env.data_dir) / "session_secret"
+    path = _secret_path()
     if path.exists():
         return path.read_text(encoding="utf-8").strip()
+    return _new_secret()
+
+
+def _new_secret() -> str:
     secret = secrets.token_urlsafe(48)
+    path = _secret_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     store.write_private(path, secret)
     return secret
+
+
+def end_all_sessions() -> None:
+    """Every cookie is signed with the secret, so a new one invalidates them all. A cookie
+    holds no id to revoke one by, and with one admin there is no one else's session to keep."""
+    _new_secret()
 
 
 def _serializer() -> URLSafeTimedSerializer:
@@ -198,7 +213,11 @@ def login(body: PasswordBody, response: Response) -> dict[str, bool]:
 
 
 @router.post("/logout")
-def logout(response: Response) -> dict[str, bool]:
+def logout(request: Request, response: Response) -> dict[str, bool]:
+    # Deleting the cookie only forgets this browser's copy; a stolen one would live out its
+    # 7 days. Only a signed-in logout ends them, or anyone on the LAN could sign the admin out.
+    if valid_session(request.cookies.get(SESSION_COOKIE)):
+        end_all_sessions()
     response.delete_cookie(SESSION_COOKIE)
     return {"authed": False}
 

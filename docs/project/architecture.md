@@ -504,7 +504,9 @@ the terminal WebSocket, must carry an `Origin` equal to the address it was sent 
 2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
 **One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a
-hash; `POST /api/login` issues a signed `HttpOnly` cookie. The AdGuard password is the only
+hash; `POST /api/login` issues a signed `HttpOnly` cookie. **Log out ends every session**:
+the cookie carries no id to revoke one by, so logout replaces the signing secret
+(`auth.end_all_sessions`) — with one admin, the only sessions are your own. The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it. Files holding secrets are
 written owner-only.
 

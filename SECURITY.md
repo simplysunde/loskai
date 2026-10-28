@@ -18,7 +18,8 @@ your network. Read this before deciding where it runs and who can reach it.
 ## How access is controlled
 
 - **One admin password**, stored only as an Argon2 hash. A login sets an `HttpOnly`,
-  `SameSite=Lax` session cookie that lasts 7 days.
+  `SameSite=Lax` session cookie that lasts 7 days. **Log out ends every session**, on every
+  device — a copied cookie stops working too.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
   icons. The terminal WebSocket checks the session itself.
