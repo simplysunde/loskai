@@ -1430,7 +1430,10 @@ such cases"._
   `data/`, edited in place, exported from Settings with `IdentityFile` pointing at your own
   key. Loskai generates its own key pair (public key shown to copy) and keeps its own
   `known_hosts`. **The commit that adds the key also updates `SECURITY.md` and CLAUDE.md's
-  secrets rule.** Open: login user and root, several machines at once, a log of what ran.
+  secrets rule.** Safeguards decided 2026-10-28 (architecture.md → Machines): key encrypted
+  with the admin password, password asked again for SSH actions, `from=` on the key, a
+  dedicated `loskai` user, one-button rotation, a log of sessions and commands. Open:
+  several machines at once; TOTP later.
   [`architecture.md`](architecture.md#direction--managing-the-machines-over-ssh)
 - **Uptime monitoring** — ping each upstream, keep response-time history
 - **Notifications** — a container crashed, AdGuard down, a certificate near expiry

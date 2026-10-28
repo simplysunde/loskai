@@ -312,8 +312,33 @@ What that commits to — designed in from the start, not added after:
 - **Finding Docker on a machine over SSH** overlaps the backlog's multi-host idea: SSH may
   replace the agent it proposes, with nothing to install on the machine.
 
-Open: which user Loskai logs in as and how it gets root (`sudo` rules, or root login); running
-one command on several machines at once; a log of what was run, and from where.
+**Keeping the key safe** (decided 2026-10-28). The gate in front of it was hardened first —
+the `Origin` check, logout ending every session, the login backoff, the `Secure` cookie (see
+[Security and access](#security-and-access)). The design then assumes each layer can fail,
+and limits what the next one loses:
+
+- **The private key is encrypted with the admin password.** It is unlocked in memory at
+  login, so a copy of `data/`, a disk image or a backup never holds a usable key, and after
+  a restart nothing reaches a machine until someone logs in. Changing the password
+  re-encrypts it. The key never appears in an API response, a log, the backup download or
+  the config export.
+- **SSH actions ask for the password again**, like `sudo`: opening a session or running a
+  command needs it entered in the last 15 minutes or so. A stolen session cookie then
+  reaches the Docker tab, not the machines.
+- **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
+  offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
+  anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.
+- **A dedicated `loskai` user, not root login.** The setup steps create it; how much `sudo`
+  it gets is the owner's choice per machine — everything, or only the prepared commands (a
+  sudoers allowlist, which the prepared commands make possible because they are fixed).
+- **Rotating is one button.** A new key pair replaces the old, and the Machines tab shows
+  which machines still accept the old one.
+- **Every session and command is logged** — when, from which address, on which machine —
+  and readable in the app. It doesn't stop anything; it shows what happened.
+
+Later, optional: a second login factor (TOTP), once Loskai holds keys.
+
+Open: running one command on several machines at once.
 
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
 (`list_by_machine`); frontend `pages/Machines.tsx`, `components/routing/MachineTable.tsx`,

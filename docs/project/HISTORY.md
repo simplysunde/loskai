@@ -35,6 +35,14 @@ of a guesser getting about one try a minute.
 Caddy's `X-Forwarded-Proto`, checked live to be `https`. The header can be forged, but a
 forged one only gives the sender's own browser a cookie it won't send back over HTTP.
 
+**Then the SSH design itself, assuming each layer can fail** (`architecture.md`, Machines):
+the key encrypted with the admin password and unlocked only in memory at login; the
+password asked again before SSH actions, so a stolen cookie doesn't reach the machines;
+`from="<Docker host IP>"` on the key, so a copy is useless elsewhere; a dedicated `loskai`
+user whose `sudo` the owner sets per machine; one-button rotation; and a log of every
+session and command. That settles the earlier open question of which user Loskai logs in
+as. A second login factor is left for later.
+
 ## 2026-10-23 — Machines will hold SSH keys
 
 **Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the
