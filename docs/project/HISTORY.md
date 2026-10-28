@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-28 — Closing the gaps before Loskai holds SSH keys
+
+Asked how SSH keys in Loskai would be kept safe, the first answer was that the gate in front
+of them had holes already, and those come first. **Sibling apps could act as the admin**:
+`SameSite=Lax` stops other sites, but every app under the base domain is the same site, so
+the browser attached Loskai's cookie to their requests, and nothing checked where a request
+came from. A live test proved it — a page on `evil.smoke.test` opened the terminal on
+`loskai.smoke.test` and created a file as root in a container. Every state-changing request
+and the terminal WebSocket now need an `Origin` matching the address they were sent to;
+none at all still passes, because only a browser page is the threat and browsers always send
+one. The dev proxy keeps the page's `Host` (`changeOrigin: false`) so the two still match.
+
 ## 2026-10-23 — Machines will hold SSH keys
 
 **Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the

@@ -183,8 +183,11 @@ hashed, an `HttpOnly` session cookie. Middleware gates **every `/api/*`** except
   refused — user bytes served from Loskai's own origin.
 
 **The container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) sits outside the
-middleware** — WebSockets never traverse it — so it checks the cookie itself and closes with
-1008. It opens a root shell; never add a second WS route without repeating that check. The
+middleware** — WebSockets never traverse it — so it checks the cookie and the `Origin`
+itself (`auth.same_origin`) and closes with 1008. It opens a root shell; never add a second
+WS route without repeating both checks. **Every request that changes something is
+Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`
+sends them the cookie, and only the `Origin` tells their requests from Loskai's own. The
 React bundle is served unauthenticated; **never gate the static files or SPA routes** —
 `RequireAuth` only decides what renders. The Dashboard and Certificate pages are public
 (`certificate_tab` moves the Certificate link, never its access).

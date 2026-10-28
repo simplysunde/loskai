@@ -14,10 +14,14 @@ app is running — this document is the human-readable overview.
   marked _public_ below (the dashboard, the login flow, and the root-certificate
   download). The gate is server-side middleware — see [architecture.md → Security and access].
   Unauthenticated calls get `401`.
+- **Origin.** A request that changes something — any method but `GET`, `HEAD`, `OPTIONS` —
+  is refused with `403` when it carries an `Origin` other than the address it was sent to,
+  public routes included. A browser always sends one; a script that sends none passes, and
+  still needs the cookie.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie. The frontend redirects to `/login` on any `401`.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
-  `400` bad input, `401` no session, `404` not found, `409` conflict, `422` validation,
+  `400` bad input, `401` no session, `403` another page's request, `404` not found, `409` conflict, `422` validation,
   `500` a store file exists but doesn't parse (the message names the path — see
   [Deployment → data volume](../guides/deployment.md)), `502` an upstream
   (Caddy/AdGuard/Docker) is unreachable.
@@ -131,7 +135,7 @@ IP for peer DNS; any HTTP response counts as reachable).
 | `DELETE /orphans/{instance_id}` | Clean up one orphan: re-checks the container is really gone (`409` if it still exists), then tears down the route + rewrite and drops the record. |
 | `GET /containers/{id}/quick-commands` | Preset terminal commands for the image: `[{ label, command }]`. |
 | `GET /containers/{id}/logs` | **SSE** stream of log lines (`?tail=N`). |
-| `WS /containers/{id}/exec` | Interactive shell. **Authenticates itself** (WS bypasses the HTTP middleware). Client sends keystrokes as binary stdin and `{"type":"resize","rows","cols"}` as a text control frame; output arrives as bytes. |
+| `WS /containers/{id}/exec` | Interactive shell. **Authenticates itself** — the session and the `Origin` (WS bypasses the HTTP middleware); closes with `1008` on either. Client sends keystrokes as binary stdin and `{"type":"resize","rows","cols"}` as a text control frame; output arrives as bytes. |
 
 ### Stacks
 

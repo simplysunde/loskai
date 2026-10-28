@@ -9,6 +9,7 @@ into a signed HttpOnly session cookie. The static bundle is served unauthenticat
 import re
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
@@ -97,6 +98,27 @@ def valid_session(token: str | None) -> bool:
     return True
 
 
+# --- Origin check ---
+
+# Methods that never change anything; every other one is checked against the Origin.
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def same_origin(headers) -> bool:
+    """Whether a request comes from one of Loskai's own pages, or from no page at all.
+
+    SameSite=Lax stops other *sites*, but an app on a sibling subdomain is the same site:
+    the browser sends it the session cookie too. Its page can't read Loskai's answers, but it
+    can send a body-less POST and open a WebSocket — a root shell — with the cookie attached.
+    Browsers name the sending page in `Origin`; it has to be the address the request was
+    sent to. A request without one is not from a browser page, and still needs the cookie.
+    """
+    origin = headers.get("origin")
+    if origin is None:
+        return True
+    return urlsplit(origin).netloc.lower() == headers.get("host", "").lower()
+
+
 # --- First-run seeding + state ---
 
 
@@ -116,6 +138,12 @@ def ensure_seeded() -> None:
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
+        if (
+            path.startswith("/api/")
+            and request.method not in SAFE_METHODS
+            and not same_origin(request.headers)
+        ):
+            return JSONResponse({"detail": "Cross-origin request refused"}, status_code=403)
         public = (request.method, path) in PUBLIC_ROUTES or any(
             request.method == verb and pattern.match(path)
             for verb, pattern in PUBLIC_PATTERNS

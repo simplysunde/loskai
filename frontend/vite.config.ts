@@ -12,7 +12,8 @@ export default defineConfig({
       // ws: true so the container-exec WebSocket (Phase 8) proxies through too.
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
+        // Host stays the page's (:5173), so it matches the Origin the backend checks.
+        changeOrigin: false,
         ws: true,
       },
     },

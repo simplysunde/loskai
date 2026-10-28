@@ -306,7 +306,7 @@ What that commits to — designed in from the start, not added after:
 - **An export points at your key, not Loskai's.** `IdentityFile` is rewritten to the path of
   your own key (a setting), since Loskai's never leaves it.
 - **The browser terminal is a WebSocket like container exec** — outside the HTTP
-  middleware, so it checks the session itself.
+  middleware, so it checks the session and the `Origin` itself.
 - **Prepared commands are data, shipped with the code** — like `quick_commands.py`, keyed by
   what the machine runs — and run visibly in the terminal, never behind your back.
 - **Finding Docker on a machine over SSH** overlaps the backlog's multi-host idea: SSH may
@@ -494,6 +494,14 @@ without a session except the public set in `shared/auth.py` (the dashboard, the 
 certificate, the launcher icons, and the login flow itself). The React bundle is served to
 anyone — `RequireAuth` only decides what renders. The container-exec WebSocket, a root
 shell into a container, sits outside the HTTP middleware and checks the session itself.
+
+**Only Loskai's own pages may act.** `SameSite=Lax` keeps the cookie from other *sites*, but
+every app under the base domain is the same site — `jellyfin.example.no` gets it attached to
+a request it sends Loskai. Reading the answer is still blocked by the browser; sending a
+body-less `POST` or opening a WebSocket is not. So every request that changes something, and
+the terminal WebSocket, must carry an `Origin` equal to the address it was sent to
+(`auth.same_origin`), or none at all — a script, which needs the cookie anyway. Proved live on
+2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
 **One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a
 hash; `POST /api/login` issues a signed `HttpOnly` cookie. The AdGuard password is the only

@@ -23,5 +23,6 @@ Everything so far:
   install or later under Edit.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
-- **Security** — one admin password; the app runs as the owner of its data folder, not root;
-  secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).
+- **Security** — one admin password; only Loskai's own pages can act with its session, not
+  your other apps under the same domain; the app runs as the owner of its data folder, not
+  root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).

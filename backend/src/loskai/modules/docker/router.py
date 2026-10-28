@@ -172,8 +172,12 @@ async def logs(container_id: str, tail: int = 200):
 
 @router.websocket("/containers/{container_id}/exec")
 async def exec_terminal(websocket: WebSocket, container_id: str):
-    # WS bypasses the HTTP auth middleware — gate it here (this is a root shell).
-    if not auth.valid_session(websocket.cookies.get(auth.SESSION_COOKIE)):
+    # WS bypasses the HTTP auth middleware — gate it here (this is a root shell), the
+    # Origin included: a browser opens a WebSocket from any page, cookie attached.
+    if not (
+        auth.same_origin(websocket.headers)
+        and auth.valid_session(websocket.cookies.get(auth.SESSION_COOKIE))
+    ):
         await websocket.close(code=1008)  # policy violation
         return
     await websocket.accept()

@@ -22,6 +22,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
   icons. The terminal WebSocket checks the session itself.
+- **Only Loskai's own pages can act.** Your other apps share Loskai's domain, so a browser
+  sends them its cookie; a request that changes something, or opens the terminal, is refused
+  unless it comes from Loskai's own address.
 - **Secrets on disk** — `settings.json` (the AdGuard password), the session secret and every
   stack `.env` — are readable by their owner only.
 - **Uploaded icons** are checked by their bytes, and SVG is refused.
