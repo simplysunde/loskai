@@ -19,7 +19,7 @@ import pytest
 
 from loskai.config import Settings, settings
 from loskai.modules.docker.client import docker_client
-from loskai.shared import follow
+from loskai.shared import auth, follow
 
 
 @pytest.fixture(autouse=True)
@@ -54,3 +54,10 @@ def _no_docker_labels(monkeypatch):
     Docker for the container's labels. No compose labels means no icon, so route tests
     never reach the developer's daemon; the icon tests set their own."""
     monkeypatch.setattr(docker_client, "labels_of", lambda container: {})
+
+
+@pytest.fixture(autouse=True)
+def _fresh_login_backoff(monkeypatch):
+    """The wrong-password count lives in the process, so one test's failed logins would
+    make a later test's login wait."""
+    monkeypatch.setattr(auth, "_backoff", auth._Backoff())

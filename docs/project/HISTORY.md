@@ -23,6 +23,12 @@ would mean storing sessions, and with one admin password all of them are the sam
 Only a signed-in logout does it — `/api/logout` is public, and anyone could otherwise sign
 the admin out.
 
+**Wrong passwords now cost time.** Argon2 made each guess slow, but nothing limited how many
+a LAN client could make. After 5, each wrong password starts a wait that doubles from 2 s
+to a minute. The counter is global, not per IP, because behind Caddy every request has
+Caddy's address — so an attacker can delay the admin by up to a minute at a time, the price
+of a guesser getting about one try a minute.
+
 ## 2026-10-23 — Machines will hold SSH keys
 
 **Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the

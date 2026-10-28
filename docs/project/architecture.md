@@ -506,7 +506,11 @@ the terminal WebSocket, must carry an `Origin` equal to the address it was sent 
 **One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a
 hash; `POST /api/login` issues a signed `HttpOnly` cookie. **Log out ends every session**:
 the cookie carries no id to revoke one by, so logout replaces the signing secret
-(`auth.end_all_sessions`) — with one admin, the only sessions are your own. The AdGuard password is the only
+(`auth.end_all_sessions`) — with one admin, the only sessions are your own. **Wrong
+passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during which
+login answers `429`. The count is one for all clients — behind Caddy every request comes
+from Caddy's address — so a guesser also delays the admin, by a minute at most; it lives in
+memory, and a restart clears it. The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it. Files holding secrets are
 written owner-only.
 

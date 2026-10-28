@@ -6,8 +6,11 @@ UX only. There are no accounts — one admin password, stored hashed (argon2), v
 into a signed HttpOnly session cookie. The static bundle is served unauthenticated.
 """
 
+import math
 import re
 import secrets
+import threading
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -171,6 +174,39 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+# --- Login backoff ---
+
+# Wrong passwords allowed before each one costs a wait, which then doubles up to the cap.
+FREE_FAILURES = 5
+MAX_WAIT = 60  # seconds
+
+
+class _Backoff:
+    """One counter for every client, not one per IP: behind Caddy every request comes from
+    Caddy's address. The price is that someone guessing also delays the admin — by a minute
+    at most per attempt, where the guesser gets one try a minute. In memory: a restart clears it."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.failures = 0
+        self.until = 0.0
+
+    def wait_left(self) -> float:
+        return self.until - time.monotonic()
+
+    def failed(self) -> None:
+        self.failures += 1
+        if self.failures > FREE_FAILURES:
+            self.until = time.monotonic() + min(2 ** (self.failures - FREE_FAILURES), MAX_WAIT)
+
+    def reset(self) -> None:
+        self.failures = 0
+        self.until = 0.0
+
+
+_backoff = _Backoff()
+
+
 # --- Routes ---
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -206,8 +242,21 @@ def login(body: PasswordBody, response: Response) -> dict[str, bool]:
     hashed = settings_store.admin_password_hash()
     if hashed is None:
         raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
-    if not verify_password(hashed, body.password):
-        raise HTTPException(status_code=401, detail="Invalid password")
+    # Held across the check, so parallel guesses queue instead of all landing before the
+    # first failure counts.
+    with _backoff.lock:
+        wait = _backoff.wait_left()
+        if wait > 0:
+            seconds = math.ceil(wait)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many wrong passwords. Try again in {seconds} s.",
+                headers={"Retry-After": str(seconds)},
+            )
+        if not verify_password(hashed, body.password):
+            _backoff.failed()
+            raise HTTPException(status_code=401, detail="Invalid password")
+        _backoff.reset()
     _issue_session(response)
     return {"authed": True}
 

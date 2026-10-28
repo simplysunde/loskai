@@ -19,7 +19,8 @@ your network. Read this before deciding where it runs and who can reach it.
 
 - **One admin password**, stored only as an Argon2 hash. A login sets an `HttpOnly`,
   `SameSite=Lax` session cookie that lasts 7 days. **Log out ends every session**, on every
-  device — a copied cookie stops working too.
+  device — a copied cookie stops working too. After 5 wrong passwords, each one costs a wait
+  that doubles up to a minute: a guesser gets about one try a minute.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
   icons. The terminal WebSocket checks the session itself.
@@ -35,7 +36,6 @@ your network. Read this before deciding where it runs and who can reach it.
 - **No HTTPS of its own.** Port `:8080` is plain HTTP, and the session cookie is not marked
   `Secure`. Reach Loskai through its routed name (`https://loskai.<your domain>`), and don't
   open `:8080` beyond the machines you manage it from.
-- **No login rate limit.** Use a long password, and never expose Loskai to the internet.
 - **No user accounts or roles** — whoever has the password has everything above.
 
 ## Reporting a vulnerability

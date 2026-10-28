@@ -152,3 +152,47 @@ def test_a_signed_out_logout_ends_nothing(client):
         stranger.post("/api/logout")
 
     assert auth.valid_session(session)
+
+
+# --- Login backoff ---
+
+
+def _wrong(client):
+    return client.post("/api/login", json={"password": "wrong password"})
+
+
+def test_wrong_passwords_beyond_the_free_ones_cost_a_wait(client):
+    for _ in range(auth.FREE_FAILURES):
+        assert _wrong(client).status_code == 401
+    assert _wrong(client).status_code == 401  # this one starts the wait
+
+    refused = client.post("/api/login", json={"password": PASSWORD})
+
+    assert refused.status_code == 429  # the right password too: no guess is checked
+    assert refused.headers["Retry-After"] == "2"
+    assert "Try again in 2 s" in refused.json()["detail"]
+
+
+def test_the_wait_doubles_and_is_capped(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
+    backoff = auth._Backoff()
+    waits = []
+    for _ in range(auth.FREE_FAILURES + 8):
+        backoff.failed()
+        waits.append(round(backoff.wait_left()))
+
+    assert waits[: auth.FREE_FAILURES] == [-1000] * auth.FREE_FAILURES  # never set
+    assert waits[auth.FREE_FAILURES :] == [2, 4, 8, 16, 32, 60, 60, 60]
+
+
+def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
+    for _ in range(auth.FREE_FAILURES + 1):
+        _wrong(client)
+    now[0] += 2
+
+    assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
+    for _ in range(auth.FREE_FAILURES):
+        assert _wrong(client).status_code == 401  # free again
