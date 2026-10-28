@@ -216,16 +216,23 @@ class PasswordBody(BaseModel):
     password: str
 
 
-def _issue_session(response: Response) -> None:
+def _over_https(request: Request) -> bool:
+    """Whether the browser reached Loskai over HTTPS. Caddy terminates TLS and says so in
+    `X-Forwarded-Proto`. Anyone can send that header, but a `Secure` cookie on a plain-HTTP
+    answer only means their own browser won't send it back."""
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+
+
+def _issue_session(request: Request, response: Response) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         make_session(),
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        # secure=False so dev over plain HTTP works; behind Caddy TLS in prod this
-        # should be True — revisit when deployment lands (Phase 7).
-        secure=False,
+        # Secure when it was set over HTTPS, so it is never sent in the clear; a login on
+        # plain `:8080` (dev, or before Loskai is routed) has to get one that works there.
+        secure=_over_https(request),
     )
 
 
@@ -238,7 +245,7 @@ def auth_status(request: Request) -> dict[str, bool]:
 
 
 @router.post("/login")
-def login(body: PasswordBody, response: Response) -> dict[str, bool]:
+def login(body: PasswordBody, request: Request, response: Response) -> dict[str, bool]:
     hashed = settings_store.admin_password_hash()
     if hashed is None:
         raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
@@ -257,7 +264,7 @@ def login(body: PasswordBody, response: Response) -> dict[str, bool]:
             _backoff.failed()
             raise HTTPException(status_code=401, detail="Invalid password")
         _backoff.reset()
-    _issue_session(response)
+    _issue_session(request, response)
     return {"authed": True}
 
 
@@ -272,7 +279,7 @@ def logout(request: Request, response: Response) -> dict[str, bool]:
 
 
 @router.post("/auth/setup")
-def setup(body: PasswordBody, response: Response) -> dict[str, bool]:
+def setup(body: PasswordBody, request: Request, response: Response) -> dict[str, bool]:
     """First-run: set the initial admin password. Refuses once one exists."""
     if password_set():
         raise HTTPException(status_code=409, detail="Admin password already set")
@@ -282,5 +289,5 @@ def setup(body: PasswordBody, response: Response) -> dict[str, bool]:
             detail=f"Password must be at least {MIN_PASSWORD_LEN} characters",
         )
     settings_store.set_admin_password_hash(hash_password(body.password))
-    _issue_session(response)
+    _issue_session(request, response)
     return {"authed": True, "password_set": True}

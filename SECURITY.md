@@ -33,9 +33,9 @@ your network. Read this before deciding where it runs and who can reach it.
 
 ## Known limits
 
-- **No HTTPS of its own.** Port `:8080` is plain HTTP, and the session cookie is not marked
-  `Secure`. Reach Loskai through its routed name (`https://loskai.<your domain>`), and don't
-  open `:8080` beyond the machines you manage it from.
+- **No HTTPS of its own.** Port `:8080` is plain HTTP. Reach Loskai through its routed name
+  (`https://loskai.<your domain>`) — a login there gets a `Secure` cookie, never sent in
+  the clear — and don't open `:8080` beyond the machines you manage it from.
 - **No user accounts or roles** — whoever has the password has everything above.
 
 ## Reporting a vulnerability

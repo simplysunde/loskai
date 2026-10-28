@@ -504,7 +504,9 @@ the terminal WebSocket, must carry an `Origin` equal to the address it was sent 
 2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
 **One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a
-hash; `POST /api/login` issues a signed `HttpOnly` cookie. **Log out ends every session**:
+hash; `POST /api/login` issues a signed `HttpOnly` cookie, `Secure` when the login came over
+HTTPS — Caddy says so in `X-Forwarded-Proto` — so a login on plain `:8080` still works
+there. **Log out ends every session**:
 the cookie carries no id to revoke one by, so logout replaces the signing secret
 (`auth.end_all_sessions`) — with one admin, the only sessions are your own. **Wrong
 passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during which

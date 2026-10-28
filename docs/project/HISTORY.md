@@ -29,6 +29,12 @@ to a minute. The counter is global, not per IP, because behind Caddy every reque
 Caddy's address — so an attacker can delay the admin by up to a minute at a time, the price
 of a guesser getting about one try a minute.
 
+**The cookie is `Secure` when it was set over HTTPS.** It was never marked, by a comment's
+"revisit when deployment lands" — so a browser would send it over plain HTTP, to a
+`scheme: both` route's `:80` twin for one. Loskai can't see TLS (Caddy ends it), so it reads
+Caddy's `X-Forwarded-Proto`, checked live to be `https`. The header can be forged, but a
+forged one only gives the sender's own browser a cookie it won't send back over HTTP.
+
 ## 2026-10-23 — Machines will hold SSH keys
 
 **Sunde chose to keep the SSH keys in Loskai**: it "would in practise allow us to manage the

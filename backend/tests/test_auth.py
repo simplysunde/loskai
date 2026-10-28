@@ -196,3 +196,30 @@ def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
     assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
     for _ in range(auth.FREE_FAILURES):
         assert _wrong(client).status_code == 401  # free again
+
+
+# --- The Secure flag ---
+
+
+def _cookie_header(response) -> str:
+    return response.headers["set-cookie"].lower()
+
+
+def test_a_login_through_caddy_s_https_gets_a_secure_cookie(client):
+    r = client.post("/api/login", json={"password": PASSWORD}, headers={"x-forwarded-proto": "https"})
+
+    assert "; secure" in _cookie_header(r)
+    assert "httponly" in _cookie_header(r)
+
+
+def test_a_login_over_plain_http_gets_one_that_works_there(client):
+    r = client.post("/api/login", json={"password": PASSWORD})
+
+    assert "; secure" not in _cookie_header(r)
+
+
+def test_first_run_setup_follows_the_same_rule(tmp_path):
+    with TestClient(app) as c:
+        r = c.post("/api/auth/setup", json={"password": PASSWORD}, headers={"x-forwarded-proto": "https"})
+
+    assert "; secure" in _cookie_header(r)

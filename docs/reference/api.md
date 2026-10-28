@@ -19,7 +19,8 @@ app is running — this document is the human-readable overview.
   public routes included. A browser always sends one; a script that sends none passes, and
   still needs the cookie.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
-  `HttpOnly` cookie. The frontend redirects to `/login` on any `401`.
+  `HttpOnly` cookie, also `Secure` when the request came over HTTPS (Caddy's
+  `X-Forwarded-Proto: https`). The frontend redirects to `/login` on any `401`.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
   `400` bad input, `401` no session, `403` another page's request, `404` not found, `409` conflict, `422` validation,
   `500` a store file exists but doesn't parse (the message names the path — see
