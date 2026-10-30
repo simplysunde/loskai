@@ -90,6 +90,14 @@ test("a hand-edited compose.yml is said before it is replaced", async () => {
   expect(screen.getByText(/changed by hand since the install — updating replaces it/)).toBeInTheDocument();
 });
 
+test("an untracked install warns before compose.yml is replaced, the why in a tooltip", async () => {
+  renderUpdates({ list: [{ ...JELLYFIN, status: "untracked" }] });
+
+  fireEvent.click(await screen.findByText("Jellyfin"));
+  const note = screen.getByText("Updating replaces compose.yml — check its volumes first.");
+  expect(note).toHaveAttribute("title", expect.stringMatching(/your own changes too/));
+});
+
 test("one that can't be updated says why, with no Update button", async () => {
   renderUpdates({
     list: [{ ...JELLYFIN, updatable: false, reason: "the new version asks for TOKEN — reinstall to answer" }],
