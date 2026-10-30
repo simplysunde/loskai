@@ -182,25 +182,33 @@ class AuthMiddleware(BaseHTTPMiddleware):
 # Wrong passwords allowed before each one costs a wait, which then doubles up to the cap.
 FREE_FAILURES = 5
 MAX_WAIT = 60  # seconds
+# A wrong password this long after the last one starts the count again: a guesser who gave
+# up must not cost the admin's typo a minute, days later.
+QUIET_RESET = 15 * 60  # seconds
 
 
 class _Backoff:
     """One counter for every client, not one per IP: behind Caddy every request comes from
-    Caddy's address. The price is that someone guessing also delays the admin — by a minute
-    at most per attempt, where the guesser gets one try a minute. In memory: a restart clears it."""
+    Caddy's address. The price is that the guesser's waits are the admin's too — one who
+    keeps guessing keeps the admin out. In memory: a restart clears it."""
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.failures = 0
         self.until = 0.0
+        self.last_failure = 0.0
 
     def wait_left(self) -> float:
         return self.until - time.monotonic()
 
     def failed(self) -> None:
+        now = time.monotonic()
+        if now - self.last_failure > QUIET_RESET:
+            self.failures = 0
+        self.last_failure = now
         self.failures += 1
         if self.failures > FREE_FAILURES:
-            self.until = time.monotonic() + min(2 ** (self.failures - FREE_FAILURES), MAX_WAIT)
+            self.until = now + min(2 ** (self.failures - FREE_FAILURES), MAX_WAIT)
 
     def reset(self) -> None:
         self.failures = 0

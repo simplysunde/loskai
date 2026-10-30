@@ -288,3 +288,16 @@ def test_a_login_during_another_s_check_is_turned_away_not_queued(client):
     assert r.status_code == 429
     assert r.headers["Retry-After"] == "1"
     assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
+
+
+def test_failures_long_ago_are_forgotten(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
+    backoff = auth._Backoff()
+    for _ in range(auth.FREE_FAILURES + 15):  # a guesser, then silence
+        backoff.failed()
+    now[0] += auth.QUIET_RESET + 1
+
+    backoff.failed()  # the admin's typo
+
+    assert backoff.wait_left() <= 0

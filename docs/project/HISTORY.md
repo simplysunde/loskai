@@ -34,7 +34,10 @@ the socket is shut down first.
 a LAN client could make. After 5, each wrong password starts a wait that doubles from 2 s
 to a minute. The counter is global, not per IP, because behind Caddy every request has
 Caddy's address — so an attacker can delay the admin by up to a minute at a time, the price
-of a guesser getting about one try a minute.
+of a guesser getting about one try a minute. (Wrong, the review found: a script guessing the
+moment each wait ends keeps the admin out for as long as it runs. The docs now say so, and
+counting per client is an open decision. The count also never expired, so a guesser who
+stopped made the admin's next typo, days later, cost a minute; 15 quiet minutes now reset it.)
 
 **The cookie is `Secure` when it was set over HTTPS.** It was never marked, by a comment's
 "revisit when deployment lands" — so a browser would send it over plain HTTP, to a
