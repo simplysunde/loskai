@@ -303,8 +303,12 @@ What that commits to — designed in from the start, not added after:
   private key. The key is written owner-only, like every secret in `data/`.
 - **Host keys are checked.** Loskai keeps its own `known_hosts` in `data/`: the first
   connection shows the fingerprint to accept, and a changed key is refused, not trusted.
-- **An export points at your key, not Loskai's.** `IdentityFile` is rewritten to the path of
-  your own key (a setting), since Loskai's never leaves it.
+- **The config names no key.** Loskai hands its key to each connection itself, so the
+  exported file works as it is with your own `ssh` and your own keys (decided 2026-10-30;
+  first planned as an `IdentityFile` rewritten on export to a path in a setting).
+- **A machine's SSH details live only in the config.** `Host` is the machine's hostname and
+  `HostName` its address; the machine's form edits its user and port, and renaming, moving
+  or deleting the machine edits that entry in place. Entries naming no machine are left alone.
 - **The browser terminal is a WebSocket like container exec** — outside the HTTP
   middleware, so it checks the session and the `Origin` itself.
 - **Prepared commands are data, shipped with the code** — like `quick_commands.py`, keyed by
@@ -317,14 +321,13 @@ the `Origin` check, logout ending every session, the login backoff, the `Secure`
 [Security and access](#security-and-access)). The design then assumes each layer can fail,
 and limits what the next one loses:
 
-- **The private key is encrypted with the admin password.** It is unlocked in memory at
-  login, so a copy of `data/`, a disk image or a backup never holds a usable key, and after
-  a restart nothing reaches a machine until someone logs in. Changing the password
-  re-encrypts it. The key never appears in an API response, a log, the backup download or
-  the config export.
-- **SSH actions ask for the password again**, like `sudo`: opening a session or running a
-  command needs it entered in the last 15 minutes or so. A stolen session cookie then
-  reaches the Docker tab, not the machines.
+- **The private key is encrypted with the admin password**, so a copy of `data/`, a disk
+  image or a backup never holds a usable key. It never appears in an API response, a log,
+  the backup download or the config export. Resetting the password (there is no change
+  form) leaves it unreadable: "New key" makes another.
+- **SSH actions ask for the password again**, like `sudo`, and that is what unlocks the key:
+  in memory, for 15 minutes — not at login. A stolen session cookie then reaches the Docker
+  tab, not the machines, and after a restart nothing reaches them until someone types it.
 - **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
   offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
   anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.

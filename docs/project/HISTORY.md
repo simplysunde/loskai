@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-30 — Phase 34: Machines over SSH, planned in five steps
+
+Sunde took the recommendations: **asyncssh** rather than the `ssh` binary, and a machine's SSH
+details kept **only in the config file**, edited from the machine's form. Two parts of the
+earlier design got simpler in the planning. The export no longer rewrites `IdentityFile` to a
+path in a new setting: Loskai's config names no key at all, because Loskai hands its key to
+each connection itself, so the exported file works with the user's own keys as it is. And
+the key is no longer unlocked at login: entering the password for an SSH action unlocks it
+for 15 minutes, so the re-check and the unlock are one step, and a session cookie alone never
+reaches a machine.
+
 ## 2026-10-28 — Closing the gaps before Loskai holds SSH keys
 
 Asked how SSH keys in Loskai would be kept safe, the first answer was that the gate in front

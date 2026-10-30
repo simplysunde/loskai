@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
+**Now:** **Phase 34** (below) — Machines managed over SSH, built in five steps; 34a, the
+key and the config file, first. **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
 a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
 lists installed recipes, shows what changed, and replaces the recipe's `compose.yml` while
@@ -1434,24 +1435,58 @@ such cases"._
 
 ---
 
+## Phase 34 — Machines managed over SSH
+
+_Origin (2026-10-23, Sunde): the Machines tab as "a sort of ssh connection manager", with the
+keys in Loskai so it can "manage the machines and update them quickly, search for other
+docker or services running on those machines and quickly administrate them". Design and
+safeguards: [architecture.md → Machines](architecture.md#machines)._
+
+**Decisions (2026-10-30, Sunde: "let go with your recommendation")**
+- **asyncssh**, not the `ssh` binary: pure Python, async like the backend, and it reads an
+  OpenSSH config file itself
+- **A machine's SSH details live only in the config file**, edited from the machine's own
+  form (user, port). `Host` is the machine's hostname and `HostName` its address; renaming
+  or moving the machine edits that entry in place, deleting it removes the entry
+- **The config names no key.** Loskai hands its key to each connection itself, so the
+  exported file works as it is with your own `ssh` and your own keys — no `IdentityFile` to
+  rewrite, and no setting for it
+- **The key is unlocked only while the password is fresh**: entering it for an SSH action
+  unlocks the key in memory for 15 minutes — not at login, so a session cookie alone never
+  reaches the machines, and after a restart nothing can until someone types the password
+
+Each step is usable on its own:
+
+**34a — the key and the config file**
+- [ ] Loskai's ed25519 key pair, generated on request with the admin password (which
+      encrypts it) and replaced the same way ("New key"); the `authorized_keys` line to copy,
+      starting `from="<Docker host IP>"`
+- [ ] The config file `data/ssh/config`, edited in place, comments and formatting kept; the
+      machine form's SSH user and port; rename, move and delete carried to it
+- [ ] Settings › General downloads it; `SECURITY.md` and CLAUDE.md's secrets rule change in
+      this step, since it adds the key
+
+**34b — connect:** "Test connection" per machine; the host key shown to accept on first
+connect, kept in Loskai's own `known_hosts`, a changed one refused; which machines still
+accept an old key after "New key".
+
+**34c — the terminal:** a browser SSH session per machine, behind the session, `Origin`
+and fresh-password checks; every session and command logged, readable in the app.
+
+**34d — prepared commands:** system update, disks, services — one click each, run visibly.
+
+**34e — discovery:** the containers and services running on each machine.
+
+---
+
 ## Backlog / Future ideas
-- **Machines managed over SSH** (Sunde, 2026-10-23: "a sort of ssh connection manager";
-  keys in Loskai so it can "manage the machines and update them quickly, search for other
-  docker or services running on those machines and quickly administrate them") — connect
-  in the browser, prepared commands (system update, disks, services), find the containers
-  and services on each machine. The hosts are an SSH config file of Loskai's own in
-  `data/`, edited in place, exported from Settings with `IdentityFile` pointing at your own
-  key. Loskai generates its own key pair (public key shown to copy) and keeps its own
-  `known_hosts`. **The commit that adds the key also updates `SECURITY.md` and CLAUDE.md's
-  secrets rule.** Safeguards decided 2026-10-28 (architecture.md → Machines): key encrypted
-  with the admin password, password asked again for SSH actions, `from=` on the key, a
-  dedicated `loskai` user, one-button rotation, a log of sessions and commands. Open:
-  several machines at once; TOTP later.
+- **Machines over SSH, after Phase 34** — one command on several machines at once; a second
+  login factor (TOTP) once Loskai holds keys.
   [`architecture.md`](architecture.md#direction--managing-the-machines-over-ssh)
 - **Uptime monitoring** — ping each upstream, keep response-time history
 - **Notifications** — a container crashed, AdGuard down, a certificate near expiry
 - **Multi-host** — a second Docker host in the same Docker tab — a read-only agent, or over
-  SSH once Machines can reach it (above)
+  SSH once Machines can reach it (Phase 34)
 - **"There's a recipe for this"** (Sunde, 2026-10-23: "a good future feature") — an
   unmanaged container whose image a recipe also uses gets a hint on its row, opening the
   wizard on that recipe. The manual path it would shorten is `migration.md`'s *An app the
