@@ -525,7 +525,9 @@ every app under the base domain is the same site — `jellyfin.example.no` gets 
 a request it sends Loskai. Reading the answer is still blocked by the browser; sending a
 body-less `POST` or opening a WebSocket is not. So every request that changes something, and
 the terminal WebSocket, must carry an `Origin` equal to the address it was sent to
-(`auth.same_origin`), or none at all — a script, which needs the cookie anyway. Proved live on
+(`auth.same_origin`), or none at all — a script, which needs the cookie anyway. That address
+is `Host` (Caddy keeps it), or `X-Forwarded-Host` for a proxy that rewrites `Host`; a page
+can't forge that header — checked live, the browser either drops it or never sends the request. Proved live on
 2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
 **One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a

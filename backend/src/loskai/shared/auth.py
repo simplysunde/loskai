@@ -133,11 +133,16 @@ def same_origin(headers) -> bool:
     can send a body-less POST and open a WebSocket — a root shell — with the cookie attached.
     Browsers name the sending page in `Origin`; it has to be the address the request was
     sent to. A request without one is not from a browser page, and still needs the cookie.
+
+    That address is `Host`, or `X-Forwarded-Host` behind a proxy that rewrites `Host`. A page
+    can't forge the latter: a WebSocket takes no custom headers, and a request with one needs
+    a CORS preflight, which Loskai never grants.
     """
     origin = headers.get("origin")
     if origin is None:
         return True
-    return urlsplit(origin).netloc.lower() == headers.get("host", "").lower()
+    sent_to = [headers.get("host", ""), *headers.get("x-forwarded-host", "").split(",")]
+    return urlsplit(origin).netloc.lower() in {h.strip().lower() for h in sent_to if h.strip()}
 
 
 # --- First-run seeding + state ---

@@ -15,8 +15,8 @@ app is running — this document is the human-readable overview.
   download). The gate is server-side middleware — see [architecture.md → Security and access].
   Unauthenticated calls get `401`.
 - **Origin.** A request that changes something — any method but `GET`, `HEAD`, `OPTIONS` —
-  is refused with `403` when it carries an `Origin` other than the address it was sent to,
-  public routes included. A browser always sends one; a script that sends none passes, and
+  is refused with `403` when it carries an `Origin` other than the address it was sent to —
+  `Host`, or `X-Forwarded-Host` behind a proxy that rewrites `Host` — public routes included. A browser always sends one; a script that sends none passes, and
   still needs the cookie.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie, also `Secure` when the request came over HTTPS (Caddy's

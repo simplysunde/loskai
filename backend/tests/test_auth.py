@@ -118,6 +118,16 @@ def test_own_pages_and_non_browser_clients_pass(client):
     assert bare.status_code == 200
 
 
+def test_behind_a_proxy_that_rewrites_host_the_forwarded_host_counts(client):
+    proxied = {"host": "loskai:8080", "x-forwarded-host": "loskai.example.no"}
+
+    own = client.post("/api/login", json={"password": PASSWORD}, headers={**proxied, "origin": "https://loskai.example.no"})
+    other = client.post("/api/login", json={"password": PASSWORD}, headers={**proxied, **SIBLING})
+
+    assert own.status_code == 200
+    assert other.status_code == 403
+
+
 def test_reads_are_not_origin_checked(client):
     # A cross-origin page can't read the answer anyway; that is the browser's job.
     assert client.get("/api/auth/status", headers=SIBLING).status_code == 200
