@@ -76,6 +76,19 @@ visible without unpacking a phase back out. The checklists stay in
   must follow it to wherever it is published: `config.DEFAULT_RECIPES_REPO` (the seeded
   recipe source) and `REPO_URL` in `frontend/src/lib/docs.ts` (the Docker tab's link to
   `migration.md`)
+- **Decide: count wrong passwords per client.** The login backoff has one counter for
+  everyone (behind Caddy every request has Caddy's address), so a LAN script guessing the
+  moment each wait ends keeps the admin out until it stops or Loskai restarts. The proposed
+  fix: key the count by client, trusting Caddy's `X-Forwarded-For` only on requests from
+  Caddy's own address. Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
+- **The terminal needs `/bin/bash`.** It runs `sh -c "exec /bin/bash 2>/dev/null || exec
+  /bin/sh"`, but a failed `exec` makes the shell exit (checked on Alpine and Debian, `127`),
+  so the `/bin/sh` fallback never runs: the terminal closes at once in any image without
+  bash. Fix: choose before exec'ing (`command -v bash`).
+- **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd
+  process alive after its connection closes (live, 2026-10-30: four closed terminals, four
+  `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which
+  Loskai's container can't signal.
 
 ---
 
