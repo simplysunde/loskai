@@ -83,7 +83,8 @@ def test_the_machine_model_has_no_tls_or_route_mode_to_send(client):
     # Fields that mean nothing for a machine are absent from its model rather than ignored.
     from loskai.shared.assign import MachineCreate, RouteCreate
 
-    assert set(MachineCreate.model_fields) == {"hostname", "address", "name", "instance_id"}
+    assert set(MachineCreate.model_fields) == {"hostname", "address", "name", "instance_id", "ssh"}
+    assert "ssh" not in RouteCreate.model_fields  # a service is reached through its route
     assert "upstream_tls" in RouteCreate.model_fields
     assert "route_mode" not in RouteCreate.model_fields
 

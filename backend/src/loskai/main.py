@@ -2,8 +2,8 @@
 
 One process serves the API and (in production) the built React bundle. The auth
 middleware gates every `/api/*` except the login flow + public dashboard; the static
-SPA is served unauthenticated. All four module routers (caddy, adguard, wireguard,
-docker) are registered here.
+SPA is served unauthenticated. All five module routers (caddy, adguard, wireguard,
+docker, ssh) are registered here.
 """
 
 import asyncio
@@ -20,6 +20,7 @@ from .modules.adguard import router as adguard_router
 from .modules.caddy import router as caddy_router
 from .modules.caddy.client import caddy
 from .modules.docker import router as docker_router
+from .modules.ssh import router as ssh_router
 from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, export, follow, health, instances
 from .shared import settings as settings_module
@@ -75,7 +76,7 @@ async def corrupt_store(request: Request, exc: CorruptStoreError) -> JSONRespons
     logger.error("corrupt store file: %s", exc, exc_info=True)
     return JSONResponse({"detail": str(exc)}, status_code=500)
 
-# Shared routers first, then the four module routers.
+# Shared routers first, then the five module routers.
 app.include_router(auth.router)
 app.include_router(settings_module.router)
 app.include_router(health.router)
@@ -87,6 +88,7 @@ app.include_router(caddy_router.router)
 app.include_router(adguard_router.router)
 app.include_router(wireguard_router.router)
 app.include_router(docker_router.router)
+app.include_router(ssh_router.router)
 
 
 # --- Static SPA (production only) ---

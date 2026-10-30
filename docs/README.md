@@ -48,7 +48,7 @@ Exact contracts. Two kinds, and the difference matters:
 
 | Page | When to read it |
 |---|---|
-| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 53 routes; the live `/docs` (Swagger) is authoritative. |
+| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 56 routes; the live `/docs` (Swagger) is authoritative. |
 | [recipe-schema.md](reference/recipe-schema.md) | Authoring a `recipe.yml`, or changing the install wizard's validation. Recipes are declarative data — validated, never executed. |
 
 **External APIs Loskai calls** — the subset it depends on, and *why* each call is made.

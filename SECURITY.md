@@ -12,6 +12,10 @@ your network. Read this before deciding where it runs and who can reach it.
 - **The Docker tab opens a root shell in any container**, from the browser.
 - **It writes your Caddy routes and AdGuard DNS rewrites.** It deletes only the rewrites it
   made, matched by name *and* answer — except Settings › Network's confirmed "clear all".
+- **It holds an SSH key to the machines you give it** (once you add its public key to them).
+  The key is stored encrypted with the admin password, and works only from the Docker host
+  when its IP is set — the line Loskai gives you starts with `from=`. Give Loskai's login
+  user on each machine only the `sudo` you want it to have.
 - **A recipe runs the images it names.** Recipes are data, never executed themselves, but
   installing one starts its containers — trust a recipe source as you would its images.
 

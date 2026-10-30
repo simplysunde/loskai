@@ -25,7 +25,7 @@ from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..modules.adguard.client import AdGuardError, adguard
 from ..modules.adguard.service import target_answer
@@ -33,6 +33,7 @@ from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
 from ..modules.docker import recipes
 from ..modules.docker.client import docker_client
+from ..modules.ssh import machines as ssh_machines
 from . import follow
 from . import instances as instances_store
 from . import settings as settings_store
@@ -464,6 +465,8 @@ async def purge_instance(
         if dep:
             instances_store.upsert_instance(dep.model_copy(update={"machine": None}))
     instances_store.delete_instance(inst.id)
+    if instances_store.is_machine(inst):
+        await asyncio.to_thread(ssh_machines.forget_machine, inst)
     return {"deleted": True, "instance_id": inst.id, "unlinked": unlinked}
 
 
@@ -495,14 +498,24 @@ router = APIRouter(prefix="/api", tags=["assign"])
 # that is the part where two copies would drift into a real bug.
 
 
+class MachineSsh(BaseModel):
+    """How Loskai logs in to a machine — written to its SSH config entry, not stored here."""
+
+    user: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,31}$")
+    port: int = Field(default=22, ge=1, le=65535)
+
+
 class MachineCreate(BaseModel):
     """Name a LAN machine. `hostname` may be dotted (`rack1.vm3`) — no wildcard cert has to
-    cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports."""
+    cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports.
+    `ssh` sets (an object) or removes (null) its SSH config entry; left out, the entry only
+    follows a rename or a move."""
 
     hostname: str
     address: str
     name: str | None = None
     instance_id: str | None = None
+    ssh: MachineSsh | None = None
 
 
 class RouteCreate(BaseModel):
@@ -563,8 +576,9 @@ def _context() -> tuple[str | None, str | None]:
 async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
     base, current_ip = _context()
+    prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
     try:
-        return await name_machine(
+        result = await name_machine(
             caddy, adguard,
             prefix=body.hostname, upstream=body.address,
             instance_id=body.instance_id, name=body.name,
@@ -572,6 +586,12 @@ async def post_machine(body: MachineCreate) -> dict:
         )
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    inst = instances_store.get_instance(result["instance_id"])
+    if inst is not None:
+        ssh = body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP
+        if warning := await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh):
+            result["warning"] = f"{result['warning']} {warning}" if result["warning"] else warning
+    return result
 
 
 @router.post("/routes")

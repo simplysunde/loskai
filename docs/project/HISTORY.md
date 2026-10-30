@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-30 — Phase 34a: the key and the config file
+
+SSH became a fifth backend module, `modules/ssh/` — the machines are its external system, as
+Caddy is Caddy's. **The public key is read from the private key file**, not kept beside it:
+two files written one after the other could disagree after a failed write, showing a line
+that no private key matches, and the OpenSSH format keeps the public half in the clear. **A
+wrong password at the key endpoint is `403`, not `401`**: the frontend treats any `401` as
+"signed out" and goes to `/login`. The check is the login's own (`auth.check_password`), so
+the backoff counts guesses made there too — a stolen cookie can't guess through it. **A
+machine's SSH details are a field of its save, not a second request**, so a rename or a move
+reaches its entry in the same call; a save that leaves `ssh` out changes only what followed.
+
 ## 2026-10-30 — Phase 34: Machines over SSH, planned in five steps
 
 Sunde took the recommendations: **asyncssh** rather than the `ssh` binary, and a machine's SSH

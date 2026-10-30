@@ -223,6 +223,39 @@ class _Backoff:
 _backoff = _Backoff()
 
 
+def check_password(password: str, wrong_status: int = 401) -> None:
+    """The one place a typed password is checked — at login, and again before an action that
+    asks for it (Loskai's SSH key) — so the backoff covers both: a stolen cookie can't guess
+    through the second. `wrong_status` is 403 there, since a 401 sends the page to /login."""
+    hashed = settings_store.admin_password_hash()
+    if hashed is None:
+        raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
+    # One password check at a time, so parallel guesses can't all land before the first
+    # failure counts. The rest are turned away, not queued: a queue would hold a worker
+    # thread each, which every other sync route needs too.
+    if not _backoff.lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="Another password is being checked. Try again.",
+            headers={"Retry-After": "1"},
+        )
+    try:
+        wait = _backoff.wait_left()
+        if wait > 0:
+            seconds = math.ceil(wait)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many wrong passwords. Try again in {seconds} s.",
+                headers={"Retry-After": str(seconds)},
+            )
+        if not verify_password(hashed, password):
+            _backoff.failed()
+            raise HTTPException(status_code=wrong_status, detail="Invalid password")
+        _backoff.reset()
+    finally:
+        _backoff.lock.release()
+
+
 # --- Routes ---
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -262,33 +295,7 @@ def auth_status(request: Request) -> dict[str, bool]:
 
 @router.post("/login")
 def login(body: PasswordBody, request: Request, response: Response) -> dict[str, bool]:
-    hashed = settings_store.admin_password_hash()
-    if hashed is None:
-        raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
-    # One password check at a time, so parallel guesses can't all land before the first
-    # failure counts. The rest are turned away, not queued: a queue would hold a worker
-    # thread each, which every other sync route needs too.
-    if not _backoff.lock.acquire(blocking=False):
-        raise HTTPException(
-            status_code=429,
-            detail="Another login is being checked. Try again.",
-            headers={"Retry-After": "1"},
-        )
-    try:
-        wait = _backoff.wait_left()
-        if wait > 0:
-            seconds = math.ceil(wait)
-            raise HTTPException(
-                status_code=429,
-                detail=f"Too many wrong passwords. Try again in {seconds} s.",
-                headers={"Retry-After": str(seconds)},
-            )
-        if not verify_password(hashed, body.password):
-            _backoff.failed()
-            raise HTTPException(status_code=401, detail="Invalid password")
-        _backoff.reset()
-    finally:
-        _backoff.lock.release()
+    check_password(body.password)
     _issue_session(request, response)
     return {"authed": True}
 

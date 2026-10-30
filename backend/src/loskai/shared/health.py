@@ -48,8 +48,8 @@ async def _probe(name: str) -> dict:
     unreachable instead of 500ing the whole endpoint and greying out all four cards."""
     checker = _checkers.get(name)
     if checker is None:
-        # Defensive: main.py imports all four module routers, so every name in MODULES
-        # has a checker by the time a request lands here.
+        # Defensive: main.py imports every module router, so every name in MODULES has a
+        # checker by the time a request lands here.
         return {"status": "unconfigured", "detail": "no health check registered"}
     try:
         return await checker()

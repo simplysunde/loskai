@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A homelab control panel in one container. It gives any service an HTTPS name in one step —
 a Caddy route plus an AdGuard DNS rewrite — manages Docker stacks, and installs apps from
-recipe repos. Four modules (Docker, Caddy, AdGuard, WireGuard), all built; the project is
-preparing its first public release, and runs day to day on a real homelab.
+recipe repos. Five modules (Docker, Caddy, AdGuard, WireGuard, SSH) — SSH, which manages the
+machines, is being built (Phase 34); the project is preparing its first public release, and
+runs day to day on a real homelab.
 
 - **What is being worked on:** `docs/project/TODO.md` — its open items, and the backlog at
   the end. Check it before assuming something is missing; a finished phase's write-up
@@ -48,6 +49,9 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `recipes.py` (sources, sync, validation, install, options, the recipe icon),
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
+- `modules/ssh/` — Loskai's key (`client.py`, encrypted with the admin password) and its SSH
+  config file, edited in place (`logic.py`); `machines.py` keeps a machine's entry in step
+  with its rename, move and delete.
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,
@@ -196,7 +200,10 @@ The frontend merges Caddy and AdGuard into one Routing view; the backends stay i
 
 **Settings: env var > `settings.json` > unset**, each value tagged with its source, and
 everything optional. Loskai stores no third-party secret except the AdGuard password; its
-own admin password only as a hash.
+own admin password only as a hash; and its **SSH private key** only encrypted with that
+password (`data/ssh/id_ed25519`). Never return the key, log it, or put it in an export —
+only its public half leaves `modules/ssh/client.py`. An action that uses it asks for the
+password again (`auth.check_password`, which shares the login backoff).
 
 ## Invariants that are easy to violate
 
@@ -276,7 +283,7 @@ own admin password only as a hash.
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 53 HTTP routes plus the exec
+  API subsets Loskai calls), `api.md` (Loskai's own: 56 HTTP routes plus the exec
   WebSocket) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

@@ -50,11 +50,11 @@ the public [Dashboard and Certificate pages](#dashboard-and-certificate-page),
 [Settings](#settings), [WireGuard](#wireguard) (a link and a DNS hint),
 [health](#health-and-graceful-degradation) and [backup](#backup).
 
-**Components are not the backend's modules.** The backend has four modules —
-`docker`, `caddy`, `adguard`, `wireguard` — one per external system, each a `client.py` (I/O
+**Components are not the backend's modules.** The backend has five modules —
+`docker`, `caddy`, `adguard`, `wireguard`, `ssh` — one per external system, each a `client.py` (I/O
 only) and pure logic, each able to fail without taking another down. That is an
 *integration* boundary. The components are *product* boundaries: Routing uses two modules
-plus `shared/assign.py`; Machines uses no module of its own. Both views are right for
+plus `shared/assign.py`; Machines uses `ssh`, the machines themselves being its external system. Both views are right for
 their purpose — a fix to how Caddy is called belongs in a module, a change to how
 routing works belongs to the component.
 
@@ -269,6 +269,13 @@ machine's is **matched**: listed under it with a wand instead of a chain, displa
 The Machines tab lists each machine with the routes hosted on it beneath, and adds a route
 on a machine through the same Add route picker, preset to it. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
+
+**SSH, so far (Phase 34a).** Loskai's key is made on the Machines tab with the admin password,
+which encrypts it (`data/ssh/id_ed25519`); the tab shows the `authorized_keys` line to copy,
+and "New key" replaces it. The public key is read from the private key file — the OpenSSH
+format keeps it in the clear — so there is one file, and the shown key can't belong to
+another. A machine's form has an SSH user and port, written to `data/ssh/config` as `Host
+<hostname>` with `HostName <address>`; Settings › General downloads that file.
 
 ### Direction — managing the machines over SSH
 

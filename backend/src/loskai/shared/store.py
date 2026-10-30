@@ -86,6 +86,19 @@ def update_json(path: str | Path, default: Any, mutate: Callable[[Any], Any]) ->
         return data
 
 
+def update_text(path: str | Path, mutate: Callable[[str], str]) -> str:
+    """`update_json` for a text file Loskai edits in place (the SSH config): read, mutate,
+    replace whole, under the same lock. An absent file reads as empty; the result is
+    owner-only, and an unchanged text is not rewritten."""
+    p = Path(path)
+    with _write_lock:
+        text = p.read_text(encoding="utf-8") if p.exists() else ""
+        new = mutate(text)
+        if new != text:
+            _replace(p, new)
+        return new
+
+
 def write_private(path: str | Path, text: str) -> None:
     """Write a text file only its owner can read — an `.env` or a secret.
 
