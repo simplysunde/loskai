@@ -21,7 +21,10 @@ stored, so logging out used to leave a copied cookie valid for its full 7 days. 
 replaces the signing secret instead, which ends every session on every device: revoking one
 would mean storing sessions, and with one admin password all of them are the same person's.
 Only a signed-in logout does it — `/api/logout` is public, and anyone could otherwise sign
-the admin out.
+the admin out. **The review that followed found this had opened a worse hole:** the secret was
+rewritten in place, truncate then write, so a logout cut short (disk full, a crash) left it
+empty — and itsdangerous signs with an empty key, so anyone could have made an admin cookie.
+It is now replaced whole (temp file, fsync, rename), and an empty secret counts as none.
 
 **Wrong passwords now cost time.** Argon2 made each guess slow, but nothing limited how many
 a LAN client could make. After 5, each wrong password starts a wait that doubles from 2 s

@@ -3,12 +3,13 @@
 import pytest
 from docker.errors import DockerException
 from fastapi.testclient import TestClient
+from itsdangerous import URLSafeTimedSerializer
 from starlette.websockets import WebSocketDisconnect
 
 from loskai import config
 from loskai.main import app
 from loskai.modules.docker.client import docker_client
-from loskai.shared import auth
+from loskai.shared import auth, store
 from loskai.shared import settings as s
 
 
@@ -35,6 +36,30 @@ def test_session_sign_and_verify():
 def test_the_session_secret_is_owner_only(tmp_path):
     # Whoever can read it can sign an admin session.
     auth.make_session()
+    assert (tmp_path / "session_secret").stat().st_mode & 0o777 == 0o600
+
+
+def test_an_empty_secret_is_never_signed_with(tmp_path):
+    # itsdangerous signs with an empty key, so a cookie anyone can make would pass.
+    (tmp_path / "session_secret").write_text("")
+    forged = URLSafeTimedSerializer("", salt=auth._SESSION_SALT).dumps({"authed": True})
+
+    assert not auth.valid_session(forged)
+    assert (tmp_path / "session_secret").read_text().strip()
+
+
+def test_a_failed_rotation_keeps_the_old_secret(tmp_path, monkeypatch):
+    session = auth.make_session()
+
+    def fail(_fd):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(store.os, "fsync", fail)
+    with pytest.raises(OSError):
+        auth.end_all_sessions()
+
+    assert auth.valid_session(session)
+    assert not list(tmp_path.glob("*.tmp"))
     assert (tmp_path / "session_secret").stat().st_mode & 0o777 == 0o600
 
 

@@ -43,14 +43,23 @@ def read_json(path: str | Path, default: Any) -> Any:
 
 
 def write_json(path: str | Path, data: Any) -> None:
+    _replace(path, json.dumps(data, indent=2) + "\n")
+
+
+def replace_private(path: str | Path, text: str) -> None:
+    """Replace an owner-only file whole: a reader sees the old text or the new, never an
+    empty file. For a secret that is rewritten while in use — the session secret."""
+    _replace(path, text)  # mkstemp creates the file 0600
+
+
+def _replace(path: str | Path, text: str) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     # Write to a temp file in the same directory, then atomically rename over the target.
     fd, tmp = tempfile.mkstemp(dir=str(p.parent), suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-            f.write("\n")
+            f.write(text)
             # Get the bytes on disk *before* the rename. Without this, a power cut can
             # commit the rename while the data blocks are still in cache, leaving a
             # zero-length file that refuses to parse. Not fsyncing the directory too is

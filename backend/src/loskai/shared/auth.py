@@ -80,15 +80,18 @@ def _session_secret() -> str:
     survive restarts. Lives in the data volume, outside the settings API surface."""
     path = _secret_path()
     if path.exists():
-        return path.read_text(encoding="utf-8").strip()
+        secret = path.read_text(encoding="utf-8").strip()
+        # Never sign with an empty key: itsdangerous accepts one, and anyone could then
+        # sign a session. An empty file is treated as no file.
+        if secret:
+            return secret
     return _new_secret()
 
 
 def _new_secret() -> str:
     secret = secrets.token_urlsafe(48)
-    path = _secret_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    store.write_private(path, secret)
+    # Replaced whole, never truncated in place: logout rewrites it while it is in use.
+    store.replace_private(_secret_path(), secret)
     return secret
 
 
