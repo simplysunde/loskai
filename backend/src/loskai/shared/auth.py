@@ -252,9 +252,16 @@ def login(body: PasswordBody, request: Request, response: Response) -> dict[str,
     hashed = settings_store.admin_password_hash()
     if hashed is None:
         raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
-    # Held across the check, so parallel guesses queue instead of all landing before the
-    # first failure counts.
-    with _backoff.lock:
+    # One password check at a time, so parallel guesses can't all land before the first
+    # failure counts. The rest are turned away, not queued: a queue would hold a worker
+    # thread each, which every other sync route needs too.
+    if not _backoff.lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="Another login is being checked. Try again.",
+            headers={"Retry-After": "1"},
+        )
+    try:
         wait = _backoff.wait_left()
         if wait > 0:
             seconds = math.ceil(wait)
@@ -267,6 +274,8 @@ def login(body: PasswordBody, request: Request, response: Response) -> dict[str,
             _backoff.failed()
             raise HTTPException(status_code=401, detail="Invalid password")
         _backoff.reset()
+    finally:
+        _backoff.lock.release()
     _issue_session(request, response)
     return {"authed": True}
 

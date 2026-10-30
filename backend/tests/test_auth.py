@@ -276,3 +276,15 @@ def test_first_run_setup_follows_the_same_rule(tmp_path):
         r = c.post("/api/auth/setup", json={"password": PASSWORD}, headers={"x-forwarded-proto": "https"})
 
     assert "; secure" in _cookie_header(r)
+
+
+def test_a_login_during_another_s_check_is_turned_away_not_queued(client):
+    auth._backoff.lock.acquire()  # a password check in progress
+    try:
+        r = client.post("/api/login", json={"password": PASSWORD})
+    finally:
+        auth._backoff.lock.release()
+
+    assert r.status_code == 429
+    assert r.headers["Retry-After"] == "1"
+    assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
