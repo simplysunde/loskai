@@ -1,5 +1,7 @@
 """Password hash/verify, session sign/verify, first-run seeding, and the Origin check."""
 
+import socket
+
 import pytest
 from docker.errors import DockerException
 from fastapi.testclient import TestClient
@@ -8,6 +10,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from loskai import config
 from loskai.main import app
+from loskai.modules.docker import router as docker_router
 from loskai.modules.docker.client import docker_client
 from loskai.shared import auth, store
 from loskai.shared import settings as s
@@ -177,6 +180,31 @@ def test_a_signed_out_logout_ends_nothing(client):
         stranger.post("/api/logout")
 
     assert auth.valid_session(session)
+
+
+
+class _Exec:
+    """A stand-in for docker-py's exec socket: one end of a socket pair, silent."""
+
+    def __init__(self) -> None:
+        self._sock, self.peer = socket.socketpair()
+
+
+def test_log_out_closes_an_open_terminal(client, monkeypatch):
+    monkeypatch.setattr(docker_router, "SESSION_RECHECK", 0.05)
+    shell = _Exec()
+    monkeypatch.setattr(docker_client, "exec_create", lambda *a: "exec-id")
+    monkeypatch.setattr(docker_client, "exec_start", lambda exec_id: shell)
+    client.post("/api/login", json={"password": PASSWORD})
+
+    with client.websocket_connect("/api/docker/containers/abc/exec") as ws:
+        shell.peer.sendall(b"$ ")
+        assert ws.receive_bytes() == b"$ "  # the shell is open
+        client.post("/api/logout")
+
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_bytes()
+    assert shell._sock.fileno() == -1  # and the exec socket closed with it
 
 
 # --- Login backoff ---

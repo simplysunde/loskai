@@ -533,7 +533,8 @@ hash; `POST /api/login` issues a signed `HttpOnly` cookie, `Secure` when the log
 HTTPS — Caddy says so in `X-Forwarded-Proto` — so a login on plain `:8080` still works
 there. **Log out ends every session**:
 the cookie carries no id to revoke one by, so logout replaces the signing secret
-(`auth.end_all_sessions`) — with one admin, the only sessions are your own. **Wrong
+(`auth.end_all_sessions`) — with one admin, the only sessions are your own. An open
+terminal re-checks its cookie every 5 s, so a logout closes it too. **Wrong
 passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during which
 login answers `429`. The count is one for all clients — behind Caddy every request comes
 from Caddy's address — so a guesser also delays the admin, by a minute at most; it lives in

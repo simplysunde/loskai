@@ -6,8 +6,10 @@ BaseHTTPMiddleware doesn't cover WS connections, and this is a root shell.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
+import socket
 from urllib.parse import urlparse
 
 from docker.errors import APIError, NotFound
@@ -170,6 +172,11 @@ async def logs(container_id: str, tail: int = 200):
     return EventSourceResponse(events())
 
 
+# How often an open terminal re-checks its cookie: logging out (which replaces the session
+# secret) or the session expiring closes it within this many seconds.
+SESSION_RECHECK = 5.0
+
+
 @router.websocket("/containers/{container_id}/exec")
 async def exec_terminal(websocket: WebSocket, container_id: str):
     # WS bypasses the HTTP auth middleware — gate it here (this is a root shell), the
@@ -221,13 +228,25 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
                         docker_client.exec_resize, exec_id, ctrl["rows"], ctrl["cols"]
                     )
 
+    async def session_ended():
+        # The cookie was checked once, at connect; a root shell must not outlive the session.
+        cookie = websocket.cookies.get(auth.SESSION_COOKIE)
+        while auth.valid_session(cookie):
+            await asyncio.sleep(SESSION_RECHECK)
+
     out = asyncio.create_task(to_client())
     inp = asyncio.create_task(to_container())
+    ended = asyncio.create_task(session_ended())
     try:
-        await asyncio.wait({out, inp}, return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait({out, inp, ended}, return_when=asyncio.FIRST_COMPLETED)
     finally:
         out.cancel()
         inp.cancel()
+        ended.cancel()
+        # shutdown, not just close: a recv blocked in to_client's thread holds the socket open
+        # past close(), and the thread with it. shutdown wakes it.
+        with contextlib.suppress(OSError):  # the peer closed it first
+            raw.shutdown(socket.SHUT_RDWR)
         try:
             raw.close()
         except OSError as exc:

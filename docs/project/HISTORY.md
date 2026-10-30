@@ -25,6 +25,10 @@ the admin out. **The review that followed found this had opened a worse hole:** 
 rewritten in place, truncate then write, so a logout cut short (disk full, a crash) left it
 empty — and itsdangerous signs with an empty key, so anyone could have made an admin cookie.
 It is now replaced whole (temp file, fsync, rename), and an empty secret counts as none.
+It also found that an open terminal outlived the logout — the cookie was checked only at
+connect — so a terminal now re-checks it every 5 s. Making that close work showed the
+terminal's reading thread never ended: a `recv` blocked in a thread survives `close()`, so
+the socket is shut down first.
 
 **Wrong passwords now cost time.** Argon2 made each guess slow, but nothing limited how many
 a LAN client could make. After 5, each wrong password starts a wait that doubles from 2 s

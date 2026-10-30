@@ -136,7 +136,7 @@ IP for peer DNS; any HTTP response counts as reachable).
 | `DELETE /orphans/{instance_id}` | Clean up one orphan: re-checks the container is really gone (`409` if it still exists), then tears down the route + rewrite and drops the record. |
 | `GET /containers/{id}/quick-commands` | Preset terminal commands for the image: `[{ label, command }]`. |
 | `GET /containers/{id}/logs` | **SSE** stream of log lines (`?tail=N`). |
-| `WS /containers/{id}/exec` | Interactive shell. **Authenticates itself** — the session and the `Origin` (WS bypasses the HTTP middleware); closes with `1008` on either. Client sends keystrokes as binary stdin and `{"type":"resize","rows","cols"}` as a text control frame; output arrives as bytes. |
+| `WS /containers/{id}/exec` | Interactive shell. **Authenticates itself** — the session and the `Origin` (WS bypasses the HTTP middleware); closes with `1008` on either. An open one re-checks the session every 5 s and closes when it has ended — a logout reaches it too. Client sends keystrokes as binary stdin and `{"type":"resize","rows","cols"}` as a text control frame; output arrives as bytes. |
 
 ### Stacks
 

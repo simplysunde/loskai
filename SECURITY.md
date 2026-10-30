@@ -19,7 +19,7 @@ your network. Read this before deciding where it runs and who can reach it.
 
 - **One admin password**, stored only as an Argon2 hash. A login sets an `HttpOnly`,
   `SameSite=Lax` session cookie that lasts 7 days. **Log out ends every session**, on every
-  device — a copied cookie stops working too. After 5 wrong passwords, each one costs a wait
+  device — a copied cookie stops working too, and an open terminal closes within seconds. After 5 wrong passwords, each one costs a wait
   that doubles up to a minute: a guesser gets about one try a minute.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
