@@ -103,3 +103,49 @@ test("submit stays disabled until both fields are valid", () => {
   fireEvent.change(address(), { target: { value: "192.168.10.50" } });
   expect(submit()).toBeEnabled();
 });
+
+const sshUser = () => screen.getByPlaceholderText("none");
+
+test("an SSH user puts the machine in the SSH config", () => {
+  const { onSubmit } = renderModal();
+
+  fireEvent.change(hostname(), { target: { value: "nas" } });
+  fireEvent.change(address(), { target: { value: "192.168.10.50" } });
+  fireEvent.change(sshUser(), { target: { value: "admin" } });
+  fireEvent.click(submit());
+
+  expect(onSubmit.mock.calls[0][0].ssh).toEqual({ user: "admin", port: 22 });
+});
+
+test("no SSH user, and no entry before: SSH is left out of the save", () => {
+  const { onSubmit } = renderModal();
+
+  fireEvent.change(hostname(), { target: { value: "nas" } });
+  fireEvent.change(address(), { target: { value: "192.168.10.50" } });
+  fireEvent.click(submit());
+
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
+});
+
+test("clearing the SSH user of a machine that had an entry removes it", () => {
+  const { onSubmit } = renderModal({
+    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
+    ssh: { hostname: "192.168.10.50", user: "admin", port: 2222 },
+  });
+
+  expect(sshUser()).toHaveValue("admin");
+  fireEvent.change(sshUser(), { target: { value: "" } });
+  fireEvent.click(submit());
+
+  expect(onSubmit.mock.calls[0][0].ssh).toBeNull();
+});
+
+test("a bad SSH user or port keeps the form from saving", () => {
+  renderModal();
+
+  fireEvent.change(hostname(), { target: { value: "nas" } });
+  fireEvent.change(address(), { target: { value: "192.168.10.50" } });
+  fireEvent.change(sshUser(), { target: { value: "-root" } });
+
+  expect(submit()).toBeDisabled();
+});

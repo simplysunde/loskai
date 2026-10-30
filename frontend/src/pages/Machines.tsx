@@ -4,11 +4,13 @@ import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
+import { useSsh } from "../lib/ssh";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { dependentsOf, isMachine } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
+import { SshKeyPanel } from "../components/routing/SshKeyPanel";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
@@ -54,6 +56,8 @@ export function Machines() {
     queryFn: () => api.get<SettingsView>("/api/settings"),
   });
   const baseDomain = settings.data?.base_domain?.value ?? null;
+  const ssh = useSsh();
+  const sshHosts = ssh.data?.hosts ?? {};
 
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const rows: RouteRow[] = (routes.data ?? []).map((r) => {
@@ -68,6 +72,7 @@ export function Machines() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["caddy-routes"] });
     qc.invalidateQueries({ queryKey: ["adguard-status"] });
+    qc.invalidateQueries({ queryKey: ["ssh"] });
   };
 
   const save = useMutation({
@@ -140,6 +145,8 @@ export function Machines() {
         </div>
       )}
 
+      <SshKeyPanel sshKey={ssh.data?.key} />
+
       {routes.isLoading ? (
         <div className="flex justify-center py-16 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -148,6 +155,7 @@ export function Machines() {
         <MachineTable
           machines={machines}
           rows={rows}
+          ssh={sshHosts}
           onEdit={(m) => {
             setError(null);
             setEditing(m);
@@ -175,6 +183,7 @@ export function Machines() {
               }
             : null
         }
+        ssh={target?.subdomain ? sshHosts[target.subdomain] : null}
         pending={save.isPending}
         error={error}
         onSubmit={(m) => save.mutate(m)}
@@ -203,7 +212,8 @@ export function Machines() {
         onConfirm={() => confirmDelete && remove.mutate(confirmDelete)}
       >
         This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>{" "}
-        and its DNS rewrite. The machine itself isn't affected.
+        and its DNS rewrite{confirmDelete?.subdomain && sshHosts[confirmDelete.subdomain] ? " and SSH entry" : ""}.
+        The machine itself isn't affected.
         {/* Deleting a machine doesn't break what runs on it — those routes keep the
             address they already have. They just stop following it. */}
         {deleting.length > 0 && (

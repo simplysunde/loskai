@@ -51,24 +51,37 @@ export function General() {
       <section className="border-t border-slate-800 pt-6">
         <h2 className="text-sm font-medium text-slate-300">Backup</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Download a JSON snapshot of your instances and AdGuard rewrites.
+          Download a JSON snapshot of your instances and AdGuard rewrites, or the SSH config for
+          your own computer.
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            exportConfig.mutate();
-          }}
-          disabled={exportConfig.isPending}
-          className="mt-3 flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-        >
-          {exportConfig.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              exportConfig.mutate();
+            }}
+            disabled={exportConfig.isPending}
+            className="flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            {exportConfig.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export config
+          </button>
+          {/* A plain download: the file names no key, so your own ssh uses your own keys. */}
+          <a
+            href="/api/ssh/config"
+            download="loskai-ssh-config"
+            title="Hosts as Loskai reaches them. Use with ssh -F, or add an Include to ~/.ssh/config."
+            className="flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+          >
             <Download className="h-4 w-4" />
-          )}
-          Export config
-        </button>
+            SSH config
+          </a>
+        </div>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
       </section>
     </div>

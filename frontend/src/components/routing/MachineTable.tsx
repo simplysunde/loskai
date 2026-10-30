@@ -1,7 +1,8 @@
 import { Fragment } from "react";
-import { CornerDownRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { CornerDownRight, Loader2, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
 
 import { RouteLink } from "../shared/RouteLink";
+import type { SshHost } from "../../lib/ssh";
 import { splitUpstream } from "../../lib/validation";
 import { dependentsOf, onAddressOf } from "./machine";
 import { MachineLinkIcon } from "./MachineLinkIcon";
@@ -14,6 +15,7 @@ import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 export function MachineTable({
   machines,
   rows,
+  ssh = {},
   onEdit,
   onDelete,
   onAddRoute,
@@ -22,6 +24,8 @@ export function MachineTable({
   machines: RouteRow[];
   // Every row, for the dependents — they are services, so not among `machines`.
   rows: RouteRow[];
+  // SSH config entries by alias; a machine's is named after its hostname.
+  ssh?: Record<string, SshHost>;
   onEdit: (machine: RouteRow) => void;
   onDelete: (machine: RouteRow) => void;
   // Add route, already linked to this machine — the usual reason to have named it.
@@ -64,7 +68,16 @@ export function MachineTable({
                     {/* Plain text, not a link: a machine's name is DNS only, so nothing
                         is promised to answer on it over https. */}
                     <td className="px-4 py-2 text-xs text-slate-400">{m.fqdn ?? "—"}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-300">
+                      <span className="inline-flex items-center gap-1.5">
+                        {m.upstream ?? "—"}
+                        {m.subdomain && ssh[m.subdomain] && (
+                          <span title={sshTitle(m.subdomain, ssh[m.subdomain])}>
+                            <Terminal aria-label="In the SSH config" className="h-3.5 w-3.5 text-slate-500" />
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-2">
                       <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
                     </td>
@@ -151,4 +164,8 @@ function IconButton({
       {children}
     </button>
   );
+}
+
+function sshTitle(alias: string, host: SshHost): string {
+  return `ssh ${alias}: ${host.user ?? "?"}@${host.hostname ?? alias}, port ${host.port}`;
 }

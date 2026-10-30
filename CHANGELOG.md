@@ -11,7 +11,10 @@ Everything so far:
   entry together. Sources: a container, a network service (AdGuard, router, Caddy) or any
   IP and port. Per route: HTTPS, HTTP or both, and whether the backend speaks HTTPS.
 - **Machines** — name the computers on your network; a route linked to one follows it when
-  its address changes. A Docker route can follow its container the same way.
+  its address changes. A Docker route can follow its container the same way. Loskai makes
+  its own SSH key, encrypted with your admin password, and keeps an SSH config of your
+  machines — set a machine's SSH user and port in its form, download the file from
+  Settings. Connecting from Loskai comes next.
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,
   stack editing — a form for settings and folders, or the files as text — and unused-volume
   cleanup. Containers you already run are listed from the start, with a guide to bringing

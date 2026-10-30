@@ -1458,13 +1458,22 @@ safeguards: [architecture.md → Machines](architecture.md#machines)._
 Each step is usable on its own:
 
 **34a — the key and the config file**
-- [ ] Loskai's ed25519 key pair, generated on request with the admin password (which
+- [x] Loskai's ed25519 key pair, generated on request with the admin password (which
       encrypts it) and replaced the same way ("New key"); the `authorized_keys` line to copy,
       starting `from="<Docker host IP>"`
-- [ ] The config file `data/ssh/config`, edited in place, comments and formatting kept; the
+- [x] The config file `data/ssh/config`, edited in place, comments and formatting kept; the
       machine form's SSH user and port; rename, move and delete carried to it
-- [ ] Settings › General downloads it; `SECURITY.md` and CLAUDE.md's secrets rule change in
+- [x] Settings › General downloads it; `SECURITY.md` and CLAUDE.md's secrets rule change in
       this step, since it adds the key
+- [x] +31 backend (599), +8 frontend (237); `pytest`, `npm test`, `npm run build`,
+      `oxlint`, `check-docs.sh`
+- [x] **Live** (scratch backend, Playwright, a Debian `sshd` container): a wrong password said
+      "Invalid password" and stayed on the page; Create key gave
+      `from="172.17.0.1" ssh-ed25519 … loskai`; a machine with SSH user `loskai` showed the
+      SSH mark; Settings downloaded the file, identical to `data/ssh/config`, and `ssh -G`
+      read it as user `loskai`, the container's IP, port 22. The key file was `600` and
+      encrypted; decrypted with the password, the given line **logged in** from
+      `172.17.0.1`, and the same key with `from="10.9.9.9"` got **Permission denied**
 
 **34b — connect:** "Test connection" per machine; the host key shown to accept on first
 connect, kept in Loskai's own `known_hosts`, a changed one refused; which machines still
