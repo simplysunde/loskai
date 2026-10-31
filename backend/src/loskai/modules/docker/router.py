@@ -177,6 +177,13 @@ async def logs(container_id: str, tail: int = 200):
 SESSION_RECHECK = 5.0
 
 
+# bash where the image has it, else sh — chosen before `exec`, never by hiding a failed one.
+# The old `exec /bin/bash 2>/dev/null || exec /bin/sh` sent bash's stderr to /dev/null, so
+# bash wasn't interactive (no prompt, no Tab completion, no error messages), and busybox's sh
+# exits when `exec` fails, so the fallback never ran.
+SHELL_COMMAND = "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi"
+
+
 @router.websocket("/containers/{container_id}/exec")
 async def exec_terminal(websocket: WebSocket, container_id: str):
     # WS bypasses the HTTP auth middleware — gate it here (this is a root shell), the
@@ -193,7 +200,7 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
         exec_id = await asyncio.to_thread(
             docker_client.exec_create,
             container_id,
-            ["/bin/sh", "-c", "exec /bin/bash 2>/dev/null || exec /bin/sh"],
+            ["/bin/sh", "-c", SHELL_COMMAND],
         )
         sock = await asyncio.to_thread(docker_client.exec_start, exec_id)
     except DOCKER_ERRORS as exc:

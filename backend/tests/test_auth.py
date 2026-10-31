@@ -311,3 +311,39 @@ def test_failures_long_ago_are_forgotten(monkeypatch):
     backoff.failed()  # the admin's typo
 
     assert backoff.wait_left() <= 0
+
+
+def _shell(path: str, stdin: str = ""):
+    import shutil
+    import subprocess
+
+    from loskai.modules.docker.router import SHELL_COMMAND
+
+    return subprocess.run(
+        [shutil.which("sh"), "-c", SHELL_COMMAND], input=stdin, capture_output=True,
+        text=True, env={"PATH": path}, timeout=10,
+    )
+
+
+def test_the_container_terminal_runs_bash_with_its_stderr(tmp_path):
+    # bash writes its prompt, its completions and every error message to stderr; sending
+    # that to /dev/null left a shell with none of them.
+    fake = tmp_path / "bash"
+    fake.write_text("#!/bin/sh\necho bash-ran\necho bash-stderr >&2\n")
+    fake.chmod(0o755)
+
+    done = _shell(f"{tmp_path}:/usr/bin:/bin")
+
+    assert done.stdout == "bash-ran\n"
+    assert done.stderr == "bash-stderr\n"
+
+
+def test_without_bash_the_container_terminal_falls_back_to_sh(tmp_path):
+    # An image with no bash (alpine, busybox): sh, not a terminal that closes at once.
+    import shutil
+
+    (tmp_path / "sh").symlink_to(shutil.which("sh"))
+
+    done = _shell(str(tmp_path), "echo fell-back-to-sh\n")
+
+    assert done.stdout == "fell-back-to-sh\n"
