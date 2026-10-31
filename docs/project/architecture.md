@@ -345,6 +345,14 @@ and limits what the next one loses:
 - **A dedicated `loskai` user, not root login.** The setup steps create it; how much `sudo`
   it gets is the owner's choice per machine — everything, or only the prepared commands (a
   sudoers allowlist, which the prepared commands make possible because they are fixed).
+- **Set up when a machine is named** (decided 2026-10-31). Saving a machine with an SSH user
+  opens its setup: the host key is shown and trusted *before* any password is sent; then
+  Loskai installs its lines with the machine's password, used once and never stored, or
+  you add them yourself. Either way it ends by logging in with the key.
+- **A status-only key**, the one exception to "encrypted with the admin password": it is
+  kept `0600` in the clear so each machine's running list works without the password, and
+  the machine limits it to one read-only command (`restrict`, `from=`, a forced `command=`)
+  — a copy lists what runs and does nothing else.
 - **Rotating is one button.** A new key pair replaces the old, and the Machines tab shows
   which machines still accept the old one.
 - **Every session and command is logged** — when, from which address, on which machine —

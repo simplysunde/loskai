@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-31 — SSH set up when a machine is named; a status-only key
+
+Sunde wanted SSH set up as part of creating a machine, and every machine to show what runs
+on it. **The machine's password is used once, never stored**: Install it for me logs in with
+it to add Loskai's lines, then proves the key works. The host key is trusted first, so the
+password only ever goes to the machine whose fingerprint was accepted. A copy-the-line path
+stays for machines with password login off.
+
+**The status needed a second key.** The main key is unlocked only for 15 minutes after the
+admin password (2026-10-28), so a status kept current in the background would have had to
+undo that — or show stale data after every restart. Instead a status-only key, unencrypted,
+is limited **by the machine**: `restrict`, `from=` the Docker host, and a forced command that
+only lists what runs. The main key's guarantees are unchanged; a stolen status key reveals
+the running list. Rejected: refreshing only while unlocked (blank after every restart).
+
+**"Running" hides the base system** — a plain Debian runs ~20 services nobody asked about —
+and counts what it hid. Checked on request with a 30 s cache rather than in a loop, so there
+is still one background task.
+
 ## 2026-10-31 — A route is on a machine by its address; the link is gone
 
 With the Machines tab about to become a counterpart of the Docker tab, Sunde asked to drop

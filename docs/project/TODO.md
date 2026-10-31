@@ -1490,16 +1490,37 @@ recommendation")** — so what SSH finds on a machine and the routes on it meet 
       Routing named `nas.smoke.test` under plex, Machines listed `:32400` under nas, and
       its Add route opened on `10.99.0.60` with no Machine toggle
 
-**34b — connect:** "Test connection" per machine; the host key shown to accept on first
-connect, kept in Loskai's own `known_hosts`, a changed one refused; which machines still
-accept an old key after "New key".
+**Decisions (2026-10-31, Sunde: SSH is set up when a machine is made, and each machine shows
+what runs on it — all three recommendations taken)**
+- **Setting a machine up for SSH is part of naming it.** Saving a machine with an SSH user
+  opens its SSH setup, also reachable from its row: the host key is shown to trust first,
+  then **Install it for me** — the machine's password for that user, typed once, used to add
+  Loskai's lines to `authorized_keys`, then forgotten — or **I'll add it myself** (the lines
+  to copy, then Test connection). Either ends by logging in with the key to prove it works
+- **The host key is trusted before any password is sent**, so a machine pretending to be
+  yours never gets one. `known_hosts` is keyed by the machine's **id**, which a rename or a
+  move never changes; a changed key is refused until trusted again, explicitly
+- **A second, status-only key**, kept unencrypted (`0600`) so the status works in the
+  background and after a restart. The machine limits it — `restrict` (no shell, pty or
+  forwarding), `from=` the Docker host, and a forced read-only command — so a leaked copy
+  reveals what runs where and nothing else. "New key" replaces the main key only
+- **"Running" is containers, your services, and Proxmox guests**: `docker ps`, the running
+  systemd services minus the base system's (counted, not listed), and running LXCs and VMs
+  on a Proxmox host. Each falls back to `sudo -n`, and a list the user may not read says so
+- **Checked when someone looks, not by a background loop:** the Machines tab asks every 30 s
+  and Loskai answers from a 30 s cache, so `follow.py` stays the only background task
 
-**34c — the terminal:** a browser SSH session per machine, behind the session, `Origin`
+**34b — set up at creation:** unlock the key (15 minutes, by the admin password; logout
+locks it); the status key; host key scan and trust; Install it for me and Test connection;
+the setup dialog after saving a machine and from its row.
+
+**34c — what runs on each machine:** the forced command's output parsed; a "running" count
+on each machine's row, everything listed on hover.
+
+**34d — the terminal:** a browser SSH session per machine, behind the session, `Origin`
 and fresh-password checks; every session and command logged, readable in the app.
 
-**34d — prepared commands:** system update, disks, services — one click each, run visibly.
-
-**34e — discovery:** the containers and services running on each machine.
+**34e — prepared commands:** system update, disks, services — one click each, run visibly.
 
 ---
 
