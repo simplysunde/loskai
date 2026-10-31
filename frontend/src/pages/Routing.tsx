@@ -144,7 +144,7 @@ export function Routing() {
     const d = dnsById.get(r.id);
     return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
   });
-  // Machines live on their own tab; the route forms still need them, to link to.
+  // Machines live on their own tab; the route forms still list them, and the table names them.
   const rows = allRows.filter((r) => !isMachine(r));
   const machines = allRows.filter(isMachine);
 
@@ -166,7 +166,6 @@ export function Routing() {
       prefix: string;
       upstream: string;
       upstream_tls: boolean;
-      machine?: string | null;
       scheme?: "https" | "both" | "http";
       follow_container?: boolean;
     }) =>
@@ -484,7 +483,6 @@ export function Routing() {
         dockerHost={settings.data?.host_ip?.value ?? null}
         containerHost={assignContainer?.suggested_host ?? null}
         initialTls={assignTarget?.upstream_tls ?? false}
-        initialMachine={assignTarget?.machine ?? null}
         initialScheme={assignTarget?.scheme ?? "https"}
         rows={machines}
         onSubmit={(p) => assign.mutate(p)}

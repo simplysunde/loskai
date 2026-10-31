@@ -95,11 +95,8 @@ The computers on your network, by name — a name with no port.
 > for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
 > machine once and the route moves with it.
 
-Under each machine are the routes it hosts, with one of two icons:
-
-- **Chain — linked.** Made with the machine as the host. Follows it when its address changes.
-- **Wand — matched.** Just happens to use the same IP. Shown for convenience, but keeps its
-  address if the machine moves.
+Under each machine are the routes on its address — however they were made. Moving the
+machine moves them all, except a container route that follows its container.
 
 ## Settings
 

@@ -205,16 +205,6 @@ def test_only_a_container_route_can_follow(client, follow_env):
     assert "only a container" in r.json()["detail"]
 
 
-def test_following_a_container_and_a_machine_is_refused(client, follow_env):
-    r = client.post("/api/routes", json={
-        "prefix": "whoami", "upstream": "x:1", "container": "whoami-whoami-1",
-        "machine": "nas", "follow_container": True,
-    })
-
-    assert r.status_code == 400
-    assert "not both" in r.json()["detail"]
-
-
 def test_a_port_docker_cannot_name_cannot_be_followed(client, follow_env, monkeypatch):
     from loskai.shared import follow
 

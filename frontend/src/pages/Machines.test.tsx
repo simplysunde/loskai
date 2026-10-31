@@ -18,7 +18,7 @@ const ROUTES = [
   },
   {
     id: "plex", name: "plex", type: "external", kind: "service", subdomain: "plex",
-    fqdn: "plex.example.no", upstream: "192.168.10.50:32400", machine: "nas",
+    fqdn: "plex.example.no", upstream: "192.168.10.50:32400",
     private: false, routed: true, synced: true,
   },
   {
@@ -56,7 +56,7 @@ beforeEach(() => {
             : path === "/api/docker/containers"
               ? []
             : path === "/api/machines"
-              ? { url: "nas.example.no", warning: null, relinked: ["plex"] }
+              ? { url: "nas.example.no", warning: null, moved: ["plex"] }
               : {};
       return new Response(JSON.stringify(data), {
         status: 200,
@@ -112,25 +112,23 @@ test("a hosted route links out under URL; DNS state is the machine's alone", asy
   expect(nasUrl).toHaveTextContent("nas.example.no");
 });
 
-test("deleting a machine names the routes that will stop following it", async () => {
+test("deleting a machine names the routes on its address, which keep it", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
   fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
 
-  expect(screen.getByText(/1 route points/)).toHaveTextContent("(plex)");
+  expect(screen.getByText(/2 routes are on its address/)).toHaveTextContent("(jellyfin, plex)");
 });
 
-test("an unlinked route on a machine's address is listed under it, marked as matched", async () => {
+test("every route on a machine's address is listed under it, by port", async () => {
+  // Nothing links them: the address alone puts them on the machine.
   renderPage();
   const row = (await screen.findByText("jellyfin")).closest("tr") as HTMLElement;
 
-  expect(within(row).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
   expect(within(row).getByText(":8096")).toBeInTheDocument();
-  // The linked route says so instead — it follows the machine.
-  const plex = screen.getByText("plex").closest("tr") as HTMLElement;
-  expect(within(plex).getByRole("img", { name: /^Linked/ })).toBeInTheDocument();
-  expect(within(plex).queryByRole("img", { name: /^Matched by IP/ })).not.toBeInTheDocument();
+  expect(within(screen.getByText("plex").closest("tr") as HTMLElement).getByText(":32400"))
+    .toBeInTheDocument();
 });
 
 test("editing a machine posts its id, and the banner says what moved with it", async () => {
@@ -152,12 +150,11 @@ test("editing a machine posts its id, and the banner says what moved with it", a
   expect(within(banner).getByText("nas.example.no")).toBeInTheDocument();
 });
 
-test("a machine's row adds a route already linked to it", async () => {
+test("a machine's row adds a route on its address", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
   fireEvent.click(within(nasRow()).getByTitle("Add a route on this machine"));
 
-  expect(await screen.findByRole("combobox", { name: "Machine" })).toHaveValue("nas");
-  expect(screen.getByText(/follows Storage box/)).toBeInTheDocument();
+  expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
 });

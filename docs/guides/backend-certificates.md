@@ -58,8 +58,8 @@ it a route under a second name and that route is the card:
 | launcher entry | `pve.{BASE_DOMAIN}` | a **route** → `192.168.10.177:8006`, **Backend speaks HTTPS** ticked. Appears as a card. |
 
 Build the second one with Add route → **External** → pick the machine from the list: it fills
-the address, you add `:8006`. That also *links* the route to the machine, so if the host ever
-moves, the route follows it.
+the address, you add `:8006`. A route on the machine's address is on that machine, so if the
+host ever moves, the route moves with it.
 
 ---
 

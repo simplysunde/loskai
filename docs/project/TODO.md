@@ -1475,6 +1475,21 @@ Each step is usable on its own:
       encrypted; decrypted with the password, the given line **logged in** from
       `172.17.0.1`, and the same key with `from="10.9.9.9"` got **Permission denied**
 
+**Before 34b — a route is on a machine by its address (2026-10-31, Sunde: "go with your
+recommendation")** — so what SSH finds on a machine and the routes on it meet on one key
+- [x] The `machine` link removed (field, Machine/Address toggle, Change URL linking, the
+      chain and wand icons); a route is on the machine at its upstream's address, worked
+      out each time. Moving a machine carries every route on its old address except one
+      following its container; two machines can't share an address (`409`)
+- [x] −3 backend (596), −11 frontend (226) — the link's own tests went, the move's are new;
+      `pytest`, `npm test`, `npm run build`, `oxlint`, `check-docs.sh`
+- [x] **Live** (scratch backend, the smoke Caddy, Playwright): a route posted with no link
+      at `10.99.0.50:32400`; moving the machine `nas` to `.60` returned `moved: ["plex"]` and
+      **Caddy's dial became `10.99.0.60:32400`**, while a route on `.5` stayed; a second
+      machine on `.50` got `409`; no stored record kept a `machine` key. In the browser,
+      Routing named `nas.smoke.test` under plex, Machines listed `:32400` under nas, and
+      its Add route opened on `10.99.0.60` with no Machine toggle
+
 **34b — connect:** "Test connection" per machine; the host key shown to accept on first
 connect, kept in Loskai's own `known_hosts`, a changed one refused; which machines still
 accept an old key after "New key".

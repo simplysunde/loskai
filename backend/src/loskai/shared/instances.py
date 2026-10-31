@@ -38,10 +38,9 @@ class Instance(BaseModel):
     # calling by name, scripts. Not a performance setting. Ignored when route_mode=dns_only.
     container: str | None = None  # container name/id (docker type only)
     origin: str | None = None  # built-in network service this routes ("adguard"/"gateway"/"caddy")
-    machine: str | None = None  # id of the machine instance that owns this upstream's host part
-    # The docker counterpart of `machine`: the upstream is derived from the live container
-    # (logic.suggested_upstream) and rewritten when it starts on a different port — see
-    # shared/follow.py. Declared, never inferred: False keeps a stored upstream exactly as set.
+    # The upstream is derived from the live container (logic.suggested_upstream) and
+    # rewritten when it starts on a different port — see shared/follow.py. Declared, never
+    # inferred: False keeps a stored upstream exactly as set.
     follow_container: bool = False
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
@@ -115,16 +114,19 @@ def get_by_origin(origin: str) -> Instance | None:
     return next((i for i in list_instances() if i.origin == origin), None)
 
 
-def list_by_machine(machine_id: str) -> list[Instance]:
-    """Every instance whose upstream host is owned by this machine. The third link field
-    after `container` and `origin`, but one-to-*many*: a machine hosts any number of
-    services, so this returns a list where those two return one."""
-    return [i for i in list_instances() if i.machine == machine_id]
+def on_address(host: str) -> list[Instance]:
+    """Every service whose upstream host is `host` — the routes on the machine at that
+    address. Worked out from the upstream, never stored: a machine's only identity on the
+    network is its address, so there is no link to keep in step with it."""
+    return [
+        i for i in list_instances()
+        if not is_machine(i) and i.upstream and i.upstream.rpartition(":")[0] == host
+    ]
 
 
 def is_machine(instance: Instance) -> bool:
-    """True if this instance is an *address* rather than a service — the thing routes link to
-    via `machine`. Declared on the record now, not inferred from the upstream's shape."""
+    """True if this instance is an *address* rather than a service — the thing routes sit
+    on. Declared on the record now, not inferred from the upstream's shape."""
     return instance.kind == "machine"
 
 

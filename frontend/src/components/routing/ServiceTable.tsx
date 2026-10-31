@@ -1,9 +1,11 @@
-import { Eye, EyeOff, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import { Eye, EyeOff, HardDrive, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { isMachine, machineAt, machineLabel } from "./machine";
-import { MachineLinkIcon } from "./MachineLinkIcon";
+
+const MACHINE_HINT = "The machine at this address — the route moves with it";
+const MACHINE_FOLLOWING = "The machine at this address — the route follows its container";
 
 export interface RouteRow {
   id: string;
@@ -19,7 +21,6 @@ export interface RouteRow {
   private: boolean;
   container?: string | null;
   origin?: string | null;
-  machine?: string | null;
   // The upstream is the container's, kept in step when its port changes (Phase 29).
   follow_container?: boolean;
   icon?: string | null;
@@ -47,8 +48,8 @@ export function ServiceTable({
   onClearIcon,
 }: {
   rows: RouteRow[];
-  // Where a linked row's machine is looked up. Routing shows services only, so the
-  // machines it links to are not among `rows`.
+  // Where a row's machine is looked up. Routing shows services only, so the machines its
+  // routes are on are not among `rows`.
   machines?: RouteRow[];
   onAssign?: (row: RouteRow) => void;
   onRemoveRoute?: (row: RouteRow) => void;
@@ -84,7 +85,7 @@ export function ServiceTable({
         </thead>
         <tbody className="divide-y divide-slate-800/70">
           {rows.map((row) => {
-            const sameAddress = row.machine ? undefined : machineAt(row.upstream, machines);
+            const machine = machineAt(row.upstream, machines);
             return (
               <tr key={row.id} className="hover:bg-slate-900/40">
                 <td className="px-4 py-3">
@@ -108,7 +109,7 @@ export function ServiceTable({
                 <td className="px-4 py-3 font-mono text-xs text-slate-400">
                   {/* The address on top, always: a machine's name is not one (a dotted
                       name like `adguard.lxc` would read as a hostname that does not
-                      resolve). The machine it is linked to or matches sits beneath. */}
+                      resolve). The machine at that address sits beneath. */}
                   {row.upstream ?? "—"}
                   {/* Only when it differs from the default: a tag on every row would be
                       noise, and https is what almost everything should be. */}
@@ -134,18 +135,14 @@ export function ServiceTable({
                       dns-only
                     </span>
                   )}
-                  {row.machine ? (
-                    <div className="flex items-center gap-1 text-[11px] text-teal-300">
-                      <MachineLinkIcon auto={false} />
-                      {machineLabel(row.machine, machines)}
+                  {machine && (
+                    <div
+                      title={row.follow_container ? MACHINE_FOLLOWING : MACHINE_HINT}
+                      className="flex cursor-help items-center gap-1 text-[11px] text-slate-500"
+                    >
+                      <HardDrive className="h-3 w-3" />
+                      {machineLabel(machine)}
                     </div>
-                  ) : (
-                    sameAddress && (
-                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <MachineLinkIcon auto />
-                        {machineLabel(sameAddress.id, machines)}
-                      </div>
-                    )
                   )}
                 </td>
                 <td className="px-4 py-3">

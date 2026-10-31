@@ -246,7 +246,7 @@ async def test_assign_creates_external_routes_and_rewrites():
     )
     assert result == {
         "caddy": "ok", "adguard": "ok",
-        "url": "https://nas.example.no", "instance_id": "nas", "relinked": [], "warning": None,
+        "url": "https://nas.example.no", "instance_id": "nas", "moved": [], "warning": None,
     }
     assert caddy.pushed == ["nas"]
     assert ag.added == [("nas.example.no", IP)]
@@ -520,68 +520,67 @@ async def name_machine(caddy, ag, prefix="nas", ip="192.168.10.50", *, edit=Fals
     )
 
 
-def test_relink_upstream_keeps_the_port():
-    assert assign.relink_upstream("192.168.10.50:3000", "192.168.10.60") == "192.168.10.60:3000"
+def test_move_upstream_keeps_the_port():
+    assert assign.move_upstream("192.168.10.50:3000", "192.168.10.60") == "192.168.10.60:3000"
 
 
-async def test_route_can_link_to_a_machine():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
+async def route(caddy, ag, prefix, upstream, **kw):
+    return await assign.assign(
+        caddy, ag, prefix=prefix, upstream=upstream, base_domain=BASE, current_ip=IP, **kw
     )
 
-    assert instances_store.get_instance("plex").machine == "nas"
 
-
-async def test_moving_a_machine_moves_every_route_on_it():
-    # The whole point of the link: the address is entered once.
+async def test_moving_a_machine_moves_every_route_on_its_address():
+    # A route is on a machine by its address alone — nothing was linked, and both move.
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
     for svc, port in [("plex", "32400"), ("files", "5000")]:
-        await assign.assign(
-            caddy, ag, prefix=svc, upstream=f"192.168.10.50:{port}",
-            base_domain=BASE, current_ip=IP, machine="nas",
-        )
+        await route(caddy, ag, svc, f"192.168.10.50:{port}")
 
     result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)  # the NAS moves
 
-    assert sorted(result["relinked"]) == ["files", "plex"]
+    assert sorted(result["moved"]) == ["files", "plex"]
     assert instances_store.get_instance("plex").upstream == "192.168.10.60:32400"
     assert instances_store.get_instance("files").upstream == "192.168.10.60:5000"
     # ...and Caddy was told, not just the store.
-    assert caddy.pushed[-2:] == ["plex", "files"] or caddy.pushed[-2:] == ["files", "plex"]
+    assert sorted(caddy.pushed[-2:]) == ["files", "plex"]
 
 
-async def test_unlinked_routes_are_left_alone_when_a_machine_moves():
+async def test_routes_on_other_addresses_are_left_alone_when_a_machine_moves():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="elsewhere", upstream="192.168.10.99:8080",
-        base_domain=BASE, current_ip=IP,
-    )
+    await route(caddy, ag, "elsewhere", "192.168.10.99:8080")
+    await route(caddy, ag, "shorter", "192.168.10.5:8080")  # a prefix of the address, not it
 
     result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
 
-    assert result["relinked"] == []
+    assert result["moved"] == []
     assert instances_store.get_instance("elsewhere").upstream == "192.168.10.99:8080"
+    assert instances_store.get_instance("shorter").upstream == "192.168.10.5:8080"
+
+
+async def test_a_route_following_its_container_stays_with_the_container():
+    # Its address is the container's: the follower would only write the old one back.
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await name_machine(caddy, ag)
+    await route(caddy, ag, "whoami", "192.168.10.50:8081", follow_container=True)
+
+    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+
+    assert result["moved"] == []
+    assert instances_store.get_instance("whoami").upstream == "192.168.10.50:8081"
 
 
 async def test_a_machine_assign_that_changes_nothing_repushes_nothing():
     # A no-op edit must not re-push half the estate.
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
-    )
+    await route(caddy, ag, "plex", "192.168.10.50:32400")
     before = list(caddy.pushed)
 
     result = await name_machine(caddy, ag, edit=True)  # same IP again
 
-    assert result["relinked"] == []
+    assert result["moved"] == []
     assert caddy.pushed == before
 
 
@@ -605,115 +604,71 @@ async def test_a_failed_repush_warns_but_keeps_the_store_correct():
     # Sync repairs Caddy from the store, so the store must already hold the new address.
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
-    )
+    await route(caddy, ag, "plex", "192.168.10.50:32400")
     caddy = PickyCaddy({"plex"})
 
     result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
 
-    assert result["relinked"] == ["plex"]
+    assert result["moved"] == ["plex"]
     assert "next Sync" in result["warning"]
     assert instances_store.get_instance("plex").upstream == "192.168.10.60:32400"
 
 
-async def test_linking_to_a_service_is_rejected():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await assign.assign(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, current_ip=IP,
-    )
-
-    with pytest.raises(AssignError) as exc:
-        await assign.assign(
-            caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-            base_domain=BASE, current_ip=IP, machine="grafana",
-        )
-
-    assert exc.value.status_code == 422
-
-
-async def test_linking_to_a_missing_machine_is_rejected():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-
-    with pytest.raises(AssignError) as exc:
-        await assign.assign(
-            caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-            base_domain=BASE, current_ip=IP, machine="ghost",
-        )
-
-    assert exc.value.status_code == 404
-
-
-async def test_an_instance_cannot_be_its_own_machine():
+async def test_two_machines_cannot_share_an_address():
+    # A route's machine is the one at its address, so a second one there would be ambiguous.
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
 
     with pytest.raises(AssignError) as exc:
-        await assign.assign(
-            caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE,
-            current_ip=IP, route_mode="dns_only", machine="nas", instance_id="nas",
-        )
+        await name_machine(caddy, ag, prefix="other")
 
-    assert exc.value.status_code == 422
+    assert exc.value.status_code == 409
+    assert instances_store.get_instance("other") is None
+    await name_machine(caddy, ag, edit=True)  # the machine itself may keep its address
 
 
-async def test_deleting_a_machine_unlinks_its_routes_instead_of_blocking():
+async def test_deleting_a_machine_leaves_the_routes_on_its_address_as_they_are():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
-    )
+    await route(caddy, ag, "plex", "192.168.10.50:32400")
 
     result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
 
-    assert result["unlinked"] == ["plex"]
-    plex = instances_store.get_instance("plex")
-    assert plex.machine is None
-    assert plex.upstream == "192.168.10.50:32400"  # still reachable, just no longer linked
+    assert result == {"deleted": True, "instance_id": "nas"}
+    assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
 
 
-async def test_the_link_survives_renaming_the_machine():
-    # The link is by instance id, which an edit never changes — so giving the machine a
-    # different DNS name (or display name) keeps every route on it pointing at it.
+async def test_a_rename_alone_moves_nothing():
+    # Nothing to carry: the routes hold an IP, and the IP did not move.
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
-    )
-
-    # Rename: nas.example.no -> storage.example.no, same instance. (`name` is a display
-    # field owned by PATCH /api/instances/{id} — an assign deliberately leaves it alone.)
-    await assign.assign(
-        caddy, ag, prefix="storage", upstream="192.168.10.50", base_domain=BASE,
-        current_ip=IP, route_mode="dns_only", instance_id="nas", name="Storage box",
-    )
-
-    machine = instances_store.get_instance("nas")
-    assert machine.id == "nas" and machine.subdomain == "storage"
-    assert instances_store.get_instance("plex").machine == "nas"  # link intact
-    assert instances_store.list_by_machine("nas")[0].id == "plex"
-
-
-async def test_a_rename_alone_relinks_nothing():
-    # Nothing to propagate: dependents hold an IP, and the IP did not move.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await assign.assign(
-        caddy, ag, prefix="plex", upstream="192.168.10.50:32400",
-        base_domain=BASE, current_ip=IP, machine="nas",
-    )
+    await route(caddy, ag, "plex", "192.168.10.50:32400")
 
     result = await assign.assign(
         caddy, ag, prefix="storage", upstream="192.168.10.50", base_domain=BASE,
         current_ip=IP, route_mode="dns_only", instance_id="nas",
     )
 
-    assert result["relinked"] == []
+    assert result["moved"] == []
     assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
+
+
+async def test_a_stored_machine_link_from_before_is_read_and_dropped(monkeypatch):
+    # Records written while routes linked to machines carry `machine`; it means nothing now,
+    # so they load as they are and the next write leaves it out.
+    from loskai.shared import store
+
+    path = instances_store._path()
+    store.write_json(path, [{
+        "id": "plex", "name": "plex", "type": "external", "subdomain": "plex",
+        "upstream": "192.168.10.50:32400", "machine": "nas",
+    }])
+
+    plex = instances_store.get_instance("plex")
+    instances_store.upsert_instance(plex)
+
+    assert plex.upstream == "192.168.10.50:32400"
+    assert "machine" not in store.read_json(path, [])[0]
 
 
 # --- The two verbs (thin wrappers over one orchestration) ---

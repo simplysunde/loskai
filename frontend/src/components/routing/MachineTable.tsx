@@ -4,14 +4,12 @@ import { CornerDownRight, Loader2, Pencil, Plus, Terminal, Trash2 } from "lucide
 import { RouteLink } from "../shared/RouteLink";
 import type { SshHost } from "../../lib/ssh";
 import { splitUpstream } from "../../lib/validation";
-import { dependentsOf, onAddressOf } from "./machine";
-import { MachineLinkIcon } from "./MachineLinkIcon";
+import { routesOn } from "./machine";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
-// Each machine, with the routes hosted on it listed directly beneath — the dependency the
-// `machine` link records, which is the reason a machine is named at all — then the unlinked
-// ones that merely share its address; an icon says which, since those will not follow it. A route lists
-// only its port here: the host half is the machine above it.
+// Each machine, with the routes on its address listed directly beneath — the reason a
+// machine is named at all. A route lists only its port here: the host half is the machine
+// above it.
 export function MachineTable({
   machines,
   rows,
@@ -28,7 +26,7 @@ export function MachineTable({
   ssh?: Record<string, SshHost>;
   onEdit: (machine: RouteRow) => void;
   onDelete: (machine: RouteRow) => void;
-  // Add route, already linked to this machine — the usual reason to have named it.
+  // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
   busyId?: string | null;
 }) {
@@ -57,10 +55,7 @@ export function MachineTable({
           {[...machines]
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((m) => {
-              const deps = [
-                ...dependentsOf(m.id, rows).map((d) => ({ d, linked: true })),
-                ...onAddressOf(m, rows).map((d) => ({ d, linked: false })),
-              ];
+              const deps = routesOn(m, rows);
               return (
                 <Fragment key={m.id}>
                   <tr className="border-t border-slate-800/70 hover:bg-slate-900/40">
@@ -108,13 +103,12 @@ export function MachineTable({
                       </td>
                     </tr>
                   ) : (
-                    deps.map(({ d, linked }) => (
+                    deps.map((d) => (
                       <tr key={d.id} className="text-xs hover:bg-slate-900/40">
                         <td className="py-1 pl-6 pr-4">
                           <div className="flex items-center gap-1.5 text-slate-300">
                             <CornerDownRight className="h-3.5 w-3.5 text-slate-600" />
                             {d.name}
-                            <MachineLinkIcon auto={!linked} />
                           </div>
                         </td>
                         <td className="px-4 py-1">

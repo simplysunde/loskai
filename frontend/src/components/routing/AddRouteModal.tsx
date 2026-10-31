@@ -23,7 +23,6 @@ export interface NewRoute {
   scheme?: Scheme;
   container?: string;
   origin?: string;
-  machine?: string;
   name?: string;
   follow_container?: boolean;
 }
@@ -60,8 +59,9 @@ export function AddRouteModal({
   mode: "docker" | "lan" | null;
   // Which source the picker opens on. Machines have their own modal — see AddMachineModal.
   initialSource?: Source;
-  // Opened from a machine's row on the Machines tab: External, already linked to it.
-  initialMachine?: { id: string; address: string };
+  // Opened from a machine's row on the Machines tab: External, on its address — which is
+  // what puts the route on that machine.
+  initialMachine?: { address: string };
   pending?: boolean;
   error?: string | null;
   routedOrigins: Set<string>;
@@ -72,9 +72,8 @@ export function AddRouteModal({
   const [link, setLink] = useState<{
     container?: string;
     origin?: string;
-    machine?: string;
     name?: string;
-  }>(initialMachine ? { machine: initialMachine.id } : {});
+  }>({});
   const [picked, setPicked] = useState<string | null>(null);
   // A picked container's route follows it by default whenever its address can be derived.
   const [follow, setFollow] = useState(false);
@@ -212,9 +211,8 @@ export function AddRouteModal({
         {source === "external" && (
           <>
             <p className="mt-1 text-xs text-slate-500">
-              A service on a machine you have named — pick it under{" "}
-              <span className="text-slate-300">Machine</span>, and the route follows it — or
-              any address. Machines are named on the{" "}
+              Any address. A route on a named machine's address is listed under it, and moves
+              with it. Machines are named on the{" "}
               <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
                 Machines
               </Link>{" "}
@@ -224,13 +222,8 @@ export function AddRouteModal({
         )}
 
         <RouteFields
-          // Remounted per source, so the Machine/Address choice starts afresh with it.
-          key={source}
           fields={fields}
           hosts={hosts}
-          machine={link.machine ?? null}
-          // A picked machine links the route; typing unlinks it. Container/origin links stay.
-          onHostPick={(option) => setLink((l) => ({ ...l, machine: option?.machine }))}
           follow={
             source === "container" && picked
               ? {
@@ -238,11 +231,7 @@ export function AddRouteModal({
                   derived,
                   set: (on) => {
                     setFollow(on);
-                    if (on) {
-                      // A route follows its container or a machine, never both.
-                      setLink((l) => ({ ...l, machine: undefined }));
-                      if (derived) fields.set({ upstream: derived });
-                    }
+                    if (on && derived) fields.set({ upstream: derived });
                   },
                 }
               : undefined

@@ -107,9 +107,9 @@ def subdomain_taken(prefix: str, exclude_id: str) -> bool:
     )
 
 
-def relink_upstream(upstream: str, new_host: str) -> str:
+def move_upstream(upstream: str, new_host: str) -> str:
     """Swap the host half of a `host:port` upstream, keeping the port. Pure — this is the
-    whole of what "the machine's address changed" means for a linked route."""
+    whole of what "the machine's address changed" means for a route on it."""
     _, _, port = upstream.rpartition(":")
     return f"{new_host}:{port}"
 
@@ -131,20 +131,16 @@ def validate_container(container: str) -> None:
         raise AssignError(404, f"no container named '{container}'")
 
 
-def validate_machine(machine_id: str, target_id: str) -> Instance:
-    """The machine a route is being linked to must exist, be an address rather than a
-    service, and not be the route itself. Raises `AssignError` — a bad link is a client
-    error, not something to store and discover later."""
-    if machine_id == target_id:
-        raise AssignError(422, "an instance cannot be its own machine")
-    machine = instances_store.get_instance(machine_id)
-    if machine is None:
-        raise AssignError(404, f"machine '{machine_id}' not found")
-    if not instances_store.is_machine(machine):
-        raise AssignError(
-            422, f"'{machine_id}' is a service, not a machine — its upstream has a port"
-        )
-    return machine
+def address_taken(address: str, exclude_id: str) -> Instance | None:
+    """The other machine already at this address, if any. A route's machine is the one at
+    its upstream's address, so two machines on one address would make that ambiguous."""
+    return next(
+        (
+            i for i in instances_store.list_instances()
+            if instances_store.is_machine(i) and i.upstream == address and i.id != exclude_id
+        ),
+        None,
+    )
 
 
 async def assign(
@@ -159,7 +155,6 @@ async def assign(
     name: str | None = None,
     container: str | None = None,
     origin: str | None = None,
-    machine: str | None = None,
     upstream_tls: bool = False,
     scheme: Literal["https", "both", "http"] = "https",
     route_mode: Literal["proxy", "dns_only"] = "proxy",
@@ -187,8 +182,8 @@ async def assign(
     if subdomain_taken(prefix, exclude_id=target_id):
         raise AssignError(409, f"subdomain '{prefix}' is already assigned")
 
-    if machine:
-        validate_machine(machine, target_id)
+    if route_mode == "dns_only" and (other := address_taken(upstream, exclude_id=target_id)):
+        raise AssignError(409, f"{upstream} is already the machine '{other.name}'")
 
     created_new = existing is None
     if existing:
@@ -196,7 +191,7 @@ async def assign(
         inst = existing.model_copy(
             update={
                 "subdomain": prefix, "upstream": upstream, "upstream_tls": upstream_tls,
-                "route_mode": route_mode, "machine": machine, "scheme": scheme,
+                "route_mode": route_mode, "scheme": scheme,
                 "follow_container": follow_container,
                 # Re-pointing a machine at a port turns it into a service, and vice versa.
                 "kind": "machine" if route_mode == "dns_only" else "service",
@@ -211,7 +206,7 @@ async def assign(
         inst = Instance(
             id=prefix, name=name or prefix,
             type="docker" if container else "external",
-            container=container, origin=origin, machine=machine,
+            container=container, origin=origin,
             subdomain=prefix, upstream=upstream,
             upstream_tls=upstream_tls, route_mode=route_mode, scheme=scheme,
             kind="machine" if route_mode == "dns_only" else "service",
@@ -295,15 +290,13 @@ async def assign(
                 "The name won't resolve on the LAN until it's added; retry when AdGuard is reachable."
             )
 
-    # Step 3 — carry the change to anything hosted here. This is what the `machine` link
-    # buys: one edit, every route to that address follows. Best-effort per route — a push
-    # that fails leaves the stored upstream correct, so the next Sync repairs it.
-    relinked, relink_failures = await _propagate_to_dependents(
-        caddy_client, inst, prev, base_domain
-    )
-    if relink_failures:
+    # Step 3 — a machine that moved takes the routes on it along: one edit, every route to
+    # that address follows. Best-effort per route — a push that fails leaves the stored
+    # upstream correct, so the next Sync repairs it.
+    moved, move_failures = await _move_routes_on(caddy_client, inst, prev, base_domain)
+    if move_failures:
         warning = (warning + " " if warning else "") + (
-            f"{len(relink_failures)} route(s) hosted here kept the old address in Caddy "
+            f"{len(move_failures)} route(s) hosted here kept the old address in Caddy "
             "until the next Sync."
         )
 
@@ -312,7 +305,7 @@ async def assign(
         "adguard": adguard_status,
         "url": _display_url(inst, domain),
         "instance_id": inst.id,
-        "relinked": relinked,
+        "moved": moved,
         "warning": warning,
     }
 
@@ -346,29 +339,28 @@ async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) 
         )
 
 
-async def _propagate_to_dependents(
+async def _move_routes_on(
     caddy_client, machine: Instance, prev: Instance | None, base_domain: str | None
 ) -> tuple[list[str], list[str]]:
-    """Rewrite the host half of every route hosted on `machine` and re-push it.
+    """Rewrite the host half of every route on `machine`'s old address and re-push it.
 
-    Only runs when this assign actually moved a machine's address: the link exists so an
-    IP is entered once, and a no-op assign must not re-push half the estate. Returns the
-    ids updated and the ids whose Caddy push failed (their stored upstream is already the
-    new one, which is what makes Sync a working repair rather than a second guess)."""
-    if not prev or not instances_store.is_machine(machine):
+    Only runs when this assign actually moved a machine's address, so a no-op assign
+    re-pushes nothing. A route following its container is left alone: its address is the
+    container's, and the follower would only write it back. Returns the ids updated and the
+    ids whose Caddy push failed (their stored upstream is already the new one, which is
+    what makes Sync a working repair rather than a second guess)."""
+    if not prev or not instances_store.is_machine(machine) or not instances_store.is_machine(prev):
         return [], []
     old_host, new_host = prev.upstream, machine.upstream
-    if not new_host or old_host == new_host:
+    if not old_host or not new_host or old_host == new_host:
         return [], []
 
     updated: list[str] = []
     failed: list[str] = []
-    for dep in instances_store.list_by_machine(machine.id):
-        if not dep.upstream:
+    for dep in instances_store.on_address(old_host):
+        if dep.follow_container:
             continue
-        moved = dep.model_copy(
-            update={"upstream": relink_upstream(dep.upstream, new_host)}
-        )
+        moved = dep.model_copy(update={"upstream": move_upstream(dep.upstream, new_host)})
         instances_store.upsert_instance(moved)
         updated.append(moved.id)
         if moved.route_mode != "proxy" or not moved.subdomain:
@@ -387,7 +379,7 @@ async def _propagate_to_dependents(
 # --- Named entry points ---
 #
 # One orchestration, two verbs. The body below is ~80% shared — dedup by container/origin,
-# the uniqueness check, the rollback, AdGuard's exact-pair cleanup, the machine propagation
+# the uniqueness check, the rollback, AdGuard's exact-pair cleanup, moving a machine's routes
 # — and those shared parts are the ones where a divergence between two copies would hurt
 # most. So the split is at the call site, not in the flow: these say which verb is meant.
 
@@ -399,7 +391,7 @@ async def assign_route(caddy_client, adguard_client, **kwargs) -> dict:
 
 async def name_machine(caddy_client, adguard_client, **kwargs) -> dict:
     """Give a LAN machine a name: a DNS rewrite straight to its own address, no Caddy, no
-    TLS. What routes then link to via `machine`."""
+    TLS. Routes on its address are listed under it, and move with it."""
     return await assign(caddy_client, adguard_client, route_mode="dns_only", **kwargs)
 
 
@@ -455,19 +447,11 @@ async def purge_instance(
     just does the cross-module teardown."""
     if inst.subdomain:
         await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
-    # Anything hosted here keeps working on the address it already has — it just stops
-    # following this machine. Refusing the delete would be the other option; Loskai's
-    # standing preference is to do the thing and say what happened (Phase 18's walk-back
-    # of the boot guard), and nothing here is unrecoverable: re-point the route to relink.
-    unlinked = [dep.id for dep in instances_store.list_by_machine(inst.id)]
-    for dep_id in unlinked:
-        dep = instances_store.get_instance(dep_id)
-        if dep:
-            instances_store.upsert_instance(dep.model_copy(update={"machine": None}))
+    # Routes on a deleted machine's address keep it: nothing links them, so nothing to undo.
     instances_store.delete_instance(inst.id)
     if instances_store.is_machine(inst):
         await asyncio.to_thread(ssh_machines.forget_machine, inst)
-    return {"deleted": True, "instance_id": inst.id, "unlinked": unlinked}
+    return {"deleted": True, "instance_id": inst.id}
 
 
 async def delete_instance(
@@ -490,11 +474,11 @@ router = APIRouter(prefix="/api", tags=["assign"])
 
 # Two request models, because the two things being asked for are not the same shape. A
 # machine is an address with a name; a service is a name pointing at a host:port, possibly
-# over TLS, possibly hosted on a machine. Fields that mean nothing for one are absent from
+# over TLS, possibly on a machine's address. Fields that mean nothing for one are absent from
 # it rather than ignored — a `upstream_tls` on a machine used to be silently dropped.
 #
 # They converge on one `assign()` below: the orchestration (dedup, uniqueness, Step 0/1/2
-# with its rollback, AdGuard's exact-pair cleanup, machine propagation) is identical, and
+# with its rollback, AdGuard's exact-pair cleanup, moving a machine's routes) is identical, and
 # that is the part where two copies would drift into a real bug.
 
 
@@ -526,7 +510,6 @@ class RouteCreate(BaseModel):
     upstream_tls: bool = False
     # One enum, not two booleans: two checkboxes admit an invalid both-off state.
     scheme: Literal["https", "both", "http"] = "https"
-    machine: str | None = None
     container: str | None = None
     origin: str | None = None
     name: str | None = None
@@ -549,10 +532,6 @@ async def _followed_upstream(body: "RouteCreate") -> str:
         container = existing.container if existing else None
     if not container:
         raise AssignError(400, "only a container's route can follow its container")
-    if body.machine:
-        raise AssignError(
-            400, "a route follows its container or a machine, not both — unlink the machine"
-        )
     try:
         upstream = await asyncio.to_thread(follow.derive_upstream, container)
     except Exception as exc:  # noqa: BLE001 — any docker/transport failure
@@ -606,7 +585,7 @@ async def post_route(body: RouteCreate) -> dict:
             caddy, adguard,
             prefix=body.prefix, upstream=upstream,
             instance_id=body.instance_id, name=body.name, container=body.container,
-            origin=body.origin, machine=body.machine, upstream_tls=body.upstream_tls,
+            origin=body.origin, upstream_tls=body.upstream_tls,
             scheme=body.scheme, base_domain=base, current_ip=current_ip,
             follow_container=body.follow_container,
         )

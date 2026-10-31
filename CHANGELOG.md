@@ -10,8 +10,9 @@ Everything so far:
 - **Routing** — give any service an HTTPS name in one step: Caddy route and AdGuard DNS
   entry together. Sources: a container, a network service (AdGuard, router, Caddy) or any
   IP and port. Per route: HTTPS, HTTP or both, and whether the backend speaks HTTPS.
-- **Machines** — name the computers on your network; a route linked to one follows it when
-  its address changes. A Docker route can follow its container the same way. Loskai makes
+- **Machines** — name the computers on your network; every route on a machine's address is
+  listed under it and moves with it when the address changes. A Docker route can follow its
+  container the same way. Loskai makes
   its own SSH key, encrypted with your admin password, and keeps an SSH config of your
   machines — set a machine's SSH user and port in its form, download the file from
   Settings. Connecting from Loskai comes next.

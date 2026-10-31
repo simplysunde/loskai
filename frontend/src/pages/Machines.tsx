@@ -8,7 +8,7 @@ import { useSsh } from "../lib/ssh";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
-import { dependentsOf, isMachine } from "../components/routing/machine";
+import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { SshKeyPanel } from "../components/routing/SshKeyPanel";
 import type { RouteRow } from "../components/routing/ServiceTable";
@@ -23,11 +23,11 @@ interface SaveResult {
   caddy: string;
   url: string;
   warning: string | null;
-  relinked?: string[];
+  moved?: string[];
 }
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
-// certificate. Routes on the Routing tab link to one, so moving it here re-points them all.
+// certificate. Every route on a machine's address is on it, so moving it here re-points them all.
 // The records are the same instances Routing reads (`kind: "machine"`), from the same
 // endpoint; this tab is a reading of that one store, not a second one.
 export function Machines() {
@@ -104,7 +104,7 @@ export function Machines() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Delete failed"),
   });
 
-  const deleting = confirmDelete ? dependentsOf(confirmDelete.id, rows) : [];
+  const deleting = confirmDelete ? routesOn(confirmDelete, rows) : [];
   const target = editing !== "new" ? editing : null;
 
   return (
@@ -139,8 +139,8 @@ export function Machines() {
         >
           <span className="font-medium">{result.url}</span> —{" "}
           {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
-          {result.relinked && result.relinked.length > 0 && (
-            <> Moved {result.relinked.join(", ")} with it.</>
+          {result.moved && result.moved.length > 0 && (
+            <> Moved {result.moved.join(", ")} with it.</>
           )}
         </div>
       )}
@@ -195,7 +195,7 @@ export function Machines() {
         open={routeOn !== null}
         baseDomain={baseDomain}
         mode={health.data?.caddy?.mode ?? null}
-        initialMachine={routeOn ? { id: routeOn.id, address: routeOn.upstream ?? "" } : undefined}
+        initialMachine={routeOn ? { address: routeOn.upstream ?? "" } : undefined}
         pending={addRoute.isPending}
         error={error}
         routedOrigins={routedOrigins}
@@ -214,13 +214,12 @@ export function Machines() {
         This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>{" "}
         and its DNS rewrite{confirmDelete?.subdomain && sshHosts[confirmDelete.subdomain] ? " and SSH entry" : ""}.
         The machine itself isn't affected.
-        {/* Deleting a machine doesn't break what runs on it — those routes keep the
-            address they already have. They just stop following it. */}
+        {/* Deleting a machine doesn't break what runs on it: nothing links those routes,
+            so they keep the address they already have. */}
         {deleting.length > 0 && (
           <span className="mt-2 block text-amber-300">
-            {deleting.length === 1 ? "1 route points" : `${deleting.length} routes point`} at
-            this machine ({deleting.map((r) => r.name).join(", ")}). They keep its current
-            address and go on working — they just stop following it when it moves.
+            {deleting.length === 1 ? "1 route is" : `${deleting.length} routes are`} on its
+            address ({deleting.map((r) => r.name).join(", ")}). They keep it and go on working.
           </span>
         )}
       </ConfirmDialog>

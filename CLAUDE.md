@@ -130,11 +130,14 @@ The links on a record:
 - `container` (docker instance ↔ its container) and `origin` (external instance ↔ a
   built-in network service: `adguard`/`gateway`/`caddy`) are **idempotency keys** —
   routing either again edits the existing record (`get_by_container`/`get_by_origin`).
-- `machine` is a **dependency**: the instance that owns this upstream's host. What may be
-  linked to is **declared** by `kind: "service" | "machine"` (set by the verb that created
-  it), never re-derived at a call site. Moving a machine rewrites every dependent's upstream
-  and re-pushes it in the same assign (`list_by_machine`); deleting one **unlinks** — the
-  routes keep their address and stop following.
+- **A route is on a machine by its address, never by a stored link.** A machine's only
+  identity on the network is its IP, so a service whose upstream host is a machine's
+  address is on that machine (`instances.on_address`, `machine.ts` `machineAt`) — worked out
+  each time, like container state. Which records are machines is **declared** by
+  `kind: "service" | "machine"` (set by the verb that created it), never re-derived at a call
+  site. Moving a machine rewrites every route on its old address and re-pushes it in the
+  same assign — except one following its container; deleting one leaves them as they are.
+  Two machines can't share an address (`409`).
 - `follow_container` makes a docker route **follow its container**: the upstream is derived
   from the live container (`logic.suggested_upstream`, the same function the route forms
   pre-fill from) and rewritten when it starts on a different port. The trigger is Docker's
@@ -162,11 +165,10 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
   machine's row (preset to it). Three sources — Container, Network service, External — post
   `/api/routes` with `container`, `origin` or neither. The Routing tab's AdGuard pill posts
   exactly what the Network source would.
-- The upstream is **host and port** (`RouteFields`, shared by both route forms). The host is
-  **Machine or Address**: Machine picks a named machine and **links** to it; Address
-  (`HostSelect`) takes anything and **never links**, and switching never guesses a link
-  from a matching IP. An unlinked route whose host is a machine's address is **matched** —
-  shown under that machine (a chain icon marks a link, a wand a match) — display only.
+- The upstream is **host and port** (`RouteFields`, shared by both route forms). The host
+  (`HostSelect`) takes any address, and lists the Docker host, the picked container's host
+  and the named machines — picking one only types its address in. Opened from a machine's
+  row, the picker starts on that machine's address.
 - **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
   the same button reads **Assign a URL**.
 - The **Docker tab creates a route in one place only**: the install wizard's last step.

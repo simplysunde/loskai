@@ -1,14 +1,11 @@
 import type { RouteRow } from "./ServiceTable";
 import { isMachine } from "./machine";
 
-// What the route forms' host field offers. Machines go to its Machine mode — picking one
-// links the route to it, so the route follows the machine's address. The Docker host and
-// the picked container's own host go to its Address mode's dropdown.
+// What the route forms' host dropdown offers: the Docker host, the picked container's own
+// host, and the named machines. Each is only an address — picking one types it in.
 export interface HostOption {
   address: string;
   label: string;
-  // Set for a named machine: picking it links the route (`machine` on the instance).
-  machine?: string;
 }
 
 export function hostOptions({
@@ -20,19 +17,21 @@ export function hostOptions({
   dockerHost?: string | null;
   containerHost?: string | null;
 }): HostOption[] {
-  const machines: HostOption[] = rows
-    .filter((r) => isMachine(r) && r.upstream)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((m) => ({ address: m.upstream as string, label: m.name, machine: m.id }));
-  // Deduplicated among themselves only: the two modes are separate lists, so the Docker
-  // host stays in Address mode even when a machine shares its IP.
-  const addresses: HostOption[] = [];
+  const options: HostOption[] = [];
+  // One entry per address; a second name for it joins the label (the Docker host is often
+  // a named machine too).
   const add = (address: string | null | undefined, label: string) => {
-    if (address && !addresses.some((o) => o.address === address)) addresses.push({ address, label });
+    if (!address) return;
+    const known = options.find((o) => o.address === address);
+    if (known) known.label = `${known.label} · ${label}`;
+    else options.push({ address, label });
   };
   add(dockerHost, "Docker host");
-  // On a shared Docker network this is the service name; off it, the Docker host again —
-  // which the line above has already added.
+  // On a shared Docker network this is the service name; off it, the Docker host again.
   add(containerHost, "This container");
-  return [...machines, ...addresses];
+  rows
+    .filter((r) => isMachine(r) && r.upstream)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((m) => add(m.upstream, m.name));
+  return options;
 }

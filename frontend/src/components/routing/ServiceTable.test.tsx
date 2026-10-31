@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { ServiceTable, type RouteRow } from "./ServiceTable";
@@ -101,45 +101,57 @@ test("a proxy row with known sync state shows a real badge, not a dash", () => {
   expect(screen.queryByText("dns-only")).not.toBeInTheDocument();
 });
 
-test("a linked upstream shows its address, the machine it follows beneath", () => {
-  // Otherwise the link is invisible: the address looks hand-typed right up until the
-  // machine moves and this row quietly follows it. The address stays on top — a machine's
-  // name is not an address (`adguard.lxc:3000` would not resolve).
+test("a route on a machine's address shows the address, the machine beneath", () => {
+  // The address stays on top — a machine's name is not an address (`adguard.lxc:3000`
+  // would not resolve) — and the machine beneath says this route moves with it.
   render(
     <ServiceTable
-      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
+      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400" })]}
       machines={[row({ id: "nas", name: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
   expect(screen.getByText("192.168.10.50:32400")).toBeInTheDocument();
   // The full name — `nas` alone would not resolve.
-  expect(screen.getByText("nas.example.no").closest("div")).toContainElement(
-    screen.getByRole("img", { name: /^Linked/ }),
+  expect(screen.getByText("nas.example.no").closest("div")).toHaveAttribute(
+    "title",
+    expect.stringMatching(/moves with it/),
   );
   expect(screen.queryByText("nas:32400")).not.toBeInTheDocument();
 });
 
-test("an unlinked route shows its address as it is", () => {
-  render(<ServiceTable rows={[row({ upstream: "192.168.10.77:8080" })]} />);
-  expect(screen.getByText("192.168.10.77:8080")).toBeInTheDocument();
-});
-
-test("a linked upstream follows a rename", () => {
-  // The link is stored by id, which never changes — so it must resolve to what the
-  // machine is called now, not the name it happened to be created under.
+test("a route on no machine's address shows its address alone", () => {
   render(
     <ServiceTable
-      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400", machine: "nas" })]}
+      rows={[row({ upstream: "192.168.10.5:8080" })]}
+      machines={[row({ id: "nas", name: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50", kind: "machine" })]}
+    />,
+  );
+  expect(screen.getByText("192.168.10.5:8080")).toBeInTheDocument();
+  expect(screen.queryByText("nas.example.no")).not.toBeInTheDocument();  // a prefix, not it
+});
+
+test("a machine with no DNS name is named by its plain name", () => {
+  render(
+    <ServiceTable
+      rows={[row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400" })]}
       machines={[row({ id: "nas", name: "Storage box", fqdn: null, upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  // No DNS name, so the plain one — the current one, not the id.
   expect(screen.getByText("Storage box")).toBeInTheDocument();
 });
 
-test("a machine that is no longer listed falls back to its id", () => {
-  render(<ServiceTable rows={[row({ id: "plex", upstream: "192.168.10.50:32400", machine: "ghost" })]} />);
-  expect(screen.getByText("ghost")).toBeInTheDocument();
+test("a route following its container says so over its machine", () => {
+  // It doesn't move with the machine: its address is the container's.
+  render(
+    <ServiceTable
+      rows={[row({ id: "whoami", name: "whoami", upstream: "192.168.10.50:8081", follow_container: true })]}
+      machines={[row({ id: "nas", name: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50", kind: "machine" })]}
+    />,
+  );
+  expect(screen.getByText("nas.example.no").closest("div")).toHaveAttribute(
+    "title",
+    expect.stringMatching(/follows its container/),
+  );
 });
 
 test("a non-default scheme is tagged, https is not", () => {
@@ -216,29 +228,4 @@ test("each status header explains itself on hover", () => {
   for (const name of ["Route", "DNS"]) {
     expect(screen.getByRole("columnheader", { name })).toHaveAttribute("title");
   }
-});
-
-test("an unlinked upstream on a machine's address names that machine, without linking", () => {
-  render(
-    <ServiceTable
-      rows={[
-        row({ id: "plex", name: "plex", upstream: "192.168.10.50:32400" }),
-        row({ id: "linked", name: "linked", upstream: "192.168.10.50:8080", machine: "nas" }),
-        row({ id: "elsewhere", name: "elsewhere", upstream: "192.168.10.99:80" }),
-      ]}
-      machines={[
-        row({ id: "nas", name: "Storage box", upstream: "192.168.10.50", fqdn: "nas.example.no", kind: "machine" }),
-      ]}
-    />,
-  );
-
-  const plex = screen.getByText("plex").closest("tr") as HTMLElement;
-  expect(plex).toHaveTextContent("192.168.10.50:32400");
-  expect(within(plex).getByText("nas.example.no")).toBeInTheDocument();
-  expect(within(plex).getByRole("img", { name: /^Matched by IP/ })).toBeInTheDocument();
-  // The linked row names the machine too, with the other icon; the unrelated one, nothing.
-  const linked = screen.getByText("linked").closest("tr") as HTMLElement;
-  expect(within(linked).getByRole("img", { name: /^Linked/ })).toBeInTheDocument();
-  expect(within(linked).queryByRole("img", { name: /^Matched by IP/ })).not.toBeInTheDocument();
-  expect(screen.getAllByText("nas.example.no")).toHaveLength(2);
 });

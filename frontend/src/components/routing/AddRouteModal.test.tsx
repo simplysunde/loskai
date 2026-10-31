@@ -79,11 +79,11 @@ function typeUpstream(host: string, port: string) {
   fireEvent.change(portInput(), { target: { value: port } });
 }
 
-// Open the host list from its chevron and pick an entry, as a mouse would.
-// Machine mode, then the machine by id — the toggle only appears once machines have loaded.
-async function pickMachine(id: string) {
-  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Machine" }), { target: { value: id } });
+// Open the host list from its chevron and pick an entry, as a mouse would. The chevron
+// only appears once there is something to list.
+async function pickHost(name: RegExp) {
+  fireEvent.mouseDown(await screen.findByRole("button", { name: "Show hosts" }));
+  fireEvent.mouseDown(screen.getByRole("option", { name }));
 }
 
 test("lowercases a typed prefix instead of silently rejecting it", () => {
@@ -318,7 +318,7 @@ test("switching source clears the container's mode", async () => {
   expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
 });
 
-// --- Machines as upstreams (Phase 21a) ---
+// --- Machines in the host list: a route on one's address is on it ---
 
 const MACHINES = [
   // A named machine: its upstream is a bare address, and `kind` says so.
@@ -351,130 +351,59 @@ const MACHINES = [
   },
 ];
 
-test("Machine mode offers named machines, and only those", async () => {
+test("the host list offers named machines beside the Docker host — not services", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
+  RESPONSES["/api/settings"] = {
+    ...(DEFAULT_SETTINGS as object),
+    host_ip: { value: "192.168.10.220", source: "stored", secret: false },
+  };
   renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
+  fireEvent.mouseDown(await screen.findByRole("button", { name: "Show hosts" }));
 
-  const options = screen.getAllByRole("option").map((o) => o.textContent);
-  expect(options).toContain("nas — 192.168.10.50");
   // grafana is a service on a machine, not an address to point at.
-  expect(options.some((o) => o?.includes("grafana"))).toBe(false);
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "Docker host192.168.10.220", "nas192.168.10.50",
+  ]);
 });
 
-test("picking a machine links the route to it, not just its address", async () => {
-  // The link is what makes the route follow the machine when its IP changes.
+test("picking a machine types its address, keeps the port, and sends no link", async () => {
+  // The address is what puts the route on the machine; there is nothing else to send.
   RESPONSES["/api/caddy/routes"] = MACHINES;
   const { onSubmit } = renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickMachine("nas");
-  fireEvent.change(prefixInput(), { target: { value: "plex" } });
   fireEvent.change(portInput(), { target: { value: "32400" } });
-  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+  await pickHost(/nas/);
 
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ machine: "nas", upstream: "192.168.10.50:32400" }),
-  );
-});
-
-test("a typed address carries no machine link", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  const { onSubmit } = renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.change(prefixInput(), { target: { value: "thing" } });
-  typeUpstream("192.168.10.77", "8080");
-  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
-
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.not.objectContaining({ machine: expect.anything() }),
-  );
-});
-
-test("switching back to Address unlinks, keeping the address to edit", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  const { onSubmit } = renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickMachine("nas");
-  expect(screen.getByText(/follows nas/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Address" }));
   expect(hostInput()).toHaveValue("192.168.10.50");
-  fireEvent.change(prefixInput(), { target: { value: "thing" } });
-  fireEvent.change(portInput(), { target: { value: "8080" } });
-  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
-
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.not.objectContaining({ machine: expect.anything() }),
-  );
-});
-
-test("Machine mode can't submit until a machine is chosen", async () => {
-  // Switching never guesses a link from an address that happens to match.
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.change(prefixInput(), { target: { value: "plex" } });
-  typeUpstream("192.168.10.50", "32400");
-  fireEvent.click(await screen.findByRole("button", { name: "Machine" }));
-
-  expect(screen.getByRole("combobox", { name: "Machine" })).toHaveValue("");
-  expect(screen.getByRole("button", { name: "Add route" })).toBeDisabled();
-});
-
-test("picking a machine shows where the route goes, and leaves the port to type", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickMachine("nas");
-
-  expect(screen.getByText("→ 192.168.10.50 — follows nas when its address changes.")).toBeInTheDocument();
-  expect(portInput()).toHaveValue("");
-});
-
-test("picking a machine keeps a port already typed", async () => {
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  fireEvent.change(portInput(), { target: { value: "32400" } });
-  await pickMachine("nas");
-
   expect(portInput()).toHaveValue("32400");
-});
-
-test("picking a machine leaves the prefix alone", async () => {
-  // Prefilling it with the machine's name would collide with the name the machine
+  // Prefilling the prefix with the machine's name would collide with the name the machine
   // already answers to — the route is a service *on* it, not the machine itself.
-  RESPONSES["/api/caddy/routes"] = MACHINES;
-  renderPicker();
-
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
-  await pickMachine("nas");
-
   expect(prefixInput()).toHaveValue("");
+  fireEvent.change(prefixInput(), { target: { value: "plex" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+
+  expect(onSubmit.mock.calls[0][0]).toMatchObject({ upstream: "192.168.10.50:32400" });
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("machine");
 });
 
-test("opened from a machine's row, it starts on External, linked to that machine", async () => {
+test("opened from a machine's row, it starts on External, on that machine's address", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
-  const { onSubmit } = renderPicker({ initialMachine: { id: "nas", address: "192.168.10.50" } });
+  const { onSubmit } = renderPicker({ initialMachine: { address: "192.168.10.50" } });
 
-  expect(await screen.findByRole("combobox", { name: "Machine" })).toHaveValue("nas");
+  expect(hostInput()).toHaveValue("192.168.10.50");
   fireEvent.change(prefixInput(), { target: { value: "plex" } });
   fireEvent.change(portInput(), { target: { value: "32400" } });
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));
 
   expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ machine: "nas", upstream: "192.168.10.50:32400" }),
+    expect.objectContaining({ upstream: "192.168.10.50:32400" }),
   );
 });
 
-test("Address mode's list is the Docker host, filtered as you type — not the machines", async () => {
+test("the host list filters as you type, by name or address", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   RESPONSES["/api/settings"] = {
     ...(DEFAULT_SETTINGS as object),
@@ -490,7 +419,7 @@ test("Address mode's list is the Docker host, filtered as you type — not the m
   ]);
 
   fireEvent.change(hostInput(), { target: { value: "10.50" } });
-  expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["nas192.168.10.50"]);
 });
 
 test("the keyboard picks from the list — but Enter never swaps a typed address", async () => {
@@ -514,12 +443,11 @@ test("the keyboard picks from the list — but Enter never swaps a typed address
   expect(hostInput()).toHaveValue("192.168.10.220");
 });
 
-test("with no hosts to offer, the host field is a plain text field, and no toggle", async () => {
+test("with no hosts to offer, the host field is a plain text field", async () => {
   const { onSubmit } = renderPicker();
 
   fireEvent.click(screen.getByRole("button", { name: /External/ }));
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.77", "8080");
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));

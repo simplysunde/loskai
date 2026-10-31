@@ -112,7 +112,7 @@ def test_machines_are_not_dashboard_cards(tmp_path, monkeypatch):
 
 def test_a_route_onto_a_machine_is_still_a_card(tmp_path, monkeypatch):
     # The documented way to put Proxmox on the dashboard: a second name, routed at its port
-    # and linked to the machine, so it follows the machine if the host moves.
+    # on the machine's address, so it moves with the machine.
     from loskai.shared import dashboard
 
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
@@ -123,7 +123,7 @@ def test_a_route_onto_a_machine_is_still_a_card(tmp_path, monkeypatch):
     )
     inst.upsert_instance(
         inst.Instance(id="pve", name="Proxmox UI", type="external", subdomain="pve",
-                      upstream="192.168.10.177:8006", machine="proxmox", upstream_tls=True)
+                      upstream="192.168.10.177:8006", upstream_tls=True)
     )
 
     cards = {c["name"]: c["url"] for c in dashboard.dashboard()["services"]}

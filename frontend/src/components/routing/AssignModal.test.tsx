@@ -12,14 +12,8 @@ function typeUpstream(host: string, port: string) {
   fireEvent.change(portInput(), { target: { value: port } });
 }
 
-// Machine mode, then the machine by id.
-function pickMachine(id: string) {
-  fireEvent.click(screen.getByRole("button", { name: "Machine" }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Machine" }), { target: { value: id } });
-}
-
-// Address mode's dropdown, opened from its chevron.
-function addressOptions() {
+// The host dropdown, opened from its chevron.
+function hostList() {
   fireEvent.mouseDown(screen.getByRole("button", { name: "Show hosts" }));
   return screen.getAllByRole("option").map((o) => o.textContent);
 }
@@ -63,7 +57,6 @@ test("Assign is disabled until prefix and upstream are valid", () => {
     prefix: "grafana",
     upstream: "192.168.10.100:3000",
     upstream_tls: false,
-    machine: null,
     scheme: "https",
   });
 });
@@ -80,7 +73,6 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
     prefix: "proxmox",
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
-    machine: null,
     scheme: "https",
   });
 });
@@ -103,12 +95,11 @@ test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {
     prefix: "proxmox",
     upstream: "192.168.10.202:8006",
     upstream_tls: true,
-    machine: null,
     scheme: "https",
   });
 });
 
-// --- Linking an existing route to a machine (Phase 21g) ---
+// --- The host list: the Docker host, this container, the named machines ---
 
 const MACHINES = [
   {
@@ -123,84 +114,40 @@ const MACHINES = [
   },
 ];
 
-test("a route created before the link can be attached to a machine", () => {
-  // The gap this closes: such a route otherwise had to be deleted and rebuilt.
-  const { onSubmit } = renderModal({
-    rows: MACHINES,
-    initialPrefix: "plex",
-    initialUpstream: "192.168.10.50:32400",
-  });
+test("the host list offers the Docker host, this container and the machines — not services", () => {
+  renderModal({ rows: MACHINES, dockerHost: "192.168.10.220", containerHost: "jellyfin" });
 
-  pickMachine("nas");
-  fireEvent.click(screen.getByRole("button", { name: "Assign" }));
-
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ machine: "nas", upstream: "192.168.10.50:32400" }),
-  );
+  expect(hostList()).toEqual([
+    "Docker host192.168.10.220", "This containerjellyfin", "nas192.168.10.50",
+  ]);
 });
 
-test("picking a machine keeps the port and takes its address", () => {
+test("picking a machine types its address in, keeps the port, and links nothing", () => {
+  // The route is on the machine because of its address — there is no link to send.
   const { onSubmit } = renderModal({
     rows: MACHINES,
     initialPrefix: "plex",
     initialUpstream: "10.0.0.9:32400",
   });
 
-  pickMachine("nas");
+  hostList();
+  fireEvent.mouseDown(screen.getByRole("option", { name: /nas/ }));
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
 
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ upstream: "192.168.10.50:32400" }),
-  );
+  expect(onSubmit.mock.calls[0][0]).toMatchObject({ upstream: "192.168.10.50:32400" });
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("machine");
 });
 
-test("a linked route opens on its machine; Address unlinks it, and null is what says so", () => {
-  const { onSubmit } = renderModal({
-    rows: MACHINES,
-    initialPrefix: "plex",
-    initialUpstream: "192.168.10.50:32400",
-    initialMachine: "nas",
-  });
-
-  expect(screen.getByRole("combobox", { name: "Machine" })).toHaveValue("nas");
-  fireEvent.click(screen.getByRole("button", { name: "Address" }));
-  expect(hostInput()).toHaveValue("192.168.10.50");
-  fireEvent.change(hostInput(), { target: { value: "192.168.10.51" } });
-  fireEvent.click(screen.getByRole("button", { name: "Assign" }));
-
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ machine: null, upstream: "192.168.10.51:32400" }),
-  );
-});
-
-test("only machines are offered as machines — a service is an address in use", () => {
-  renderModal({ rows: MACHINES });
-  fireEvent.click(screen.getByRole("button", { name: "Machine" }));
-
-  const options = screen.getAllByRole("option").map((o) => o.textContent);
-  expect(options).toContain("nas — 192.168.10.50");
-  expect(options.some((o) => o?.includes("web"))).toBe(false);
-});
-
-test("Address mode offers the Docker host and the container's own host", () => {
-  renderModal({ rows: MACHINES, dockerHost: "192.168.10.220", containerHost: "jellyfin" });
-
-  expect(addressOptions()).toEqual(["Docker host192.168.10.220", "This containerjellyfin"]);
-});
-
-test("the Docker host stays an address even when a machine shares its IP", () => {
-  // The two modes are separate lists: typing an address never links, so the Docker host
-  // isn't hidden behind a machine that happens to have the same IP.
+test("a machine on the Docker host's address is one entry, named both ways", () => {
   renderModal({ rows: MACHINES, dockerHost: "192.168.10.50", containerHost: "192.168.10.50" });
 
-  expect(addressOptions()).toEqual(["Docker host192.168.10.50"]);
+  expect(hostList()).toEqual(["Docker host · This container · nas192.168.10.50"]);
 });
 
-test("with nothing to offer, the host field is a plain text field, and no toggle", () => {
+test("with nothing to offer, the host field is a plain text field", () => {
   renderModal({ rows: [] });
 
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
 });
 
 test("an existing route's scheme is prefilled and editable", () => {
@@ -270,32 +217,6 @@ test("a route set by hand is offered following, with the address it would get", 
   expect(hostInput().readOnly).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ follow_container: true }));
-});
-
-test("following and a machine link exclude each other in the form, as on the server", () => {
-  const { onSubmit } = renderModal({
-    rows: MACHINES,
-    initialPrefix: "whoami",
-    initialUpstream: "192.168.10.220:8081",
-    initialMachine: "nas",
-    follow: { initial: false, derived: "192.168.10.220:8081" },
-  });
-
-  // Following clears the machine...
-  fireEvent.click(screen.getByRole("button", { name: /Follow the container/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Assign" }));
-  expect(onSubmit).toHaveBeenLastCalledWith(
-    expect.objectContaining({ follow_container: true, machine: null }),
-  );
-
-  // ...and a machine can only be picked once following is off: the toggle is hidden till then.
-  expect(screen.queryByRole("button", { name: "Machine" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Set by hand" }));
-  pickMachine("nas");
-  fireEvent.click(screen.getByRole("button", { name: "Assign" }));
-  expect(onSubmit).toHaveBeenLastCalledWith(
-    expect.objectContaining({ follow_container: false, machine: "nas" }),
-  );
 });
 
 test("a container whose port Docker can't name says how to make it followable", () => {

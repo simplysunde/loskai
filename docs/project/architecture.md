@@ -108,7 +108,6 @@ An **instance** is anything Loskai knows by name:
   "scheme":    "https",              // "https" | "both" | "http" — which Caddy server(s)
   "container": "grafana-grafana-1",  // links a docker instance to its live container
   "origin":    null,                 // "adguard" | "gateway" | "caddy" — a built-in service
-  "machine":   null,                 // the machine owning this upstream's host
   "follow_container": true,          // the upstream follows the container (docker only)
   "dns_answer": "192.168.10.101",     // the answer last written to AdGuard
   "icon":      "grafana.png",        // launcher icon in data/icons
@@ -122,11 +121,11 @@ An **instance** is anything Loskai knows by name:
 - **Only intent is stored.** Container status, CPU and memory are read live from the socket
   and joined on `container` at display time, so the store can't drift from what runs.
 - **Links.** `container` and `origin` are **idempotency keys**: routing the same container or
-  built-in service again edits its record rather than making a second. `machine` is a
-  **dependency**: when the machine moves, every route linked to it moves too.
-  `follow_container` makes a docker route's address *derived* from the live container rather
-  than typed. Which records may be linked to is **declared** by `kind`, never guessed from
-  an address's shape.
+  built-in service again edits its record rather than making a second. `follow_container`
+  makes a docker route's address *derived* from the live container rather than typed. A
+  route's **machine is not stored**: it is the machine at its upstream's address (see
+  [Machines](#machines)). Which records are machines is **declared** by `kind`, never
+  guessed from an address's shape.
 - **Writes go through one lock** (`store.update_json`): a read-modify-write of the whole file,
   so an assign on the event loop and an edit in the threadpool can't each write back a list
   missing the other's change. A slow step in between (asking Docker) writes compare-and-set,
@@ -181,8 +180,9 @@ Settings › Network's **clear**: it wipes the whole list after a confirmation a
 Loskai's own back in the same call.
 
 **Where a route's address comes from.** The upstream is **host and port** on one row, shared
-by both route forms (`RouteFields`). The host is either a **Machine** — a named machine,
-which links the route to it — or an **Address**, typed or picked, which never links. For a
+by both route forms (`RouteFields`). The host takes any address, and its list offers the
+Docker host, the picked container's host and the named machines — picking one types its
+address in, nothing more. For a
 container the form pre-fills through `containerPrefill`: `<service>:<port>` when Caddy
 shares a Docker network with the container (Compose isolates projects, so this is decided
 per container), `<host_ip>:<published port>` otherwise, or just `<host>:` when the port is
@@ -261,13 +261,17 @@ anything else, not only HTTP:
 - assigning it still tears down any Caddy route with its id, which is what makes switching a
   record from proxied to DNS-only clean.
 
-Routes **link** to a machine (Routing's Machine host). Moving a machine rewrites every
-linked route's upstream and re-pushes them in the same assign; deleting one **unlinks** them
-— they keep the address they had and stop following. A route whose address merely equals a
-machine's is **matched**: listed under it with a wand instead of a chain, display only.
+**A route is on a machine by its address.** Nothing is stored: a machine's only identity on
+the network is its IP, so a service whose upstream host is a machine's address is on that
+machine, worked out each time (`instances.on_address`). Hence:
 
-The Machines tab lists each machine with the routes hosted on it beneath, and adds a route
-on a machine through the same Add route picker, preset to it. Machines never appear on the
+- moving a machine rewrites every route on its old address and re-pushes them in the same
+  assign — except a route following its container, whose address is the container's;
+- deleting a machine changes no route — they keep the address they have;
+- two machines can't share an address (`409`), or a route's machine would be ambiguous.
+
+The Machines tab lists each machine with the routes on its address beneath, and adds a route
+on a machine through the same Add route picker, starting on its address. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
 **SSH, so far (Phase 34a).** Loskai's key is made on the Machines tab with the admin password,
@@ -351,7 +355,7 @@ Later, optional: a second login factor (TOTP), once Loskai holds keys.
 Open: running one command on several machines at once.
 
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
-(`list_by_machine`); frontend `pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
+(`on_address`); frontend `pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
 `AddMachineModal.tsx`.
 
 ---

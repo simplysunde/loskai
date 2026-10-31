@@ -4,6 +4,30 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-31 — A route is on a machine by its address; the link is gone
+
+With the Machines tab about to become a counterpart of the Docker tab, Sunde asked to drop
+"the locking to a machine" and let a route see which machine it is on from its IP. That
+**walks back 2026-10-08**, where a route on a machine's address was only *matched*, display
+only, and kept its old address when the machine moved — chosen then so that a route typed
+by hand would never quietly start moving with a machine. Under the new model that is the
+point: a route on that IP *is* on that machine. The alternative Sunde first sketched — keep
+the link, set it only for routes made from a machine's row — was turned down because two
+routes on one address would then behave differently on a move depending on which tab made
+them, invisibly: the defect Phase 30b's Machine/Address toggle was built to expose. A
+container's link is different in kind — a container has a name apart from its address — so
+`container` stays.
+
+What went: the `machine` field (old records load and lose it on their next write — every
+linked route's upstream already held its machine's address, so nothing is lost),
+`list_by_machine`, `validate_machine`, the Machine/Address toggle in the route form, linking
+and unlinking in Change URL, the chain and wand icons, `relinked` (now `moved`) and the
+delete's `unlinked`. What came: moving a machine carries **every** route on its old address,
+except one following its container (its address is the container's, and the follower would
+only write it back); and **two machines can't share an address** (`409`), which nothing
+stopped before and the IP must now decide. To restore the link, the code is in the commits
+of 2026-10-05 to 2026-10-08 (Phases 21b–30d).
+
 ## 2026-10-30 — Phase 34a: the key and the config file
 
 SSH became a fifth backend module, `modules/ssh/` — the machines are its external system, as

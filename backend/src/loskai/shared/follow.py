@@ -3,7 +3,7 @@
 A route stores its upstream, and a container's port can change underneath it — a compose
 edit, a recipe's `PORT`, a re-up over SSH — leaving the route dialling the old one: a 502
 with nothing in Loskai saying why. A route with `follow_container` is rewritten from the
-live container instead. It is the move `assign._propagate_to_dependents` makes when a
+live container instead. It is the move `assign._move_routes_on` makes when a
 machine changes address, with Docker's event stream as the trigger.
 
 The derivation is `logic.suggested_upstream` — the same function the route forms pre-fill

@@ -4,8 +4,7 @@ import { ChevronDown } from "lucide-react";
 import type { HostOption } from "./hostOptions";
 
 // The host half of an upstream: a text field you can type any address into, with a list of
-// known hosts that typing filters by name or address. Picking reports the option — a named
-// machine links the route to it; typing reports null, so a typed address links nothing.
+// known hosts that typing filters by name or address. Picking one types its address in.
 export function HostSelect({
   value,
   options,
