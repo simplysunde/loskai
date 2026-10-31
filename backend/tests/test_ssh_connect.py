@@ -92,7 +92,10 @@ def _trust(api):
 def test_a_new_machine_s_host_key_is_shown_then_trusted_by_id(api, machine_net):
     scanned = api.post("/api/ssh/machines/nas/scan").json()
 
-    assert scanned == {"fingerprint": HOST_KEY.get_fingerprint(), "type": "ssh-ed25519", "state": "new"}
+    assert scanned == {
+        "fingerprint": HOST_KEY.get_fingerprint(), "type": "ssh-ed25519", "state": "new",
+        "lines": None,  # no key yet
+    }
     api.post("/api/ssh/machines/nas/trust", json={"fingerprint": scanned["fingerprint"]})
     assert api.post("/api/ssh/machines/nas/scan").json()["state"] == "trusted"
     assert logic.known_key(ssh_client.read_known_hosts(), "nas")
@@ -421,3 +424,49 @@ def test_an_error_of_loskai_s_own_is_logged_with_its_cause(api, machine_net, mon
     assert r.status_code == 502
     assert r.json()["detail"] == "SSH to 192.168.10.50 failed — see Loskai's log"
     assert "Unknown local username" in caplog.text
+
+
+# --- from= for the Docker host itself ---
+
+
+def test_the_docker_host_s_lines_also_allow_loskai_s_own_networks(api, machine_net, monkeypatch):
+    # Docker doesn't translate a container's connection to its own host: sshd there sees
+    # Loskai's container address (172.18.0.2, live 2026-10-31), not the host's LAN IP.
+    from loskai.modules.docker.client import docker_client
+
+    monkeypatch.setattr(docker_client, "own_subnets", lambda: ["172.18.0.0/16"])
+    api.post("/api/machines", json={
+        "hostname": "codebox", "address": "192.168.10.216", "ssh": {"user": "vm", "port": 22},
+    })
+    _with_key(api)
+
+    host_lines = api.post("/api/ssh/machines/codebox/scan").json()["lines"]
+    other_lines = api.post("/api/ssh/machines/nas/scan").json()["lines"]
+
+    assert host_lines[0].startswith('from="192.168.10.216,172.18.0.0/16" ssh-ed25519 ')
+    assert host_lines[1].startswith('restrict,from="192.168.10.216,172.18.0.0/16",command=')
+    # Every other machine sees the host's LAN IP, so its lines stay that narrow.
+    assert other_lines[0].startswith('from="192.168.10.216" ssh-ed25519 ')
+
+    fp = api.post("/api/ssh/machines/codebox/scan").json()["fingerprint"]
+    api.post("/api/ssh/machines/codebox/trust", json={"fingerprint": fp})
+    api.post("/api/ssh/machines/codebox/install", json={"password": "machine-pw"})
+    installed = machine_net["logins"][0]["stdin"]
+    assert installed.startswith('from="192.168.10.216,172.18.0.0/16" ')
+
+
+def test_without_docker_the_docker_host_gets_the_plain_line(api, machine_net, monkeypatch):
+    from loskai.modules.docker.client import docker_client
+
+    def unreachable():
+        raise OSError("no socket")
+
+    monkeypatch.setattr(docker_client, "own_subnets", unreachable)
+    api.post("/api/machines", json={
+        "hostname": "codebox", "address": "192.168.10.216", "ssh": {"user": "vm", "port": 22},
+    })
+    _with_key(api)
+
+    assert api.post("/api/ssh/machines/codebox/scan").json()["lines"][0].startswith(
+        'from="192.168.10.216" ssh-ed25519 '
+    )

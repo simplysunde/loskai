@@ -393,3 +393,14 @@ def test_yaml_problem_names_the_line():
 def test_a_tab_inside_a_value_is_not_blamed():
     # Only a tab in the indentation is illegal; one in a quoted value is fine.
     assert logic.yaml_problem('a: "x\ty"\n') is None
+
+
+def test_network_subnets_are_read_from_each_network_s_address_and_prefix():
+    attrs = {"NetworkSettings": {"Networks": {
+        "loskai_default": {"IPAddress": "172.18.0.2", "IPPrefixLen": 16},
+        "loskai-edge": {"IPAddress": "172.20.0.5", "IPPrefixLen": 24},
+        "host": {"IPAddress": "", "IPPrefixLen": 0},
+    }}}
+
+    assert logic.network_subnets(attrs) == ["172.18.0.0/16", "172.20.0.0/24"]
+    assert logic.network_subnets({}) == []

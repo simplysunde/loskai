@@ -148,6 +148,15 @@ class DockerClient:
                 return logic.container_networks(c.attrs)
         return None
 
+    def own_subnets(self) -> list[str]:
+        """The subnets of the networks Loskai's own container is on — where its connections
+        come from when they go to the Docker host itself, which Docker doesn't translate.
+        Empty outside a container (a dev backend on the host)."""
+        own = socket.gethostname()
+        if not logic.is_self(own, own):
+            return []
+        return logic.network_subnets(self._get().containers.get(own).attrs)
+
     def container_names(self) -> set[str]:
         """Every container name present on the host (running or stopped). A name absent
         here means the container was removed — used to flag orphaned instances."""

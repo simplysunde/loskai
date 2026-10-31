@@ -127,14 +127,16 @@ test("a key that locked meanwhile brings the admin password back", async () => {
   expect(screen.getByText(/key is locked/)).toBeInTheDocument();
 });
 
-test("I'll add it myself shows both lines, then tests without any password", async () => {
+test("I'll add it myself shows this machine's lines, then tests without any password", async () => {
+  // The Docker host's from= also names Loskai's own networks, so its lines are its own.
+  const own = ['from="192.168.10.216,172.18.0.0/16" ssh-ed25519 AAAA loskai', "restrict,… loskai-status"];
   renderModal(UNLOCKED, {
-    "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted" } },
+    "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted", lines: own } },
     "/test": { body: TESTED },
   });
 
   fireEvent.click(await screen.findByRole("tab", { name: "I'll add it myself" }));
-  expect(screen.getByText(/loskai-status/)).toHaveTextContent("ssh-ed25519 AAAA loskai");
+  expect(screen.getByText(/loskai-status/)).toHaveTextContent('from="192.168.10.216,172.18.0.0/16"');
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
 
   await screen.findByText("Loskai logs in with its key.");

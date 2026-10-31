@@ -12,6 +12,9 @@ interface Scan {
   fingerprint: string;
   type: string;
   state: "new" | "trusted" | "changed";
+  // This machine's two lines — its from= can differ from other machines'. Null before
+  // Loskai has a key.
+  lines: string[] | null;
 }
 interface Tested {
   key: boolean;
@@ -72,6 +75,8 @@ export function SshSetupModal({
     onSuccess: () => {
       setAdminPassword("");
       qc.invalidateQueries({ queryKey: ["ssh"] });
+      // The scan answers with this machine's lines once there is a key to put in them.
+      void scan.refetch();
     },
   });
 
@@ -97,6 +102,7 @@ export function SshSetupModal({
     },
   });
 
+  const machineLines = scan.data?.lines ?? sshKey?.lines ?? [];
   const canConnect =
     (!needAdmin || adminPassword) && (mode === "manual" || machinePassword) && !connect.isPending;
 
@@ -240,13 +246,13 @@ export function SshSetupModal({
               </p>
               <div className="mt-2 flex items-start gap-2">
                 <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-2 text-[11px] text-slate-400">
-                  {sshKey.lines.join("\n")}
+                  {machineLines.join("\n")}
                 </pre>
                 <button
                   type="button"
                   title="Copy both lines"
                   onClick={async () => {
-                    if (!(await copyText(sshKey.lines.join("\n") + "\n"))) return;
+                    if (!(await copyText(machineLines.join("\n") + "\n"))) return;
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}

@@ -4,6 +4,7 @@ Stats math (CPU%/memory), attribute extraction, the container↔instance join, a
 status all live here; `client.py` does the socket I/O and calls these.
 """
 
+import ipaddress
 import re
 from datetime import datetime, timezone
 
@@ -81,6 +82,17 @@ def is_self(container_id: str, hostname: str) -> bool:
     its own hostname is simply listed like any other."""
     h = hostname.lower()
     return len(h) == 12 and all(ch in "0123456789abcdef" for ch in h) and container_id.startswith(h)
+
+
+def network_subnets(attrs: dict) -> list[str]:
+    """The subnets a container's networks give it (`172.18.0.0/16`), from its inspect
+    attrs — what its address there can be, across a recreate that renumbers it."""
+    out = []
+    for net in ((attrs.get("NetworkSettings") or {}).get("Networks") or {}).values():
+        ip, prefix = net.get("IPAddress"), net.get("IPPrefixLen")
+        if ip and prefix:
+            out.append(str(ipaddress.ip_interface(f"{ip}/{prefix}").network))
+    return sorted(set(out))
 
 
 def format_ports(attrs: dict) -> list[str]:

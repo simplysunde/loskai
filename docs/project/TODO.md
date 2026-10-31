@@ -1533,6 +1533,12 @@ what runs on it — all three recommendations taken)**
       The entrypoint now exports `USER`/`LOGNAME` beside `HOME`, and an unexpected error is
       logged with its cause. The live run had used a backend on the host, where `vm` has
       a name — the container is what has to be tested
+- [x] **And then:** to the Docker host itself, sshd sees Loskai's *container* address
+      (`172.18.0.2` — Docker doesn't translate a container's traffic to its own host), so
+      `from="<HOST_IP>"` would refuse the key there. That machine's lines also name the
+      subnets of Loskai's networks (`192.168.10.220,172.18.0.0/16`); every other machine's
+      stay `from="<HOST_IP>"`. The scan returns each machine's own lines for "I'll add it
+      myself"
 
 **34c — what runs on each machine**
 - [x] The forced command's output parsed (`logic.parse_running`): containers, non-base

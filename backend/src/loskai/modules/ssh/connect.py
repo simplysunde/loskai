@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 import asyncssh
 
 from ...shared import instances as instances_store
+from ..docker.client import docker_client
 from ...shared import settings as settings_store
 from . import client, logic, unlock
 
@@ -103,7 +104,9 @@ async def scan(machine_id: str) -> dict:
     offered = key.export_public_key("openssh").decode().split()
     known = logic.known_key(client.read_known_hosts(), t.id)
     state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
-    return {"fingerprint": key.get_fingerprint(), "type": offered[0], "state": state}
+    # The lines this machine gets, for "I'll add it myself" — null before Loskai has a key.
+    machine_lines = await asyncio.to_thread(lines, t) if client.public_key() else None
+    return {"fingerprint": key.get_fingerprint(), "type": offered[0], "state": state, "lines": machine_lines}
 
 
 async def trust(machine_id: str, fingerprint: str) -> dict:
@@ -131,12 +134,29 @@ def forget(machine_id: str) -> None:
 # --- Installing and testing Loskai's keys ---
 
 
-def lines() -> list[str]:
-    """Loskai's two `authorized_keys` lines: the main key, and the status key."""
+def _from(t: Target | None) -> str | None:
+    """Where Loskai's connections to `t` come from, for the lines' `from=`: the Docker host's
+    address — except to the Docker host itself, which Docker doesn't translate, so those
+    arrive from Loskai's container on its own networks, and their subnets are added."""
+    host_ip = settings_store.value("host_ip")
+    if not host_ip or t is None or t.host != host_ip:
+        return host_ip
+    try:
+        subnets = docker_client.own_subnets()
+    except Exception as exc:  # noqa: BLE001 — Docker unreachable: the plain line, as before
+        logger.warning("Loskai's own networks not read for %s's from=: %s", t.host, exc)
+        subnets = []
+    return ",".join([host_ip, *subnets])
+
+
+def lines(t: Target | None = None) -> list[str]:
+    """Loskai's two `authorized_keys` lines — the main key's, then the status key's — for
+    machine `t`, or as most machines get them. Asks Docker for `t` = the Docker host, so
+    call it off the event loop then."""
     public = client.public_key()
     if public is None:
         raise SshError(409, "Loskai has no key yet")
-    from_ip = settings_store.value("host_ip")
+    from_ip = _from(t)
     return [
         logic.authorized_keys_line(public, from_ip),
         logic.status_line(client.status_public_key(), from_ip),
@@ -153,7 +173,7 @@ async def install(machine_id: str, password: str) -> dict:
     try:
         result = await client.run(
             t.host, t.port, t.user, host_key, logic.INSTALL_SCRIPT,
-            password=password, stdin="\n".join(lines()) + "\n",
+            password=password, stdin="\n".join(await asyncio.to_thread(lines, t)) + "\n",
         )
     except Exception as exc:  # noqa: BLE001
         raise SshError(502, _describe(exc, t, "password"))

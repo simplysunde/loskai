@@ -361,6 +361,9 @@ and limits what the next one loses:
 - **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
   offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
   anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.
+  The Docker host's own line also names the subnets of Loskai's container networks: Docker
+  doesn't translate a container's connection to its own host, so sshd there sees the
+  container's address (found 2026-10-31, `docker_client.own_subnets`).
 - **A dedicated `loskai` user, not root login.** The setup steps create it; how much `sudo`
   it gets is the owner's choice per machine — everything, or only the prepared commands (a
   sudoers allowlist, which the prepared commands make possible because they are fixed).

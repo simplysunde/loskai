@@ -15,7 +15,8 @@ your network. Read this before deciding where it runs and who can reach it.
 - **It holds an SSH key to the machines you give it** (once its public key is on them).
   The key is stored encrypted with the admin password and is usable for 15 minutes after
   you type that password — logging out locks it sooner. It works only from the Docker host
-  when its IP is set — the line Loskai gives you starts with `from=`. Give Loskai's login
+  when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
+  itself, also from Loskai's own Docker networks). Give Loskai's login
   user on each machine only the `sudo` you want it to have.
 - **A second, status-only key** is kept unencrypted, so each machine's running list works
   without your password. The machine itself limits it to one command that lists what runs —
