@@ -1,6 +1,7 @@
 """The SSH config editor: one entry's lines change, every other line stays as written."""
 
 import asyncssh
+import pytest
 
 from loskai.modules.ssh import logic
 
@@ -125,3 +126,123 @@ def test_the_public_key_is_read_from_the_encrypted_private_key():
     encrypted = key.export_private_key("openssh", passphrase="secret").decode()
 
     assert logic.public_key_of(encrypted, "loskai") == key.export_public_key("openssh").decode().strip()
+
+
+# --- The status key ---
+
+
+def test_the_status_line_is_restricted_to_its_command_and_the_docker_host():
+    line = logic.status_line("ssh-ed25519 AAAA loskai-status", "192.168.10.216")
+
+    options, _, key = line.partition(" ssh-ed25519")
+    assert options.startswith('restrict,from="192.168.10.216",command="')
+    assert key == " AAAA loskai-status"
+    # The forced command sits inside command="…", which a double quote would end early.
+    assert '"' not in logic.STATUS_COMMAND and "\\" not in logic.STATUS_COMMAND
+
+
+def test_without_the_docker_host_the_status_line_is_still_restricted():
+    assert logic.status_line("ssh-ed25519 AAAA loskai-status", None).startswith('restrict,command="')
+
+
+# --- known_hosts, by machine id ---
+
+
+def test_known_hosts_are_kept_by_machine_id():
+    text = logic.set_known("", "nas", "ssh-ed25519 AAAA")
+    text = logic.set_known(text, "pve", "ssh-ed25519 BBBB")
+
+    assert logic.known_key(text, "nas") == "ssh-ed25519 AAAA"
+    assert logic.known_key(text, "ghost") is None
+    # Trusting again replaces the old key rather than adding a second.
+    text = logic.set_known(text, "nas", "ssh-ed25519 CCCC")
+    assert text.count("nas ") == 1 and logic.known_key(text, "nas") == "ssh-ed25519 CCCC"
+    assert logic.forget_known(text, "nas") == "pve ssh-ed25519 BBBB\n"
+
+
+# --- The install script, run for real by sh ---
+
+
+def _install(home, existing: str | None, lines: str):
+    import subprocess
+
+    ssh = home / ".ssh"
+    if existing is not None:
+        ssh.mkdir(mode=0o700)
+        (ssh / "authorized_keys").write_text(existing)
+    subprocess.run(
+        ["sh", "-c", logic.INSTALL_SCRIPT], input=lines, text=True, check=True,
+        env={"HOME": str(home), "PATH": "/usr/bin:/bin"},
+    )
+    return (ssh / "authorized_keys")
+
+
+def test_install_adds_the_lines_to_a_fresh_account(tmp_path):
+    path = _install(tmp_path, None, "ssh-ed25519 MAIN loskai\nrestrict ssh-ed25519 ST loskai-status\n")
+
+    assert path.read_text() == "ssh-ed25519 MAIN loskai\nrestrict ssh-ed25519 ST loskai-status\n"
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_install_keeps_your_keys_and_replaces_only_loskai_s(tmp_path):
+    mine = "ssh-ed25519 MINE me@laptop\n"
+    old = 'from="10.0.0.1" ssh-ed25519 OLD loskai\nrestrict ssh-ed25519 OLDST loskai-status\n'
+
+    path = _install(tmp_path, mine + old, "ssh-ed25519 NEW loskai\nrestrict ssh-ed25519 NEWST loskai-status\n")
+
+    assert path.read_text() == mine + "ssh-ed25519 NEW loskai\nrestrict ssh-ed25519 NEWST loskai-status\n"
+    assert not (tmp_path / ".ssh" / "authorized_keys.loskai-new").exists()
+
+
+# --- What runs ---
+
+OUTPUT = """\
+#loskai-status 1
+#docker
+jellyfin|jellyfin/jellyfin:12.2|Up 2 days (healthy)
+bambuddy|ghcr.io/maziggy/bambuddy:1.2|Up 3 hours
+#systemd
+cron.service loaded active running Regular background program processing daemon
+docker.service loaded active running Docker Application Container Engine
+getty@tty1.service loaded active running Getty on tty1
+nginx.service loaded active running A high performance web server
+ssh.service loaded active running OpenBSD Secure Shell server
+systemd-journald.service loaded active running Journal Service
+pveproxy.service loaded active running PVE API Proxy Server
+#pct
+VMID       Status     Lock         Name
+101        running                 adguard
+102        stopped                 old
+#qm
+      VMID NAME                 STATUS     MEM(MB)    BOOTDISK(GB) PID
+       200 haos                 running    4096              32.00 1234
+       201 win                  stopped    8192              64.00 0
+"""
+
+
+def test_running_lists_containers_your_services_and_running_guests():
+    out = logic.parse_running(OUTPUT)
+
+    assert [c["name"] for c in out["containers"]] == ["bambuddy", "jellyfin"]
+    assert out["containers"][1] == {
+        "name": "jellyfin", "image": "jellyfin/jellyfin:12.2", "status": "Up 2 days (healthy)",
+    }
+    # The base system's services are counted, not listed: cron, getty, ssh, journald, pveproxy.
+    assert out["services"] == ["docker", "nginx"]
+    assert out["hidden"] == 5
+    assert out["guests"] == [
+        {"id": "101", "name": "adguard", "kind": "lxc"},
+        {"id": "200", "name": "haos", "kind": "vm"},
+    ]
+    assert out["denied"] == []
+
+
+def test_a_list_the_user_may_not_read_says_so():
+    out = logic.parse_running("#loskai-status 1\n#docker\n!denied\n#systemd\n")
+
+    assert out["denied"] == ["docker"] and out["containers"] == []
+
+
+def test_output_that_is_not_the_status_command_s_is_refused():
+    with pytest.raises(ValueError):
+        logic.parse_running("Welcome to Ubuntu\n$ ")

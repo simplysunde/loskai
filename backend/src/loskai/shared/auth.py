@@ -6,6 +6,7 @@ UX only. There are no accounts — one admin password, stored hashed (argon2), v
 into a signed HttpOnly session cookie. The static bundle is served unauthenticated.
 """
 
+import hashlib
 import math
 import re
 import secrets
@@ -99,6 +100,12 @@ def end_all_sessions() -> None:
     """Every cookie is signed with the secret, so a new one invalidates them all. A cookie
     holds no id to revoke one by, and with one admin there is no one else's session to keep."""
     _new_secret()
+
+
+def session_epoch() -> str:
+    """Changes exactly when `end_all_sessions` does — for state that must end with the
+    sessions, such as Loskai's unlocked SSH key. A digest, so the secret itself stays here."""
+    return hashlib.sha256(_session_secret().encode()).hexdigest()
 
 
 def _serializer() -> URLSafeTimedSerializer:

@@ -125,13 +125,22 @@ IP for peer DNS; any HTTP response counts as reachable).
 
 ## SSH — `/api/ssh`
 
-Loskai's key and the SSH config saying how each machine is reached (Phase 34; connecting
-comes later). The private key never appears in any answer.
+Loskai's keys, the SSH config saying how each machine is reached, and setting a machine up
+(Phase 34). No private key appears in any answer, and a machine's password is used for one
+connection and kept nowhere. A machine is reached as its config entry says, and only with
+the host key trusted for its **id** (`data/ssh/known_hosts`); a machine with no SSH user is
+`409`.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/ssh` | `{ key, hosts }`. `key` is `null` until one is made, else `{ public_key, authorized_keys, from }` — `authorized_keys` is the line for a machine, starting `from="<Docker host IP>"` when `HOST_IP` is set (`from` is that IP or `null`). `hosts` maps each plain `Host` alias to `{ hostname?, user?, port }`. |
-| `POST /api/ssh/key` | Body `{ password, replace? }`. Makes Loskai's ed25519 key, encrypted with the admin password, and returns the `key` view. The password is checked with the login backoff: wrong → **`403`** (not `401`, which would send the page to `/login`), `429` while waiting. `409` if a key exists and `replace` isn't set. |
+| `GET /api/ssh` | `{ key, hosts, trusted }`. `key` is `null` until one is made, else `{ public_key, authorized_keys, lines, from, unlocked_until }` — `authorized_keys` is the main key's line, starting `from="<Docker host IP>"` when `HOST_IP` is set (`from` is that IP or `null`); `lines` is both lines a machine gets, the main key's then the status key's (`restrict`, `from=`, a forced read-only `command=`); `unlocked_until` is when the key locks again, or `null`. `hosts` maps each plain `Host` alias to `{ hostname?, user?, port }`; `trusted` maps machine ids with a trusted host key to `true`. |
+| `POST /api/ssh/key` | Body `{ password, replace? }`. Makes Loskai's ed25519 key, encrypted with the admin password, and returns the `key` view. The password is checked with the login backoff: wrong → **`403`** (not `401`, which would send the page to `/login`), `429` while waiting. `409` if a key exists and `replace` isn't set. The new key starts unlocked. The status key is not replaced. |
+| `POST /api/ssh/unlock` | Body `{ password }`. Unlocks the key for 15 minutes — in memory only — and returns the `key` view; logging out locks it. Password errors as for `/key`; `409` with no key, or a key made under an earlier admin password. |
+| `POST /api/ssh/machines/{id}/scan` | The machine's host key now: `{ fingerprint, type, state }`, `state` being `new`, `trusted` or `changed`. Asks for ed25519 first, so the fingerprint is the one `ssh-keygen -lf` shows on the machine. `502` when it can't be reached. |
+| `POST /api/ssh/machines/{id}/trust` | Body `{ fingerprint }`. Trusts the host key the machine answers with, replacing any trusted before — `409` if it isn't the one with that fingerprint. |
+| `POST /api/ssh/machines/{id}/install` | Body `{ password }` — the machine's, for its SSH user. Logs in with it once, replaces any lines Loskai added to `~/.ssh/authorized_keys` with `lines`, then answers as `/test`. `409` without a trusted host key, **`423`** while the key is locked (both before the password is used), `502` with what went wrong (`refused the password`, `Can't reach`, a changed host key). |
+| `POST /api/ssh/machines/{id}/test` | Logs in with the main key, then reads what runs with the status key: `{ key: true, running }` (`running` as in `/running`). `409`/`423`/`502` as for `/install`. |
+| `GET /api/ssh/running` | What runs on each set-up machine (an SSH user and a trusted host key), by id: `{ ok, checked, containers: [{ name, image, status }], services, hidden, guests: [{ id, name, kind }], denied }`, or `{ ok: false, error, checked }`. `services` are running systemd services outside the base system (`hidden` counts those); `guests` are a Proxmox host's running LXCs and VMs; `denied` names the lists the user may not read (`docker`, `pct`, `qm`). Uses the status key only, so it works while the main key is locked; each machine is asked at most every 30 s. |
 | `GET /api/ssh/config` | The config file as plain text, as an attachment. It names no key, so the `ssh` on your own computer uses your own. |
 
 ---

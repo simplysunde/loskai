@@ -187,3 +187,154 @@ def public_key_of(private_key: str, comment: str) -> str:
     (type_len,) = struct.unpack(">I", blob[:4])
     key_type = blob[4 : 4 + type_len].decode()
     return f"{key_type} {base64.b64encode(blob).decode()} {comment}"
+
+
+# --- The status-only key ---
+#
+# A second key, kept unencrypted so each machine's running list works without the admin
+# password. The machine limits it, not Loskai: `restrict` (no shell, pty, forwarding),
+# `from=` the Docker host, and this forced command, which only lists what runs. Each list
+# falls back to `sudo -n` (never prompts), and `!denied` marks one the user may not read.
+# No double quotes or backslashes: it sits inside `command="…"`.
+STATUS_VERSION = "#loskai-status 1"
+STATUS_COMMAND = (
+    f"echo '{STATUS_VERSION}'; "
+    "if command -v docker >/dev/null; then echo '#docker'; "
+    "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
+    "sudo -n docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
+    "echo '!denied'; fi; "
+    "echo '#systemd'; "
+    "systemctl list-units --type=service --state=running --no-legend --plain --no-pager 2>/dev/null; "
+    "if command -v pct >/dev/null; then echo '#pct'; "
+    "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
+    "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
+)
+STATUS_COMMENT = "loskai-status"
+
+
+def status_line(public_key: str, from_ip: str | None) -> str:
+    """The status key's `authorized_keys` line: limited to `STATUS_COMMAND` by the machine."""
+    options = ["restrict"]
+    if from_ip:
+        options.append(f'from="{from_ip}"')
+    options.append(f'command="{STATUS_COMMAND}"')
+    return f"{','.join(options)} {public_key}"
+
+
+# Adds Loskai's lines to `authorized_keys`, replacing any it added before (they end in its
+# key comments), so a reinstall after "New key" or a new Docker host IP leaves no stale
+# line. The lines arrive on stdin; the file is rebuilt beside itself and renamed over it,
+# so a failure halfway leaves the old file whole.
+INSTALL_SCRIPT = (
+    "set -e; umask 077; mkdir -p ~/.ssh; f=~/.ssh/authorized_keys; touch \"$f\"; "
+    "t=\"$f.loskai-new\"; "
+    "{ grep -v -e ' loskai$' -e ' loskai-status$' \"$f\" || [ $? -eq 1 ]; cat; } > \"$t\"; "
+    "mv \"$t\" \"$f\""
+)
+
+
+# --- known_hosts, keyed by machine id ---
+#
+# OpenSSH's format with the machine's *id* where a host name would go: the id never changes,
+# so a rename or a move keeps the trusted key, and a changed key is still refused.
+
+
+def known_key(text: str, machine_id: str) -> str | None:
+    """The trusted host key (`<type> <base64>`) for a machine, or None."""
+    for line in _split(text):
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] == machine_id:
+            return f"{parts[1]} {parts[2]}"
+    return None
+
+
+def set_known(text: str, machine_id: str, key: str) -> str:
+    return _join([*_drop_known(text, machine_id), f"{machine_id} {key}"])
+
+
+def forget_known(text: str, machine_id: str) -> str:
+    return _join(_drop_known(text, machine_id))
+
+
+def _drop_known(text: str, machine_id: str) -> list[str]:
+    return [line for line in _split(text) if line.split()[:1] != [machine_id]]
+
+
+# --- What runs on a machine ---
+
+# Services every install runs and nobody asks about — counted as hidden, not listed. Exact
+# names, then prefixes (`getty@tty1`, `systemd-journald`, Proxmox's `pve*`).
+BASE_SERVICES = {
+    "accounts-daemon", "apparmor", "atd", "chrony", "chronyd", "containerd", "cron", "crond",
+    "dbus", "dbus-broker", "irqbalance", "iscsid", "ksmtuned", "lvm2-lvmetad", "lxcfs",
+    "multipathd", "networkd-dispatcher", "ntp", "ntpsec", "polkit", "postfix", "qemu-guest-agent",
+    "rpcbind", "rrdcached", "rsyslog", "smartmontools", "smartd", "snapd", "ssh", "sshd",
+    "spiceproxy", "corosync", "udisks2", "unattended-upgrades", "upower", "watchdog-mux",
+    "zfs-zed", "open-iscsi", "ModemManager", "NetworkManager", "wpa_supplicant", "avahi-daemon",
+}
+BASE_PREFIXES = ("systemd-", "getty@", "serial-getty@", "user@", "pve", "lxc", "zfs-")
+
+
+def _base_service(name: str) -> bool:
+    return name in BASE_SERVICES or name.startswith(BASE_PREFIXES)
+
+
+def parse_running(output: str) -> dict:
+    """The forced command's output → `{containers, services, hidden, guests, denied}`.
+
+    `containers` are `{name, image, status}`; `services` the running systemd units that
+    aren't the base system's (`hidden` counts those); `guests` the running Proxmox LXCs and
+    VMs, `{id, name, kind}`; `denied` the lists the user may not read (`docker`, `pct`, `qm`).
+    Raises ValueError for output that isn't the status command's — a key line from another
+    version, or a shell where the forced command should be."""
+    lines = output.splitlines()
+    if not lines or lines[0].strip() != STATUS_VERSION:
+        raise ValueError("not Loskai's status output")
+    out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
+    section = None
+    for raw in lines[1:]:
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            section = line[1:]
+            continue
+        if line == "!denied":
+            out["denied"].append(section)
+            continue
+        if section == "docker":
+            name, _, rest = line.partition("|")
+            image, _, status = rest.partition("|")
+            out["containers"].append({"name": name, "image": image, "status": status})
+        elif section == "systemd":
+            unit = line.split()[0]
+            if not unit.endswith(".service"):
+                continue
+            name = unit.removesuffix(".service")
+            if _base_service(name):
+                out["hidden"] += 1
+            else:
+                out["services"].append(name)
+        elif section in ("pct", "qm"):
+            guest = _guest(line, section)
+            if guest:
+                out["guests"].append(guest)
+    out["containers"].sort(key=lambda c: c["name"])
+    out["services"].sort()
+    out["guests"].sort(key=lambda g: int(g["id"]))
+    return out
+
+
+def _guest(line: str, section: str) -> dict | None:
+    """A running guest from `pct list` (`VMID Status [Lock] Name`) or `qm list` (`VMID NAME
+    STATUS …`); headers and stopped guests give None."""
+    parts = line.split()
+    if not parts or not parts[0].isdigit():
+        return None
+    if section == "pct":
+        if len(parts) < 3 or parts[1] != "running":
+            return None
+        return {"id": parts[0], "name": parts[-1], "kind": "lxc"}
+    if len(parts) < 3 or parts[2] != "running":
+        return None
+    return {"id": parts[0], "name": parts[1], "kind": "vm"}

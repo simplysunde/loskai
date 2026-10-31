@@ -1,0 +1,222 @@
+"""Reaching a machine over SSH: trusting its host key, installing Loskai's keys on it,
+testing them, and reading what runs there.
+
+A machine is reached as its SSH config entry says (`Host` = its hostname: `HostName`,
+`User`, `Port`), and only ever with the host key trusted for its id. The order is the
+safety: a host key is shown and trusted before any password is sent, so a password only
+goes to the machine whose fingerprint was accepted.
+"""
+
+import asyncio
+import logging
+import time
+from dataclasses import dataclass
+
+import asyncssh
+
+from ...shared import instances as instances_store
+from ...shared import settings as settings_store
+from . import client, logic, unlock
+
+logger = logging.getLogger(__name__)
+
+RUNNING_TTL = 30  # seconds a running list is reused — the Machines tab asks every 30 s
+
+_running: dict[str, tuple[float, dict]] = {}
+
+
+class SshError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
+@dataclass
+class Target:
+    id: str
+    host: str
+    port: int
+    user: str
+
+
+def target(machine_id: str) -> Target:
+    """The machine and how its SSH config entry says to reach it."""
+    inst = instances_store.get_instance(machine_id)
+    if inst is None or not instances_store.is_machine(inst):
+        raise SshError(404, f"no machine '{machine_id}'")
+    entry = logic.hosts(client.read_config()).get(inst.subdomain or "")
+    if not entry or not entry.get("user"):
+        raise SshError(409, f"'{inst.name}' has no SSH user — set one in its form")
+    return Target(
+        id=inst.id,
+        host=str(entry.get("hostname") or inst.upstream),
+        port=int(entry["port"]),
+        user=str(entry["user"]),
+    )
+
+
+def _trusted(t: Target) -> str:
+    key = logic.known_key(client.read_known_hosts(), t.id)
+    if key is None:
+        raise SshError(409, "Trust the machine's host key first")
+    return key
+
+
+def _main_key() -> asyncssh.SSHKey:
+    key = unlock.unlocked_key()
+    if key is None:
+        # 423, not 401 or 403: the page asks for the admin password and stays signed in.
+        raise SshError(423, "Loskai's key is locked — enter the admin password")
+    return key
+
+
+def _describe(exc: BaseException, t: Target, credential: str) -> str:
+    """What went wrong, in words — never the exception text of a password login, which
+    asyncssh doesn't put the password in, but there is no reason to find out."""
+    if isinstance(exc, asyncssh.HostKeyNotVerifiable):
+        return f"{t.host}'s host key has changed — trust it again only if you know why"
+    if isinstance(exc, asyncssh.PermissionDenied):
+        return f"{t.user}@{t.host} refused the {credential}"
+    if isinstance(exc, (OSError, TimeoutError, asyncio.TimeoutError)):
+        return f"Can't reach {t.host}:{t.port}"
+    if isinstance(exc, asyncssh.Error):
+        return f"SSH to {t.host} failed: {exc.reason}"
+    return f"SSH to {t.host} failed"
+
+
+# --- The host key ---
+
+
+async def scan(machine_id: str) -> dict:
+    """The machine's host key as it answers now, and how that compares with the trusted one:
+    `new` (none trusted yet), `trusted`, or `changed`."""
+    t = target(machine_id)
+    try:
+        key = await client.scan_host_key(t.host, t.port)
+    except Exception as exc:  # noqa: BLE001 — any failure to reach it is the same answer
+        raise SshError(502, _describe(exc, t, "connection"))
+    offered = key.export_public_key("openssh").decode().split()
+    known = logic.known_key(client.read_known_hosts(), t.id)
+    state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
+    return {"fingerprint": key.get_fingerprint(), "type": offered[0], "state": state}
+
+
+async def trust(machine_id: str, fingerprint: str) -> dict:
+    """Trust the host key the machine answers with — only if it is the one that was shown
+    (`fingerprint`), so what is trusted is what the person looked at."""
+    t = target(machine_id)
+    try:
+        key = await client.scan_host_key(t.host, t.port)
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "connection"))
+    if key.get_fingerprint() != fingerprint:
+        raise SshError(409, "The machine answered with a different host key than the one shown")
+    line = " ".join(key.export_public_key("openssh").decode().split()[:2])
+    client.update_known_hosts(lambda text: logic.set_known(text, t.id, line))
+    _running.pop(t.id, None)
+    return {"fingerprint": fingerprint, "state": "trusted"}
+
+
+def forget(machine_id: str) -> None:
+    """A deleted machine's host key and running list go with it."""
+    client.update_known_hosts(lambda text: logic.forget_known(text, machine_id))
+    _running.pop(machine_id, None)
+
+
+# --- Installing and testing Loskai's keys ---
+
+
+def lines() -> list[str]:
+    """Loskai's two `authorized_keys` lines: the main key, and the status key."""
+    public = client.public_key()
+    if public is None:
+        raise SshError(409, "Loskai has no key yet")
+    from_ip = settings_store.value("host_ip")
+    return [
+        logic.authorized_keys_line(public, from_ip),
+        logic.status_line(client.status_public_key(), from_ip),
+    ]
+
+
+async def install(machine_id: str, password: str) -> dict:
+    """Log in once with the machine's password, put Loskai's lines in `authorized_keys`
+    (replacing any it put there before), then prove both keys work. The password is used
+    for that one connection and kept nowhere."""
+    t = target(machine_id)
+    host_key = _trusted(t)
+    _main_key()  # locked → ask for the admin password before the machine's is used
+    try:
+        result = await client.run(
+            t.host, t.port, t.user, host_key, logic.INSTALL_SCRIPT,
+            password=password, stdin="\n".join(lines()) + "\n",
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "password"))
+    if result.exit_status != 0:
+        detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
+        raise SshError(502, f"Adding Loskai's key on {t.host} failed: {detail[0]}")
+    return await test(machine_id)
+
+
+async def test(machine_id: str) -> dict:
+    """Log in with the main key, then read what runs with the status key."""
+    t = target(machine_id)
+    host_key = _trusted(t)
+    key = _main_key()
+    try:
+        result = await client.run(t.host, t.port, t.user, host_key, "true", client_key=key)
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "key"))
+    if result.exit_status != 0:
+        raise SshError(502, f"Logged in to {t.host}, but a command there failed")
+    return {"key": True, "running": await _read_running(t, host_key)}
+
+
+# --- What runs there ---
+
+
+async def _read_running(t: Target, host_key: str) -> dict:
+    try:
+        result = await client.run(
+            t.host, t.port, t.user, host_key, "status", client_key=client.status_key()
+        )
+        view = {"ok": True, **logic.parse_running(str(result.stdout or ""))}
+    except ValueError:
+        view = {"ok": False, "error": "The status key's line on the machine is missing or out of date — install again"}
+    except asyncssh.PermissionDenied:
+        view = {"ok": False, "error": "The machine doesn't accept the status key — install again"}
+    except Exception as exc:  # noqa: BLE001
+        view = {"ok": False, "error": _describe(exc, t, "status key")}
+    view["checked"] = time.time()
+    _running[t.id] = (time.monotonic(), view)
+    return view
+
+
+async def running() -> dict[str, dict]:
+    """What runs on every machine that is set up — an SSH user and a trusted host key — by
+    machine id. Reused for `RUNNING_TTL`, so however many tabs ask, each machine is asked
+    at most that often; the rest are asked at once, in parallel."""
+    known = client.read_known_hosts()
+    out: dict[str, dict] = {}
+    stale: list[tuple[Target, str]] = []
+    for inst in instances_store.list_instances():
+        if not instances_store.is_machine(inst):
+            continue
+        try:
+            t = target(inst.id)
+        except SshError:
+            continue
+        host_key = logic.known_key(known, t.id)
+        if host_key is None:
+            continue
+        cached = _running.get(t.id)
+        if cached and time.monotonic() - cached[0] < RUNNING_TTL:
+            out[t.id] = cached[1]
+        else:
+            stale.append((t, host_key))
+    for (t, _), view in zip(
+        stale, await asyncio.gather(*(_read_running(t, k) for t, k in stale)), strict=True
+    ):
+        out[t.id] = view
+    return out

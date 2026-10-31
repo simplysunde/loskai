@@ -9,7 +9,7 @@ no machine is never touched.
 import logging
 
 from ...shared.instances import Instance
-from . import client, logic
+from . import client, connect, logic
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,11 @@ def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
 
 
 def forget_machine(inst: Instance) -> None:
-    """A deleted machine's entry goes with it. Best-effort: the delete has happened."""
-    if not inst.subdomain:
-        return
+    """A deleted machine's entry and trusted host key go with it. Best-effort: the delete
+    has happened."""
     try:
-        client.update_config(lambda text: logic.remove_host(text, inst.subdomain))
+        connect.forget(inst.id)
+        if inst.subdomain:
+            client.update_config(lambda text: logic.remove_host(text, inst.subdomain))
     except OSError as exc:
         logger.warning("SSH entry for deleted machine '%s' not removed: %s", inst.id, exc)

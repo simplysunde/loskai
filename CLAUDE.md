@@ -49,9 +49,11 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `recipes.py` (sources, sync, validation, install, options, the recipe icon),
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
-- `modules/ssh/` — Loskai's key (`client.py`, encrypted with the admin password) and its SSH
-  config file, edited in place (`logic.py`); `machines.py` keeps a machine's entry in step
-  with its rename, move and delete.
+- `modules/ssh/` — Loskai's keys (`client.py`; the main one encrypted with the admin
+  password, held unlocked for 15 minutes by `unlock.py`) and its SSH config and known_hosts,
+  edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
+  the keys, and reads what runs there; `machines.py` keeps a machine's entry in step with its
+  rename, move and delete.
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,
@@ -205,7 +207,11 @@ everything optional. Loskai stores no third-party secret except the AdGuard pass
 own admin password only as a hash; and its **SSH private key** only encrypted with that
 password (`data/ssh/id_ed25519`). Never return the key, log it, or put it in an export —
 only its public half leaves `modules/ssh/client.py`. An action that uses it asks for the
-password again (`auth.check_password`, which shares the login backoff).
+password again (`auth.check_password`, which shares the login backoff), which unlocks it
+for 15 minutes. The one key kept in the clear is the **status key**
+(`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
+command in `logic.STATUS_COMMAND` — never give it any other use. A machine's own password
+(Install it for me) is used for one connection and stored nowhere.
 
 ## Invariants that are easy to violate
 
@@ -285,7 +291,7 @@ password again (`auth.check_password`, which shares the login backoff).
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 56 HTTP routes plus the exec
+  API subsets Loskai calls), `api.md` (Loskai's own: 62 HTTP routes plus the exec
   WebSocket) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

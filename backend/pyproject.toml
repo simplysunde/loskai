@@ -34,3 +34,5 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# conftest lowers the SSH key's bcrypt rounds to keep the suite fast; bcrypt says so.
+filterwarnings = ["ignore:.*bcrypt.kdf.. called with only:UserWarning"]
