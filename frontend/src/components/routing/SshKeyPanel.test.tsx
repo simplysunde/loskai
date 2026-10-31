@@ -8,7 +8,12 @@ import { SshKeyPanel } from "./SshKeyPanel";
 const KEY: SshKey = {
   public_key: "ssh-ed25519 AAAAC3Nza loskai",
   authorized_keys: 'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
+  lines: [
+    'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
+    'restrict,from="192.168.10.216",command="…" ssh-ed25519 AAAAST loskai-status',
+  ],
   from: "192.168.10.216",
+  unlocked_until: null,
 };
 
 afterEach(() => vi.unstubAllGlobals());

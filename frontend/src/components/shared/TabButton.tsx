@@ -13,6 +13,7 @@ export function TabButton({
 }) {
   return (
     <button
+      type="button"
       role="tab"
       aria-selected={active}
       onClick={onClick}

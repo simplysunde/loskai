@@ -274,12 +274,23 @@ The Machines tab lists each machine with the routes on its address beneath, and 
 on a machine through the same Add route picker, starting on its address. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-**SSH, so far (Phase 34a).** Loskai's key is made on the Machines tab with the admin password,
-which encrypts it (`data/ssh/id_ed25519`); the tab shows the `authorized_keys` line to copy,
-and "New key" replaces it. The public key is read from the private key file — the OpenSSH
-format keeps it in the clear — so there is one file, and the shown key can't belong to
-another. A machine's form has an SSH user and port, written to `data/ssh/config` as `Host
-<hostname>` with `HostName <address>`; Settings › General downloads that file.
+**SSH, so far (Phase 34a–c).** Loskai's key is made with the admin password, which
+encrypts it (`data/ssh/id_ed25519`), and "New key" replaces it. The public key is read from
+the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
+the shown key can't belong to another. A machine's form has an SSH user and port, written to
+`data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › General
+downloads that file.
+
+Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`, also on its row):
+the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keygen -lf` shows
+on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
+Install it for me logs in once with the machine's password and replaces Loskai's lines in
+`authorized_keys` (`logic.INSTALL_SCRIPT`), or the lines are pasted by hand; either ends with
+a test using both keys (`connect.py`). The main key is unlocked in memory for 15 minutes by
+the admin password (`unlock.py`) and locked by logout. Each set-up machine's row shows how
+much runs there — read with the **status key** through its forced command and parsed by
+`logic.parse_running` — and hovering lists it; the backend asks each machine at most every
+30 s, only while someone is looking.
 
 ### Direction — managing the machines over SSH
 

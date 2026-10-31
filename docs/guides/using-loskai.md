@@ -98,6 +98,13 @@ The computers on your network, by name — a name with no port.
 Under each machine are the routes on its address — however they were made. Moving the
 machine moves them all, except a container route that follows its container.
 
+Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
+host key it shows against the machine's, then type that user's password once and Loskai
+installs its key (or copy its two lines over yourself). From then on the row shows how much
+is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
+hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
+`sudo` for `docker ps`, `pct list` and `qm list` to see those.
+
 ## Settings
 
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.

@@ -1510,12 +1510,35 @@ what runs on it — all three recommendations taken)**
 - **Checked when someone looks, not by a background loop:** the Machines tab asks every 30 s
   and Loskai answers from a 30 s cache, so `follow.py` stays the only background task
 
-**34b — set up at creation:** unlock the key (15 minutes, by the admin password; logout
-locks it); the status key; host key scan and trust; Install it for me and Test connection;
-the setup dialog after saving a machine and from its row.
+**34b — set up at creation**
+- [x] Unlock the key for 15 minutes by the admin password (`unlock.py`); a new key starts
+      unlocked; logout locks it (`auth.session_epoch`)
+- [x] The status key and its line: `restrict`, `from=`, the forced `logic.STATUS_COMMAND`
+- [x] Host key scan (ed25519 first) and trust, `known_hosts` by machine id; a changed key
+      refused until trusted again
+- [x] Install it for me (`logic.INSTALL_SCRIPT` replaces Loskai's earlier lines) and Test
+      connection; `409` before trust, `423` while locked — both before a password is used
+- [x] `SshSetupModal`, opened after saving a machine with an SSH user, and from its row
+- [x] +24 backend (620), +13 frontend (239); `pytest`, `npm test`, `npm run build`,
+      `oxlint`, `check-docs.sh`. Tests lower the key's bcrypt rounds (39 s → 13 s)
+- [x] **Live**, a Debian `sshd` with stand-in `docker`/`systemctl`/`pct`: the scan's
+      fingerprint equalled `ssh-keygen -lf` on the machine (it first showed the RSA key —
+      fixed); install wrote both lines (`600`), a second install replaced them; a wrong
+      password said `refused the password`; regenerated host keys were refused and the scan
+      said `changed`; logout locked the key (`423`). The status key, used by OpenSSH with
+      `cat /etc/shadow`, returned the status list; a pty was refused, and sshd logged
+      `refused local port forward`. The machine password never reached the log. In the
+      browser: Name a machine → host key → Trust → Create key → Install → "Loskai logs in
+      with its key. 3 running."
 
-**34c — what runs on each machine:** the forced command's output parsed; a "running" count
-on each machine's row, everything listed on hover.
+**34c — what runs on each machine**
+- [x] The forced command's output parsed (`logic.parse_running`): containers, non-base
+      services (the base counted), running Proxmox guests, lists the user may not read
+- [x] `GET /api/ssh/running`, a 30 s cache per machine, asked only while the Machines tab
+      is open; works while the main key is locked
+- [x] `RunningPill`: the count on each row, everything on hover (portalled, so the table's
+      scroll can't clip it); `unreachable` with the reason in its tooltip
+- [ ] Try it on the real Proxmox host and a Docker LXC, and tune `BASE_SERVICES`
 
 **34d — the terminal:** a browser SSH session per machine, behind the session, `Origin`
 and fresh-password checks; every session and command logged, readable in the app.

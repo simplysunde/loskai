@@ -4,13 +4,14 @@ import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
-import { useSsh } from "../lib/ssh";
+import { useRunning, useSsh } from "../lib/ssh";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { SshKeyPanel } from "../components/routing/SshKeyPanel";
+import { SshSetupModal } from "../components/routing/SshSetupModal";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
@@ -21,6 +22,7 @@ interface DnsStatus {
 interface SaveResult {
   // "skipped" for a machine — it has no route.
   caddy: string;
+  instance_id: string;
   url: string;
   warning: string | null;
   moved?: string[];
@@ -40,6 +42,9 @@ export function Machines() {
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
   // The machine a new route is being added on, from its row.
   const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
+  // The machine whose SSH is being set up, by id: after saving one with an SSH user, or
+  // from its row.
+  const [sshFor, setSshFor] = useState<string | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -58,6 +63,8 @@ export function Machines() {
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const ssh = useSsh();
   const sshHosts = ssh.data?.hosts ?? {};
+  const trusted = ssh.data?.trusted ?? {};
+  const running = useRunning(Object.keys(trusted).length > 0);
 
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
   const rows: RouteRow[] = (routes.data ?? []).map((r) => {
@@ -73,14 +80,18 @@ export function Machines() {
     qc.invalidateQueries({ queryKey: ["caddy-routes"] });
     qc.invalidateQueries({ queryKey: ["adguard-status"] });
     qc.invalidateQueries({ queryKey: ["ssh"] });
+    qc.invalidateQueries({ queryKey: ["ssh-running"] });
   };
 
   const save = useMutation({
     mutationFn: (m: NewMachine) => api.post<SaveResult>("/api/machines", m),
-    onSuccess: (data) => {
+    onSuccess: (data, m) => {
       setEditing(null);
       setResult(data);
       invalidate();
+      // Setting SSH up is part of naming a machine: given a user, its setup opens next —
+      // unless its host key is already trusted, as after an ordinary edit.
+      if (m.ssh && !trusted[data.instance_id]) setSshFor(data.instance_id);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Save failed"),
   });
@@ -105,6 +116,9 @@ export function Machines() {
   });
 
   const deleting = confirmDelete ? routesOn(confirmDelete, rows) : [];
+  // Shown once both have loaded: a machine just saved appears in the SSH config on refetch.
+  const sshMachine = machines.find((m) => m.id === sshFor);
+  const sshHost = sshMachine?.subdomain ? sshHosts[sshMachine.subdomain] : undefined;
   const target = editing !== "new" ? editing : null;
 
   return (
@@ -156,6 +170,9 @@ export function Machines() {
           machines={machines}
           rows={rows}
           ssh={sshHosts}
+          trusted={trusted}
+          running={running.data ?? {}}
+          onSsh={(m) => setSshFor(m.id)}
           onEdit={(m) => {
             setError(null);
             setEditing(m);
@@ -202,6 +219,16 @@ export function Machines() {
         onSubmit={(r) => addRoute.mutate(r)}
         onClose={() => setRouteOn(null)}
       />
+
+      {sshMachine && sshHost?.user && (
+        <SshSetupModal
+          key={sshMachine.id}
+          machine={{ id: sshMachine.id, name: sshMachine.name }}
+          host={sshHost}
+          sshKey={ssh.data?.key ?? null}
+          onClose={() => setSshFor(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDelete !== null}

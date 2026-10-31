@@ -34,9 +34,11 @@ const ROUTES = [
 ];
 
 let calls: { path: string; method: string; body: unknown }[] = [];
+let sshHosts: Record<string, unknown> = {};
 
 beforeEach(() => {
   calls = [];
+  sshHosts = {};
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -56,7 +58,11 @@ beforeEach(() => {
             : path === "/api/docker/containers"
               ? []
             : path === "/api/machines"
-              ? { url: "nas.example.no", warning: null, moved: ["plex"] }
+              ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
+            : path === "/api/ssh"
+              ? { key: null, hosts: sshHosts, trusted: {} }
+            : path.endsWith("/scan")
+              ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
       return new Response(JSON.stringify(data), {
         status: 200,
@@ -157,4 +163,31 @@ test("a machine's row adds a route on its address", async () => {
   fireEvent.click(within(nasRow()).getByTitle("Add a route on this machine"));
 
   expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
+});
+
+test("saving a machine with an SSH user opens its SSH setup, starting with the host key", async () => {
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByTitle("Edit machine"));
+  fireEvent.change(screen.getByPlaceholderText("none"), { target: { value: "loskai" } });
+  // The save writes the SSH config, so the refetch after it has the entry.
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  fireEvent.click(screen.getByRole("button", { name: "Save machine" }));
+
+  expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
+  expect(screen.getByText(/SSH — Storage box/)).toBeInTheDocument();
+  expect(calls.some((c) => c.path === "/api/ssh/machines/nas/scan")).toBe(true);
+});
+
+test("a machine with an SSH user offers its setup from its row", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  const button = await within(nasRow()).findByTitle(/^Set up SSH/);
+  expect(within(screen.getByText("pve").closest("tr") as HTMLElement).queryByTitle(/SSH/)).toBeNull();
+  fireEvent.click(button);
+
+  expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
 });

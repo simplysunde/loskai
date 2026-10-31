@@ -8,7 +8,7 @@ import type { SshKey } from "../../lib/ssh";
 import { useScrollLock } from "../../lib/useScrollLock";
 
 const LINE_HINT =
-  "Add this line to ~/.ssh/authorized_keys for the user Loskai logs in as, on each machine.";
+  "A machine's SSH setup adds Loskai's lines to ~/.ssh/authorized_keys — or copy them here.";
 const FROM_HINT = "from= makes the key work only from the Docker host, so a copy of it is useless elsewhere.";
 
 // Loskai's own key: made with the admin password, which encrypts it, and shown only as the
@@ -33,9 +33,9 @@ export function SshKeyPanel({ sshKey }: { sshKey: SshKey | null | undefined }) {
               {sshKey.authorized_keys}
             </code>
             <button
-              title="Copy the line"
+              title="Copy both lines — the second only lists what runs"
               onClick={async () => {
-                if (!(await copyText(sshKey.authorized_keys))) return;
+                if (!(await copyText(sshKey.lines.join("\n") + "\n"))) return;
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
