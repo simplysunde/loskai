@@ -83,7 +83,10 @@ def _describe(exc: BaseException, t: Target, credential: str) -> str:
         return f"Can't reach {t.host}:{t.port}"
     if isinstance(exc, asyncssh.Error):
         return f"SSH to {t.host} failed: {exc.reason}"
-    return f"SSH to {t.host} failed"
+    # Not the machine's doing — Loskai's own (2026-10-31: no local user name in the
+    # container). The page gets the short answer; the log gets the cause.
+    logger.warning("SSH to %s failed", t.host, exc_info=exc)
+    return f"SSH to {t.host} failed — see Loskai's log"
 
 
 # --- The host key ---

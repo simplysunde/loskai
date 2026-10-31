@@ -1527,6 +1527,13 @@ what runs on it — all three recommendations taken)**
       browser: Name a machine → host key → Trust → Create key → Install → "Loskai logs in
       with its key. 3 running."
 
+- [x] **Found in use (2026-10-31), fixed:** in the container every scan failed with only
+      "SSH to … failed". The app runs as the uid that owns `./data`, which has no entry in
+      the image's `/etc/passwd`, and asyncssh refuses to connect without a local user name.
+      The entrypoint now exports `USER`/`LOGNAME` beside `HOME`, and an unexpected error is
+      logged with its cause. The live run had used a backend on the host, where `vm` has
+      a name — the container is what has to be tested
+
 **34c — what runs on each machine**
 - [x] The forced command's output parsed (`logic.parse_running`): containers, non-base
       services (the base counted), running Proxmox guests, lists the user may not read

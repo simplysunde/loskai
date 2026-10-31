@@ -406,3 +406,18 @@ def test_the_log_records_sessions_and_installs_but_not_what_is_typed(api, shell)
     with open(text) as f:
         raw = f.read()
     assert "my-sudo-pw" not in raw and "machine-pw" not in raw
+
+
+def test_an_error_of_loskai_s_own_is_logged_with_its_cause(api, machine_net, monkeypatch, caplog):
+    # 2026-10-31: in the container the app's uid had no user name, asyncssh raised a
+    # ValueError, and the page said only "SSH to … failed".
+    async def no_user(host, port):
+        raise ValueError("Unknown local username: set one of LOGNAME, USER, LNAME, or USERNAME")
+
+    monkeypatch.setattr(ssh_client, "scan_host_key", no_user)
+
+    r = api.post("/api/ssh/machines/nas/scan")
+
+    assert r.status_code == 502
+    assert r.json()["detail"] == "SSH to 192.168.10.50 failed — see Loskai's log"
+    assert "Unknown local username" in caplog.text

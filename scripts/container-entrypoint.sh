@@ -38,6 +38,8 @@ fi
 groups=$gid
 [ -S "$socket" ] && groups="$groups,$(stat -c %g "$socket")"
 
-# Root's home is closed to that user, and git and the docker CLI both look there.
-export HOME=/tmp
+# Root's home is closed to that user, and git and the docker CLI both look there. The uid
+# has no entry in the image's /etc/passwd, so name it too: asyncssh asks for the local user
+# name and, without one, refuses every SSH connection.
+export HOME=/tmp USER=loskai LOGNAME=loskai
 exec setpriv --reuid="$uid" --regid="$gid" --groups="$groups" "$@"
