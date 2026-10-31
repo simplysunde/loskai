@@ -9,6 +9,8 @@ returns a private key: only public halves leave this module. Editing the files i
 """
 
 import asyncio
+import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -88,6 +90,40 @@ def update_known_hosts(mutate: Callable[[str], str]) -> str:
     return store.update_text(_known_hosts_path(), mutate)
 
 
+def _log_path() -> Path:
+    return ssh_dir() / "sessions.log"
+
+
+LOG_KEEP = 1000  # entries kept when the log is trimmed
+
+
+def append_log(entry: dict) -> None:
+    """One JSON line per event, owner-only. Trimmed to the last `LOG_KEEP` once it is twice
+    that, so it never grows without bound."""
+    path = _log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    if path.stat().st_size > LOG_KEEP * 2 * 200:  # ~200 bytes a line
+        store.update_text(path, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
+
+
+def read_log(limit: int) -> list[dict]:
+    """The last `limit` entries, newest first."""
+    path = _log_path()
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()[-limit:]
+    out = []
+    for line in reversed(lines):
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
 def read_config() -> str:
     path = config_path()
     return path.read_text(encoding="utf-8") if path.exists() else ""
@@ -134,21 +170,49 @@ async def run(
     stdin: str | None = None,
 ) -> asyncssh.SSHCompletedProcess:
     """Log in with exactly one credential — a key or a password — run one command, and
-    disconnect. Only `host_key` is trusted; nothing from the container's own `~/.ssh` (its
-    config, its keys, an agent) is used."""
-    trusted = asyncssh.import_public_key(host_key)
-    options = {
-        "port": port,
-        "username": user,
-        "known_hosts": ([trusted], [], []),
-        "config": None,
-        "agent_path": None,
-        "client_keys": [client_key] if client_key else None,
-        "password": password,
-        "preferred_auth": "publickey" if client_key else "keyboard-interactive,password",
-        "connect_timeout": TIMEOUT,
-    }
-    async with asyncssh.connect(host, **options) as conn:
+    disconnect."""
+    async with _connect(host, port, user, host_key, client_key, password) as conn:
         return await asyncio.wait_for(
             conn.run(command, input=stdin, check=False), TIMEOUT
         )
+
+
+def _connect(
+    host: str,
+    port: int,
+    user: str,
+    host_key: str,
+    client_key: asyncssh.SSHKey | None,
+    password: str | None = None,
+):
+    """A connection trusting only `host_key`, with nothing from the container's own `~/.ssh`
+    (its config, its keys, an agent)."""
+    return asyncssh.connect(
+        host,
+        port=port,
+        username=user,
+        known_hosts=([asyncssh.import_public_key(host_key)], [], []),
+        config=None,
+        agent_path=None,
+        client_keys=[client_key] if client_key else None,
+        password=password,
+        preferred_auth="publickey" if client_key else "keyboard-interactive,password",
+        connect_timeout=TIMEOUT,
+    )
+
+
+async def open_shell(
+    host: str, port: int, user: str, host_key: str, client_key: asyncssh.SSHKey, cols: int, rows: int
+) -> tuple[asyncssh.SSHClientConnection, asyncssh.SSHClientProcess]:
+    """A login shell on a pty, bytes in and out. The caller closes the connection, which
+    hangs up the pty — so the shell ends with the browser's terminal, not after it."""
+    conn = await _connect(host, port, user, host_key, client_key)
+    try:
+        process = await conn.create_process(
+            term_type="xterm-256color", term_size=(cols, rows),
+            encoding=None, stderr=asyncssh.STDOUT,
+        )
+    except BaseException:
+        conn.close()
+        raise
+    return conn, process

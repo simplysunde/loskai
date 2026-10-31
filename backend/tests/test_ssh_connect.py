@@ -2,9 +2,13 @@
 `client.scan_host_key` / `client.run`: the host key is trusted before any password is sent,
 the key must be unlocked, logout locks it, and the running list is cached."""
 
+import asyncio
+import json
+
 import asyncssh
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from loskai import config
 from loskai.main import app
@@ -263,3 +267,142 @@ def test_deleting_a_machine_forgets_its_host_key(api, machine_net):
     api.delete("/api/instances/nas")
 
     assert logic.known_key(ssh_client.read_known_hosts(), "nas") is None
+
+
+# --- The terminal ---
+
+
+class FakeShell:
+    """A pty shell that greets, then echoes whatever arrives — so a test can see its
+    keystrokes reach the machine — and records resizes and its own hang-up."""
+
+    def __init__(self):
+        self.queue: asyncio.Queue = asyncio.Queue()
+        self.queue.put_nowait(b"welcome\r\n")
+        self.sizes: list[tuple[int, int]] = []
+        self.closed = False
+        self.stdout = self
+        self.stdin = self
+
+    async def read(self, _n):
+        return await self.queue.get()
+
+    def write(self, data):
+        self.queue.put_nowait(b"got:" + data)
+
+    def change_terminal_size(self, cols, rows):
+        self.sizes.append((cols, rows))
+
+    def close(self):  # the connection: closing it hangs the pty up
+        self.closed = True
+
+
+@pytest.fixture
+def shell(monkeypatch, machine_net):
+    opened: dict = {}
+
+    async def open_shell(host, port, user, host_key, client_key, cols, rows):
+        opened.update(host=host, port=port, user=user, key=client_key, size=(cols, rows))
+        opened["shell"] = FakeShell()
+        return opened["shell"], opened["shell"]
+
+    monkeypatch.setattr(ssh_client, "open_shell", open_shell)
+    return opened
+
+
+ORIGIN = {"origin": "http://testserver"}
+TERMINAL = "/api/ssh/machines/nas/terminal?cols=120&rows=40"
+
+
+def _closed_with(api, url=TERMINAL, headers=ORIGIN):
+    with api.websocket_connect(url, headers=headers) as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_bytes()
+    return exc.value.code, exc.value.reason
+
+
+def test_the_terminal_is_a_shell_on_the_machine_with_the_main_key(api, shell):
+    _with_key(api)
+    _trust(api)
+
+    with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
+        assert ws.receive_bytes() == b"welcome\r\n"
+        ws.send_bytes(b"ech\t")  # Tab goes to the machine's shell, which completes
+        assert ws.receive_bytes() == b"got:ech\t"
+        ws.send_text(json.dumps({"type": "resize", "cols": 100, "rows": 30}))
+        ws.send_bytes(b"x")
+        assert ws.receive_bytes() == b"got:x"
+
+    assert shell["user"] == "loskai" and shell["port"] == 2222 and shell["size"] == (120, 40)
+    assert shell["key"].get_comment() == "loskai"
+    assert shell["shell"].sizes == [(100, 30)]
+    assert shell["shell"].closed  # the browser's terminal closed, so the shell is hung up
+
+
+def test_a_sibling_page_can_t_open_a_terminal(api, shell):
+    _with_key(api)
+    _trust(api)
+
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with api.websocket_connect(TERMINAL, headers={"origin": "https://evil.example.no"}):
+            pass
+
+    assert exc.value.code == 1008
+    assert "shell" not in shell
+
+
+def test_a_locked_key_opens_no_terminal_and_says_why(api, shell):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()
+
+    code, reason = _closed_with(api)
+
+    assert code == 4423 and "locked" in reason
+    assert "shell" not in shell
+
+
+def test_an_untrusted_machine_opens_no_terminal(api, shell):
+    _with_key(api)
+
+    assert _closed_with(api)[0] == 4409
+
+
+def test_logging_out_closes_an_open_terminal(api, shell, monkeypatch):
+    from loskai.shared import auth
+
+    monkeypatch.setattr(auth, "SESSION_RECHECK", 0.05)
+    _with_key(api)
+    _trust(api)
+
+    with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
+        ws.receive_bytes()
+        auth.end_all_sessions()
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_bytes()
+            ws.receive_bytes()
+
+    assert shell["shell"].closed
+
+
+def test_the_log_records_sessions_and_installs_but_not_what_is_typed(api, shell):
+    _with_key(api)
+    _trust(api)
+    api.post("/api/ssh/machines/nas/install", json={"password": "machine-pw"})
+    with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
+        ws.receive_bytes()
+        ws.send_bytes(b"sudo -S true\nmy-sudo-pw\n")
+        ws.receive_bytes()
+    unlock.lock()
+    _closed_with(api)
+
+    log = api.get("/api/ssh/log").json()
+
+    assert [e["event"] for e in log] == ["refused", "close", "open", "install"]  # newest first
+    assert log[2]["target"] == "loskai@192.168.10.50:2222" and log[2]["machine"] == "nas"
+    assert log[3]["ok"] is True
+    assert "locked" in log[0]["error"]
+    text = (config.settings.data_dir + "/ssh/sessions.log")
+    with open(text) as f:
+        raw = f.read()
+    assert "my-sudo-pw" not in raw and "machine-pw" not in raw

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { Check, Copy, KeyRound, Loader2, RefreshCw, ScrollText } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
 import type { SshKey } from "../../lib/ssh";
 import { useScrollLock } from "../../lib/useScrollLock";
+import { SshLog } from "./SshLog";
 
 const LINE_HINT =
   "A machine's SSH setup adds Loskai's lines to ~/.ssh/authorized_keys — or copy them here.";
@@ -16,6 +17,7 @@ const FROM_HINT = "from= makes the key work only from the Docker host, so a copy
 export function SshKeyPanel({ sshKey }: { sshKey: SshKey | null | undefined }) {
   const [asking, setAsking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showLog, setShowLog] = useState(false);
 
   if (sshKey === undefined) return null;
 
@@ -50,6 +52,13 @@ export function SshKeyPanel({ sshKey }: { sshKey: SshKey | null | undefined }) {
             >
               <RefreshCw className="h-3.5 w-3.5" /> New key
             </button>
+            <button
+              title="SSH log — terminals opened and closed, installs"
+              onClick={() => setShowLog(true)}
+              className="inline-flex shrink-0 items-center rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              <ScrollText className="h-3.5 w-3.5" />
+            </button>
           </>
         ) : (
           <>
@@ -69,6 +78,7 @@ export function SshKeyPanel({ sshKey }: { sshKey: SshKey | null | undefined }) {
         </p>
       )}
       {asking && <KeyPasswordDialog replacing={!!sshKey} onClose={() => setAsking(false)} />}
+      {showLog && <SshLog onClose={() => setShowLog(false)} />}
     </section>
   );
 }

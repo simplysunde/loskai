@@ -17,9 +17,11 @@ Everything so far:
   machines — set a machine's SSH user and port in its form, download the file from
   Settings. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —
-  containers, services, Proxmox guests — listed on hover.
-- **Terminals** — the container terminal shows bash's prompt and error messages (it hid
-  them before), and opens a shell in images without bash.
+  containers, services, Proxmox guests — listed on hover — and opens a terminal in the
+  browser. Every terminal session is logged.
+- **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
+  now shows bash's prompt and error messages (it hid them before), and opens a shell in
+  images without bash.
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,
   stack editing — a form for settings and folders, or the files as text — and unused-volume
   cleanup. Containers you already run are listed from the start, with a guide to bringing

@@ -7,10 +7,14 @@ nothing here ever returns a private key. A machine's own password (Install it fo
 used for one connection and kept nowhere.
 """
 
+import asyncio
+import contextlib
+import json
+import time
 from datetime import UTC, datetime
 
 import asyncssh
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, WebSocket
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
@@ -19,6 +23,15 @@ from ...shared import settings as settings_store
 from . import client, connect, logic, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
+
+
+def _peer(conn: Request | WebSocket) -> str | None:
+    """Who is asking, for the log: the first `X-Forwarded-For` hop behind Caddy, else the
+    socket's peer. Display only — nothing is decided by it."""
+    forwarded = conn.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return conn.client.host if conn.client else None
 
 
 def _key_view() -> dict | None:
@@ -120,16 +133,92 @@ async def trust(machine_id: str, body: TrustRequest) -> dict:
 
 
 @router.post("/machines/{machine_id}/install")
-async def install(machine_id: str, body: PasswordRequest) -> dict:
+async def install(machine_id: str, body: PasswordRequest, request: Request) -> dict:
     """Install it for me: the machine's password, used once to add Loskai's lines, then a
     test with the keys. Needs a trusted host key (`409`) and the key unlocked (`423`)."""
-    return await _call(connect.install(machine_id, body.password))
+    try:
+        result = await _call(connect.install(machine_id, body.password))
+    except HTTPException as exc:
+        connect.log("install", machine_id, _peer(request), ok=False, error=exc.detail)
+        raise
+    connect.log("install", machine_id, _peer(request), ok=True)
+    return result
 
 
 @router.post("/machines/{machine_id}/test")
 async def test(machine_id: str) -> dict:
     """Log in with the key, and read what runs with the status key."""
     return await _call(connect.test(machine_id))
+
+
+@router.get("/log")
+def session_log(limit: int = 200) -> list[dict]:
+    """The SSH log, newest first: terminals opened, closed and refused, and installs."""
+    return client.read_log(max(1, min(limit, client.LOG_KEEP)))
+
+
+@router.websocket("/machines/{machine_id}/terminal")
+async def terminal(websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24):
+    """A shell on the machine. Like the container terminal it sits outside the HTTP
+    middleware, so it checks the session and the `Origin` itself (closing `1008`), and
+    closes when the session ends. It also needs the key unlocked: closed `4423` while it
+    is locked, `4409` before the host key is trusted, `4502` when the machine refuses;
+    the close reason says which in words."""
+    cookie = websocket.cookies.get(auth.SESSION_COOKIE)
+    if not (auth.same_origin(websocket.headers) and auth.valid_session(cookie)):
+        await websocket.close(code=1008)
+        return
+    await websocket.accept()
+    peer = _peer(websocket)
+    try:
+        t, conn, process = await connect.open_terminal(
+            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000))
+        )
+    except connect.SshError as exc:
+        connect.log("refused", machine_id, peer, error=exc.detail)
+        # A close reason is at most 123 bytes.
+        await websocket.close(code=4000 + exc.status_code, reason=exc.detail.encode()[:120].decode(errors="ignore"))
+        return
+    started = time.monotonic()
+    connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
+
+    async def to_client():
+        while True:
+            data = await process.stdout.read(4096)
+            if not data:
+                break
+            await websocket.send_bytes(data)
+
+    async def to_machine():
+        while True:
+            msg = await websocket.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
+            if msg.get("bytes") is not None:  # keystrokes and pastes -> the shell
+                process.stdin.write(msg["bytes"])
+            elif msg.get("text") is not None:  # control frames (resize)
+                try:
+                    ctrl = json.loads(msg["text"])
+                except json.JSONDecodeError:
+                    continue
+                if ctrl.get("type") == "resize":
+                    process.change_terminal_size(int(ctrl["cols"]), int(ctrl["rows"]))
+
+    tasks = {
+        asyncio.create_task(to_client()),
+        asyncio.create_task(to_machine()),
+        asyncio.create_task(auth.session_ended(cookie)),
+    }
+    try:
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in tasks:
+            task.cancel()
+        # Closing the connection hangs up the pty, so the shell ends with the terminal.
+        conn.close()
+        connect.log("close", machine_id, peer, seconds=round(time.monotonic() - started))
+        with contextlib.suppress(RuntimeError):  # the browser closed it first
+            await websocket.close()
 
 
 @router.get("/running")

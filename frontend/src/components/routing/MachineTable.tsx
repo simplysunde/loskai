@@ -21,6 +21,7 @@ export function MachineTable({
   onDelete,
   onAddRoute,
   onSsh,
+  onTerminal,
   busyId,
 }: {
   machines: RouteRow[];
@@ -31,8 +32,9 @@ export function MachineTable({
   // Machine ids with a trusted host key, and what runs on each of those, by id.
   trusted?: Record<string, boolean>;
   running?: Record<string, Running>;
-  // Set up SSH on a machine that has an SSH user, or test it again.
+  // Set up SSH on a machine that has an SSH user; once set up, open a terminal on it.
   onSsh?: (machine: RouteRow) => void;
+  onTerminal?: (machine: RouteRow) => void;
   onEdit: (machine: RouteRow) => void;
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
@@ -88,15 +90,15 @@ export function MachineTable({
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1.5">
-                        {onSsh && sshReady && m.subdomain && host && (
+                        {sshReady && m.subdomain && host && (trusted[m.id] ? onTerminal : onSsh) && (
                           <IconButton
                             title={
                               trusted[m.id]
-                                ? `SSH: ${sshTitle(m.subdomain, host)} — test, or install the keys again`
+                                ? `Terminal: ${sshTitle(m.subdomain, host)}`
                                 : `Set up SSH: ${sshTitle(m.subdomain, host)}`
                             }
                             warn={!trusted[m.id]}
-                            onClick={() => onSsh(m)}
+                            onClick={() => (trusted[m.id] ? onTerminal : onSsh)?.(m)}
                           >
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>

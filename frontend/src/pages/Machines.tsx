@@ -11,6 +11,7 @@ import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModa
 import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { SshKeyPanel } from "../components/routing/SshKeyPanel";
+import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -45,6 +46,8 @@ export function Machines() {
   // The machine whose SSH is being set up, by id: after saving one with an SSH user, or
   // from its row.
   const [sshFor, setSshFor] = useState<string | null>(null);
+  // The machine with a terminal open.
+  const [terminalFor, setTerminalFor] = useState<RouteRow | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -173,6 +176,7 @@ export function Machines() {
           trusted={trusted}
           running={running.data ?? {}}
           onSsh={(m) => setSshFor(m.id)}
+          onTerminal={setTerminalFor}
           onEdit={(m) => {
             setError(null);
             setEditing(m);
@@ -219,6 +223,19 @@ export function Machines() {
         onSubmit={(r) => addRoute.mutate(r)}
         onClose={() => setRouteOn(null)}
       />
+
+      {terminalFor && (
+        <MachineTerminal
+          key={terminalFor.id}
+          machine={{ id: terminalFor.id, name: terminalFor.name }}
+          sshKey={ssh.data?.key ?? null}
+          onSetup={() => {
+            setTerminalFor(null);
+            setSshFor(terminalFor.id);
+          }}
+          onClose={() => setTerminalFor(null)}
+        />
+      )}
 
       {sshMachine && sshHost?.user && (
         <SshSetupModal

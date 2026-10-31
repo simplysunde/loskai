@@ -6,6 +6,7 @@ UX only. There are no accounts — one admin password, stored hashed (argon2), v
 into a signed HttpOnly session cookie. The static bundle is served unauthenticated.
 """
 
+import asyncio
 import hashlib
 import math
 import re
@@ -114,6 +115,18 @@ def _serializer() -> URLSafeTimedSerializer:
 
 def make_session() -> str:
     return _serializer().dumps({"authed": True})
+
+
+# How often an open terminal re-checks its cookie: logging out (which replaces the session
+# secret) or the session expiring closes it within this many seconds.
+SESSION_RECHECK = 5.0
+
+
+async def session_ended(token: str | None) -> None:
+    """Returns once `token` stops being a valid session. A WebSocket checks the cookie once,
+    at connect; a shell must not outlive the session, so every terminal waits on this."""
+    while valid_session(token):
+        await asyncio.sleep(SESSION_RECHECK)
 
 
 def valid_session(token: str | None) -> bool:

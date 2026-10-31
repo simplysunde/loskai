@@ -4,6 +4,30 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-10-31 — Phase 34d: a terminal on each machine; sessions logged, not keystrokes
+
+**The plan said "every session and command logged"; only sessions are.** A command typed
+into a pty is a stream of keystrokes, and among them can be a password typed at a `sudo`
+prompt — a keystroke log would be a password log. The log records each terminal opened,
+closed or refused, and each install. Prepared commands (34e) are fixed strings, so they can
+be logged as commands without that risk.
+
+**The unlock gates opening a terminal, not keeping one.** A shell closing itself 15 minutes
+after the password would make the terminal useless for anything long; logout still ends it,
+like the container terminal, and closing it hangs up the pty, so nothing is left running.
+
+**Copy and paste follow the common terminal convention** (Sunde asked for both, and Tab
+completion): Ctrl+Shift+C copies, Ctrl+C copies only while text is selected and interrupts
+otherwise, Ctrl+V and Ctrl+Shift+V paste. Paste goes through the browser's own paste event
+rather than the Clipboard API, which exists only over HTTPS — Loskai is often reached over
+plain HTTP. Tab needed nothing: it reaches the remote shell, which completes.
+
+**Asking about Tab found an old bug.** The container terminal ran
+`exec /bin/bash 2>/dev/null || exec /bin/sh`. Sending bash's stderr to `/dev/null` made it
+non-interactive — bash is interactive only when stdin *and stderr* are terminals — so since
+Phase 8 it showed no prompt, did no Tab completion, and printed no error message. The shell
+is now chosen before `exec`, which also fixes images without bash.
+
 ## 2026-10-31 — SSH set up when a machine is named; a status-only key
 
 Sunde wanted SSH set up as part of creating a machine, and every machine to show what runs

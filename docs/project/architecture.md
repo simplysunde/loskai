@@ -274,7 +274,7 @@ The Machines tab lists each machine with the routes on its address beneath, and 
 on a machine through the same Add route picker, starting on its address. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-**SSH, so far (Phase 34a–c).** Loskai's key is made with the admin password, which
+**SSH, so far (Phase 34a–d).** Loskai's key is made with the admin password, which
 encrypts it (`data/ssh/id_ed25519`), and "New key" replaces it. The public key is read from
 the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
 the shown key can't belong to another. A machine's form has an SSH user and port, written to
@@ -291,6 +291,14 @@ the admin password (`unlock.py`) and locked by logout. Each set-up machine's row
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
 30 s, only while someone is looking.
+
+A set-up machine's row opens a **terminal** (`MachineTerminal`): a pty shell over SSH with
+the main key, behind the session, `Origin` and unlocked-key checks; closing it hangs up the
+pty, so nothing is left running. Both terminals are one component (`XtermSession`): Tab goes
+to the remote shell, which completes; Ctrl+Shift+C copies (Ctrl+C too while text is
+selected); Ctrl+V and Ctrl+Shift+V paste through the browser, so it works over plain HTTP
+too. The **SSH log** (`data/ssh/sessions.log`, on the key panel) records sessions and
+installs — never keystrokes, which can be a password typed at a `sudo` prompt.
 
 ### Direction — managing the machines over SSH
 

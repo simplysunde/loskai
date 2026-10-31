@@ -172,11 +172,6 @@ async def logs(container_id: str, tail: int = 200):
     return EventSourceResponse(events())
 
 
-# How often an open terminal re-checks its cookie: logging out (which replaces the session
-# secret) or the session expiring closes it within this many seconds.
-SESSION_RECHECK = 5.0
-
-
 # bash where the image has it, else sh — chosen before `exec`, never by hiding a failed one.
 # The old `exec /bin/bash 2>/dev/null || exec /bin/sh` sent bash's stderr to /dev/null, so
 # bash wasn't interactive (no prompt, no Tab completion, no error messages), and busybox's sh
@@ -235,15 +230,9 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
                         docker_client.exec_resize, exec_id, ctrl["rows"], ctrl["cols"]
                     )
 
-    async def session_ended():
-        # The cookie was checked once, at connect; a root shell must not outlive the session.
-        cookie = websocket.cookies.get(auth.SESSION_COOKIE)
-        while auth.valid_session(cookie):
-            await asyncio.sleep(SESSION_RECHECK)
-
     out = asyncio.create_task(to_client())
     inp = asyncio.create_task(to_container())
-    ended = asyncio.create_task(session_ended())
+    ended = asyncio.create_task(auth.session_ended(websocket.cookies.get(auth.SESSION_COOKIE)))
     try:
         await asyncio.wait({out, inp, ended}, return_when=asyncio.FIRST_COMPLETED)
     finally:

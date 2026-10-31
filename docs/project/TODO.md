@@ -1536,8 +1536,30 @@ what runs on it — all three recommendations taken)**
       scroll can't clip it); `unreachable` with the reason in its tooltip
 - [ ] Try it on the real Proxmox host and a Docker LXC, and tune `BASE_SERVICES`
 
-**34d — the terminal:** a browser SSH session per machine, behind the session, `Origin`
-and fresh-password checks; every session and command logged, readable in the app.
+**34d — the terminal**
+- [x] `WS /api/ssh/machines/{id}/terminal`: a pty shell with the main key; session, `Origin`
+      and unlocked-key checks; `4000 + status` closes with the reason; closing hangs up the
+      pty. `auth.session_ended` now serves both terminals
+- [x] The SSH log: terminals opened, closed, refused, and installs — **sessions, not
+      commands**: a keystroke log would hold passwords typed at `sudo` prompts. Prepared
+      commands (34e) are fixed, so those will be logged as commands
+- [x] One terminal component (`XtermSession`): Tab to the remote shell; Ctrl+Shift+C copies,
+      Ctrl+C copies while text is selected, Ctrl+V / Ctrl+Shift+V paste via the browser (so
+      plain HTTP works); `MachineTerminal` asks to unlock first, and again on a `4423`
+- [x] **Found on the way, fixed:** the container terminal ran
+      `exec /bin/bash 2>/dev/null || exec /bin/sh` — bash's stderr went to `/dev/null`, so it
+      wasn't interactive: no prompt, no Tab completion, no error messages, since Phase 8; and
+      busybox's `sh` exits on a failed `exec`, so images without bash got no shell (the open
+      item about it). Now the shell is chosen before `exec` (`SHELL_COMMAND`)
+- [x] +6 backend (628, with the shell fix's 2), +8 frontend (247); `pytest`, `npm test`, `npm run build`, `oxlint`,
+      `check-docs.sh`
+- [x] **Live** (Playwright, a Debian `sshd`): `ech` + Tab completed to `echo`; Ctrl+C
+      interrupted `sleep 30`; triple-click + Ctrl+Shift+C copied the line, and Ctrl+C with a
+      selection copied instead of interrupting; Ctrl+Shift+V and Ctrl+V pasted, waiting for
+      Enter; `stty size` was the browser's; after closing, no process of the user was left
+      on the machine (a `sleep 600 &` included); the log had `open`/`close`, `0600`, no typed
+      text. The container terminal, on the same Debian image: prompt, Tab and paste; on
+      busybox: a prompt, and `ls` errors shown
 
 **34e — prepared commands:** system update, disks, services — one click each, run visibly.
 

@@ -5,6 +5,11 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { Machines } from "./Machines";
 
+// xterm needs a real canvas; these tests only need to know a terminal opened, and where.
+vi.mock("../components/shared/XtermSession", () => ({
+  XtermSession: ({ url }: { url: string }) => <div>shell at {url}</div>,
+}));
+
 const ROUTES = [
   {
     id: "nas", name: "Storage box", type: "external", kind: "machine", subdomain: "nas",
@@ -35,10 +40,12 @@ const ROUTES = [
 
 let calls: { path: string; method: string; body: unknown }[] = [];
 let sshHosts: Record<string, unknown> = {};
+let sshTrusted: Record<string, boolean> = {};
 
 beforeEach(() => {
   calls = [];
   sshHosts = {};
+  sshTrusted = {};
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -60,7 +67,7 @@ beforeEach(() => {
             : path === "/api/machines"
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
-              ? { key: null, hosts: sshHosts, trusted: {} }
+              ? { key: null, hosts: sshHosts, trusted: sshTrusted }
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
@@ -190,4 +197,19 @@ test("a machine with an SSH user offers its setup from its row", async () => {
   fireEvent.click(button);
 
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
+});
+
+test("a set-up machine's row opens a terminal on it", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
+
+  // No key in this stub, so it asks to unlock first; the setup is a link away.
+  expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
+  expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "SSH setup" }));
+  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });

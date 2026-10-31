@@ -11,6 +11,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import asyncssh
 
@@ -171,6 +172,37 @@ async def test(machine_id: str) -> dict:
     if result.exit_status != 0:
         raise SshError(502, f"Logged in to {t.host}, but a command there failed")
     return {"key": True, "running": await _read_running(t, host_key)}
+
+
+# --- The terminal ---
+
+
+async def open_terminal(machine_id: str, cols: int, rows: int):
+    """A shell on the machine, with the main key — which must be unlocked, so a terminal is
+    only opened within 15 minutes of the admin password. Returns the target, connection and
+    process; the caller closes the connection."""
+    t = target(machine_id)
+    host_key = _trusted(t)
+    key = _main_key()
+    try:
+        conn, process = await asyncio.wait_for(
+            client.open_shell(t.host, t.port, t.user, host_key, key, cols, rows), client.TIMEOUT
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "key"))
+    return t, conn, process
+
+
+def log(event: str, machine_id: str, peer: str | None, **details) -> None:
+    """Record an SSH event — a terminal opened, closed or refused, an install — for the log
+    the app shows. Sessions, not keystrokes: what is typed can be a password at a sudo prompt.
+    Best-effort: a log that can't be written never stops the session."""
+    entry = {"at": datetime.now(UTC).isoformat(), "event": event, "machine": machine_id, "from": peer}
+    entry.update(details)
+    try:
+        client.append_log(entry)
+    except OSError as exc:
+        logger.warning("SSH log not written: %s", exc)
 
 
 # --- What runs there ---

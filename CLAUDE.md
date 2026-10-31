@@ -52,7 +52,7 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
 - `modules/ssh/` — Loskai's keys (`client.py`; the main one encrypted with the admin
   password, held unlocked for 15 minutes by `unlock.py`) and its SSH config and known_hosts,
   edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
-  the keys, and reads what runs there; `machines.py` keeps a machine's entry in step with its
+  the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
   rename, move and delete.
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
@@ -190,10 +190,12 @@ hashed, an `HttpOnly` session cookie. Middleware gates **every `/api/*`** except
   a card renders before anyone logs in. Uploads are sniffed by magic bytes and SVG is
   refused — user bytes served from Loskai's own origin.
 
-**The container-exec WebSocket (`WS /api/docker/containers/{id}/exec`) sits outside the
-middleware** — WebSockets never traverse it — so it checks the cookie and the `Origin`
-itself (`auth.same_origin`) and closes with 1008. It opens a root shell; never add a second
-WS route without repeating both checks. **Every request that changes something is
+**The two terminal WebSockets — a container's (`WS /api/docker/containers/{id}/exec`) and a
+machine's (`WS /api/ssh/machines/{id}/terminal`) — sit outside the middleware**: WebSockets
+never traverse it, so each checks the cookie and the `Origin` itself (`auth.same_origin`),
+closes with 1008, and waits on `auth.session_ended` to close when the session does. Each
+opens a shell — the machine's also needs the SSH key unlocked; never add a WS route without
+repeating all three. **Every request that changes something is
 Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`
 sends them the cookie, and only the `Origin` tells their requests from Loskai's own. The
 React bundle is served unauthenticated; **never gate the static files or SPA routes** —
@@ -291,8 +293,8 @@ command in `logic.STATUS_COMMAND` — never give it any other use. A machine's o
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 62 HTTP routes plus the exec
-  WebSocket) and `recipe-schema.md`. Read the relevant one **before** touching that
+  API subsets Loskai calls), `api.md` (Loskai's own: 63 HTTP routes plus the two
+  terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run
   `bash scripts/sync-recipe-schema.sh`; the docs check fails while the copy differs.
