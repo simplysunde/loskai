@@ -14,6 +14,12 @@ the machine again installs the same lines with its password. The removal is the 
 own filter (the lines ending ` loskai` and ` loskai-status`), so nothing else in the file is
 touched.
 
+**The key comes off last but one** — after Caddy's step, before the record. Found live: taking
+it off first, then failing at Caddy (which is required and can fail), left a machine in
+Loskai with no key on it. So the lock is checked before anything changes, the machine's
+SSH target is read then too (the unassign clears the name its config entry is found by),
+and the lines come off only once nothing can stop the delete.
+
 **A locked key stops the delete; an unreachable machine doesn't.** Locked, the dialog asks for
 the admin password and nothing is deleted until the lines can go; unreachable, there is
 nothing more Loskai can do, so the delete goes ahead and the page says the lines are still

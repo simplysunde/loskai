@@ -190,18 +190,25 @@ async def install(machine_id: str, password: str) -> dict:
     return await test(machine_id)
 
 
-async def uninstall(machine_id: str) -> bool:
-    """Take Loskai's lines out of the machine's `authorized_keys`, with the main key, before
-    it is deleted. False when there is nothing to take out — no SSH user, a host key never
-    trusted, or no key made yet, so Loskai never installed. Raises SshError: 423 the key is
-    locked, 502 the machine can't be reached or refused."""
+def removal(machine_id: str) -> tuple[Target, str] | None:
+    """Where Loskai's lines would be taken off a machine about to be deleted — its target and
+    trusted host key, read now, before the delete clears its name — or None when it has none
+    to take: no SSH user, a host key never trusted, or no key made yet. SshError 423 while
+    the key is locked, so the page asks for the admin password before anything changes."""
     try:
         t = target(machine_id)
         host_key = _trusted(t)
     except SshError:
-        return False
+        return None
     if client.public_key() is None:
-        return False
+        return None
+    _main_key()
+    return t, host_key
+
+
+async def uninstall(t: Target, host_key: str) -> None:
+    """Take Loskai's lines out of the machine's `authorized_keys`, with the main key. Raises
+    SshError: 423 the key locked meanwhile, 502 the machine can't be reached or refused."""
     key = _main_key()
     try:
         result = await client.run(t.host, t.port, t.user, host_key, logic.UNINSTALL_SCRIPT, client_key=key)
@@ -210,7 +217,6 @@ async def uninstall(machine_id: str) -> bool:
     if result.exit_status != 0:
         detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
         raise SshError(502, f"Removing Loskai's key on {t.host} failed: {detail[0]}")
-    return True
 
 
 async def test(machine_id: str) -> dict:

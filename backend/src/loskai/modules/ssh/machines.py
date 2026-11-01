@@ -45,19 +45,24 @@ def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
     return None
 
 
-async def remove_keys(inst: Instance) -> str | None:
-    """Before a set-up machine is deleted, take Loskai's lines off it. A locked key stops the
-    delete (SshError 423 — the page asks for the admin password and tries again); a machine
-    that can't be reached doesn't, and the warning says its lines are still there."""
+def prepare_removal(inst: Instance):
+    """Before anything of a machine's delete happens: where its Loskai lines are, to take
+    them off once nothing else can stop the delete (None: there are none). SshError 423
+    while the key is locked — the page asks for the admin password, nothing changed."""
+    return connect.removal(inst.id)
+
+
+async def remove_keys(inst: Instance, removal) -> str | None:
+    """Take Loskai's lines off a machine being deleted. Best-effort: a machine that can't be
+    reached is deleted anyway, and the warning says its lines are still there."""
+    if removal is None:
+        return None
     try:
-        removed = await connect.uninstall(inst.id)
+        await connect.uninstall(*removal)
     except connect.SshError as exc:
-        if exc.status_code == 423:
-            raise
         connect.log("uninstall", inst.id, None, ok=False, error=exc.detail)
         return f"Loskai's key is still on the machine: {exc.detail}"
-    if removed:
-        connect.log("uninstall", inst.id, None, ok=True)
+    connect.log("uninstall", inst.id, None, ok=True)
     return None
 
 

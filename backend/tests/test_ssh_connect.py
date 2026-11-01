@@ -282,6 +282,24 @@ def test_deleting_a_set_up_machine_takes_loskai_s_lines_off_it_first(api, machin
     }
 
 
+def test_a_delete_that_fails_at_caddy_leaves_loskai_s_key_on_the_machine(api, machine_net, monkeypatch):
+    # Found live: the key came off first, then Caddy's required step failed — the machine
+    # stayed in Loskai without its key. The key now comes off only once nothing can stop it.
+    from loskai.shared import assign
+
+    _with_key(api)
+    _trust(api)
+
+    async def caddy_down(*args, **kwargs):
+        raise assign.AssignError(502, "Caddy route delete failed")
+
+    monkeypatch.setattr(assign, "unassign", caddy_down)
+
+    assert api.delete("/api/instances/nas").status_code == 502
+    assert all(login["command"] != logic.UNINSTALL_SCRIPT for login in machine_net["logins"])
+    assert instances_store.get_instance("nas") is not None
+
+
 def test_a_locked_key_stops_the_delete_until_it_is_unlocked(api, machine_net):
     _with_key(api)
     _trust(api)

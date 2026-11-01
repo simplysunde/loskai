@@ -1737,7 +1737,13 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       `connect.uninstall`); a locked key asks for the admin password in the dialog (`423`,
       nothing deleted); an unreachable machine is deleted with a warning. A failed delete
       now shows in its dialog (it showed nowhere). +5 backend (709), +2 frontend (267)
-- [ ] Live: delete a throwaway machine and check its `authorized_keys`
+- [x] **Live** (a throwaway `sshd` with a key of its own, a throwaway Caddy, scratch
+      backend): locked → `423`, nothing changed; unlocked → deleted, `authorized_keys` left
+      with only `me@laptop`, still `600`; the machine paused → deleted with "Loskai's key is
+      still on the machine: Can't reach 172.17.0.2:22", both lines still there. **Found:**
+      with Caddy down the first version took the key off, then failed Caddy's required step —
+      the machine stayed in Loskai without its key. Now the order is: lock check, Caddy and
+      DNS, the key, the record; a test holds it
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

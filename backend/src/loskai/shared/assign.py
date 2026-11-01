@@ -446,15 +446,19 @@ async def purge_instance(
     """Clear any route + rewrite for `inst` and drop its record. The caller owns the
     policy of *which* instances may be purged (external delete; orphan cleanup) — this
     just does the cross-module teardown."""
-    warning = None
-    if instances_store.is_machine(inst):
-        # First, while it can still be reached by name: Loskai's lines off the machine.
+    machine = instances_store.is_machine(inst)
+    removal = None
+    if machine:
+        # Where its key is, read before its name goes; a locked key stops it here, unchanged.
         try:
-            warning = await ssh_machines.remove_keys(inst)
+            removal = ssh_machines.prepare_removal(inst)
         except ssh_connect.SshError as exc:
             raise AssignError(exc.status_code, exc.detail)
     if inst.subdomain:
         await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
+    # Only once nothing can stop the delete — Caddy's step is required, and can fail — does
+    # Loskai's key come off the machine; best-effort, so a machine gone is still deleted.
+    warning = await ssh_machines.remove_keys(inst, removal)
     # Routes on a deleted machine's address keep it: nothing links them, so nothing to undo.
     instances_store.delete_instance(inst.id)
     if instances_store.is_machine(inst):
