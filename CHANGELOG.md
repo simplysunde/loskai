@@ -41,7 +41,9 @@ Everything so far:
 - **Deleting a machine** takes Loskai's key off it first, with the admin password if the
   key is locked; one that can't be reached is deleted with a warning that its key is still
   there.
-- **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
+- **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. What a program in the
+  terminal copies — tmux, Claude Code's `c`, an editor — reaches your clipboard (OSC 52);
+  Shift+drag selects even where a program uses the mouse. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.
 - **Docker** — containers grouped by stack, with start/stop, update, logs, a terminal,

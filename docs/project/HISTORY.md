@@ -4,6 +4,30 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — The terminal takes what a program copies (OSC 52)
+
+**Root cause: Loskai's terminal dropped OSC 52.** Sunde couldn't get Claude Code's `/login`
+URL out of a codebox terminal: `c` said "copied to tmux buffer", Ctrl+Shift+C did nothing,
+and a mouse drag went to the program. Programs copy by sending OSC 52 to the terminal — Claude
+Code inside tmux runs `tmux load-buffer -w`, and tmux, on its defaults (`set-clipboard
+external`, `terminal-features` `xterm*:clipboard`, and Loskai's pty is `xterm-256color`),
+passes it on as OSC 52. A probe confirmed tmux sent it, the 474-character URL whole. xterm.js
+implements no OSC 52 by itself, and nothing registered a handler, so it vanished. **No tmux
+change was needed**; the fix is the terminal's: `decodeOsc52` and a handler in `XtermSession`.
+
+**Why it works over plain HTTP too:** the keypress that copied is still a user gesture when
+the sequence arrives, so `copyText`'s `execCommand` fallback is allowed — checked in a real
+browser by IP. Where a browser refuses anyway, a **Copy N characters** button copies it on the
+next click. Reading the clipboard (`?`) is never answered: a machine could otherwise read
+what you copied elsewhere.
+
+**Ctrl+Shift+C "did nothing"** because the highlight was Claude Code's, not xterm's selection
+— and with nothing selected it copied an empty string over the clipboard. It now leaves the
+clipboard alone. **Shift+drag** already selected past a program's mouse capture (xterm.js
+does it); the keyboard hint now says so. A selection of a URL that wraps inside tmux can
+still pick up line breaks — tmux draws each row separately — which is why the program's own
+copy is the way for long URLs.
+
 ## 2026-11-01 — Deleting a machine takes Loskai's key off it
 
 **Always, not a choice** (Sunde: "can't we delete the keys the first time around?"). Until

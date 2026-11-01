@@ -1744,6 +1744,14 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       with Caddy down the first version took the key off, then failed Caddy's required step —
       the machine stayed in Loskai without its key. Now the order is: lock check, Caddy and
       DNS, the key, the record; a test holds it
+- [x] **The terminal takes OSC 52** — what tmux or Claude Code copies reaches the browser's
+      clipboard (Sunde couldn't copy Claude's `/login` URL). Live in Chromium against a
+      throwaway `sshd` in tmux with the mouse on: `tmux load-buffer -w` of a 470-character
+      URL arrived whole, no newlines, over HTTPS-like `localhost` and over plain HTTP by IP
+      (pasted back: 471 bytes with the Enter); Shift+drag + Ctrl+Shift+C copied the
+      selection; Ctrl+Shift+C with nothing selected left the clipboard alone. +2 frontend
+      (269)
+- [ ] Sunde: Claude Code's `/login` in a codebox tmux session — `c`, then paste
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

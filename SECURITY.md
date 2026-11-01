@@ -23,6 +23,9 @@ your network. Read this before deciding where it runs and who can reach it.
   only reads — what runs, and the system, memory, disks, updates waiting, tools and tmux
   session names — with no shell, no forwarding, only from the Docker host. A copy reveals
   that and nothing else.
+- **A program in a terminal can put text on your clipboard** (OSC 52 — how tmux and Claude
+  Code copy), as in any terminal: up to 1 MiB, and never read it — a request to read the
+  clipboard is ignored.
 - **The Machines tab opens a shell on a machine**, from the browser, as Loskai's SSH user —
   only while the key is unlocked, and only from Loskai's own pages. Each terminal opened,
   closed or refused is logged (when, which machine, from where), not what is typed in it.

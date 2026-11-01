@@ -148,7 +148,10 @@ one click, and its overview comes back with them.
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
 installs its key (or copy its two lines over yourself). Its page does this again. Once it's
-set up, a terminal button sits on its row and its page. From then on the row shows how much
+set up, a terminal button sits on its row and its page. In it, what a program copies —
+tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
+wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
+copies that. From then on the row shows how much
 is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
 hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
