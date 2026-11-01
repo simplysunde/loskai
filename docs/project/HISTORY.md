@@ -4,6 +4,26 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Phase 34h: Claude Code in the machine's projects
+
+**A project is a git repo in the machine's projects folder** (Sunde: "a clever way of using
+git to keep track of projects made on the computer so I can restart a session or start a
+new session"). Git already knows what a project is and what state it is in, so Loskai keeps
+no list of its own: the status line reads branch, uncommitted changes and the last commit;
+when Claude last worked there comes from Claude Code's own folder of conversations.
+
+**The folder is a default, changeable per machine** (Sunde: "a default one, that can easily
+be overwritten per machine") — `~/projects`, or `~` or one folder in it: as deep as the
+status line looks. A deeper or outside folder was not offered, because the forced command
+can't take it as input (it never runs what it is sent), so it would have to scan the whole
+disk instead. Stored on the machine's record — the one thing tools store.
+
+**One Claude per project, in tmux `claude-<project>`** — opening a project attaches when it
+runs, else continues the last conversation, else starts one; always with Remote Control, so
+it carries on from the app. Starting a second Claude in the same folder is what the
+terminal is for. `--continue` is only used where Claude Code has conversations for the
+folder, since it fails without one.
+
 ## 2026-11-01 — Phase 34g: tmux and Tailscale; status line v3
 
 **One status-line version for 34g and 34h** — `tailscale` and `curl` detected, the

@@ -27,7 +27,12 @@ Everything so far:
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:
   installed with its own installer; connect (the login link shows in the terminal),
-  status, disconnect; the machine's Tailscale address in its overview.
+  status, disconnect; the machine's Tailscale address in its overview. **Claude Code**: the
+  git projects in the machine's projects folder (`~/projects`, changeable per machine), each
+  with its branch, uncommitted changes, last commit and last Claude conversation; **Claude**
+  opens its running session, else continues the last conversation, else starts one — in
+  tmux, with Remote Control, so it carries on in the Claude app; **New project** makes the
+  folder, `git init`, and starts Claude in it.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

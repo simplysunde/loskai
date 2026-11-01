@@ -19,6 +19,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from ...shared import auth
+from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from . import client, connect, logic, tool, unlock
 
@@ -63,11 +64,15 @@ def _known() -> dict[str, bool]:
 @router.get("")
 def ssh_status() -> dict:
     """Loskai's key (null before one is made), each `Host` in the config, which machines
-    have a trusted host key."""
+    have a trusted host key, and each machine's projects folder."""
     return {
         "key": _key_view(),
         "hosts": logic.hosts(client.read_config()),
         "trusted": _known(),
+        "projects": {
+            i.id: tool.show_folder(i.projects_folder)
+            for i in instances_store.list_instances() if instances_store.is_machine(i)
+        },
     }
 
 
@@ -167,6 +172,25 @@ async def facts(machine_id: str) -> dict:
 def tools() -> list[dict]:
     """Every tool in the image, with its actions and their commands."""
     return [tool.view(t) for t in tool.load().values()]
+
+
+class ProjectsRequest(BaseModel):
+    folder: str | None = None
+
+
+@router.put("/machines/{machine_id}/projects")
+def set_projects(machine_id: str, body: ProjectsRequest) -> dict:
+    """Set a machine's projects folder — `~` or one folder in it; null or empty for the
+    default, `~/projects`. Its tools' actions find it as `$PROJECTS`."""
+    try:
+        folder = tool.parse_folder(body.folder) if body.folder and body.folder.strip() else None
+    except tool.ToolError as exc:
+        raise HTTPException(422, str(exc))
+    if folder == tool.PROJECTS:
+        folder = None
+    if instances_store.set_projects_folder(machine_id, folder) is None:
+        raise HTTPException(404, f"No machine '{machine_id}'")
+    return {"folder": tool.show_folder(folder)}
 
 
 @router.get("/log")

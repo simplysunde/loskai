@@ -13,6 +13,8 @@ export interface ToolAction {
   target: ToolTarget | null; // null: the machine itself
   ask: ToolTarget | null; // a name typed for it, checked like a target
   confirm: string | null;
+  // The tmux session it runs in: null Loskai's own, a name shared per target, false none.
+  session: string | false | null;
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
@@ -48,6 +50,11 @@ export function runQuery(run: ToolRun): string {
   if (run.target) q.set("target", run.target);
   if (run.install) q.set("install", "true");
   return q.toString();
+}
+
+// The tmux session a shared-`session` action runs in for `target`, named as tool.session_name.
+export function sessionName(session: string, target: string): string {
+  return `${session}-${target}`.replace(/[^A-Za-z0-9_-]/g, "_");
 }
 
 // The programs `tool` requires that a machine with `programs` lacks — none: it applies.

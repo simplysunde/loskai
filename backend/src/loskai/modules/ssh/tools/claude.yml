@@ -1,0 +1,36 @@
+# Claude Code in the machine's projects — the git repos in its projects folder ($PROJECTS) —
+# each in the tmux session claude-<project>, with Remote Control on, so a session carries on
+# in the Claude app or on another computer after the tab closes.
+# docs/reference/tool-schema.md is the format.
+name: Claude Code
+description: Claude sessions in your projects, to carry on from the app or another computer.
+requires: [claude, tmux, git]
+actions:
+  open:
+    label: Claude
+    description: >-
+      Open Claude in this project: its running session, else its last conversation
+      continued, else a new one — with Remote Control on.
+    target: project
+    session: claude
+    # Claude Code keeps a folder's conversations in ~/.claude/projects/<its path, every
+    # other character a ->; --continue fails where there are none.
+    run: >-
+      cd "$PROJECTS/$1" &&
+      if ls ~/.claude/projects/"$(pwd | sed 's,[^A-Za-z0-9],-,g')"/*.jsonl >/dev/null 2>&1;
+      then claude --continue --remote-control "$(hostname): $1";
+      else claude --remote-control "$(hostname): $1"; fi
+  terminal:
+    label: Terminal
+    description: A shell in this project.
+    target: project
+    session: false
+    run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
+  new:
+    label: New project
+    description: Make the folder in the projects folder, start a git repository in it, and open Claude there.
+    ask: project
+    session: claude
+    run: >-
+      mkdir -p "$PROJECTS" && cd "$PROJECTS" && mkdir "$1" && cd "$1" && git init -q &&
+      claude --remote-control "$(hostname): $1"

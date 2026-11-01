@@ -1,8 +1,19 @@
 import { useState } from "react";
-import { Play, Plus } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Play, Plus } from "lucide-react";
 
+import { api, ApiError } from "../../lib/api";
+import { formatAgo } from "../../lib/format";
 import type { Facts } from "../../lib/ssh";
-import { commandFor, missing, type Tool, type ToolAction, type ToolRun, type ToolTarget } from "../../lib/tools";
+import {
+  commandFor,
+  missing,
+  sessionName,
+  type Tool,
+  type ToolAction,
+  type ToolRun,
+  type ToolTarget,
+} from "../../lib/tools";
 
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
@@ -13,16 +24,35 @@ type Start = (run: ToolRun, action?: ToolAction) => void;
 interface Row {
   name: string;
   detail: string;
+  title?: string;
 }
 
-// The rows of each kind a card lists, from the overview. The Running list's kinds (service,
-// container, lxc, vm) are on its own rows instead.
-function rowsOf(kind: ToolTarget, facts: Facts): Row[] | null {
+// The rows of each kind a card lists, from the overview — projects, those in the machine's
+// projects folder (`~/projects`, `~`). The Running list's kinds (service, container, lxc,
+// vm) are on its own rows instead.
+function rowsOf(kind: ToolTarget, facts: Facts, folder: string): Row[] | null {
   if (kind === "session") {
     return (facts.tmux ?? []).map((s) => ({
       name: s.name,
       detail: `${s.windows} ${s.windows === 1 ? "window" : "windows"}${s.attached ? " · attached" : ""} · since ${new Date(s.created * 1000).toLocaleString()}`,
     }));
+  }
+  if (kind === "project") {
+    const relative = folder === "~" ? "" : folder.replace(/^~\//, "");
+    return (facts.projects ?? [])
+      .filter((p) => p.folder === relative)
+      .map((p) => ({
+        name: p.name,
+        detail: [
+          p.branch ?? "no branch",
+          p.dirty ? "uncommitted changes" : null,
+          p.committed ? `committed ${formatAgo(p.committed)}` : "no commits",
+          p.claude ? `Claude ${formatAgo(p.claude)}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        title: p.subject ? `Last commit: ${p.subject}` : undefined,
+      }));
   }
   return null;
 }
@@ -49,13 +79,17 @@ export function rowButtons(here: Tool[], kind: ToolTarget, name: string, onRun: 
 // with its actions; then the ones Loskai can add, by installing what they lack. Nothing is
 // enabled or stored.
 export function MachineTools({
+  machineId,
   tools,
   facts,
+  folder,
   onRun,
 }: {
+  machineId: string;
   tools: Tool[];
   // The overview: what the machine has, its package manager, its sessions and projects.
   facts: Facts;
+  folder: string; // its projects folder
   onRun: Start;
 }) {
   const programs = facts.programs ?? [];
@@ -73,9 +107,15 @@ export function MachineTools({
         const asks = t.actions.filter((a) => a.ask);
         const kinds = [...new Set(t.actions.map((a) => a.target).filter((k) => k !== null))];
         const lists = kinds.flatMap((k) => {
-          const rows = rowsOf(k, facts);
+          const rows = rowsOf(k, facts, folder);
           return rows ? [{ kind: k, rows }] : [];
         });
+        // A row whose shared session is running says so: opening it attaches.
+        const sessions = new Set((facts.tmux ?? []).map((s) => s.name));
+        const live = (kind: ToolTarget, name: string) =>
+          t.actions.some(
+            (a) => a.target === kind && typeof a.session === "string" && sessions.has(sessionName(a.session, name)),
+          );
         if (own.length + asks.length + lists.length === 0) return null;
         return (
           <div key={t.id} className="rounded-lg border border-slate-800 px-3 py-2">
@@ -83,18 +123,24 @@ export function MachineTools({
               {t.name}
             </div>
             {lists.map(({ kind, rows }) => (
-              <ul key={kind} className="mt-2 space-y-0.5 text-xs text-slate-300">
-                {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
-                {rows.map((r) => (
-                  <li key={r.name} className="flex items-center justify-between gap-2">
-                    <span className="truncate font-mono">{r.name}</span>
-                    <span className="flex shrink-0 items-center gap-2 text-slate-500">
-                      {r.detail}
-                      {rowButtons([t], kind, r.name, onRun)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div key={kind} className="mt-2">
+                {kind === "project" && <Folder machineId={machineId} folder={folder} />}
+                <ul className="space-y-0.5 text-xs text-slate-300">
+                  {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
+                  {rows.map((r) => (
+                    <li key={r.name} title={r.title} className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono">
+                        {r.name}
+                        {live(kind, r.name) && <span className="ml-2 font-sans text-emerald-300">running</span>}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2 text-slate-500">
+                        {r.detail}
+                        {rowButtons([t], kind, r.name, onRun)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
             {(own.length > 0 || asks.length > 0) && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -163,6 +209,54 @@ function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: S
       <button type="submit" disabled={!name.trim()} title={`${action.description}\n$ ${typeof action.run === "string" ? action.run : ""}`} className={BUTTON}>
         <Plus className="h-3.5 w-3.5" /> {action.label}
       </button>
+    </form>
+  );
+}
+
+// Where a machine's projects are — `~/projects` unless changed here: `~` or one folder in it.
+function Folder({ machineId, folder }: { machineId: string; folder: string }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const save = useMutation({
+    mutationFn: (next: string) => api.put(`/api/ssh/machines/${machineId}/projects`, { folder: next }),
+    onSuccess: () => {
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["ssh"] });
+    },
+  });
+  if (editing === null) {
+    return (
+      <p className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
+        Projects in <span className="font-mono text-slate-300">{folder}</span>
+        <button title="Change the projects folder" onClick={() => setEditing(folder)} className="hover:text-slate-200">
+          <Pencil className="h-3 w-3" />
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form
+      className="mb-1 flex flex-wrap items-center gap-1.5 text-xs"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.mutate(editing);
+      }}
+    >
+      <input
+        aria-label="Projects folder"
+        value={editing}
+        onChange={(e) => setEditing(e.target.value)}
+        className="w-40 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-slate-200"
+      />
+      <button type="submit" disabled={save.isPending} className={BUTTON}>
+        Save
+      </button>
+      <button type="button" onClick={() => setEditing(null)} className="text-slate-500 hover:text-slate-300">
+        Cancel
+      </button>
+      {save.isError && (
+        <span className="text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't save it"}</span>
+      )}
     </form>
   );
 }

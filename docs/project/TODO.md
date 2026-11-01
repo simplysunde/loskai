@@ -1691,15 +1691,18 @@ projects 34h lists — one reinstall for all three)
       overview
 
 **34h — Claude Code and projects**
-- [ ] **A projects folder per machine**, `~/projects` unless changed on its page (`~` or
+- [x] **A projects folder per machine**, `~/projects` unless changed on its page (`~` or
       one folder in the home folder). The status line lists the git repos one and two
       levels into the home folder — branch, uncommitted changes, last commit, last Claude
       conversation — and the page shows those in the folder
-- [ ] **Claude Code** (needs `claude`, `tmux`, `git`): a project's **Claude** opens its
+- [x] **Claude Code** (needs `claude`, `tmux`, `git`): a project's **Claude** opens its
       running session, else continues its last conversation, else starts one — always with
       Remote Control, in tmux `claude-<project>`, so it carries on in the app or another
       computer after the tab closes; **Terminal** in the project; **New project** (a name:
       the folder, `git init`, Claude in it)
+- [x] `PUT /api/ssh/machines/{id}/projects` (66 routes), `$PROJECTS` for every action;
+      +17 backend (704), +2 frontend (260); `pytest`, `npm test`, `npm run build`,
+      `oxlint`, `check-docs.sh`
 
 ---
 

@@ -46,8 +46,16 @@ const FACTS = {
   ok: true, checked: 0, os: "Debian GNU/Linux 12 (bookworm)", kernel: "Linux 6.1.0", uptime: 3 * 86400 + 7200,
   memory: { total: 8 * 1024 ** 3, available: 2 * 1024 ** 3 },
   disks: [{ mount: "/", device: "/dev/sda1", size: 100 * 1024 ** 3, used: 95 * 1024 ** 3 }],
-  updates: { manager: "apt", count: 12 }, programs: ["docker", "tmux", "tailscale"], tailscale: "100.64.0.7",
-  tmux: [{ name: "build", created: 1793212547, attached: false, windows: 2 }],
+  updates: { manager: "apt", count: 12 }, programs: ["docker", "tmux", "tailscale", "git", "claude"], tailscale: "100.64.0.7",
+  tmux: [
+    { name: "build", created: 1793212547, attached: false, windows: 2 },
+    { name: "claude-site", created: 1793212547, attached: false, windows: 1 },
+  ],
+  projects: [
+    { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
+      committed: 1793211000, subject: "Add the header" },
+    { path: "notes", folder: "", name: "notes", branch: "main", dirty: false, claude: 0, committed: 1793211000, subject: "x" },
+  ],
 };
 let facts: unknown = FACTS;
 let sshKey: unknown = null;
@@ -78,7 +86,14 @@ const TOOLS = [
     ],
   },
   {
-    id: "versions", name: "Versions", description: "Git things.", requires: ["git"], installable: ["git"],
+    id: "claude", name: "Claude Code", description: "Claude in projects.", requires: ["claude", "tmux", "git"], installable: [],
+    actions: [
+      { id: "open", label: "Claude", description: "Open it.", target: "project", ask: null, confirm: null, session: "claude", run: "claude" },
+      { id: "new", label: "New project", description: "Make one.", target: null, ask: "project", confirm: null, session: "claude", run: "git init" },
+    ],
+  },
+  {
+    id: "versions", name: "Versions", description: "Git things.", requires: ["kubectl"], installable: ["kubectl"],
     actions: [{ id: "log", label: "Log", description: "Show it.", target: null, ask: null, confirm: null, run: "git log" }],
   },
 ];
@@ -117,7 +132,7 @@ beforeEach(() => {
             : path === "/api/machines"
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
-              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted }
+              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted, projects: { nas: "~/projects", pve: "~/projects" } }
             : path === "/api/ssh/tools"
               ? TOOLS
             : path === "/api/ssh/log"
@@ -412,6 +427,36 @@ test("an action that asks for a name runs on what is typed", async () => {
   fireEvent.change(name, { target: { value: "work" } });
   fireEvent.click(screen.getByRole("button", { name: "New session" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=new&target=work")).toBeInTheDocument();
+});
+
+test("a project lists in its machine's projects folder, says its Claude session runs, and opens it", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  const row = (await screen.findByText("site")).closest("li") as HTMLElement;
+  expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
+  expect(row.textContent).toContain("main · uncommitted changes · committed");
+  expect(row.title).toBe("Last commit: Add the header");
+  // In ~ rather than ~/projects: not listed.
+  expect(screen.queryByText("notes")).not.toBeInTheDocument();
+  fireEvent.click(within(row).getByRole("button", { name: "Claude" }));
+
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
+});
+
+test("the projects folder is changed on the machine's page", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  fireEvent.click(await screen.findByTitle("Change the projects folder"));
+  fireEvent.change(screen.getByLabelText("Projects folder"), { target: { value: "~" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.method === "PUT")).toEqual({
+      path: "/api/ssh/machines/nas/projects", method: "PUT", body: { folder: "~" },
+    }),
+  );
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {

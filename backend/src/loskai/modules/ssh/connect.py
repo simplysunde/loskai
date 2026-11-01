@@ -331,6 +331,7 @@ async def plan(
     if t is None:
         raise SshError(404, f"No tool {tool_id!r}")
     target(machine_id)  # an SSH user, or 409
+    inst = instances_store.get_instance(machine_id)
     f = await facts(machine_id)
     if not f.get("ok"):
         raise SshError(409, f"Its overview is needed first: {f.get('error')}")
@@ -354,7 +355,7 @@ async def plan(
     except tool.ToolError as exc:
         raise SshError(409, str(exc))
     session = tool.session_name(t, action, target_name) if "tmux" in programs else None
-    return tool.visible(script, target_name, session), {
+    return tool.visible(script, target_name, session, inst.projects_folder if inst else None), {
         "event": "action", "tool": t.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,
     }

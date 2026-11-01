@@ -12,7 +12,8 @@ from loskai.modules.ssh.tool import ToolError
 def test_every_shipped_tool_is_valid():
     tools = tool.load()
 
-    assert {"system", "services", "proxmox", "tmux", "tailscale"} <= set(tools)
+    assert {"system", "services", "proxmox", "tmux", "tailscale", "claude"} <= set(tools)
+    assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["open"].session == "claude"
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
@@ -164,3 +165,26 @@ def test_a_typed_name_is_checked_like_a_target(kind, name, ok):
     else:
         with pytest.raises(ToolError):
             tool.check_target(kind, name)
+
+
+@pytest.mark.parametrize(("typed", "stored"), [
+    ("~", ""), ("~/", ""), ("~/projects", "projects"), ("~/code/", "code"), (" ~/my.work ", "my.work"),
+])
+def test_a_projects_folder_is_home_or_one_folder_in_it(typed, stored):
+    assert tool.parse_folder(typed) == stored
+    assert tool.show_folder(stored) == (f"~/{stored}" if stored else "~")
+
+
+@pytest.mark.parametrize("typed", ["/srv/code", "~/a/b", "~/..", "~/.hidden", "code", "~/a b", ""])
+def test_a_projects_folder_elsewhere_is_refused(typed):
+    with pytest.raises(ToolError, match="one folder in it"):
+        tool.parse_folder(typed)
+
+
+@pytest.mark.parametrize(("stored", "expected"), [(None, "/h/projects"), ("", "/h"), ("code", "/h/code")])
+def test_an_action_finds_the_projects_folder_as_PROJECTS(stored, expected):
+    command = tool.visible('printf "<%s>" "$PROJECTS"', None, None, stored)
+    out = subprocess.run(["sh", "-c", command], input="\n", capture_output=True, text=True, timeout=10,
+                         env={"PATH": "/usr/bin:/bin", "HOME": "/h"}).stdout
+
+    assert out.startswith(f"<{expected}>")

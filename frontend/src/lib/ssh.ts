@@ -21,6 +21,7 @@ export interface SshStatus {
   key: SshKey | null;
   hosts: Record<string, SshHost>;
   trusted: Record<string, boolean>; // machine ids with a trusted host key
+  projects: Record<string, string>; // each machine's projects folder: "~/projects", "~"
 }
 
 export function useSsh() {

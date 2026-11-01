@@ -42,7 +42,13 @@ INSTALLERS: dict[str, dict] = {
     # Every script is fetched with curl, so a machine without it gets it first.
     "curl": {"packages": {"apt": "curl", "dnf": "curl", "apk": "curl", "pacman": "curl"}},
     "tailscale": {"script": "curl -fsSL https://tailscale.com/install.sh | sh"},
+    "claude": {"script": "curl -fsSL https://claude.ai/install.sh | bash"},
 }
+
+# A machine's projects folder: `~` or one folder in it — as deep as the overview looks for
+# projects (`logic._FACTS`). Stored relative to home; an action finds it as `$PROJECTS`.
+PROJECTS = "projects"
+_FOLDER = re.compile(r"^~(/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?/?$")
 
 # What an action can be on — a row of the Running list or of a tool's card, or a name typed
 # for it — and what that must look like: a systemd unit, a container name, a Proxmox guest
@@ -192,10 +198,23 @@ def view(t: Tool) -> dict:
         "installable": [p for p in t.requires if p in INSTALLERS],
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
-             "ask": a.ask, "confirm": a.confirm, "run": a.run}
+             "ask": a.ask, "confirm": a.confirm, "session": a.session, "run": a.run}
             for a in t.actions.values()
         ],
     }
+
+
+def parse_folder(text: str) -> str:
+    """A projects folder as typed — `~`, `~/code` — to how it is stored: relative to home."""
+    if not _FOLDER.match(text.strip()):
+        raise ToolError("A projects folder is ~ or one folder in it, such as ~/projects")
+    return text.strip().removeprefix("~").strip("/")
+
+
+def show_folder(folder: str | None) -> str:
+    """A stored projects folder (None: the default) as it is shown: `~/projects`, `~`."""
+    folder = PROJECTS if folder is None else folder
+    return f"~/{folder}" if folder else "~"
 
 
 # --- What runs ---
@@ -259,14 +278,19 @@ def check_target(kind: str | None, target: str | None) -> None:
         raise ToolError(f"Not a {kind}: {target!r}")
 
 
-def visible(script: str, target: str | None, session: str | None) -> str:
+def visible(script: str, target: str | None, session: str | None, projects: str | None = None) -> str:
     """The command a terminal runs for an action: `script` under `sh`, the target as `$1`;
     then it says how it ended and waits for Enter, so the output stays on screen. `sudo`
-    is a plain call for root (Proxmox logs in as root, often without sudo), and
-    `~/.local/bin` is on the PATH, as the overview has it. Given a tmux `session`, it runs
+    is a plain call for root (Proxmox logs in as root, often without sudo), `~/.local/bin`
+    is on the PATH, as the overview has it, and `$PROJECTS` is the machine's projects
+    folder (`projects`, as stored; None: the default). Given a tmux `session`, it runs
     inside it — closing the tab leaves it running, and running the same action again
     attaches to it rather than starting a second."""
-    body = 'PATH=$PATH:$HOME/.local/bin; if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
+    folder = PROJECTS if projects is None else projects
+    body = (
+        "PATH=$PATH:$HOME/.local/bin; PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
+        'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
+    )
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")
     job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
     if session:

@@ -90,6 +90,8 @@ A command for POSIX `sh`, run as the machine's SSH user:
   a plain call, so the same file works with or without sudo installed.
 - **`$1`** is the target, for an action with `target` or `ask`. Always quote it: `"$1"`.
 - `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
+- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed on
+  the machine's page (`~` or one folder in it), as an absolute path.
 
 ### `target` and `ask`
 
@@ -103,7 +105,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `lxc` | each running LXC (Proxmox) | its id, `101` |
 | `vm` | each running VM (Proxmox) | its id, `200` |
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
-| `project` | each project, listed on the tool's card | its folder's name, `site` |
+| `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 
 The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a card lists come from
 the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on its rows.
@@ -118,7 +120,8 @@ Which tmux session the action runs in, where the machine has tmux:
 
 - *(left out)*: Loskai's own, one per action and target — `loskai-<tool>-<action>[-<target>]`.
 - **a name**: shared by every action that gives it, one per target — `<name>-<target>`.
-  Running any of them while it is there attaches to it instead of starting another.
+  Running any of them while it is there attaches to it instead of starting another, and a
+  card's row says `running` while it is there.
 - **`false`**: none — for an action that is tmux itself, such as attaching to a session.
 
 ## How an action runs

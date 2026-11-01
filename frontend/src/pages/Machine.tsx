@@ -173,10 +173,16 @@ export function Machine() {
           </section>
         )}
 
-        {host?.user && trusted && facts.data?.ok && tools.data && (
+        {host?.user && trusted && facts.data?.ok && tools.data && ssh.data && (
           <section className="border-t border-slate-800 pt-6">
             <h2 className="mb-3 text-sm font-medium text-slate-200">Tools</h2>
-            <MachineTools tools={tools.data} facts={facts.data} onRun={start} />
+            <MachineTools
+              machineId={id}
+              tools={tools.data}
+              facts={facts.data}
+              folder={ssh.data.projects[id]}
+              onRun={start}
+            />
           </section>
         )}
 

@@ -523,7 +523,8 @@ def test_the_tools_are_listed_with_their_commands(api):
 
     reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
-                      "ask": None, "confirm": "Everything on it stops until it is back up.", "run": "sudo reboot"}
+                      "ask": None, "confirm": "Everything on it stops until it is back up.", "session": None,
+                      "run": "sudo reboot"}
     assert tools["proxmox"]["installable"] == []
     assert tools["tailscale"]["installable"] == ["tailscale"]
 
@@ -598,6 +599,29 @@ def test_a_typed_name_reaches_the_command_as_1_and_tmux_itself_is_not_wrapped_in
     assert 'tmux new-session -A -s "$1"' in shell["command"] and shell["command"].endswith("read _")
     assert " loskai work;" in shell["command"]
     assert _closed_with(api, TERMINAL + "&tool=tmux&action=new&target=a%3Bid") == (4409, "Not a session: 'a;id'")
+
+
+def test_a_machine_s_projects_folder_is_set_on_its_page_and_kept_through_an_edit(api):
+    assert api.get("/api/ssh").json()["projects"] == {"nas": "~/projects"}
+    assert api.put("/api/ssh/machines/nas/projects", json={"folder": "~/code"}).json() == {"folder": "~/code"}
+    api.post("/api/machines", json={"hostname": "nas", "address": "192.168.10.51", "instance_id": "nas"})
+
+    assert api.get("/api/ssh").json()["projects"] == {"nas": "~/code"}
+    assert api.put("/api/ssh/machines/nas/projects", json={"folder": "/srv"}).status_code == 422
+    assert api.put("/api/ssh/machines/ghost/projects", json={"folder": "~"}).status_code == 404
+    assert api.put("/api/ssh/machines/nas/projects", json={"folder": None}).json() == {"folder": "~/projects"}
+
+
+def test_a_project_action_runs_in_its_claude_session_in_the_machine_s_folder(api, machine_net, shell):
+    _ready(api, machine_net, APT_FACTS + "tmux\nclaude\ngit\n")
+    api.put("/api/ssh/machines/nas/projects", json={"folder": "~/code"})
+
+    with api.websocket_connect(TERMINAL + "&tool=claude&action=open&target=site", headers=ORIGIN) as ws:
+        ws.receive_bytes()
+
+    assert shell["command"].startswith("tmux new-session -A -s claude-site ")
+    assert "PROJECTS=$HOME/code;" in shell["command"] and "claude --remote-control" in shell["command"]
+    assert _closed_with(api, TERMINAL + "&tool=claude&action=new&target=..")[1] == "Not a project: '..'"
 
 
 def test_an_action_needs_the_machine_s_overview(api, machine_net, shell):

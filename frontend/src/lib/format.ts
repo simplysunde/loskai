@@ -17,6 +17,14 @@ export function formatUptime(seconds: number | null | undefined): string {
   return `${seconds}s`;
 }
 
+// How long ago an epoch time (seconds) was, roughly: "5m ago", "3h ago", "2d ago".
+export function formatAgo(epoch: number, now: number = Date.now() / 1000): string {
+  const s = Math.max(0, now - epoch);
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
 export function formatPercent(pct: number | null | undefined): string {
   return pct == null ? "—" : `${pct.toFixed(1)}%`;
 }

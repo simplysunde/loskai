@@ -121,6 +121,16 @@ line beneath: clicking it installs what it needs, in the terminal.
   first time, the terminal shows a link to log the machine in. The overview then shows
   its Tailscale address. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
+- **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
+  unless you change it on the card (the pencil; `~` or one folder in it) — with each one's
+  branch, uncommitted changes, last commit and when Claude last worked there. **Claude**
+  opens it: the session already running there, else the last conversation continued,
+  else a new one. It runs in tmux with **Remote Control** on, so after you close the tab
+  you can carry on from the Claude app or claude.ai/code. **New project** makes the folder,
+  starts a git repository and opens Claude in it; **Terminal** is a shell in the project.
+  Claude Code has to be logged in on the machine — the first time, do that in the
+  terminal. Loskai holds no Claude login.
+
 A machine set up before a tool's facts existed asks you to **install again** on its page —
 one click, and its overview comes back with them.
 
