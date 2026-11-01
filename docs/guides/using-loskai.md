@@ -129,7 +129,7 @@ and Add.
 
 - **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
   unless you change it on the machine's page, beside its connection (`~` or one folder
-  in it; the dialog's cog goes there) — with each one's
+  in it; a tool's dialog has a **Settings** button to that page) — with each one's
   branch, uncommitted changes, last commit and when Claude last worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
   else a new one. It runs in tmux with **Remote Control** on, so after you close the tab

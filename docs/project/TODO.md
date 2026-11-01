@@ -1719,8 +1719,8 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       open), opening it in a dialog — what it needs, which of that the machine has, then
       the tool's card or Add. The machine page keeps a card per tool. (First built as a
       menu on the machine page, then as a page per tool — both moved the same day)
-- [x] The projects folder on the machine page (Connection), with a shortcut from Claude
-      Code's dialog; Needs only where a tool isn't added; plain descriptions ("Manage your
+- [x] The projects folder on the machine page (Connection); each tool's dialog has a
+      Settings button there; Needs only where a tool isn't added; plain descriptions ("Manage your
       Claude sessions here, one per project.")
 - [x] tmux's card leaves out the sessions another tool claims (`claude-<project>`); Claude
       Code's projects get Pull (`--ff-only`), Push, Terminal, End

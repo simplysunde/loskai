@@ -41,22 +41,23 @@ export function ToolDialog({
     const summary = applies(tool, programs) ? toolSummary(tool, ctx) : "";
     body = (
       <div className="space-y-4">
-        <p className="text-sm text-slate-400">
-          {tool.description}
-          {summary && <span className="text-slate-500"> · {summary}</span>}
-        </p>
-        {/* Where its projects are is the machine's setting, on its page — a shortcut there. */}
+        <div className="flex items-start justify-between gap-4">
+          <p className="text-sm text-slate-400">
+            {tool.description}
+            {summary && <span className="text-slate-500"> · {summary}</span>}
+          </p>
+          {/* The machine's own settings — where its projects folder is set — on its page. */}
+          <Link
+            to={`/machines/${machine.id}`}
+            title="The machine's settings, on its page"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+          >
+            <Settings className="h-3.5 w-3.5" /> Settings
+          </Link>
+        </div>
         {tool.actions.some((a) => a.target === "project" || a.ask === "project") && (
-          <p className="flex items-center gap-1.5 text-xs text-slate-500">
+          <p className="text-xs text-slate-500">
             Projects in <span className="font-mono text-slate-300">{ctx.folder}</span>
-            <Link
-              to={`/machines/${machine.id}`}
-              title="Change it in the machine's settings"
-              aria-label="Machine settings"
-              className="text-slate-500 hover:text-slate-200"
-            >
-              <Settings className="h-3 w-3" />
-            </Link>
           </p>
         )}
         {applies(tool, programs) ? (

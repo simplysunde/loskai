@@ -22,7 +22,8 @@ with a labelled trigger, not a second dropdown.
 **The projects folder is a machine setting**, on the machine page beside its connection,
 not on Claude Code's card (Sunde: "setting projects location should be done in the machine
 configs… we can add a shortcut to settings though") — the dialog says where the projects are,
-with a cog to the machine's page. **Needs** shows only where a tool isn't added yet: for one
+and has a **Settings** button to the machine's page ("I would rather have a settings button
+with the cog here"). **Needs** shows only where a tool isn't added yet: for one
 that is, it said nothing new.
 
 **A tmux session belongs to the tool that names it** (Sunde: "we need to separate regular

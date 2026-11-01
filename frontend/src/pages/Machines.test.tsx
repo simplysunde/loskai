@@ -433,7 +433,7 @@ test("a set-up machine's row has a Tools menu: each added tool, how it stands, i
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
 
-test("Claude Code's dialog says where the projects are, with a shortcut to the machine's settings", async () => {
+test("a tool's dialog has a Settings button to the machine's page; Claude Code's says where the projects are", async () => {
   setUp();
   renderPage();
   await screen.findByText("Storage box");
@@ -441,7 +441,8 @@ test("Claude Code's dialog says where the projects are, with a shortcut to the m
   fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: /Claude Code/ }));
   expect(await screen.findByText("site")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("link", { name: "Machine settings" }));
+  expect(screen.getByText("~/projects")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Settings" }));
 
   // The machine's page, where the folder is set.
   expect(await screen.findByTitle(/Change the projects folder/)).toBeInTheDocument();
