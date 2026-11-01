@@ -162,4 +162,7 @@ the tmux session) or `add-tool` (with the tool, the programs and the command).
    version steps. If Loskai can install it, add it to `tool.INSTALLERS`.
 4. A new kind of `target` needs a row in the Running list to put it on: `tool.TARGETS`,
    `RunningList`, and this page.
-5. Note it in `CHANGELOG.md`. It ships with the next image.
+5. Optionally an icon: its 24×24 path in `PATHS` in
+   `frontend/src/components/routing/ToolIcon.tsx`, by the tool's id — from Simple Icons
+   (simpleicons.org, CC0) where the program has one. Without one it gets a wrench.
+6. Note it in `CHANGELOG.md`. It ships with the next image.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Play, Plus, Wrench } from "lucide-react";
 
 import { useFacts, useSsh } from "../../lib/ssh";
+import { ClaudeIcon, ToolIcon } from "./ToolIcon";
 import { isLive, listsOf, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
@@ -38,8 +39,10 @@ export function RowButtons({
           key={`${t.id}-${a.id}`}
           title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
           onClick={() => onRun({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-          className="text-[11px] text-teal-400 hover:underline"
+          className="flex items-center gap-1 text-[11px] text-teal-400 hover:underline"
         >
+          {/* Claude Code's open — Claude in this project — gets Claude's mark. */}
+          {t.id === "claude" && a.id === "open" && <ClaudeIcon className="h-2.5 w-2.5" />}
           {a.label}
         </button>
       )),
@@ -59,7 +62,8 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
-        <div title={t.description} className="flex items-baseline gap-2 text-sm text-slate-100">
+        <div title={t.description} className="flex items-center gap-2 text-sm text-slate-100">
+          <ToolIcon id={t.id} className="h-3.5 w-3.5 text-slate-400" />
           {t.name}
           {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
         </div>
@@ -181,7 +185,7 @@ export function ToolsMenu({
       items={added.map((t) => ({
         label: t.name,
         hint: status(t),
-        icon: <Wrench className="h-3.5 w-3.5" />,
+        icon: <ToolIcon id={t.id} />,
         onClick: () => onPick(t.id),
       }))}
     />

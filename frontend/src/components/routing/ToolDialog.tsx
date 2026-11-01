@@ -6,6 +6,7 @@ import { toolSummary, type ToolContext } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
+import { ToolIcon } from "./ToolIcon";
 import { useToolRunner } from "./useToolRunner";
 
 // One tool on one machine, from the Tools menu on its row: the tool itself — its lists and
@@ -96,7 +97,15 @@ export function ToolDialog({
 
   return (
     <>
-      <Modal title={`${tool?.name ?? "Tool"} — ${machine.name}`} onClose={onClose}>
+      <Modal
+        title={
+          <span className="flex items-center gap-2">
+            <ToolIcon id={toolId} className="h-4 w-4 text-slate-400" />
+            {`${tool?.name ?? "Tool"} — ${machine.name}`}
+          </span>
+        }
+        onClose={onClose}
+      >
         {body}
       </Modal>
       {runner.ui}
