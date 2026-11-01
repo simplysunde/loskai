@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
+import { runQuery, type PluginRun } from "../../lib/plugins";
 import type { SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
 import { XtermSession } from "../shared/XtermSession";
@@ -11,16 +12,18 @@ import { XtermSession } from "../shared/XtermSession";
 // locked — the one case the password below fixes.
 const LOCKED = 4423;
 
-// A shell on a machine over SSH. It needs Loskai's key unlocked, so a locked key asks for
-// the admin password here first; once open, the shell lasts until it is closed or the
-// session ends, however long that is.
+// A shell on a machine over SSH — or a plugin's action, given `run`. It needs Loskai's key
+// unlocked, so a locked key asks for the admin password here first; once open, it lasts
+// until it is closed or the session ends, however long that is.
 export function MachineTerminal({
   machine,
   sshKey,
+  run,
   onClose,
 }: {
   machine: { id: string; name: string };
   sshKey: SshKey | null;
+  run?: PluginRun;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -42,7 +45,7 @@ export function MachineTerminal({
 
   return (
     <Modal
-      title={`Terminal — ${machine.name}`}
+      title={`${run?.title ?? "Terminal"} — ${machine.name}`}
       onClose={onClose}
       wide
     >
@@ -85,7 +88,7 @@ export function MachineTerminal({
       ) : (
         <XtermSession
           key={session}
-          url={`/api/ssh/machines/${machine.id}/terminal`}
+          url={`/api/ssh/machines/${machine.id}/terminal${run ? `?${runQuery(run)}` : ""}`}
           onClosed={(code) => {
             if (code === LOCKED) setNeedUnlock(true);
           }}

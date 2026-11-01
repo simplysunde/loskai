@@ -105,6 +105,14 @@ SSH, its overview (system, uptime, memory, disks, updates waiting, tools, tmux s
 everything running there, and its log. A machine set up before the overview existed says
 "install again" there — one click.
 
+**Plugins** add buttons to a machine's page; enable the ones you want on each machine.
+**System** updates it (with its own package manager), reboots it or shuts it down;
+**Services** restarts or stops a service or container from the Running list; **Proxmox**
+reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
+it and answer a `sudo` password prompt there; hovering a button shows the command. With
+`tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
+back up. A plugin that needs a tool the machine lacks offers to install it.
+
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
 installs its key (or copy its two lines over yourself). Its page does this again. Once it's

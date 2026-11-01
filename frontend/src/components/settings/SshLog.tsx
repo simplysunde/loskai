@@ -5,13 +5,17 @@ import { api } from "../../lib/api";
 
 interface LogEntry {
   at: string;
-  event: "open" | "close" | "refused" | "install";
+  event: "open" | "close" | "refused" | "install" | "action" | "install-tool";
   machine: string;
   from: string | null;
   target?: string;
   seconds?: number;
   ok?: boolean;
   error?: string;
+  plugin?: string;
+  action?: string;
+  tool?: string;
+  command?: string;
 }
 
 function what(e: LogEntry): string {
@@ -24,6 +28,10 @@ function what(e: LogEntry): string {
       return `Terminal refused: ${e.error ?? ""}`;
     case "install":
       return e.ok ? "Keys installed" : `Install failed: ${e.error ?? ""}`;
+    case "action":
+      return `Ran ${e.plugin} › ${e.action}${e.target ? ` on ${e.target}` : ""}`;
+    case "install-tool":
+      return `Installing ${e.tool} (${e.plugin})`;
   }
 }
 
@@ -68,7 +76,10 @@ export function SshLog({ machine }: { machine?: string }) {
                 </td>
                 {!machine && <td className="py-1 pr-3">{e.machine}</td>}
                 <td className="py-1 pr-3 font-mono text-slate-400">{e.from ?? "—"}</td>
-                <td className={`py-1 ${e.event === "refused" || e.ok === false ? "text-amber-300" : ""}`}>
+                <td
+                  title={e.command ? `$ ${e.command}` : undefined}
+                  className={`py-1 ${e.event === "refused" || e.ok === false ? "text-amber-300" : ""}`}
+                >
                   {what(e)}
                 </td>
               </tr>

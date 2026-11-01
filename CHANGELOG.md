@@ -21,7 +21,9 @@ Everything so far:
   browser. Every terminal session is logged. Loskai's key, the config download and the log
   are in Settings › SSH; the cog on a machine's row opens its page — edit it,
   set up SSH, its overview (system, memory, disks, updates waiting, tools, tmux sessions),
-  what runs there, its log.
+  what runs there, its log. **Plugins**, enabled per machine: System (update, reboot,
+  shut down), Services (restart or stop a service or container), Proxmox (reboot or shut
+  down a guest) — each run in the machine's terminal, inside tmux when it has it.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import type { PluginTarget } from "../../lib/plugins";
 import { runningCount, type Running } from "../../lib/ssh";
 
 const DENIED: Record<string, string> = {
@@ -64,8 +65,17 @@ export function RunningPill({ running, user }: { running: Running; user?: string
   );
 }
 
-// Everything that runs on a machine, by kind — the pill's card, and the machine's page.
-export function RunningList({ running, user }: { running: Running; user?: string }) {
+// Everything that runs on a machine, by kind — the pill's card, and the machine's page,
+// where `actions` puts its enabled plugins' buttons on each row.
+export function RunningList({
+  running,
+  user,
+  actions,
+}: {
+  running: Running;
+  user?: string;
+  actions?: (target: PluginTarget, id: string) => React.ReactNode;
+}) {
   const containers = running.containers ?? [];
   const services = running.services ?? [];
   const guests = running.guests ?? [];
@@ -74,9 +84,12 @@ export function RunningList({ running, user }: { running: Running; user?: string
       {containers.length > 0 && (
         <Group title={`Containers (${containers.length})`}>
           {containers.map((c) => (
-            <li key={c.name} title={c.image} className="flex justify-between gap-2">
+            <li key={c.name} title={c.image} className="flex items-center justify-between gap-2">
               <span className="truncate">{c.name}</span>
-              <span className="shrink-0 text-slate-500">{c.status}</span>
+              <span className="flex shrink-0 items-center gap-2 text-slate-500">
+                {c.status}
+                {actions?.("container", c.name)}
+              </span>
             </li>
           ))}
         </Group>
@@ -84,10 +97,11 @@ export function RunningList({ running, user }: { running: Running; user?: string
       {guests.length > 0 && (
         <Group title={`Guests (${guests.length})`}>
           {guests.map((g) => (
-            <li key={g.id} className="flex justify-between gap-2">
+            <li key={g.id} className="flex items-center justify-between gap-2">
               <span className="truncate">{g.name}</span>
-              <span className="shrink-0 text-slate-500">
+              <span className="flex shrink-0 items-center gap-2 text-slate-500">
                 {g.kind === "vm" ? "VM" : "LXC"} {g.id}
+                {actions?.(g.kind, g.id)}
               </span>
             </li>
           ))}
@@ -96,8 +110,9 @@ export function RunningList({ running, user }: { running: Running; user?: string
       {services.length > 0 && (
         <Group title={`Services (${services.length})`}>
           {services.map((s) => (
-            <li key={s} className="truncate">
-              {s}
+            <li key={s} className="flex items-center justify-between gap-2">
+              <span className="truncate">{s}</span>
+              {actions?.("service", s)}
             </li>
           ))}
         </Group>

@@ -21,6 +21,7 @@ export interface SshStatus {
   key: SshKey | null;
   hosts: Record<string, SshHost>;
   trusted: Record<string, boolean>; // machine ids with a trusted host key
+  plugins: Record<string, string[]>; // each machine's enabled plugins (none: left out)
 }
 
 export function useSsh() {

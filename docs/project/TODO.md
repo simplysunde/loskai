@@ -1622,11 +1622,20 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
 - [ ] Codebox: Install again from its page, then look at the overview
 
 **34f — plugins, and the first ones**
-- The plugin format, its validator, built-ins in the image; a Plugins section on the
-  machine page — enable, disable, install what is missing
-- **System:** update (the OS's package manager), reboot, shut down (confirmed)
-- **Services:** restart, stop, start a service or container, from its row in the Running
-  list; **Proxmox:** start, stop a guest
+- [x] The plugin format (`plugin.py`, [plugin-schema.md](../reference/plugin-schema.md)),
+      its validator (every problem at once), built-ins in the image; enabled per machine
+      (`plugins` on its record, `PUT /api/ssh/machines/{id}/plugins`); a Plugins section on
+      the machine page — enable, disable, install what is missing
+- [x] Actions run in the machine's terminal (`?plugin=&action=&target=`, `?install=`),
+      worked out by `connect.plan` from the file and the overview, inside tmux when there;
+      refused before anything runs when they can't (not enabled, a tool missing, a bad
+      target); logged with their command
+- [x] **System:** update (the machine's package manager), reboot, shut down (confirmed)
+- [x] **Services:** restart, stop a service or container, from its row in the Running
+      list; **Proxmox:** reboot, shut down a guest. *Start* isn't offered: the Running list
+      shows only what runs
+- [x] +29 backend (670), +5 frontend (257); `pytest`, `npm test`, `npm run build`,
+      `oxlint`, `check-docs.sh`
 
 **34g — tmux:** the machine's sessions on its page — Attach (the terminal opens inside it),
 Kill, New (a name, a folder, optionally a command). Closing the browser terminal leaves an

@@ -4,6 +4,29 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Phase 34f: plugins are data, and run where they can be seen
+
+**A plugin is a file, not code** (Sunde: plugins "we install and enable based on needs,
+kinda like the recipes, although… tied to the image"). Code plugins would have run inside
+Loskai with its keys; a file only says what to run on the machine. The browser names a
+plugin, an action and a row's target — the command is worked out on the server from the
+file, and the target is checked against its kind and passed as `$1`, so nothing typed into
+a request becomes code. That also keeps the log exact: each run is a fixed command.
+
+**Actions run in the machine's terminal, not in the background.** A `sudo` prompt is then
+just answered there (Loskai never holds a machine password), the output is seen as it
+happens, and a failure says its exit status. Inside tmux when the machine has it: an update
+must not die because a tab was closed, and clicking it again attaches to the same session
+instead of starting a second `apt` beside the first.
+
+**`target:`, not `on:`** — YAML 1.1 reads `on` as `true`; the validator caught it on the
+first run, as a key that wasn't a string.
+
+**A missing tool is installed from the plugin's own file** (Sunde: "the ability to install
+dependencies if missing, when enabling a plugin"): a package per package manager, or an
+official installer's command, run in the terminal like any action. None of the first three
+plugins needs one — tmux (34g) will be the first.
+
 ## 2026-11-01 — Phase 34e: the overview, a second request to the status key
 
 **One forced command, two requests.** The overview (system, memory, disks, updates waiting,

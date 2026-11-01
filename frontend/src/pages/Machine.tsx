@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, HardDrive, Loader2, Pencil, Settings, Terminal } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
+import { usePlugins, type PluginAction, type PluginRun, type PluginTarget } from "../lib/plugins";
 import type { SettingsView } from "../lib/settings";
 import { useFacts, useRunning, useSsh } from "../lib/ssh";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
 import { MachineOverview } from "../components/routing/MachineOverview";
+import { MachinePlugins } from "../components/routing/MachinePlugins";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { SshLog } from "../components/settings/SshLog";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { SaveBanner } from "../components/routing/SaveBanner";
 
 // What the Machines tab hands over after naming a machine: what the save said, and whether
@@ -28,7 +31,8 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, its overview, what runs on it, and its log. What is the
+// name, address and SSH login, its SSH setup, its overview, its plugins, what runs on it,
+// and its log. What is the
 // same for every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
@@ -37,6 +41,11 @@ export function Machine() {
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [editing, setEditing] = useState(false);
   const [terminal, setTerminal] = useState(false);
+  // A plugin's action in the terminal, and one waiting for its confirmation.
+  const [run, setRun] = useState<PluginRun | null>(null);
+  const [confirming, setConfirming] = useState<{ run: PluginRun; action: PluginAction } | null>(null);
+  const qc = useQueryClient();
+  const plugins = usePlugins();
   const [error, setError] = useState<string | null>(null);
 
   const routes = useQuery({
@@ -64,6 +73,31 @@ export function Machine() {
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
+  const enabled = ssh.data?.plugins[id] ?? [];
+  const tools = facts.data?.tools ?? [];
+  const manager = facts.data?.updates?.manager ?? null;
+  const ready = (plugins.data ?? []).filter((p) => enabled.includes(p.id) && p.requires.every((t) => tools.includes(t)));
+
+  const start = (r: PluginRun, action?: PluginAction) => {
+    if (action?.confirm) setConfirming({ run: r, action });
+    else setRun(r);
+  };
+  // The buttons an enabled plugin puts on a row of the Running list.
+  const rowActions = (target: PluginTarget, name: string) =>
+    ready.flatMap((p) =>
+      p.actions
+        .filter((a) => a.target === target)
+        .map((a) => (
+          <button
+            key={`${p.id}-${a.id}`}
+            title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
+            onClick={() => start({ plugin: p.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
+            className="text-[11px] text-teal-400 hover:underline"
+          >
+            {a.label}
+          </button>
+        )),
+    );
   const host = machine?.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
 
   if (!machine) {
@@ -156,6 +190,20 @@ export function Machine() {
           </section>
         )}
 
+        {host?.user && trusted && facts.data?.ok && plugins.data && (
+          <section className="border-t border-slate-800 pt-6">
+            <h2 className="mb-3 text-sm font-medium text-slate-200">Plugins</h2>
+            <MachinePlugins
+              machineId={id}
+              plugins={plugins.data}
+              enabled={enabled}
+              tools={tools}
+              manager={manager}
+              onRun={start}
+            />
+          </section>
+        )}
+
         {host?.user && (
           <section className="border-t border-slate-800 pt-6">
             <h2 className="text-sm font-medium text-slate-200">Running</h2>
@@ -165,7 +213,7 @@ export function Machine() {
               ) : !runningHere ? (
                 <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
               ) : runningHere.ok ? (
-                <RunningList running={runningHere} user={host.user} />
+                <RunningList running={runningHere} user={host.user} actions={rowActions} />
               ) : (
                 <p className="text-amber-300">Unreachable: {runningHere.error}</p>
               )}
@@ -208,13 +256,34 @@ export function Machine() {
         />
       )}
 
-      {terminal && (
+      {(terminal || run) && (
         <MachineTerminal
           machine={{ id: machine.id, name: machine.name }}
           sshKey={ssh.data?.key ?? null}
-          onClose={() => setTerminal(false)}
+          run={run ?? undefined}
+          onClose={() => {
+            setTerminal(false);
+            setRun(null);
+            // What it ran may have changed what runs there, and what the machine has.
+            qc.invalidateQueries({ queryKey: ["ssh-facts"] });
+            qc.invalidateQueries({ queryKey: ["ssh-running"] });
+          }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        title={`${confirming?.run.title ?? ""} — ${machine.name}`}
+        destructive
+        confirmLabel={confirming?.action.label}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming) setRun(confirming.run);
+          setConfirming(null);
+        }}
+      >
+        {confirming?.action.confirm}
+      </ConfirmDialog>
     </div>
   );
 }

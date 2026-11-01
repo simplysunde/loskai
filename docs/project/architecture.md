@@ -299,6 +299,18 @@ request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command a
 picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
 is [ssh-status.md](../reference/ssh-status.md).
 
+**Plugins** are what a machine's page can *do* (Phase 34f): YAML files in
+`modules/ssh/plugins/`, shipped in the image and enabled per machine (`plugins` on its
+record). Each names the tools it needs (from the overview's) and how to install a missing
+one, and its actions: a label and the command, per package manager where they differ, on
+the machine or on a row of the Running list (a service, container, LXC, VM). Like a recipe,
+a plugin is data: the browser names a plugin, an action and a row's target, and
+`connect.plan` works the command out from the file and the machine's overview — the target
+only ever `$1` — refusing before anything runs when it can't run there. The action runs in
+the machine's terminal, inside a tmux session when the machine has tmux (so closing the tab
+doesn't stop an update, and running it again attaches), and the log records its command.
+The format is [plugin-schema.md](../reference/plugin-schema.md).
+
 A set-up machine's row opens a **terminal** (`MachineTerminal`): a pty shell over SSH with
 the main key, behind the session, `Origin` and unlocked-key checks; closing it hangs up the
 pty, so nothing is left running. Both terminals are one component (`XtermSession`): Tab goes

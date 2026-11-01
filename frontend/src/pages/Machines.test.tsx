@@ -50,6 +50,33 @@ const FACTS = {
   tmux: [{ name: "build", created: 1793212547, attached: false, windows: 2 }],
 };
 let facts: unknown = FACTS;
+let sshKey: unknown = null;
+let sshPlugins: Record<string, string[]> = {};
+const PLUGINS = [
+  {
+    id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], install: {},
+    actions: [
+      { id: "update", label: "Update", description: "Update it.", target: null, confirm: null,
+        run: { apt: "sudo apt-get update && sudo apt-get -y dist-upgrade" } },
+      { id: "reboot", label: "Reboot", description: "Restart it.", target: null,
+        confirm: "Everything on it stops until it is back up.", run: "sudo reboot" },
+    ],
+  },
+  {
+    id: "services", name: "Services", description: "From the Running list.", requires: [], install: {},
+    actions: [{ id: "restart-container", label: "Restart", description: "Restart it.", target: "container", confirm: null,
+                run: "docker restart \"$1\"" }],
+  },
+  {
+    id: "proxmox", name: "Proxmox", description: "Guests.", requires: ["pct", "qm"], install: {},
+    actions: [{ id: "reboot-lxc", label: "Reboot", description: "Reboot it.", target: "lxc", confirm: null, run: "sudo pct reboot \"$1\"" }],
+  },
+];
+// An unlocked key, so a terminal opens straight away (the mock shows its URL).
+const UNLOCKED_KEY = {
+  public_key: "ssh-ed25519 AAAA loskai", fingerprint: "SHA256:k", authorized_keys: "", lines: [], from: null,
+  unlocked_until: new Date(Date.now() + 600_000).toISOString(),
+};
 
 beforeEach(() => {
   // Machines start collapsed; most tests look at the routes beneath, so both begin open.
@@ -58,6 +85,8 @@ beforeEach(() => {
   sshHosts = {};
   sshTrusted = {};
   facts = FACTS;
+  sshKey = null;
+  sshPlugins = {};
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -79,7 +108,11 @@ beforeEach(() => {
             : path === "/api/machines"
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
-              ? { key: null, hosts: sshHosts, trusted: sshTrusted }
+              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted, plugins: sshPlugins }
+            : path === "/api/ssh/plugins"
+              ? PLUGINS
+            : path === "/api/ssh/machines/nas/plugins"
+              ? { plugins: (init?.body ? JSON.parse(String(init.body)).plugins : []) }
             : path === "/api/ssh/log"
               ? [
                   { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
@@ -292,6 +325,76 @@ test("a machine on the older status line is offered the reinstall for its overvi
 
   fireEvent.click(await screen.findByRole("button", { name: "Install again" }));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+});
+
+function setUp(plugins: string[] = []) {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  sshKey = UNLOCKED_KEY;
+  sshPlugins = plugins.length ? { nas: plugins } : {};
+}
+
+test("a plugin is enabled on the machine from its page", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  const card = (await screen.findByText("Update the system, reboot, shut down.")).parentElement!.parentElement!;
+  // Not enabled: no actions yet.
+  expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
+  fireEvent.click(within(card).getByRole("button", { name: "Enable" }));
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.method === "PUT")).toEqual({
+      path: "/api/ssh/machines/nas/plugins", method: "PUT", body: { plugins: ["system"] },
+    }),
+  );
+});
+
+test("an enabled plugin's action runs in the terminal, named — never as a command", async () => {
+  setUp(["system"]);
+  renderPage("/machines/nas");
+
+  const update = await screen.findByRole("button", { name: "Update" });
+  // The machine's package manager decides the command, shown on hover.
+  expect(update.title).toContain("$ sudo apt-get update && sudo apt-get -y dist-upgrade");
+  fireEvent.click(update);
+
+  expect(await screen.findByText("Update — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?plugin=system&action=update")).toBeInTheDocument();
+});
+
+test("an action that is hard to undo asks first", async () => {
+  setUp(["system"]);
+  renderPage("/machines/nas");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Reboot" }));
+  expect(screen.getByText("Everything on it stops until it is back up.")).toBeInTheDocument();
+  expect(screen.queryByText(/shell at/)).not.toBeInTheDocument();
+
+  // The dialog's own Reboot, after the plugin's.
+  fireEvent.click(screen.getAllByRole("button", { name: "Reboot" }).at(-1)!);
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?plugin=system&action=reboot")).toBeInTheDocument();
+});
+
+test("a row of the Running list gets its enabled plugins' buttons", async () => {
+  setUp(["services"]);
+  renderPage("/machines/nas");
+
+  const row = (await screen.findByText("plex-1")).closest("li") as HTMLElement;
+  fireEvent.click(within(row).getByRole("button", { name: "Restart" }));
+
+  expect(await screen.findByText("Restart plex-1 — Storage box")).toBeInTheDocument();
+  expect(
+    screen.getByText("shell at /api/ssh/machines/nas/terminal?plugin=services&action=restart-container&target=plex-1"),
+  ).toBeInTheDocument();
+});
+
+test("a plugin missing a tool says so, and offers no actions until it is there", async () => {
+  setUp(["proxmox"]);
+  renderPage("/machines/nas");
+
+  expect(await screen.findByText(/Needs pct, qm/)).toBeInTheDocument();
+  expect(screen.getByText(/pct can't be installed from here/)).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {
