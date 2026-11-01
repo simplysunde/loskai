@@ -51,6 +51,12 @@ actions:                          # required — at least one
     description: Restart this service.
     target: service               # optional — a button on each service in the Running list
     run: sudo systemctl restart "$1"
+  new:
+    label: New session
+    description: Start a session with this name.
+    ask: session                  # optional — a name typed on the page, checked like a target
+    session: false                # optional — no tmux session around it: it is tmux itself
+    run: tmux new-session -A -s "$1"
 ```
 
 Unknown keys are refused. The validator names every problem at once.
@@ -58,14 +64,15 @@ Unknown keys are refused. The validator names every problem at once.
 ### `requires`, and getting a program
 
 `requires` lists programs by name. A program must be one the overview detects:
-`logic.PROGRAMS` (`tmux`, `claude`, `docker`, `pct`, `qm`, `git`, `sudo`).
+`logic.PROGRAMS` (`tmux`, `claude`, `docker`, `pct`, `qm`, `git`, `sudo`, `tailscale`,
+`curl`).
 
 How to get a program is said once, for every tool, in `tool.INSTALLERS`:
 
 - `packages`, by package manager: Loskai runs that manager's install for the package (see
   `tool.PACKAGE_INSTALL`), with `sudo`.
 - `script`: one command, for a program that isn't a distro package, such as an official
-  installer.
+  installer. Scripts are fetched with `curl`, so a machine without it gets it first.
 
 Adding a tool installs everything it lacks in one go: the packages in one command, then
 each script. A program that isn't in `INSTALLERS` can't be installed from Loskai. `pct` and
@@ -81,10 +88,10 @@ A command for POSIX `sh`, run as the machine's SSH user:
 - **`sudo`** for what needs root. The user answers its password prompt in the terminal, and
   Loskai holds no machine password. When the login *is* root, as on Proxmox, `sudo` becomes
   a plain call, so the same file works with or without sudo installed.
-- **`$1`** is the target, for an action with `target`. Always quote it: `"$1"`.
+- **`$1`** is the target, for an action with `target` or `ask`. Always quote it: `"$1"`.
 - `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
 
-### `target`
+### `target` and `ask`
 
 What a row action is on, and what its target must look like (`tool.TARGETS`):
 
@@ -95,8 +102,24 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `container` | each container | its name |
 | `lxc` | each running LXC (Proxmox) | its id, `101` |
 | `vm` | each running VM (Proxmox) | its id, `200` |
+| `session` | each tmux session, listed on the tool's card | its name, `work` |
+| `project` | each project, listed on the tool's card | its folder's name, `site` |
 
-The key is `target`, not `on`: YAML reads `on:` as `true`.
+The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a card lists come from
+the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on its rows.
+
+`ask` takes the same kinds, for an action on something that doesn't exist yet: the card
+shows a name field beside its button, and the name is checked against the kind and passed
+as `$1`, exactly like a target. An action has one or the other.
+
+### `session`
+
+Which tmux session the action runs in, where the machine has tmux:
+
+- *(left out)*: Loskai's own, one per action and target — `loskai-<tool>-<action>[-<target>]`.
+- **a name**: shared by every action that gives it, one per target — `<name>-<target>`.
+  Running any of them while it is there attaches to it instead of starting another.
+- **`false`**: none — for an action that is tmux itself, such as attaching to a session.
 
 ## How an action runs
 
@@ -105,9 +128,9 @@ The key is `target`, not `on`: YAML reads `on:` as `true`.
 1. The command under `sh -c`, with the target as `$1`.
 2. Then `[done, exit N] Enter closes this.`, waiting for Enter, so the output stays on
    screen.
-3. **Inside tmux** when the machine has it: one session per action and target
-   (`loskai-<tool>-<action>[-<target>]`). Closing the browser tab leaves it running, and
-   running the same action again attaches to it rather than starting a second.
+3. **Inside tmux** when the machine has it, in the session `session` says. Closing the
+   browser tab leaves it running, and running the same action again attaches to it rather
+   than starting a second.
 
 Adding a tool runs the same way, but never inside tmux: tmux may be what it installs.
 

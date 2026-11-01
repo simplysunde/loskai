@@ -69,6 +69,18 @@ export interface Facts {
   updates?: { manager: string; count: number } | null;
   programs?: string[]; // what tools require (lib/tools.ts)
   tmux?: { name: string; created: number; attached: boolean; windows: number }[];
+  tailscale?: string | null; // its Tailscale IPv4 address; null: not connected
+  // The git repos in the home folder; `folder` relative to it, times in seconds (0: never).
+  projects?: {
+    path: string;
+    folder: string;
+    name: string;
+    branch: string | null;
+    dirty: boolean;
+    claude: number;
+    committed: number;
+    subject: string;
+  }[];
 }
 
 // Only a machine's own page asks; the backend reuses an answer for 60 s.

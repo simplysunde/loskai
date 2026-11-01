@@ -39,15 +39,21 @@ PACKAGE_INSTALL = {
 INSTALLERS: dict[str, dict] = {
     "tmux": {"packages": {"apt": "tmux", "dnf": "tmux", "apk": "tmux", "pacman": "tmux"}},
     "git": {"packages": {"apt": "git", "dnf": "git", "apk": "git", "pacman": "git"}},
+    # Every script is fetched with curl, so a machine without it gets it first.
+    "curl": {"packages": {"apt": "curl", "dnf": "curl", "apk": "curl", "pacman": "curl"}},
+    "tailscale": {"script": "curl -fsSL https://tailscale.com/install.sh | sh"},
 }
 
-# What an action can be on — a row of the Running list — and what its target must look
-# like: a systemd unit, a container name, a Proxmox guest id. Checked before it is passed.
+# What an action can be on — a row of the Running list or of a tool's card, or a name typed
+# for it — and what that must look like: a systemd unit, a container name, a Proxmox guest
+# id, a tmux session, a project folder. Checked before it is passed.
 TARGETS = {
     "service": re.compile(r"^[A-Za-z0-9@._:\\-]{1,200}$"),
     "container": re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,200}$"),
     "lxc": re.compile(r"^\d{1,9}$"),
     "vm": re.compile(r"^\d{1,9}$"),
+    "session": re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@+=,~-]{0,99}$"),
+    "project": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
 }
 
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
@@ -64,7 +70,11 @@ class Action:
     description: str
     run: str | dict[str, str]  # one command, or one per package manager
     target: str | None = None  # None: the machine; else a kind of row in TARGETS
+    ask: str | None = None  # a kind in TARGETS: a name typed on the page, passed like a target
     confirm: str | None = None  # asked before it runs, when it is hard to undo
+    # The tmux session it runs in: None for Loskai's own (`session_name`), a name to share
+    # one between actions (with `-<target>`), False for none — an action that is tmux itself.
+    session: str | bool | None = None
 
 
 @dataclass(frozen=True)
@@ -112,7 +122,7 @@ def parse(tool_id: str, doc: object) -> Tool:
             problems.append(f"`{where}` must be a mapping")
             continue
         # `on:` would be YAML 1.1's `true`, hence `target`.
-        extra = set(raw) - {"label", "description", "run", "target", "confirm"}
+        extra = set(raw) - {"label", "description", "run", "target", "ask", "confirm", "session"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description"):
@@ -126,12 +136,21 @@ def parse(tool_id: str, doc: object) -> Tool:
         target = raw.get("target")
         if target is not None and target not in TARGETS:
             problems.append(f"`{where}.target` must be one of {', '.join(TARGETS)}")
+        ask = raw.get("ask")
+        if ask is not None and ask not in TARGETS:
+            problems.append(f"`{where}.ask` must be one of {', '.join(TARGETS)}")
+        if ask is not None and target is not None:
+            problems.append(f"`{where}`: give `target` or `ask`, not both")
+        session = raw.get("session")
+        if session is not None and session is not False and not (isinstance(session, str) and _ID.match(session)):
+            problems.append(f"`{where}.session` must be false, or a name of lowercase letters, digits and -")
         confirm = raw.get("confirm")
         if confirm is not None and (not isinstance(confirm, str) or not confirm.strip()):
             problems.append(f"`{where}.confirm` must be a sentence")
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
-            run=run if isinstance(run, dict | str) else "", target=target, confirm=confirm,
+            run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
+            session=session,
         )
 
     if problems:
@@ -173,7 +192,7 @@ def view(t: Tool) -> dict:
         "installable": [p for p in t.requires if p in INSTALLERS],
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
-             "confirm": a.confirm, "run": a.run}
+             "ask": a.ask, "confirm": a.confirm, "run": a.run}
             for a in t.actions.values()
         ],
     }
@@ -208,6 +227,8 @@ def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
     cannot = [p for p in lacking if p not in INSTALLERS]
     if cannot:
         raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here")
+    if any("script" in INSTALLERS[p] for p in lacking) and "curl" not in programs and "curl" not in lacking:
+        lacking = ["curl", *lacking]
     packages, scripts = [], []
     for program in lacking:
         how = INSTALLERS[program]
@@ -222,7 +243,8 @@ def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
 
 
 def check_target(kind: str | None, target: str | None) -> None:
-    """`target` must be what an action on `kind` takes — nothing, for the machine."""
+    """`target` must be what an action on (or asking for) `kind` takes — nothing, for the
+    machine."""
     if kind is None:
         if target:
             raise ToolError("This action is for the machine, not one thing on it")
@@ -246,7 +268,11 @@ def visible(script: str, target: str | None, session: str | None) -> str:
     return job
 
 
-def session_name(tool_id: str, action_id: str, target: str | None) -> str:
-    """One tmux session per action and target, in characters tmux allows in a name."""
-    name = f"loskai-{tool_id}-{action_id}" + (f"-{target}" if target else "")
-    return re.sub(r"[^A-Za-z0-9_-]", "_", name)
+def session_name(t: Tool, action: Action, target: str | None) -> str | None:
+    """The tmux session an action runs in, in characters tmux allows in a name: by default
+    one per action and target; the action's own `session` (with the target) when it shares
+    one; None when it is tmux itself."""
+    if action.session is False:
+        return None
+    base = action.session if isinstance(action.session, str) else f"loskai-{t.id}-{action.id}"
+    return re.sub(r"[^A-Za-z0-9_-]", "_", base + (f"-{target}" if target else ""))

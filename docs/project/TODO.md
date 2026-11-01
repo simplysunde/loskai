@@ -1666,12 +1666,19 @@ The projects folder: "a default one, that can easily be overwritten per machine"
 
 **34g — tmux and Tailscale** (status line v3: `tailscale` detected, its address, and the
 projects 34h lists — one reinstall for all three)
-- [ ] Action keys `ask` (a typed name, checked like a target, passed as `$1`) and `session`
+- [x] Action keys `ask` (a typed name, checked like a target, passed as `$1`) and `session`
       (the tmux session it runs in, or none for an action that is tmux itself); target
       kind `session`
-- [ ] **tmux**: the machine's sessions with Attach and Kill; New session (a name)
-- [ ] **Tailscale**: installed with its official script; Up (the login link shows in the
+- [x] **tmux**: the machine's sessions with Attach and Kill; New session (a name)
+- [x] **Tailscale**: installed with its official script; Up (the login link shows in the
       terminal), Down (confirmed), Status; the machine's Tailscale address in the overview
+- [x] The status line's v3 also lists the projects (34h shows them): a test runs it over a
+      scratch home — a committed subject of `* | $(touch pwned)` comes back verbatim, a
+      folder with a space is skipped, an empty repo has its branch and no commit
+- [x] 687 backend, 258 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
+      `check-docs.sh`
+- [ ] **Live**: install again on a throwaway `sshd`, add tmux, attach, end, new; add
+      Tailscale (the install only — logging in needs an account)
 
 **34h — Claude Code and projects**
 - [ ] **A projects folder per machine**, `~/projects` unless changed on its page (`~` or

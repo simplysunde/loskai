@@ -211,8 +211,8 @@ def public_key_of(private_key: str, comment: str) -> str:
 #
 # The version line changes when what is installed must change. A machine with an older
 # line still answers `running` (that part is the same); `facts` asks for a reinstall.
-STATUS_VERSION = "#loskai-status 2"
-OLD_STATUS_VERSIONS = ("#loskai-status 1",)
+STATUS_VERSION = "#loskai-status 3"
+OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2")
 _RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
     "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
@@ -227,7 +227,7 @@ _RUNNING = (
 # The programs the overview reports — what a tool requires (tool.py). `~/.local/bin` too: a
 # forced command gets sshd's PATH, not the login shell's, and per-user installs (Claude
 # Code) go there.
-PROGRAMS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo")
+PROGRAMS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo", "tailscale", "curl")
 _FACTS = (
     "PATH=$PATH:$HOME/.local/bin; "
     "echo '#=os'; cat /etc/os-release 2>/dev/null; "
@@ -246,6 +246,20 @@ _FACTS = (
     f"echo '#=tools'; for c in {' '.join(PROGRAMS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
     "echo '#=tmux'; "
     "tmux ls -F '#{session_name}|#{session_created}|#{session_attached}|#{session_windows}' 2>/dev/null; "
+    "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; fi; "
+    # The git repos one and two folders into the home folder — a machine's projects folder
+    # is `~` or one folder in it. A path with any other character is skipped, so nothing
+    # below needs quoting. Each row is printed by `git log` itself (or `echo`, for a repo with
+    # no commit yet): the subject comes last, never through the shell.
+    "echo '#=projects'; for g in $HOME/*/.git $HOME/*/*/.git; do "
+    "d=${g%/.git}; p=${d#$HOME/}; case $p in *[!A-Za-z0-9._/-]*) continue;; esac; [ -d $g ] || continue; "
+    "b=$(git -C $d symbolic-ref --short -q HEAD 2>/dev/null); case $b in ''|*[!A-Za-z0-9._/-]*) b=-;; esac; "
+    "w=0; git -C $d status --porcelain 2>/dev/null | grep -q . && w=1; "
+    # The newest conversation Claude Code keeps for this folder, by its own naming.
+    "k=$(ls -t $HOME/.claude/projects/$(echo $d | sed 's,[^A-Za-z0-9],-,g')/*.jsonl 2>/dev/null | head -n 1); "
+    "t=$(stat -c %Y $k 2>/dev/null || echo 0); "
+    "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c%ct%x7c%s 2>/dev/null || echo $p'|'$b'|'$w'|'$t'|0|'; "
+    "done | head -n 200; "
     "true"
 )
 STATUS_COMMAND = (
@@ -396,14 +410,18 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
-    `{os, os_id, os_like, kernel, uptime, memory, disks, updates, tools, tmux}`.
+    `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
+    projects}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
     `{mount, device, size, used}` in bytes, real storage only and one row per device;
     `updates` `{manager, count}` or None; `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
-    `{name, created, attached, windows}`. Raises `OldStatusLine` for a machine still on an
-    older line, ValueError for anything else."""
+    `{name, created, attached, windows}`; `tailscale` its Tailscale IPv4 address, or None
+    (not installed, or not connected); `projects` the git repos in the home folder,
+    `{path, folder, name, branch, dirty, claude, committed, subject}` — `folder` relative to
+    home ("" for home itself), `claude` and `committed` seconds since the epoch (0: never).
+    Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
     if head in OLD_STATUS_VERSIONS:
@@ -430,6 +448,8 @@ def parse_facts(output: str) -> dict:
         "updates": _updates(sections.get("updates", [])),
         "programs": [t for t in sections.get("tools", []) if t in PROGRAMS],
         "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
+        "tailscale": next(iter(sections.get("tailscale", [])), None),
+        "projects": [p for p in map(_project, sections.get("projects", [])) if p],
     }
 
 
@@ -483,6 +503,20 @@ def _updates(lines: list[str]) -> dict | None:
         if manager and _number(count) is not None:
             return {"manager": manager, "count": _number(count)}
     return None
+
+
+def _project(line: str) -> dict | None:
+    parts = line.split("|", 5)
+    if len(parts) != 6 or not all(_number(n) is not None for n in (parts[2], parts[3], parts[4])):
+        return None
+    folder, _, name = parts[0].rpartition("/")
+    return {
+        "path": parts[0], "folder": folder, "name": name,
+        "branch": None if parts[1] == "-" else parts[1],
+        "dirty": parts[2] == "1",
+        "claude": _number(parts[3]), "committed": _number(parts[4]),
+        "subject": parts[5],
+    }
 
 
 def _tmux_session(line: str) -> dict | None:

@@ -11,7 +11,7 @@ import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
 import { MachineOverview } from "../components/routing/MachineOverview";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
-import { MachineTools } from "../components/routing/MachineTools";
+import { MachineTools, rowButtons } from "../components/routing/MachineTools";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
@@ -73,7 +73,6 @@ export function Machine() {
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
   const programs = facts.data?.programs ?? [];
-  const manager = facts.data?.updates?.manager ?? null;
   const here = (tools.data ?? []).filter((t) => missing(t, programs).length === 0);
 
   const start = (r: ToolRun, action?: ToolAction) => {
@@ -81,21 +80,7 @@ export function Machine() {
     else setRun(r);
   };
   // The buttons a tool that applies here puts on a row of the Running list.
-  const rowActions = (target: ToolTarget, name: string) =>
-    here.flatMap((t) =>
-      t.actions
-        .filter((a) => a.target === target)
-        .map((a) => (
-          <button
-            key={`${t.id}-${a.id}`}
-            title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
-            onClick={() => start({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-            className="text-[11px] text-teal-400 hover:underline"
-          >
-            {a.label}
-          </button>
-        )),
-    );
+  const rowActions = (target: ToolTarget, name: string) => rowButtons(here, target, name, start);
   const host = machine?.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
 
   if (!machine) {
@@ -191,7 +176,7 @@ export function Machine() {
         {host?.user && trusted && facts.data?.ok && tools.data && (
           <section className="border-t border-slate-800 pt-6">
             <h2 className="mb-3 text-sm font-medium text-slate-200">Tools</h2>
-            <MachineTools tools={tools.data} programs={programs} manager={manager} onRun={start} />
+            <MachineTools tools={tools.data} facts={facts.data} onRun={start} />
           </section>
         )}
 

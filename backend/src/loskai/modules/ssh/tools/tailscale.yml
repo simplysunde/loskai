@@ -1,0 +1,19 @@
+# Join the machine to a tailnet, with Tailscale's own installer and CLI.
+# docs/reference/tool-schema.md is the format.
+name: Tailscale
+description: Reach this machine from anywhere on your tailnet.
+requires: [tailscale]
+actions:
+  up:
+    label: Connect
+    description: Bring Tailscale up. The first time, it prints a link to log this machine in.
+    run: sudo tailscale up
+  status:
+    label: Status
+    description: This machine's tailnet, and who is on it.
+    run: tailscale status
+  down:
+    label: Disconnect
+    description: Take this machine off the tailnet until it is connected again.
+    confirm: If you reach it over Tailscale, you can't until it is back up.
+    run: sudo tailscale down

@@ -4,6 +4,28 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Phase 34g: tmux and Tailscale; status line v3
+
+**One status-line version for 34g and 34h** — `tailscale` and `curl` detected, the
+Tailscale address, and the projects that 34h lists — so a machine reinstalls its line once
+for both. `parse_facts` reads only the current version: a page on v2 says "install again"
+rather than showing an overview whose tools would be wrong (Tailscale offered to a machine
+that has it).
+
+**A typed name is a target** (`ask`). New session, and 34h's New project, act on something
+that doesn't exist yet; the name is checked against the same pattern a row's target would
+be and passed as `$1`, so typing can't change what runs. A free command line was the
+alternative and was not taken: it is what the terminal is for.
+
+**An action says which tmux session it runs in** (`session`): Loskai's own by default; a
+shared name, so 34h's Claude actions on a project all land in `claude-<project>`; or none,
+for attaching to a session — tmux inside tmux is never what was meant.
+
+**The projects are read without the shell seeing their text.** The forced command can't
+quote (no double quotes in `command="…"`), so paths with any unusual character are
+skipped, and each row is printed by `git log --format` itself. A test commits a subject of
+`* | $(touch pwned)` and checks it comes back verbatim and nothing was created.
+
 ## 2026-11-01 — Phase 34f′: plugins become tools, found from what the machine has
 
 **Nothing is enabled any more.** Sunde, on System, Services and Proxmox: "these I would say

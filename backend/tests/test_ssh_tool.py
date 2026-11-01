@@ -12,7 +12,8 @@ from loskai.modules.ssh.tool import ToolError
 def test_every_shipped_tool_is_valid():
     tools = tool.load()
 
-    assert {"system", "services", "proxmox"} <= set(tools)
+    assert {"system", "services", "proxmox", "tmux", "tailscale"} <= set(tools)
+    assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
 
@@ -64,12 +65,12 @@ def test_adding_a_tool_installs_what_it_lacks_packages_in_one_command_then_scrip
         "actions": {"go": {"label": "Go", "description": "d", "run": "true"}},
     })
 
-    assert tool.install_script(t, set(), "apt") == (
+    assert tool.install_script(t, {"curl"}, "apt") == (
         "sudo apt-get update && sudo apt-get install -y tmux git && curl -fsSL https://example/install.sh | bash"
     )
     assert tool.install_script(t, {"git", "claude"}, "dnf") == "sudo dnf install -y tmux"
     with pytest.raises(ToolError, match="No git package for dnf"):
-        tool.install_script(t, {"claude"}, "dnf")
+        tool.install_script(t, {"claude", "curl"}, "dnf")
     with pytest.raises(ToolError, match="has everything"):
         tool.install_script(t, {"tmux", "git", "claude"}, "apt")
     with pytest.raises(ToolError, match="can't be installed from here"):
@@ -107,8 +108,58 @@ def test_a_failing_action_says_its_exit_status():
 
 
 def test_with_tmux_the_action_runs_in_a_session_named_after_it():
-    name = tool.session_name("services", "restart-container", "jelly.fin:1")
+    services = tool.load()["services"]
+    name = tool.session_name(services, services.actions["restart-container"], "jelly.fin:1")
     command = tool.visible("true", None, name)
 
     assert name == "loskai-services-restart-container-jelly_fin_1"
     assert command.startswith("tmux new-session -A -s loskai-services-restart-container-jelly_fin_1 ")
+
+
+def test_an_action_can_share_a_session_or_be_tmux_itself():
+    t = tool.parse("t", {"name": "T", "description": "d", "actions": {
+        "open": {"label": "Open", "description": "d", "target": "project", "session": "claude", "run": "true"},
+        "attach": {"label": "Attach", "description": "d", "target": "session", "session": False, "run": "true"},
+    }})
+
+    assert tool.session_name(t, t.actions["open"], "site") == "claude-site"
+    assert tool.session_name(t, t.actions["attach"], "work") is None
+
+
+def test_ask_and_session_are_checked():
+    doc = {"name": "T", "description": "d", "actions": {
+        "a": {"label": "A", "description": "d", "run": "true", "ask": "colour"},
+        "b": {"label": "B", "description": "d", "run": "true", "ask": "session", "target": "session"},
+        "c": {"label": "C", "description": "d", "run": "true", "session": "Not ok"},
+        "d": {"label": "D", "description": "d", "run": "true", "session": True},
+    }}
+    with pytest.raises(ToolError) as err:
+        tool.parse("t", doc)
+
+    message = str(err.value)
+    for part in ("`actions.a.ask` must be one of", "`actions.b`: give `target` or `ask`, not both",
+                 "`actions.c.session` must be false", "`actions.d.session` must be false"):
+        assert part in message
+
+
+def test_a_script_installer_gets_curl_first_where_it_is_missing():
+    tailscale = tool.load()["tailscale"]
+
+    assert tool.install_script(tailscale, set(), "apt") == (
+        "sudo apt-get update && sudo apt-get install -y curl && curl -fsSL https://tailscale.com/install.sh | sh"
+    )
+    assert tool.install_script(tailscale, {"curl"}, "apt") == "curl -fsSL https://tailscale.com/install.sh | sh"
+
+
+@pytest.mark.parametrize(("kind", "name", "ok"), [
+    ("session", "work", True), ("session", "0", True), ("session", "loskai-system-update", True),
+    ("session", "a b", False), ("session", "-t", False), ("session", "a;b", False),
+    ("project", "site", True), ("project", "my.site_2", True), ("project", "..", False),
+    ("project", "a/b", False), ("project", ".hidden", False),
+])
+def test_a_typed_name_is_checked_like_a_target(kind, name, ok):
+    if ok:
+        tool.check_target(kind, name)
+    else:
+        with pytest.raises(ToolError):
+            tool.check_target(kind, name)

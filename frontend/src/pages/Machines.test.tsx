@@ -46,7 +46,7 @@ const FACTS = {
   ok: true, checked: 0, os: "Debian GNU/Linux 12 (bookworm)", kernel: "Linux 6.1.0", uptime: 3 * 86400 + 7200,
   memory: { total: 8 * 1024 ** 3, available: 2 * 1024 ** 3 },
   disks: [{ mount: "/", device: "/dev/sda1", size: 100 * 1024 ** 3, used: 95 * 1024 ** 3 }],
-  updates: { manager: "apt", count: 12 }, programs: ["docker"],
+  updates: { manager: "apt", count: 12 }, programs: ["docker", "tmux", "tailscale"], tailscale: "100.64.0.7",
   tmux: [{ name: "build", created: 1793212547, attached: false, windows: 2 }],
 };
 let facts: unknown = FACTS;
@@ -71,8 +71,15 @@ const TOOLS = [
     actions: [{ id: "reboot-lxc", label: "Reboot", description: "Reboot it.", target: "lxc", confirm: null, run: "sudo pct reboot \"$1\"" }],
   },
   {
-    id: "multiplex", name: "Multiplex", description: "Sessions.", requires: ["tmux"], installable: ["tmux"],
-    actions: [{ id: "list", label: "List", description: "List them.", target: null, confirm: null, run: "tmux ls" }],
+    id: "tmux", name: "tmux", description: "Sessions.", requires: ["tmux"], installable: ["tmux"],
+    actions: [
+      { id: "attach", label: "Attach", description: "Open it.", target: "session", ask: null, confirm: null, run: "tmux attach-session -t \"=$1\"" },
+      { id: "new", label: "New session", description: "Start one.", target: null, ask: "session", confirm: null, run: "tmux new-session -A -s \"$1\"" },
+    ],
+  },
+  {
+    id: "versions", name: "Versions", description: "Git things.", requires: ["git"], installable: ["git"],
+    actions: [{ id: "log", label: "Log", description: "Show it.", target: null, ask: null, confirm: null, run: "git log" }],
   },
 ];
 // An unlocked key, so a terminal opens straight away (the mock shows its URL).
@@ -305,7 +312,9 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
   expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
   expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
   expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
-  expect(screen.getByText("build")).toBeInTheDocument();
+  expect(screen.getByText("100.64.0.7")).toBeInTheDocument();
+  // Its tmux sessions, on the tmux tool's card.
+  expect(await screen.findByText("build")).toBeInTheDocument();
   // Only this machine's entries.
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
@@ -378,11 +387,31 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
   await screen.findByRole("button", { name: "Update" });
   // Proxmox needs pct, which only comes with Proxmox: not offered, and no Reboot on rows.
   expect(screen.queryByText("Proxmox")).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "List" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Multiplex" }));
+  expect(screen.queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Versions" }));
 
-  expect(await screen.findByText("Add Multiplex — Storage box")).toBeInTheDocument();
-  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=multiplex&install=true")).toBeInTheDocument();
+  expect(await screen.findByText("Add Versions — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
+});
+
+test("a tool's card lists its rows, each with its buttons", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  const row = (await screen.findByText("build")).closest("li") as HTMLElement;
+  fireEvent.click(within(row).getByRole("button", { name: "Attach" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
+});
+
+test("an action that asks for a name runs on what is typed", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  const name = await screen.findByLabelText("New session — name");
+  expect(screen.getByRole("button", { name: "New session" })).toBeDisabled();
+  fireEvent.change(name, { target: { value: "work" } });
+  fireEvent.click(screen.getByRole("button", { name: "New session" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=new&target=work")).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {

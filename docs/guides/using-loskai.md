@@ -114,6 +114,16 @@ it and answer a `sudo` password prompt there; hovering a button shows the comman
 back up. A tool that needs a program the machine lacks, such as tmux, is in the **Add**
 line beneath: clicking it installs what it needs, in the terminal.
 
+- **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in.
+  **Attach** opens one in the terminal (detach with Ctrl+B, then D, and it keeps running),
+  **End** ends it, and **New session** starts one with the name you type.
+- **Tailscale** is installed with Tailscale's own installer. **Connect** brings it up — the
+  first time, the terminal shows a link to log the machine in. The overview then shows
+  its Tailscale address. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
+
+A machine set up before a tool's facts existed asks you to **install again** on its page —
+one click, and its overview comes back with them.
+
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
 installs its key (or copy its two lines over yourself). Its page does this again. Once it's

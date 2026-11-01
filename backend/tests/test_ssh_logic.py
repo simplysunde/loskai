@@ -259,7 +259,7 @@ def test_the_running_list_reads_the_older_status_line_too():
 # --- A machine's overview ---
 
 FACTS = """\
-#loskai-status 2
+#loskai-status 3
 #=os
 PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
 NAME="Debian GNU/Linux"
@@ -290,6 +290,12 @@ pct
 #=tmux
 build|1793212547|1|2
 not a session line
+#=tailscale
+100.101.102.103
+#=projects
+projects/loskai|main|1|1793212000|1793211000|Tools: tmux | and Tailscale
+loskai|-|0|0|0|
+odd|row
 """
 
 
@@ -305,11 +311,20 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     assert out["updates"] == {"manager": "apt", "count": 12}
     assert out["programs"] == ["tmux", "docker", "pct"]
     assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2}]
+    assert out["tailscale"] == "100.101.102.103"
+    assert out["projects"] == [
+        {"path": "projects/loskai", "folder": "projects", "name": "loskai", "branch": "main", "dirty": True,
+         "claude": 1793212000, "committed": 1793211000, "subject": "Tools: tmux | and Tailscale"},
+        {"path": "loskai", "folder": "", "name": "loskai", "branch": None, "dirty": False,
+         "claude": 0, "committed": 0, "subject": ""},
+    ]
 
 
 def test_an_older_status_line_has_no_overview():
     with pytest.raises(logic.OldStatusLine):
         logic.parse_facts(OUTPUT)
+    with pytest.raises(logic.OldStatusLine):
+        logic.parse_facts(FACTS.replace("status 3", "status 2"))
     with pytest.raises(ValueError):
         logic.parse_facts("Welcome to Ubuntu\n$ ")
 
@@ -329,3 +344,40 @@ def test_the_forced_command_runs_in_sh_and_answers_each_request(request_):
         assert set(facts["programs"]) <= set(logic.PROGRAMS)
     else:
         assert set(logic.parse_running(out)) == {"containers", "services", "hidden", "guests", "denied"}
+
+
+def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shell(tmp_path):
+    def git(*args, cwd):
+        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
+                       env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+
+    home = tmp_path / "home"
+    site = home / "projects" / "site"
+    site.mkdir(parents=True)
+    git("init", "-q", "-b", "main", cwd=site)
+    (site / "a").write_text("a")
+    git("add", "a", cwd=site)
+    # A subject the shell would glob and split, were it ever to see it.
+    git("commit", "-q", "-m", "Add  * | $(touch pwned)", cwd=site)
+    (site / "b").write_text("b")  # uncommitted
+    (home / "empty").mkdir()
+    git("init", "-q", "-b", "trunk", cwd=home / "empty")
+    (home / "with space").mkdir()
+    git("init", "-q", cwd=home / "with space")
+    conversations = home / ".claude" / "projects" / str(site).replace("/", "-").replace("_", "-")
+    conversations.mkdir(parents=True)
+    (conversations / "one.jsonl").write_text("{}")
+
+    env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
+    out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env,
+                         cwd=tmp_path, timeout=30).stdout
+    projects = {p["path"]: p for p in logic.parse_facts(out)["projects"]}
+
+    assert set(projects) == {"projects/site", "empty"}  # "with space" is skipped
+    assert projects["projects/site"]["subject"] == "Add  * | $(touch pwned)"
+    assert projects["projects/site"]["branch"] == "main" and projects["projects/site"]["dirty"] is True
+    assert projects["projects/site"]["committed"] > 0 and projects["projects/site"]["claude"] > 0
+    assert projects["empty"] == {"path": "empty", "folder": "", "name": "empty", "branch": "trunk", "dirty": False,
+                                 "claude": 0, "committed": 0, "subject": ""}
+    assert not (tmp_path / "pwned").exists()

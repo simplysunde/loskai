@@ -20,8 +20,8 @@ from loskai.shared import assign as assign_module
 PASSWORD = "correct horse battery"
 HOST_KEY = asyncssh.generate_private_key("ssh-ed25519")
 OTHER_KEY = asyncssh.generate_private_key("ssh-ed25519")
-STATUS = "#loskai-status 2\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
-FACTS = "#loskai-status 2\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
+STATUS = "#loskai-status 3\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
+FACTS = "#loskai-status 3\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
 
 
 class Done:
@@ -496,7 +496,7 @@ def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
 def test_a_machine_on_the_older_status_line_is_asked_to_reinstall(api, machine_net):
     _with_key(api)
     _trust(api)
-    machine_net["facts"] = STATUS.replace("status 2", "status 1")
+    machine_net["facts"] = STATUS.replace("status 3", "status 2")
 
     view = api.get("/api/ssh/machines/nas/facts").json()
 
@@ -509,7 +509,7 @@ def test_the_overview_needs_a_trusted_host_key(api, machine_net):
 
 # --- Tools ---
 
-APT_FACTS = "#loskai-status 2\n#=updates\napt 3\n#=tools\nsudo\n"
+APT_FACTS = "#loskai-status 3\n#=updates\napt 3\n#=tools\nsudo\n"
 
 
 def _ready(api, machine_net, facts=APT_FACTS):
@@ -523,8 +523,9 @@ def test_the_tools_are_listed_with_their_commands(api):
 
     reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
-                      "confirm": "Everything on it stops until it is back up.", "run": "sudo reboot"}
+                      "ask": None, "confirm": "Everything on it stops until it is back up.", "run": "sudo reboot"}
     assert tools["proxmox"]["installable"] == []
+    assert tools["tailscale"]["installable"] == ["tailscale"]
 
 
 def test_an_action_runs_its_tool_s_command_in_the_terminal_and_is_logged(api, machine_net, shell):
@@ -587,8 +588,20 @@ def test_adding_a_tool_installs_what_it_lacks_with_the_machine_s_package_manager
     assert entry["event"] == "add-tool" and entry["programs"] == ["tmux"]
 
 
+def test_a_typed_name_reaches_the_command_as_1_and_tmux_itself_is_not_wrapped_in_tmux(api, machine_net, shell):
+    _ready(api, machine_net, APT_FACTS + "tmux\n")
+
+    with api.websocket_connect(TERMINAL + "&tool=tmux&action=new&target=work", headers=ORIGIN) as ws:
+        ws.receive_bytes()
+
+    assert shell["command"].startswith("sh -c ")
+    assert 'tmux new-session -A -s "$1"' in shell["command"] and shell["command"].endswith("read _")
+    assert " loskai work;" in shell["command"]
+    assert _closed_with(api, TERMINAL + "&tool=tmux&action=new&target=a%3Bid") == (4409, "Not a session: 'a;id'")
+
+
 def test_an_action_needs_the_machine_s_overview(api, machine_net, shell):
-    _ready(api, machine_net, STATUS.replace("status 2", "status 1"))
+    _ready(api, machine_net, STATUS.replace("status 3", "status 2"))
 
     code, reason = _closed_with(api, TERMINAL + "&tool=system&action=reboot")
 

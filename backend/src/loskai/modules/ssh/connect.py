@@ -292,7 +292,7 @@ async def running() -> dict[str, dict]:
 async def facts(machine_id: str) -> dict:
     """The machine's overview, read with the status key (`logic.parse_facts`), reused for
     `FACTS_TTL`. Always a view, never an error once the machine is set up: `ok` false with
-    `error` — and `old` when its status line predates the overview, so the page offers the
+    `error` — and `old` when its status line is older than this Loskai, so the page offers the
     reinstall."""
     t = target(machine_id)
     host_key = _trusted(t)
@@ -305,7 +305,7 @@ async def facts(machine_id: str) -> dict:
         )
         view = {"ok": True, **logic.parse_facts(str(result.stdout or ""))}
     except logic.OldStatusLine:
-        view = {"ok": False, "old": True, "error": "Its status line predates the overview — install again"}
+        view = {"ok": False, "old": True, "error": "Its status line is older than this Loskai — install again"}
     except ValueError:
         view = {"ok": False, "error": "The status key's line on the machine is missing or out of date — install again"}
     except asyncssh.PermissionDenied:
@@ -349,11 +349,11 @@ async def plan(
         action = t.actions.get(action_id or "")
         if action is None:
             raise SshError(404, f"{t.name} has no action {action_id!r}")
-        tool.check_target(action.target, target_name)
+        tool.check_target(action.target or action.ask, target_name)
         script = tool.action_script(t, action.id, manager)
     except tool.ToolError as exc:
         raise SshError(409, str(exc))
-    session = tool.session_name(t.id, action.id, target_name) if "tmux" in programs else None
+    session = tool.session_name(t, action, target_name) if "tmux" in programs else None
     return tool.visible(script, target_name, session), {
         "event": "action", "tool": t.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,

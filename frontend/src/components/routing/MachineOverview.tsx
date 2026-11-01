@@ -5,8 +5,8 @@ import type { Facts } from "../../lib/ssh";
 
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
 
-// A machine's overview: what it runs as, how full it is, what is waiting, its tmux
-// sessions. An older status line has none — then the reinstall is offered.
+// A machine's overview: what it runs as, how full it is, what is waiting, its Tailscale
+// address. Its tmux sessions and projects are on the tools' cards. An older status line has none — then the reinstall is offered.
 export function MachineOverview({
   facts,
   onReinstall,
@@ -51,6 +51,14 @@ export function MachineOverview({
             </span>
           )}
         </dd>
+        {facts.programs?.includes("tailscale") && (
+          <>
+            <dt className="text-slate-500">Tailscale</dt>
+            <dd className="font-mono text-slate-300">
+              {facts.tailscale ?? <span className="font-sans text-slate-500">not connected</span>}
+            </dd>
+          </>
+        )}
       </dl>
 
       <div className="space-y-1.5">
@@ -62,23 +70,6 @@ export function MachineOverview({
         ))}
       </div>
 
-      {facts.tmux && facts.tmux.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-400">tmux sessions</p>
-          <ul className="space-y-0.5 text-xs text-slate-300">
-            {facts.tmux.map((s) => (
-              <li key={s.name} className="flex justify-between gap-2">
-                <span className="font-mono">{s.name}</span>
-                <span className="text-slate-500">
-                  {s.windows} {s.windows === 1 ? "window" : "windows"}
-                  {s.attached ? " · attached" : ""} · since{" "}
-                  {new Date(s.created * 1000).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

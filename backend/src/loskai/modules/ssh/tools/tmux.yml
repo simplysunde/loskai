@@ -1,0 +1,26 @@
+# The machine's tmux sessions: attach to one, end one, start one. Loskai's own actions run in
+# sessions too (loskai-<tool>-<action>), so an update left running is here to pick back up.
+# docs/reference/tool-schema.md is the format.
+name: tmux
+description: Sessions that keep running after the browser closes.
+requires: [tmux]
+actions:
+  attach:
+    label: Attach
+    description: Open this session. Detach (Ctrl+B, then D) and it keeps running.
+    target: session
+    session: false
+    run: tmux attach-session -t "=$1"
+  kill:
+    label: End
+    description: End this session and everything running in it.
+    target: session
+    session: false
+    confirm: Everything running in it stops.
+    run: tmux kill-session -t "=$1"
+  new:
+    label: New session
+    description: Start a session with this name in the home folder, or open it if it is already there.
+    ask: session
+    session: false
+    run: tmux new-session -A -s "$1" -c "$HOME"

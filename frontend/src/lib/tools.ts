@@ -4,13 +4,14 @@ import { api } from "./api";
 
 // What a machine's page can run, from the tool files in the image
 // (docs/reference/tool-schema.md). The commands come along so what runs can be read.
-export type ToolTarget = "service" | "container" | "lxc" | "vm";
+export type ToolTarget = "service" | "container" | "lxc" | "vm" | "session" | "project";
 
 export interface ToolAction {
   id: string;
   label: string;
   description: string;
   target: ToolTarget | null; // null: the machine itself
+  ask: ToolTarget | null; // a name typed for it, checked like a target
   confirm: string | null;
   run: string | Record<string, string>; // one command, or one per package manager
 }
