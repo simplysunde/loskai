@@ -441,7 +441,7 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: /Claude Code/ }));
   expect(await screen.findByText("site")).toBeInTheDocument();
-  expect(screen.getByText("~/projects")).toBeInTheDocument();
+  expect(screen.getByText("~/projects/")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Settings" }));
 
   // The machine's page, where the folder is set.

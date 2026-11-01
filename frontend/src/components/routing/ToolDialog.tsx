@@ -57,8 +57,11 @@ export function ToolDialog({
           </Link>
         </div>
         {tool.actions.some((a) => a.target === "project" || a.ask === "project") && (
-          <p className="text-xs text-slate-500">
-            Projects are located: <span className="font-mono text-slate-300">{ctx.folder}</span>
+          <p className="flex items-center gap-1.5 text-xs text-slate-500">
+            Projects are located:
+            <span className="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-slate-300">
+              {ctx.folder.endsWith("/") ? ctx.folder : `${ctx.folder}/`}
+            </span>
           </p>
         )}
         {applies(tool, programs) ? (
