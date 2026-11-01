@@ -125,12 +125,14 @@ and Add.
   **End** ends it, and **New session** starts one with the name you type.
 - **Tailscale** is installed with Tailscale's own installer. **Connect** brings it up — the
   first time, the terminal shows a link to log the machine in. The overview then shows
-  its Tailscale address. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
+  its Tailscale address, and Tailscale's card lists your tailnet — each device, its
+  address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
 - **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
   unless you change it on the machine's page, beside its connection (`~` or one folder
   in it; a tool's dialog has a **Settings** button to that page) — with each one's
-  branch, uncommitted changes, last commit and when Claude last worked there. **Claude**
+  branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
+  worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
   else a new one. It runs in tmux with **Remote Control** on, so after you close the tab
   you can carry on from the Claude app or claude.ai/code. **Terminal** is a shell in the

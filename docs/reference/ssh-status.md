@@ -27,7 +27,7 @@ command only compares it in a `case` to pick one of two fixed answers:
 | Request | Answer | Parsed by | Asked by |
 |---|---|---|---|
 | `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine |
-| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s |
+| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s |
 
 Two requests rather than one answer, because the overview costs more (counting updates
 runs the package manager's simulation, ~0.5 s) and only one page shows it.
@@ -61,7 +61,8 @@ then `sudo -n` (which never prompts), then says `!denied`.
 | `#=tools` | one name per line, from `PROGRAMS` | `programs` — what tools require |
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
-| `#=projects` | `path\|branch\|dirty\|claude\|committed\|subject` | `projects` — see below |
+| `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
+| `#=projects` | `path\|branch\|dirty\|claude\|ahead\|committed\|subject` | `projects` — see below |
 
 **Projects** are the git repos one and two folders into the home folder (`~/<x>/.git`,
 `~/<x>/<y>/.git`), since a machine's projects folder is `~` or one folder in it; at most
@@ -70,7 +71,9 @@ the command never has to quote one. Each row is printed by `git log --format` it
 `echo` for a repo without a commit — so the subject, which can hold anything, never passes
 through the shell, and is last so a `|` in it stays. `branch` is `-` when it isn't one
 (detached, or an odd name); `dirty` is `1` when `git status --porcelain` lists anything;
-`claude` is when the newest conversation Claude Code keeps for the folder was written
+`ahead` is how many commits aren't on its upstream yet — as of the last fetch, since the
+command never fetches — or `-` without an upstream; `claude` is when the newest
+conversation Claude Code keeps for the folder was written
 (`~/.claude/projects/<the path, every other character a ->/*.jsonl`), `committed` the last
 commit's time — both seconds, `0` for never.
 
@@ -95,7 +98,7 @@ the new line, so:
 
 1. Bump `STATUS_VERSION`, and add the old one to `OLD_STATUS_VERSIONS`.
 2. Keep every parser accepting the versions whose output it can still read.
-   `parse_running` reads all three: the running part hasn't changed since v1.
+   `parse_running` reads them all: the running part hasn't changed since v1.
    `parse_facts` reads only the current one — a page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click on the machine's page reinstalls both lines.
@@ -105,6 +108,7 @@ the new line, so:
 | 1 | The running list (Phase 34c) |
 | 2 | The `facts` request — the machine page's overview (Phase 34e) |
 | 3 | `facts` adds `tailscale` and `curl` to the programs, the Tailscale address, and the projects (Phase 34g) |
+| 4 | `facts` adds the tailnet (`tailscale status`), and each project's commits not pushed |
 
 ## Adding a fact
 

@@ -47,13 +47,17 @@ const FACTS = {
   memory: { total: 8 * 1024 ** 3, available: 2 * 1024 ** 3 },
   disks: [{ mount: "/", device: "/dev/sda1", size: 100 * 1024 ** 3, used: 95 * 1024 ** 3 }],
   updates: { manager: "apt", count: 12 }, programs: ["docker", "tmux", "tailscale", "git", "claude"], tailscale: "100.64.0.7",
+  tailnet: [
+    { ip: "100.64.0.7", name: "nas", os: "linux", online: true, self: true, status: "-" },
+    { ip: "100.64.0.9", name: "phone", os: "iOS", online: false, self: false, status: "offline" },
+  ],
   tmux: [
     { name: "build", created: 1793212547, attached: false, windows: 2 },
     { name: "claude-site", created: 1793212547, attached: false, windows: 1 },
   ],
   projects: [
     { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
-      committed: 1793211000, subject: "Add the header" },
+      ahead: 2, committed: 1793211000, subject: "Add the header" },
     { path: "notes", folder: "", name: "notes", branch: "main", dirty: false, claude: 0, committed: 1793211000, subject: "x" },
   ],
 };
@@ -91,6 +95,10 @@ const TOOLS = [
       { id: "open", label: "Claude", description: "Open it.", target: "project", ask: null, confirm: null, session: "claude", run: "claude" },
       { id: "new", label: "New project", description: "Make one.", target: null, ask: "project", confirm: null, session: "claude", run: "git init" },
     ],
+  },
+  {
+    id: "tailscale", name: "Tailscale", description: "Connect it.", requires: ["tailscale"], installable: ["tailscale"],
+    actions: [{ id: "up", label: "Connect", description: "Up.", target: null, ask: null, confirm: null, session: null, run: "sudo tailscale up" }],
   },
   {
     id: "versions", name: "Versions", description: "Git things.", requires: ["kubectl"], installable: ["kubectl"],
@@ -327,7 +335,8 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
   expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
   expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
   expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
-  expect(screen.getByText("100.64.0.7")).toBeInTheDocument();
+  // Its Tailscale address: in the overview, and on the Tailscale card's tailnet.
+  expect(screen.getAllByText("100.64.0.7")).toHaveLength(2);
   // Each tool's card, an added one's with what is in it — sessions another tool claims left out.
   expect(await screen.findByText("build")).toBeInTheDocument();
   expect(screen.queryByText("claude-site")).not.toBeInTheDocument();
@@ -448,6 +457,19 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   expect(await screen.findByTitle(/Change the projects folder/)).toBeInTheDocument();
 });
 
+test("Tailscale says its address and how much of the tailnet is online, and lists it", async () => {
+  setUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*100\.64\.0\.7 · 1 of 2 online/ }));
+
+  expect(await screen.findByText("phone")).toBeInTheDocument();
+  expect(screen.getByText("this machine")).toBeInTheDocument();
+  expect(screen.getByText("phone").closest("li")!.title).toBe("offline");
+});
+
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
   setUp();
   renderPage();
@@ -490,7 +512,7 @@ test("a project lists in its machine's projects folder, says its Claude session 
 
   const row = (await screen.findByText("site")).closest("li") as HTMLElement;
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
-  expect(row.textContent).toContain("main · uncommitted changes · committed");
+  expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
   expect(row.title).toBe("Last commit: Add the header");
   // In ~ rather than ~/projects: not listed.
   expect(screen.queryByText("notes")).not.toBeInTheDocument();

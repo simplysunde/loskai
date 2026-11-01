@@ -27,9 +27,11 @@ Everything so far:
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:
   installed with its own installer; connect (the login link shows in the terminal),
-  status, disconnect; the machine's Tailscale address in its overview. **Claude Code**: the
+  status, disconnect; the machine's Tailscale address in its overview, and the tailnet —
+  each device, online or not — on its card. **Claude Code**: the
   git projects in the machine's projects folder (`~/projects`, changeable per machine), each
-  with its branch, uncommitted changes, last commit and last Claude conversation; **Claude**
+  with its branch, commits not pushed, uncommitted changes, last commit and last Claude
+  conversation; **Claude**
   opens its running session, else continues the last conversation, else starts one — in
   tmux, with Remote Control, so it carries on in the Claude app; **Terminal**, **Pull**
   (fast-forward only), **Push** and **End** on each project; **New project** makes the

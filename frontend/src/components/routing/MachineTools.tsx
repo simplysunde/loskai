@@ -70,6 +70,23 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
         </div>
       )}
+      {/* Tailscale's card: the tailnet as this machine sees it — devices, not targets. */}
+      {t.requires.includes("tailscale") && (ctx.facts.tailnet?.length ?? 0) > 0 && (
+        <ul className="mt-2 space-y-1 text-xs text-slate-300">
+          {ctx.facts.tailnet!.map((d) => (
+            <li key={d.ip} title={d.status} className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${d.online ? "bg-emerald-400" : "bg-slate-600"}`} />
+                <span className="truncate font-mono">{d.name}</span>
+                {d.self && <span className="text-slate-500">this machine</span>}
+              </span>
+              <span className="shrink-0 text-slate-500">
+                <span className="font-mono">{d.ip}</span> · {d.os}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {lists.map(({ kind, rows }) => (
         <div key={kind} className="mt-2">
           <ul className="space-y-1.5 text-xs text-slate-300">

@@ -1728,7 +1728,11 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       dialog; `RowMenu` takes a labelled trigger and says when it opens
 - [x] 704 backend, 263 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
       `check-docs.sh`
-- [ ] "N to push" on a project (commits not pushed): a status-line version, so not yet
+- [x] Status line v4: Tailscale's card lists the tailnet (`tailscale status`, read with the
+      status key), and each project says how many commits aren't pushed (as of its last
+      fetch); a test gives a project an upstream and a commit not on it. 704 backend, 264
+      frontend; `pytest`, `npm test`, `npm run build`, `oxlint`, `check-docs.sh`
+- [ ] Codebox: Install again (v4), then look at Tailscale's card once it is logged in
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

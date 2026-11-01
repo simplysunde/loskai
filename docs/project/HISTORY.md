@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Status line v4: the tailnet, and commits not pushed
+
+**Tailscale's card lists the tailnet** (Sunde, asked whether the dialog would show `tailscale
+status` by itself: "sure"). It is read with the status key like the rest of the overview —
+`tailscale status` needs no root and only reads — rather than run in a terminal on opening:
+a terminal needs the main key unlocked, and the dialog shouldn't. **"N to push"**, left out
+of 34h′ to spare a reinstall, rode along in the same version, so each machine installs its
+line once for both. It counts against the upstream as of the last fetch: the status key
+never fetches, so a commit made elsewhere isn't known until a Pull.
+
 ## 2026-11-01 — The Tools menu on the machine's row; Claude's sessions on their projects
 
 **The Tools button is on the machine's row in the Machines tab** (Sunde: "tools should have

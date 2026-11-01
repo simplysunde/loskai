@@ -71,6 +71,8 @@ export interface Facts {
   programs?: string[]; // what tools require (lib/tools.ts)
   tmux?: { name: string; created: number; attached: boolean; windows: number }[];
   tailscale?: string | null; // its Tailscale IPv4 address; null: not connected
+  // The devices `tailscale status` lists, this machine first (`self`).
+  tailnet?: { ip: string; name: string; os: string; online: boolean; self: boolean; status: string }[];
   // The git repos in the home folder; `folder` relative to it, times in seconds (0: never).
   projects?: {
     path: string;
@@ -79,6 +81,7 @@ export interface Facts {
     branch: string | null;
     dirty: boolean;
     claude: number;
+    ahead: number | null; // commits not on its upstream yet; null without one
     committed: number;
     subject: string;
   }[];

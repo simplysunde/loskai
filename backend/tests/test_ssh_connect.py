@@ -20,8 +20,8 @@ from loskai.shared import assign as assign_module
 PASSWORD = "correct horse battery"
 HOST_KEY = asyncssh.generate_private_key("ssh-ed25519")
 OTHER_KEY = asyncssh.generate_private_key("ssh-ed25519")
-STATUS = "#loskai-status 3\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
-FACTS = "#loskai-status 3\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
+STATUS = "#loskai-status 4\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
+FACTS = "#loskai-status 4\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
 
 
 class Done:
@@ -496,7 +496,7 @@ def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
 def test_a_machine_on_the_older_status_line_is_asked_to_reinstall(api, machine_net):
     _with_key(api)
     _trust(api)
-    machine_net["facts"] = STATUS.replace("status 3", "status 2")
+    machine_net["facts"] = STATUS.replace("status 4", "status 3")
 
     view = api.get("/api/ssh/machines/nas/facts").json()
 
@@ -509,7 +509,7 @@ def test_the_overview_needs_a_trusted_host_key(api, machine_net):
 
 # --- Tools ---
 
-APT_FACTS = "#loskai-status 3\n#=updates\napt 3\n#=tools\nsudo\n"
+APT_FACTS = "#loskai-status 4\n#=updates\napt 3\n#=tools\nsudo\n"
 
 
 def _ready(api, machine_net, facts=APT_FACTS):
@@ -625,7 +625,7 @@ def test_a_project_action_runs_in_its_claude_session_in_the_machine_s_folder(api
 
 
 def test_an_action_needs_the_machine_s_overview(api, machine_net, shell):
-    _ready(api, machine_net, STATUS.replace("status 3", "status 2"))
+    _ready(api, machine_net, STATUS.replace("status 4", "status 3"))
 
     code, reason = _closed_with(api, TERMINAL + "&tool=system&action=reboot")
 

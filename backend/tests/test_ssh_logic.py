@@ -259,7 +259,7 @@ def test_the_running_list_reads_the_older_status_line_too():
 # --- A machine's overview ---
 
 FACTS = """\
-#loskai-status 3
+#loskai-status 4
 #=os
 PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
 NAME="Debian GNU/Linux"
@@ -292,9 +292,15 @@ build|1793212547|1|2
 not a session line
 #=tailscale
 100.101.102.103
+#=tailnet
+100.101.102.103  codebox      sunde@       linux   -
+100.64.0.2       phone        sunde@       iOS     active; relay "fra", tx 1 rx 2
+100.64.0.3       nas          sunde@       linux   offline
+# Health check:
+#     - some warning
 #=projects
-projects/loskai|main|1|1793212000|1793211000|Tools: tmux | and Tailscale
-loskai|-|0|0|0|
+projects/loskai|main|1|1793212000|2|1793211000|Tools: tmux | and Tailscale
+loskai|-|0|0|-|0|
 odd|row
 """
 
@@ -312,11 +318,17 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     assert out["programs"] == ["tmux", "docker", "pct"]
     assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2}]
     assert out["tailscale"] == "100.101.102.103"
+    assert out["tailnet"] == [
+        {"ip": "100.101.102.103", "name": "codebox", "os": "linux", "online": True, "self": True, "status": "-"},
+        {"ip": "100.64.0.2", "name": "phone", "os": "iOS", "online": True, "self": False,
+         "status": 'active; relay "fra", tx 1 rx 2'},
+        {"ip": "100.64.0.3", "name": "nas", "os": "linux", "online": False, "self": False, "status": "offline"},
+    ]
     assert out["projects"] == [
         {"path": "projects/loskai", "folder": "projects", "name": "loskai", "branch": "main", "dirty": True,
-         "claude": 1793212000, "committed": 1793211000, "subject": "Tools: tmux | and Tailscale"},
+         "claude": 1793212000, "ahead": 2, "committed": 1793211000, "subject": "Tools: tmux | and Tailscale"},
         {"path": "loskai", "folder": "", "name": "loskai", "branch": None, "dirty": False,
-         "claude": 0, "committed": 0, "subject": ""},
+         "claude": 0, "ahead": None, "committed": 0, "subject": ""},
     ]
 
 
@@ -324,7 +336,7 @@ def test_an_older_status_line_has_no_overview():
     with pytest.raises(logic.OldStatusLine):
         logic.parse_facts(OUTPUT)
     with pytest.raises(logic.OldStatusLine):
-        logic.parse_facts(FACTS.replace("status 3", "status 2"))
+        logic.parse_facts(FACTS.replace("status 4", "status 3"))
     with pytest.raises(ValueError):
         logic.parse_facts("Welcome to Ubuntu\n$ ")
 
@@ -358,8 +370,14 @@ def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shel
     git("init", "-q", "-b", "main", cwd=site)
     (site / "a").write_text("a")
     git("add", "a", cwd=site)
-    # A subject the shell would glob and split, were it ever to see it.
-    git("commit", "-q", "-m", "Add  * | $(touch pwned)", cwd=site)
+    git("commit", "-q", "-m", "First", cwd=site)
+    # An upstream it is one commit ahead of.
+    git("clone", "-q", "--bare", str(site), str(tmp_path / "remote.git"), cwd=tmp_path)
+    git("remote", "add", "origin", str(tmp_path / "remote.git"), cwd=site)
+    git("fetch", "-q", "origin", cwd=site)
+    git("branch", "-q", "-u", "origin/main", cwd=site)
+    # Not pushed, and a subject the shell would glob and split, were it ever to see it.
+    git("commit", "-q", "--allow-empty", "-m", "Add  * | $(touch pwned)", cwd=site)
     (site / "b").write_text("b")  # uncommitted
     (home / "empty").mkdir()
     git("init", "-q", "-b", "trunk", cwd=home / "empty")
@@ -376,8 +394,9 @@ def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shel
 
     assert set(projects) == {"projects/site", "empty"}  # "with space" is skipped
     assert projects["projects/site"]["subject"] == "Add  * | $(touch pwned)"
+    assert projects["projects/site"]["ahead"] == 1
     assert projects["projects/site"]["branch"] == "main" and projects["projects/site"]["dirty"] is True
     assert projects["projects/site"]["committed"] > 0 and projects["projects/site"]["claude"] > 0
     assert projects["empty"] == {"path": "empty", "folder": "", "name": "empty", "branch": "trunk", "dirty": False,
-                                 "claude": 0, "committed": 0, "subject": ""}
+                                 "claude": 0, "ahead": None, "committed": 0, "subject": ""}
     assert not (tmp_path / "pwned").exists()

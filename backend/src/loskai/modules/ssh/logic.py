@@ -211,8 +211,8 @@ def public_key_of(private_key: str, comment: str) -> str:
 #
 # The version line changes when what is installed must change. A machine with an older
 # line still answers `running` (that part is the same); `facts` asks for a reinstall.
-STATUS_VERSION = "#loskai-status 3"
-OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2")
+STATUS_VERSION = "#loskai-status 4"
+OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2", "#loskai-status 3")
 _RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
     "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
@@ -246,7 +246,9 @@ _FACTS = (
     f"echo '#=tools'; for c in {' '.join(PROGRAMS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
     "echo '#=tmux'; "
     "tmux ls -F '#{session_name}|#{session_created}|#{session_attached}|#{session_windows}' 2>/dev/null; "
-    "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; fi; "
+    "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; "
+    # The tailnet as this machine sees it, itself first — read-only, and no root needed.
+    "echo '#=tailnet'; tailscale status 2>/dev/null | head -n 100; fi; "
     # The git repos one and two folders into the home folder — a machine's projects folder
     # is `~` or one folder in it. A path with any other character is skipped, so nothing
     # below needs quoting. Each row is printed by `git log` itself (or `echo`, for a repo with
@@ -258,7 +260,10 @@ _FACTS = (
     # The newest conversation Claude Code keeps for this folder, by its own naming.
     "k=$(ls -t $HOME/.claude/projects/$(echo $d | sed 's,[^A-Za-z0-9],-,g')/*.jsonl 2>/dev/null | head -n 1); "
     "t=$(stat -c %Y $k 2>/dev/null || echo 0); "
-    "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c%ct%x7c%s 2>/dev/null || echo $p'|'$b'|'$w'|'$t'|0|'; "
+    # Commits not on its upstream yet, as of the last fetch; - without an upstream.
+    "a=$(git -C $d rev-list --count @{u}..HEAD 2>/dev/null || echo -); "
+    "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c$a%x7c%ct%x7c%s 2>/dev/null "
+    "|| echo $p'|'$b'|'$w'|'$t'|'$a'|0|'; "
     "done | head -n 200; "
     "true"
 )
@@ -411,16 +416,19 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    projects}`.
+    tailnet, projects}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
     `{mount, device, size, used}` in bytes, real storage only and one row per device;
     `updates` `{manager, count}` or None; `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
     `{name, created, attached, windows}`; `tailscale` its Tailscale IPv4 address, or None
-    (not installed, or not connected); `projects` the git repos in the home folder,
-    `{path, folder, name, branch, dirty, claude, committed, subject}` — `folder` relative to
-    home ("" for home itself), `claude` and `committed` seconds since the epoch (0: never).
+    (not installed, or not connected); `tailnet` the devices `tailscale status` lists,
+    `{ip, name, os, online, self, status}`, this machine first; `projects` the git repos in
+    the home folder, `{path, folder, name, branch, dirty, claude, ahead, committed,
+    subject}` — `folder` relative to home ("" for home itself), `claude` and `committed`
+    seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
+    without one).
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
@@ -449,6 +457,7 @@ def parse_facts(output: str) -> dict:
         "programs": [t for t in sections.get("tools", []) if t in PROGRAMS],
         "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
         "tailscale": next(iter(sections.get("tailscale", [])), None),
+        "tailnet": _tailnet(sections.get("tailnet", [])),
         "projects": [p for p in map(_project, sections.get("projects", [])) if p],
     }
 
@@ -506,17 +515,36 @@ def _updates(lines: list[str]) -> dict | None:
 
 
 def _project(line: str) -> dict | None:
-    parts = line.split("|", 5)
-    if len(parts) != 6 or not all(_number(n) is not None for n in (parts[2], parts[3], parts[4])):
+    parts = line.split("|", 6)
+    if len(parts) != 7 or not all(_number(n) is not None for n in (parts[2], parts[3], parts[5])):
         return None
     folder, _, name = parts[0].rpartition("/")
     return {
         "path": parts[0], "folder": folder, "name": name,
         "branch": None if parts[1] == "-" else parts[1],
         "dirty": parts[2] == "1",
-        "claude": _number(parts[3]), "committed": _number(parts[4]),
-        "subject": parts[5],
+        "claude": _number(parts[3]), "ahead": _number(parts[4]), "committed": _number(parts[5]),
+        "subject": parts[6],
     }
+
+
+_TAILNET_IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$|^[0-9a-f:]+:[0-9a-f:]*$")
+
+
+def _tailnet(lines: list[str]) -> list[dict]:
+    """`tailscale status` rows — `ip name user os status…` — this machine first. Its other
+    lines (Logged out., # Health check:) aren't devices."""
+    out = []
+    for line in lines:
+        parts = line.split(None, 4)
+        if len(parts) < 4 or not _TAILNET_IP.match(parts[0]):
+            continue
+        status = parts[4].strip() if len(parts) > 4 else "-"
+        out.append({
+            "ip": parts[0], "name": parts[1], "os": parts[3],
+            "online": not status.startswith("offline"), "self": not out, "status": status,
+        })
+    return out
 
 
 def _tmux_session(line: str) -> dict | None:
