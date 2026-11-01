@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–d built, 34e–h planned
+**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–f built, 34f′–h planned
 (the overview, plugins, tmux, Claude Code). **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
 a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
@@ -1645,13 +1645,42 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
       its tmux session, and the refusal
 - [ ] On codebox and the Proxmox host: install again, enable, try Update and a row action
 
-**34g — tmux:** the machine's sessions on its page — Attach (the terminal opens inside it),
-Kill, New (a name, a folder, optionally a command). Closing the browser terminal leaves an
-attached session running.
+_Reworked (2026-11-01, Sunde): System, Services and Proxmox "are standard features that
+are autodetected"; what was meant by plugins is "tools that help with my workflow, like
+using tmux to start claude sessions (with remote…)", "a clever way of using git to keep
+track of projects", "a quick install of tailscale" — "we can simply keep the tool terms".
+The projects folder: "a default one, that can easily be overwritten per machine"._
 
-**34h — Claude Code** (needs tmux): start Claude in a project folder as a Remote Control
-session (`tmux new -d -s <name> -c <folder> 'claude --remote-control <name>'`); create a new
-project (folder, `git init`) and start one in it.
+**34f′ — standard actions and tools: nothing to enable**
+- [ ] One format, renamed **tools** (`tool.py`, `tools/`, `tool-schema.md`). A tool applies
+      to a machine when it has every program the tool requires — detected, never stored:
+      System everywhere, Services' row actions on every row, Proxmox where `pct` and `qm`
+      are. The per-machine enabled list and its endpoint go
+- [ ] **How to get a program is in one place** (`tool.PROGRAMS`), not repeated per file. A
+      tool whose missing programs can all be installed is offered in the Tools section's
+      **Add** line; adding it installs them in one command (`?tool=&install=1`)
+- [ ] The machine page's Plugins section becomes **Tools**: a card per tool that applies,
+      with its machine actions; the overview's tool chips go
+
+**34g — tmux and Tailscale** (status line v3: `tailscale` detected, its address, and the
+projects 34h lists — one reinstall for all three)
+- [ ] Action keys `ask` (a typed name, checked like a target, passed as `$1`) and `session`
+      (the tmux session it runs in, or none for an action that is tmux itself); target
+      kind `session`
+- [ ] **tmux**: the machine's sessions with Attach and Kill; New session (a name)
+- [ ] **Tailscale**: installed with its official script; Up (the login link shows in the
+      terminal), Down (confirmed), Status; the machine's Tailscale address in the overview
+
+**34h — Claude Code and projects**
+- [ ] **A projects folder per machine**, `~/projects` unless changed on its page (`~` or
+      one folder in the home folder). The status line lists the git repos one and two
+      levels into the home folder — branch, uncommitted changes, last commit, last Claude
+      conversation — and the page shows those in the folder
+- [ ] **Claude Code** (needs `claude`, `tmux`, `git`): a project's **Claude** opens its
+      running session, else continues its last conversation, else starts one — always with
+      Remote Control, in tmux `claude-<project>`, so it carries on in the app or another
+      computer after the tab closes; **Terminal** in the project; **New project** (a name:
+      the folder, `git init`, Claude in it)
 
 ---
 
