@@ -9,11 +9,13 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  narrow = false,
 }: {
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  narrow?: boolean; // a short prompt — a password, say
 }) {
   useScrollLock(true);
 
@@ -24,7 +26,7 @@ export function Modal({
     >
       <div
         className={`flex max-h-[85vh] w-full flex-col rounded-xl border border-slate-700 bg-slate-900 shadow-2xl ${
-          wide ? "max-w-4xl" : "max-w-2xl"
+          wide ? "max-w-4xl" : narrow ? "max-w-md" : "max-w-2xl"
         }`}
         onClick={(e) => e.stopPropagation()}
       >

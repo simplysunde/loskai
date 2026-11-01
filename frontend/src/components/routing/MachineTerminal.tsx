@@ -47,11 +47,12 @@ export function MachineTerminal({
     <Modal
       title={`${run?.title ?? "Terminal"} — ${machine.name}`}
       onClose={onClose}
-      wide
+      // The unlock prompt is a small dialog; the terminal, once connected, a wide one.
+      wide={!needUnlock}
+      narrow={needUnlock}
     >
       {needUnlock ? (
         <form
-          className="max-w-sm"
           onSubmit={(e) => {
             e.preventDefault();
             unlock.mutate();
