@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–f built, 34f′–h planned
+**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–h built
 (the overview, plugins, tmux, Claude Code). **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
 a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
@@ -1703,6 +1703,16 @@ projects 34h lists — one reinstall for all three)
 - [x] `PUT /api/ssh/machines/{id}/projects` (66 routes), `$PROJECTS` for every action;
       +17 backend (704), +2 frontend (260); `pytest`, `npm test`, `npm run build`,
       `oxlint`, `check-docs.sh`
+- [x] **Live** (the same throwaway `sshd`, scratch backend): Add Claude Code ran Anthropic's
+      installer — `2.1.316 (Claude Code)` in `~/.local/bin`, found by the overview. With a
+      stand-in `claude` that prints its folder and arguments: New project `demo` made
+      `~/projects/demo/.git` and ran `--remote-control "<host>: demo"` in tmux
+      `claude-demo`; detaching closed the tab and left it running; Claude on `demo` again
+      attached to it rather than starting a second; `site`, with a conversation on record,
+      got `--continue`; the folder set to `~` put New project `top` in `~/top` and the
+      listing followed (`top` in `~`, `demo` and `site` in `projects`)
+- [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
+      folder (`~` there — `~/loskai`), and open a project from the phone app
 
 ---
 
