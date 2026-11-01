@@ -1711,18 +1711,19 @@ projects 34h lists — one reinstall for all three)
       attached to it rather than starting a second; `site`, with a conversation on record,
       got `--continue`; the folder set to `~` put New project `top` in `~/top` and the
       listing followed (`top` in `~`, `demo` and `site` in `projects`)
-**34h′ — a page per added tool** (Sunde, 2026-11-01: "tools should have one button, and then a
+**34h′ — the Tools menu** (Sunde, 2026-11-01: "tools should have one button, and then a
 submenu or dropdown"; "separate regular tmux sessions… and claude code usage"; per project
 "git push… git pull… open terminal")
-- [x] Each added tool's page (`/machines/<id>/tools/<tool>`), from the **Tools** button on
-      the machine's row in the Machines tab, or its card's name on the machine page (which
-      keeps a card per tool, the added ones saying what is in them). First built as a menu
-      on the machine page with the cards moved off — not what was meant; moved the same day
-- [x] tmux's page leaves out the sessions another tool claims (`claude-<project>`); Claude
+- [x] The **Tools** menu on a machine's row (the wrench): each added tool with how it stands
+      there (`4 projects, 1 running`, `not added` — the overview read only while it is
+      open), opening it in a dialog — what it needs, which of that the machine has, then
+      the tool's card or Add. The machine page keeps a card per tool. (First built as a
+      menu on the machine page, then as a page per tool — both moved the same day)
+- [x] tmux's card leaves out the sessions another tool claims (`claude-<project>`); Claude
       Code's projects get Pull (`--ff-only`), Push, Terminal, End
-- [x] `useToolRunner` — the terminal and the confirm step, shared by both pages; `RowMenu`
-      takes a labelled trigger
-- [x] 704 backend, 261 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
+- [x] `useToolRunner` — the terminal and the confirm step, shared by the machine page and the
+      dialog; `RowMenu` takes a labelled trigger and says when it opens
+- [x] 704 backend, 262 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
       `check-docs.sh`
 - [ ] "N to push" on a project (commits not pushed): a status-line version, so not yet
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects

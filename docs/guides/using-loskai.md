@@ -114,9 +114,9 @@ it and answer a `sudo` password prompt there; hovering a button shows the comman
 back up.
 
 A tool the machine doesn't have yet is in the **Add** line beneath — clicking it installs
-what it needs, in the terminal. The added tools (tmux, Claude Code, Tailscale) also have a
-page each: click a card's name, or use the **Tools** button (the wrench) on the machine's
-row in the Machines tab.
+what it needs, in the terminal. The **Tools** button (the wrench) on the machine's row in the
+Machines tab lists the added tools — tmux, Claude Code, Tailscale — with how each stands
+there, and opens one in a dialog: what it needs, then the tool itself, or Add.
 
 - **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in;
   Claude's are on their projects instead.

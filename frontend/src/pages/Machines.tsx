@@ -14,6 +14,7 @@ import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SaveBanner } from "../components/routing/SaveBanner";
+import { ToolDialog } from "../components/routing/ToolDialog";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -41,6 +42,8 @@ export function Machines() {
   const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
   // The machine with a terminal open.
   const [terminalFor, setTerminalFor] = useState<RouteRow | null>(null);
+  // A tool on a machine, from the Tools menu on its row.
+  const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -149,6 +152,7 @@ export function Machines() {
           running={running.data ?? {}}
           onOpen={(m) => navigate(`/machines/${m.id}`)}
           tools={tools.data}
+          onTool={(machine, toolId) => setToolFor({ machine, toolId })}
           onTerminal={setTerminalFor}
           onDelete={setConfirmDelete}
           onAddRoute={(m) => {
@@ -182,6 +186,13 @@ export function Machines() {
         onClose={() => setRouteOn(null)}
       />
 
+      {toolFor && (
+        <ToolDialog
+          machine={{ id: toolFor.machine.id, name: toolFor.machine.name }}
+          toolId={toolFor.toolId}
+          onClose={() => setToolFor(null)}
+        />
+      )}
       {terminalFor && (
         <MachineTerminal
           key={terminalFor.id}

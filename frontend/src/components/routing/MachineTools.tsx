@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Play, Plus, Wrench } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "../../lib/api";
+import { useFacts, useSsh } from "../../lib/ssh";
 import { isLive, listsOf, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
@@ -62,13 +62,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
         <div title={t.description} className="flex items-baseline gap-2 text-sm text-slate-100">
-          {isStandard(t) ? (
-            t.name
-          ) : (
-            <Link to={`/machines/${ctx.machineId}/tools/${t.id}`} className="hover:text-teal-300 hover:underline">
-              {t.name}
-            </Link>
-          )}
+          {t.name}
           {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
         </div>
       )}
@@ -146,21 +140,52 @@ export function MachineTools({ ctx }: { ctx: ToolContext }) {
   );
 }
 
-// The Tools button on a machine's row in the Machines tab: each added tool's page. It doesn't
-// ask the machine which it has — a tool's page says what it needs, and offers to add it.
-export function ToolsMenu({ machineId, tools, className }: { machineId: string; tools: Tool[]; className: string }) {
-  const navigate = useNavigate();
+// The Tools button on a machine's row in the Machines tab: each added tool with how it
+// stands there, opening it in a dialog. The machine's overview is read only while the menu
+// is open — the Machines tab doesn't otherwise ask for it.
+export function ToolsMenu({
+  machineId,
+  tools,
+  className,
+  onPick,
+}: {
+  machineId: string;
+  tools: Tool[];
+  className: string;
+  onPick: (toolId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const facts = useFacts(machineId, open);
+  const ssh = useSsh();
   const added = tools.filter((t) => !isStandard(t));
   if (added.length === 0) return null;
+
+  const status = (t: Tool): string => {
+    if (!facts.data) return "…";
+    if (!facts.data.ok) return "";
+    const programs = facts.data.programs ?? [];
+    if (!applies(t, programs)) return addable(t, programs) ? "not added" : `needs ${missing(t, programs).join(", ")}`;
+    const ctx: ToolContext = {
+      machineId,
+      tools,
+      facts: facts.data,
+      folder: ssh.data?.projects[machineId] ?? "",
+      onRun: () => {},
+    };
+    return toolSummary(t, ctx) || "added";
+  };
+
   return (
     <RowMenu
       label="Tools"
       trigger={<Wrench className="h-3.5 w-3.5" />}
       triggerClass={className}
+      onOpenChange={setOpen}
       items={added.map((t) => ({
         label: t.name,
+        hint: status(t),
         icon: <Wrench className="h-3.5 w-3.5" />,
-        onClick: () => navigate(`/machines/${machineId}/tools/${t.id}`),
+        onClick: () => onPick(t.id),
       }))}
     />
   );

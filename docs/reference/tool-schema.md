@@ -21,10 +21,12 @@ it `requires`, as the machine's overview found them:
 
 **The machine page's Tools section has a card for each tool that applies**; the Running
 list's rows get the row actions. Which is standard follows from the programs: a tool
-requiring something in `INSTALLERS` is an added one, and **an added tool also has its own
-page**, `/machines/<id>/tools/<tool>` — opened from its card's name, which says in a few
-words what is in it (`3 sessions`, `4 projects, 1 running`), or from the **Tools** button
-on the machine's row in the Machines tab.
+requiring something in `INSTALLERS` is an added one. An added tool's card says in a few
+words what is in it (`3 sessions`, `4 projects, 1 running`), and **the Tools button on the
+machine's row in the Machines tab** lists each added tool with that summary — or `not
+added` — and opens it in a dialog (`ToolDialog`): what it needs, which of that the machine
+has, then the card, or **Add**. The row reads the machine's overview only while that menu
+is open.
 
 Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's
 command comes from its file. The browser only names a tool, an action and, for an action
@@ -114,10 +116,10 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 
-The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a tool's page lists
+The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a tool's card lists
 come from the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on
 its rows. A tmux session another tool claims — named after an action's shared `session`,
-like `claude-site` — is listed on that tool's page, not tmux's.
+like `claude-site` — is listed on that tool's card, not tmux's.
 
 `ask` takes the same kinds, for an action on something that doesn't exist yet: the card
 shows a name field beside its button, and the name is checked against the kind and passed

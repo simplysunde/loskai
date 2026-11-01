@@ -37,6 +37,7 @@ export function MachineTable({
   onAddRoute,
   onTerminal,
   tools,
+  onTool,
   busyId,
 }: {
   machines: RouteRow[];
@@ -53,8 +54,9 @@ export function MachineTable({
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
-  // The tools in the image: a set-up machine's row opens each added one's page.
+  // The tools in the image: a set-up machine's row opens each added one in a dialog.
   tools?: Tool[];
+  onTool?: (machine: RouteRow, toolId: string) => void;
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
@@ -146,8 +148,13 @@ export function MachineTable({
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {sshReady && trusted[m.id] && tools && (
-                          <ToolsMenu machineId={m.id} tools={tools} className={ICON_BUTTON} />
+                        {sshReady && trusted[m.id] && tools && onTool && (
+                          <ToolsMenu
+                            machineId={m.id}
+                            tools={tools}
+                            className={ICON_BUTTON}
+                            onPick={(toolId) => onTool(m, toolId)}
+                          />
                         )}
                         {onAddRoute && (
                           <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>

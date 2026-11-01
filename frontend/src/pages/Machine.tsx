@@ -31,9 +31,9 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, its overview, its tools (each added one also
-// has its own page, from the Tools button on its row), what runs on it, and its log. What is
-// the same for every machine is in Settings › SSH.
+// name, address and SSH login, its SSH setup, its overview, its tools (each added one is
+// also in the Tools menu on its row), what runs on it, and its log. What is the same for
+// every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
   const handed = (useLocation().state ?? {}) as MachineState;

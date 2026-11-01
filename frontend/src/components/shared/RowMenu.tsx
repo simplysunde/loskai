@@ -10,7 +10,7 @@ export interface RowMenuItem {
 }
 
 // A row's less-used actions behind one "⋯" button — or behind `trigger`, a labelled button
-// in `triggerClass`. The list is fixed-positioned from the button rather than absolute:
+// in `triggerClass`; `onOpenChange` hears it open and close. The list is fixed-positioned from the button rather than absolute:
 // tables sit in `overflow-x-auto` boxes, which would clip it. Any click outside, Escape or a
 // scroll closes it.
 export function RowMenu({
@@ -18,14 +18,19 @@ export function RowMenu({
   items,
   trigger,
   triggerClass,
+  onOpenChange,
 }: {
   label: string;
   items: RowMenuItem[];
   trigger?: React.ReactNode;
   triggerClass?: string;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const button = useRef<HTMLButtonElement>(null);
   const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const isOpen = Boolean(at);
+
+  useEffect(() => onOpenChange?.(isOpen), [isOpen, onOpenChange]);
 
   useEffect(() => {
     if (!at) return;
@@ -81,7 +86,7 @@ export function RowMenu({
               >
                 {item.icon}
                 {item.label}
-                {item.hint && <span className="text-slate-500">{item.hint}</span>}
+                {item.hint && <span className="ml-auto pl-4 text-slate-500">{item.hint}</span>}
               </button>
             ))}
           </div>

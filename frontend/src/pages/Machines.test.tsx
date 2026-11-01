@@ -4,7 +4,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { Machine } from "./Machine";
-import { MachineTool } from "./MachineTool";
 import { Machines } from "./Machines";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
@@ -169,7 +168,6 @@ function renderPage(at = "/machines") {
         <Routes>
           <Route path="/machines" element={<Machines />} />
           <Route path="/machines/:id" element={<Machine />} />
-          <Route path="/machines/:id/tools/:tool" element={<MachineTool />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -333,8 +331,8 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
   // Each tool's card, an added one's with what is in it — sessions another tool claims left out.
   expect(await screen.findByText("build")).toBeInTheDocument();
   expect(screen.queryByText("claude-site")).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "tmux" }).parentElement!.textContent).toContain("1 session");
-  expect(screen.getByRole("link", { name: "Claude Code" }).parentElement!.textContent).toContain("1 project, 1 running");
+  expect(screen.getByText("1 session")).toBeInTheDocument();
+  expect(screen.getByText("1 project, 1 running")).toBeInTheDocument();
   // Only this machine's entries.
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
@@ -414,24 +412,42 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
 });
 
-test("a set-up machine's row has a Tools menu, to each added tool's page", async () => {
+test("a set-up machine's row has a Tools menu: each added tool, how it stands, in a dialog", async () => {
   setUp();
   renderPage();
   await screen.findByText("Storage box");
 
   fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  expect(screen.getByRole("menuitem", { name: "Claude Code" })).toBeInTheDocument();
+  // The machine's overview is read once the menu is open.
+  expect(await screen.findByRole("menuitem", { name: /Claude Code.*1 project, 1 running/ })).toBeInTheDocument();
+  expect(screen.getByRole("menuitem", { name: /Versions.*not added/ })).toBeInTheDocument();
   // System is standard: on the machine's page, not in the menu.
-  expect(screen.queryByRole("menuitem", { name: "System" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("menuitem", { name: "tmux" }));
+  expect(screen.queryByRole("menuitem", { name: /System/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("menuitem", { name: /tmux/ }));
 
-  expect(await screen.findByRole("heading", { name: "tmux" })).toBeInTheDocument();
+  expect(await screen.findByText("tmux — Storage box")).toBeInTheDocument();
   expect(screen.getByText("build")).toBeInTheDocument();
+  fireEvent.click(within(screen.getByText("build").closest("li") as HTMLElement).getByRole("button", { name: "Attach" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
 
-test("a tool's page lists its rows, each with its buttons — not another tool's sessions", async () => {
+test("a tool the machine lacks opens to what it needs, and adds it", async () => {
   setUp();
-  renderPage("/machines/nas/tools/tmux");
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /Versions/ }));
+
+  expect(await screen.findByText("Versions — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("kubectl")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Add Versions — installs kubectl/ }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
+});
+
+test("a tool's card lists its rows, each with its buttons — not another tool's sessions", async () => {
+  setUp();
+  renderPage("/machines/nas");
 
   const row = (await screen.findByText("build")).closest("li") as HTMLElement;
   // claude-site is Claude Code's, on its project.
@@ -442,7 +458,7 @@ test("a tool's page lists its rows, each with its buttons — not another tool's
 
 test("an action that asks for a name runs on what is typed", async () => {
   setUp();
-  renderPage("/machines/nas/tools/tmux");
+  renderPage("/machines/nas");
 
   const name = await screen.findByLabelText("New session — name");
   expect(screen.getByRole("button", { name: "New session" })).toBeDisabled();
@@ -453,7 +469,7 @@ test("an action that asks for a name runs on what is typed", async () => {
 
 test("a project lists in its machine's projects folder, says its Claude session runs, and opens it", async () => {
   setUp();
-  renderPage("/machines/nas/tools/claude");
+  renderPage("/machines/nas");
 
   const row = (await screen.findByText("site")).closest("li") as HTMLElement;
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
@@ -466,9 +482,9 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
 });
 
-test("the projects folder is changed on the Claude Code page", async () => {
+test("the projects folder is changed on the Claude Code card", async () => {
   setUp();
-  renderPage("/machines/nas/tools/claude");
+  renderPage("/machines/nas");
 
   fireEvent.click(await screen.findByTitle("Change the projects folder"));
   fireEvent.change(screen.getByLabelText("Projects folder"), { target: { value: "~" } });
