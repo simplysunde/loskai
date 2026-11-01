@@ -6,6 +6,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
+import { useTools } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
@@ -57,6 +58,7 @@ export function Machines() {
   });
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const ssh = useSsh();
+  const tools = useTools();
   const sshHosts = ssh.data?.hosts ?? {};
   const trusted = ssh.data?.trusted ?? {};
   const running = useRunning(Object.keys(trusted).length > 0);
@@ -146,6 +148,7 @@ export function Machines() {
           trusted={trusted}
           running={running.data ?? {}}
           onOpen={(m) => navigate(`/machines/${m.id}`)}
+          tools={tools.data}
           onTerminal={setTerminalFor}
           onDelete={setConfirmDelete}
           onAddRoute={(m) => {

@@ -4,13 +4,14 @@ import { ArrowLeft, HardDrive, Loader2, Pencil, Settings, Terminal } from "lucid
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
-import { applies, isStandard, useTools, type ToolTarget } from "../lib/tools";
+import { applies, useTools, type ToolTarget } from "../lib/tools";
 import type { SettingsView } from "../lib/settings";
 import { useFacts, useRunning, useSsh } from "../lib/ssh";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
 import { MachineOverview } from "../components/routing/MachineOverview";
-import { rowButtons, ToolCard, ToolsMenu, type ToolContext } from "../components/routing/MachineTools";
+import { MachineTools, RowButtons } from "../components/routing/MachineTools";
+import type { ToolContext } from "../lib/toolRows";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
@@ -30,8 +31,8 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, its overview with the standard tools' actions
-// (System), the Tools menu to each added tool's page, what runs on it, and its log. What is
+// name, address and SSH login, its SSH setup, its overview, its tools (each added one also
+// has its own page, from the Tools button on its row), what runs on it, and its log. What is
 // the same for every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
@@ -76,7 +77,9 @@ export function Machine() {
       ? { machineId: id, tools: tools.data, facts: facts.data, folder: ssh.data.projects[id], onRun: runner.start }
       : null;
   // The buttons a tool that applies here puts on a row of the Running list.
-  const rowActions = (target: ToolTarget, name: string) => rowButtons(here, target, name, runner.start);
+  const rowActions = (target: ToolTarget, name: string) => (
+    <RowButtons here={here} kind={target} name={name} onRun={runner.start} />
+  );
   const host = machine?.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
 
   if (!machine) {
@@ -108,12 +111,9 @@ export function Machine() {
           </p>
         </div>
         {trusted && host && (
-          <div className="flex gap-2">
-            {ctx && <ToolsMenu ctx={ctx} className={BUTTON} />}
-            <button onClick={runner.openShell} className={BUTTON}>
-              <Terminal className="h-4 w-4" /> Terminal
-            </button>
-          </div>
+          <button onClick={runner.openShell} className={BUTTON}>
+            <Terminal className="h-4 w-4" /> Terminal
+          </button>
         )}
       </header>
 
@@ -169,13 +169,13 @@ export function Machine() {
           <section className="border-t border-slate-800 pt-6">
             <h2 className="mb-3 text-sm font-medium text-slate-200">Overview</h2>
             <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} />
-            {ctx && (
-              <div className="mt-4 space-y-2">
-                {here.filter(isStandard).map((t) => (
-                  <ToolCard key={t.id} tool={t} ctx={ctx} />
-                ))}
-              </div>
-            )}
+          </section>
+        )}
+
+        {host?.user && ctx && (
+          <section className="border-t border-slate-800 pt-6">
+            <h2 className="mb-3 text-sm font-medium text-slate-200">Tools</h2>
+            <MachineTools ctx={ctx} />
           </section>
         )}
 

@@ -4,14 +4,16 @@ import { Link, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
 import { useFacts, useSsh } from "../lib/ssh";
+import { toolSummary, type ToolContext } from "../lib/toolRows";
 import { addable, applies, missing, useTools } from "../lib/tools";
 import { isMachine } from "../components/routing/machine";
-import { ToolCard, toolSummary, type ToolContext } from "../components/routing/MachineTools";
+import { ToolCard } from "../components/routing/MachineTools";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { useToolRunner } from "../components/routing/useToolRunner";
 
-// One added tool on one machine — opened from the machine page's Tools menu: its lists
-// (sessions, projects) with their buttons, and its actions.
+// One added tool on one machine — opened from the Tools button on its row in the Machines
+// tab, or its card on the machine's page: its lists (sessions, projects) with their
+// buttons, and its actions.
 export function MachineTool() {
   const { id = "", tool: toolId = "" } = useParams();
   const routes = useQuery({

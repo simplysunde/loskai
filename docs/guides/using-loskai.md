@@ -106,16 +106,17 @@ everything running there, and its log. A machine set up before the overview exis
 "install again" there — one click.
 
 **Tools** add buttons to a machine's page — the ones that fit what the machine has, with
-nothing to switch on. The standard ones are on the page itself: **System** updates it (with its own package manager), reboots it or shuts it down;
+nothing to switch on, each as a card in its **Tools** section. **System** updates it (with its own package manager), reboots it or shuts it down;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it and answer a `sudo` password prompt there; hovering a button shows the command. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
 back up.
 
-The others are behind the **Tools** button at the top of the machine page: each opens its
-own page, and a tool the machine doesn't have yet is offered as *Add …* — clicking it
-installs what it needs, in the terminal.
+A tool the machine doesn't have yet is in the **Add** line beneath — clicking it installs
+what it needs, in the terminal. The added tools (tmux, Claude Code, Tailscale) also have a
+page each: click a card's name, or use the **Tools** button (the wrench) on the machine's
+row in the Machines tab.
 
 - **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in;
   Claude's are on their projects instead.

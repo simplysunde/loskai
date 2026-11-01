@@ -16,14 +16,15 @@ it `requires`, as the machine's overview found them:
   its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
   are.
 - **Added tools** need a program the machine may not have yet, such as tmux. One whose
-  missing programs Loskai can all install is offered in the machine page's **Tools** menu
-  as *Add …*. Adding it installs them, and from then on it applies.
+  missing programs Loskai can all install is offered in the machine page's Tools section
+  as **Add**. Adding it installs them, and from then on it applies.
 
-Which is which follows from the programs: a tool requiring something in `INSTALLERS` is an
-added one. **A standard tool's actions are on the machine page** — System's in its
-Overview, the rest on the Running list's rows. **An added tool has its own page**,
-`/machines/<id>/tools/<tool>`, opened from the Tools menu, which says in a few words what
-is in it (`3 sessions`, `4 projects, 1 running`).
+**The machine page's Tools section has a card for each tool that applies**; the Running
+list's rows get the row actions. Which is standard follows from the programs: a tool
+requiring something in `INSTALLERS` is an added one, and **an added tool also has its own
+page**, `/machines/<id>/tools/<tool>` — opened from its card's name, which says in a few
+words what is in it (`3 sessions`, `4 projects, 1 running`), or from the **Tools** button
+on the machine's row in the Machines tab.
 
 Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's
 command comes from its file. The browser only names a tool, an action and, for an action

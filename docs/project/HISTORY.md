@@ -4,15 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
-## 2026-11-01 — One Tools menu; a page per added tool; Claude's sessions on their projects
+## 2026-11-01 — A page per added tool, from the machine's row; Claude's sessions on their projects
 
-**The machine page keeps the standard tools and one Tools button** (Sunde: "tools should have
-one button, and then a submenu or dropdown to access the interface of each tool, that way we
-don't clutter the main machine page"). System's actions stay in the Overview and the
-row actions on the Running list; tmux, Claude Code and Tailscale each get a page, and the
-menu says what is in each. Standard or added isn't a new key: a tool requiring a program
-Loskai can install is an added one. The menu is `RowMenu` with a labelled trigger, not a
-second dropdown.
+**The Tools button is on the machine's row in the Machines tab** (Sunde: "tools should have
+one button, and then a submenu or dropdown to access the interface of each tool"). It was
+first put on the machine page instead, with the cards moved off it — a misreading,
+reverted the same day ("I meant that the tool button should be here… I did like the
+overview for each tool that was on the machine config page"). So the machine page keeps a
+card per tool, an added tool's name linking to its page; the row's menu lists the added
+tools without asking the machine which it has, since the overview isn't read on the
+Machines tab (it costs a package-manager simulation per machine) and a tool's page says
+what it needs and offers to add it. Standard or added isn't a new key: a tool requiring a
+program Loskai can install is an added one. The menu is `RowMenu` with a labelled trigger,
+not a second dropdown.
 
 **A tmux session belongs to the tool that names it** (Sunde: "we need to separate regular
 tmux sessions and usage and claude code usage"). `claude-site` is listed on Claude Code's

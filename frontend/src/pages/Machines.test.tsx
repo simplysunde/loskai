@@ -330,8 +330,11 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
   expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
   expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
   expect(screen.getByText("100.64.0.7")).toBeInTheDocument();
-  // The added tools are behind the Tools menu, not on this page.
-  expect(screen.queryByText("build")).not.toBeInTheDocument();
+  // Each tool's card, an added one's with what is in it — sessions another tool claims left out.
+  expect(await screen.findByText("build")).toBeInTheDocument();
+  expect(screen.queryByText("claude-site")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "tmux" }).parentElement!.textContent).toContain("1 session");
+  expect(screen.getByRole("link", { name: "Claude Code" }).parentElement!.textContent).toContain("1 project, 1 running");
   // Only this machine's entries.
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
@@ -405,23 +408,22 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
   // Proxmox needs pct, which only comes with Proxmox: not offered, and no Reboot on rows.
   expect(screen.queryByText("Proxmox")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Tools" }));
-  fireEvent.click(screen.getByRole("menuitem", { name: /Add Versions/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Versions" }));
 
   expect(await screen.findByText("Add Versions — Storage box")).toBeInTheDocument();
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
 });
 
-test("the Tools menu opens each added tool's page, saying what is in it", async () => {
+test("a set-up machine's row has a Tools menu, to each added tool's page", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage();
+  await screen.findByText("Storage box");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Tools" }));
-  expect(screen.getByRole("menuitem", { name: /tmux/ }).textContent).toContain("1 session");
-  expect(screen.getByRole("menuitem", { name: /Claude Code/ }).textContent).toContain("1 project, 1 running");
-  // System is standard: on the machine page itself, not in the menu.
-  expect(screen.queryByRole("menuitem", { name: /System/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("menuitem", { name: /tmux/ }));
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  expect(screen.getByRole("menuitem", { name: "Claude Code" })).toBeInTheDocument();
+  // System is standard: on the machine's page, not in the menu.
+  expect(screen.queryByRole("menuitem", { name: "System" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("menuitem", { name: "tmux" }));
 
   expect(await screen.findByRole("heading", { name: "tmux" })).toBeInTheDocument();
   expect(screen.getByText("build")).toBeInTheDocument();

@@ -15,9 +15,11 @@ import {
 
 import { RouteLink } from "../shared/RouteLink";
 import type { Running, SshHost } from "../../lib/ssh";
+import type { Tool } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { splitUpstream } from "../../lib/validation";
 import { routesOn } from "./machine";
+import { ToolsMenu } from "./MachineTools";
 import { RunningPill } from "./RunningPill";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
@@ -34,6 +36,7 @@ export function MachineTable({
   onDelete,
   onAddRoute,
   onTerminal,
+  tools,
   busyId,
 }: {
   machines: RouteRow[];
@@ -50,6 +53,8 @@ export function MachineTable({
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
+  // The tools in the image: a set-up machine's row opens each added one's page.
+  tools?: Tool[];
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
@@ -141,6 +146,9 @@ export function MachineTable({
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
+                        {sshReady && trusted[m.id] && tools && (
+                          <ToolsMenu machineId={m.id} tools={tools} className={ICON_BUTTON} />
+                        )}
                         {onAddRoute && (
                           <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
                             <Plus className="h-3.5 w-3.5" />
@@ -222,7 +230,7 @@ function IconButton({
     <button
       title={title}
       onClick={onClick}
-      className={`inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs ${
+      className={`${ICON_BUTTON_SHAPE} ${
         danger
           ? "text-rose-300 hover:bg-rose-500/10"
           : warn
@@ -234,6 +242,9 @@ function IconButton({
     </button>
   );
 }
+
+const ICON_BUTTON_SHAPE = "inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs";
+const ICON_BUTTON = `${ICON_BUTTON_SHAPE} text-slate-300 hover:bg-slate-800`;
 
 function sshTitle(alias: string, host: SshHost): string {
   return `ssh ${alias} — ${host.user ?? "?"}@${host.hostname ?? alias}, port ${host.port}`;
