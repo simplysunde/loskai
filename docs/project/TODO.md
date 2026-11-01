@@ -1636,6 +1636,14 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
       shows only what runs
 - [x] +29 backend (670), +5 frontend (257); `pytest`, `npm test`, `npm run build`,
       `oxlint`, `check-docs.sh`
+- [x] **Live** (a scratch backend, a throwaway Debian `sshd` with tmux and sudo, through the
+      real API and WebSocket): key made, host trusted, installed with the machine's
+      password; the overview gave `apt` and `tmux, sudo`; System › Update started, the tab
+      closed after 6 s — `loskai-system-update` kept running in tmux and finished; running
+      it again attached to it, showing `[done, exit 0]`, and Enter ended it. A target
+      `a;id` was refused `4409 Not a service` before anything ran; the log had the action,
+      its tmux session, and the refusal
+- [ ] On codebox and the Proxmox host: install again, enable, try Update and a row action
 
 **34g — tmux:** the machine's sessions on its page — Attach (the terminal opens inside it),
 Kill, New (a name, a folder, optionally a command). Closing the browser terminal leaves an
