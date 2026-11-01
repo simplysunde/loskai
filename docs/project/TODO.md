@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 34** (below) — Machines managed over SSH, built in five steps; 34a, the
-key and the config file, first. **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
+**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–d built, 34e–h planned
+(the overview, plugins, tmux, Claude Code). **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
 a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
 lists installed recipes, shows what changed, and replaces the recipe's `compose.yml` while
@@ -1574,7 +1574,54 @@ what runs on it — all three recommendations taken)**
       text. The container terminal, on the same Debian image: prompt, Tab and paste; on
       busybox: a prompt, and `ls` errors shown
 
-**34e — prepared commands:** system update, disks, services — one click each, run visibly.
+**The machine page and Settings › SSH (2026-11-01)**
+- [x] Machine rows open and close like stacks; the key row left the Machines tab (its line
+      was wrong for the Docker host); Settings › SSH holds what is the same for every
+      machine — the key by fingerprint, New key, the config download, the log
+- [x] The cog opens the machine's page (`/machines/<id>`): Edit, SSH setup, what runs there,
+      its log; naming a machine lands on it
+
+_Plan for the rest (2026-11-01, Sunde: "I want both a and b", tmux sessions, sessions that
+run "specific actions like… claude code start a remote session inside a project", and
+"plugins that we install and enable based on needs, kinda like the recipes… tied to the
+image"; then "yes to both recommendations" — per machine, plan first — "and the ability to
+install dependencies if missing, when enabling a plugin")._
+
+**Decisions**
+- **A plugin is data, not code** — a file of actions shipped in the image: each action's
+  name, what the machine must have, the inputs it asks for, and the command it runs there.
+  Loskai validates inputs and quotes them into the command; it never runs plugin code
+  itself, so every action is a fixed command, logged as one. New or changed plugins come
+  with a new image, like any feature
+- **Enabled per machine**, on its page. A plugin is offered where its tools are present;
+  where one is missing, enabling it offers to install it — the file names the package per
+  package manager (`apt`, `dnf`, `apk`, `pacman`), or an official installer for a tool
+  that isn't a distro package (Claude Code). The install command is shown, then run
+- **Actions run where they can be seen**: in the machine's terminal, inside a tmux session
+  when the machine has tmux — so an update survives closing the tab — and plainly
+  otherwise. A `sudo` prompt is answered in the terminal; Loskai holds no machine password
+- **Read-only facts come with the status key** (no password): the forced command grows, so
+  each machine installs the new line once (`STATUS_VERSION` bump, one click on its page)
+- **Loskai holds no Claude credentials** — Claude Code is logged in on the machine already
+
+**34e — the overview** (read-only, status key): OS and version, kernel, uptime, memory,
+disks, updates waiting, which tools the machine has (`tmux`, `claude`, `docker`, `pct`…),
+and its tmux sessions. On the machine page; an older status line says "reinstall".
+
+**34f — plugins, and the first ones**
+- The plugin format, its validator, built-ins in the image; a Plugins section on the
+  machine page — enable, disable, install what is missing
+- **System:** update (the OS's package manager), reboot, shut down (confirmed)
+- **Services:** restart, stop, start a service or container, from its row in the Running
+  list; **Proxmox:** start, stop a guest
+
+**34g — tmux:** the machine's sessions on its page — Attach (the terminal opens inside it),
+Kill, New (a name, a folder, optionally a command). Closing the browser terminal leaves an
+attached session running.
+
+**34h — Claude Code** (needs tmux): start Claude in a project folder as a Remote Control
+session (`tmux new -d -s <name> -c <folder> 'claude --remote-control <name>'`); create a new
+project (folder, `git init`) and start one in it.
 
 ---
 
