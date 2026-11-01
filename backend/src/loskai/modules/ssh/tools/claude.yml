@@ -26,6 +26,26 @@ actions:
     target: project
     session: false
     run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
+  pull:
+    label: Pull
+    description: Bring in what was pushed from elsewhere — only when it fast-forwards, never a merge.
+    target: project
+    run: cd "$PROJECTS/$1" && git pull --ff-only
+  push:
+    label: Push
+    description: Send this project's commits to its remote.
+    target: project
+    run: cd "$PROJECTS/$1" && git push
+  end:
+    label: End
+    description: End Claude's session in this project.
+    target: project
+    session: false
+    confirm: Claude stops; its conversation stays, and Claude continues it next time.
+    # The session is claude-<project>, with the characters tmux won't take as _ (tool.session_name).
+    run: >-
+      tmux kill-session -t "=claude-$(printf %s "$1" | tr . _)" 2>/dev/null ||
+      echo "No Claude session runs in $1."
   new:
     label: New project
     description: Make the folder in the projects folder, start a git repository in it, and open Claude there.

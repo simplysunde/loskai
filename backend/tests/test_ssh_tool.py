@@ -14,6 +14,7 @@ def test_every_shipped_tool_is_valid():
 
     assert {"system", "services", "proxmox", "tmux", "tailscale", "claude"} <= set(tools)
     assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["open"].session == "claude"
+    assert {"pull", "push", "end", "terminal"} <= set(tools["claude"].actions)
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")

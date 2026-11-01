@@ -15,9 +15,15 @@ it `requires`, as the machine's overview found them:
 - **Standard tools** need nothing Loskai installs. System applies everywhere, Services puts
   its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
   are.
-- **Workflow tools** need a program the machine may not have yet, such as tmux. One whose
-  missing programs Loskai can all install is offered in the Tools section's **Add** line.
-  Adding it installs them, and from then on it applies.
+- **Added tools** need a program the machine may not have yet, such as tmux. One whose
+  missing programs Loskai can all install is offered in the machine page's **Tools** menu
+  as *Add …*. Adding it installs them, and from then on it applies.
+
+Which is which follows from the programs: a tool requiring something in `INSTALLERS` is an
+added one. **A standard tool's actions are on the machine page** — System's in its
+Overview, the rest on the Running list's rows. **An added tool has its own page**,
+`/machines/<id>/tools/<tool>`, opened from the Tools menu, which says in a few words what
+is in it (`3 sessions`, `4 projects, 1 running`).
 
 Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's
 command comes from its file. The browser only names a tool, an action and, for an action
@@ -107,8 +113,10 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 
-The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a card lists come from
-the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on its rows.
+The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a tool's page lists
+come from the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on
+its rows. A tmux session another tool claims — named after an action's shared `session`,
+like `claude-site` — is listed on that tool's page, not tmux's.
 
 `ask` takes the same kinds, for an action on something that doesn't exist yet: the card
 shows a name field beside its button, and the name is checked against the kind and passed

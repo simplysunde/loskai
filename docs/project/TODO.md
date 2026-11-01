@@ -1711,6 +1711,18 @@ projects 34h lists — one reinstall for all three)
       attached to it rather than starting a second; `site`, with a conversation on record,
       got `--continue`; the folder set to `~` put New project `top` in `~/top` and the
       listing followed (`top` in `~`, `demo` and `site` in `projects`)
+**34h′ — one Tools menu** (Sunde, 2026-11-01: "tools should have one button, and then a
+submenu or dropdown"; "separate regular tmux sessions… and claude code usage"; per project
+"git push… git pull… open terminal")
+- [x] The machine page: System's actions in the Overview; one **Tools** menu — each added
+      tool's page (`/machines/<id>/tools/<tool>`, with what is in it), and *Add …*
+- [x] tmux's page leaves out the sessions another tool claims (`claude-<project>`); Claude
+      Code's projects get Pull (`--ff-only`), Push, Terminal, End
+- [x] `useToolRunner` — the terminal and the confirm step, shared by both pages; `RowMenu`
+      takes a labelled trigger
+- [x] 704 backend, 261 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
+      `check-docs.sh`
+- [ ] "N to push" on a project (commits not pushed): a status-line version, so not yet
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

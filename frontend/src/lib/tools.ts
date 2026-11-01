@@ -62,6 +62,23 @@ export function missing(tool: Tool, programs: string[]): string[] {
   return tool.requires.filter((p) => !programs.includes(p));
 }
 
+// A tool that applies to a machine with `programs` — it has everything the tool requires.
+export function applies(tool: Tool, programs: string[]): boolean {
+  return missing(tool, programs).length === 0;
+}
+
+// A tool Loskai can add to a machine with `programs`: it lacks something, all installable.
+export function addable(tool: Tool, programs: string[]): boolean {
+  const lacking = missing(tool, programs);
+  return lacking.length > 0 && lacking.every((p) => tool.installable.includes(p));
+}
+
+// A standard tool — System, Services, Proxmox — needs nothing Loskai installs, and shows on
+// the machine page itself; an added one (tmux, Claude Code, Tailscale) has its own page.
+export function isStandard(tool: Tool): boolean {
+  return tool.installable.length === 0;
+}
+
 // The command an action runs on a machine with `manager`, or null when it has none for it.
 export function commandFor(action: ToolAction, manager: string | null | undefined): string | null {
   if (typeof action.run === "string") return action.run;

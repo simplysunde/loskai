@@ -6,12 +6,24 @@ export interface RowMenuItem {
   icon: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
+  hint?: string; // a muted second part, after the label
 }
 
-// A row's less-used actions behind one "⋯" button. The list is fixed-positioned from the
-// button rather than absolute: tables sit in `overflow-x-auto` boxes, which would clip it.
-// Any click outside, Escape or a scroll closes it.
-export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
+// A row's less-used actions behind one "⋯" button — or behind `trigger`, a labelled button
+// in `triggerClass`. The list is fixed-positioned from the button rather than absolute:
+// tables sit in `overflow-x-auto` boxes, which would clip it. Any click outside, Escape or a
+// scroll closes it.
+export function RowMenu({
+  label,
+  items,
+  trigger,
+  triggerClass,
+}: {
+  label: string;
+  items: RowMenuItem[];
+  trigger?: React.ReactNode;
+  triggerClass?: string;
+}) {
   const button = useRef<HTMLButtonElement>(null);
   const [at, setAt] = useState<{ top: number; right: number } | null>(null);
 
@@ -41,9 +53,9 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
         aria-haspopup="menu"
         aria-expanded={Boolean(at)}
         onClick={() => (at ? setAt(null) : open())}
-        className="rounded-lg border border-slate-700 p-1.5 text-slate-300 hover:bg-slate-800"
+        className={trigger ? triggerClass : "rounded-lg border border-slate-700 p-1.5 text-slate-300 hover:bg-slate-800"}
       >
-        <MoreHorizontal className="h-3.5 w-3.5" />
+        {trigger ?? <MoreHorizontal className="h-3.5 w-3.5" />}
       </button>
       {at && (
         <>
@@ -69,6 +81,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
               >
                 {item.icon}
                 {item.label}
+                {item.hint && <span className="text-slate-500">{item.hint}</span>}
               </button>
             ))}
           </div>

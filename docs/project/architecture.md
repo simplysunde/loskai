@@ -307,7 +307,8 @@ differ, on the machine or on a row of the Running list (a service, container, LX
 **Nothing is enabled or stored**: a tool applies where the machine has its programs — the
 standard ones (System, Services, Proxmox) wherever they fit — and one lacking only programs
 Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) is offered
-to add, which installs them. The one thing stored is a machine's **projects folder**
+to add, which installs them. The standard tools' actions are on the machine page; each added
+tool has its own page behind one Tools menu. The one thing stored is a machine's **projects folder**
 (`projects_folder`, `~/projects` unless changed), where the Claude Code tool's projects
 are. Like a recipe,
 a tool is data: the browser names a tool, an action and a row's target, and

@@ -4,6 +4,27 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — One Tools menu; a page per added tool; Claude's sessions on their projects
+
+**The machine page keeps the standard tools and one Tools button** (Sunde: "tools should have
+one button, and then a submenu or dropdown to access the interface of each tool, that way we
+don't clutter the main machine page"). System's actions stay in the Overview and the
+row actions on the Running list; tmux, Claude Code and Tailscale each get a page, and the
+menu says what is in each. Standard or added isn't a new key: a tool requiring a program
+Loskai can install is an added one. The menu is `RowMenu` with a labelled trigger, not a
+second dropdown.
+
+**A tmux session belongs to the tool that names it** (Sunde: "we need to separate regular
+tmux sessions and usage and claude code usage"). `claude-site` is listed on Claude Code's
+page as the project `site` running, and left off tmux's; the rule is the action's shared
+`session`, so nothing is stored. Loskai's own `loskai-…` sessions stay on tmux's page: an
+update left running is picked up there.
+
+**A project's quick commands** — Pull (`--ff-only`, so a diverged branch stops and says so
+rather than merging), Push, Terminal, End. "N to push" was considered and left out: it
+needs another status-line version, and what changed elsewhere can't be known without a
+fetch, which the read-only line doesn't do — Pull fetches.
+
 ## 2026-11-01 — Phase 34h: Claude Code in the machine's projects
 
 **A project is a git repo in the machine's projects folder** (Sunde: "a clever way of using

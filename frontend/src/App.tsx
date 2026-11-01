@@ -8,6 +8,7 @@ import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Machine } from "./pages/Machine";
+import { MachineTool } from "./pages/MachineTool";
 import { Machines } from "./pages/Machines";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
@@ -75,6 +76,14 @@ export default function App() {
           element={
             <RequireAuth>
               <Machine />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/machines/:id/tools/:tool"
+          element={
+            <RequireAuth>
+              <MachineTool />
             </RequireAuth>
           }
         />

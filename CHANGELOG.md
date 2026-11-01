@@ -31,8 +31,11 @@ Everything so far:
   git projects in the machine's projects folder (`~/projects`, changeable per machine), each
   with its branch, uncommitted changes, last commit and last Claude conversation; **Claude**
   opens its running session, else continues the last conversation, else starts one — in
-  tmux, with Remote Control, so it carries on in the Claude app; **New project** makes the
-  folder, `git init`, and starts Claude in it.
+  tmux, with Remote Control, so it carries on in the Claude app; **Terminal**, **Pull**
+  (fast-forward only), **Push** and **End** on each project; **New project** makes the
+  folder, `git init`, and starts Claude in it. The added tools sit behind one **Tools**
+  menu on the machine page, each with its own page; tmux's lists your own sessions, Claude's
+  are on their projects.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

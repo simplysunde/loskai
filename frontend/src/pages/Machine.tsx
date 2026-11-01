@@ -1,23 +1,22 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, HardDrive, Loader2, Pencil, Settings, Terminal } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
-import { missing, useTools, type ToolAction, type ToolRun, type ToolTarget } from "../lib/tools";
+import { applies, isStandard, useTools, type ToolTarget } from "../lib/tools";
 import type { SettingsView } from "../lib/settings";
 import { useFacts, useRunning, useSsh } from "../lib/ssh";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
 import { MachineOverview } from "../components/routing/MachineOverview";
-import { MachineTerminal } from "../components/routing/MachineTerminal";
-import { MachineTools, rowButtons } from "../components/routing/MachineTools";
+import { rowButtons, ToolCard, ToolsMenu, type ToolContext } from "../components/routing/MachineTools";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
+import { useToolRunner } from "../components/routing/useToolRunner";
 import { SshLog } from "../components/settings/SshLog";
-import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { SaveBanner } from "../components/routing/SaveBanner";
 
 // What the Machines tab hands over after naming a machine: what the save said, and whether
@@ -31,19 +30,15 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, its overview, its tools, what runs on it,
-// and its log. What is the same for every machine is in Settings › SSH.
+// name, address and SSH login, its SSH setup, its overview with the standard tools' actions
+// (System), the Tools menu to each added tool's page, what runs on it, and its log. What is
+// the same for every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
   const handed = (useLocation().state ?? {}) as MachineState;
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [editing, setEditing] = useState(false);
-  const [terminal, setTerminal] = useState(false);
-  // A tool's action in the terminal, and one waiting for its confirmation.
-  const [run, setRun] = useState<ToolRun | null>(null);
-  const [confirming, setConfirming] = useState<{ run: ToolRun; action: ToolAction } | null>(null);
-  const qc = useQueryClient();
   const tools = useTools();
   const [error, setError] = useState<string | null>(null);
 
@@ -72,15 +67,16 @@ export function Machine() {
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
+  const runner = useToolRunner(machine && { id: machine.id, name: machine.name }, ssh.data?.key ?? null);
   const programs = facts.data?.programs ?? [];
-  const here = (tools.data ?? []).filter((t) => missing(t, programs).length === 0);
-
-  const start = (r: ToolRun, action?: ToolAction) => {
-    if (action?.confirm) setConfirming({ run: r, action });
-    else setRun(r);
-  };
+  const here = (tools.data ?? []).filter((t) => applies(t, programs));
+  // What a tool's card and the Tools menu need — once the overview and the tools are in.
+  const ctx: ToolContext | null =
+    facts.data?.ok && tools.data && ssh.data
+      ? { machineId: id, tools: tools.data, facts: facts.data, folder: ssh.data.projects[id], onRun: runner.start }
+      : null;
   // The buttons a tool that applies here puts on a row of the Running list.
-  const rowActions = (target: ToolTarget, name: string) => rowButtons(here, target, name, start);
+  const rowActions = (target: ToolTarget, name: string) => rowButtons(here, target, name, runner.start);
   const host = machine?.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
 
   if (!machine) {
@@ -112,9 +108,12 @@ export function Machine() {
           </p>
         </div>
         {trusted && host && (
-          <button onClick={() => setTerminal(true)} className={BUTTON}>
-            <Terminal className="h-4 w-4" /> Terminal
-          </button>
+          <div className="flex gap-2">
+            {ctx && <ToolsMenu ctx={ctx} className={BUTTON} />}
+            <button onClick={runner.openShell} className={BUTTON}>
+              <Terminal className="h-4 w-4" /> Terminal
+            </button>
+          </div>
         )}
       </header>
 
@@ -170,19 +169,13 @@ export function Machine() {
           <section className="border-t border-slate-800 pt-6">
             <h2 className="mb-3 text-sm font-medium text-slate-200">Overview</h2>
             <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} />
-          </section>
-        )}
-
-        {host?.user && trusted && facts.data?.ok && tools.data && ssh.data && (
-          <section className="border-t border-slate-800 pt-6">
-            <h2 className="mb-3 text-sm font-medium text-slate-200">Tools</h2>
-            <MachineTools
-              machineId={id}
-              tools={tools.data}
-              facts={facts.data}
-              folder={ssh.data.projects[id]}
-              onRun={start}
-            />
+            {ctx && (
+              <div className="mt-4 space-y-2">
+                {here.filter(isStandard).map((t) => (
+                  <ToolCard key={t.id} tool={t} ctx={ctx} />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -238,34 +231,7 @@ export function Machine() {
         />
       )}
 
-      {(terminal || run) && (
-        <MachineTerminal
-          machine={{ id: machine.id, name: machine.name }}
-          sshKey={ssh.data?.key ?? null}
-          run={run ?? undefined}
-          onClose={() => {
-            setTerminal(false);
-            setRun(null);
-            // What it ran may have changed what runs there, and what the machine has.
-            qc.invalidateQueries({ queryKey: ["ssh-facts"] });
-            qc.invalidateQueries({ queryKey: ["ssh-running"] });
-          }}
-        />
-      )}
-
-      <ConfirmDialog
-        open={confirming !== null}
-        title={`${confirming?.run.title ?? ""} — ${machine.name}`}
-        destructive
-        confirmLabel={confirming?.action.label}
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => {
-          if (confirming) setRun(confirming.run);
-          setConfirming(null);
-        }}
-      >
-        {confirming?.action.confirm}
-      </ConfirmDialog>
+      {runner.ui}
     </div>
   );
 }

@@ -106,15 +106,19 @@ everything running there, and its log. A machine set up before the overview exis
 "install again" there — one click.
 
 **Tools** add buttons to a machine's page — the ones that fit what the machine has, with
-nothing to switch on. **System** updates it (with its own package manager), reboots it or shuts it down;
+nothing to switch on. The standard ones are on the page itself: **System** updates it (with its own package manager), reboots it or shuts it down;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it and answer a `sudo` password prompt there; hovering a button shows the command. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
-back up. A tool that needs a program the machine lacks, such as tmux, is in the **Add**
-line beneath: clicking it installs what it needs, in the terminal.
+back up.
 
-- **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in.
+The others are behind the **Tools** button at the top of the machine page: each opens its
+own page, and a tool the machine doesn't have yet is offered as *Add …* — clicking it
+installs what it needs, in the terminal.
+
+- **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in;
+  Claude's are on their projects instead.
   **Attach** opens one in the terminal (detach with Ctrl+B, then D, and it keeps running),
   **End** ends it, and **New session** starts one with the name you type.
 - **Tailscale** is installed with Tailscale's own installer. **Connect** brings it up — the
@@ -126,8 +130,10 @@ line beneath: clicking it installs what it needs, in the terminal.
   branch, uncommitted changes, last commit and when Claude last worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
   else a new one. It runs in tmux with **Remote Control** on, so after you close the tab
-  you can carry on from the Claude app or claude.ai/code. **New project** makes the folder,
-  starts a git repository and opens Claude in it; **Terminal** is a shell in the project.
+  you can carry on from the Claude app or claude.ai/code. **Terminal** is a shell in the
+  project, **Pull** brings in what was pushed from elsewhere (only when it fast-forwards),
+  **Push** sends your commits, and **End** stops its Claude — the conversation stays.
+  **New project** makes the folder, starts a git repository and opens Claude in it.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.
 
