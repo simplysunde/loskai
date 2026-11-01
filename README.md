@@ -102,3 +102,9 @@ The five most people need:
 - [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS, certs, VPN.
 
 How and why it was built — plan, history, task list — is in [docs/project](docs/README.md#project).
+
+## Credits
+
+The tool icons are from [Simple Icons](https://simpleicons.org). The
+[Git Logo](https://git-scm.com/downloads/logos) by Jason Long is licensed under the
+[Creative Commons Attribution 3.0 Unported License](https://creativecommons.org/licenses/by/3.0/).

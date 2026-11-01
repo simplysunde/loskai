@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Play, Plus, Wrench } from "lucide-react";
 
 import { useFacts, useSsh } from "../../lib/ssh";
-import { ClaudeIcon, ToolIcon } from "./ToolIcon";
+import { ActionIcon, ToolIcon } from "./ToolIcon";
 import { isLive, listsOf, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
@@ -41,8 +41,7 @@ export function RowButtons({
           onClick={() => onRun({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
           className="flex items-center gap-1 text-[11px] text-teal-400 hover:underline"
         >
-          {/* Claude Code's open — Claude in this project — gets Claude's mark. */}
-          {t.id === "claude" && a.id === "open" && <ClaudeIcon className="h-2.5 w-2.5" />}
+          <ActionIcon tool={t.id} action={a.id} />
           {a.label}
         </button>
       )),
