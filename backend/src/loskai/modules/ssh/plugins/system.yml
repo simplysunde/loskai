@@ -1,0 +1,24 @@
+# The machine itself: bring it up to date, restart it, turn it off.
+# docs/reference/plugin-schema.md is the format.
+name: System
+description: Update the system, reboot, shut down.
+actions:
+  update:
+    label: Update
+    description: Refresh the package lists, then install every update.
+    run:
+      # dist-upgrade, not upgrade: what the overview counts, and what Proxmox requires.
+      apt: sudo apt-get update && sudo apt-get -y dist-upgrade
+      dnf: sudo dnf -y upgrade --refresh
+      apk: sudo apk upgrade -U
+      pacman: sudo pacman -Syu --noconfirm
+  reboot:
+    label: Reboot
+    description: Restart the machine.
+    confirm: Everything on it stops until it is back up.
+    run: sudo reboot
+  shutdown:
+    label: Shut down
+    description: Turn the machine off.
+    confirm: It stays off until someone turns it on again.
+    run: sudo poweroff

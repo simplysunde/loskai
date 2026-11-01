@@ -1,0 +1,28 @@
+# What runs on the machine: a button on each service and container in its Running list.
+# docs/reference/plugin-schema.md is the format.
+name: Services
+description: Restart or stop a service or container, from the Running list.
+actions:
+  restart-service:
+    label: Restart
+    description: Restart this service.
+    target: service
+    run: sudo systemctl restart "$1"
+  stop-service:
+    label: Stop
+    description: Stop this service.
+    target: service
+    confirm: It stays stopped until it is started again, or the machine restarts.
+    run: sudo systemctl stop "$1"
+  restart-container:
+    label: Restart
+    description: Restart this container.
+    target: container
+    # The SSH user may reach Docker only through sudo — as the running list may have.
+    run: if docker info >/dev/null 2>&1; then docker restart "$1"; else sudo docker restart "$1"; fi
+  stop-container:
+    label: Stop
+    description: Stop this container.
+    target: container
+    confirm: It stays stopped until it is started again.
+    run: if docker info >/dev/null 2>&1; then docker stop "$1"; else sudo docker stop "$1"; fi
