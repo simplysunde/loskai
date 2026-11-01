@@ -470,6 +470,20 @@ test("Tailscale says its address and how much of the tailnet is online, and list
   expect(screen.getByText("phone").closest("li")!.title).toBe("offline");
 });
 
+test("a tool's dialog on an older status line goes straight to installing it again", async () => {
+  setUp();
+  facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /tmux/ }));
+  fireEvent.click(await screen.findByRole("link", { name: "Install again" }));
+
+  // The machine's page, its SSH setup open.
+  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+});
+
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
   setUp();
   renderPage();

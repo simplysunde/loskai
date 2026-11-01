@@ -8,6 +8,7 @@ import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
 import { ToolIcon } from "./ToolIcon";
 import { useToolRunner } from "./useToolRunner";
+import type { MachineState } from "../../pages/Machine";
 
 // One tool on one machine, from the Tools menu on its row: the tool itself — its lists and
 // actions — or, where it isn't added yet, what it needs, which of that the machine has, and
@@ -29,7 +30,20 @@ export function ToolDialog({
 
   let body: React.ReactNode = <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
   if (tool && facts.data && !facts.data.ok) {
-    body = <p className="text-xs text-amber-300">{facts.data.error}</p>;
+    // A shortcut to where it is fixed: the machine's SSH setup reinstalls the status line.
+    const setup: MachineState = { setup: true };
+    body = (
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-xs text-amber-300">{facts.data.error}</p>
+        <Link
+          to={`/machines/${machine.id}`}
+          state={facts.data.old ? setup : undefined}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+        >
+          <Settings className="h-3.5 w-3.5" /> {facts.data.old ? "Install again" : "Settings"}
+        </Link>
+      </div>
+    );
   } else if (tool && facts.data && tools.data && ssh.data) {
     const programs = facts.data.programs ?? [];
     const ctx: ToolContext = {

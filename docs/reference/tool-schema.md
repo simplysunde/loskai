@@ -26,7 +26,9 @@ words what is in it (`3 sessions`, `4 projects, 1 running`), and **the Tools but
 machine's row in the Machines tab** lists each added tool with that summary — or `not
 added` — and opens it in a dialog (`ToolDialog`): the card, or, for a tool not added yet,
 what it needs, which of that the machine has, and **Add**. The row reads the machine's overview only while that menu
-is open.
+is open. When the overview can't be read, the dialog says why, with a button to
+the fix: **Install again** (the machine's SSH setup) for an older status line, else the
+machine's settings.
 
 Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's
 command comes from its file. The browser only names a tool, an action and, for an action
