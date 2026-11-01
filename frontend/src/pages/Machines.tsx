@@ -10,7 +10,6 @@ import { AddMachineModal, type NewMachine } from "../components/routing/AddMachi
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
-import { SshKeyPanel } from "../components/routing/SshKeyPanel";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
 import type { RouteRow } from "../components/routing/ServiceTable";
@@ -162,8 +161,6 @@ export function Machines() {
         </div>
       )}
 
-      <SshKeyPanel sshKey={ssh.data?.key} />
-
       {routes.isLoading ? (
         <div className="flex justify-center py-16 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -229,10 +226,6 @@ export function Machines() {
           key={terminalFor.id}
           machine={{ id: terminalFor.id, name: terminalFor.name }}
           sshKey={ssh.data?.key ?? null}
-          onSetup={() => {
-            setTerminalFor(null);
-            setSshFor(terminalFor.id);
-          }}
           onClose={() => setTerminalFor(null)}
         />
       )}

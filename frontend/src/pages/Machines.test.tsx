@@ -215,6 +215,8 @@ test("a machine with an SSH user offers its setup from its row", async () => {
   await screen.findByText("Storage box");
 
   const button = await within(nasRow()).findByTitle(/^Set up SSH/);
+  // Not set up yet: the cog, and no terminal. A machine with no SSH user has neither.
+  expect(within(nasRow()).queryByTitle(/^Terminal/)).toBeNull();
   expect(within(screen.getByText("pve").closest("tr") as HTMLElement).queryByTitle(/SSH/)).toBeNull();
   fireEvent.click(button);
 
@@ -229,9 +231,17 @@ test("a set-up machine's row opens a terminal on it", async () => {
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
 
-  // No key in this stub, so it asks to unlock first; the setup is a link away.
+  // No key in this stub, so it asks to unlock first.
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
   expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "SSH setup" }));
+});
+
+test("a set-up machine's cog still opens its SSH settings", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByTitle(/^SSH settings: ssh nas/));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });

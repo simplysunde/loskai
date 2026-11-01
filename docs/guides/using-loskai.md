@@ -102,7 +102,8 @@ container.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
-installs its key (or copy its two lines over yourself). From then on the row shows how much
+installs its key (or copy its two lines over yourself). The cog on its row opens this again;
+once it's set up, a terminal button sits beside it. From then on the row shows how much
 is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
 hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
@@ -112,7 +113,7 @@ hovering lists them. On Proxmox, or where the user isn't in the `docker` group, 
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
-- **Security** — the admin password.
+- **Security** — the admin password; Loskai's SSH key (New key) and the SSH log.
 
 ---
 

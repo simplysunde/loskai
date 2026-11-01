@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Machines: the SSH key row goes; a cog on each machine
+
+**The key row on the Machines tab showed a line that could be wrong.** It was built before
+SSH setup moved onto each machine, and showed the general `from=` line. The Docker host
+needs its own (`from=` also names Loskai's network), so copying from the row would have
+locked Loskai out of it. Each machine's setup already shows that machine's lines, so the
+row's line and Copy button went rather than being fixed. Sunde had found the row unclear.
+
+**What only it did moved to Settings › Security:** New key and the SSH log, beside the admin
+password that encrypts the key. Both are rare and cover every machine, not one.
+
+**A machine's SSH settings are behind a cog on its row** (Sunde's suggestion). The terminal
+button had doubled as the setup button until a machine was set up; now each button does one
+thing. The cog is amber until the machine is set up, and the terminal button appears then.
+The terminal's own "SSH setup" link went with it.
+
 ## 2026-10-31 — Phase 34d: a terminal on each machine; sessions logged, not keystrokes
 
 **The plan said "every session and command logged"; only sessions are.** A command typed

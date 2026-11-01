@@ -275,13 +275,13 @@ on a machine through the same Add route picker, starting on its address. Machine
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
 **SSH, so far (Phase 34a–d).** Loskai's key is made with the admin password, which
-encrypts it (`data/ssh/id_ed25519`), and "New key" replaces it. The public key is read from
+encrypts it (`data/ssh/id_ed25519`), and "New key" in Settings › Security replaces it. The public key is read from
 the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
 the shown key can't belong to another. A machine's form has an SSH user and port, written to
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › General
 downloads that file.
 
-Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`, also on its row):
+Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`; later, the cog on its row):
 the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keygen -lf` shows
 on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
 Install it for me logs in once with the machine's password and replaces Loskai's lines in
@@ -297,7 +297,7 @@ the main key, behind the session, `Origin` and unlocked-key checks; closing it h
 pty, so nothing is left running. Both terminals are one component (`XtermSession`): Tab goes
 to the remote shell, which completes; Ctrl+Shift+C copies (Ctrl+C too while text is
 selected); Ctrl+V and Ctrl+Shift+V paste through the browser, so it works over plain HTTP
-too. The **SSH log** (`data/ssh/sessions.log`, on the key panel) records sessions and
+too. The **SSH log** (`data/ssh/sessions.log`, in Settings › Security) records sessions and
 installs — never keystrokes, which can be a password typed at a `sudo` prompt.
 
 ### Direction — managing the machines over SSH
@@ -524,7 +524,7 @@ mount), and recipe sources have no env var at all (`STORED_ONLY_KEYS` — nothin
 is needed before the UI is up, and a list is better edited there). The page is split into
 **General** (app-wide, recipe sources, backup), **Network** (how Loskai reaches AdGuard,
 Caddy and WireGuard — fields only; their status lives on Routing, next to what they gate)
-and **Security** (the admin password).
+and **Security** (the admin password, Loskai's SSH key and its log).
 
 ### WireGuard
 

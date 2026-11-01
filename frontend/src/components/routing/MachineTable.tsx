@@ -9,6 +9,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Settings,
   Terminal,
   Trash2,
 } from "lucide-react";
@@ -45,7 +46,7 @@ export function MachineTable({
   // Machine ids with a trusted host key, and what runs on each of those, by id.
   trusted?: Record<string, boolean>;
   running?: Record<string, Running>;
-  // Set up SSH on a machine that has an SSH user; once set up, open a terminal on it.
+  // A machine with an SSH user: its SSH settings, and once set up, a terminal on it.
   onSsh?: (machine: RouteRow) => void;
   onTerminal?: (machine: RouteRow) => void;
   onEdit: (machine: RouteRow) => void;
@@ -138,17 +139,20 @@ export function MachineTable({
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1.5">
-                        {sshReady && m.subdomain && host && (trusted[m.id] ? onTerminal : onSsh) && (
-                          <IconButton
-                            title={
-                              trusted[m.id]
-                                ? `Terminal: ${sshTitle(m.subdomain, host)}`
-                                : `Set up SSH: ${sshTitle(m.subdomain, host)}`
-                            }
-                            warn={!trusted[m.id]}
-                            onClick={() => (trusted[m.id] ? onTerminal : onSsh)?.(m)}
-                          >
+                        {sshReady && m.subdomain && host && trusted[m.id] && onTerminal && (
+                          <IconButton title={`Terminal: ${sshTitle(m.subdomain, host)}`} onClick={() => onTerminal(m)}>
                             <Terminal className="h-3.5 w-3.5" />
+                          </IconButton>
+                        )}
+                        {/* This machine's SSH: its host key, Loskai's key on it, a test. Amber
+                            until it is set up — then the terminal appears beside it. */}
+                        {sshReady && m.subdomain && host && onSsh && (
+                          <IconButton
+                            title={`${trusted[m.id] ? "SSH settings" : "Set up SSH"}: ${sshTitle(m.subdomain, host)}`}
+                            warn={!trusted[m.id]}
+                            onClick={() => onSsh(m)}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {onAddRoute && (

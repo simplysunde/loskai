@@ -38,7 +38,7 @@ function renderTerminal(sshKey: SshKey, unlockStatus = 200) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={sshKey} onSetup={() => {}} onClose={() => {}} />
+      <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={sshKey} onClose={() => {}} />
     </QueryClientProvider>,
   );
   return fetchMock;

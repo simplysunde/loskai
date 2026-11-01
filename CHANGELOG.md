@@ -18,7 +18,8 @@ Everything so far:
   Settings. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —
   containers, services, Proxmox guests — listed on hover — and opens a terminal in the
-  browser. Every terminal session is logged.
+  browser. Every terminal session is logged. Loskai's key and the log are in Settings ›
+  Security; each machine's SSH settings are behind the cog on its row.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

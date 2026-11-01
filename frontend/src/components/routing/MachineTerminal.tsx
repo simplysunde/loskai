@@ -17,12 +17,10 @@ const LOCKED = 4423;
 export function MachineTerminal({
   machine,
   sshKey,
-  onSetup,
   onClose,
 }: {
   machine: { id: string; name: string };
   sshKey: SshKey | null;
-  onSetup: () => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -44,14 +42,7 @@ export function MachineTerminal({
 
   return (
     <Modal
-      title={
-        <span className="flex items-center gap-3">
-          Terminal — {machine.name}
-          <button onClick={onSetup} className="text-xs font-normal text-teal-400 hover:underline">
-            SSH setup
-          </button>
-        </span>
-      }
+      title={`Terminal — ${machine.name}`}
       onClose={onClose}
       wide
     >

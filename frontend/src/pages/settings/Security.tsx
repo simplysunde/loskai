@@ -1,5 +1,7 @@
 import { KeyRound } from "lucide-react";
 
+import { SshKeySection } from "../../components/settings/SshKeySection";
+
 // Reserved category. The admin password is set once — from LOSKAI_PASSWORD or at first run —
 // and stored only as a hash; there is no change-password endpoint yet (auth.py has setup +
 // login only), so there is nothing to edit here until POST /api/auth/change-password lands.
@@ -28,6 +30,8 @@ export function Security() {
           </p>
         </div>
       </section>
+
+      <SshKeySection />
     </div>
   );
 }
