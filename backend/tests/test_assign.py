@@ -634,7 +634,7 @@ async def test_deleting_a_machine_leaves_the_routes_on_its_address_as_they_are()
 
     result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
 
-    assert result == {"deleted": True, "instance_id": "nas"}
+    assert result == {"deleted": True, "instance_id": "nas", "warning": None}
     assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
 
 

@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Deleting a machine takes Loskai's key off it
+
+**Always, not a choice** (Sunde: "can't we delete the keys the first time around?"). Until
+now a delete forgot the machine on Loskai's side only — its config entry and host key — and
+left both `authorized_keys` lines on it: access nobody would expect to outlive the machine
+in Loskai. Nothing is lost by taking them: there is one key for every machine, and adding
+the machine again installs the same lines with its password. The removal is the install's
+own filter (the lines ending ` loskai` and ` loskai-status`), so nothing else in the file is
+touched.
+
+**A locked key stops the delete; an unreachable machine doesn't.** Locked, the dialog asks for
+the admin password and nothing is deleted until the lines can go; unreachable, there is
+nothing more Loskai can do, so the delete goes ahead and the page says the lines are still
+there. **Found on the way:** a failed delete on the Machines tab was shown nowhere — its error
+went into a state only the naming and route dialogs display. It now shows in the dialog.
+
 ## 2026-11-01 — Status line v4: the tailnet, and commits not pushed
 
 **Tailscale's card lists the tailnet** (Sunde, asked whether the dialog would show `tailscale

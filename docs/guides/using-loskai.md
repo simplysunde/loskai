@@ -153,6 +153,11 @@ is **running** there — containers, your services and, on Proxmox, its VMs and 
 hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
 
+**Deleting** a set-up machine takes Loskai's key off it first — its two lines in
+`authorized_keys`, nothing else — so it asks for your admin password if the key is locked.
+If the machine can't be reached it is deleted anyway, and Loskai tells you its lines are
+still there. Adding it again later installs the same key again.
+
 ## Settings
 
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.

@@ -267,7 +267,9 @@ machine, worked out each time (`instances.on_address`). Hence:
 
 - moving a machine rewrites every route on its old address and re-pushes them in the same
   assign — except a route following its container, whose address is the container's;
-- deleting a machine changes no route — they keep the address they have;
+- deleting a machine changes no route — they keep the address they have; a set-up one has
+  Loskai's lines taken off it first (`connect.uninstall`, the main key; locked → `423`,
+  nothing deleted; unreachable → deleted, with a warning);
 - two machines can't share an address (`409`), or a route's machine would be ambiguous.
 
 The Machines tab lists each machine with the routes on its address beneath, and adds a route

@@ -63,6 +63,7 @@ const FACTS = {
 };
 let facts: unknown = FACTS;
 let sshKey: unknown = null;
+let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
 const TOOLS = [
   {
     id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], installable: [],
@@ -119,6 +120,7 @@ beforeEach(() => {
   sshTrusted = {};
   facts = FACTS;
   sshKey = null;
+  deleteReply = { deleted: true, instance_id: "nas", warning: null };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -141,6 +143,8 @@ beforeEach(() => {
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
               ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted, projects: { nas: "~/projects", pve: "~/projects" } }
+            : path === "/api/instances/nas" && init?.method === "DELETE"
+              ? deleteReply
             : path === "/api/ssh/tools"
               ? TOOLS
             : path === "/api/ssh/log"
@@ -240,6 +244,39 @@ test("deleting a machine names the routes on its address, which keep it", async 
   fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
 
   expect(screen.getByText(/2 routes are on its address/)).toHaveTextContent("(jellyfin, plex)");
+});
+
+test("deleting a set-up machine takes Loskai's key off it, unlocking the key first", async () => {
+  setUp();
+  sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
+  expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "pw" } });
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+  await vi.waitFor(() =>
+    expect(calls.filter((c) => c.method !== "GET").map((c) => [c.method, c.path])).toEqual([
+      ["POST", "/api/ssh/unlock"],
+      ["DELETE", "/api/instances/nas"],
+    ]),
+  );
+});
+
+test("a machine deleted with Loskai's key still on it says so", async () => {
+  setUp();
+  deleteReply = { deleted: true, instance_id: "nas", warning: "Loskai's key is still on the machine: No route to host" };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
+  // Unlocked already: no password asked.
+  expect(screen.queryByLabelText("Admin password")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+  expect(await screen.findByText(/No route to host — remove its/)).toBeInTheDocument();
 });
 
 test("every route on a machine's address is listed under it, by port", async () => {

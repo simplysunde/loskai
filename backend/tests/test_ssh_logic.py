@@ -197,6 +197,32 @@ def test_install_keeps_your_keys_and_replaces_only_loskai_s(tmp_path):
     assert not (tmp_path / ".ssh" / "authorized_keys.loskai-new").exists()
 
 
+def _uninstall(home):
+    import subprocess
+
+    subprocess.run(["sh", "-c", logic.UNINSTALL_SCRIPT], text=True, check=True,
+                   env={"HOME": str(home), "PATH": "/usr/bin:/bin"})
+
+
+def test_uninstall_takes_out_only_loskai_s_lines(tmp_path):
+    mine = "ssh-ed25519 MINE me@laptop\nssh-ed25519 OTHER loskai-but-not\n"
+    path = _install(tmp_path, mine, "ssh-ed25519 MAIN loskai\nrestrict ssh-ed25519 ST loskai-status\n")
+
+    _uninstall(tmp_path)
+
+    assert path.read_text() == mine
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_uninstall_with_nothing_there_does_nothing(tmp_path):
+    _uninstall(tmp_path)  # no ~/.ssh at all
+
+    assert not (tmp_path / ".ssh").exists()
+    path = _install(tmp_path, "", "ssh-ed25519 MAIN loskai\n")
+    _uninstall(tmp_path)
+    assert path.read_text() == ""
+
+
 # --- What runs ---
 
 OUTPUT = """\

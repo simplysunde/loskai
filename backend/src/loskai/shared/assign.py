@@ -33,6 +33,7 @@ from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
 from ..modules.docker import recipes
 from ..modules.docker.client import docker_client
+from ..modules.ssh import connect as ssh_connect
 from ..modules.ssh import machines as ssh_machines
 from . import follow
 from . import instances as instances_store
@@ -445,13 +446,20 @@ async def purge_instance(
     """Clear any route + rewrite for `inst` and drop its record. The caller owns the
     policy of *which* instances may be purged (external delete; orphan cleanup) — this
     just does the cross-module teardown."""
+    warning = None
+    if instances_store.is_machine(inst):
+        # First, while it can still be reached by name: Loskai's lines off the machine.
+        try:
+            warning = await ssh_machines.remove_keys(inst)
+        except ssh_connect.SshError as exc:
+            raise AssignError(exc.status_code, exc.detail)
     if inst.subdomain:
         await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
     # Routes on a deleted machine's address keep it: nothing links them, so nothing to undo.
     instances_store.delete_instance(inst.id)
     if instances_store.is_machine(inst):
         await asyncio.to_thread(ssh_machines.forget_machine, inst)
-    return {"deleted": True, "instance_id": inst.id}
+    return {"deleted": True, "instance_id": inst.id, "warning": warning}
 
 
 async def delete_instance(

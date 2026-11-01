@@ -13,6 +13,7 @@ from starlette.websockets import WebSocketDisconnect
 from loskai import config
 from loskai.main import app
 from loskai.modules.ssh import client as ssh_client
+from loskai.shared import instances as instances_store
 from loskai.modules.ssh import connect, logic, unlock
 from loskai.modules.ssh import tool as tool_module
 from loskai.shared import assign as assign_module
@@ -266,6 +267,44 @@ def test_a_machine_without_the_status_line_says_to_install_again(api, machine_ne
     view = api.get("/api/ssh/running").json()["nas"]
 
     assert view["ok"] is False and "install again" in view["error"]
+
+
+def test_deleting_a_set_up_machine_takes_loskai_s_lines_off_it_first(api, machine_net):
+    _with_key(api)
+    _trust(api)
+
+    assert api.delete("/api/instances/nas").json()["warning"] is None
+
+    last = machine_net["logins"][-1]
+    assert last["command"] == logic.UNINSTALL_SCRIPT and last["key"].get_comment() == "loskai"
+    assert api.get("/api/ssh/log").json()[0] | {"at": None} == {
+        "at": None, "event": "uninstall", "machine": "nas", "from": None, "ok": True,
+    }
+
+
+def test_a_locked_key_stops_the_delete_until_it_is_unlocked(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()
+
+    r = api.delete("/api/instances/nas")
+
+    assert r.status_code == 423
+    # Nothing happened: still a machine, still trusted, nothing run on it.
+    assert instances_store.get_instance("nas") is not None
+    assert logic.known_key(ssh_client.read_known_hosts(), "nas") is not None
+    assert all(login["command"] != logic.UNINSTALL_SCRIPT for login in machine_net["logins"])
+
+
+def test_a_machine_that_can_t_be_reached_is_deleted_with_a_warning(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    machine_net["fail"] = OSError("No route to host")
+
+    r = api.delete("/api/instances/nas")
+
+    assert r.status_code == 200 and r.json()["warning"].startswith("Loskai's key is still on the machine")
+    assert logic.known_key(ssh_client.read_known_hosts(), "nas") is None
 
 
 def test_deleting_a_machine_forgets_its_host_key(api, machine_net):

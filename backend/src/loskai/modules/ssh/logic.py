@@ -294,6 +294,15 @@ INSTALL_SCRIPT = (
     "mv \"$t\" \"$f\""
 )
 
+# Takes Loskai's lines out again, when the machine is deleted — the same lines, the same
+# way, and nothing else. No file, nothing to take out.
+UNINSTALL_SCRIPT = (
+    "set -e; umask 077; f=~/.ssh/authorized_keys; [ -f \"$f\" ] || exit 0; "
+    "t=\"$f.loskai-new\"; "
+    "{ grep -v -e ' loskai$' -e ' loskai-status$' \"$f\" || [ $? -eq 1 ]; } > \"$t\"; "
+    "mv \"$t\" \"$f\""
+)
+
 
 # --- known_hosts, keyed by machine id ---
 #

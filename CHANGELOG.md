@@ -38,6 +38,9 @@ Everything so far:
   folder, `git init`, and starts Claude in it. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
+- **Deleting a machine** takes Loskai's key off it first, with the admin password if the
+  key is locked; one that can't be reached is deleted with a warning that its key is still
+  there.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

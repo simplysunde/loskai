@@ -35,6 +35,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **Install it for me** sends a machine's password to that machine once, to add Loskai's
   keys, and keeps it nowhere. It is sent only after you have accepted the machine's host
   key, and a machine whose host key changes is refused.
+- **Deleting a machine takes Loskai's key off it** — its two `authorized_keys` lines, and
+  nothing else — before Loskai forgets it. A machine that can't be reached then is deleted
+  anyway, and Loskai says its lines are still there to remove by hand.
 - **A recipe runs the images it names.** Recipes are data, never executed themselves, but
   installing one starts its containers — trust a recipe source as you would its images.
 

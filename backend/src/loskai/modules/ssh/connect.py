@@ -190,6 +190,29 @@ async def install(machine_id: str, password: str) -> dict:
     return await test(machine_id)
 
 
+async def uninstall(machine_id: str) -> bool:
+    """Take Loskai's lines out of the machine's `authorized_keys`, with the main key, before
+    it is deleted. False when there is nothing to take out — no SSH user, a host key never
+    trusted, or no key made yet, so Loskai never installed. Raises SshError: 423 the key is
+    locked, 502 the machine can't be reached or refused."""
+    try:
+        t = target(machine_id)
+        host_key = _trusted(t)
+    except SshError:
+        return False
+    if client.public_key() is None:
+        return False
+    key = _main_key()
+    try:
+        result = await client.run(t.host, t.port, t.user, host_key, logic.UNINSTALL_SCRIPT, client_key=key)
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "key"))
+    if result.exit_status != 0:
+        detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
+        raise SshError(502, f"Removing Loskai's key on {t.host} failed: {detail[0]}")
+    return True
+
+
 async def test(machine_id: str) -> dict:
     """Log in with the main key, then read what runs with the status key."""
     t = target(machine_id)

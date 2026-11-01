@@ -38,6 +38,12 @@ export function Machines() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
+  // Deleting a set-up machine takes Loskai's key off it first, which needs the key unlocked:
+  // the admin password, typed in the dialog when it is locked. What went wrong shows there;
+  // a machine deleted with its key still on it says so after.
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
   // The machine a new route is being added on, from its row.
   const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
   // The machine with a terminal open.
@@ -104,13 +110,27 @@ export function Machines() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Add route failed"),
   });
 
+  const keyUnlocked = Boolean(
+    ssh.data?.key?.unlocked_until && Date.parse(ssh.data.key.unlocked_until) > Date.now(),
+  );
+  const removesKeys = (row: RouteRow | null) => Boolean(row && ssh.data?.key && ssh.data.trusted[row.id]);
   const remove = useMutation({
-    mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}`),
-    onSuccess: () => {
-      setConfirmDelete(null);
-      invalidate();
+    mutationFn: async (row: RouteRow) => {
+      if (removesKeys(row) && !keyUnlocked) await api.post("/api/ssh/unlock", { password: deletePassword });
+      return api.del<{ warning: string | null }>(`/api/instances/${row.id}`);
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Delete failed"),
+    onSuccess: (data) => {
+      setConfirmDelete(null);
+      setDeletePassword("");
+      setDeleteWarning(data.warning);
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["ssh"] });
+    },
+    onError: (err) => {
+      setDeleteError(err instanceof ApiError ? err.message : "Delete failed");
+      // The key may have locked meanwhile: ask again, with the password field.
+      qc.invalidateQueries({ queryKey: ["ssh"] });
+    },
   });
 
   const deleting = confirmDelete ? routesOn(confirmDelete, rows) : [];
@@ -138,6 +158,12 @@ export function Machines() {
       {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
           state is in its row. */}
       {result && <SaveBanner result={result} />}
+      {deleteWarning && (
+        <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          {deleteWarning} — remove its <span className="font-mono">loskai</span> lines from{" "}
+          <span className="font-mono">~/.ssh/authorized_keys</span> by hand.
+        </p>
+      )}
 
       {routes.isLoading ? (
         <div className="flex justify-center py-16 text-slate-500">
@@ -154,7 +180,11 @@ export function Machines() {
           tools={tools.data}
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
           onTerminal={setTerminalFor}
-          onDelete={setConfirmDelete}
+          onDelete={(m) => {
+            setDeleteError(null);
+            setDeletePassword("");
+            setConfirmDelete(m);
+          }}
           onAddRoute={(m) => {
             setError(null);
             setRouteOn(m);
@@ -207,12 +237,32 @@ export function Machines() {
         title="Delete machine"
         destructive
         confirmLabel="Delete"
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && remove.mutate(confirmDelete)}
+        onCancel={() => {
+          setConfirmDelete(null);
+          setDeleteError(null);
+        }}
+        onConfirm={() => {
+          setDeleteError(null);
+          if (confirmDelete) remove.mutate(confirmDelete);
+        }}
       >
         This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>{" "}
         and its DNS rewrite{confirmDelete?.subdomain && sshHosts[confirmDelete.subdomain] ? " and SSH entry" : ""}.
-        The machine itself isn't affected.
+        {removesKeys(confirmDelete)
+          ? " Loskai's key is taken off the machine first; nothing else on it changes."
+          : " The machine itself isn't affected."}
+        {removesKeys(confirmDelete) && !keyUnlocked && (
+          <input
+            type="password"
+            autoComplete="current-password"
+            aria-label="Admin password"
+            placeholder="Admin password — unlocks Loskai's key"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+          />
+        )}
+        {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}
         {/* Deleting a machine doesn't break what runs on it: nothing links those routes,
             so they keep the address they already have. */}
         {deleting.length > 0 && (

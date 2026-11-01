@@ -1733,6 +1733,11 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       fetch); a test gives a project an upstream and a commit not on it. 704 backend, 264
       frontend; `pytest`, `npm test`, `npm run build`, `oxlint`, `check-docs.sh`
 - [ ] Codebox: Install again (v4), then look at Tailscale's card once it is logged in
+- [x] Deleting a set-up machine takes Loskai's two lines off it first (`logic.UNINSTALL_SCRIPT`,
+      `connect.uninstall`); a locked key asks for the admin password in the dialog (`423`,
+      nothing deleted); an unreachable machine is deleted with a warning. A failed delete
+      now shows in its dialog (it showed nowhere). +5 backend (709), +2 frontend (267)
+- [ ] Live: delete a throwaway machine and check its `authorized_keys`
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 
