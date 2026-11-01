@@ -101,17 +101,18 @@ closed. Moving the machine moves them all, except a container route that follows
 container.
 
 The **cog** on a machine's row opens its page: edit its name, address and SSH login, set up
-SSH, its overview (system, uptime, memory, disks, updates waiting, tools, tmux sessions),
+SSH, its overview (system, uptime, memory, disks, updates waiting, tmux sessions), its tools,
 everything running there, and its log. A machine set up before the overview existed says
 "install again" there — one click.
 
-**Plugins** add buttons to a machine's page; enable the ones you want on each machine.
-**System** updates it (with its own package manager), reboots it or shuts it down;
+**Tools** add buttons to a machine's page — the ones that fit what the machine has, with
+nothing to switch on. **System** updates it (with its own package manager), reboots it or shuts it down;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it and answer a `sudo` password prompt there; hovering a button shows the command. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
-back up. A plugin that needs a tool the machine lacks offers to install it.
+back up. A tool that needs a program the machine lacks, such as tmux, is in the **Add**
+line beneath: clicking it installs what it needs, in the terminal.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai

@@ -1,5 +1,5 @@
 # What runs on the machine: a button on each service and container in its Running list.
-# docs/reference/plugin-schema.md is the format.
+# docs/reference/tool-schema.md is the format.
 name: Services
 description: Restart or stop a service or container, from the Running list.
 actions:

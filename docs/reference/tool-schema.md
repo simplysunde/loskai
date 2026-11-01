@@ -1,0 +1,128 @@
+[Docs](../README.md) › [Reference](../README.md#reference)
+
+# Tool schema
+
+**Read this when** you are adding a tool, adding an action to one, or changing how a
+machine's page runs them.
+
+A **tool** gives a machine's page things to do: buttons that run a command on the machine
+over SSH. Each one is a YAML file in `backend/src/loskai/modules/ssh/tools/`, shipped in
+the image, so a new tool or a change to one comes with a new version of Loskai.
+
+**Nothing is enabled or stored.** A tool **applies** to a machine that has every program
+it `requires`, as the machine's overview found them:
+
+- **Standard tools** need nothing Loskai installs. System applies everywhere, Services puts
+  its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
+  are.
+- **Workflow tools** need a program the machine may not have yet, such as tmux. One whose
+  missing programs Loskai can all install is offered in the Tools section's **Add** line.
+  Adding it installs them, and from then on it applies.
+
+Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's
+command comes from its file. The browser only names a tool, an action and, for an action
+on a row of the Running list, that row's **target**. The target is checked against its kind
+and reaches the command as `$1`, an argument, so no value can change what runs. The loader
+is `modules/ssh/tool.py`.
+
+## A file
+
+The file name is the tool's id (`system.yml` → `system`): lowercase letters, digits and
+`-`.
+
+```yaml
+name: System                      # required
+description: Update the system, reboot, shut down.   # required — one line, its tooltip
+requires: [tmux]                  # optional — programs the machine must have
+actions:                          # required — at least one
+  update:                         # the action's id
+    label: Update                 # required — the button
+    description: Refresh the package lists, then install every update.   # required — its tooltip
+    run:                          # required — one command, or one per package manager
+      apt: sudo apt-get update && sudo apt-get -y dist-upgrade
+      dnf: sudo dnf -y upgrade --refresh
+  reboot:
+    label: Reboot
+    description: Restart the machine.
+    confirm: Everything on it stops until it is back up.   # optional — asked first
+    run: sudo reboot
+  restart-service:
+    label: Restart
+    description: Restart this service.
+    target: service               # optional — a button on each service in the Running list
+    run: sudo systemctl restart "$1"
+```
+
+Unknown keys are refused. The validator names every problem at once.
+
+### `requires`, and getting a program
+
+`requires` lists programs by name. A program must be one the overview detects:
+`logic.PROGRAMS` (`tmux`, `claude`, `docker`, `pct`, `qm`, `git`, `sudo`).
+
+How to get a program is said once, for every tool, in `tool.INSTALLERS`:
+
+- `packages`, by package manager: Loskai runs that manager's install for the package (see
+  `tool.PACKAGE_INSTALL`), with `sudo`.
+- `script`: one command, for a program that isn't a distro package, such as an official
+  installer.
+
+Adding a tool installs everything it lacks in one go: the packages in one command, then
+each script. A program that isn't in `INSTALLERS` can't be installed from Loskai. `pct` and
+`qm` come only with Proxmox, so that tool simply never applies elsewhere, and isn't offered.
+
+### `run`
+
+A command for POSIX `sh`, run as the machine's SSH user:
+
+- **One per package manager** (`apt`, `dnf`, `apk`, `pacman`) when it differs. The machine's
+  manager is the one its overview found. An action without one for it can't run there,
+  and says so.
+- **`sudo`** for what needs root. The user answers its password prompt in the terminal, and
+  Loskai holds no machine password. When the login *is* root, as on Proxmox, `sudo` becomes
+  a plain call, so the same file works with or without sudo installed.
+- **`$1`** is the target, for an action with `target`. Always quote it: `"$1"`.
+- `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
+
+### `target`
+
+What a row action is on, and what its target must look like (`tool.TARGETS`):
+
+| `target` | A button on | `$1` |
+|---|---|---|
+| *(none)* | the tool's card — the machine itself | — |
+| `service` | each service in the Running list | the systemd unit, `nginx` |
+| `container` | each container | its name |
+| `lxc` | each running LXC (Proxmox) | its id, `101` |
+| `vm` | each running VM (Proxmox) | its id, `200` |
+
+The key is `target`, not `on`: YAML reads `on:` as `true`.
+
+## How an action runs
+
+`tool.visible` builds what the terminal runs:
+
+1. The command under `sh -c`, with the target as `$1`.
+2. Then `[done, exit N] Enter closes this.`, waiting for Enter, so the output stays on
+   screen.
+3. **Inside tmux** when the machine has it: one session per action and target
+   (`loskai-<tool>-<action>[-<target>]`). Closing the browser tab leaves it running, and
+   running the same action again attaches to it rather than starting a second.
+
+Adding a tool runs the same way, but never inside tmux: tmux may be what it installs.
+
+It opens in the machine's terminal, so it needs Loskai's key unlocked like any terminal.
+The SSH log records it as `action` (with the tool, the action, the target, the command and
+the tmux session) or `add-tool` (with the tool, the programs and the command).
+
+## Adding a tool
+
+1. Add `tools/<id>.yml`.
+2. Run `uv run pytest tests/test_ssh_tool.py`. Its first test loads every shipped tool,
+   so a mistake fails there with every problem named.
+3. If it needs a program the overview doesn't detect yet, add it to `logic.PROGRAMS` first.
+   That changes the status command, so it follows [ssh-status.md](ssh-status.md)'s
+   version steps. If Loskai can install it, add it to `tool.INSTALLERS`.
+4. A new kind of `target` needs a row in the Running list to put it on: `tool.TARGETS`,
+   `RunningList`, and this page.
+5. Note it in `CHANGELOG.md`. It ships with the next image.

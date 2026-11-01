@@ -26,7 +26,7 @@ your network. Read this before deciding where it runs and who can reach it.
 - **The Machines tab opens a shell on a machine**, from the browser, as Loskai's SSH user —
   only while the key is unlocked, and only from Loskai's own pages. Each terminal opened,
   closed or refused is logged (when, which machine, from where), not what is typed in it.
-- **Plugins run fixed commands** that ship in the image — the browser only names one, and
+- **Tools run fixed commands** that ship in the image — the browser only names one, and
   a value from the page (a service's name) reaches the command as an argument, never as
   code. They run as the SSH user in a terminal you see; anything needing root asks for
   `sudo` there. Each run is logged with its command.

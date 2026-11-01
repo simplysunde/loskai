@@ -14,7 +14,7 @@ from loskai import config
 from loskai.main import app
 from loskai.modules.ssh import client as ssh_client
 from loskai.modules.ssh import connect, logic, unlock
-from loskai.modules.ssh import plugin as plugin_module
+from loskai.modules.ssh import tool as tool_module
 from loskai.shared import assign as assign_module
 
 PASSWORD = "correct horse battery"
@@ -487,7 +487,7 @@ def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
     first = api.get("/api/ssh/machines/nas/facts").json()
     second = api.get("/api/ssh/machines/nas/facts").json()
 
-    assert first["ok"] and first["os"] == "Debian 12" and first["tools"] == ["tmux"]
+    assert first["ok"] and first["os"] == "Debian 12" and first["programs"] == ["tmux"]
     assert second == first
     asked = [x for x in machine_net["logins"] if x["command"] == "facts"]
     assert len(asked) == 1 and asked[0]["key"].get_comment() == "loskai-status"
@@ -507,7 +507,7 @@ def test_the_overview_needs_a_trusted_host_key(api, machine_net):
     assert api.get("/api/ssh/machines/nas/facts").status_code == 409
 
 
-# --- Plugins ---
+# --- Tools ---
 
 APT_FACTS = "#loskai-status 2\n#=updates\napt 3\n#=tools\nsudo\n"
 
@@ -518,46 +518,33 @@ def _ready(api, machine_net, facts=APT_FACTS):
     machine_net["facts"] = facts
 
 
-def test_the_plugins_are_listed_with_their_commands(api):
-    plugins = {p["id"]: p for p in api.get("/api/ssh/plugins").json()}
+def test_the_tools_are_listed_with_their_commands(api):
+    tools = {t["id"]: t for t in api.get("/api/ssh/tools").json()}
 
-    reboot = next(a for a in plugins["system"]["actions"] if a["id"] == "reboot")
+    reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
                       "confirm": "Everything on it stops until it is back up.", "run": "sudo reboot"}
+    assert tools["proxmox"]["installable"] == []
 
 
-def test_plugins_are_enabled_per_machine_and_kept_through_an_edit(api):
-    assert api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["system", "services", "system"]}).json() == {
-        "plugins": ["services", "system"]
-    }
-    # Moving the machine is an ordinary save: its plugins stay.
-    api.post("/api/machines", json={"hostname": "nas", "address": "192.168.10.51", "instance_id": "nas"})
-
-    assert api.get("/api/ssh").json()["plugins"] == {"nas": ["services", "system"]}
-    assert api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["nope"]}).status_code == 404
-    assert api.put("/api/ssh/machines/ghost/plugins", json={"plugins": []}).status_code == 404
-
-
-def test_an_action_runs_its_plugin_s_command_in_the_terminal_and_is_logged(api, machine_net, shell):
+def test_an_action_runs_its_tool_s_command_in_the_terminal_and_is_logged(api, machine_net, shell):
     _ready(api, machine_net)
-    api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["system"]})
 
-    with api.websocket_connect(TERMINAL + "&plugin=system&action=update", headers=ORIGIN) as ws:
+    with api.websocket_connect(TERMINAL + "&tool=system&action=update", headers=ORIGIN) as ws:
         assert ws.receive_bytes() == b"welcome\r\n"
 
     # The machine's package manager picked the command; no tmux there, so it runs plainly.
     assert "sudo apt-get update && sudo apt-get -y dist-upgrade" in shell["command"]
     assert not shell["command"].startswith("tmux")
     entry = api.get("/api/ssh/log").json()[1]
-    assert entry["event"] == "action" and entry["plugin"] == "system" and entry["action"] == "update"
+    assert entry["event"] == "action" and entry["tool"] == "system" and entry["action"] == "update"
     assert entry["command"] == "sudo apt-get update && sudo apt-get -y dist-upgrade"
 
 
 def test_with_tmux_an_action_runs_in_its_own_session(api, machine_net, shell):
     _ready(api, machine_net, APT_FACTS + "tmux\n")
-    api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["services"]})
 
-    with api.websocket_connect(TERMINAL + "&plugin=services&action=restart-service&target=nginx", headers=ORIGIN) as ws:
+    with api.websocket_connect(TERMINAL + "&tool=services&action=restart-service&target=nginx", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
     assert shell["command"].startswith("tmux new-session -A -s loskai-services-restart-service-nginx ")
@@ -565,16 +552,16 @@ def test_with_tmux_an_action_runs_in_its_own_session(api, machine_net, shell):
 
 
 @pytest.mark.parametrize(("query", "code", "reason"), [
-    ("&plugin=system&action=update", 4409, "isn't enabled"),
-    ("&plugin=services&action=restart-service&target=a%20b", 4409, "Not a service"),
-    ("&plugin=services&action=restart-service", 4409, "Not a service"),
-    ("&plugin=services&action=format", 4404, "no action"),
-    ("&plugin=nope&action=x", 4404, "No plugin"),
-    ("&plugin=proxmox&action=reboot-lxc&target=101", 4409, "needs pct, qm"),
+    ("&tool=services&action=restart-service&target=a%20b", 4409, "Not a service"),
+    ("&tool=services&action=restart-service", 4409, "Not a service"),
+    ("&tool=services&action=format", 4404, "no action"),
+    ("&tool=nope&action=x", 4404, "No tool"),
+    ("&tool=proxmox&action=reboot-lxc&target=101", 4409, "needs pct, qm"),
+    ("&tool=proxmox&install=true", 4409, "can't be installed from here"),
+    ("&tool=system&install=true", 4409, "has everything"),
 ])
 def test_an_action_that_can_t_run_here_is_refused_before_anything_runs(api, machine_net, shell, query, code, reason):
     _ready(api, machine_net)
-    api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["services", "proxmox"]})
 
     got_code, got_reason = _closed_with(api, TERMINAL + query)
 
@@ -582,29 +569,27 @@ def test_an_action_that_can_t_run_here_is_refused_before_anything_runs(api, mach
     assert "command" not in shell  # nothing was opened
 
 
-def test_a_missing_tool_is_installed_with_the_machine_s_package_manager(api, machine_net, shell, monkeypatch, tmp_path):
+def test_adding_a_tool_installs_what_it_lacks_with_the_machine_s_package_manager(api, machine_net, shell, monkeypatch, tmp_path):
     (tmp_path / "multiplex.yml").write_text(
-        "name: Multiplex\ndescription: d\nrequires: [tmux]\n"
-        "install: {tmux: {packages: {apt: tmux}}}\n"
+        "name: Multiplex\ndescription: d\nrequires: [tmux, git]\n"
         "actions: {ls: {label: List, description: d, run: tmux ls}}\n"
     )
-    monkeypatch.setattr(plugin_module, "DIR", tmp_path)
-    _ready(api, machine_net)
-    api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["multiplex"]})
+    monkeypatch.setattr(tool_module, "DIR", tmp_path)
+    _ready(api, machine_net, APT_FACTS + "git\n")
 
-    assert _closed_with(api, TERMINAL + "&plugin=multiplex&action=ls")[1].startswith("Multiplex needs tmux")
-    with api.websocket_connect(TERMINAL + "&plugin=multiplex&install=tmux", headers=ORIGIN) as ws:
+    assert _closed_with(api, TERMINAL + "&tool=multiplex&action=ls")[1].startswith("Multiplex needs tmux")
+    with api.websocket_connect(TERMINAL + "&tool=multiplex&install=true", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
     assert "sudo apt-get update && sudo apt-get install -y tmux" in shell["command"]
     assert not shell["command"].startswith("tmux")  # never in tmux: it may be what is missing
-    assert api.get("/api/ssh/log").json()[1]["event"] == "install-tool"
+    entry = api.get("/api/ssh/log").json()[1]
+    assert entry["event"] == "add-tool" and entry["programs"] == ["tmux"]
 
 
 def test_an_action_needs_the_machine_s_overview(api, machine_net, shell):
     _ready(api, machine_net, STATUS.replace("status 2", "status 1"))
-    api.put("/api/ssh/machines/nas/plugins", json={"plugins": ["system"]})
 
-    code, reason = _closed_with(api, TERMINAL + "&plugin=system&action=reboot")
+    code, reason = _closed_with(api, TERMINAL + "&tool=system&action=reboot")
 
     assert code == 4409 and reason.startswith("Its overview is needed first")

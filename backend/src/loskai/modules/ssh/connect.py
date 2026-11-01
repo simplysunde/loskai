@@ -18,7 +18,7 @@ import asyncssh
 from ...shared import instances as instances_store
 from ..docker.client import docker_client
 from ...shared import settings as settings_store
-from . import client, logic, plugin, unlock
+from . import client, logic, tool, unlock
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +210,7 @@ async def test(machine_id: str) -> dict:
 
 
 async def open_terminal(machine_id: str, cols: int, rows: int, command: str | None = None):
-    """A shell on the machine — or a plugin's `command` (see `plan`) — with the main key,
+    """A shell on the machine — or a tool's `command` (see `plan`) — with the main key,
     which must be unlocked, so a terminal is only opened within 15 minutes of the admin
     password. Returns the target, connection and process; the caller closes the connection."""
     t = target(machine_id)
@@ -317,50 +317,45 @@ async def facts(machine_id: str) -> dict:
     return view
 
 
-# --- Plugins ---
+# --- Tools ---
 
 
 async def plan(
-    machine_id: str, plugin_id: str, action_id: str | None, target_name: str | None, tool: str | None
+    machine_id: str, tool_id: str, action_id: str | None, target_name: str | None, install: bool
 ) -> tuple[str, dict]:
-    """What a terminal runs for a plugin's action — or to install a tool it requires — on
-    this machine, and what the log says about it. The command comes from the plugin file
-    and the machine's overview (its package manager, whether it has tmux), never from the
-    request. Raises SshError: 404 no such plugin or action, 409 it can't run here as asked."""
-    p = plugin.load().get(plugin_id)
-    if p is None:
-        raise SshError(404, f"No plugin {plugin_id!r}")
-    inst = instances_store.get_instance(machine_id)
+    """What a terminal runs for a tool's action — or to install what the tool lacks — on
+    this machine, and what the log says about it. The command comes from the tool file
+    and the machine's overview (its package manager, its programs), never from the request.
+    Raises SshError: 404 no such tool or action, 409 it can't run here as asked."""
+    t = tool.load().get(tool_id)
+    if t is None:
+        raise SshError(404, f"No tool {tool_id!r}")
     target(machine_id)  # an SSH user, or 409
     f = await facts(machine_id)
     if not f.get("ok"):
         raise SshError(409, f"Its overview is needed first: {f.get('error')}")
     manager = (f.get("updates") or {}).get("manager")
-    tools = set(f.get("tools") or [])
+    programs = set(f.get("programs") or [])
     try:
-        if tool:
-            if tool not in p.requires:
-                raise SshError(404, f"{p.name} doesn't need {tool}")
-            script = plugin.install_script(p, tool, manager)
+        if install:
+            script = tool.install_script(t, programs, manager)
             # Never in tmux: it may be tmux that is missing.
-            return plugin.visible(script, None, None), {
-                "event": "install-tool", "plugin": p.id, "tool": tool, "command": script,
+            return tool.visible(script, None, None), {
+                "event": "add-tool", "tool": t.id, "programs": tool.missing(t, programs), "command": script,
             }
-        if inst is None or p.id not in inst.plugins:
-            raise SshError(409, f"{p.name} isn't enabled on this machine")
-        missing = [t for t in p.requires if t not in tools]
-        if missing:
-            raise SshError(409, f"{p.name} needs {', '.join(missing)} — install it first")
-        action = p.actions.get(action_id or "")
+        lacking = tool.missing(t, programs)
+        if lacking:
+            raise SshError(409, f"{t.name} needs {', '.join(lacking)} — add it first")
+        action = t.actions.get(action_id or "")
         if action is None:
-            raise SshError(404, f"{p.name} has no action {action_id!r}")
-        plugin.check_target(action.target, target_name)
-        script = plugin.action_script(p, action.id, manager)
-    except plugin.PluginError as exc:
+            raise SshError(404, f"{t.name} has no action {action_id!r}")
+        tool.check_target(action.target, target_name)
+        script = tool.action_script(t, action.id, manager)
+    except tool.ToolError as exc:
         raise SshError(409, str(exc))
-    session = plugin.session_name(p.id, action.id, target_name) if "tmux" in tools else None
-    return plugin.visible(script, target_name, session), {
-        "event": "action", "plugin": p.id, "action": action.id, "target": target_name,
+    session = tool.session_name(t.id, action.id, target_name) if "tmux" in programs else None
+    return tool.visible(script, target_name, session), {
+        "event": "action", "tool": t.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,
     }
 

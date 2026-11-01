@@ -303,7 +303,7 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     assert [d["mount"] for d in out["disks"]] == ["/", "/mnt/data", "/boot/efi"]
     assert out["disks"][1] == {"mount": "/mnt/data", "device": "/dev/sda2", "size": 97411380 * 1024, "used": 34403488 * 1024}
     assert out["updates"] == {"manager": "apt", "count": 12}
-    assert out["tools"] == ["tmux", "docker", "pct"]
+    assert out["programs"] == ["tmux", "docker", "pct"]
     assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2}]
 
 
@@ -326,6 +326,6 @@ def test_the_forced_command_runs_in_sh_and_answers_each_request(request_):
     if request_ == "facts":
         facts = logic.parse_facts(out)
         assert facts["kernel"] and facts["uptime"] and facts["memory"]["total"] > 0
-        assert set(facts["tools"]) <= set(logic.FACT_TOOLS)
+        assert set(facts["programs"]) <= set(logic.PROGRAMS)
     else:
         assert set(logic.parse_running(out)) == {"containers", "services", "hidden", "guests", "denied"}

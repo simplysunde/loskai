@@ -1,5 +1,5 @@
 # A Proxmox host's guests: a button on each running LXC and VM in its Running list.
-# docs/reference/plugin-schema.md is the format.
+# docs/reference/tool-schema.md is the format.
 name: Proxmox
 description: Reboot or shut down a running LXC or VM.
 requires: [pct, qm]

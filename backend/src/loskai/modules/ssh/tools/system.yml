@@ -1,5 +1,5 @@
 # The machine itself: bring it up to date, restart it, turn it off.
-# docs/reference/plugin-schema.md is the format.
+# docs/reference/tool-schema.md is the format.
 name: System
 description: Update the system, reboot, shut down.
 actions:

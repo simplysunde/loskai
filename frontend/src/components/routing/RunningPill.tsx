@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { PluginTarget } from "../../lib/plugins";
+import type { ToolTarget } from "../../lib/tools";
 import { runningCount, type Running } from "../../lib/ssh";
 
 const DENIED: Record<string, string> = {
@@ -66,7 +66,7 @@ export function RunningPill({ running, user }: { running: Running; user?: string
 }
 
 // Everything that runs on a machine, by kind — the pill's card, and the machine's page,
-// where `actions` puts its enabled plugins' buttons on each row.
+// where `actions` puts the buttons of the tools that apply on each row.
 export function RunningList({
   running,
   user,
@@ -74,7 +74,7 @@ export function RunningList({
 }: {
   running: Running;
   user?: string;
-  actions?: (target: PluginTarget, id: string) => React.ReactNode;
+  actions?: (target: ToolTarget, id: string) => React.ReactNode;
 }) {
   const containers = running.containers ?? [];
   const services = running.services ?? [];

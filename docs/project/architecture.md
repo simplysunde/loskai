@@ -294,22 +294,25 @@ the admin password (`unlock.py`) and locked by logout. Each set-up machine's row
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
 30 s, only while someone is looking. The machine's page adds its **overview** — system,
-uptime, memory, disks, updates waiting, tools, tmux sessions — from the same key's second
+uptime, memory, disks, updates waiting, the programs tools require, tmux sessions — from the same key's second
 request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command answers both,
 picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
 is [ssh-status.md](../reference/ssh-status.md).
 
-**Plugins** are what a machine's page can *do* (Phase 34f): YAML files in
-`modules/ssh/plugins/`, shipped in the image and enabled per machine (`plugins` on its
-record). Each names the tools it needs (from the overview's) and how to install a missing
-one, and its actions: a label and the command, per package manager where they differ, on
-the machine or on a row of the Running list (a service, container, LXC, VM). Like a recipe,
-a plugin is data: the browser names a plugin, an action and a row's target, and
+**Tools** are what a machine's page can *do* (Phase 34f): YAML files in
+`modules/ssh/tools/`, shipped in the image. Each names the programs it requires (from the
+overview's) and its actions: a label and the command, per package manager where they
+differ, on the machine or on a row of the Running list (a service, container, LXC, VM).
+**Nothing is enabled or stored**: a tool applies where the machine has its programs — the
+standard ones (System, Services, Proxmox) wherever they fit — and one lacking only programs
+Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) is offered
+to add, which installs them. Like a recipe,
+a tool is data: the browser names a tool, an action and a row's target, and
 `connect.plan` works the command out from the file and the machine's overview — the target
 only ever `$1` — refusing before anything runs when it can't run there. The action runs in
 the machine's terminal, inside a tmux session when the machine has tmux (so closing the tab
 doesn't stop an update, and running it again attaches), and the log records its command.
-The format is [plugin-schema.md](../reference/plugin-schema.md).
+The format is [tool-schema.md](../reference/tool-schema.md).
 
 A set-up machine's row opens a **terminal** (`MachineTerminal`): a pty shell over SSH with
 the main key, behind the session, `Origin` and unlocked-key checks; closing it hangs up the

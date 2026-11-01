@@ -5,16 +5,16 @@ import { api } from "../../lib/api";
 
 interface LogEntry {
   at: string;
-  event: "open" | "close" | "refused" | "install" | "action" | "install-tool";
+  event: "open" | "close" | "refused" | "install" | "action" | "add-tool";
   machine: string;
   from: string | null;
   target?: string;
   seconds?: number;
   ok?: boolean;
   error?: string;
-  plugin?: string;
-  action?: string;
   tool?: string;
+  action?: string;
+  programs?: string[];
   command?: string;
 }
 
@@ -29,9 +29,9 @@ function what(e: LogEntry): string {
     case "install":
       return e.ok ? "Keys installed" : `Install failed: ${e.error ?? ""}`;
     case "action":
-      return `Ran ${e.plugin} › ${e.action}${e.target ? ` on ${e.target}` : ""}`;
-    case "install-tool":
-      return `Installing ${e.tool} (${e.plugin})`;
+      return `Ran ${e.tool} › ${e.action}${e.target ? ` on ${e.target}` : ""}`;
+    case "add-tool":
+      return `Adding ${e.tool}: installing ${(e.programs ?? []).join(", ")}`;
   }
 }
 

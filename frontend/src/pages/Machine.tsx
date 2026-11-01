@@ -4,14 +4,14 @@ import { ArrowLeft, HardDrive, Loader2, Pencil, Settings, Terminal } from "lucid
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
-import { usePlugins, type PluginAction, type PluginRun, type PluginTarget } from "../lib/plugins";
+import { missing, useTools, type ToolAction, type ToolRun, type ToolTarget } from "../lib/tools";
 import type { SettingsView } from "../lib/settings";
 import { useFacts, useRunning, useSsh } from "../lib/ssh";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
 import { MachineOverview } from "../components/routing/MachineOverview";
-import { MachinePlugins } from "../components/routing/MachinePlugins";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
+import { MachineTools } from "../components/routing/MachineTools";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { SshSetupModal } from "../components/routing/SshSetupModal";
@@ -31,9 +31,8 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, its overview, its plugins, what runs on it,
-// and its log. What is the
-// same for every machine is in Settings › SSH.
+// name, address and SSH login, its SSH setup, its overview, its tools, what runs on it,
+// and its log. What is the same for every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
   const handed = (useLocation().state ?? {}) as MachineState;
@@ -41,11 +40,11 @@ export function Machine() {
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [editing, setEditing] = useState(false);
   const [terminal, setTerminal] = useState(false);
-  // A plugin's action in the terminal, and one waiting for its confirmation.
-  const [run, setRun] = useState<PluginRun | null>(null);
-  const [confirming, setConfirming] = useState<{ run: PluginRun; action: PluginAction } | null>(null);
+  // A tool's action in the terminal, and one waiting for its confirmation.
+  const [run, setRun] = useState<ToolRun | null>(null);
+  const [confirming, setConfirming] = useState<{ run: ToolRun; action: ToolAction } | null>(null);
   const qc = useQueryClient();
-  const plugins = usePlugins();
+  const tools = useTools();
   const [error, setError] = useState<string | null>(null);
 
   const routes = useQuery({
@@ -73,25 +72,24 @@ export function Machine() {
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
-  const enabled = ssh.data?.plugins[id] ?? [];
-  const tools = facts.data?.tools ?? [];
+  const programs = facts.data?.programs ?? [];
   const manager = facts.data?.updates?.manager ?? null;
-  const ready = (plugins.data ?? []).filter((p) => enabled.includes(p.id) && p.requires.every((t) => tools.includes(t)));
+  const here = (tools.data ?? []).filter((t) => missing(t, programs).length === 0);
 
-  const start = (r: PluginRun, action?: PluginAction) => {
+  const start = (r: ToolRun, action?: ToolAction) => {
     if (action?.confirm) setConfirming({ run: r, action });
     else setRun(r);
   };
-  // The buttons an enabled plugin puts on a row of the Running list.
-  const rowActions = (target: PluginTarget, name: string) =>
-    ready.flatMap((p) =>
-      p.actions
+  // The buttons a tool that applies here puts on a row of the Running list.
+  const rowActions = (target: ToolTarget, name: string) =>
+    here.flatMap((t) =>
+      t.actions
         .filter((a) => a.target === target)
         .map((a) => (
           <button
-            key={`${p.id}-${a.id}`}
+            key={`${t.id}-${a.id}`}
             title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
-            onClick={() => start({ plugin: p.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
+            onClick={() => start({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
             className="text-[11px] text-teal-400 hover:underline"
           >
             {a.label}
@@ -190,17 +188,10 @@ export function Machine() {
           </section>
         )}
 
-        {host?.user && trusted && facts.data?.ok && plugins.data && (
+        {host?.user && trusted && facts.data?.ok && tools.data && (
           <section className="border-t border-slate-800 pt-6">
-            <h2 className="mb-3 text-sm font-medium text-slate-200">Plugins</h2>
-            <MachinePlugins
-              machineId={id}
-              plugins={plugins.data}
-              enabled={enabled}
-              tools={tools}
-              manager={manager}
-              onRun={start}
-            />
+            <h2 className="mb-3 text-sm font-medium text-slate-200">Tools</h2>
+            <MachineTools tools={tools.data} programs={programs} manager={manager} onRun={start} />
           </section>
         )}
 

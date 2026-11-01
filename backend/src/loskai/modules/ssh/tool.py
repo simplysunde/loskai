@@ -1,11 +1,13 @@
-"""Plugins — what a machine's page can do, as data.
+"""Tools — what a machine's page can do, as data.
 
-A plugin is one YAML file in `plugins/`, shipped in the image: a name, the tools it needs
-and how to install them, and its actions — each a label and the shell it runs on the
-machine. Like a recipe it is validated, never executed by Loskai: an action's command comes
-from the file, never from the browser, which only names a plugin, an action and, for an
+A tool is one YAML file in `tools/`, shipped in the image: a name, the programs it requires,
+and its actions — each a label and the shell it runs on the machine. A tool applies to a
+machine that has every program it requires, as its overview found them; nothing is
+enabled or stored. One whose missing programs Loskai can install (`INSTALLERS`) is offered
+to add. Like a recipe a tool is validated, never executed by Loskai: an action's command
+comes from the file, never from the browser, which only names a tool, an action and, for an
 action on a row of the Running list, its target. The target reaches the command as `$1`, an
-argument, so no value can change what runs. docs/reference/plugin-schema.md is the format.
+argument, so no value can change what runs. docs/reference/tool-schema.md is the format.
 
 Everything here is pure; `connect.py` decides which machine and runs it.
 """
@@ -17,18 +19,26 @@ from pathlib import Path
 
 import yaml
 
-from .logic import FACT_TOOLS
+from .logic import PROGRAMS
 
-DIR = Path(__file__).parent / "plugins"
+DIR = Path(__file__).parent / "tools"
 
 # The package managers the overview recognises (`logic._FACTS`' updates section), and how
-# each installs a package — for a required tool named by its package.
+# each installs packages.
 MANAGERS = ("apt", "dnf", "apk", "pacman")
-INSTALL = {
+PACKAGE_INSTALL = {
     "apt": "sudo apt-get update && sudo apt-get install -y",
     "dnf": "sudo dnf install -y",
     "apk": "sudo apk add",
     "pacman": "sudo pacman -S --noconfirm",
+}
+
+# How to get each program a tool may require — the one place it is said. A program that
+# isn't here (Proxmox's `pct`) can't be installed from Loskai, so a tool requiring it only
+# applies where it already is.
+INSTALLERS: dict[str, dict] = {
+    "tmux": {"packages": {"apt": "tmux", "dnf": "tmux", "apk": "tmux", "pacman": "tmux"}},
+    "git": {"packages": {"apt": "git", "dnf": "git", "apk": "git", "pacman": "git"}},
 }
 
 # What an action can be on — a row of the Running list — and what its target must look
@@ -43,8 +53,8 @@ TARGETS = {
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 
 
-class PluginError(ValueError):
-    """A plugin file that isn't valid, or an action that can't run as asked."""
+class ToolError(ValueError):
+    """A tool file that isn't valid, or an action that can't run as asked."""
 
 
 @dataclass(frozen=True)
@@ -58,23 +68,22 @@ class Action:
 
 
 @dataclass(frozen=True)
-class Plugin:
+class Tool:
     id: str
     name: str
     description: str
-    requires: tuple[str, ...]  # tools from logic.FACT_TOOLS
-    install: dict[str, dict]  # tool → {"packages": {manager: package}} or {"script": "…"}
+    requires: tuple[str, ...]  # programs from logic.PROGRAMS
     actions: dict[str, Action]
 
 
-def parse(plugin_id: str, doc: object) -> Plugin:
-    """A plugin file's YAML → a Plugin, or PluginError naming every problem at once."""
+def parse(tool_id: str, doc: object) -> Tool:
+    """A tool file's YAML → a Tool, or ToolError naming every problem at once."""
     problems: list[str] = []
-    if not _ID.match(plugin_id):
-        problems.append(f"the file name {plugin_id!r} must be lowercase letters, digits and -")
+    if not _ID.match(tool_id):
+        problems.append(f"the file name {tool_id!r} must be lowercase letters, digits and -")
     if not isinstance(doc, dict):
-        raise PluginError(f"{plugin_id}: not a YAML mapping")
-    unknown = set(doc) - {"name", "description", "requires", "install", "actions"}
+        raise ToolError(f"{tool_id}: not a YAML mapping")
+    unknown = set(doc) - {"name", "description", "requires", "actions"}
     if unknown:
         problems.append(f"unknown keys: {', '.join(sorted(map(str, unknown)))}")
     for key in ("name", "description"):
@@ -83,25 +92,11 @@ def parse(plugin_id: str, doc: object) -> Plugin:
 
     requires = doc.get("requires") or []
     if not isinstance(requires, list) or not all(isinstance(t, str) for t in requires):
-        problems.append("`requires` must be a list of tool names")
+        problems.append("`requires` must be a list of programs")
         requires = []
-    for tool in requires:
-        if tool not in FACT_TOOLS:
-            problems.append(f"`requires`: {tool!r} isn't a tool the overview detects ({', '.join(FACT_TOOLS)})")
-
-    install = doc.get("install") or {}
-    if not isinstance(install, dict):
-        problems.append("`install` must map a tool to how to install it")
-        install = {}
-    for tool, how in install.items():
-        if tool not in requires:
-            problems.append(f"`install.{tool}`: not in `requires`")
-        if not isinstance(how, dict) or len(set(how) & {"packages", "script"}) != 1 or set(how) - {"packages", "script"}:
-            problems.append(f"`install.{tool}`: give exactly one of `packages` or `script`")
-        elif "packages" in how:
-            problems += _by_manager(f"install.{tool}.packages", how["packages"])
-        elif not isinstance(how["script"], str) or not how["script"].strip():
-            problems.append(f"`install.{tool}.script` must be a command")
+    for program in requires:
+        if program not in PROGRAMS:
+            problems.append(f"`requires`: {program!r} isn't a program the overview detects ({', '.join(PROGRAMS)})")
 
     actions: dict[str, Action] = {}
     raw_actions = doc.get("actions")
@@ -140,10 +135,10 @@ def parse(plugin_id: str, doc: object) -> Plugin:
         )
 
     if problems:
-        raise PluginError(f"{plugin_id}: " + "; ".join(problems))
-    return Plugin(
-        id=plugin_id, name=doc["name"], description=doc["description"],
-        requires=tuple(requires), install=install, actions=actions,
+        raise ToolError(f"{tool_id}: " + "; ".join(problems))
+    return Tool(
+        id=tool_id, name=doc["name"], description=doc["description"],
+        requires=tuple(requires), actions=actions,
     )
 
 
@@ -159,9 +154,9 @@ def _by_manager(where: str, value: object) -> list[str]:
     return out
 
 
-def load(directory: Path | None = None) -> dict[str, Plugin]:
-    """Every plugin file in `directory` (default `DIR`), by id (the file name). Raises
-    PluginError for the first that isn't valid — they ship in the image, and the test suite
+def load(directory: Path | None = None) -> dict[str, Tool]:
+    """Every tool file in `directory` (default `DIR`), by id (the file name). Raises
+    ToolError for the first that isn't valid — they ship in the image, and the test suite
     loads them all."""
     return {
         path.stem: parse(path.stem, yaml.safe_load(path.read_text(encoding="utf-8")))
@@ -169,16 +164,17 @@ def load(directory: Path | None = None) -> dict[str, Plugin]:
     }
 
 
-def view(p: Plugin) -> dict:
-    """A plugin as the page shows it — the commands included, so what runs can be read."""
+def view(t: Tool) -> dict:
+    """A tool as the page shows it — the commands included, so what runs can be read.
+    `installable`: the programs it requires that Loskai can install."""
     return {
-        "id": p.id, "name": p.name, "description": p.description,
-        "requires": list(p.requires),
-        "install": {tool: how for tool, how in p.install.items()},
+        "id": t.id, "name": t.name, "description": t.description,
+        "requires": list(t.requires),
+        "installable": [p for p in t.requires if p in INSTALLERS],
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
              "confirm": a.confirm, "run": a.run}
-            for a in p.actions.values()
+            for a in t.actions.values()
         ],
     }
 
@@ -186,48 +182,63 @@ def view(p: Plugin) -> dict:
 # --- What runs ---
 
 
-def action_script(p: Plugin, action_id: str, manager: str | None) -> str:
+def missing(t: Tool, programs: set[str]) -> list[str]:
+    """The programs `t` requires that a machine with `programs` lacks — none: it applies."""
+    return [p for p in t.requires if p not in programs]
+
+
+def action_script(t: Tool, action_id: str, manager: str | None) -> str:
     """The shell an action runs on a machine with `manager`."""
-    action = p.actions.get(action_id)
+    action = t.actions.get(action_id)
     if action is None:
-        raise PluginError(f"{p.name} has no action {action_id!r}")
+        raise ToolError(f"{t.name} has no action {action_id!r}")
     if isinstance(action.run, str):
         return action.run
     if manager not in action.run:
-        raise PluginError(f"{p.name} › {action.label} has no command for {manager or 'this machine'}'s package manager")
+        raise ToolError(f"{t.name} › {action.label} has no command for {manager or 'this machine'}'s package manager")
     return action.run[manager]
 
 
-def install_script(p: Plugin, tool: str, manager: str | None) -> str:
-    """The shell that installs a tool the plugin requires."""
-    how = p.install.get(tool)
-    if how is None:
-        raise PluginError(f"{p.name} can't install {tool} — it has to be there already")
-    if "script" in how:
-        return how["script"]
-    package = how["packages"].get(manager)
-    if package is None:
-        raise PluginError(f"{p.name} has no {tool} package for {manager or 'this machine'}'s package manager")
-    return f"{INSTALL[manager]} {shlex.quote(package)}"
+def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
+    """The shell that installs what `t` lacks on a machine with `programs` and `manager`:
+    every package in one command, then each official installer."""
+    lacking = missing(t, programs)
+    if not lacking:
+        raise ToolError(f"{t.name} has everything it needs here")
+    cannot = [p for p in lacking if p not in INSTALLERS]
+    if cannot:
+        raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here")
+    packages, scripts = [], []
+    for program in lacking:
+        how = INSTALLERS[program]
+        if "script" in how:
+            scripts.append(how["script"])
+        elif manager in how["packages"]:
+            packages.append(how["packages"][manager])
+        else:
+            raise ToolError(f"No {program} package for {manager or 'this machine'}'s package manager")
+    steps = ([f"{PACKAGE_INSTALL[manager]} {' '.join(map(shlex.quote, packages))}"] if packages else []) + scripts
+    return " && ".join(steps)
 
 
 def check_target(kind: str | None, target: str | None) -> None:
     """`target` must be what an action on `kind` takes — nothing, for the machine."""
     if kind is None:
         if target:
-            raise PluginError("This action is for the machine, not one thing on it")
+            raise ToolError("This action is for the machine, not one thing on it")
         return
     if not target or not TARGETS[kind].match(target):
-        raise PluginError(f"Not a {kind}: {target!r}")
+        raise ToolError(f"Not a {kind}: {target!r}")
 
 
 def visible(script: str, target: str | None, session: str | None) -> str:
     """The command a terminal runs for an action: `script` under `sh`, the target as `$1`;
     then it says how it ended and waits for Enter, so the output stays on screen. `sudo`
-    is a plain call for root (Proxmox logs in as root, often without sudo). Given a tmux
-    `session`, it runs inside it — closing the tab leaves it running, and running the same
-    action again attaches to it rather than starting a second."""
-    body = 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
+    is a plain call for root (Proxmox logs in as root, often without sudo), and
+    `~/.local/bin` is on the PATH, as the overview has it. Given a tmux `session`, it runs
+    inside it — closing the tab leaves it running, and running the same action again
+    attaches to it rather than starting a second."""
+    body = 'PATH=$PATH:$HOME/.local/bin; if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")
     job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
     if session:
@@ -235,7 +246,7 @@ def visible(script: str, target: str | None, session: str | None) -> str:
     return job
 
 
-def session_name(plugin_id: str, action_id: str, target: str | None) -> str:
+def session_name(tool_id: str, action_id: str, target: str | None) -> str:
     """One tmux session per action and target, in characters tmux allows in a name."""
-    name = f"loskai-{plugin_id}-{action_id}" + (f"-{target}" if target else "")
+    name = f"loskai-{tool_id}-{action_id}" + (f"-{target}" if target else "")
     return re.sub(r"[^A-Za-z0-9_-]", "_", name)

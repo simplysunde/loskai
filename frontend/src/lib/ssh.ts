@@ -21,7 +21,6 @@ export interface SshStatus {
   key: SshKey | null;
   hosts: Record<string, SshHost>;
   trusted: Record<string, boolean>; // machine ids with a trusted host key
-  plugins: Record<string, string[]>; // each machine's enabled plugins (none: left out)
 }
 
 export function useSsh() {
@@ -68,7 +67,7 @@ export interface Facts {
   memory?: { total: number; available: number | null } | null; // bytes
   disks?: { mount: string; device: string; size: number; used: number }[]; // bytes
   updates?: { manager: string; count: number } | null;
-  tools?: string[];
+  programs?: string[]; // what tools require (lib/tools.ts)
   tmux?: { name: string; created: number; attached: boolean; windows: number }[];
 }
 

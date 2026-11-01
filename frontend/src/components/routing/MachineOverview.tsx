@@ -5,8 +5,8 @@ import type { Facts } from "../../lib/ssh";
 
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
 
-// A machine's overview: what it runs as, how full it is, what is waiting, which tools it
-// has, its tmux sessions. An older status line has none — then the reinstall is offered.
+// A machine's overview: what it runs as, how full it is, what is waiting, its tmux
+// sessions. An older status line has none — then the reinstall is offered.
 export function MachineOverview({
   facts,
   onReinstall,
@@ -51,18 +51,6 @@ export function MachineOverview({
             </span>
           )}
         </dd>
-        {facts.tools && facts.tools.length > 0 && (
-          <>
-            <dt className="text-slate-500">Tools</dt>
-            <dd className="flex flex-wrap gap-1">
-              {facts.tools.map((t) => (
-                <span key={t} className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-slate-300">
-                  {t}
-                </span>
-              ))}
-            </dd>
-          </>
-        )}
       </dl>
 
       <div className="space-y-1.5">

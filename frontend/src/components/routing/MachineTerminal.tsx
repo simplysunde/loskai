@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
-import { runQuery, type PluginRun } from "../../lib/plugins";
+import { runQuery, type ToolRun } from "../../lib/tools";
 import type { SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
 import { XtermSession } from "../shared/XtermSession";
@@ -12,7 +12,7 @@ import { XtermSession } from "../shared/XtermSession";
 // locked — the one case the password below fixes.
 const LOCKED = 4423;
 
-// A shell on a machine over SSH — or a plugin's action, given `run`. It needs Loskai's key
+// A shell on a machine over SSH — or a tool's action, given `run`. It needs Loskai's key
 // unlocked, so a locked key asks for the admin password here first; once open, it lasts
 // until it is closed or the session ends, however long that is.
 export function MachineTerminal({
@@ -23,7 +23,7 @@ export function MachineTerminal({
 }: {
   machine: { id: string; name: string };
   sshKey: SshKey | null;
-  run?: PluginRun;
+  run?: ToolRun;
   onClose: () => void;
 }) {
   const qc = useQueryClient();

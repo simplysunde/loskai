@@ -1622,7 +1622,7 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
 - [ ] Codebox: Install again from its page, then look at the overview
 
 **34f — plugins, and the first ones**
-- [x] The plugin format (`plugin.py`, [plugin-schema.md](../reference/plugin-schema.md)),
+- [x] The plugin format (`plugin.py`, [tool-schema.md](../reference/tool-schema.md), then plugin-schema.md),
       its validator (every problem at once), built-ins in the image; enabled per machine
       (`plugins` on its record, `PUT /api/ssh/machines/{id}/plugins`); a Plugins section on
       the machine page — enable, disable, install what is missing
@@ -1652,15 +1652,17 @@ track of projects", "a quick install of tailscale" — "we can simply keep the t
 The projects folder: "a default one, that can easily be overwritten per machine"._
 
 **34f′ — standard actions and tools: nothing to enable**
-- [ ] One format, renamed **tools** (`tool.py`, `tools/`, `tool-schema.md`). A tool applies
+- [x] One format, renamed **tools** (`tool.py`, `tools/`, `tool-schema.md`). A tool applies
       to a machine when it has every program the tool requires — detected, never stored:
       System everywhere, Services' row actions on every row, Proxmox where `pct` and `qm`
       are. The per-machine enabled list and its endpoint go
-- [ ] **How to get a program is in one place** (`tool.PROGRAMS`), not repeated per file. A
+- [x] **How to get a program is in one place** (`tool.PROGRAMS`), not repeated per file. A
       tool whose missing programs can all be installed is offered in the Tools section's
       **Add** line; adding it installs them in one command (`?tool=&install=1`)
-- [ ] The machine page's Plugins section becomes **Tools**: a card per tool that applies,
+- [x] The machine page's Plugins section becomes **Tools**: a card per tool that applies,
       with its machine actions; the overview's tool chips go
+- [x] 671 backend, 256 frontend (the enable tests replaced by adding and applying ones);
+      `pytest`, `npm test`, `npm run build`, `oxlint`, `check-docs.sh` (65 routes)
 
 **34g — tmux and Tailscale** (status line v3: `tailscale` detected, its address, and the
 projects 34h lists — one reinstall for all three)

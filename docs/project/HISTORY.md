@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Phase 34f′: plugins become tools, found from what the machine has
+
+**Nothing is enabled any more.** Sunde, on System, Services and Proxmox: "these I would say
+are standard features that are autodetected" — what was meant by plugins was workflow
+tools (tmux, Claude Code sessions, projects in git, Tailscale), "we can simply keep the
+tool terms". So the per-machine enabled list, its endpoint and the Enable buttons went: a
+tool **applies** where the machine has every program it requires, as its overview found
+them. That is the same answer an enable switch would have needed a second place to keep,
+and it can't drift. **Adding** a tool is installing what it lacks — the switch is the
+install.
+
+**How to get a program is in one place** (`tool.INSTALLERS`), not in each file: tmux was
+about to be installed by both the tmux tool and the Claude Code one. A tool lacking several
+programs installs them in one go — the packages in one command, then each script.
+
+**"Tools" for the files, "programs" for what a machine has** (`logic.PROGRAMS`, the
+overview's `programs`; its section is still `#=tools`, since renaming a marker would mean
+a status-line version for nothing).
+
 ## 2026-11-01 — Phase 34f: plugins are data, and run where they can be seen
 
 **A plugin is a file, not code** (Sunde: plugins "we install and enable based on needs,

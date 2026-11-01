@@ -56,7 +56,7 @@ def _write_config(ssh_dir, text):
 
 
 def test_no_key_until_one_is_made(client):
-    assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "plugins": {}}
+    assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}}
 
 
 def test_the_key_is_encrypted_with_the_admin_password_and_never_returned(client, ssh_dir):

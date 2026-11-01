@@ -45,7 +45,6 @@ class Instance(BaseModel):
     dns_answer: str | None = None  # Caddy IP last written to AdGuard for this name
     private: bool = False  # hide from the public dashboard (still fully managed)
     icon: str | None = None  # launcher icon filename in <data_dir>/icons (see shared/icons.py)
-    plugins: list[str] = []  # a machine's enabled plugins, by id (modules/ssh/plugin.py)
 
 
     @model_validator(mode="before")
@@ -186,21 +185,6 @@ def give_icon(instance_id: str, icon: str) -> Instance | None:
         return instances
 
     _update(set_icon)
-    return updated[0] if updated else None
-
-
-def set_plugins(instance_id: str, plugins: list[str]) -> Instance | None:
-    """Set a machine's enabled plugins, and nothing else — under the store lock."""
-    updated: list[Instance] = []
-
-    def apply(instances: list[Instance]) -> list[Instance]:
-        for idx, inst in enumerate(instances):
-            if inst.id == instance_id and is_machine(inst):
-                instances[idx] = inst.model_copy(update={"plugins": plugins})
-                updated.append(instances[idx])
-        return instances
-
-    _update(apply)
     return updated[0] if updated else None
 
 

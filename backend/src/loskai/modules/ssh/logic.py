@@ -224,9 +224,10 @@ _RUNNING = (
     "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
     "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
 )
-# Tools the overview reports, which plugins will ask for. `~/.local/bin` too: a forced
-# command gets sshd's PATH, not the login shell's, and per-user installs (Claude Code) go there.
-FACT_TOOLS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo")
+# The programs the overview reports — what a tool requires (tool.py). `~/.local/bin` too: a
+# forced command gets sshd's PATH, not the login shell's, and per-user installs (Claude
+# Code) go there.
+PROGRAMS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo")
 _FACTS = (
     "PATH=$PATH:$HOME/.local/bin; "
     "echo '#=os'; cat /etc/os-release 2>/dev/null; "
@@ -242,7 +243,7 @@ _FACTS = (
     "echo dnf $(dnf -C -q check-update 2>/dev/null | grep -c '^[[:alnum:]]'); "
     "elif command -v apk >/dev/null; then echo apk $(apk -u list 2>/dev/null | wc -l); "
     "elif command -v pacman >/dev/null; then echo pacman $(pacman -Qu 2>/dev/null | wc -l); fi; "
-    f"echo '#=tools'; for c in {' '.join(FACT_TOOLS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
+    f"echo '#=tools'; for c in {' '.join(PROGRAMS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
     "echo '#=tmux'; "
     "tmux ls -F '#{session_name}|#{session_created}|#{session_attached}|#{session_windows}' 2>/dev/null; "
     "true"
@@ -398,9 +399,9 @@ def parse_facts(output: str) -> dict:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, tools, tmux}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
-    manager, for plugins); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
+    manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
     `{mount, device, size, used}` in bytes, real storage only and one row per device;
-    `updates` `{manager, count}` or None; `tools` the `FACT_TOOLS` present; `tmux`
+    `updates` `{manager, count}` or None; `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
     `{name, created, attached, windows}`. Raises `OldStatusLine` for a machine still on an
     older line, ValueError for anything else."""
     lines = output.splitlines()
@@ -427,7 +428,7 @@ def parse_facts(output: str) -> dict:
         "memory": _memory(sections.get("memory", [])),
         "disks": _disks(sections.get("disks", [])),
         "updates": _updates(sections.get("updates", [])),
-        "tools": [t for t in sections.get("tools", []) if t in FACT_TOOLS],
+        "programs": [t for t in sections.get("tools", []) if t in PROGRAMS],
         "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
     }
 

@@ -58,7 +58,7 @@ then `sudo -n` (which never prompts), then says `!denied`.
 | `#=memory` | `MemTotal`, `MemAvailable` from `/proc/meminfo` | `memory`, bytes |
 | `#=disks` | `df -P -k` | `disks` — block devices and `/` only, each device once, no loop devices |
 | `#=updates` | `<manager> <count>` | `updates` — from the machine's package lists as last refreshed; nothing is fetched |
-| `#=tools` | one name per line, from `FACT_TOOLS` | `tools` — what plugins will ask for |
+| `#=tools` | one name per line, from `PROGRAMS` | `programs` — what tools require |
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
 
 `PATH` gets `$HOME/.local/bin` first: a forced command has sshd's `PATH`, not the login

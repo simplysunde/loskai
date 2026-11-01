@@ -46,15 +46,14 @@ const FACTS = {
   ok: true, checked: 0, os: "Debian GNU/Linux 12 (bookworm)", kernel: "Linux 6.1.0", uptime: 3 * 86400 + 7200,
   memory: { total: 8 * 1024 ** 3, available: 2 * 1024 ** 3 },
   disks: [{ mount: "/", device: "/dev/sda1", size: 100 * 1024 ** 3, used: 95 * 1024 ** 3 }],
-  updates: { manager: "apt", count: 12 }, tools: ["tmux", "docker"],
+  updates: { manager: "apt", count: 12 }, programs: ["docker"],
   tmux: [{ name: "build", created: 1793212547, attached: false, windows: 2 }],
 };
 let facts: unknown = FACTS;
 let sshKey: unknown = null;
-let sshPlugins: Record<string, string[]> = {};
-const PLUGINS = [
+const TOOLS = [
   {
-    id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], install: {},
+    id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], installable: [],
     actions: [
       { id: "update", label: "Update", description: "Update it.", target: null, confirm: null,
         run: { apt: "sudo apt-get update && sudo apt-get -y dist-upgrade" } },
@@ -63,13 +62,17 @@ const PLUGINS = [
     ],
   },
   {
-    id: "services", name: "Services", description: "From the Running list.", requires: [], install: {},
+    id: "services", name: "Services", description: "From the Running list.", requires: [], installable: [],
     actions: [{ id: "restart-container", label: "Restart", description: "Restart it.", target: "container", confirm: null,
                 run: "docker restart \"$1\"" }],
   },
   {
-    id: "proxmox", name: "Proxmox", description: "Guests.", requires: ["pct", "qm"], install: {},
+    id: "proxmox", name: "Proxmox", description: "Guests.", requires: ["pct", "qm"], installable: [],
     actions: [{ id: "reboot-lxc", label: "Reboot", description: "Reboot it.", target: "lxc", confirm: null, run: "sudo pct reboot \"$1\"" }],
+  },
+  {
+    id: "multiplex", name: "Multiplex", description: "Sessions.", requires: ["tmux"], installable: ["tmux"],
+    actions: [{ id: "list", label: "List", description: "List them.", target: null, confirm: null, run: "tmux ls" }],
   },
 ];
 // An unlocked key, so a terminal opens straight away (the mock shows its URL).
@@ -86,7 +89,6 @@ beforeEach(() => {
   sshTrusted = {};
   facts = FACTS;
   sshKey = null;
-  sshPlugins = {};
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -108,11 +110,9 @@ beforeEach(() => {
             : path === "/api/machines"
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
-              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted, plugins: sshPlugins }
-            : path === "/api/ssh/plugins"
-              ? PLUGINS
-            : path === "/api/ssh/machines/nas/plugins"
-              ? { plugins: (init?.body ? JSON.parse(String(init.body)).plugins : []) }
+              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted }
+            : path === "/api/ssh/tools"
+              ? TOOLS
             : path === "/api/ssh/log"
               ? [
                   { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
@@ -299,13 +299,12 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
 
   expect(await screen.findByText("plex-1")).toBeInTheDocument();
   expect(screen.getByText("loskai@192.168.10.50:22")).toBeInTheDocument();
-  // The overview: system, uptime, what's waiting, how full, its tools and tmux sessions.
+  // The overview: system, uptime, what's waiting, how full, its tmux sessions.
   expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
   expect(screen.getByText("3d 2h")).toBeInTheDocument();
   expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
   expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
   expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
-  expect(screen.getByText("tmux")).toBeInTheDocument();
   expect(screen.getByText("build")).toBeInTheDocument();
   // Only this machine's entries.
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
@@ -327,31 +326,14 @@ test("a machine on the older status line is offered the reinstall for its overvi
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
-function setUp(plugins: string[] = []) {
+function setUp() {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
   sshKey = UNLOCKED_KEY;
-  sshPlugins = plugins.length ? { nas: plugins } : {};
 }
 
-test("a plugin is enabled on the machine from its page", async () => {
+test("a tool's action runs in the terminal, named — never as a command", async () => {
   setUp();
-  renderPage("/machines/nas");
-
-  const card = (await screen.findByText("Update the system, reboot, shut down.")).parentElement!.parentElement!;
-  // Not enabled: no actions yet.
-  expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
-  fireEvent.click(within(card).getByRole("button", { name: "Enable" }));
-
-  await vi.waitFor(() =>
-    expect(calls.find((c) => c.method === "PUT")).toEqual({
-      path: "/api/ssh/machines/nas/plugins", method: "PUT", body: { plugins: ["system"] },
-    }),
-  );
-});
-
-test("an enabled plugin's action runs in the terminal, named — never as a command", async () => {
-  setUp(["system"]);
   renderPage("/machines/nas");
 
   const update = await screen.findByRole("button", { name: "Update" });
@@ -360,24 +342,24 @@ test("an enabled plugin's action runs in the terminal, named — never as a comm
   fireEvent.click(update);
 
   expect(await screen.findByText("Update — Storage box")).toBeInTheDocument();
-  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?plugin=system&action=update")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update")).toBeInTheDocument();
 });
 
 test("an action that is hard to undo asks first", async () => {
-  setUp(["system"]);
+  setUp();
   renderPage("/machines/nas");
 
   fireEvent.click(await screen.findByRole("button", { name: "Reboot" }));
   expect(screen.getByText("Everything on it stops until it is back up.")).toBeInTheDocument();
   expect(screen.queryByText(/shell at/)).not.toBeInTheDocument();
 
-  // The dialog's own Reboot, after the plugin's.
+  // The dialog's own Reboot, after the tool's.
   fireEvent.click(screen.getAllByRole("button", { name: "Reboot" }).at(-1)!);
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?plugin=system&action=reboot")).toBeInTheDocument();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=reboot")).toBeInTheDocument();
 });
 
-test("a row of the Running list gets its enabled plugins' buttons", async () => {
-  setUp(["services"]);
+test("a row of the Running list gets the buttons of the tools that apply", async () => {
+  setUp();
   renderPage("/machines/nas");
 
   const row = (await screen.findByText("plex-1")).closest("li") as HTMLElement;
@@ -385,16 +367,22 @@ test("a row of the Running list gets its enabled plugins' buttons", async () => 
 
   expect(await screen.findByText("Restart plex-1 — Storage box")).toBeInTheDocument();
   expect(
-    screen.getByText("shell at /api/ssh/machines/nas/terminal?plugin=services&action=restart-container&target=plex-1"),
+    screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=services&action=restart-container&target=plex-1"),
   ).toBeInTheDocument();
 });
 
-test("a plugin missing a tool says so, and offers no actions until it is there", async () => {
-  setUp(["proxmox"]);
+test("a tool the machine lacks is offered to add, when Loskai can install what it needs", async () => {
+  setUp();
   renderPage("/machines/nas");
 
-  expect(await screen.findByText(/Needs pct, qm/)).toBeInTheDocument();
-  expect(screen.getByText(/pct can't be installed from here/)).toBeInTheDocument();
+  await screen.findByRole("button", { name: "Update" });
+  // Proxmox needs pct, which only comes with Proxmox: not offered, and no Reboot on rows.
+  expect(screen.queryByText("Proxmox")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "List" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Multiplex" }));
+
+  expect(await screen.findByText("Add Multiplex — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=multiplex&install=true")).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {
