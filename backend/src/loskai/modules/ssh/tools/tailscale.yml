@@ -1,7 +1,7 @@
 # Join the machine to a tailnet, with Tailscale's own installer and CLI.
 # docs/reference/tool-schema.md is the format.
 name: Tailscale
-description: Reach this machine from anywhere on your tailnet.
+description: Connect this machine to your tailnet.
 requires: [tailscale]
 actions:
   up:

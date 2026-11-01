@@ -18,6 +18,7 @@ import { SshSetupModal } from "../components/routing/SshSetupModal";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { useToolRunner } from "../components/routing/useToolRunner";
 import { SshLog } from "../components/settings/SshLog";
+import { ProjectsFolder } from "../components/routing/ProjectsFolder";
 import { SaveBanner } from "../components/routing/SaveBanner";
 
 // What the Machines tab hands over after naming a machine: what the save said, and whether
@@ -142,6 +143,16 @@ export function Machine() {
                 <span className="text-slate-500">No SSH user — give it one to manage it.</span>
               )}
             </dd>
+            {host?.user && ssh.data && (
+              <>
+                <dt title="Where Claude Code finds this machine's projects" className="cursor-help text-slate-500">
+                  Projects
+                </dt>
+                <dd className="text-slate-300">
+                  <ProjectsFolder machineId={id} folder={ssh.data.projects[id]} />
+                </dd>
+              </>
+            )}
           </dl>
           <div className="mt-3 flex gap-2">
             <button

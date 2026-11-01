@@ -3,7 +3,7 @@
 # in the Claude app or on another computer after the tab closes.
 # docs/reference/tool-schema.md is the format.
 name: Claude Code
-description: Claude sessions in your projects, to carry on from the app or another computer.
+description: Manage your Claude sessions here, one per project.
 requires: [claude, tmux, git]
 actions:
   open:

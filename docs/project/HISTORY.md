@@ -19,6 +19,12 @@ since it costs a package-manager simulation on the machine. Standard or added is
 key: a tool requiring a program Loskai can install is an added one. The menu is `RowMenu`
 with a labelled trigger, not a second dropdown.
 
+**The projects folder is a machine setting**, on the machine page beside its connection,
+not on Claude Code's card (Sunde: "setting projects location should be done in the machine
+configs… we can add a shortcut to settings though") — the dialog says where the projects are,
+with a cog to the machine's page. **Needs** shows only where a tool isn't added yet: for one
+that is, it said nothing new.
+
 **A tmux session belongs to the tool that names it** (Sunde: "we need to separate regular
 tmux sessions and usage and claude code usage"). `claude-site` is listed on Claude Code's
 page as the project `site` running, and left off tmux's; the rule is the action's shared

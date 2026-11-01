@@ -426,9 +426,25 @@ test("a set-up machine's row has a Tools menu: each added tool, how it stands, i
   fireEvent.click(screen.getByRole("menuitem", { name: /tmux/ }));
 
   expect(await screen.findByText("tmux — Storage box")).toBeInTheDocument();
-  expect(screen.getByText("build")).toBeInTheDocument();
+  expect(await screen.findByText("build")).toBeInTheDocument();
+  // It is added: what it needs is only shown to add it.
+  expect(screen.queryByText("Needs")).not.toBeInTheDocument();
   fireEvent.click(within(screen.getByText("build").closest("li") as HTMLElement).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
+});
+
+test("Claude Code's dialog says where the projects are, with a shortcut to the machine's settings", async () => {
+  setUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /Claude Code/ }));
+  expect(await screen.findByText("site")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Machine settings" }));
+
+  // The machine's page, where the folder is set.
+  expect(await screen.findByTitle(/Change the projects folder/)).toBeInTheDocument();
 });
 
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
@@ -482,11 +498,11 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
 });
 
-test("the projects folder is changed on the Claude Code card", async () => {
+test("the projects folder is set on the machine's page, with its connection", async () => {
   setUp();
   renderPage("/machines/nas");
 
-  fireEvent.click(await screen.findByTitle("Change the projects folder"));
+  fireEvent.click(await screen.findByTitle(/Change the projects folder/));
   fireEvent.change(screen.getByLabelText("Projects folder"), { target: { value: "~" } });
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 

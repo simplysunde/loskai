@@ -1,4 +1,5 @@
-import { Check, Loader2, Plus, X } from "lucide-react";
+import { Check, Loader2, Plus, Settings, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { useFacts, useSsh } from "../../lib/ssh";
 import { toolSummary, type ToolContext } from "../../lib/toolRows";
@@ -7,9 +8,9 @@ import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
 import { useToolRunner } from "./useToolRunner";
 
-// One tool on one machine, from the Tools menu on its row: what it needs and whether the
-// machine has it, then the tool itself — its lists and actions — or Add, where something is
-// missing that Loskai can install.
+// One tool on one machine, from the Tools menu on its row: the tool itself — its lists and
+// actions — or, where it isn't added yet, what it needs, which of that the machine has, and
+// Add, when Loskai can install the rest.
 export function ToolDialog({
   machine,
   toolId,
@@ -44,31 +45,49 @@ export function ToolDialog({
           {tool.description}
           {summary && <span className="text-slate-500"> · {summary}</span>}
         </p>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-          Needs
-          {tool.requires.map((p) =>
-            programs.includes(p) ? (
-              <span key={p} className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
-                <Check className="h-3 w-3" /> {p}
-              </span>
-            ) : (
-              <span key={p} className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-amber-300">
-                <X className="h-3 w-3" /> {p}
-              </span>
-            ),
-          )}
-        </div>
+        {/* Where its projects are is the machine's setting, on its page — a shortcut there. */}
+        {tool.actions.some((a) => a.target === "project" || a.ask === "project") && (
+          <p className="flex items-center gap-1.5 text-xs text-slate-500">
+            Projects in <span className="font-mono text-slate-300">{ctx.folder}</span>
+            <Link
+              to={`/machines/${machine.id}`}
+              title="Change it in the machine's settings"
+              aria-label="Machine settings"
+              className="text-slate-500 hover:text-slate-200"
+            >
+              <Settings className="h-3 w-3" />
+            </Link>
+          </p>
+        )}
         {applies(tool, programs) ? (
           <ToolCard tool={tool} ctx={ctx} titled={false} />
-        ) : addable(tool, programs) ? (
-          <button
-            onClick={() => runner.start({ tool: tool.id, install: true, title: `Add ${tool.name}` })}
-            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs text-white hover:bg-teal-500"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add {tool.name} — installs {missing(tool, programs).join(", ")}
-          </button>
         ) : (
-          <p className="text-xs text-slate-500">{missing(tool, programs).join(", ")} can't be installed from Loskai.</p>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+              Needs
+              {tool.requires.map((p) =>
+                programs.includes(p) ? (
+                  <span key={p} className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    <Check className="h-3 w-3" /> {p}
+                  </span>
+                ) : (
+                  <span key={p} className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-amber-300">
+                    <X className="h-3 w-3" /> {p}
+                  </span>
+                ),
+              )}
+            </div>
+            {addable(tool, programs) ? (
+              <button
+                onClick={() => runner.start({ tool: tool.id, install: true, title: `Add ${tool.name}` })}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs text-white hover:bg-teal-500"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add {tool.name} — installs {missing(tool, programs).join(", ")}
+              </button>
+            ) : (
+              <p className="text-xs text-slate-500">{missing(tool, programs).join(", ")} can't be installed from Loskai.</p>
+            )}
+          </div>
         )}
       </div>
     );

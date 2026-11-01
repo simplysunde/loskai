@@ -2,7 +2,7 @@
 # sessions too (loskai-<tool>-<action>), so an update left running is here to pick back up.
 # docs/reference/tool-schema.md is the format.
 name: tmux
-description: Sessions that keep running after the browser closes.
+description: Manage your tmux sessions here.
 requires: [tmux]
 actions:
   attach:

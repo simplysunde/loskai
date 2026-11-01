@@ -116,7 +116,8 @@ back up.
 A tool the machine doesn't have yet is in the **Add** line beneath — clicking it installs
 what it needs, in the terminal. The **Tools** button (the wrench) on the machine's row in the
 Machines tab lists the added tools — tmux, Claude Code, Tailscale — with how each stands
-there, and opens one in a dialog: what it needs, then the tool itself, or Add.
+there, and opens one in a dialog: the tool itself, or, if it isn't added yet, what it needs
+and Add.
 
 - **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in;
   Claude's are on their projects instead.
@@ -127,7 +128,8 @@ there, and opens one in a dialog: what it needs, then the tool itself, or Add.
   its Tailscale address. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
 - **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
-  unless you change it on the card (the pencil; `~` or one folder in it) — with each one's
+  unless you change it on the machine's page, beside its connection (`~` or one folder
+  in it; the dialog's cog goes there) — with each one's
   branch, uncommitted changes, last commit and when Claude last worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
   else a new one. It runs in tmux with **Remote Control** on, so after you close the tab

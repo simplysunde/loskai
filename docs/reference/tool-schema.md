@@ -24,8 +24,8 @@ list's rows get the row actions. Which is standard follows from the programs: a 
 requiring something in `INSTALLERS` is an added one. An added tool's card says in a few
 words what is in it (`3 sessions`, `4 projects, 1 running`), and **the Tools button on the
 machine's row in the Machines tab** lists each added tool with that summary — or `not
-added` — and opens it in a dialog (`ToolDialog`): what it needs, which of that the machine
-has, then the card, or **Add**. The row reads the machine's overview only while that menu
+added` — and opens it in a dialog (`ToolDialog`): the card, or, for a tool not added yet,
+what it needs, which of that the machine has, and **Add**. The row reads the machine's overview only while that menu
 is open.
 
 Like a recipe, a tool is **data, validated and never executed by Loskai**. An action's

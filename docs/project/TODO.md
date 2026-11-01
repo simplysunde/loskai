@@ -1719,11 +1719,14 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       open), opening it in a dialog — what it needs, which of that the machine has, then
       the tool's card or Add. The machine page keeps a card per tool. (First built as a
       menu on the machine page, then as a page per tool — both moved the same day)
+- [x] The projects folder on the machine page (Connection), with a shortcut from Claude
+      Code's dialog; Needs only where a tool isn't added; plain descriptions ("Manage your
+      Claude sessions here, one per project.")
 - [x] tmux's card leaves out the sessions another tool claims (`claude-<project>`); Claude
       Code's projects get Pull (`--ff-only`), Push, Terminal, End
 - [x] `useToolRunner` — the terminal and the confirm step, shared by the machine page and the
       dialog; `RowMenu` takes a labelled trigger and says when it opens
-- [x] 704 backend, 262 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
+- [x] 704 backend, 263 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
       `check-docs.sh`
 - [ ] "N to push" on a project (commits not pushed): a status-line version, so not yet
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects

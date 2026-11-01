@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Play, Plus, Wrench } from "lucide-react";
+import { Play, Plus, Wrench } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
 import { useFacts, useSsh } from "../../lib/ssh";
 import { isLive, listsOf, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
@@ -68,7 +66,6 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
       )}
       {lists.map(({ kind, rows }) => (
         <div key={kind} className="mt-2">
-          {kind === "project" && <Folder machineId={ctx.machineId} folder={ctx.folder} />}
           <ul className="space-y-1 text-xs text-slate-300">
             {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
             {rows.map((r) => (
@@ -214,54 +211,6 @@ function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: T
       <button type="submit" disabled={!name.trim()} title={`${action.description}\n$ ${typeof action.run === "string" ? action.run : ""}`} className={BUTTON}>
         <Plus className="h-3.5 w-3.5" /> {action.label}
       </button>
-    </form>
-  );
-}
-
-// Where a machine's projects are — `~/projects` unless changed here: `~` or one folder in it.
-function Folder({ machineId, folder }: { machineId: string; folder: string }) {
-  const [editing, setEditing] = useState<string | null>(null);
-  const qc = useQueryClient();
-  const save = useMutation({
-    mutationFn: (next: string) => api.put(`/api/ssh/machines/${machineId}/projects`, { folder: next }),
-    onSuccess: () => {
-      setEditing(null);
-      qc.invalidateQueries({ queryKey: ["ssh"] });
-    },
-  });
-  if (editing === null) {
-    return (
-      <p className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
-        Projects in <span className="font-mono text-slate-300">{folder}</span>
-        <button title="Change the projects folder" onClick={() => setEditing(folder)} className="hover:text-slate-200">
-          <Pencil className="h-3 w-3" />
-        </button>
-      </p>
-    );
-  }
-  return (
-    <form
-      className="mb-1 flex flex-wrap items-center gap-1.5 text-xs"
-      onSubmit={(e) => {
-        e.preventDefault();
-        save.mutate(editing);
-      }}
-    >
-      <input
-        aria-label="Projects folder"
-        value={editing}
-        onChange={(e) => setEditing(e.target.value)}
-        className="w-40 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-slate-200"
-      />
-      <button type="submit" disabled={save.isPending} className={BUTTON}>
-        Save
-      </button>
-      <button type="button" onClick={() => setEditing(null)} className="text-slate-500 hover:text-slate-300">
-        Cancel
-      </button>
-      {save.isError && (
-        <span className="text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't save it"}</span>
-      )}
     </form>
   );
 }
