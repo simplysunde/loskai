@@ -1,31 +1,26 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
 import { useHealth } from "../lib/useHealth";
-import { AddMachineModal, type NewMachine } from "../components/routing/AddMachineModal";
+import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { isMachine, routesOn } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
-import { SshSetupModal } from "../components/routing/SshSetupModal";
+import { SaveBanner } from "../components/routing/SaveBanner";
 import type { RouteRow } from "../components/routing/ServiceTable";
+import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import type { MachineState } from "./Machine";
 
 interface DnsStatus {
   answer_ip: string | null;
   instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
-}
-interface SaveResult {
-  // "skipped" for a machine — it has no route.
-  caddy: string;
-  instance_id: string;
-  url: string;
-  warning: string | null;
-  moved?: string[];
 }
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
@@ -35,16 +30,14 @@ interface SaveResult {
 export function Machines() {
   const qc = useQueryClient();
   const health = useHealth();
-  // null: closed · "new": naming one · a row: editing that machine.
-  const [editing, setEditing] = useState<RouteRow | "new" | null>(null);
+  const navigate = useNavigate();
+  // Naming a machine; editing one is on its own page.
+  const [naming, setNaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
   // The machine a new route is being added on, from its row.
   const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
-  // The machine whose SSH is being set up, by id: after saving one with an SSH user, or
-  // from its row.
-  const [sshFor, setSshFor] = useState<string | null>(null);
   // The machine with a terminal open.
   const [terminalFor, setTerminalFor] = useState<RouteRow | null>(null);
 
@@ -85,17 +78,15 @@ export function Machines() {
     qc.invalidateQueries({ queryKey: ["ssh-running"] });
   };
 
-  const save = useMutation({
-    mutationFn: (m: NewMachine) => api.post<SaveResult>("/api/machines", m),
-    onSuccess: (data, m) => {
-      setEditing(null);
-      setResult(data);
-      invalidate();
-      // Setting SSH up is part of naming a machine: given a user, its setup opens next —
-      // unless its host key is already trusted, as after an ordinary edit.
-      if (m.ssh && !trusted[data.instance_id]) setSshFor(data.instance_id);
+  // A machine just named opens on its own page — and setting SSH up is part of naming
+  // one, so given a user, its setup opens there next.
+  const save = useSaveMachine({
+    onSaved: (data, m) => {
+      setNaming(false);
+      const state: MachineState = { result: data, setup: Boolean(m.ssh) };
+      navigate(`/machines/${data.instance_id}`, { state });
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Save failed"),
+    onError: setError,
   });
 
   const addRoute = useMutation({
@@ -118,10 +109,6 @@ export function Machines() {
   });
 
   const deleting = confirmDelete ? routesOn(confirmDelete, rows) : [];
-  // Shown once both have loaded: a machine just saved appears in the SSH config on refetch.
-  const sshMachine = machines.find((m) => m.id === sshFor);
-  const sshHost = sshMachine?.subdomain ? sshHosts[sshMachine.subdomain] : undefined;
-  const target = editing !== "new" ? editing : null;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -135,7 +122,7 @@ export function Machines() {
         <button
           onClick={() => {
             setError(null);
-            setEditing("new");
+            setNaming(true);
           }}
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
         >
@@ -145,21 +132,7 @@ export function Machines() {
 
       {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
           state is in its row. */}
-      {result && (
-        <div
-          className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
-            result.warning
-              ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
-              : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
-          }`}
-        >
-          <span className="font-medium">{result.url}</span> —{" "}
-          {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
-          {result.moved && result.moved.length > 0 && (
-            <> Moved {result.moved.join(", ")} with it.</>
-          )}
-        </div>
-      )}
+      {result && <SaveBanner result={result} />}
 
       {routes.isLoading ? (
         <div className="flex justify-center py-16 text-slate-500">
@@ -172,12 +145,8 @@ export function Machines() {
           ssh={sshHosts}
           trusted={trusted}
           running={running.data ?? {}}
-          onSsh={(m) => setSshFor(m.id)}
+          onOpen={(m) => navigate(`/machines/${m.id}`)}
           onTerminal={setTerminalFor}
-          onEdit={(m) => {
-            setError(null);
-            setEditing(m);
-          }}
           onDelete={setConfirmDelete}
           onAddRoute={(m) => {
             setError(null);
@@ -188,24 +157,13 @@ export function Machines() {
       )}
 
       <AddMachineModal
-        key={target?.id ?? String(editing)}
-        open={editing !== null}
+        key={String(naming)}
+        open={naming}
         baseDomain={baseDomain}
-        editing={
-          target
-            ? {
-                id: target.id,
-                hostname: target.subdomain ?? target.id,
-                address: target.upstream ?? "",
-                name: target.name,
-              }
-            : null
-        }
-        ssh={target?.subdomain ? sshHosts[target.subdomain] : null}
         pending={save.isPending}
         error={error}
         onSubmit={(m) => save.mutate(m)}
-        onClose={() => setEditing(null)}
+        onClose={() => setNaming(false)}
       />
 
       <AddRouteModal
@@ -227,16 +185,6 @@ export function Machines() {
           machine={{ id: terminalFor.id, name: terminalFor.name }}
           sshKey={ssh.data?.key ?? null}
           onClose={() => setTerminalFor(null)}
-        />
-      )}
-
-      {sshMachine && sshHost?.user && (
-        <SshSetupModal
-          key={sshMachine.id}
-          machine={{ id: sshMachine.id, name: sshMachine.name }}
-          host={sshHost}
-          sshKey={ssh.data?.key ?? null}
-          onClose={() => setSshFor(null)}
         />
       )}
 

@@ -24,6 +24,14 @@ button had doubled as the setup button until a machine was set up; now each butt
 thing. The cog is amber until the machine is set up, and the terminal button appears then.
 The terminal's own "SSH setup" link went with it.
 
+**Then the cog became the machine's page** (`/machines/<id>`), because one machine is
+where updates, services and quick commands will go (Sunde: "tweak and configure per
+machine… based on the machine and OS"), and a dialog would not hold them. It reuses what
+exists rather than a second version: the same machine form (the row's pencil went — Edit is
+on the page), the same SSH setup, the hover card's list, the log filtered to the machine.
+Naming a machine opens its page, where its SSH setup starts. Sections are stacked, no tabs,
+to stay simple.
+
 ## 2026-10-31 — Phase 34d: a terminal on each machine; sessions logged, not keystrokes
 
 **The plan said "every session and command logged"; only sessions are.** A command typed

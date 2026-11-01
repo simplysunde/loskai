@@ -37,10 +37,6 @@ export function RunningPill({ running, user }: { running: Running; user?: string
     const r = el.getBoundingClientRect();
     setAt({ left: Math.min(r.left, window.innerWidth - 300), top: r.bottom + 4 });
   };
-  const containers = running.containers ?? [];
-  const services = running.services ?? [];
-  const guests = running.guests ?? [];
-
   return (
     <span
       tabIndex={0}
@@ -60,50 +56,62 @@ export function RunningPill({ running, user }: { running: Running; user?: string
             style={{ left: at.left, top: at.top }}
             className="fixed z-50 max-h-80 w-72 overflow-auto rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300 shadow-2xl"
           >
-            {containers.length > 0 && (
-              <Group title={`Containers (${containers.length})`}>
-                {containers.map((c) => (
-                  <li key={c.name} title={c.image} className="flex justify-between gap-2">
-                    <span className="truncate">{c.name}</span>
-                    <span className="shrink-0 text-slate-500">{c.status}</span>
-                  </li>
-                ))}
-              </Group>
-            )}
-            {guests.length > 0 && (
-              <Group title={`Guests (${guests.length})`}>
-                {guests.map((g) => (
-                  <li key={g.id} className="flex justify-between gap-2">
-                    <span className="truncate">{g.name}</span>
-                    <span className="shrink-0 text-slate-500">
-                      {g.kind === "vm" ? "VM" : "LXC"} {g.id}
-                    </span>
-                  </li>
-                ))}
-              </Group>
-            )}
-            {services.length > 0 && (
-              <Group title={`Services (${services.length})`}>
-                {services.map((s) => (
-                  <li key={s} className="truncate">
-                    {s}
-                  </li>
-                ))}
-              </Group>
-            )}
-            {runningCount(running) === 0 && <p className="text-slate-500">Nothing besides the system.</p>}
-            {(running.hidden ?? 0) > 0 && (
-              <p className="mt-2 text-slate-500">+ {running.hidden} system services</p>
-            )}
-            {(running.denied ?? []).map((d) => (
-              <p key={d} className="mt-2 text-amber-300">
-                {user ?? "The SSH user"} may not list {DENIED[d] ?? d} — give it the rights, or sudo.
-              </p>
-            ))}
+            <RunningList running={running} user={user} />
           </div>,
           document.body,
         )}
     </span>
+  );
+}
+
+// Everything that runs on a machine, by kind — the pill's card, and the machine's page.
+export function RunningList({ running, user }: { running: Running; user?: string }) {
+  const containers = running.containers ?? [];
+  const services = running.services ?? [];
+  const guests = running.guests ?? [];
+  return (
+    <>
+      {containers.length > 0 && (
+        <Group title={`Containers (${containers.length})`}>
+          {containers.map((c) => (
+            <li key={c.name} title={c.image} className="flex justify-between gap-2">
+              <span className="truncate">{c.name}</span>
+              <span className="shrink-0 text-slate-500">{c.status}</span>
+            </li>
+          ))}
+        </Group>
+      )}
+      {guests.length > 0 && (
+        <Group title={`Guests (${guests.length})`}>
+          {guests.map((g) => (
+            <li key={g.id} className="flex justify-between gap-2">
+              <span className="truncate">{g.name}</span>
+              <span className="shrink-0 text-slate-500">
+                {g.kind === "vm" ? "VM" : "LXC"} {g.id}
+              </span>
+            </li>
+          ))}
+        </Group>
+      )}
+      {services.length > 0 && (
+        <Group title={`Services (${services.length})`}>
+          {services.map((s) => (
+            <li key={s} className="truncate">
+              {s}
+            </li>
+          ))}
+        </Group>
+      )}
+      {runningCount(running) === 0 && <p className="text-slate-500">Nothing besides the system.</p>}
+      {(running.hidden ?? 0) > 0 && (
+        <p className="mt-2 text-slate-500">+ {running.hidden} system services</p>
+      )}
+      {(running.denied ?? []).map((d) => (
+        <p key={d} className="mt-2 text-amber-300">
+          {user ?? "The SSH user"} may not list {DENIED[d] ?? d} — give it the rights, or sudo.
+        </p>
+      ))}
+    </>
   );
 }
 

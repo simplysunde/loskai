@@ -7,7 +7,6 @@ import {
   CornerDownRight,
   HardDrive,
   Loader2,
-  Pencil,
   Plus,
   Settings,
   Terminal,
@@ -31,10 +30,9 @@ export function MachineTable({
   ssh = {},
   trusted = {},
   running = {},
-  onEdit,
+  onOpen,
   onDelete,
   onAddRoute,
-  onSsh,
   onTerminal,
   busyId,
 }: {
@@ -46,10 +44,9 @@ export function MachineTable({
   // Machine ids with a trusted host key, and what runs on each of those, by id.
   trusted?: Record<string, boolean>;
   running?: Record<string, Running>;
-  // A machine with an SSH user: its SSH settings, and once set up, a terminal on it.
-  onSsh?: (machine: RouteRow) => void;
+  // The machine's own page — the cog. Once its SSH is set up, a terminal on it too.
+  onOpen: (machine: RouteRow) => void;
   onTerminal?: (machine: RouteRow) => void;
-  onEdit: (machine: RouteRow) => void;
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
@@ -144,24 +141,19 @@ export function MachineTable({
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {/* This machine's SSH: its host key, Loskai's key on it, a test. Amber
-                            until it is set up — then the terminal appears beside it. */}
-                        {sshReady && m.subdomain && host && onSsh && (
-                          <IconButton
-                            title={`${trusted[m.id] ? "SSH settings" : "Set up SSH"}: ${sshTitle(m.subdomain, host)}`}
-                            warn={!trusted[m.id]}
-                            onClick={() => onSsh(m)}
-                          >
-                            <Settings className="h-3.5 w-3.5" />
-                          </IconButton>
-                        )}
                         {onAddRoute && (
                           <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
                             <Plus className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        <IconButton title="Edit machine" onClick={() => onEdit(m)}>
-                          <Pencil className="h-3.5 w-3.5" />
+                        {/* Its page: name, address, SSH, what runs there. Amber while it has
+                            an SSH user but isn't set up yet. */}
+                        <IconButton
+                          title={sshReady && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
+                          warn={sshReady && !trusted[m.id]}
+                          onClick={() => onOpen(m)}
+                        >
+                          <Settings className="h-3.5 w-3.5" />
                         </IconButton>
                         <IconButton title="Delete machine" danger onClick={() => onDelete(m)}>
                           {busyId === m.id ? (

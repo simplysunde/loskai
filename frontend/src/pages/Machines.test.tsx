@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+import { Machine } from "./Machine";
 import { Machines } from "./Machines";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
@@ -70,6 +71,13 @@ beforeEach(() => {
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
               ? { key: null, hosts: sshHosts, trusted: sshTrusted }
+            : path === "/api/ssh/log"
+              ? [
+                  { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
+                  { at: "2026-11-01T09:00:00Z", event: "open", machine: "pve", from: "192.168.10.5", target: "root@192.168.10.10" },
+                ]
+            : path === "/api/ssh/running"
+              ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days" }], services: [], guests: [] } }
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
@@ -85,12 +93,16 @@ afterEach(() => vi.unstubAllGlobals());
 
 const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElement;
 
-function renderPage() {
+// Both pages, so the cog and naming a machine go where they really do.
+function renderPage(at = "/machines") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <Machines />
+      <MemoryRouter initialEntries={[at]}>
+        <Routes>
+          <Route path="/machines" element={<Machines />} />
+          <Route path="/machines/:id" element={<Machine />} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -166,11 +178,13 @@ test("every route on a machine's address is listed under it, by port", async () 
     .toBeInTheDocument();
 });
 
-test("editing a machine posts its id, and the banner says what moved with it", async () => {
+test("a machine's cog opens its page, where editing posts its id and says what moved", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Edit machine"));
+  fireEvent.click(within(nasRow()).getByTitle(/^Machine settings/));
+  expect(await screen.findByRole("heading", { name: "Storage box" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   const ip = screen.getByPlaceholderText("192.168.10.50");
   fireEvent.change(ip, { target: { value: "192.168.10.70" } });
   fireEvent.click(screen.getByRole("button", { name: "Save machine" }));
@@ -194,33 +208,61 @@ test("a machine's row adds a route on its address", async () => {
   expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
 });
 
-test("saving a machine with an SSH user opens its SSH setup, starting with the host key", async () => {
+test("naming a machine with an SSH user opens its page, starting its SSH setup", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Edit machine"));
+  fireEvent.click(screen.getByRole("button", { name: /Name a machine/ }));
+  fireEvent.change(screen.getByPlaceholderText("rack1.vm3"), { target: { value: "nas" } });
+  fireEvent.change(screen.getByPlaceholderText("192.168.10.50"), { target: { value: "192.168.10.50" } });
   fireEvent.change(screen.getByPlaceholderText("none"), { target: { value: "loskai" } });
   // The save writes the SSH config, so the refetch after it has the entry.
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
-  fireEvent.click(screen.getByRole("button", { name: "Save machine" }));
+  fireEvent.click(screen.getByRole("button", { name: "Name machine" }));
 
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
   expect(screen.getByText(/SSH — Storage box/)).toBeInTheDocument();
+  expect(screen.getByText(/Moved plex with it/)).toBeInTheDocument();
   expect(calls.some((c) => c.path === "/api/ssh/machines/nas/scan")).toBe(true);
 });
 
-test("a machine with an SSH user offers its setup from its row", async () => {
+test("a machine with an SSH user that isn't set up: an amber cog, no terminal", async () => {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   renderPage();
   await screen.findByText("Storage box");
 
-  const button = await within(nasRow()).findByTitle(/^Set up SSH/);
-  // Not set up yet: the cog, and no terminal. A machine with no SSH user has neither.
+  expect(await within(nasRow()).findByTitle(/SSH not set up yet/)).toBeInTheDocument();
   expect(within(nasRow()).queryByTitle(/^Terminal/)).toBeNull();
-  expect(within(screen.getByText("pve").closest("tr") as HTMLElement).queryByTitle(/SSH/)).toBeNull();
-  fireEvent.click(button);
+  // No SSH user: a plain cog, still the way to its page.
+  const pve = screen.getByText("pve").closest("tr") as HTMLElement;
+  expect(within(pve).getByTitle("Machine settings")).toBeInTheDocument();
+});
 
+test("a machine's page sets up its SSH from there", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  renderPage("/machines/nas");
+
+  expect(await screen.findByText("not set up")).toBeInTheDocument();
+  expect(screen.getByText("Set up SSH to see what runs here.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Set up SSH" }));
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
+});
+
+test("a set-up machine's page: what runs there, its own log, and a terminal", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  renderPage("/machines/nas");
+
+  expect(await screen.findByText("plex-1")).toBeInTheDocument();
+  expect(screen.getByText("loskai@192.168.10.50:22")).toBeInTheDocument();
+  // Only this machine's entries.
+  expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
+  expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
+  // No key in this stub, so it asks to unlock first.
+  expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
+  expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {
@@ -230,18 +272,10 @@ test("a set-up machine's row opens a terminal on it", async () => {
   await screen.findByText("Storage box");
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
-
-  // No key in this stub, so it asks to unlock first.
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
-  expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
 });
 
-test("a set-up machine's cog still opens its SSH settings", async () => {
-  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
-  sshTrusted = { nas: true };
-  renderPage();
-  await screen.findByText("Storage box");
-
-  fireEvent.click(await within(nasRow()).findByTitle(/^SSH settings: ssh nas/));
-  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+test("a machine that doesn't exist says so", async () => {
+  renderPage("/machines/gone");
+  expect(await screen.findByText("No such machine.")).toBeInTheDocument();
 });

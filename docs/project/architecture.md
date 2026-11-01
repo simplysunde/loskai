@@ -271,7 +271,10 @@ machine, worked out each time (`instances.on_address`). Hence:
 - two machines can't share an address (`409`), or a route's machine would be ambiguous.
 
 The Machines tab lists each machine with the routes on its address beneath, and adds a route
-on a machine through the same Add route picker, starting on its address. Machines never appear on the
+on a machine through the same Add route picker, starting on its address. The cog on a row
+opens the machine's page (`/machines/<id>`, `pages/Machine.tsx`) — what belongs to that
+machine alone: editing it, its SSH setup, what runs there, its log. Naming a machine lands
+on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
 **SSH, so far (Phase 34a–d).** Loskai's key is made with the admin password, which
@@ -281,7 +284,7 @@ the shown key can't belong to another. A machine's form has an SSH user and port
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › SSH
 downloads that file.
 
-Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`; later, the cog on its row):
+Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`, again from its page):
 the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keygen -lf` shows
 on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
 Install it for me logs in once with the machine's password and replaces Loskai's lines in

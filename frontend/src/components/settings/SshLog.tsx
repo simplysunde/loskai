@@ -34,36 +34,39 @@ function duration(s: number): string {
 }
 
 // Every SSH terminal opened, closed or refused, and every install — newest first. Sessions,
-// not keystrokes: what is typed can be a password at a sudo prompt.
-export function SshLog() {
+// not keystrokes: what is typed can be a password at a sudo prompt. Given a machine (its
+// page), only that machine's.
+export function SshLog({ machine }: { machine?: string }) {
   const log = useQuery({
     queryKey: ["ssh-log"],
     queryFn: () => api.get<LogEntry[]>("/api/ssh/log"),
   });
 
+  const entries = (log.data ?? []).filter((e) => !machine || e.machine === machine);
+
   return (
     <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800 px-3 py-2">
       {log.isLoading ? (
         <Loader2 className="mx-auto h-5 w-5 animate-spin text-slate-500" />
-      ) : !log.data?.length ? (
+      ) : !entries.length ? (
         <p className="text-sm text-slate-500">Nothing yet.</p>
       ) : (
         <table className="w-full text-left text-xs">
           <thead className="text-slate-500">
             <tr>
               <th className="py-1 pr-3 font-medium">When</th>
-              <th className="py-1 pr-3 font-medium">Machine</th>
+              {!machine && <th className="py-1 pr-3 font-medium">Machine</th>}
               <th className="py-1 pr-3 font-medium">From</th>
               <th className="py-1 font-medium">What</th>
             </tr>
           </thead>
           <tbody className="text-slate-300">
-            {log.data.map((e, i) => (
+            {entries.map((e, i) => (
               <tr key={`${e.at}-${i}`} className="border-t border-slate-800/70">
                 <td className="whitespace-nowrap py-1 pr-3 text-slate-400">
                   {new Date(e.at).toLocaleString()}
                 </td>
-                <td className="py-1 pr-3">{e.machine}</td>
+                {!machine && <td className="py-1 pr-3">{e.machine}</td>}
                 <td className="py-1 pr-3 font-mono text-slate-400">{e.from ?? "—"}</td>
                 <td className={`py-1 ${e.event === "refused" || e.ok === false ? "text-amber-300" : ""}`}>
                   {what(e)}
