@@ -19,7 +19,8 @@ import { RowMenu } from "../shared/RowMenu";
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
 
-// The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's.
+// The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's:
+// small bordered ones, in rose for those that ask first (End, Stop).
 export function RowButtons({
   here,
   kind,
@@ -39,7 +40,9 @@ export function RowButtons({
           key={`${t.id}-${a.id}`}
           title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
           onClick={() => onRun({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-          className="flex items-center gap-1 text-[11px] text-teal-400 hover:underline"
+          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 ${
+            a.confirm ? "text-rose-300" : "text-slate-200"
+          }`}
         >
           <ActionIcon tool={t.id} action={a.id} />
           {a.label}
@@ -69,7 +72,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
       )}
       {lists.map(({ kind, rows }) => (
         <div key={kind} className="mt-2">
-          <ul className="space-y-1 text-xs text-slate-300">
+          <ul className="space-y-1.5 text-xs text-slate-300">
             {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
             {rows.map((r) => (
               <li key={r.name} title={r.title} className="flex items-center justify-between gap-2">
@@ -78,7 +81,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                   {isLive(t, kind, r.name, sessions) && <span className="ml-2 text-emerald-300">running</span>}
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
-                <span className="flex shrink-0 items-center gap-2"><RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} /></span>
+                <span className="flex shrink-0 items-center gap-1"><RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} /></span>
               </li>
             ))}
           </ul>
