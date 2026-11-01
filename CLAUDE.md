@@ -215,7 +215,8 @@ only its public half leaves `modules/ssh/client.py`. An action that uses it asks
 password again (`auth.check_password`, which shares the login backoff), which unlocks it
 for 15 minutes. The one key kept in the clear is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
-command in `logic.STATUS_COMMAND` — never give it any other use. A machine's own password
+command in `logic.STATUS_COMMAND` — it only reads, and never gets any other use
+(`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password
 (Install it for me) is used for one connection and stored nowhere.
 
 ## Invariants that are easy to violate
@@ -296,7 +297,7 @@ command in `logic.STATUS_COMMAND` — never give it any other use. A machine's o
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 63 HTTP routes plus the two
+  API subsets Loskai calls), `api.md` (Loskai's own: 64 HTTP routes plus the two
   terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

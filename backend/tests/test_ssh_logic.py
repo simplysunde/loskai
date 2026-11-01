@@ -1,5 +1,8 @@
 """The SSH config editor: one entry's lines change, every other line stays as written."""
 
+import os
+import subprocess
+
 import asyncssh
 import pytest
 
@@ -246,3 +249,83 @@ def test_a_list_the_user_may_not_read_says_so():
 def test_output_that_is_not_the_status_command_s_is_refused():
     with pytest.raises(ValueError):
         logic.parse_running("Welcome to Ubuntu\n$ ")
+
+
+def test_the_running_list_reads_the_older_status_line_too():
+    # A machine not yet reinstalled keeps its running list; only the overview needs v2.
+    assert logic.parse_running(OUTPUT.replace("status 1", "status 2"))["services"] == ["docker", "nginx"]
+
+
+# --- A machine's overview ---
+
+FACTS = """\
+#loskai-status 2
+#=os
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+ID=debian
+# a comment line os-release may have
+#=kernel
+Linux 6.8.12-4-pve
+#=uptime
+86461.32
+#=memory
+MemTotal:       16303916 kB
+MemAvailable:    9893212 kB
+#=disks
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+udev               8128348        0   8128348       0% /dev
+tmpfs              1630392     1772   1628620       1% /run
+rpool/ROOT/pve-1 100000000 25000000  75000000      25% /
+/dev/sda2         97411380 34403488  58013488      38% /mnt/data
+/dev/sda2         97411380 34403488  58013488      38% /srv/same-disk
+/dev/loop3           65536    65536         0     100% /snap/core/1
+/dev/nvme0n1p1     1098628     6288   1092340       1% /boot/efi
+#=updates
+apt 12
+#=tools
+tmux
+docker
+pct
+#=tmux
+build|1793212547|1|2
+not a session line
+"""
+
+
+def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
+    out = logic.parse_facts(FACTS)
+
+    assert out["os"] == "Debian GNU/Linux 12 (bookworm)" and out["os_id"] == "debian"
+    assert out["kernel"] == "Linux 6.8.12-4-pve" and out["uptime"] == 86461
+    assert out["memory"] == {"total": 16303916 * 1024, "available": 9893212 * 1024}
+    # Storage only: the root (a ZFS dataset here), each block device once, no tmpfs or snaps.
+    assert [d["mount"] for d in out["disks"]] == ["/", "/mnt/data", "/boot/efi"]
+    assert out["disks"][1] == {"mount": "/mnt/data", "device": "/dev/sda2", "size": 97411380 * 1024, "used": 34403488 * 1024}
+    assert out["updates"] == {"manager": "apt", "count": 12}
+    assert out["tools"] == ["tmux", "docker", "pct"]
+    assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2}]
+
+
+def test_an_older_status_line_has_no_overview():
+    with pytest.raises(logic.OldStatusLine):
+        logic.parse_facts(OUTPUT)
+    with pytest.raises(ValueError):
+        logic.parse_facts("Welcome to Ubuntu\n$ ")
+
+
+@pytest.mark.parametrize("request_", ["facts", "running", None])
+def test_the_forced_command_runs_in_sh_and_answers_each_request(request_):
+    # The real command, on this machine: whatever is installed, it must parse.
+    assert '"' not in logic.STATUS_COMMAND and "\\" not in logic.STATUS_COMMAND
+    env = {k: v for k, v in os.environ.items() if k != "SSH_ORIGINAL_COMMAND"}
+    if request_:
+        env["SSH_ORIGINAL_COMMAND"] = request_
+    out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
+
+    if request_ == "facts":
+        facts = logic.parse_facts(out)
+        assert facts["kernel"] and facts["uptime"] and facts["memory"]["total"] > 0
+        assert set(facts["tools"]) <= set(logic.FACT_TOOLS)
+    else:
+        assert set(logic.parse_running(out)) == {"containers", "services", "hidden", "guests", "denied"}

@@ -20,7 +20,8 @@ Everything so far:
   containers, services, Proxmox guests — listed on hover — and opens a terminal in the
   browser. Every terminal session is logged. Loskai's key, the config download and the log
   are in Settings › SSH; the cog on a machine's row opens its page — edit it,
-  set up SSH, what runs there, its log.
+  set up SSH, its overview (system, memory, disks, updates waiting, tools, tmux sessions),
+  what runs there, its log.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. The container terminal
   now shows bash's prompt and error messages (it hid them before), and opens a shell in
   images without bash.

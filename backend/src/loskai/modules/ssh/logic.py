@@ -202,12 +202,18 @@ def public_key_of(private_key: str, comment: str) -> str:
 #
 # A second key, kept unencrypted so each machine's running list works without the admin
 # password. The machine limits it, not Loskai: `restrict` (no shell, pty, forwarding),
-# `from=` the Docker host, and this forced command, which only lists what runs. Each list
-# falls back to `sudo -n` (never prompts), and `!denied` marks one the user may not read.
-# No double quotes or backslashes: it sits inside `command="…"`.
-STATUS_VERSION = "#loskai-status 1"
-STATUS_COMMAND = (
-    f"echo '{STATUS_VERSION}'; "
+# `from=` the Docker host, and this forced command, which only reads. Whatever command the
+# client asks for, this runs instead; the request only picks one of two fixed answers
+# (`$SSH_ORIGINAL_COMMAND`, compared in a `case`, never run): `facts` — the machine's
+# overview — or anything else, what runs there. Each list falls back to `sudo -n` (never
+# prompts), and `!denied` marks one the user may not read. No double quotes or backslashes:
+# it sits inside `command="…"`. docs/reference/ssh-status.md is the contract.
+#
+# The version line changes when what is installed must change. A machine with an older
+# line still answers `running` (that part is the same); `facts` asks for a reinstall.
+STATUS_VERSION = "#loskai-status 2"
+OLD_STATUS_VERSIONS = ("#loskai-status 1",)
+_RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
     "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
     "sudo -n docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
@@ -217,6 +223,33 @@ STATUS_COMMAND = (
     "if command -v pct >/dev/null; then echo '#pct'; "
     "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
     "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
+)
+# Tools the overview reports, which plugins will ask for. `~/.local/bin` too: a forced
+# command gets sshd's PATH, not the login shell's, and per-user installs (Claude Code) go there.
+FACT_TOOLS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo")
+_FACTS = (
+    "PATH=$PATH:$HOME/.local/bin; "
+    "echo '#=os'; cat /etc/os-release 2>/dev/null; "
+    "echo '#=kernel'; uname -sr; "
+    "echo '#=uptime'; cut -d' ' -f1 /proc/uptime; "
+    "echo '#=memory'; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; "
+    "echo '#=disks'; df -P -k 2>/dev/null; "
+    # From the machine's own package lists, as they were last refreshed — nothing is fetched.
+    "echo '#=updates'; "
+    "if command -v apt-get >/dev/null; then "
+    "echo apt $(apt-get -s -o Debug::NoLocking=1 dist-upgrade 2>/dev/null | grep -c '^Inst '); "
+    "elif command -v dnf >/dev/null; then "
+    "echo dnf $(dnf -C -q check-update 2>/dev/null | grep -c '^[[:alnum:]]'); "
+    "elif command -v apk >/dev/null; then echo apk $(apk -u list 2>/dev/null | wc -l); "
+    "elif command -v pacman >/dev/null; then echo pacman $(pacman -Qu 2>/dev/null | wc -l); fi; "
+    f"echo '#=tools'; for c in {' '.join(FACT_TOOLS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
+    "echo '#=tmux'; "
+    "tmux ls -F '#{session_name}|#{session_created}|#{session_attached}|#{session_windows}' 2>/dev/null; "
+    "true"
+)
+STATUS_COMMAND = (
+    f"echo '{STATUS_VERSION}'; "
+    f"case $SSH_ORIGINAL_COMMAND in facts) {_FACTS};; *) {_RUNNING};; esac"
 )
 STATUS_COMMENT = "loskai-status"
 
@@ -297,7 +330,7 @@ def parse_running(output: str) -> dict:
     Raises ValueError for output that isn't the status command's — a key line from another
     version, or a shell where the forced command should be."""
     lines = output.splitlines()
-    if not lines or lines[0].strip() != STATUS_VERSION:
+    if not lines or lines[0].strip() not in (STATUS_VERSION, *OLD_STATUS_VERSIONS):
         raise ValueError("not Loskai's status output")
     out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
     section = None
@@ -347,3 +380,117 @@ def _guest(line: str, section: str) -> dict | None:
     if len(parts) < 3 or parts[2] != "running":
         return None
     return {"id": parts[0], "name": parts[1], "kind": "vm"}
+
+
+# --- A machine's overview ---
+
+
+class OldStatusLine(ValueError):
+    """The machine answered with an older status line, which has no overview."""
+
+
+# Filesystems that are not storage anyone asks about: kept out of the disks.
+_PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm", "squashfs")
+
+
+def parse_facts(output: str) -> dict:
+    """The forced command's `facts` answer → the machine's overview:
+    `{os, os_id, os_like, kernel, uptime, memory, disks, updates, tools, tmux}`.
+
+    `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
+    manager, for plugins); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
+    `{mount, device, size, used}` in bytes, real storage only and one row per device;
+    `updates` `{manager, count}` or None; `tools` the `FACT_TOOLS` present; `tmux`
+    `{name, created, attached, windows}`. Raises `OldStatusLine` for a machine still on an
+    older line, ValueError for anything else."""
+    lines = output.splitlines()
+    head = lines[0].strip() if lines else ""
+    if head in OLD_STATUS_VERSIONS:
+        raise OldStatusLine(head)
+    if head != STATUS_VERSION:
+        raise ValueError("not Loskai's status output")
+    sections: dict[str, list[str]] = {}
+    current: list[str] | None = None
+    for raw in lines[1:]:
+        if raw.startswith("#="):
+            current = sections.setdefault(raw[2:].strip(), [])
+        elif current is not None and raw.strip():
+            current.append(raw.strip())
+
+    release = dict(_release_line(line) for line in sections.get("os", []) if "=" in line)
+    return {
+        "os": release.get("PRETTY_NAME") or release.get("NAME"),
+        "os_id": release.get("ID"),
+        "os_like": release.get("ID_LIKE", "").split(),
+        "kernel": next(iter(sections.get("kernel", [])), None),
+        "uptime": _number(next(iter(sections.get("uptime", [])), None)),
+        "memory": _memory(sections.get("memory", [])),
+        "disks": _disks(sections.get("disks", [])),
+        "updates": _updates(sections.get("updates", [])),
+        "tools": [t for t in sections.get("tools", []) if t in FACT_TOOLS],
+        "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
+    }
+
+
+def _release_line(line: str) -> tuple[str, str]:
+    key, _, value = line.partition("=")
+    return key, value.strip().strip('"').strip("'")
+
+
+def _number(text: str | None) -> int | None:
+    try:
+        return int(float(text)) if text is not None else None
+    except ValueError:
+        return None
+
+
+def _memory(lines: list[str]) -> dict | None:
+    kb = {}
+    for line in lines:
+        key, _, rest = line.partition(":")
+        value = _number(rest.split()[0] if rest.split() else None)
+        if value is not None:
+            kb[key] = value * 1024
+    if "MemTotal" not in kb:
+        return None
+    return {"total": kb["MemTotal"], "available": kb.get("MemAvailable")}
+
+
+def _disks(lines: list[str]) -> list[dict]:
+    """`df -P -k` rows that are storage: a block device or the root, each device once —
+    a btrfs or bind mount shows the same device again — never a loop device (snaps)."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    for line in lines[1:]:  # the header
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+        device, size, used, mount = parts[0], parts[1], parts[2], " ".join(parts[5:])
+        real = device.startswith("/dev/") and not device.startswith("/dev/loop")
+        if device in _PSEUDO_FS or not (real or mount == "/") or device in seen:
+            continue
+        if _number(size) is None or _number(used) is None:
+            continue
+        seen.add(device)
+        out.append({"mount": mount, "device": device, "size": int(size) * 1024, "used": int(used) * 1024})
+    return out
+
+
+def _updates(lines: list[str]) -> dict | None:
+    for line in lines:
+        manager, _, count = line.partition(" ")
+        if manager and _number(count) is not None:
+            return {"manager": manager, "count": _number(count)}
+    return None
+
+
+def _tmux_session(line: str) -> dict | None:
+    parts = line.split("|")
+    if len(parts) != 4 or _number(parts[1]) is None:
+        return None
+    return {
+        "name": parts[0],
+        "created": _number(parts[1]),
+        "attached": parts[2] not in ("", "0"),
+        "windows": _number(parts[3]) or 0,
+    }

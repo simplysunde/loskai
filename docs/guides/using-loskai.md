@@ -101,7 +101,9 @@ closed. Moving the machine moves them all, except a container route that follows
 container.
 
 The **cog** on a machine's row opens its page: edit its name, address and SSH login, set up
-SSH, see everything running there, and its log.
+SSH, its overview (system, uptime, memory, disks, updates waiting, tools, tmux sessions),
+everything running there, and its log. A machine set up before the overview existed says
+"install again" there — one click.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai

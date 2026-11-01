@@ -1607,6 +1607,19 @@ install dependencies if missing, when enabling a plugin")._
 **34e — the overview** (read-only, status key): OS and version, kernel, uptime, memory,
 disks, updates waiting, which tools the machine has (`tmux`, `claude`, `docker`, `pct`…),
 and its tmux sessions. On the machine page; an older status line says "reinstall".
+- [x] Status line v2: one forced command, two requests picked by `$SSH_ORIGINAL_COMMAND`
+      (`running`, `facts`) — the costlier overview only for the page that shows it; v1
+      lines keep their running list. `logic.parse_facts`, `GET /api/ssh/machines/{id}/facts`
+      (60 s cache), `MachineOverview`; the contract in
+      [ssh-status.md](../reference/ssh-status.md)
+- [x] +9 backend (641), +2 frontend (252); `pytest`, `npm test`, `npm run build`, `oxlint`,
+      `check-docs.sh`
+- [x] **Live:** in the container, codebox (still on v1) kept its running list (5 containers)
+      and its overview said `old` — install again. A throwaway Debian `sshd` with the v2
+      line, asked with the real status key: `facts` gave Debian 13, memory, `apt 1`, tmux
+      and its session `work`; `running` parsed; `cat /etc/shadow; id` got the status answer;
+      a pty was refused
+- [ ] Codebox: Install again from its page, then look at the overview
 
 **34f — plugins, and the first ones**
 - The plugin format, its validator, built-ins in the image; a Plugins section on the

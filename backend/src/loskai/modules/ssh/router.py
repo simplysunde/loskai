@@ -152,6 +152,13 @@ async def test(machine_id: str) -> dict:
     return await _call(connect.test(machine_id))
 
 
+@router.get("/machines/{machine_id}/facts")
+async def facts(machine_id: str) -> dict:
+    """The machine's overview — OS, memory, disks, updates, tools, tmux sessions — read with
+    the status key, from a short cache (`connect.FACTS_TTL`)."""
+    return await _call(connect.facts(machine_id))
+
+
 @router.get("/log")
 def session_log(limit: int = 200) -> list[dict]:
     """The SSH log, newest first: terminals opened, closed and refused, and installs."""

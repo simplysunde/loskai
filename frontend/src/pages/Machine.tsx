@@ -5,9 +5,10 @@ import { Link, useLocation, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
-import { useRunning, useSsh } from "../lib/ssh";
+import { useFacts, useRunning, useSsh } from "../lib/ssh";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { isMachine } from "../components/routing/machine";
+import { MachineOverview } from "../components/routing/MachineOverview";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { RunningList } from "../components/routing/RunningPill";
 import type { RouteRow } from "../components/routing/ServiceTable";
@@ -27,7 +28,7 @@ const BUTTON =
   "flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800";
 
 // One machine — the cog on its row. What belongs to this machine alone lives here: its
-// name, address and SSH login, its SSH setup, what runs on it, and its log. What is the
+// name, address and SSH login, its SSH setup, its overview, what runs on it, and its log. What is the
 // same for every machine is in Settings › SSH.
 export function Machine() {
   const { id = "" } = useParams();
@@ -50,6 +51,7 @@ export function Machine() {
   const ssh = useSsh();
   const trusted = Boolean(ssh.data?.trusted[id]);
   const running = useRunning(trusted);
+  const facts = useFacts(id, trusted);
 
   const save = useSaveMachine({
     onSaved: (data, m) => {
@@ -146,6 +148,13 @@ export function Machine() {
             )}
           </div>
         </section>
+
+        {host?.user && trusted && (
+          <section className="border-t border-slate-800 pt-6">
+            <h2 className="mb-3 text-sm font-medium text-slate-200">Overview</h2>
+            <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} />
+          </section>
+        )}
 
         {host?.user && (
           <section className="border-t border-slate-800 pt-6">

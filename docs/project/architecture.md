@@ -293,7 +293,11 @@ a test using both keys (`connect.py`). The main key is unlocked in memory for 15
 the admin password (`unlock.py`) and locked by logout. Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
-30 s, only while someone is looking.
+30 s, only while someone is looking. The machine's page adds its **overview** — system,
+uptime, memory, disks, updates waiting, tools, tmux sessions — from the same key's second
+request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command answers both,
+picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
+is [ssh-status.md](../reference/ssh-status.md).
 
 A set-up machine's row opens a **terminal** (`MachineTerminal`): a pty shell over SSH with
 the main key, behind the session, `Origin` and unlocked-key checks; closing it hangs up the

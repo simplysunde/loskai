@@ -18,10 +18,11 @@ your network. Read this before deciding where it runs and who can reach it.
   when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
   itself, also from Loskai's own Docker networks). Give Loskai's login
   user on each machine only the `sudo` you want it to have.
-- **A second, status-only key** is kept unencrypted, so each machine's running list works
-  without your password. The machine itself limits it to one command that lists what runs —
-  no shell, no forwarding, only from the Docker host — so a copy reveals that list and
-  nothing else.
+- **A second, status-only key** is kept unencrypted, so each machine's running list and
+  overview work without your password. The machine itself limits it to one command that
+  only reads — what runs, and the system, memory, disks, updates waiting, tools and tmux
+  session names — with no shell, no forwarding, only from the Docker host. A copy reveals
+  that and nothing else.
 - **The Machines tab opens a shell on a machine**, from the browser, as Loskai's SSH user —
   only while the key is unlocked, and only from Loskai's own pages. Each terminal opened,
   closed or refused is logged (when, which machine, from where), not what is typed in it.

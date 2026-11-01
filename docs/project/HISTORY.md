@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-01 — Phase 34e: the overview, a second request to the status key
+
+**One forced command, two requests.** The overview (system, memory, disks, updates waiting,
+tools, tmux sessions) is read with the status key, so it needs no password — but counting
+updates runs the package manager's simulation (~0.5 s), too much for every machine every
+30 s on the Machines tab. The forced command now reads `$SSH_ORIGINAL_COMMAND`, only to
+pick between two fixed answers in a `case` — it never runs it — so the page asks for
+`facts` and the tab for `running`. A second key per machine was the alternative; one line
+to install is simpler.
+
+**The status line has a version** (`#loskai-status 2`), and an older line keeps working for
+what it can answer: v1 machines keep their running list, and only the overview asks for
+the reinstall. Sunde asked for the docs to make iterating easy, so the command's contract —
+requests, sections, rules, versions, and the steps to add a fact — is its own reference
+page, `ssh-status.md`.
+
 ## 2026-11-01 — Machines: the SSH key row goes; a cog on each machine
 
 **The key row on the Machines tab showed a line that could be wrong.** It was built before

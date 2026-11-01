@@ -19,7 +19,8 @@ from loskai.shared import assign as assign_module
 PASSWORD = "correct horse battery"
 HOST_KEY = asyncssh.generate_private_key("ssh-ed25519")
 OTHER_KEY = asyncssh.generate_private_key("ssh-ed25519")
-STATUS = "#loskai-status 1\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
+STATUS = "#loskai-status 2\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
+FACTS = "#loskai-status 2\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
 
 
 class Done:
@@ -38,12 +39,13 @@ def env(monkeypatch):
     monkeypatch.setattr(assign_module.caddy_service, "teardown_route", no_route)
     unlock.lock()
     connect._running.clear()
+    connect._facts.clear()
 
 
 @pytest.fixture
 def machine_net(monkeypatch):
     """The machine at 192.168.10.50: offers `state["host_key"]`, records every login."""
-    state = {"host_key": HOST_KEY, "logins": [], "password": "machine-pw", "fail": None}
+    state = {"host_key": HOST_KEY, "logins": [], "password": "machine-pw", "fail": None, "facts": FACTS}
 
     async def scan(host, port):
         return state["host_key"]
@@ -59,7 +61,8 @@ def machine_net(monkeypatch):
         if password is not None and password != state["password"]:
             raise asyncssh.PermissionDenied("no")
         if client_key is not None and client_key.get_comment() == "loskai-status":
-            return Done(STATUS)
+            # The forced command runs whatever is asked; the request only picks the answer.
+            return Done(state["facts"] if command == "facts" else STATUS)
         return Done()
 
     monkeypatch.setattr(ssh_client, "scan_host_key", scan)
@@ -470,3 +473,34 @@ def test_without_docker_the_docker_host_gets_the_plain_line(api, machine_net, mo
     assert api.post("/api/ssh/machines/codebox/scan").json()["lines"][0].startswith(
         'from="192.168.10.216" ssh-ed25519 '
     )
+
+
+# --- The overview ---
+
+
+def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()  # no admin password needed, like the running list
+
+    first = api.get("/api/ssh/machines/nas/facts").json()
+    second = api.get("/api/ssh/machines/nas/facts").json()
+
+    assert first["ok"] and first["os"] == "Debian 12" and first["tools"] == ["tmux"]
+    assert second == first
+    asked = [x for x in machine_net["logins"] if x["command"] == "facts"]
+    assert len(asked) == 1 and asked[0]["key"].get_comment() == "loskai-status"
+
+
+def test_a_machine_on_the_older_status_line_is_asked_to_reinstall(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    machine_net["facts"] = STATUS.replace("status 2", "status 1")
+
+    view = api.get("/api/ssh/machines/nas/facts").json()
+
+    assert view["ok"] is False and view["old"] is True and "install again" in view["error"]
+
+
+def test_the_overview_needs_a_trusted_host_key(api, machine_net):
+    assert api.get("/api/ssh/machines/nas/facts").status_code == 409

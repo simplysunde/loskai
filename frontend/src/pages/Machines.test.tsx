@@ -42,6 +42,14 @@ const ROUTES = [
 let calls: { path: string; method: string; body: unknown }[] = [];
 let sshHosts: Record<string, unknown> = {};
 let sshTrusted: Record<string, boolean> = {};
+const FACTS = {
+  ok: true, checked: 0, os: "Debian GNU/Linux 12 (bookworm)", kernel: "Linux 6.1.0", uptime: 3 * 86400 + 7200,
+  memory: { total: 8 * 1024 ** 3, available: 2 * 1024 ** 3 },
+  disks: [{ mount: "/", device: "/dev/sda1", size: 100 * 1024 ** 3, used: 95 * 1024 ** 3 }],
+  updates: { manager: "apt", count: 12 }, tools: ["tmux", "docker"],
+  tmux: [{ name: "build", created: 1793212547, attached: false, windows: 2 }],
+};
+let facts: unknown = FACTS;
 
 beforeEach(() => {
   // Machines start collapsed; most tests look at the routes beneath, so both begin open.
@@ -49,6 +57,7 @@ beforeEach(() => {
   calls = [];
   sshHosts = {};
   sshTrusted = {};
+  facts = FACTS;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -78,6 +87,8 @@ beforeEach(() => {
                 ]
             : path === "/api/ssh/running"
               ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days" }], services: [], guests: [] } }
+            : path.endsWith("/facts")
+              ? facts
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
@@ -255,6 +266,14 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
 
   expect(await screen.findByText("plex-1")).toBeInTheDocument();
   expect(screen.getByText("loskai@192.168.10.50:22")).toBeInTheDocument();
+  // The overview: system, uptime, what's waiting, how full, its tools and tmux sessions.
+  expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
+  expect(screen.getByText("3d 2h")).toBeInTheDocument();
+  expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
+  expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
+  expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
+  expect(screen.getByText("tmux")).toBeInTheDocument();
+  expect(screen.getByText("build")).toBeInTheDocument();
   // Only this machine's entries.
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
@@ -263,6 +282,16 @@ test("a set-up machine's page: what runs there, its own log, and a terminal", as
   // No key in this stub, so it asks to unlock first.
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
   expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
+});
+
+test("a machine on the older status line is offered the reinstall for its overview", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  facts = { ok: false, old: true, checked: 0, error: "Its status line predates the overview — install again" };
+  renderPage("/machines/nas");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Install again" }));
+  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {

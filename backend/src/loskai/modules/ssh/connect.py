@@ -23,8 +23,15 @@ from . import client, logic, unlock
 logger = logging.getLogger(__name__)
 
 RUNNING_TTL = 30  # seconds a running list is reused — the Machines tab asks every 30 s
+FACTS_TTL = 60  # seconds an overview is reused — only a machine's own page asks
 
 _running: dict[str, tuple[float, dict]] = {}
+_facts: dict[str, tuple[float, dict]] = {}
+
+
+def _drop_cached(machine_id: str) -> None:
+    _running.pop(machine_id, None)
+    _facts.pop(machine_id, None)
 
 
 class SshError(Exception):
@@ -121,14 +128,14 @@ async def trust(machine_id: str, fingerprint: str) -> dict:
         raise SshError(409, "The machine answered with a different host key than the one shown")
     line = " ".join(key.export_public_key("openssh").decode().split()[:2])
     client.update_known_hosts(lambda text: logic.set_known(text, t.id, line))
-    _running.pop(t.id, None)
+    _drop_cached(t.id)
     return {"fingerprint": fingerprint, "state": "trusted"}
 
 
 def forget(machine_id: str) -> None:
-    """A deleted machine's host key and running list go with it."""
+    """A deleted machine's host key, running list and overview go with it."""
     client.update_known_hosts(lambda text: logic.forget_known(text, machine_id))
-    _running.pop(machine_id, None)
+    _drop_cached(machine_id)
 
 
 # --- Installing and testing Loskai's keys ---
@@ -194,6 +201,8 @@ async def test(machine_id: str) -> dict:
         raise SshError(502, _describe(exc, t, "key"))
     if result.exit_status != 0:
         raise SshError(502, f"Logged in to {t.host}, but a command there failed")
+    # A (re)install may have put a newer status line there: the overview is asked again.
+    _facts.pop(t.id, None)
     return {"key": True, "running": await _read_running(t, host_key)}
 
 
@@ -234,7 +243,7 @@ def log(event: str, machine_id: str, peer: str | None, **details) -> None:
 async def _read_running(t: Target, host_key: str) -> dict:
     try:
         result = await client.run(
-            t.host, t.port, t.user, host_key, "status", client_key=client.status_key()
+            t.host, t.port, t.user, host_key, "running", client_key=client.status_key()
         )
         view = {"ok": True, **logic.parse_running(str(result.stdout or ""))}
     except ValueError:
@@ -275,3 +284,34 @@ async def running() -> dict[str, dict]:
     ):
         out[t.id] = view
     return out
+
+
+# --- The machine's overview ---
+
+
+async def facts(machine_id: str) -> dict:
+    """The machine's overview, read with the status key (`logic.parse_facts`), reused for
+    `FACTS_TTL`. Always a view, never an error once the machine is set up: `ok` false with
+    `error` — and `old` when its status line predates the overview, so the page offers the
+    reinstall."""
+    t = target(machine_id)
+    host_key = _trusted(t)
+    cached = _facts.get(t.id)
+    if cached and time.monotonic() - cached[0] < FACTS_TTL:
+        return cached[1]
+    try:
+        result = await client.run(
+            t.host, t.port, t.user, host_key, "facts", client_key=client.status_key()
+        )
+        view = {"ok": True, **logic.parse_facts(str(result.stdout or ""))}
+    except logic.OldStatusLine:
+        view = {"ok": False, "old": True, "error": "Its status line predates the overview — install again"}
+    except ValueError:
+        view = {"ok": False, "error": "The status key's line on the machine is missing or out of date — install again"}
+    except asyncssh.PermissionDenied:
+        view = {"ok": False, "error": "The machine doesn't accept the status key — install again"}
+    except Exception as exc:  # noqa: BLE001
+        view = {"ok": False, "error": _describe(exc, t, "status key")}
+    view["checked"] = time.time()
+    _facts[t.id] = (time.monotonic(), view)
+    return view

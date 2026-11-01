@@ -96,6 +96,7 @@ export function SshSetupModal({
       setAskAdmin(false);
       qc.invalidateQueries({ queryKey: ["ssh"] });
       qc.invalidateQueries({ queryKey: ["ssh-running"] });
+      qc.invalidateQueries({ queryKey: ["ssh-facts"] });
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 423) setAskAdmin(true);

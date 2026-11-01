@@ -52,3 +52,31 @@ export function useRunning(enabled: boolean) {
 export function runningCount(r: Running): number {
   return (r.containers?.length ?? 0) + (r.services?.length ?? 0) + (r.guests?.length ?? 0);
 }
+
+// A machine's overview, read with the status key (works while the main key is locked).
+export interface Facts {
+  ok: boolean;
+  error?: string;
+  old?: boolean; // its status line predates the overview: install again
+  checked: number;
+  os?: string | null;
+  os_id?: string | null;
+  os_like?: string[];
+  kernel?: string | null;
+  uptime?: number | null; // seconds
+  memory?: { total: number; available: number | null } | null; // bytes
+  disks?: { mount: string; device: string; size: number; used: number }[]; // bytes
+  updates?: { manager: string; count: number } | null;
+  tools?: string[];
+  tmux?: { name: string; created: number; attached: boolean; windows: number }[];
+}
+
+// Only a machine's own page asks; the backend reuses an answer for 60 s.
+export function useFacts(machineId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["ssh-facts", machineId],
+    queryFn: () => api.get<Facts>(`/api/ssh/machines/${machineId}/facts`),
+    refetchInterval: 60_000,
+    enabled,
+  });
+}
