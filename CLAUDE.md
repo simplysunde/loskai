@@ -64,7 +64,8 @@ Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (o
 hooks, `docs.ts` — the repo's address, for links to the docs).
 
 Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
-(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `caddy/` (the
+(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `compose.live.yml` (on top
+of `compose.yml`: the working tree, live-reloading — `make live`), `caddy/` (the
 Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `check-docs.sh`,
 `sync-recipe-schema.sh`, the LXC scripts, `container-entrypoint.sh`). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`.
@@ -82,6 +83,8 @@ commit messages are user-facing — Check for updates shows them as "What change
 - Recipes: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`) —
   the wizard's own validator over a recipe folder or a whole recipes repo.
 - A compose file: `docker compose -f <file> config` — renders it without a daemon.
+- `make live` swaps the `loskai` container for the working tree, reloading on save, on the
+  same `:8080` (`bash scripts/deploy.sh` swaps back).
 - Production serves on `:8080`: one FastAPI process serves the API *and* the built React
   bundle. Dev is two servers; prod is one. Deploy is `bash scripts/deploy.sh` on the host
   (always `--build`: a plain `up -d` keeps the old image).

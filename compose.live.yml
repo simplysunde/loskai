@@ -1,0 +1,42 @@
+# Live development, layered on compose.yml — the same settings, .env and ./data, nothing
+# repeated. It replaces the `loskai` container in place with one running the working tree:
+# the backend restarts when a .py file is saved, and Vite serves the frontend on the same
+# :8080, updating the open page as you edit — no rebuild, no reload.
+#
+#   make live          (docker compose -f compose.yml -f compose.live.yml up -d --build)
+#
+# Back to the built image: bash scripts/deploy.sh. A changed dependency (pyproject.toml,
+# package.json) needs `make live` again.
+
+services:
+  loskai:
+    ports: !reset [] # :8080 is Vite's now; it proxies /api here
+    volumes:
+      - ./backend/src:/app/src:ro # the image installs loskai editable from /app/src
+    command:
+      - uv
+      - run
+      - --no-sync
+      - uvicorn
+      - loskai.main:app
+      - --host=0.0.0.0
+      - --port=8080
+      - --reload
+      - --reload-dir=/app/src
+
+  web:
+    image: node:20-alpine # the same Node as the Dockerfile's frontend stage
+    working_dir: /app
+    # The host's node_modules is built for the host; the container keeps its own.
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      - LOSKAI_API=http://loskai:8080
+    ports:
+      - "8080:5173"
+    volumes:
+      - ./frontend:/app
+      - node_modules:/app/node_modules
+    restart: unless-stopped
+
+volumes:
+  node_modules:

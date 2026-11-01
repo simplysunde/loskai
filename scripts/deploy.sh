@@ -51,7 +51,8 @@ if [ -f loskai-settings/settings.json ] && [ ! -f data/settings.json ]; then
 fi
 
 log "Building + deploying ($COMPOSE_FILE)"
-docker compose -f "$COMPOSE_FILE" up -d --build
+# --remove-orphans: after `make live`, its Vite container still holds :8080.
+docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
 
 log "Done — Loskai is up on :8080"
 docker compose -f "$COMPOSE_FILE" ps
