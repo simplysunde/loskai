@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
@@ -23,6 +23,7 @@ import {
 import { api } from "../../lib/api";
 import { docUrl } from "../../lib/docs";
 import { formatPercent, formatUptime } from "../../lib/format";
+import { useExpanded } from "../../lib/useExpanded";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -58,13 +59,7 @@ export function StackGroups({
   onRemoveProject: (project: { name: string; containers: Container[] }) => void;
 }) {
   const qc = useQueryClient();
-  // Groups start collapsed; the ones opened are remembered for this browser tab's session,
-  // so a refresh or a visit to another page keeps them, and a new tab starts tidy again.
-  const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
-  const keep = (next: Set<string>) => {
-    setExpanded(next);
-    writeExpanded(next);
-  };
+  const expanded = useExpanded("loskai.docker.expanded");
 
   const containers = useQuery({
     queryKey: ["docker-containers"],
@@ -131,33 +126,19 @@ export function StackGroups({
   const managed = groups.filter((g) => g.kind === "stack");
   const others = groups.filter((g) => g.kind !== "stack");
 
-  const toggle = (key: string) => {
-    const next = new Set(expanded);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    keep(next);
-  };
-  // One table's groups at once: collapse them all if any is open, else open them all.
-  const toggleAll = (table: Group[]) => {
-    const next = new Set(expanded);
-    const anyOpen = table.some((g) => next.has(g.key));
-    for (const g of table) {
-      if (anyOpen) next.delete(g.key);
-      else next.add(g.key);
-    }
-    keep(next);
-  };
-  const anyOpen = (table: Group[]) => table.some((g) => expanded.has(g.key));
+  const keys = (table: Group[]) => table.map((g) => g.key);
+  const toggleAll = (table: Group[]) => expanded.toggleAll(keys(table));
+  const anyOpen = (table: Group[]) => expanded.anyOpen(keys(table));
 
   const renderGroup = (group: Group) => {
-    const open = expanded.has(group.key);
+    const open = expanded.isOpen(group.key);
     return (
       <Fragment key={group.key}>
         <GroupHeader
           group={group}
           baseDomain={baseDomain}
           open={open}
-          onToggle={() => toggle(group.key)}
+          onToggle={() => expanded.toggle(group.key)}
           busy={
             group.kind === "stack"
               ? stackAction.isPending && stackAction.variables?.name === group.stack.name
@@ -234,27 +215,6 @@ export function StackGroups({
 }
 
 const COLS = 5;
-
-const EXPANDED_KEY = "loskai.docker.expanded";
-
-// Browser storage can be missing or refuse (a private window, blocked site data): then the
-// tab simply starts collapsed each time.
-function readExpanded(): Set<string> {
-  try {
-    const raw = sessionStorage.getItem(EXPANDED_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeExpanded(keys: Set<string>) {
-  try {
-    sessionStorage.setItem(EXPANDED_KEY, JSON.stringify([...keys]));
-  } catch {
-    // Not kept — harmless.
-  }
-}
 
 // Each section is its own table, titled in its header row. Both share fixed column
 // widths, so their columns line up across the gap.

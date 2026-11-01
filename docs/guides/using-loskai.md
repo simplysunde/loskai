@@ -95,8 +95,10 @@ The computers on your network, by name — a name with no port.
 > for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
 > machine once and the route moves with it.
 
-Under each machine are the routes on its address — however they were made. Moving the
-machine moves them all, except a container route that follows its container.
+Under each machine are the routes on its address — however they were made. A machine's
+row opens and closes like a stack on the Docker tab, showing how many it holds while
+closed. Moving the machine moves them all, except a container route that follows its
+container.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai

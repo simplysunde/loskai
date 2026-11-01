@@ -43,6 +43,8 @@ let sshHosts: Record<string, unknown> = {};
 let sshTrusted: Record<string, boolean> = {};
 
 beforeEach(() => {
+  // Machines start collapsed; most tests look at the routes beneath, so both begin open.
+  sessionStorage.setItem("loskai.machines.expanded", JSON.stringify(["nas", "pve"]));
   calls = [];
   sshHosts = {};
   sshTrusted = {};
@@ -104,6 +106,26 @@ test("lists machines only, each with the routes hosted on it beneath", async () 
   expect(screen.getByText(":32400")).toBeInTheDocument();
   // A service on no machine has no business on this tab.
   expect(screen.queryByText("grafana")).not.toBeInTheDocument();
+  expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
+});
+
+test("a machine starts collapsed, with its count; opening it shows its routes and is remembered", async () => {
+  sessionStorage.clear();
+  renderPage();
+
+  await screen.findByText("Storage box");
+  expect(screen.queryByText("plex")).not.toBeInTheDocument();
+  const toggle = screen.getByRole("button", { name: /Storage box/ });
+  expect(toggle).toHaveAttribute("title", "2 routes on this machine");
+  expect(toggle).toHaveTextContent("2");
+
+  fireEvent.click(toggle);
+  expect(screen.getByText("plex")).toBeInTheDocument();
+  expect(JSON.parse(sessionStorage.getItem("loskai.machines.expanded")!)).toEqual(["nas"]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Collapse all machines" }));
+  expect(screen.queryByText("plex")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Expand all machines" }));
   expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
 });
 
