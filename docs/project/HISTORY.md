@@ -12,8 +12,12 @@ needs its own (`from=` also names Loskai's network), so copying from the row wou
 locked Loskai out of it. Each machine's setup already shows that machine's lines, so the
 row's line and Copy button went rather than being fixed. Sunde had found the row unclear.
 
-**What only it did moved to Settings › Security:** New key and the SSH log, beside the admin
-password that encrypts the key. Both are rare and cover every machine, not one.
+**What only it did moved to Settings › SSH**, a page of its own: the key by its fingerprint
+and New key, the SSH config download (from General › Backup) and the log, shown on the
+page. The rule for the split: Settings holds what is the same for every machine, the cog
+what belongs to one. Considered and left out to keep it small: a second table of the
+machines (the Machines tab is that), the status key (an internal detail), Lock now and
+Test all.
 
 **A machine's SSH settings are behind a cog on its row** (Sunde's suggestion). The terminal
 button had doubled as the setup button until a machine was set up; now each button does one

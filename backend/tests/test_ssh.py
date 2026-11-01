@@ -72,6 +72,7 @@ def test_the_key_is_encrypted_with_the_admin_password_and_never_returned(client,
         asyncssh.import_private_key(private)  # useless without the password
     key = asyncssh.import_private_key(private, passphrase=PASSWORD)
     assert key.export_public_key("openssh").decode().strip() == view["public_key"]
+    assert view["fingerprint"] == key.get_fingerprint()
     for answer in (r, client.get("/api/ssh"), client.get("/api/ssh/config")):
         assert "PRIVATE KEY" not in answer.text
 

@@ -20,7 +20,7 @@ function at(path: string) {
 
 test("renders every category in the sub-nav", () => {
   at("/settings");
-  for (const label of ["General", "Network", "Security"]) {
+  for (const label of ["General", "Network", "SSH", "Security"]) {
     expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
   }
 });

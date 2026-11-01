@@ -6,6 +6,7 @@ import { api } from "./api";
 // machine's entry is the one named after its hostname.
 export interface SshKey {
   public_key: string;
+  fingerprint: string; // SHA256:…, as ssh-keygen -lf prints it
   authorized_keys: string; // the main key's line, with from= when it is known
   lines: string[]; // both lines a machine gets: the main key's, then the status key's
   from: string | null; // the Docker host's IP the keys are limited to

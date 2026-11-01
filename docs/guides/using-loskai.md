@@ -113,7 +113,9 @@ hovering lists them. On Proxmox, or where the user isn't in the `docker` group, 
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
-- **Security** — the admin password; Loskai's SSH key (New key) and the SSH log.
+- **SSH** — Loskai's key (its fingerprint, New key), the SSH config for your own computer,
+  and the log of terminals and installs.
+- **Security** — the admin password.
 
 ---
 

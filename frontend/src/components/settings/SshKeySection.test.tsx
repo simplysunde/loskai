@@ -7,6 +7,7 @@ import { SshKeySection } from "./SshKeySection";
 
 const KEY: SshKey = {
   public_key: "ssh-ed25519 AAAAC3Nza loskai",
+  fingerprint: "SHA256:Ap4hJGzRxN2kq9uE0vWzvSPnKCN7tL1cX3m6oQyGcYk",
   authorized_keys: 'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
   lines: [
     'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
@@ -49,11 +50,12 @@ test("no key yet: nothing to do here — a machine's SSH setup makes it", async 
   expect(screen.queryByRole("button", { name: /New key/ })).not.toBeInTheDocument();
 });
 
-test("the key itself is never shown; New key replaces it after a warning", async () => {
+test("the key is shown by its fingerprint only; New key replaces it after a warning", async () => {
   const { fetchMock } = renderSection(KEY);
 
-  fireEvent.click(await screen.findByRole("button", { name: /New key/ }));
+  expect(await screen.findByText(KEY.fingerprint)).toBeInTheDocument();
   expect(screen.queryByText(KEY.authorized_keys)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /New key/ }));
   expect(screen.getByText(/until their SSH setup is run again/)).toBeInTheDocument();
   enterPassword("hunter2hunter2");
 

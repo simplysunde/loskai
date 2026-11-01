@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api } from "../../lib/api";
-import { Modal } from "../shared/Modal";
 
 interface LogEntry {
   at: string;
@@ -36,14 +35,14 @@ function duration(s: number): string {
 
 // Every SSH terminal opened, closed or refused, and every install — newest first. Sessions,
 // not keystrokes: what is typed can be a password at a sudo prompt.
-export function SshLog({ onClose }: { onClose: () => void }) {
+export function SshLog() {
   const log = useQuery({
     queryKey: ["ssh-log"],
     queryFn: () => api.get<LogEntry[]>("/api/ssh/log"),
   });
 
   return (
-    <Modal title="SSH log" onClose={onClose}>
+    <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800 px-3 py-2">
       {log.isLoading ? (
         <Loader2 className="mx-auto h-5 w-5 animate-spin text-slate-500" />
       ) : !log.data?.length ? (
@@ -74,6 +73,6 @@ export function SshLog({ onClose }: { onClose: () => void }) {
           </tbody>
         </table>
       )}
-    </Modal>
+    </div>
   );
 }

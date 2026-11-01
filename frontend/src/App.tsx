@@ -14,6 +14,7 @@ import { General } from "./pages/settings/General";
 import { Network } from "./pages/settings/Network";
 import { Security } from "./pages/settings/Security";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
+import { Ssh } from "./pages/settings/Ssh";
 
 // The Docker page pulls in xterm (~half the bundle). Load it only when that tab is
 // opened so the initial JS chunk stays small.
@@ -78,6 +79,7 @@ export default function App() {
         >
           <Route index element={<General />} />
           <Route path="network" element={<Network />} />
+          <Route path="ssh" element={<Ssh />} />
           <Route path="security" element={<Security />} />
         </Route>
         {/* Unmatched paths keep the chrome — the pane says what went wrong. */}

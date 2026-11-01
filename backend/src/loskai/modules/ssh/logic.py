@@ -7,6 +7,7 @@ left exactly as it was. Nothing here touches a file; `client.py` reads and write
 """
 
 import base64
+import hashlib
 import re
 import struct
 
@@ -163,6 +164,13 @@ def authorized_keys_line(public_key: str, from_ip: str | None) -> str:
     Loskai. `from_ip` is an OpenSSH pattern list — one address, or several and subnets,
     comma-separated (the Docker host itself also needs Loskai's own networks)."""
     return f'from="{from_ip}" {public_key}' if from_ip else public_key
+
+
+def fingerprint_of(public_key: str) -> str:
+    """`SHA256:…` of a public key line, as `ssh-keygen -lf` prints it, so the key Loskai
+    shows can be found in a machine's `authorized_keys`."""
+    blob = base64.b64decode(public_key.split()[1])
+    return "SHA256:" + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip("=")
 
 
 def public_key_of(private_key: str, comment: str) -> str:
