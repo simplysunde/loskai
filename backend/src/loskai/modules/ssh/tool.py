@@ -218,9 +218,9 @@ def action_script(t: Tool, action_id: str, manager: str | None) -> str:
     return action.run[manager]
 
 
-def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
-    """The shell that installs what `t` lacks on a machine with `programs` and `manager`:
-    every package in one command, then each official installer."""
+def to_install(t: Tool, programs: set[str]) -> list[str]:
+    """What adding `t` installs on a machine with `programs`: what it lacks, and curl first
+    when a script will need it."""
     lacking = missing(t, programs)
     if not lacking:
         raise ToolError(f"{t.name} has everything it needs here")
@@ -229,8 +229,14 @@ def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
         raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here")
     if any("script" in INSTALLERS[p] for p in lacking) and "curl" not in programs and "curl" not in lacking:
         lacking = ["curl", *lacking]
+    return lacking
+
+
+def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
+    """The shell that installs what `t` lacks on a machine with `programs` and `manager`:
+    every package in one command, then each official installer."""
     packages, scripts = [], []
-    for program in lacking:
+    for program in to_install(t, programs):
         how = INSTALLERS[program]
         if "script" in how:
             scripts.append(how["script"])

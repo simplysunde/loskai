@@ -1677,8 +1677,18 @@ projects 34h lists — one reinstall for all three)
       folder with a space is skipped, an empty repo has its branch and no commit
 - [x] 687 backend, 258 frontend; `pytest`, `npm test`, `npm run build`, `oxlint`,
       `check-docs.sh`
-- [ ] **Live**: install again on a throwaway `sshd`, add tmux, attach, end, new; add
-      Tailscale (the install only — logging in needs an account)
+- [x] **Live** (a scratch backend, a throwaway Debian 13 `sshd` with git and sudo, through
+      the real API and WebSocket): installed with the machine's password; the v3 overview
+      gave `git, sudo` and the project `projects/site` with its subject `First * commit`
+      intact. Add tmux installed it with apt; New session `work` landed in tmux — Ctrl+B D
+      printed `[detached (from session dbg)]`, `[done, exit 0]`, and Enter closed the
+      terminal (`1000`); Attach showed the session's earlier output; a name `a;id` was
+      refused `4409 Not a session` before anything ran; End ended it. Add Tailscale
+      installed curl, then Tailscale with its own script; the overview then had both, and
+      no address (not logged in). **Found:** the log's `add-tool` named only `tailscale`,
+      not the curl installed before it — fixed (`tool.to_install`)
+- [ ] Log a machine in to Tailscale (needs an account): Connect, then the address in the
+      overview
 
 **34h — Claude Code and projects**
 - [ ] **A projects folder per machine**, `~/projects` unless changed on its page (`~` or

@@ -341,7 +341,7 @@ async def plan(
             script = tool.install_script(t, programs, manager)
             # Never in tmux: it may be tmux that is missing.
             return tool.visible(script, None, None), {
-                "event": "add-tool", "tool": t.id, "programs": tool.missing(t, programs), "command": script,
+                "event": "add-tool", "tool": t.id, "programs": tool.to_install(t, programs), "command": script,
             }
         lacking = tool.missing(t, programs)
         if lacking:
