@@ -202,14 +202,16 @@ def _connect(
 
 
 async def open_shell(
-    host: str, port: int, user: str, host_key: str, client_key: asyncssh.SSHKey, cols: int, rows: int
+    host: str, port: int, user: str, host_key: str, client_key: asyncssh.SSHKey, cols: int, rows: int,
+    command: str | None = None,
 ) -> tuple[asyncssh.SSHClientConnection, asyncssh.SSHClientProcess]:
-    """A login shell on a pty, bytes in and out. The caller closes the connection, which
-    hangs up the pty — so the shell ends with the browser's terminal, not after it."""
+    """A login shell on a pty — or `command` on one — bytes in and out. The caller closes
+    the connection, which hangs up the pty, so what runs ends with the browser's terminal
+    (a tmux session excepted: it is made to outlive it)."""
     conn = await _connect(host, port, user, host_key, client_key)
     try:
         process = await conn.create_process(
-            term_type="xterm-256color", term_size=(cols, rows),
+            command, term_type="xterm-256color", term_size=(cols, rows),
             encoding=None, stderr=asyncssh.STDOUT,
         )
     except BaseException:

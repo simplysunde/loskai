@@ -53,7 +53,10 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   password, held unlocked for 15 minutes by `unlock.py`) and its SSH config and known_hosts,
   edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
   the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
-  rename, move and delete.
+  rename, move and delete. **Plugins** (`plugin.py`, the files in `plugins/`) are what a
+  machine's page can run — data shipped in the image, like recipes: an action's command
+  comes from its file, never from the request, and a row's target reaches it only as `$1`
+  (`docs/reference/plugin-schema.md`).
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,
@@ -297,7 +300,7 @@ command in `logic.STATUS_COMMAND` — it only reads, and never gets any other us
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 64 HTTP routes plus the two
+  API subsets Loskai calls), `api.md` (Loskai's own: 66 HTTP routes plus the two
   terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

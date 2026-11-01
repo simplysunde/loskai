@@ -19,8 +19,9 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from ...shared import auth
+from ...shared import instances as instances_store
 from ...shared import settings as settings_store
-from . import client, connect, logic, unlock
+from . import client, connect, logic, plugin, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
 
@@ -62,9 +63,17 @@ def _known() -> dict[str, bool]:
 
 @router.get("")
 def ssh_status() -> dict:
-    """Loskai's key (null before one is made), each `Host` in the config, and which
-    machines have a trusted host key."""
-    return {"key": _key_view(), "hosts": logic.hosts(client.read_config()), "trusted": _known()}
+    """Loskai's key (null before one is made), each `Host` in the config, which machines
+    have a trusted host key, and each machine's enabled plugins."""
+    return {
+        "key": _key_view(),
+        "hosts": logic.hosts(client.read_config()),
+        "trusted": _known(),
+        "plugins": {
+            i.id: i.plugins for i in instances_store.list_instances()
+            if instances_store.is_machine(i) and i.plugins
+        },
+    }
 
 
 class KeyRequest(BaseModel):
@@ -159,6 +168,30 @@ async def facts(machine_id: str) -> dict:
     return await _call(connect.facts(machine_id))
 
 
+@router.get("/plugins")
+def plugins() -> list[dict]:
+    """Every plugin in the image, with its actions and their commands."""
+    return [plugin.view(p) for p in plugin.load().values()]
+
+
+class PluginsRequest(BaseModel):
+    plugins: list[str]
+
+
+@router.put("/machines/{machine_id}/plugins")
+def set_plugins(machine_id: str, body: PluginsRequest) -> dict:
+    """Enable exactly these plugins on a machine. A plugin whose tools are missing can be
+    enabled; its actions wait until they are installed."""
+    known = plugin.load()
+    unknown = [p for p in body.plugins if p not in known]
+    if unknown:
+        raise HTTPException(404, f"No plugin {unknown[0]!r}")
+    inst = instances_store.set_plugins(machine_id, sorted(set(body.plugins)))
+    if inst is None:
+        raise HTTPException(404, f"No machine '{machine_id}'")
+    return {"plugins": inst.plugins}
+
+
 @router.get("/log")
 def session_log(limit: int = 200) -> list[dict]:
     """The SSH log, newest first: terminals opened, closed and refused, and installs."""
@@ -166,29 +199,42 @@ def session_log(limit: int = 200) -> list[dict]:
 
 
 @router.websocket("/machines/{machine_id}/terminal")
-async def terminal(websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24):
-    """A shell on the machine. Like the container terminal it sits outside the HTTP
-    middleware, so it checks the session and the `Origin` itself (closing `1008`), and
-    closes when the session ends. It also needs the key unlocked: closed `4423` while it
-    is locked, `4409` before the host key is trusted, `4502` when the machine refuses;
-    the close reason says which in words."""
+async def terminal(
+    websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24,
+    plugin: str | None = None, action: str | None = None, target: str | None = None,
+    install: str | None = None,
+):
+    """A shell on the machine — or, given `plugin` and `action` (and `target` for a row's
+    action) or `install` (a tool the plugin requires), that command, worked out by
+    `connect.plan` from the plugin file: the request only names it. Like the container
+    terminal it sits outside the HTTP middleware, so it checks the session and the `Origin`
+    itself (closing `1008`), and closes when the session ends. It also needs the key
+    unlocked: closed `4423` while it is locked, `4409` before the host key is trusted or
+    when the action can't run here, `4404` no such machine, plugin or action, `4502` when
+    the machine refuses; the close reason says which in words."""
     cookie = websocket.cookies.get(auth.SESSION_COOKIE)
     if not (auth.same_origin(websocket.headers) and auth.valid_session(cookie)):
         await websocket.close(code=1008)
         return
     await websocket.accept()
     peer = _peer(websocket)
+    command, details = None, None
     try:
+        if plugin:
+            command, details = await connect.plan(machine_id, plugin, action, target, install)
         t, conn, process = await connect.open_terminal(
-            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000))
+            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command
         )
     except connect.SshError as exc:
-        connect.log("refused", machine_id, peer, error=exc.detail)
+        connect.log("refused", machine_id, peer, error=exc.detail, **({"plugin": plugin, "action": action or install} if plugin else {}))
         # A close reason is at most 123 bytes.
         await websocket.close(code=4000 + exc.status_code, reason=exc.detail.encode()[:120].decode(errors="ignore"))
         return
     started = time.monotonic()
-    connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
+    if details:
+        connect.log(details.pop("event"), machine_id, peer, **details)
+    else:
+        connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
 
     async def to_client():
         while True:
@@ -225,6 +271,8 @@ async def terminal(websocket: WebSocket, machine_id: str, cols: int = 80, rows: 
         # Closing the connection hangs up the pty, so the shell ends with the terminal.
         conn.close()
         connect.log("close", machine_id, peer, seconds=round(time.monotonic() - started))
+        if details is not None:
+            connect.after_action(machine_id)
         with contextlib.suppress(RuntimeError):  # the browser closed it first
             await websocket.close()
 

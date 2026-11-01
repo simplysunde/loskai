@@ -159,12 +159,13 @@ def _by_manager(where: str, value: object) -> list[str]:
     return out
 
 
-def load(directory: Path = DIR) -> dict[str, Plugin]:
-    """Every plugin file in `directory`, by id (the file name). Raises PluginError for the
-    first that isn't valid — they ship in the image, and the test suite loads them all."""
+def load(directory: Path | None = None) -> dict[str, Plugin]:
+    """Every plugin file in `directory` (default `DIR`), by id (the file name). Raises
+    PluginError for the first that isn't valid — they ship in the image, and the test suite
+    loads them all."""
     return {
         path.stem: parse(path.stem, yaml.safe_load(path.read_text(encoding="utf-8")))
-        for path in sorted(directory.glob("*.yml"))
+        for path in sorted((directory or DIR).glob("*.yml"))
     }
 
 
