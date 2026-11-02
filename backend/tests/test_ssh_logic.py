@@ -81,6 +81,13 @@ def test_renaming_changes_only_that_alias():
     assert out.replace("Host proxmox pve.lan", "Host pve pve.lan") == HAND_WRITTEN
 
 
+def test_a_rename_onto_another_entry_collides_and_onto_its_own_alias_doesnt():
+    assert logic.rename_collides(HAND_WRITTEN, "nas", "pve")
+    assert not logic.rename_collides(HAND_WRITTEN, "pve", "pve.lan")  # the same entry
+    assert not logic.rename_collides(HAND_WRITTEN, "nas", "storage")
+    assert not logic.rename_collides(HAND_WRITTEN, "nope", "pve")  # nothing to rename
+
+
 def test_removing_an_entry_keeps_the_comment_that_introduces_the_next():
     out = logic.remove_host(HAND_WRITTEN, "nas")
 

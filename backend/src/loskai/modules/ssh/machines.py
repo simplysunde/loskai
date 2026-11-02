@@ -17,6 +17,22 @@ logger = logging.getLogger(__name__)
 KEEP = object()
 
 
+def rename_refusal(prev: Instance | None, alias: str) -> str | None:
+    """Before a save: why renaming `prev` to `alias` can't carry to the config — `alias`
+    already has an entry of its own (None: it can). Which of the two to keep is the user's
+    call, so neither is merged nor removed."""
+    old = prev.subdomain if prev else None
+    if not old or old == alias:
+        return None
+    try:
+        text = client.read_config()
+    except OSError:
+        return None
+    if logic.rename_collides(text, old, alias):
+        return f"'{alias}' already has an entry in the SSH config — remove it or pick another name"
+    return None
+
+
 def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
     """Carry a machine save to the config. `ssh` is KEEP, None (remove the entry), or an
     object with `user` and `port`. Returns a warning when the file couldn't be written —

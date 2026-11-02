@@ -568,6 +568,8 @@ async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
     base, current_ip = _context()
     prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
+    if refusal := ssh_machines.rename_refusal(prev, body.hostname):
+        raise HTTPException(status_code=409, detail=refusal)
     try:
         result = await name_machine(
             caddy, adguard,

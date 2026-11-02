@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — A rename onto a name with its own SSH entry is refused
+
+`rename_host` rewrote `Host nas` to `Host nas2` even when a hand-written `Host nas2` existed,
+leaving two entries; ssh takes the first, so Loskai could connect with the wrong user, edit
+the wrong block, and on delete remove only one. Merging would mean deleting one of the two,
+and either could be the one written by hand — so `POST /api/machines` refuses with `409`
+before anything is saved, and the user picks. A machine with no entry of its own still
+takes over the one its new name has, as naming a machine does.
+
 ## 2026-11-02 — Editing a machine says nothing about SSH unless its fields were edited
 
 A review found the machine form deleting SSH config entries. It compared the user field

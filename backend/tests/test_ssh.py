@@ -165,6 +165,31 @@ def test_moving_and_renaming_a_machine_carries_to_its_entry(client, ssh_dir):
     assert _config(ssh_dir) == HAND_WRITTEN + "\nHost storage\n    HostName 192.168.10.51\n    User admin\n"
 
 
+def test_renaming_onto_a_name_with_its_own_entry_is_refused_and_changes_nothing(client, ssh_dir):
+    _write_config(ssh_dir, HAND_WRITTEN)
+    _machine(client, ssh={"user": "admin", "port": 22})
+    before = _config(ssh_dir)
+
+    r = client.post("/api/machines", json={
+        "hostname": "laptop", "address": "192.168.10.51", "instance_id": "nas",
+    })
+
+    assert r.status_code == 409
+    assert "'laptop' already has an entry in the SSH config" in r.json()["detail"]
+    assert _config(ssh_dir) == before
+    inst = instances_store.get_instance("nas")
+    assert (inst.subdomain, inst.upstream) == ("nas", "192.168.10.50")
+
+
+def test_a_machine_without_an_entry_takes_over_the_one_its_new_name_has(client, ssh_dir):
+    _write_config(ssh_dir, HAND_WRITTEN)
+    _machine(client)
+
+    _machine(client, hostname="laptop", address="192.168.10.51", instance_id="nas")
+
+    assert _config(ssh_dir) == "# mine\nHost laptop\n    HostName 192.168.10.51\n"
+
+
 def test_clearing_ssh_removes_only_that_entry(client, ssh_dir):
     _write_config(ssh_dir, HAND_WRITTEN)
     _machine(client, ssh={"user": "admin", "port": 22})

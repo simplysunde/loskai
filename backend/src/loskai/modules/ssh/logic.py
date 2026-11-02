@@ -131,6 +131,14 @@ def rename_host(text: str, old: str, new: str) -> str:
     return _join(lines)
 
 
+def rename_collides(text: str, old: str, new: str) -> bool:
+    """Whether renaming `old` to `new` would leave two entries for `new`: both have one, and
+    not the same. ssh takes the first, so the renamed entry could be the one it ignores."""
+    lines = _split(text)
+    a, b = _find(lines, old), _find(lines, new)
+    return a is not None and b is not None and a != b
+
+
 def remove_host(text: str, alias: str) -> str:
     """Remove `alias`'s entry. One that also names other aliases only loses this one."""
     lines = _split(text)
