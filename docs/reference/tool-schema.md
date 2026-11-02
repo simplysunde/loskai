@@ -168,8 +168,11 @@ the tmux session) or `add-tool` (with the tool, the programs and the command).
 4. A new kind of `target` needs a row in the Running list to put it on: `tool.TARGETS`,
    `RunningList`, and this page.
 5. Optionally icons, in `frontend/src/components/routing/ToolIcon.tsx`: the tool's 24×24
-   path in `PATHS`, by its id (without one it gets a wrench), and an action's in `ACTIONS`,
-   by `<tool>.<action>` — from Simple Icons (simpleicons.org) where the program has one.
-   Check the icon's license: one that asks for credit, like Git's (CC BY 3.0), gets a line
-   in the README's Credits.
+   path in `PATHS`, by its id (without one it gets a wrench). An action's symbol, by
+   `<tool>.<action>`, should say what its button does: a program's own logo in `ACTIONS`
+   (Claude's mark on opening Claude, git's on Pull and Push), else a Lucide icon in
+   `SYMBOLS` — a plug for Connect, a square for Stop or End, a power button for Shut down.
+   Without either it gets a play button. Logos come from Simple Icons (simpleicons.org);
+   check the license: one that asks for credit, like Git's (CC BY 3.0), gets a line in the
+   README's Credits.
 6. Note it in `CHANGELOG.md`. It ships with the next image.

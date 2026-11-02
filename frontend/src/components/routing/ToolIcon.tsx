@@ -1,4 +1,17 @@
-import { Wrench } from "lucide-react";
+import {
+  Activity,
+  Download,
+  LogIn,
+  Play,
+  Plug,
+  Power,
+  RotateCw,
+  Square,
+  Terminal,
+  Unplug,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 // Icons for the tools, by tool id — Simple Icons (simpleicons.org), one 24×24 path each,
 // drawn in the text colour. A tool without one gets a wrench.
@@ -29,9 +42,34 @@ export function ToolIcon({ id, className = "h-3.5 w-3.5" }: { id: string; classN
   );
 }
 
+// The rest, by what the button does. An action not listed here gets Play.
+const SYMBOLS: Record<string, LucideIcon> = {
+  "system.update": Download,
+  "system.reboot": RotateCw,
+  "system.shutdown": Power,
+  "services.restart-service": RotateCw,
+  "services.stop-service": Square,
+  "services.restart-container": RotateCw,
+  "services.stop-container": Square,
+  "proxmox.reboot-lxc": RotateCw,
+  "proxmox.shutdown-lxc": Power,
+  "proxmox.reboot-vm": RotateCw,
+  "proxmox.shutdown-vm": Power,
+  "tmux.attach": LogIn,
+  "tmux.kill": Square,
+  "tailscale.up": Plug,
+  "tailscale.status": Activity,
+  "tailscale.down": Unplug,
+  "claude.terminal": Terminal,
+  "claude.end": Square,
+};
+
 export function ActionIcon({ tool, action, className = "h-2.5 w-2.5" }: { tool: string; action: string; className?: string }) {
   const d = ACTIONS[`${tool}.${action}`];
-  if (!d) return null;
+  if (!d) {
+    const Icon = SYMBOLS[`${tool}.${action}`] ?? Play;
+    return <Icon aria-hidden="true" className={className} />;
+  }
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
       <path d={d} />

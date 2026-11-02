@@ -507,6 +507,9 @@ test("Tailscale says its address and how much of the tailnet is online, and list
   expect(await screen.findByText("phone")).toBeInTheDocument();
   expect(screen.getByText("this machine")).toBeInTheDocument();
   expect(screen.getByText("phone").closest("li")!.title).toBe("offline");
+  // A button's symbol says what it does, not a play button on every one.
+  const connect = screen.getByRole("button", { name: "Connect" }).querySelector("svg")!.classList;
+  expect(connect).toContain("lucide-plug");
 });
 
 test("a tool's dialog on an older status line goes straight to installing it again", async () => {

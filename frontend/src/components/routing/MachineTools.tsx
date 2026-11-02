@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Plus, Wrench } from "lucide-react";
+import { Plus, Wrench } from "lucide-react";
 
 import { useFacts, useSsh } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
@@ -116,7 +116,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                 onClick={() => ctx.onRun({ tool: t.id, action: a.id, title: a.label }, a)}
                 className={BUTTON}
               >
-                <Play className="h-3.5 w-3.5" /> {a.label}
+                <ActionIcon tool={t.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
               </button>
             );
           })}
