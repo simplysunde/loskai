@@ -5,15 +5,18 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   CornerDownRight,
+  Download,
   HardDrive,
   Loader2,
-  Plus,
+  MoreVertical,
+  Route as RouteIcon,
   Settings,
   Terminal,
   Trash2,
 } from "lucide-react";
 
 import { RouteLink } from "../shared/RouteLink";
+import { RowMenu } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
 import type { Tool } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
@@ -36,6 +39,7 @@ export function MachineTable({
   onDelete,
   onAddRoute,
   onTerminal,
+  onUpdate,
   tools,
   onTool,
   busyId,
@@ -51,6 +55,9 @@ export function MachineTable({
   // The machine's own page — the cog. Once its SSH is set up, a terminal on it too.
   onOpen: (machine: RouteRow) => void;
   onTerminal?: (machine: RouteRow) => void;
+  // System's Update, run in its terminal — given only where there is one.
+  onUpdate?: (machine: RouteRow) => void;
+  // Behind the row's ⋮, so it isn't one click from the buttons used every day.
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
@@ -158,7 +165,15 @@ export function MachineTable({
                         )}
                         {onAddRoute && (
                           <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
-                            <Plus className="h-3.5 w-3.5" />
+                            <RouteIcon className="h-3.5 w-3.5" />
+                          </IconButton>
+                        )}
+                        {sshReady && trusted[m.id] && onUpdate && (
+                          <IconButton
+                            title="Update the system: refresh the package lists, then install every update — in its terminal"
+                            onClick={() => onUpdate(m)}
+                          >
+                            <Download className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {/* Its dialog: name, address, SSH, what runs there. Amber while it has
@@ -170,13 +185,25 @@ export function MachineTable({
                         >
                           <Settings className="h-3.5 w-3.5" />
                         </IconButton>
-                        <IconButton title="Delete machine" danger onClick={() => onDelete(m)}>
-                          {busyId === m.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </IconButton>
+                        <RowMenu
+                          label="More"
+                          trigger={
+                            busyId === m.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            )
+                          }
+                          triggerClass={ICON_BUTTON}
+                          items={[
+                            {
+                              label: "Delete machine",
+                              icon: <Trash2 className="h-3.5 w-3.5" />,
+                              danger: true,
+                              onClick: () => onDelete(m),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -157,7 +157,8 @@ one click, and its overview comes back with them.
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
 installs its key (or copy its two lines over yourself). Its dialog does this again, under
-SSH. Once it's set up, a terminal button sits on its row and in its dialog. In it, what a program copies —
+SSH. Once it's set up, a terminal button sits on its row and in its dialog, and the row
+gets **Update** (the download arrow) — System's update, run in that terminal. In it, what a program copies —
 tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
 wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
 copies that. From then on the row shows how much
@@ -165,7 +166,7 @@ is **running** there — containers, your services and, on Proxmox, its VMs and 
 hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
 
-**Deleting** a set-up machine takes Loskai's key off it first — its two lines in
+**Deleting** a machine is under the ⋮ on its row. A set-up one has Loskai's key taken off it first — its two lines in
 `authorized_keys`, nothing else — so it asks for your admin password if the key is locked.
 If the machine can't be reached it is deleted anyway, and Loskai tells you its lines are
 still there. Adding it again later installs the same key again.

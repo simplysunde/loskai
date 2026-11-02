@@ -247,7 +247,8 @@ test("deleting a machine names the routes on its address, which keep it", async 
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
+  fireEvent.click(within(nasRow()).getByTitle("More"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
 
   expect(screen.getByText(/2 routes are on its address/)).toHaveTextContent("(jellyfin, plex)");
 });
@@ -258,7 +259,8 @@ test("deleting a set-up machine takes Loskai's key off it, unlocking the key fir
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
+  fireEvent.click(within(nasRow()).getByTitle("More"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
@@ -277,7 +279,8 @@ test("a machine deleted with Loskai's key still on it says so", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Delete machine"));
+  fireEvent.click(within(nasRow()).getByTitle("More"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   // Unlocked already: no password asked.
   expect(screen.queryByLabelText("Admin password")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
@@ -684,6 +687,20 @@ test("the projects folder is set in the machine's dialog, under General", async 
       path: "/api/ssh/machines/nas/projects", method: "PUT", body: { folder: "~" },
     }),
   );
+});
+
+test("a set-up machine's row updates its system in its terminal; the plain one has no Update", async () => {
+  setUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  // pve has no SSH: no Update on its row.
+  const pve = screen.getByText("pve").closest("tr") as HTMLElement;
+  expect(within(pve).queryByTitle(/^Update the system/)).toBeNull();
+  fireEvent.click(await within(nasRow()).findByTitle(/^Update the system/));
+
+  expect(await screen.findByText("Update — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update")).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {

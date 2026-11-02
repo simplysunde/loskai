@@ -6,7 +6,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
-import { useTools } from "../lib/tools";
+import { useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
@@ -48,8 +48,8 @@ export function Machines() {
   const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
   // The machine a new route is being added on, from its row.
   const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
-  // The machine with a terminal open.
-  const [terminalFor, setTerminalFor] = useState<RouteRow | null>(null);
+  // The machine with a terminal open, and what it runs there — its shell, or System's Update.
+  const [terminalFor, setTerminalFor] = useState<{ machine: RouteRow; run?: ToolRun } | null>(null);
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
 
@@ -181,7 +181,12 @@ export function Machines() {
           onOpen={(m) => navigate(`/machines/${m.id}`)}
           tools={tools.data}
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
-          onTerminal={setTerminalFor}
+          onTerminal={(machine) => setTerminalFor({ machine })}
+          onUpdate={
+            tools.data?.some((t) => t.id === "system" && t.actions.some((a) => a.id === "update"))
+              ? (machine) => setTerminalFor({ machine, run: { tool: "system", action: "update", title: "Update" } })
+              : undefined
+          }
           onDelete={(m) => {
             setDeleteError(null);
             setDeletePassword("");
@@ -227,10 +232,15 @@ export function Machines() {
       )}
       {terminalFor && (
         <MachineTerminal
-          key={terminalFor.id}
-          machine={{ id: terminalFor.id, name: terminalFor.name }}
+          key={terminalFor.machine.id}
+          machine={{ id: terminalFor.machine.id, name: terminalFor.machine.name }}
           sshKey={ssh.data?.key ?? null}
-          onClose={() => setTerminalFor(null)}
+          run={terminalFor.run}
+          onClose={() => {
+            setTerminalFor(null);
+            // An update changes what the overview counts as waiting.
+            if (terminalFor.run) qc.invalidateQueries({ queryKey: ["ssh-facts"] });
+          }}
         />
       )}
 
