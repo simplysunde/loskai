@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — A machine opens as a dialog, laid out like a settings window
+
+Sunde asked for the cog on a machine's row to behave like Claude Desktop's settings: a
+window with categories down the side, a search, and one row per setting — its name and a
+line on what it does, its control on the right. The machine's page became that dialog,
+over the Machines list at `/machines/<id>/<category>` so every link into it still lands
+(naming a machine, a tool's Settings and Install again). Its categories: General and SSH,
+then Overview, Tools and Running, then Log.
+
+**Fields save themselves** (`InlineText`, on Enter or leaving it), replacing the Edit form,
+and each posts only its own change. That also settles the bug fixed the same day (a save
+deleting an SSH entry with no `User`): an address change never carries SSH. Removing the
+SSH entry, which an emptied user field used to mean, is its own confirmed button — an
+empty field now says to use it. Naming a machine keeps its form (`AddMachineModal`, now
+naming only), since a new one needs both fields before anything can be saved.
+
+The machine's display name, fixed at its hostname when named, can now be changed — the
+endpoint always took it. `ProjectsFolder` went: the folder is a General row.
+
 ## 2026-11-02 — A rename onto a name with its own SSH entry is refused
 
 `rename_host` rewrote `Host nas` to `Host nas2` even when a hand-written `Host nas2` existed,

@@ -54,7 +54,7 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
   the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
   rename, move and delete. **Tools** (`tool.py`, the files in `tools/`) are what a
-  machine's page can run — data shipped in the image, like recipes, applying where the
+  machine's dialog can run — data shipped in the image, like recipes, applying where the
   machine has the programs they require (nothing enabled or stored): an action's command
   comes from its file, never from the request, and a row's target reaches it only as `$1`
   (`docs/reference/tool-schema.md`).

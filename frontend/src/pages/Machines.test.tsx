@@ -3,7 +3,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { Machine } from "./Machine";
 import { Machines } from "./Machines";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
@@ -172,8 +171,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElement;
+// The machine's dialog: its side menu, and the category shown.
+const dialog = () => screen.getByRole("dialog", { name: "Storage box" });
+const category = (name: string) => screen.getByRole("region", { name });
+const open = (name: string) =>
+  fireEvent.click(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name }));
 
-// Both pages, so the cog and naming a machine go where they really do.
+// The routes as App has them, so the cog and naming a machine go where they really do.
 function renderPage(at = "/machines") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
@@ -181,7 +185,7 @@ function renderPage(at = "/machines") {
       <MemoryRouter initialEntries={[at]}>
         <Routes>
           <Route path="/machines" element={<Machines />} />
-          <Route path="/machines/:id" element={<Machine />} />
+          <Route path="/machines/:id/:section?" element={<Machines />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -291,25 +295,87 @@ test("every route on a machine's address is listed under it, by port", async () 
     .toBeInTheDocument();
 });
 
-test("a machine's cog opens its page, where editing posts its id and says what moved", async () => {
+test("a machine's cog opens its dialog, where a field saves itself — only that change — and says what moved", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", port: 22 } }; // an entry whose User comes from Host *
   renderPage();
   await screen.findByText("Storage box");
 
   fireEvent.click(within(nasRow()).getByTitle(/^Machine settings/));
-  expect(await screen.findByRole("heading", { name: "Storage box" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-  const ip = screen.getByPlaceholderText("192.168.10.50");
+  expect(await screen.findByRole("heading", { name: "General" })).toBeInTheDocument();
+  const ip = within(dialog()).getByLabelText("Address");
+  fireEvent.focus(ip);
   fireEvent.change(ip, { target: { value: "192.168.10.70" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save machine" }));
+  fireEvent.keyDown(ip, { key: "Enter" });
+  fireEvent.blur(ip);
 
   const post = await vi.waitFor(() => {
     const c = calls.find((x) => x.path === "/api/machines");
     if (!c) throw new Error("not posted yet");
     return c;
   });
-  expect(post.body).toMatchObject({ instance_id: "nas", address: "192.168.10.70", hostname: "nas" });
+  // Nothing about SSH: the entry keeps what it has and only moves.
+  expect(post.body).toEqual({ instance_id: "nas", address: "192.168.10.70", hostname: "nas", name: "Storage box" });
   const banner = await screen.findByText(/Moved plex with it/);
   expect(within(banner).getByText("nas.example.no")).toBeInTheDocument();
+});
+
+test("a field that isn't valid says why and saves nothing; Escape puts it back", async () => {
+  renderPage("/machines/nas/general");
+
+  const ip = await within(await screen.findByRole("dialog")).findByLabelText("Address");
+  fireEvent.focus(ip);
+  fireEvent.change(ip, { target: { value: "192.168.10.70:22" } });
+  fireEvent.blur(ip);
+  expect(await screen.findByText("A bare IPv4 address — no port.")).toBeInTheDocument();
+
+  fireEvent.focus(ip);
+  fireEvent.keyDown(ip, { key: "Escape" });
+  fireEvent.blur(ip);
+  expect(ip).toHaveValue("192.168.10.50");
+  expect(calls.some((c) => c.path === "/api/machines")).toBe(false);
+});
+
+test("a machine's SSH user is set in its dialog, and setting one starts the setup", async () => {
+  renderPage("/machines/pve/ssh");
+
+  const user = await screen.findByLabelText("SSH user");
+  expect(screen.getByLabelText("SSH port")).toBeDisabled();
+  fireEvent.focus(user);
+  fireEvent.change(user, { target: { value: "root" } });
+  sshHosts = { pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  fireEvent.blur(user);
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.path === "/api/machines")?.body).toMatchObject({
+      instance_id: "pve", ssh: { user: "root", port: 22 },
+    }),
+  );
+  expect(await screen.findByText(/SSH — /)).toBeInTheDocument();
+});
+
+test("removing a machine from the SSH config is its own button, confirmed", async () => {
+  setUp();
+  renderPage("/machines/nas/ssh");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  expect(calls.some((c) => c.path === "/api/machines")).toBe(false);
+  fireEvent.click(screen.getAllByRole("button", { name: "Remove" }).at(-1)!);
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.path === "/api/machines")?.body).toMatchObject({ instance_id: "nas", ssh: null }),
+  );
+});
+
+test("the search finds a category by what is in it", async () => {
+  setUp();
+  renderPage("/machines/nas");
+
+  const search = await screen.findByLabelText("Search");
+  fireEvent.change(search, { target: { value: "uptime" } });
+  const nav = screen.getByRole("navigation", { name: "Categories" });
+  expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["Overview"]);
+  fireEvent.change(search, { target: { value: "zzz" } });
+  expect(within(nav).getByText("Nothing matches.")).toBeInTheDocument();
 });
 
 test("a machine's row adds a route on its address", async () => {
@@ -351,41 +417,43 @@ test("a machine with an SSH user that isn't set up: an amber cog, no terminal", 
   expect(within(pve).getByTitle("Machine settings")).toBeInTheDocument();
 });
 
-test("a machine's page sets up its SSH from there", async () => {
+test("a machine's dialog sets up its SSH from there", async () => {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/running");
 
+  expect(await screen.findByText(/Set up SSH to see what runs here./)).toBeInTheDocument();
+  open("SSH");
   expect(await screen.findByText("not set up")).toBeInTheDocument();
-  expect(screen.getByText("Set up SSH to see what runs here.")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Set up SSH" }));
+  fireEvent.click(within(category("SSH")).getByRole("button", { name: "Set up SSH" }));
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
 });
 
-test("a set-up machine's page: what runs there, its own log, and a terminal", async () => {
+test("a set-up machine's dialog: its overview, tools, what runs there, its own log, and a terminal", async () => {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/overview");
 
-  expect(await screen.findByText("plex-1")).toBeInTheDocument();
-  expect(screen.getByText("loskai@192.168.10.50:22")).toBeInTheDocument();
-  // The overview: system, uptime, what's waiting, how full, its tmux sessions.
+  // The overview: system, uptime, what's waiting, how full, its Tailscale address.
   expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
   expect(screen.getByText("3d 2h")).toBeInTheDocument();
   expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
   expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
   expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
-  // Its Tailscale address: in the overview, and on the Tailscale card's tailnet.
-  expect(screen.getAllByText("100.64.0.7")).toHaveLength(2);
+  expect(screen.getByText("100.64.0.7")).toBeInTheDocument();
   // Each tool's card, an added one's with what is in it — sessions another tool claims left out.
+  open("Tools");
   expect(await screen.findByText("build")).toBeInTheDocument();
   expect(screen.queryByText("claude-site")).not.toBeInTheDocument();
   expect(screen.getByText("1 session")).toBeInTheDocument();
   expect(screen.getByText("1 project, 1 running")).toBeInTheDocument();
+  open("Running");
+  expect(await screen.findByText("plex-1")).toBeInTheDocument();
   // Only this machine's entries.
+  open("Log");
   expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
+  fireEvent.click(within(dialog()).getByRole("button", { name: "Terminal" }));
   // No key in this stub, so it asks to unlock first.
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
   expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
@@ -395,7 +463,7 @@ test("a machine on the older status line is offered the reinstall for its overvi
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
   facts = { ok: false, old: true, checked: 0, error: "Its status line predates the overview — install again" };
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/overview");
 
   fireEvent.click(await screen.findByRole("button", { name: "Install again" }));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
@@ -409,7 +477,7 @@ function setUp() {
 
 test("a tool's action runs in the terminal, named — never as a command", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   const update = await screen.findByRole("button", { name: "Update" });
   // The machine's package manager decides the command, shown on hover.
@@ -422,7 +490,7 @@ test("a tool's action runs in the terminal, named — never as a command", async
 
 test("an action that is hard to undo asks first", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   fireEvent.click(await screen.findByRole("button", { name: "Reboot" }));
   expect(screen.getByText("Everything on it stops until it is back up.")).toBeInTheDocument();
@@ -435,7 +503,7 @@ test("an action that is hard to undo asks first", async () => {
 
 test("a row of the Running list gets the buttons of the tools that apply", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/running");
 
   const row = (await screen.findByText("plex-1")).closest("tr") as HTMLElement;
   fireEvent.click(within(row).getByRole("button", { name: "Restart" }));
@@ -448,12 +516,12 @@ test("a row of the Running list gets the buttons of the tools that apply", async
 
 test("a tool the machine lacks is offered to add, when Loskai can install what it needs", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   await screen.findByRole("button", { name: "Update" });
   // Proxmox needs pct, which only comes with Proxmox: not offered, and no Reboot on rows.
   expect(screen.queryByText("Proxmox")).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
+  expect(within(category("Tools")).queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Versions" }));
 
   expect(await screen.findByText("Add Versions — Storage box")).toBeInTheDocument();
@@ -492,8 +560,9 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   expect(screen.getByText("~/projects/")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Settings" }));
 
-  // The machine's page, where the folder is set.
-  expect(await screen.findByTitle(/Change the projects folder/)).toBeInTheDocument();
+  // The machine's dialog, where the folder is set — the tool's own dialog closed.
+  expect(await screen.findByLabelText("Projects folder")).toHaveValue("~/projects");
+  expect(screen.queryByText("~/projects/")).not.toBeInTheDocument();
 });
 
 test("Tailscale says its address and how much of the tailnet is online, and lists it", async () => {
@@ -539,7 +608,7 @@ test("a tool's dialog whose request fails says why, and links to the machine's s
   // Not a spinner that never stops.
   expect(await screen.findByText("Storage box has no SSH user")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Settings" }));
-  expect(await screen.findByRole("heading", { name: "Storage box" })).toBeInTheDocument();
+  expect(await screen.findByRole("dialog", { name: "Storage box" })).toBeInTheDocument();
 });
 
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
@@ -558,7 +627,7 @@ test("a tool the machine lacks opens to what it needs, and adds it", async () =>
 
 test("a tool's card lists its rows, each with its buttons — not another tool's sessions", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   const row = (await screen.findByText("build")).closest("li") as HTMLElement;
   // claude-site is Claude Code's, on its project.
@@ -569,7 +638,7 @@ test("a tool's card lists its rows, each with its buttons — not another tool's
 
 test("an action that asks for a name runs on what is typed", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   const name = await screen.findByLabelText("New session — name");
   expect(screen.getByRole("button", { name: "New session" })).toBeDisabled();
@@ -580,7 +649,7 @@ test("an action that asks for a name runs on what is typed", async () => {
 
 test("a project lists in its machine's projects folder, says its Claude session runs, and opens it", async () => {
   setUp();
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/tools");
 
   const row = (await screen.findByText("site")).closest("li") as HTMLElement;
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
@@ -593,13 +662,15 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
 });
 
-test("the projects folder is set on the machine's page, with its connection", async () => {
+test("the projects folder is set in the machine's dialog, under General", async () => {
   setUp();
   renderPage("/machines/nas");
 
-  fireEvent.click(await screen.findByTitle(/Change the projects folder/));
-  fireEvent.change(screen.getByLabelText("Projects folder"), { target: { value: "~" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  const folder = await screen.findByLabelText("Projects folder");
+  fireEvent.focus(folder);
+  fireEvent.change(folder, { target: { value: "~" } });
+  fireEvent.keyDown(folder, { key: "Enter" });
+  fireEvent.blur(folder);
 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.method === "PUT")).toEqual({

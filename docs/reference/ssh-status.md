@@ -3,7 +3,7 @@
 # The status key's forced command
 
 **Read this when** you are adding something Loskai reads from a machine without the admin
-password — a fact on the machine page, an entry in its running list — or changing how it is
+password — a fact in the machine's overview, an entry in its running list — or changing how it is
 read.
 
 Loskai keeps a second SSH key, the **status key**, unencrypted (`data/ssh/status_ed25519`),
@@ -101,7 +101,7 @@ the new line, so:
    `parse_running` reads them all: the running part hasn't changed since v1.
    `parse_facts` reads only the current one — a page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
-   "install again" and offers the button. One click on the machine's page reinstalls both lines.
+   "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
 
 | Version | What changed |
 |---|---|

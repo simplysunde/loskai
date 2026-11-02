@@ -17,7 +17,7 @@ function renderModal(overrides = {}) {
   return { onSubmit };
 }
 
-const submit = () => screen.getByRole("button", { name: /Name machine|Save machine/ });
+const submit = () => screen.getByRole("button", { name: "Name machine" });
 const hostname = () => screen.getByPlaceholderText("rack1.vm3");
 const address = () => screen.getByPlaceholderText("192.168.10.50");
 
@@ -73,26 +73,6 @@ test("the preview shows the name the machine will answer to", () => {
   expect(screen.getByText("nas.example.no")).toBeInTheDocument();
 });
 
-test("editing prefills the machine and carries its id", () => {
-  const { onSubmit } = renderModal({
-    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "Storage box" },
-  });
-
-  expect(hostname()).toHaveValue("nas");
-  expect(address()).toHaveValue("192.168.10.50");
-
-  // Re-pointing is the usual reason to open this: the machine moved.
-  fireEvent.change(address(), { target: { value: "192.168.10.60" } });
-  fireEvent.click(submit());
-
-  expect(onSubmit).toHaveBeenCalledWith({
-    hostname: "nas",
-    address: "192.168.10.60",
-    name: "Storage box",
-    instance_id: "nas",
-  });
-});
-
 test("submit stays disabled until both fields are valid", () => {
   renderModal();
   expect(submit()).toBeDisabled();
@@ -117,7 +97,7 @@ test("an SSH user puts the machine in the SSH config", () => {
   expect(onSubmit.mock.calls[0][0].ssh).toEqual({ user: "admin", port: 22 });
 });
 
-test("no SSH user, and no entry before: SSH is left out of the save", () => {
+test("no SSH user: SSH is left out of the save", () => {
   const { onSubmit } = renderModal();
 
   fireEvent.change(hostname(), { target: { value: "nas" } });
@@ -125,19 +105,6 @@ test("no SSH user, and no entry before: SSH is left out of the save", () => {
   fireEvent.click(submit());
 
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
-});
-
-test("clearing the SSH user of a machine that had an entry removes it", () => {
-  const { onSubmit } = renderModal({
-    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
-    ssh: { hostname: "192.168.10.50", user: "admin", port: 2222 },
-  });
-
-  expect(sshUser()).toHaveValue("admin");
-  fireEvent.change(sshUser(), { target: { value: "" } });
-  fireEvent.click(submit());
-
-  expect(onSubmit.mock.calls[0][0].ssh).toBeNull();
 });
 
 test("a bad SSH user or port keeps the form from saving", () => {
@@ -150,34 +117,3 @@ test("a bad SSH user or port keeps the form from saving", () => {
   expect(submit()).toBeDisabled();
 });
 
-test("an entry with no User line — it comes from Host * — survives a move", () => {
-  const { onSubmit } = renderModal({
-    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
-    ssh: { hostname: "192.168.10.50", port: 22 },
-  });
-
-  expect(screen.getByPlaceholderText("from SSH config")).toHaveValue("");
-  fireEvent.change(address(), { target: { value: "192.168.10.60" } });
-  fireEvent.click(submit());
-
-  // Left out, the backend keeps the entry and only moves it.
-  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
-});
-
-test("an entry that arrives after the form opened shows, and isn't removed", () => {
-  const props = {
-    open: true,
-    baseDomain: "example.no",
-    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
-    onSubmit: vi.fn(),
-    onClose: () => {},
-  };
-  const { rerender } = render(<AddMachineModal {...props} ssh={null} />);
-  rerender(<AddMachineModal {...props} ssh={{ hostname: "192.168.10.50", user: "admin", port: 22 }} />);
-
-  expect(sshUser()).toHaveValue("admin");
-  fireEvent.change(address(), { target: { value: "192.168.10.60" } });
-  fireEvent.click(submit());
-
-  expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
-});

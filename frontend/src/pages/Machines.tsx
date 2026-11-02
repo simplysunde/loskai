@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
@@ -18,7 +18,7 @@ import { ToolDialog } from "../components/routing/ToolDialog";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
-import type { MachineState } from "./Machine";
+import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
 
 interface DnsStatus {
   answer_ip: string | null;
@@ -33,7 +33,9 @@ export function Machines() {
   const qc = useQueryClient();
   const health = useHealth();
   const navigate = useNavigate();
-  // Naming a machine; editing one is on its own page.
+  // The machine open in its dialog, from the cog on its row.
+  const { id: openId, section } = useParams();
+  // Naming a machine; editing one is in its dialog.
   const [naming, setNaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
@@ -89,7 +91,7 @@ export function Machines() {
     qc.invalidateQueries({ queryKey: ["ssh-running"] });
   };
 
-  // A machine just named opens on its own page — and setting SSH up is part of naming
+  // A machine just named opens in its dialog — and setting SSH up is part of naming
   // one, so given a user, its setup opens there next.
   const save = useSaveMachine({
     onSaved: (data, m) => {
@@ -272,6 +274,8 @@ export function Machines() {
           </span>
         )}
       </ConfirmDialog>
+
+      {openId && <MachineDialog key={openId} id={openId} section={section} />}
     </div>
   );
 }

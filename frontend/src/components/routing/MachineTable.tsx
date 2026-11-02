@@ -161,7 +161,7 @@ export function MachineTable({
                             <Plus className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {/* Its page: name, address, SSH, what runs there. Amber while it has
+                        {/* Its dialog: name, address, SSH, what runs there. Amber while it has
                             an SSH user but isn't set up yet. */}
                         <IconButton
                           title={sshReady && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}

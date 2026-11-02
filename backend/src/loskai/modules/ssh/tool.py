@@ -1,4 +1,4 @@
-"""Tools — what a machine's page can do, as data.
+"""Tools — what a machine's dialog can do, as data.
 
 A tool is one YAML file in `tools/`, shipped in the image: a name, the programs it requires,
 and its actions — each a label and the shell it runs on the machine. A tool applies to a

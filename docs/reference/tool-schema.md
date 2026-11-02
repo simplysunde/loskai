@@ -3,9 +3,9 @@
 # Tool schema
 
 **Read this when** you are adding a tool, adding an action to one, or changing how a
-machine's page runs them.
+machine's dialog runs them.
 
-A **tool** gives a machine's page things to do: buttons that run a command on the machine
+A **tool** gives a machine's dialog things to do: buttons that run a command on the machine
 over SSH. Each one is a YAML file in `backend/src/loskai/modules/ssh/tools/`, shipped in
 the image, so a new tool or a change to one comes with a new version of Loskai.
 
@@ -16,10 +16,10 @@ it `requires`, as the machine's overview found them:
   its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
   are.
 - **Added tools** need a program the machine may not have yet, such as tmux. One whose
-  missing programs Loskai can all install is offered in the machine page's Tools section
-  as **Add**. Adding it installs them, and from then on it applies.
+  missing programs Loskai can all install is offered in the Tools category of the machine's
+  dialog as **Add**. Adding it installs them, and from then on it applies.
 
-**The machine page's Tools section has a card for each tool that applies**; the Running
+**The Tools category of the machine's dialog has a card for each tool that applies**; the Running
 list's rows get the row actions. Which is standard follows from the programs: a tool
 requiring something in `INSTALLERS` is an added one. An added tool's card says in a few
 words what is in it (`3 sessions`, `4 projects, 1 running`), and **the Tools button on the
@@ -101,8 +101,8 @@ A command for POSIX `sh`, run as the machine's SSH user:
   a plain call, so the same file works with or without sudo installed.
 - **`$1`** is the target, for an action with `target` or `ask`. Always quote it: `"$1"`.
 - `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
-- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed on
-  the machine's page (`~` or one folder in it), as an absolute path.
+- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed in
+  the machine's dialog, under General (`~` or one folder in it), as an absolute path.
 
 ### `target` and `ask`
 

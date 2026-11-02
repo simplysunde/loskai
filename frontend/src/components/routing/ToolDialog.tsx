@@ -9,7 +9,7 @@ import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
 import { ToolIcon } from "./ToolIcon";
 import { useToolRunner } from "./useToolRunner";
-import type { MachineState } from "../../pages/Machine";
+import type { MachineState } from "./MachineDialog";
 
 // One tool on one machine, from the Tools menu on its row: the tool itself — its lists and
 // actions — or, where it isn't added yet, what it needs, which of that the machine has, and
@@ -46,8 +46,9 @@ export function ToolDialog({
       <div className="flex items-center justify-between gap-4">
         <p className="text-xs text-amber-300">{error}</p>
         <Link
-          to={`/machines/${machine.id}`}
+          to={`/machines/${machine.id}/${old ? "ssh" : "general"}`}
           state={old ? setup : undefined}
+          onClick={onClose}
           className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
         >
           <Settings className="h-3.5 w-3.5" /> {old ? "Install again" : "Settings"}
@@ -71,10 +72,11 @@ export function ToolDialog({
             {tool.description}
             {summary && <span className="text-slate-500"> · {summary}</span>}
           </p>
-          {/* The machine's own settings — where its projects folder is set — on its page. */}
+          {/* The machine's own settings — where its projects folder is set. */}
           <Link
-            to={`/machines/${machine.id}`}
-            title="The machine's settings, on its page"
+            to={`/machines/${machine.id}/general`}
+            onClick={onClose}
+            title="The machine's settings — its projects folder is under General"
             className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
           >
             <Settings className="h-3.5 w-3.5" /> Settings

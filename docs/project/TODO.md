@@ -1752,6 +1752,12 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       selection; Ctrl+Shift+C with nothing selected left the clipboard alone. +2 frontend
       (269)
 - [ ] Sunde: Claude Code's `/login` in a codebox tmux session — `c`, then paste
+- [x] **A machine opens as a dialog, like a settings window** — the cog's page became a dialog
+      over the list (`/machines/<id>/<category>`): General, SSH | Overview, Tools, Running |
+      Log, with a search; fields save themselves and post only their change; Remove from the
+      SSH config is its own confirmed button. Looked at in Chromium (each category, the
+      search, a phone width) against the test fixtures. 272 frontend
+- [ ] Sunde: open codebox's dialog, change a field, check the banner and the SSH entry
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

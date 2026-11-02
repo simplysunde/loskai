@@ -100,13 +100,21 @@ row opens and closes like a stack on the Docker tab, showing how many it holds w
 closed. Moving the machine moves them all, except a container route that follows its
 container.
 
-The **cog** on a machine's row opens its page: edit its name, address and SSH login, set up
-SSH, its overview (system, uptime, memory, disks, updates waiting, tmux sessions), its tools,
-everything running there, and its log. A machine set up before the overview existed says
+The **cog** on a machine's row opens its dialog, laid out like a settings window: categories
+down the side, with a search that finds one by what is in it.
+
+- **General** — its name, hostname, address and projects folder.
+- **SSH** — its user and port, whether it is set up (and the button to set it up), and
+  removing it from the SSH config.
+- **Overview** — system, uptime, memory, disks, updates waiting, its Tailscale address.
+- **Tools**, **Running** and **Log** — below.
+
+Each field saves when you press Enter or leave it, and Escape puts it back; a value that
+isn't valid says why and saves nothing. A machine set up before the overview existed says
 "install again" there — one click.
 
-**Tools** add buttons to a machine's page — the ones that fit what the machine has, with
-nothing to switch on, each as a card in its **Tools** section. **System** updates it (with its own package manager), reboots it or shuts it down;
+**Tools** add buttons to a machine's dialog — the ones that fit what the machine has, with
+nothing to switch on, each as a card under its **Tools**. **System** updates it (with its own package manager), reboots it or shuts it down;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it and answer a `sudo` password prompt there; hovering a button shows the command. With
@@ -129,8 +137,8 @@ and Add.
   address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
 - **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
-  unless you change it on the machine's page, beside its connection (`~` or one folder
-  in it; a tool's dialog has a **Settings** button to that page) — with each one's
+  unless you change it in the machine's dialog, under General (`~` or one folder in it;
+  a tool's dialog has a **Settings** button there) — with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
   worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
@@ -142,13 +150,13 @@ and Add.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.
 
-A machine set up before a tool's facts existed asks you to **install again** on its page —
+A machine set up before a tool's facts existed asks you to **install again** in its dialog —
 one click, and its overview comes back with them.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
-installs its key (or copy its two lines over yourself). Its page does this again. Once it's
-set up, a terminal button sits on its row and its page. In it, what a program copies —
+installs its key (or copy its two lines over yourself). Its dialog does this again, under
+SSH. Once it's set up, a terminal button sits on its row and in its dialog. In it, what a program copies —
 tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
 wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
 copies that. From then on the row shows how much

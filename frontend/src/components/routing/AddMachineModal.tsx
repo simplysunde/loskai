@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { HardDrive, Loader2 } from "lucide-react";
 
-import type { SshHost } from "../../lib/ssh";
 import { useScrollLock } from "../../lib/useScrollLock";
-import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget } from "../../lib/validation";
+import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
 
 // What the parent posts to /api/machines. `ssh` sets the machine's SSH config entry, null
 // removes it, and left out the entry only follows a rename or a move.
@@ -15,21 +14,18 @@ export interface NewMachine {
   ssh?: { user: string; port: number } | null;
 }
 
-// The backend's rule (assign.MachineSsh): a login name, as `useradd` would take it.
-const SSH_USER = /^[A-Za-z_][A-Za-z0-9_.-]{0,31}$/;
-const SSH_HINT = "The user Loskai logs in as over SSH. Clearing it takes the machine out of the SSH config.";
+const SSH_HINT = "The user Loskai logs in as over SSH. Empty: not in the SSH config.";
 
 const INPUT =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 // Naming a machine is its own form, not a mode of the route picker: there is no source to
 // choose, no port, no TLS, and the hostname may be dotted — none of which is true of a
-// route. What they share is the table they land in and the instance they become.
+// route. What they share is the table they land in and the instance they become. Editing a
+// machine is in its dialog (MachineDialog), a field at a time.
 export function AddMachineModal({
   open,
   baseDomain,
-  editing,
-  ssh,
   pending = false,
   error,
   onSubmit,
@@ -37,22 +33,15 @@ export function AddMachineModal({
 }: {
   open: boolean;
   baseDomain: string | null;
-  // Set when re-pointing an existing machine — its address is what usually changes.
-  editing?: { id: string; hostname: string; address: string; name: string } | null;
-  // The machine's SSH config entry, if it has one.
-  ssh?: SshHost | null;
   pending?: boolean;
   error?: string | null;
   onSubmit: (machine: NewMachine) => void;
   onClose: () => void;
 }) {
-  const [hostname, setHostname] = useState(editing?.hostname ?? "");
-  const [address, setAddress] = useState(editing?.address ?? "");
-  // The SSH fields as edited — null until one is touched. Until then they show the entry
-  // (which may arrive after the form opens) and the save says nothing about SSH.
-  const [sshEdit, setSshEdit] = useState<{ user: string; port: string } | null>(null);
-  const sshUser = sshEdit?.user ?? ssh?.user ?? "";
-  const sshPort = sshEdit?.port ?? String(ssh?.port ?? 22);
+  const [hostname, setHostname] = useState("");
+  const [address, setAddress] = useState("");
+  const [sshUser, setSshUser] = useState("");
+  const [sshPort, setSshPort] = useState("22");
 
   useScrollLock(open);
 
@@ -63,10 +52,7 @@ export function AddMachineModal({
   const port = Number(sshPort);
   const sshOk = !sshUser || (SSH_USER.test(sshUser) && Number.isInteger(port) && port >= 1 && port <= 65535);
   const canSubmit = hostnameOk && addressOk && sshOk && !pending;
-  // Only say something about SSH when its fields were edited: an entry to set, or one to
-  // remove. Left out, the backend keeps the entry as it is — an IdentityFile, a ProxyJump, a
-  // User it inherits from `Host *` — and only carries a rename or move to it.
-  const sshChange = !sshEdit ? {} : sshUser ? { ssh: { user: sshUser, port } } : ssh ? { ssh: null } : {};
+  const sshChange = sshUser ? { ssh: { user: sshUser, port } } : {};
   const fqdn = baseDomain ? assembleFqdn(hostname || "name", baseDomain) : hostname;
 
   return (
@@ -80,7 +66,7 @@ export function AddMachineModal({
       >
         <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
           <HardDrive className="h-4 w-4 text-teal-300" />
-          {editing ? "Edit machine" : "Name a machine"}
+          Name a machine
         </h2>
         <p className="mt-1 text-xs text-slate-500">
           Gives a LAN machine a name that resolves to its address — for SSH, SMB, a NAS, any
@@ -135,8 +121,8 @@ export function AddMachineModal({
             <span className="mb-1 block text-xs font-medium text-slate-400">SSH user</span>
             <input
               value={sshUser}
-              onChange={(e) => setSshEdit({ user: e.target.value.trim(), port: sshPort })}
-              placeholder={ssh ? "from SSH config" : "none"}
+              onChange={(e) => setSshUser(e.target.value.trim())}
+              placeholder="none"
               className={INPUT}
             />
           </label>
@@ -144,7 +130,7 @@ export function AddMachineModal({
             <span className="mb-1 block text-xs font-medium text-slate-400">Port</span>
             <input
               value={sshPort}
-              onChange={(e) => setSshEdit({ user: sshUser, port: e.target.value.trim() })}
+              onChange={(e) => setSshPort(e.target.value.trim())}
               inputMode="numeric"
               disabled={!sshUser}
               className={`${INPUT} disabled:opacity-50`}
@@ -172,15 +158,14 @@ export function AddMachineModal({
               onSubmit({
                 hostname,
                 address,
-                name: editing?.name ?? hostname,
-                instance_id: editing?.id,
+                name: hostname,
                 ...sshChange,
               })
             }
             className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {editing ? "Save machine" : "Name machine"}
+            Name machine
           </button>
         </div>
       </div>

@@ -274,9 +274,12 @@ machine, worked out each time (`instances.on_address`). Hence:
 
 The Machines tab lists each machine with the routes on its address beneath, and adds a route
 on a machine through the same Add route picker, starting on its address. The cog on a row
-opens the machine's page (`/machines/<id>`, `pages/Machine.tsx`) — what belongs to that
-machine alone: editing it, its SSH setup, what runs there, its log. Naming a machine lands
-on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
+opens the machine's dialog over the list (`/machines/<id>/<category>`,
+`components/routing/MachineDialog.tsx`) — what belongs to that machine alone, in categories
+down its side like a settings window: General (name, hostname, address, projects folder) and
+SSH (user, port, setup, removal), each field saving on its own (`SettingRow`'s
+`InlineText`) and posting only its change; then Overview, Tools, Running and Log. Naming a
+machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
 **SSH, so far (Phase 34a–d).** Loskai's key is made with the admin password, which
@@ -286,7 +289,7 @@ the shown key can't belong to another. A machine's form has an SSH user and port
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › SSH
 downloads that file.
 
-Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`, again from its page):
+Saving a machine with an SSH user opens its **SSH setup** (`SshSetupModal`, again from its dialog):
 the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keygen -lf` shows
 on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
 Install it for me logs in once with the machine's password and replaces Loskai's lines in
@@ -295,21 +298,21 @@ a test using both keys (`connect.py`). The main key is unlocked in memory for 15
 the admin password (`unlock.py`) and locked by logout. Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
-30 s, only while someone is looking. The machine's page adds its **overview** — system,
+30 s, only while someone is looking. The machine's dialog adds its **overview** — system,
 uptime, memory, disks, updates waiting, the programs tools require, tmux sessions, the
 Tailscale address, the git projects in the home folder — from the same key's second
 request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command answers both,
 picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
 is [ssh-status.md](../reference/ssh-status.md).
 
-**Tools** are what a machine's page can *do* (Phase 34f): YAML files in
+**Tools** are what a machine's dialog can *do* (Phase 34f): YAML files in
 `modules/ssh/tools/`, shipped in the image. Each names the programs it requires (from the
 overview's) and its actions: a label and the command, per package manager where they
 differ, on the machine or on a row of the Running list (a service, container, LXC, VM).
 **Nothing is enabled or stored**: a tool applies where the machine has its programs — the
 standard ones (System, Services, Proxmox) wherever they fit — and one lacking only programs
 Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) is offered
-to add, which installs them. The machine page has a card for each tool that applies; each
+to add, which installs them. The machine's dialog has a card for each tool that applies, under Tools; each
 added tool is also in the Tools menu on the machine's row, which opens it in a dialog. The one thing stored is a machine's **projects folder**
 (`projects_folder`, `~/projects` unless changed), where the Claude Code tool's projects
 are. Like a recipe,

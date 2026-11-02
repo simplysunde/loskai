@@ -19,6 +19,9 @@ export function isValidDnsOnlyPrefix(prefix: string): boolean {
   );
 }
 
+// A login name ssh and useradd both take — the same rule as the backend's SshLogin.
+export const SSH_USER = /^[A-Za-z_][A-Za-z0-9_.-]{0,31}$/;
+
 export function assembleFqdn(prefix: string, baseDomain: string): string {
   return `${prefix}.${baseDomain}`;
 }

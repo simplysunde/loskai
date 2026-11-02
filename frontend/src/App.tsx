@@ -7,7 +7,6 @@ import { RequireAuth } from "./components/shared/RequireAuth";
 import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
-import { Machine } from "./pages/Machine";
 import { Machines } from "./pages/Machines";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
@@ -70,11 +69,12 @@ export default function App() {
             </RequireAuth>
           }
         />
+        {/* A machine opens as a dialog over the list: /machines/<id>/<category>. */}
         <Route
-          path="/machines/:id"
+          path="/machines/:id/:section?"
           element={
             <RequireAuth>
-              <Machine />
+              <Machines />
             </RequireAuth>
           }
         />
