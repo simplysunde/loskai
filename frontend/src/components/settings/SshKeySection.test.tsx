@@ -38,7 +38,7 @@ function renderSection(key: SshKey | null, replace: { status: number; body: unkn
 }
 
 function enterPassword(password: string) {
-  const field = screen.getByLabelText("Admin password");
+  const field = screen.getByLabelText("Your password");
   fireEvent.change(field, { target: { value: password } });
   fireEvent.submit(field.closest("form")!);
 }
@@ -71,7 +71,7 @@ test("a wrong password is said in the dialog, which stays open", async () => {
   enterPassword("wrong");
 
   expect(await screen.findByText("Invalid password")).toBeInTheDocument();
-  expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
+  expect(screen.getByLabelText("Your password")).toBeInTheDocument();
 });
 
 test("a key not limited to the Docker host says so", async () => {

@@ -540,6 +540,7 @@ source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "asyncssh", extra = ["bcrypt"] },
+    { name = "cryptography" },
     { name = "docker" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -561,6 +562,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi" },
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.24.1" },
+    { name = "cryptography", specifier = ">=50" },
     { name = "docker", specifier = ">=7.2.0" },
     { name = "fastapi" },
     { name = "httpx" },

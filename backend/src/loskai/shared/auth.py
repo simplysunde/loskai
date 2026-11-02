@@ -379,5 +379,9 @@ def change_password(body: NewPassword, request: Request, response: Response) -> 
         user = users.set_password(me.username, body.new)
     except users.UserError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
+    # Their slot on Loskai's SSH key, re-sealed with the new password.
+    from ..modules.ssh import keys  # the SSH module reads accounts too
+
+    keys.reseal(me.username, body.current, body.new)
     _set_cookie(request, response, user)
     return {"user": user.view()}

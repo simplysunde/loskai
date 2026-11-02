@@ -55,7 +55,7 @@ test("a locked key asks for the admin password, then connects", async () => {
   const fetchMock = renderTerminal({ ...KEY, unlocked_until: null });
 
   expect(screen.queryByText(/shell at/)).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "admin-pw" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Unlock and connect" }));
 
   expect(await screen.findByText(/shell at/)).toBeInTheDocument();
@@ -65,7 +65,7 @@ test("a locked key asks for the admin password, then connects", async () => {
 test("a wrong admin password says so and opens nothing", async () => {
   renderTerminal({ ...KEY, unlocked_until: null }, 403);
 
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "nope" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "nope" } });
   fireEvent.click(screen.getByRole("button", { name: "Unlock and connect" }));
 
   expect(await screen.findByText("Invalid password")).toBeInTheDocument();
@@ -77,5 +77,5 @@ test("a session the server closes as locked brings the password back", async () 
 
   sessions[sessions.length - 1].onClosed?.(4423, "Loskai's key is locked");
 
-  expect(await screen.findByLabelText("Admin password")).toBeInTheDocument();
+  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
 });

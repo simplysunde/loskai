@@ -250,6 +250,20 @@ class UserChange(BaseModel):
     password: str | None = None  # an admin setting someone's password
 
 
+def _key_slot(user: User, password: str | None) -> None:
+    """Keep an account's slot on Loskai's SSH key in step (modules/ssh/keys.py): one that may
+    use the Machines tab gets a slot sealed with `password` while someone has the key
+    unlocked; one that may not — or whose password changed with no way to re-seal — loses
+    it, so an old password never opens the key."""
+    from ..modules.ssh import keys, unlock  # the SSH module reads accounts too
+
+    kek = unlock.kek_in_use()
+    if user.may("machines") and password is not None and kek is not None:
+        keys.grant(user.username, password, kek)
+    elif not user.may("machines") or password is not None:
+        keys.drop(user.username)
+
+
 def _answer(action):
     try:
         return action()
@@ -264,7 +278,9 @@ def list_users() -> list[dict]:
 
 @router.post("/users")
 def add_user(body: NewUser) -> dict:
-    return _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs)).view()
+    user = _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs))
+    _key_slot(user, body.password)
+    return user.view()
 
 
 @router.patch("/users/{username}")
@@ -281,10 +297,16 @@ def change_user(username: str, body: UserChange) -> dict:
             user = set_password(username, body.password)
         return user
 
-    return _answer(apply).view()
+    user = _answer(apply)
+    _key_slot(user, body.password)
+    return user.view()
 
 
 @router.delete("/users/{username}")
 def remove_user(username: str) -> dict:
     _answer(lambda: delete(username))
+    from ..modules.ssh import keys, unlock
+
+    keys.drop(username)
+    unlock.lock(username)
     return {"deleted": username}

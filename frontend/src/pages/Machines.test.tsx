@@ -266,7 +266,7 @@ test("deleting a set-up machine takes Loskai's key off it, unlocking the key fir
   fireEvent.click(within(nasRow()).getByTitle("More"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "pw" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
   await vi.waitFor(() =>
@@ -286,7 +286,7 @@ test("a machine deleted with Loskai's key still on it says so", async () => {
   fireEvent.click(within(nasRow()).getByTitle("More"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   // Unlocked already: no password asked.
-  expect(screen.queryByLabelText("Admin password")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Your password")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
   expect(await screen.findByText(/No route to host — remove its/)).toBeInTheDocument();
@@ -468,7 +468,7 @@ test("a set-up machine's dialog, one scroll: its overview under General, tools, 
   fireEvent.click(within(dialog()).getByRole("button", { name: "Terminal" }));
   // No key in this stub, so it asks to unlock first.
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
-  expect(screen.getByLabelText("Admin password")).toBeInTheDocument();
+  expect(screen.getByLabelText("Your password")).toBeInTheDocument();
 });
 
 test("a machine on the older status line is offered the reinstall for its overview", async () => {
@@ -762,7 +762,7 @@ test("removing the SSH connection with Loskai's key locked asks for the admin pa
   renderPage("/machines/nas/ssh");
 
   fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "admin-pw" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
   fireEvent.click(screen.getAllByRole("button", { name: "Remove" }).at(-1)!);
 
   await vi.waitFor(() => expect(calls.find((c) => c.path === "/api/machines")).toBeTruthy());
@@ -780,5 +780,5 @@ test("the unlock prompt says how long Settings › SSH keeps the key unlocked", 
   await screen.findByText("Storage box");
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
-  expect(await screen.findByText("Your admin password unlocks it for 3 hours.")).toBeInTheDocument();
+  expect(await screen.findByText("Your password unlocks it for 3 hours.")).toBeInTheDocument();
 });

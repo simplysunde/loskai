@@ -17,8 +17,9 @@ export function SshKeySection() {
     <section>
       <h2 className="text-sm font-medium text-slate-200">Loskai's key</h2>
       <p className="mt-1 text-xs text-slate-500">
-        Loskai logs in to your machines with its own key, encrypted with the admin password. A
-        machine's SSH setup — the cog on its row — creates it and installs it there.
+        Loskai logs in to your machines with its own key, which each account unlocks with its
+        own password. A machine's SSH setup — the cog on its row — creates it and installs it
+        there.
       </p>
       {sshKey === null && <p className="mt-3 text-xs text-slate-500">None yet.</p>}
       {sshKey && (
@@ -82,8 +83,8 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
           autoFocus
           type="password"
           autoComplete="current-password"
-          aria-label="Admin password"
-          placeholder="Admin password"
+          aria-label="Your password"
+          placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-4 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"

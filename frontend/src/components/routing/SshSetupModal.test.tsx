@@ -88,7 +88,7 @@ test("Install sends the machine's password once, and shows what the test found",
 
   fireEvent.change(await screen.findByLabelText("Machine password"), { target: { value: "machine-pw" } });
   // The key is unlocked, so the admin password isn't asked for.
-  expect(screen.queryByLabelText("Admin password")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Your password")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
   expect(await screen.findByText("Loskai logs in with its key.")).toBeInTheDocument();
@@ -107,7 +107,7 @@ test("a locked key is unlocked with the admin password before the machine's is s
   });
 
   fireEvent.change(await screen.findByLabelText("Machine password"), { target: { value: "machine-pw" } });
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "admin-pw" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
   await screen.findByText("Loskai logs in with its key.");
@@ -124,7 +124,7 @@ test("a key that locked meanwhile brings the admin password back", async () => {
   fireEvent.click(await screen.findByRole("tab", { name: "I'll add it myself" }));
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
 
-  expect(await screen.findByLabelText("Admin password")).toBeInTheDocument();
+  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
   expect(screen.getByText(/key is locked/)).toBeInTheDocument();
 });
 
@@ -149,7 +149,7 @@ test("with no key yet, the admin password creates it before anything is installe
 
   expect(await screen.findByText("Loskai has no SSH key yet.")).toBeInTheDocument();
   expect(screen.queryByLabelText("Machine password")).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "admin-pw" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Create key" }));
 
   await vi.waitFor(() => expect(paths()).toContain("/api/ssh/key"));

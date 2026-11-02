@@ -193,7 +193,7 @@ export function SshSetupModal({
           }}
         >
           <p className="text-sm text-slate-300">Loskai has no SSH key yet.</p>
-          <p className="mt-1 text-xs text-slate-500">Your admin password creates it, and encrypts it.</p>
+          <p className="mt-1 text-xs text-slate-500">Your password creates it, and encrypts it.</p>
           <AdminPassword value={adminPassword} onChange={setAdminPassword} />
           {createKey.isError && (
             <p className="mt-2 text-sm text-rose-400">{message(createKey.error, "Couldn't make the key")}</p>
@@ -270,7 +270,7 @@ export function SshSetupModal({
           {needAdmin && (
             <>
               <p className="mt-3 text-xs text-slate-500">
-                Your admin password unlocks Loskai's key for {unlockFor}.
+                Your password unlocks Loskai's key for {unlockFor}.
               </p>
               <AdminPassword value={adminPassword} onChange={setAdminPassword} />
             </>
@@ -315,8 +315,8 @@ function AdminPassword({ value, onChange }: { value: string; onChange: (v: strin
     <input
       type="password"
       autoComplete="current-password"
-      aria-label="Admin password"
-      placeholder="Admin password"
+      aria-label="Your password"
+      placeholder="Your password"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`mt-2 ${INPUT}`}

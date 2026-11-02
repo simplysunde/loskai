@@ -41,7 +41,7 @@ export function Machines() {
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
   // Deleting a set-up machine takes Loskai's key off it first, which needs the key unlocked:
-  // the admin password, typed in the dialog when it is locked. What went wrong shows there;
+  // your password, typed in the dialog when it is locked. What went wrong shows there;
   // a machine deleted with its key still on it says so after.
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -267,8 +267,8 @@ export function Machines() {
           <input
             type="password"
             autoComplete="current-password"
-            aria-label="Admin password"
-            placeholder="Admin password — unlocks Loskai's key"
+            aria-label="Your password"
+            placeholder="Your password — unlocks Loskai's key"
             value={deletePassword}
             onChange={(e) => setDeletePassword(e.target.value)}
             className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"

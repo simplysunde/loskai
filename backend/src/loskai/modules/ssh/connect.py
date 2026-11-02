@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 
 import asyncssh
 
+from ...shared import auth
 from ...shared import instances as instances_store
 from ..docker.client import docker_client
 from ...shared import settings as settings_store
@@ -73,10 +74,12 @@ def _trusted(t: Target) -> str:
 
 
 def _main_key() -> asyncssh.SSHKey:
-    key = unlock.unlocked_key()
+    me = auth.current_user()
+    key = unlock.unlocked_key(me.username if me else None)
     if key is None:
-        # 423, not 401 or 403: the page asks for the admin password and stays signed in.
-        raise SshError(423, "Loskai's key is locked — enter the admin password")
+        # 423, not 401 or 403: the page asks for the password and stays signed in. Each
+        # user unlocks it for themselves, like sudo.
+        raise SshError(423, "Loskai's key is locked — enter your password")
     return key
 
 

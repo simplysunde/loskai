@@ -59,7 +59,7 @@ def test_no_key_until_one_is_made(client):
     assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "projects": {}}
 
 
-def test_the_key_is_encrypted_with_the_admin_password_and_never_returned(client, ssh_dir):
+def test_the_key_is_encrypted_behind_the_admin_s_key_slot_and_never_returned(client, ssh_dir):
     r = client.post("/api/ssh/key", json={"password": PASSWORD})
 
     assert r.status_code == 200, r.text
@@ -70,7 +70,14 @@ def test_the_key_is_encrypted_with_the_admin_password_and_never_returned(client,
         private = f.read()
     with pytest.raises(asyncssh.KeyImportError):
         asyncssh.import_private_key(private)  # useless without the password
-    key = asyncssh.import_private_key(private, passphrase=PASSWORD)
+    with pytest.raises((asyncssh.KeyImportError, asyncssh.KeyEncryptionError)):
+        asyncssh.import_private_key(private, passphrase=PASSWORD)  # a random key encrypts it
+    # The admin's password opens their slot, and that the key; the slot file is theirs alone.
+    from loskai.modules.ssh import keys
+
+    key, _ = keys.open_for("admin", PASSWORD, None)
+    assert os.stat(ssh_dir + "/keyslots.json").st_mode & 0o777 == 0o600
+    assert PASSWORD not in open(ssh_dir + "/keyslots.json").read()
     assert key.export_public_key("openssh").decode().strip() == view["public_key"]
     assert view["fingerprint"] == key.get_fingerprint()
     for answer in (r, client.get("/api/ssh"), client.get("/api/ssh/config")):

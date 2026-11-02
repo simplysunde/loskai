@@ -71,7 +71,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [removing, setRemoving] = useState(false);
-  // The admin password, when removing the connection needs Loskai's key unlocked.
+  // Your password, when removing the connection needs Loskai's key unlocked.
   const [removePassword, setRemovePassword] = useState("");
   const [query, setQuery] = useState("");
   // The section the side menu marks: the one scrolled to, or the one just picked.
@@ -111,7 +111,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   });
 
   // Removing the SSH connection takes Loskai's key and sudo rule off the machine first, which
-  // needs the key unlocked: the admin password, typed in the dialog when it is locked.
+  // needs the key unlocked: your password, typed in the dialog when it is locked.
   const keyUnlocked = Boolean(
     ssh.data?.key?.unlocked_until && Date.parse(ssh.data.key.unlocked_until) > Date.now(),
   );
@@ -505,8 +505,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           <input
             type="password"
             autoComplete="current-password"
-            aria-label="Admin password"
-            placeholder="Admin password — unlocks Loskai's key"
+            aria-label="Your password"
+            placeholder="Your password — unlocks Loskai's key"
             value={removePassword}
             onChange={(e) => setRemovePassword(e.target.value)}
             className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"

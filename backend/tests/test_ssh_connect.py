@@ -203,7 +203,7 @@ def test_a_new_key_starts_unlocked_and_logout_locks_it(api, machine_net):
     api.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     assert api.get("/api/ssh").json()["key"]["unlocked_until"] is None
-    assert unlock.unlocked_key() is None
+    assert unlock.unlocked_key("admin") is None
 
 
 def test_unlock_takes_the_admin_password(api, machine_net):

@@ -14,7 +14,7 @@ import { XtermSession } from "../shared/XtermSession";
 const LOCKED = 4423;
 
 // A shell on a machine over SSH — or a tool's action, given `run`. It needs Loskai's key
-// unlocked, so a locked key asks for the admin password here first; once open, it lasts
+// unlocked, so a locked key asks for your password here first; once open, it lasts
 // until it is closed or the session ends, however long that is.
 export function MachineTerminal({
   machine,
@@ -61,13 +61,13 @@ export function MachineTerminal({
           }}
         >
           <p className="text-sm text-slate-300">Loskai's key is locked.</p>
-          <p className="mt-1 text-xs text-slate-500">Your admin password unlocks it for {unlockFor}.</p>
+          <p className="mt-1 text-xs text-slate-500">Your password unlocks it for {unlockFor}.</p>
           <input
             autoFocus
             type="password"
             autoComplete="current-password"
-            aria-label="Admin password"
-            placeholder="Admin password"
+            aria-label="Your password"
+            placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"

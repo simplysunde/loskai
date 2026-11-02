@@ -19,7 +19,7 @@ export function Ssh() {
       <section className="border-t border-slate-800 pt-6">
         <h2 className="text-sm font-medium text-slate-200">Unlock</h2>
         <p className="mt-1 mb-3 text-xs text-slate-500">
-          How long typing the admin password lets Loskai reach your machines — terminals, tools,
+          How long typing your password lets Loskai reach your machines — terminals, tools,
           installs. Logging out locks it sooner; a change applies from the next unlock.
         </p>
         <InlineSettingsFields fields={UNLOCK_FIELDS} />

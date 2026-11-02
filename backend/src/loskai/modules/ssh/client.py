@@ -1,8 +1,9 @@
 """SSH module I/O: Loskai's keys, its SSH config and known_hosts, all in `data/ssh/`, and
 the connections to the machines.
 
-The main private key is stored encrypted with the admin password (OpenSSH format, bcrypt
-KDF), so a copy of `data/` never holds a usable key. The status key is the one kept in the
+The main private key is stored encrypted (OpenSSH format, bcrypt KDF) with a random key that
+each account's slot seals with its password (`keys.py`), so a copy of `data/` never holds a
+usable key. The status key is the one kept in the
 clear — the machine limits it to listing what runs (`logic.status_line`). Nothing here
 returns a private key: only public halves leave this module. Editing the files is
 `logic.py`'s; this only reads and replaces them.
@@ -53,19 +54,23 @@ def public_key() -> str | None:
     return logic.public_key_of(path.read_text(encoding="utf-8"), KEY_COMMENT)
 
 
-def create_key(password: str) -> str:
+def create_key(passphrase: str) -> str:
     """Generate a new key pair, replacing any old one, and return its public key. The
-    private half is encrypted with `password` before it touches the disk."""
-    key = asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT)
-    private = key.export_private_key("openssh", passphrase=password, rounds=KDF_ROUNDS).decode()
+    private half is encrypted with `passphrase` before it touches the disk."""
+    return store_key(asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT), passphrase)
+
+
+def store_key(key: asyncssh.SSHKey, passphrase: str) -> str:
+    """Write `key` as the main key, encrypted with `passphrase`; returns its public key."""
+    private = key.export_private_key("openssh", passphrase=passphrase, rounds=KDF_ROUNDS).decode()
     store.replace_private(_private_path(), private)
     return logic.public_key_of(private, KEY_COMMENT)
 
 
-def load_key(password: str) -> asyncssh.SSHKey:
+def load_key(passphrase: str) -> asyncssh.SSHKey:
     """The main private key, decrypted. Raises `asyncssh.KeyImportError` for a wrong
-    password, and FileNotFoundError before there is a key."""
-    return asyncssh.import_private_key(_private_path().read_text(encoding="utf-8"), password)
+    passphrase, and FileNotFoundError before there is a key."""
+    return asyncssh.import_private_key(_private_path().read_text(encoding="utf-8"), passphrase)
 
 
 def status_key() -> asyncssh.SSHKey:

@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from ...shared import auth
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
-from . import client, connect, logic, tool, unlock
+from . import client, connect, keys, logic, tool, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
 
@@ -43,7 +43,8 @@ def _key_view() -> dict | None:
     # The Docker host's address is where Loskai's connections come from, so it is what the
     # key is limited to. Unset, the line has no `from=` and the Machines tab says so.
     from_ip = settings_store.value("host_ip")
-    until = unlock.unlocked_until()
+    me = auth.current_user()
+    until = unlock.unlocked_until(me.username if me else None)
     return {
         "public_key": public,
         "fingerprint": logic.fingerprint_of(public),
@@ -84,14 +85,20 @@ class KeyRequest(BaseModel):
 
 @router.post("/key")
 def create_key(body: KeyRequest) -> dict | None:
-    """Make Loskai's key, or replace it (`replace`). The admin password is checked — with the
-    login backoff — and encrypts the new key."""
+    """Make Loskai's key, or replace it (`replace`). The admin's password is checked — with
+    the login backoff — and seals their key slot; other accounts' slots carry over."""
     if client.public_key() is not None and not body.replace:
         raise HTTPException(status_code=409, detail="Loskai already has a key — use New key to replace it")
     me = auth.check_password(body.password, wrong_status=403)
-    client.create_key(body.password)
+    # The key-encryption key in use, if anyone has the key unlocked or this admin has a
+    # slot: kept, so every other account's slot still opens the new key.
+    kek = unlock.kek_in_use()
+    if kek is None and keys.has_slot(me.username):
+        with contextlib.suppress(keys.NoSlot, FileNotFoundError):
+            kek = keys.open_for(me.username, body.password, None)[1]
+    key, kek = keys.create(me.username, body.password, kek)
     # The password was just typed, so the new key starts unlocked, as after Unlock.
-    unlock.unlock(client.load_key(body.password), me.username)
+    unlock.unlock(key, kek, me.username)
     return _key_view()
 
 
@@ -101,19 +108,20 @@ class PasswordRequest(BaseModel):
 
 @router.post("/unlock")
 def unlock_key(body: PasswordRequest) -> dict | None:
-    """Unlock the key with the admin password (checked with the login backoff), for as long
-    as Settings › SSH says. Logging out locks it again."""
+    """Unlock the key with your own password (checked with the login backoff), for as long
+    as Settings › SSH says — for you; logging out locks it again."""
     if client.public_key() is None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
     me = auth.check_password(body.password, wrong_status=403)
     try:
-        key = client.load_key(body.password)
-    except asyncssh.KeyImportError:
-        # The admin password was reset since the key was made — only New key helps now.
+        key, kek = keys.open_for(me.username, body.password, unlock.kek_in_use())
+    except keys.NoSlot:
         raise HTTPException(
-            status_code=409, detail="The key was made with an earlier password — make a New key"
+            status_code=409,
+            detail="Your account can't unlock Loskai's key yet — unlock it while another user has "
+            "it unlocked, or have an admin set your password while they do",
         )
-    unlock.unlock(key, me.username)
+    unlock.unlock(key, kek, me.username)
     return _key_view()
 
 
