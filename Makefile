@@ -19,19 +19,13 @@ backend:
 frontend:
 	cd frontend && npm run dev
 
-install-live:
-	docker compose -f compose.yml -f compose.live.yml up -d --build
-
-backend:
+install-backend:
 	cd backend && uv sync
 
 install-frontend:
 	cd frontend && npm install
 
-test-live:
-	docker compose -f compose.yml -f compose.live.yml up -d --build
-
-backend:
+test-backend:
 	cd backend && uv run pytest
 
 test-frontend:
