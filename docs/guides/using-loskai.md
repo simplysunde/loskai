@@ -106,8 +106,8 @@ Its search finds a section by what is in it and shows only those.
 
 - **General** — its name, hostname, address and projects folder, then what the machine says
   about itself: system, uptime, memory, disks, updates waiting, its Tailscale address.
-- **SSH** — its user and port, whether it is set up (and the button to set it up), and
-  removing it from the SSH config.
+- **SSH** — its user and port, whether it is set up (and the button to set it up),
+  **updates without a password**, and removing the SSH connection.
 - **Tools**, **Running** and **Log** — below.
 
 Each field saves when you press Enter or leave it, and Escape puts it back; a value that
@@ -165,6 +165,15 @@ copies that. From then on the row shows how much
 is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
 hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
+
+**Updates without a password**: System's Update otherwise asks for the user's `sudo`
+password in the terminal. **Allow** puts a sudo rule on the machine that lets Loskai's user
+run exactly the update commands for its package manager — and nothing else — without one;
+you type the password once, at sudo's prompt in the terminal, and Loskai never sees it.
+**Take it off** removes it. It is not needed where Loskai logs in as root (Proxmox).
+
+**Removing the SSH connection** (in the SSH section) takes Loskai's sudo rule and key off the
+machine, as deleting it does, then its entry; the machine stays, by name.
 
 **Deleting** a machine is under the ⋮ on its row. A set-up one has Loskai's key taken off it first — its two lines in
 `authorized_keys`, nothing else — so it asks for your admin password if the key is locked.

@@ -39,9 +39,12 @@ Everything so far:
   folder, `git init`, and starts Claude in it. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
-- **Deleting a machine** takes Loskai's key off it first, with the admin password if the
-  key is locked; one that can't be reached is deleted with a warning that its key is still
-  there.
+- **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key
+  off it first, with the admin password if the key is locked; one that can't be reached
+  goes anyway, with a warning that they are still there.
+- **Updates without a password** — a machine's SSH section can allow System's Update to run
+  without sudo asking: a sudo rule for exactly its update commands, put on in its terminal
+  (you type the password once, at sudo's prompt) and taken off there, or with the machine.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. What a program in the
   terminal copies — tmux, Claude Code's `c`, an editor — reaches your clipboard (OSC 52);
   Shift+drag selects even where a program uses the mouse. The container terminal

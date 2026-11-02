@@ -27,9 +27,11 @@ export interface Tool {
   actions: ToolAction[];
 }
 
-// What the machine's terminal is asked to run — named, never the command itself.
+// What the machine's terminal is asked to run — named, never the command itself: a tool's
+// action or install, or putting the sudo rule for updates on or taking it off.
 export interface ToolRun {
-  tool: string;
+  tool?: string;
+  sudo?: "allow" | "remove";
   action?: string;
   target?: string;
   install?: boolean;
@@ -45,7 +47,8 @@ export function useTools() {
 }
 
 export function runQuery(run: ToolRun): string {
-  const q = new URLSearchParams({ tool: run.tool });
+  if (run.sudo) return new URLSearchParams({ sudo: run.sudo }).toString();
+  const q = new URLSearchParams({ tool: run.tool ?? "" });
   if (run.action) q.set("action", run.action);
   if (run.target) q.set("target", run.target);
   if (run.install) q.set("install", "true");

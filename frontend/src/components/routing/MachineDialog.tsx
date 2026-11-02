@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Boxes,
   HardDrive,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import type { ToolContext } from "../../lib/toolRows";
@@ -51,7 +51,7 @@ const SECTIONS: { id: SectionId; label: string; icon: ComponentType<{ className?
     id: "general", label: "General", icon: SlidersHorizontal, group: 0,
     words: "name hostname address ip moved routes projects folder overview system os kernel uptime memory disks updates tailscale",
   },
-  { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test remove config" },
+  { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test remove config sudo password updates" },
   { id: "tools", label: "Tools", icon: Wrench, group: 1, words: "add install" },
   { id: "running", label: "Running", icon: Boxes, group: 1, words: "containers services guests lxc vm restart stop" },
   { id: "log", label: "Log", icon: ScrollText, group: 2, words: "terminals sessions opened closed refused installs" },
@@ -71,6 +71,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [removing, setRemoving] = useState(false);
+  // The admin password, when removing the connection needs Loskai's key unlocked.
+  const [removePassword, setRemovePassword] = useState("");
   const [query, setQuery] = useState("");
   // The section the side menu marks: the one scrolled to, or the one just picked.
   const [active, setActive] = useState<string>(() =>
@@ -106,6 +108,23 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     },
     // Each row shows its own error.
     onError: () => {},
+  });
+
+  // Removing the SSH connection takes Loskai's key and sudo rule off the machine first, which
+  // needs the key unlocked: the admin password, typed in the dialog when it is locked.
+  const keyUnlocked = Boolean(
+    ssh.data?.key?.unlocked_until && Date.parse(ssh.data.key.unlocked_until) > Date.now(),
+  );
+  const removeNeedsPassword = trusted && Boolean(ssh.data?.key) && !keyUnlocked;
+  const removeSsh = useMutation({
+    mutationFn: async (change: NewMachine) => {
+      if (removeNeedsPassword) await api.post("/api/ssh/unlock", { password: removePassword });
+      return save.mutateAsync(change);
+    },
+    onSuccess: () => {
+      setRemoving(false);
+      setRemovePassword("");
+    },
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
@@ -297,10 +316,50 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             </button>
           </SettingRow>
         )}
+        {host?.user && trusted && (
+          <SettingRow
+            label="Updates without a password"
+            description="System's Update runs without asking: a sudo rule on the machine for exactly its update commands. You type your password once, in its terminal — Loskai never sees it."
+          >
+            {host.user === "root" ? (
+              <span className="text-xs text-slate-500">not needed — it logs in as root</span>
+            ) : facts.data?.ok ? (
+              <>
+                {facts.data.sudo_rule === "on" ? (
+                  <span className="text-xs text-emerald-300">on</span>
+                ) : facts.data.sudo_rule === "off" ? (
+                  <span className="text-xs text-slate-500">off</span>
+                ) : (
+                  <span title="The machine doesn't let its user look in /etc/sudoers.d" className="cursor-help text-xs text-slate-500">
+                    can't tell
+                  </span>
+                )}
+                {facts.data.sudo_rule !== "on" && (
+                  <button
+                    onClick={() => runner.start({ sudo: "allow", title: "Allow updates without a password" })}
+                    className={`${BUTTON} text-slate-200`}
+                  >
+                    Allow
+                  </button>
+                )}
+                {facts.data.sudo_rule !== "off" && (
+                  <button
+                    onClick={() => runner.start({ sudo: "remove", title: "Take off updates without a password" })}
+                    className={`${BUTTON} text-slate-200`}
+                  >
+                    Take it off
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-slate-500">needs its overview — see General</span>
+            )}
+          </SettingRow>
+        )}
         {host && (
           <SettingRow
-            label="Remove from the SSH config"
-            description="Takes its entry out of Loskai's SSH config. Loskai's key stays on the machine."
+            label="Remove the SSH connection"
+            description="Takes Loskai's key and its sudo rule off the machine, then its entry out of the SSH config."
           >
             <button onClick={() => setRemoving(true)} className={`${BUTTON} text-rose-300`}>
               Remove
@@ -426,17 +485,38 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
       <ConfirmDialog
         open={removing}
-        title={`Remove ${machine.name} from the SSH config?`}
+        title={`Remove ${machine.name}'s SSH connection?`}
         confirmLabel="Remove"
         destructive
-        onConfirm={() => {
+        onConfirm={() =>
+          removeSsh.mutate({
+            hostname, address: machine.upstream ?? "", name: machine.name, instance_id: machine.id, ssh: null,
+          })
+        }
+        onCancel={() => {
           setRemoving(false);
-          void post({ ssh: null }).catch(() => {});
+          removeSsh.reset();
         }}
-        onCancel={() => setRemoving(false)}
       >
-        Its entry goes, and with it the user and port. Loskai's key stays on the machine — delete the
-        machine to take that off too.
+        {trusted
+          ? "Loskai's key and its sudo rule come off the machine — nothing else there changes — then its entry, user and port go, and its host key is forgotten."
+          : "Its entry goes, and with it the user and port."}
+        {removeNeedsPassword && (
+          <input
+            type="password"
+            autoComplete="current-password"
+            aria-label="Admin password"
+            placeholder="Admin password — unlocks Loskai's key"
+            value={removePassword}
+            onChange={(e) => setRemovePassword(e.target.value)}
+            className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+          />
+        )}
+        {removeSsh.isError && (
+          <span className="mt-2 block text-rose-400">
+            {removeSsh.error instanceof ApiError ? removeSsh.error.message : "Couldn't remove it"}
+          </span>
+        )}
       </ConfirmDialog>
 
       {/* Shown once the SSH config has the login: just after a save, on its refetch. */}

@@ -62,24 +62,37 @@ def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
 
 
 def prepare_removal(inst: Instance):
-    """Before anything of a machine's delete happens: where its Loskai lines are, to take
-    them off once nothing else can stop the delete (None: there are none). SshError 423
-    while the key is locked — the page asks for the admin password, nothing changed."""
+    """Before anything of a machine's delete — or its SSH connection's removal — happens:
+    where Loskai's lines are, to take them off once nothing else can stop it (None: there
+    are none). SshError 423 while the key is locked — the page asks for the admin password,
+    nothing changed."""
     return connect.removal(inst.id)
 
 
 async def remove_keys(inst: Instance, removal) -> str | None:
-    """Take Loskai's lines off a machine being deleted. Best-effort: a machine that can't be
-    reached is deleted anyway, and the warning says its lines are still there."""
+    """Take what Loskai put on a machine — its sudo rule, its lines — off it, when the machine
+    or its SSH connection goes. Best-effort: a machine that can't be reached goes anyway,
+    and the warning says what is still there."""
     if removal is None:
         return None
     try:
-        await connect.uninstall(*removal)
+        sudo_left = await connect.uninstall(*removal)
     except connect.SshError as exc:
         connect.log("uninstall", inst.id, None, ok=False, error=exc.detail)
-        return f"Loskai's key is still on the machine: {exc.detail}"
-    connect.log("uninstall", inst.id, None, ok=True)
+        return f"Loskai's key and any sudo rule it added are still on the machine: {exc.detail}"
+    connect.log("uninstall", inst.id, None, ok=True, **({"sudo_rule_left": True} if sudo_left else {}))
+    if sudo_left:
+        return f"Loskai's key is off, but its sudo rule stayed — as root: rm -f {logic.SUDO_RULE}"
     return None
+
+
+def forget_trust(inst: Instance) -> None:
+    """A machine whose SSH connection was removed: its trusted host key goes too, so adding
+    one back trusts the machine afresh. Best-effort."""
+    try:
+        connect.forget(inst.id)
+    except OSError as exc:
+        logger.warning("Host key of machine '%s' not forgotten: %s", inst.id, exc)
 
 
 def forget_machine(inst: Instance) -> None:

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from .logic import PROGRAMS
+from .logic import PROGRAMS, SUDO_RULE, remove_sudo_rule
 
 DIR = Path(__file__).parent / "tools"
 
@@ -235,6 +235,66 @@ def action_script(t: Tool, action_id: str, manager: str | None) -> str:
     if manager not in action.run:
         raise ToolError(f"{t.name} › {action.label} has no command for {manager or 'this machine'}'s package manager")
     return action.run[manager]
+
+
+# One `sudo <program> <args>` of System's update: a program name and plain arguments — none
+# of the characters sudoers would read as syntax.
+_SUDO_STEP = re.compile(r"^sudo ([a-z][a-z0-9-]*)((?: [A-Za-z0-9._/-]+)*)$")
+
+
+def update_commands(manager: str | None) -> list[str]:
+    """System's update on a machine with `manager`, as the commands it runs under sudo
+    (`apt-get update`, `apt-get -y dist-upgrade`) — what the sudo rule allows, read from the
+    tool file so the rule and the button can't disagree. ToolError when it isn't plain
+    `sudo` steps joined by `&&`."""
+    script = action_script(load()["system"], "update", manager)
+    steps = []
+    for part in script.split("&&"):
+        m = _SUDO_STEP.match(part.strip())
+        if not m:
+            raise ToolError(f"System › Update isn't plain sudo commands for {manager}: {part.strip()!r}")
+        steps.append(m.group(1) + m.group(2))
+    return steps
+
+
+def allow_script(manager: str | None) -> str:
+    """Puts the sudo rule (`SUDO_RULE`) on a machine with `manager`, in its terminal: the
+    user types their password once, at sudo's prompt, and Loskai never sees it. The rule
+    names the user and each command by its full path as sudo finds it; `visudo` checks it
+    before it is put in place, so a rule sudo can't read changes nothing. Then it checks
+    that sudo reads it — a sudo that ignores `/etc/sudoers.d` says so."""
+    steps = [*update_commands(manager), f"rm -f {SUDO_RULE}"]
+    programs = sorted({step.split()[0] for step in steps} | {"visudo"})
+    allowed = ", ".join(
+        f"$(command -v {program}) {rest}".rstrip() for program, _, rest in (step.partition(" ") for step in steps)
+    )
+    # As root, its argument the user: no single quote in it, as it sits in sh -c '…'. The
+    # rule is written beside the real one under a name with a dot, which sudo skips.
+    as_root = (
+        "set -e; u=$1; "
+        f"for c in {' '.join(programs)}; do command -v $c >/dev/null || {{ echo No $c on this machine.; exit 1; }}; done; "
+        f"t=$(mktemp {SUDO_RULE}.XXXXXX); "
+        f'{{ echo "# Loskai: $u may update this machine without a password. Loskai removes this file."; '
+        f'echo "$u ALL=(root) NOPASSWD: {allowed}"; }} > $t; '
+        "chmod 0440 $t; "
+        f"if visudo -cf $t >/dev/null; then mv $t {SUDO_RULE}; "
+        "else rm -f $t; echo visudo refused the rule, so nothing changed.; exit 1; fi"
+    )
+    return (
+        'if [ "$(id -u)" = 0 ]; then echo Logged in as root: nothing asks for a password.; exit 0; fi; '
+        f"sudo sh -c '{as_root}' sh \"$(id -un)\" || exit 1; "
+        # Forget the password just typed, so the check below sees only the rule.
+        "sudo -k; "
+        f"if sudo -n -l {steps[0]} >/dev/null 2>&1; then echo Done: Update no longer asks for a password.; "
+        f"else echo The rule is in {SUDO_RULE}, but sudo here does not read that folder.; exit 1; fi"
+    )
+
+
+# Takes the sudo rule off, in the machine's terminal — no password: the rule allows it.
+REMOVE_RULE_SCRIPT = (
+    remove_sudo_rule(f"echo Could not take it off. As root: rm -f {SUDO_RULE}; exit 1")
+    + "; echo Taken off: Update asks for a password again."
+)
 
 
 def to_install(t: Tool, programs: set[str]) -> list[str]:

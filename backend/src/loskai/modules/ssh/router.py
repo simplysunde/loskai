@@ -12,6 +12,7 @@ import contextlib
 import json
 import time
 from datetime import UTC, datetime
+from typing import Literal
 
 import asyncssh
 from fastapi import APIRouter, HTTPException, Request, WebSocket
@@ -203,11 +204,12 @@ def session_log(limit: int = 200) -> list[dict]:
 async def terminal(
     websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24,
     tool: str | None = None, action: str | None = None, target: str | None = None,
-    install: bool = False,
+    install: bool = False, sudo: Literal["allow", "remove"] | None = None,
 ):
     """A shell on the machine — or, given `tool` and `action` (and `target` for a row's
     action) or `install` (what the tool lacks), that command, worked out by `connect.plan`
-    from the tool file: the request only names it. Like the container
+    from the tool file; or `sudo` — putting on or taking off the rule that lets System's
+    update run without a password (`connect.plan_sudo`). The request only names it. Like the container
     terminal it sits outside the HTTP middleware, so it checks the session and the `Origin`
     itself (closing `1008`), and closes when the session ends. It also needs the key
     unlocked: closed `4423` while it is locked, `4409` before the host key is trusted or
@@ -223,11 +225,14 @@ async def terminal(
     try:
         if tool:
             command, details = await connect.plan(machine_id, tool, action, target, install)
+        elif sudo:
+            command, details = await connect.plan_sudo(machine_id, sudo == "allow")
         t, conn, process = await connect.open_terminal(
             machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command
         )
     except connect.SshError as exc:
-        connect.log("refused", machine_id, peer, error=exc.detail, **({"tool": tool, "action": "install" if install else action} if tool else {}))
+        asked = {"tool": tool, "action": "install" if install else action} if tool else {"sudo": sudo} if sudo else {}
+        connect.log("refused", machine_id, peer, error=exc.detail, **asked)
         # A close reason is at most 123 bytes.
         await websocket.close(code=4000 + exc.status_code, reason=exc.detail.encode()[:120].decode(errors="ignore"))
         return

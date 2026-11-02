@@ -20,8 +20,8 @@ your network. Read this before deciding where it runs and who can reach it.
   user on each machine only the `sudo` you want it to have.
 - **A second, status-only key** is kept unencrypted, so each machine's running list and
   overview work without your password. The machine itself limits it to one command that
-  only reads — what runs, and the system, memory, disks, updates waiting, tools and tmux
-  session names — with no shell, no forwarding, only from the Docker host. A copy reveals
+  only reads — what runs, and the system, memory, disks, updates waiting, tools, tmux
+  session names and whether Loskai's sudo rule is there — with no shell, no forwarding, only from the Docker host. A copy reveals
   that and nothing else.
 - **A program in a terminal can put text on your clipboard** (OSC 52 — how tmux and Claude
   Code copy), as in any terminal: up to 1 MiB, and never read it — a request to read the
@@ -38,9 +38,17 @@ your network. Read this before deciding where it runs and who can reach it.
 - **Install it for me** sends a machine's password to that machine once, to add Loskai's
   keys, and keeps it nowhere. It is sent only after you have accepted the machine's host
   key, and a machine whose host key changes is refused.
-- **Deleting a machine takes Loskai's key off it** — its two `authorized_keys` lines, and
-  nothing else — before Loskai forgets it. A machine that can't be reached then is deleted
-  anyway, and Loskai says its lines are still there to remove by hand.
+- **Updates without a password, if you allow them.** A machine's SSH section can put a sudo
+  rule on it, `/etc/sudoers.d/loskai`: Loskai's user may run exactly System's update
+  commands (`apt-get update`, `apt-get -y dist-upgrade`, or the machine's package manager's
+  one) and remove that file — nothing else — without a password. You type the password
+  once, at sudo's prompt in the machine's terminal; Loskai never sees it. `visudo` checks
+  the rule before it is put in place. Anyone who gets Loskai's user on that machine can
+  then install pending updates, and only that.
+- **Deleting a machine, or removing its SSH connection, takes Loskai's things off it** —
+  the sudo rule first, then its two `authorized_keys` lines, and nothing else — before
+  Loskai forgets it. A machine that can't be reached then goes anyway, and Loskai says what
+  is still there to remove by hand.
 - **A recipe runs the images it names.** Recipes are data, never executed themselves, but
   installing one starts its containers — trust a recipe source as you would its images.
 

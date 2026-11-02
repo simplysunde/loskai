@@ -717,3 +717,53 @@ test("a machine that doesn't exist says so", async () => {
   renderPage("/machines/gone");
   expect(await screen.findByText("No such machine.")).toBeInTheDocument();
 });
+test("updates without a password are allowed in the machine's terminal, and taken off there", async () => {
+  setUp();
+  facts = { ...FACTS, sudo_rule: "off" };
+  renderPage("/machines/nas/ssh");
+
+  const row = (await screen.findByText("Updates without a password")).parentElement!.parentElement as HTMLElement;
+  expect(await within(row).findByText("off")).toBeInTheDocument();
+  expect(within(row).queryByRole("button", { name: "Take it off" })).toBeNull();
+  fireEvent.click(within(row).getByRole("button", { name: "Allow" }));
+
+  expect(await screen.findByText("Allow updates without a password — Storage box")).toBeInTheDocument();
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?sudo=allow")).toBeInTheDocument();
+});
+
+test("a machine with the rule on offers to take it off", async () => {
+  setUp();
+  facts = { ...FACTS, sudo_rule: "on" };
+  renderPage("/machines/nas/ssh");
+
+  const row = (await screen.findByText("Updates without a password")).parentElement!.parentElement as HTMLElement;
+  expect(await within(row).findByText("on")).toBeInTheDocument();
+  expect(within(row).queryByRole("button", { name: "Allow" })).toBeNull();
+  fireEvent.click(within(row).getByRole("button", { name: "Take it off" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?sudo=remove")).toBeInTheDocument();
+});
+
+test("a machine logged into as root needs no rule", async () => {
+  setUp();
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "root", port: 22 } };
+  renderPage("/machines/nas/ssh");
+
+  expect(await screen.findByText("not needed — it logs in as root")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+});
+
+test("removing the SSH connection with Loskai's key locked asks for the admin password first", async () => {
+  setUp();
+  sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
+  renderPage("/machines/nas/ssh");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "admin-pw" } });
+  fireEvent.click(screen.getAllByRole("button", { name: "Remove" }).at(-1)!);
+
+  await vi.waitFor(() => expect(calls.find((c) => c.path === "/api/machines")).toBeTruthy());
+  const unlockAt = calls.findIndex((c) => c.path === "/api/ssh/unlock");
+  expect(calls[unlockAt].body).toEqual({ password: "admin-pw" });
+  expect(unlockAt).toBeLessThan(calls.findIndex((c) => c.path === "/api/machines"));
+  expect(calls.find((c) => c.path === "/api/machines")!.body).toMatchObject({ instance_id: "nas", ssh: null });
+});

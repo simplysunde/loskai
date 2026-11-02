@@ -63,6 +63,7 @@ then `sudo -n` (which never prompts), then says `!denied`.
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
 | `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|committed\|subject` | `projects` — see below |
+| `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 
 **Projects** are the git repos one and two folders into the home folder (`~/<x>/.git`,
 `~/<x>/<y>/.git`), since a machine's projects folder is `~` or one folder in it; at most
@@ -109,6 +110,7 @@ the new line, so:
 | 2 | The `facts` request — the machine page's overview (Phase 34e) |
 | 3 | `facts` adds `tailscale` and `curl` to the programs, the Tailscale address, and the projects (Phase 34g) |
 | 4 | `facts` adds the tailnet (`tailscale status`), and each project's commits not pushed |
+| 5 | `facts` adds `sudo`: whether Loskai's sudo rule (updates without a password) is there |
 
 ## Adding a fact
 

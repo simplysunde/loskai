@@ -570,6 +570,15 @@ async def post_machine(body: MachineCreate) -> dict:
     prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
     if refusal := ssh_machines.rename_refusal(prev, body.hostname):
         raise HTTPException(status_code=409, detail=refusal)
+    # Removing its SSH connection takes off what Loskai put on the machine, as deleting it
+    # does: where that is, read now — a locked key stops it here, unchanged — and taken off
+    # once the save has gone through.
+    removal = None
+    if prev is not None and "ssh" in body.model_fields_set and body.ssh is None:
+        try:
+            removal = ssh_machines.prepare_removal(prev)
+        except ssh_connect.SshError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail)
     try:
         result = await name_machine(
             caddy, adguard,
@@ -582,8 +591,12 @@ async def post_machine(body: MachineCreate) -> dict:
     inst = instances_store.get_instance(result["instance_id"])
     if inst is not None:
         ssh = body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP
-        if warning := await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh):
-            result["warning"] = f"{result['warning']} {warning}" if result["warning"] else warning
+        warnings = [result["warning"]]
+        if ssh is None and prev is not None:
+            warnings.append(await ssh_machines.remove_keys(prev, removal))
+            await asyncio.to_thread(ssh_machines.forget_trust, prev)
+        warnings.append(await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh))
+        result["warning"] = " ".join(w for w in warnings if w) or None
     return result
 
 

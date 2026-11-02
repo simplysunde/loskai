@@ -4,6 +4,41 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — Updates without a password: a sudo rule, not a stored password
+
+Sunde asked whether the password typed when setting SSH up could be kept, so System's
+Update could run without anyone at the terminal. It can't — that password is used once and
+kept nowhere, and storing a password that is root on every machine would make Loskai the
+thing to steal. Three ways were weighed: a stored password (no), logging in as root (only
+where it is already normal — Proxmox), and a **sudo rule on the machine** — chosen. The
+machine enforces it, as `authorized_keys` does Loskai's key.
+
+The rule (`/etc/sudoers.d/loskai`) names the user and exactly System's update steps for its
+package manager, read from `system.yml` (`tool.update_commands`) so the rule and the button
+can't disagree, plus `rm -f` of itself — which is what lets Loskai take it off later with no
+password. It is written in the machine's terminal: the user types the password at sudo's
+prompt, so Loskai never sees it; `visudo -cf` checks it beside the real one, under a name
+with a dot that sudo skips, before `mv` puts it in place; then `sudo -k` and `sudo -n -l`
+prove sudo reads it. Sunde chose **update only** — reboot and the rest still ask.
+
+**It comes off with the machine or its SSH connection.** `UNINSTALL_SCRIPT` takes the rule
+off first, while Loskai's key still gets in, then the key lines; a rule that won't go is a
+warning. Removing a machine's SSH connection now does what deleting it does — key and rule
+off, with the admin password when the key is locked — where before it left the key on the
+machine. The overview reports the rule (status line v5), so each machine installs again once.
+
+Live, against a Debian container whose sudo asks for a password, through the browser: the
+rule written by typing the password in the terminal, then `apt-get update` and
+`dist-upgrade` ran with no prompt while `apt-get install`, `reboot` and another `rm` still
+asked; Remove took the rule and Loskai's two lines off and left the user's own.
+
+**Tailscale's operator, tried and dropped.** The plan was for adding Tailscale to also run
+`tailscale set --operator=<user>`, so Connect and Disconnect wouldn't need sudo. On
+Tailscale 1.104 in the same container the operator could `tailscale set`, but `up` was
+refused ("login access denied") and `down` too ("prefs write access denied"). That node had
+never logged in, which may matter, but without a tailnet to log in to it couldn't be shown
+to work — so Connect and Disconnect still use sudo.
+
 ## 2026-11-02 — A machine opens as a dialog, laid out like a settings window
 
 Sunde asked for the cog on a machine's row to behave like Claude Desktop's settings: a

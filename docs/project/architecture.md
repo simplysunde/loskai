@@ -306,6 +306,14 @@ request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command a
 picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
 is [ssh-status.md](../reference/ssh-status.md).
 
+**Updates without a password** are a sudo rule on the machine (`logic.SUDO_RULE`), never a
+stored password: `tool.allow_script` writes it in the machine's terminal — the user types
+the password at sudo's prompt — naming the user and exactly System's update steps
+(`tool.update_commands`, read from the tool file) plus the rule's own removal, checked by
+`visudo` before it is moved into place. The overview says whether it is there (status line
+v5). It comes off first whenever Loskai's things do — deleting the machine or removing its
+SSH connection (`logic.UNINSTALL_SCRIPT`) — through the rule itself, so no password.
+
 **Tools** are what a machine's dialog can *do* (Phase 34f): YAML files in
 `modules/ssh/tools/`, shipped in the image. Each names the programs it requires (from the
 overview's) and its actions: a label and the command, per package manager where they

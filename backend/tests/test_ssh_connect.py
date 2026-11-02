@@ -21,8 +21,8 @@ from loskai.shared import assign as assign_module
 PASSWORD = "correct horse battery"
 HOST_KEY = asyncssh.generate_private_key("ssh-ed25519")
 OTHER_KEY = asyncssh.generate_private_key("ssh-ed25519")
-STATUS = "#loskai-status 4\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
-FACTS = "#loskai-status 4\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
+STATUS = "#loskai-status 5\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
+FACTS = "#loskai-status 5\n#=os\nPRETTY_NAME=Debian 12\nID=debian\n#=kernel\nLinux 6.1\n#=tools\ntmux\n"
 
 
 class Done:
@@ -65,6 +65,8 @@ def machine_net(monkeypatch):
         if client_key is not None and client_key.get_comment() == "loskai-status":
             # The forced command runs whatever is asked; the request only picks the answer.
             return Done(state["facts"] if command == "facts" else STATUS)
+        if command == logic.UNINSTALL_SCRIPT:
+            return Done(state.get("uninstall_out", ""))
         return Done()
 
     monkeypatch.setattr(ssh_client, "scan_host_key", scan)
@@ -321,7 +323,7 @@ def test_a_machine_that_can_t_be_reached_is_deleted_with_a_warning(api, machine_
 
     r = api.delete("/api/instances/nas")
 
-    assert r.status_code == 200 and r.json()["warning"].startswith("Loskai's key is still on the machine")
+    assert r.status_code == 200 and r.json()["warning"].startswith("Loskai's key and any sudo rule it added are still on the machine")
     assert logic.known_key(ssh_client.read_known_hosts(), "nas") is None
 
 
@@ -553,7 +555,7 @@ def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
 def test_a_machine_on_the_older_status_line_is_asked_to_reinstall(api, machine_net):
     _with_key(api)
     _trust(api)
-    machine_net["facts"] = STATUS.replace("status 4", "status 3")
+    machine_net["facts"] = STATUS.replace("status 5", "status 4")
 
     view = api.get("/api/ssh/machines/nas/facts").json()
 
@@ -566,7 +568,7 @@ def test_the_overview_needs_a_trusted_host_key(api, machine_net):
 
 # --- Tools ---
 
-APT_FACTS = "#loskai-status 4\n#=updates\napt 3\n#=tools\nsudo\n"
+APT_FACTS = "#loskai-status 5\n#=updates\napt 3\n#=tools\nsudo\n"
 
 
 def _ready(api, machine_net, facts=APT_FACTS):
@@ -682,8 +684,103 @@ def test_a_project_action_runs_in_its_claude_session_in_the_machine_s_folder(api
 
 
 def test_an_action_needs_the_machine_s_overview(api, machine_net, shell):
-    _ready(api, machine_net, STATUS.replace("status 4", "status 3"))
+    _ready(api, machine_net, STATUS.replace("status 5", "status 4"))
 
     code, reason = _closed_with(api, TERMINAL + "&tool=system&action=reboot")
 
     assert code == 4409 and reason.startswith("Its overview is needed first")
+
+
+# --- Updates without a password ---
+
+
+def test_the_sudo_rule_goes_on_in_the_terminal_for_the_machine_s_package_manager(api, machine_net, shell):
+    _ready(api, machine_net)
+
+    with api.websocket_connect(TERMINAL + "&sudo=allow", headers=ORIGIN) as ws:
+        ws.receive_bytes()
+
+    # The user types the password at sudo's prompt there; Loskai only wrote the script.
+    assert shell["command"] == tool_module.visible(tool_module.allow_script("apt"), None, None)
+    entry = api.get("/api/ssh/log").json()[1]
+    assert entry["event"] == "sudo-rule" and entry["allow"] is True
+
+
+def test_the_sudo_rule_comes_off_in_the_terminal(api, machine_net, shell):
+    _ready(api, machine_net)
+
+    with api.websocket_connect(TERMINAL + "&sudo=remove", headers=ORIGIN) as ws:
+        ws.receive_bytes()
+
+    assert shell["command"] == tool_module.visible(tool_module.REMOVE_RULE_SCRIPT, None, None)
+
+
+def test_the_sudo_rule_needs_the_overview_to_know_the_package_manager(api, machine_net):
+    _ready(api, machine_net, FACTS.replace("status 5", "status 4"))
+
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with api.websocket_connect(TERMINAL + "&sudo=allow", headers=ORIGIN) as ws:
+            ws.receive_bytes()
+    assert closed.value.code == 4409
+
+
+def test_a_sudo_rule_that_stays_on_a_deleted_machine_is_said(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    machine_net["uninstall_out"] = "!sudo-rule\n"
+
+    r = api.delete("/api/instances/nas")
+
+    assert r.status_code == 200 and "its sudo rule stayed" in r.json()["warning"]
+    assert "rm -f /etc/sudoers.d/loskai" in r.json()["warning"]
+
+
+# --- Removing a machine's SSH connection ---
+
+
+def _remove_ssh(api):
+    return api.post("/api/machines", json={
+        "hostname": "nas", "address": "192.168.10.50", "instance_id": "nas", "ssh": None,
+    })
+
+
+def test_removing_the_ssh_connection_takes_loskai_s_things_off_the_machine(api, machine_net):
+    _with_key(api)
+    _trust(api)
+
+    r = _remove_ssh(api)
+
+    # Nothing about the machine's own things: AdGuard isn't configured here, that's all.
+    assert r.status_code == 200 and "machine" not in (r.json()["warning"] or "")
+    assert machine_net["logins"][-1]["command"] == logic.UNINSTALL_SCRIPT
+    # Its entry and its trusted host key go; the machine stays.
+    assert "nas" not in logic.hosts(ssh_client.read_config())
+    assert logic.known_key(ssh_client.read_known_hosts(), "nas") is None
+    assert instances_store.get_instance("nas") is not None
+
+
+def test_a_locked_key_stops_removing_the_ssh_connection(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()
+
+    assert _remove_ssh(api).status_code == 423
+    assert "nas" in logic.hosts(ssh_client.read_config())
+    assert all(login["command"] != logic.UNINSTALL_SCRIPT for login in machine_net["logins"])
+
+
+def test_a_connection_never_set_up_is_removed_without_reaching_the_machine(api, machine_net):
+    assert _remove_ssh(api).status_code == 200
+    assert "nas" not in logic.hosts(ssh_client.read_config())
+    assert machine_net["logins"] == []
+
+
+def test_a_machine_that_can_t_be_reached_loses_its_ssh_connection_with_a_warning(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    machine_net["fail"] = OSError("No route to host")
+
+    r = _remove_ssh(api)
+
+    assert r.status_code == 200 and "still on the machine" in r.json()["warning"]
+    assert "nas" not in logic.hosts(ssh_client.read_config())

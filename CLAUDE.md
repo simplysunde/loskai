@@ -221,7 +221,10 @@ for 15 minutes. The one key kept in the clear is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
 command in `logic.STATUS_COMMAND` — it only reads, and never gets any other use
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password
-(Install it for me) is used for one connection and stored nowhere.
+(Install it for me) is used for one connection and stored nowhere, and a `sudo` password
+never reaches Loskai: updates without a password are a sudo rule on the machine
+(`logic.SUDO_RULE`, allowing only System's update steps and its own removal), typed in at
+sudo's prompt in its terminal, and taken off with the machine or its SSH connection.
 
 ## Invariants that are easy to violate
 

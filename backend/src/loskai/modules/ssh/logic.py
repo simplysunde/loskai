@@ -219,8 +219,25 @@ def public_key_of(private_key: str, comment: str) -> str:
 #
 # The version line changes when what is installed must change. A machine with an older
 # line still answers `running` (that part is the same); `facts` asks for a reinstall.
-STATUS_VERSION = "#loskai-status 4"
-OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2", "#loskai-status 3")
+STATUS_VERSION = "#loskai-status 5"
+OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2", "#loskai-status 3", "#loskai-status 4")
+
+# Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
+# letting its user run exactly System's update commands — and this file's removal — with no
+# password. The machine's sudo enforces it; Loskai holds no password. It comes off with the
+# machine or its SSH connection (UNINSTALL_SCRIPT).
+SUDO_RULE = "/etc/sudoers.d/loskai"
+
+
+def remove_sudo_rule(on_fail: str) -> str:
+    """Shell that takes the sudo rule off — as root, or through the rule itself, which
+    allows exactly this — running `on_fail` when it is there and won't go. No rule (or a
+    sudo that asks for a password and no rule to read): nothing to do."""
+    return (
+        f'if [ "$(id -u)" = 0 ]; then rm -f {SUDO_RULE}; '
+        f"elif ! sudo -n rm -f {SUDO_RULE} 2>/dev/null && [ -e {SUDO_RULE} ]; then {on_fail}; fi"
+    )
+
 _RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
     "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
@@ -257,6 +274,8 @@ _FACTS = (
     "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; "
     # The tailnet as this machine sees it, itself first — read-only, and no root needed.
     "echo '#=tailnet'; tailscale status 2>/dev/null | head -n 100; fi; "
+    # Whether Loskai's sudo rule is there: nothing printed where its folder can't be searched.
+    f"echo '#=sudo'; if [ -x /etc/sudoers.d ]; then [ -e {SUDO_RULE} ] && echo on || echo off; fi; "
     # The git repos one and two folders into the home folder — a machine's projects folder
     # is `~` or one folder in it. A path with any other character is skipped, so nothing
     # below needs quoting. Each row is printed by `git log` itself (or `echo`, for a repo with
@@ -302,9 +321,11 @@ INSTALL_SCRIPT = (
     "mv \"$t\" \"$f\""
 )
 
-# Takes Loskai's lines out again, when the machine is deleted — the same lines, the same
-# way, and nothing else. No file, nothing to take out.
+# Takes off what Loskai put on a machine, when the machine or its SSH connection goes: its sudo
+# rule first, while its key still gets in (`!sudo-rule` when it stays), then its lines in
+# `authorized_keys` — the same lines, the same way, and nothing else.
 UNINSTALL_SCRIPT = (
+    remove_sudo_rule("echo '!sudo-rule'") + "; "
     "set -e; umask 077; f=~/.ssh/authorized_keys; [ -f \"$f\" ] || exit 0; "
     "t=\"$f.loskai-new\"; "
     "{ grep -v -e ' loskai$' -e ' loskai-status$' \"$f\" || [ $? -eq 1 ]; } > \"$t\"; "
@@ -433,7 +454,7 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    tailnet, projects}`.
+    tailnet, projects, sudo_rule}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
@@ -445,7 +466,8 @@ def parse_facts(output: str) -> dict:
     the home folder, `{path, folder, name, branch, dirty, claude, ahead, committed,
     subject}` — `folder` relative to home ("" for home itself), `claude` and `committed`
     seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
-    without one).
+    without one); `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
+    where the machine won't say.
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
@@ -476,6 +498,7 @@ def parse_facts(output: str) -> dict:
         "tailscale": next(iter(sections.get("tailscale", [])), None),
         "tailnet": _tailnet(sections.get("tailnet", [])),
         "projects": [p for p in map(_project, sections.get("projects", [])) if p],
+        "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
     }
 
 

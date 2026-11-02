@@ -85,6 +85,8 @@ export interface Facts {
     committed: number;
     subject: string;
   }[];
+  // Loskai's sudo rule — updates without a password; null where the machine won't say.
+  sudo_rule?: "on" | "off" | null;
 }
 
 // Only a machine's own page asks; the backend reuses an answer for 60 s.

@@ -101,6 +101,9 @@ A command for POSIX `sh`, run as the machine's SSH user:
   a plain call, so the same file works with or without sudo installed.
 - **`$1`** is the target, for an action with `target` or `ask`. Always quote it: `"$1"`.
 - `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
+- **System's `update` must stay plain `sudo <program> <args>` steps joined by `&&`**: the
+  sudo rule for updates without a password allows exactly those steps
+  (`tool.update_commands`), so a change there needs the rule allowed again on each machine.
 - **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed in
   the machine's dialog, under General (`~` or one folder in it), as an absolute path.
 

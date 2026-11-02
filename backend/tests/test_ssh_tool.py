@@ -190,3 +190,42 @@ def test_an_action_finds_the_projects_folder_as_PROJECTS(stored, expected):
                          env={"PATH": "/usr/bin:/bin", "HOME": "/h"}).stdout
 
     assert out.startswith(f"<{expected}>")
+
+
+# --- Updates without a password ---
+
+
+@pytest.mark.parametrize(("manager", "steps"), [
+    ("apt", ["apt-get update", "apt-get -y dist-upgrade"]),
+    ("dnf", ["dnf -y upgrade --refresh"]),
+    ("apk", ["apk upgrade -U"]),
+    ("pacman", ["pacman -Syu --noconfirm"]),
+])
+def test_the_sudo_rule_allows_exactly_system_s_update(manager, steps):
+    assert tool.update_commands(manager) == steps
+
+
+def test_the_rule_names_each_command_by_its_path_and_is_checked_before_it_is_used():
+    script = tool.allow_script("apt")
+
+    assert ("NOPASSWD: $(command -v apt-get) update, $(command -v apt-get) -y dist-upgrade, "
+            "$(command -v rm) -f /etc/sudoers.d/loskai") in script
+    assert "visudo -cf $t" in script and "mktemp /etc/sudoers.d/loskai.XXXXXX" in script
+    # The root part sits in sh -c '…': no single quote of its own.
+    root = script.split("sudo sh -c '", 1)[1].split("' sh ", 1)[0]
+    assert "'" not in root
+    # The check after it forgets the password just typed.
+    assert script.index("sudo -k") < script.index("sudo -n -l apt-get update")
+
+
+def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
+    system = tool.parse("system", {
+        "name": "System", "description": "d",
+        "actions": {"update": {"label": "Update", "description": "d", "run": {"apt": "sudo apt-get update; sh"}}},
+    })
+    monkeypatch.setattr(tool, "load", lambda: {"system": system})
+
+    with pytest.raises(ToolError, match="isn't plain sudo commands"):
+        tool.allow_script("apt")
+    with pytest.raises(ToolError, match="no command for"):
+        tool.update_commands("dnf")

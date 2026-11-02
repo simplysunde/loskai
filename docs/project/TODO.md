@@ -1761,6 +1761,15 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       at in Chromium: a pick scrolls and marks, the wheel moves the mark back, the end
       marks Log, `/machines/<id>/ssh` opens at SSH
 - [ ] Sunde: open codebox's dialog, change a field, check the banner and the SSH entry
+- [x] **Updates without a password** — a sudo rule (`/etc/sudoers.d/loskai`) for exactly
+      System's update steps and its own removal, put on in the machine's terminal (the
+      password typed at sudo's prompt) and taken off there; it comes off with the machine
+      or its SSH connection, which now takes Loskai's key off too. Status line v5 reports it.
+      Live in Chromium against a password-sudo Debian container: rule written, update ran
+      with no prompt (install/reboot still asked), Remove left only the user's own key line.
+      Tailscale's operator tried, didn't let `up`/`down` run unprivileged — dropped
+- [ ] Sunde: on each machine, Install again (status line v5), then Allow updates without a
+      password where wanted
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 

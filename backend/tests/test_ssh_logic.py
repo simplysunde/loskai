@@ -292,7 +292,7 @@ def test_the_running_list_reads_the_older_status_line_too():
 # --- A machine's overview ---
 
 FACTS = """\
-#loskai-status 4
+#loskai-status 5
 #=os
 PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
 NAME="Debian GNU/Linux"
@@ -331,6 +331,8 @@ not a session line
 100.64.0.3       nas          sunde@       linux   offline
 # Health check:
 #     - some warning
+#=sudo
+on
 #=projects
 projects/loskai|main|1|1793212000|2|1793211000|Tools: tmux | and Tailscale
 loskai|-|0|0|-|0|
@@ -369,7 +371,7 @@ def test_an_older_status_line_has_no_overview():
     with pytest.raises(logic.OldStatusLine):
         logic.parse_facts(OUTPUT)
     with pytest.raises(logic.OldStatusLine):
-        logic.parse_facts(FACTS.replace("status 4", "status 3"))
+        logic.parse_facts(FACTS.replace("status 5", "status 4"))
     with pytest.raises(ValueError):
         logic.parse_facts("Welcome to Ubuntu\n$ ")
 
@@ -433,3 +435,17 @@ def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shel
     assert projects["empty"] == {"path": "empty", "folder": "", "name": "empty", "branch": "trunk", "dirty": False,
                                  "claude": 0, "ahead": None, "committed": 0, "subject": ""}
     assert not (tmp_path / "pwned").exists()
+
+
+def test_the_overview_says_whether_loskai_s_sudo_rule_is_there():
+    assert logic.parse_facts(FACTS)["sudo_rule"] == "on"
+    assert logic.parse_facts(FACTS.replace("#=sudo\non\n", "#=sudo\noff\n"))["sudo_rule"] == "off"
+    # Its folder not searchable by the user: the machine doesn't say.
+    assert logic.parse_facts(FACTS.replace("#=sudo\non\n", "#=sudo\n"))["sudo_rule"] is None
+
+
+def test_taking_off_loskai_s_things_starts_with_the_sudo_rule():
+    # While Loskai's key still gets in: the rule allows its own removal, so no password.
+    script = logic.UNINSTALL_SCRIPT
+    assert script.index("sudo -n rm -f /etc/sudoers.d/loskai") < script.index("authorized_keys")
+    assert "echo '!sudo-rule'" in script

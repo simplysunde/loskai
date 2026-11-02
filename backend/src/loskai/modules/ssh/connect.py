@@ -206,9 +206,11 @@ def removal(machine_id: str) -> tuple[Target, str] | None:
     return t, host_key
 
 
-async def uninstall(t: Target, host_key: str) -> None:
-    """Take Loskai's lines out of the machine's `authorized_keys`, with the main key. Raises
-    SshError: 423 the key locked meanwhile, 502 the machine can't be reached or refused."""
+async def uninstall(t: Target, host_key: str) -> bool:
+    """Take what Loskai put on the machine off it, with the main key: its sudo rule, then its
+    lines in `authorized_keys`. True when the sudo rule stayed (the lines are gone either
+    way). Raises SshError: 423 the key locked meanwhile, 502 the machine can't be reached or
+    refused."""
     key = _main_key()
     try:
         result = await client.run(t.host, t.port, t.user, host_key, logic.UNINSTALL_SCRIPT, client_key=key)
@@ -217,6 +219,7 @@ async def uninstall(t: Target, host_key: str) -> None:
     if result.exit_status != 0:
         detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
         raise SshError(502, f"Removing Loskai's key on {t.host} failed: {detail[0]}")
+    return "!sudo-rule" in str(result.stdout or "").splitlines()
 
 
 async def test(machine_id: str) -> dict:
@@ -388,6 +391,24 @@ async def plan(
         "event": "action", "tool": t.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,
     }
+
+
+async def plan_sudo(machine_id: str, allow: bool) -> tuple[str, dict]:
+    """What a terminal runs to put the sudo rule on (`allow`) — for System's update on this
+    machine's package manager — or to take it off, and what the log says. Raises SshError
+    409 before the overview says which package manager it has."""
+    target(machine_id)  # an SSH user, or 409
+    if allow:
+        f = await facts(machine_id)
+        if not f.get("ok"):
+            raise SshError(409, f"Its overview is needed first: {f.get('error')}")
+        try:
+            script = tool.allow_script((f.get("updates") or {}).get("manager"))
+        except tool.ToolError as exc:
+            raise SshError(409, str(exc))
+    else:
+        script = tool.REMOVE_RULE_SCRIPT
+    return tool.visible(script, None, None), {"event": "sudo-rule", "allow": allow, "command": script}
 
 
 def after_action(machine_id: str) -> None:
