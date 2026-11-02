@@ -81,6 +81,7 @@ def test_adding_a_tool_installs_what_it_lacks_packages_in_one_command_then_scrip
 
 @pytest.mark.parametrize(("kind", "target", "ok"), [
     ("service", "nginx", True), ("service", "getty@tty1", True), ("service", "a b", False),
+    ("service", "-Hroot@10.0.0.9", False), ("service", "--root=/tmp", False),
     ("container", "jellyfin-jellyfin-1", True), ("container", "-rm", False),
     ("lxc", "101", True), ("vm", "abc", False), (None, None, True), (None, "nginx", False),
     ("service", None, False),

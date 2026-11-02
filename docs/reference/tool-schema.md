@@ -118,8 +118,11 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 
+Every kind starts with a letter, a digit or (a session) `_`, never `-`, so `$1` can't reach a
+command as one of its options.
+
 The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a tool's card lists
-come from the overview (`rowsOf` in `MachineTools.tsx`); the Running list's kinds stay on
+come from the overview (`rowsOf` in `lib/toolRows.ts`); the Running list's kinds stay on
 its rows. A tmux session another tool claims — named after an action's shared `session`,
 like `claude-site` — is listed on that tool's card, not tmux's.
 

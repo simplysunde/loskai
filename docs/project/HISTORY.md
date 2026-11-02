@@ -4,6 +4,13 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — A service target can't start with `-`
+
+A review found the `service` kind was the one target allowed to begin with `-`, so a target
+like `-Hroot@10.0.0.9` reached `sudo systemctl restart "$1"` as an option — acting on another
+host — though quoting kept it from being code. Every kind now starts with a letter or digit
+(a session also `_`); `tool.TARGETS` is the one place that says so.
+
 ## 2026-11-01 — The terminal takes what a program copies (OSC 52)
 
 **Root cause: Loskai's terminal dropped OSC 52.** Sunde couldn't get Claude Code's `/login`
