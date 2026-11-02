@@ -193,15 +193,15 @@ export function Machine() {
         {host?.user && (
           <section className="border-t border-slate-800 pt-6">
             <h2 className="text-sm font-medium text-slate-200">Running</h2>
-            <div className="mt-3 rounded-lg border border-slate-800 p-3 text-xs text-slate-300">
+            <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800 text-xs text-slate-300">
               {!trusted ? (
-                <p className="text-slate-500">Set up SSH to see what runs here.</p>
+                <p className="p-3 text-slate-500">Set up SSH to see what runs here.</p>
               ) : !runningHere ? (
-                <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                <Loader2 className="m-3 h-4 w-4 animate-spin text-slate-500" />
               ) : runningHere.ok ? (
                 <RunningList running={runningHere} user={host.user} actions={rowActions} />
               ) : (
-                <p className="text-amber-300">Unreachable: {runningHere.error}</p>
+                <p className="p-3 text-amber-300">Unreachable: {runningHere.error}</p>
               )}
             </div>
           </section>

@@ -437,7 +437,7 @@ test("a row of the Running list gets the buttons of the tools that apply", async
   setUp();
   renderPage("/machines/nas");
 
-  const row = (await screen.findByText("plex-1")).closest("li") as HTMLElement;
+  const row = (await screen.findByText("plex-1")).closest("tr") as HTMLElement;
   fireEvent.click(within(row).getByRole("button", { name: "Restart" }));
 
   expect(await screen.findByText("Restart plex-1 — Storage box")).toBeInTheDocument();
