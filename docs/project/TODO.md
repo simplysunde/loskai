@@ -1757,6 +1757,9 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       Log, with a search; fields save themselves and post only their change; Remove from the
       SSH config is its own confirmed button. Looked at in Chromium (each category, the
       search, a phone width) against the test fixtures. 272 frontend
+- [x] One scroll, the side menu jumps and follows it; Overview merged into General. Looked
+      at in Chromium: a pick scrolls and marks, the wheel moves the mark back, the end
+      marks Log, `/machines/<id>/ssh` opens at SSH
 - [ ] Sunde: open codebox's dialog, change a field, check the banner and the SSH entry
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app

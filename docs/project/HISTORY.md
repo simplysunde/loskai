@@ -20,6 +20,13 @@ SSH entry, which an emptied user field used to mean, is its own confirmed button
 empty field now says to use it. Naming a machine keeps its form (`AddMachineModal`, now
 naming only), since a new one needs both fields before anything can be saved.
 
+**Then, the same day: one scroll, and Overview into General.** Sunde wanted to scroll
+through every section rather than see one at a time, with the side menu for getting
+around — so the sections stack in one pane, the menu scrolls to one, and its mark follows
+the scroll (the last section whose top has passed, or the last at the end). Overview had
+nothing to set and sat apart from what it describes, so it moved under General, beneath
+the fields. The search now narrows the sections as well as the menu.
+
 The machine's display name, fixed at its hostname when named, can now be changed — the
 endpoint always took it. `ProjectsFolder` went: the folder is a General row.
 

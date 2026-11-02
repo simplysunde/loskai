@@ -366,14 +366,15 @@ test("removing a machine from the SSH config is its own button, confirmed", asyn
   );
 });
 
-test("the search finds a category by what is in it", async () => {
+test("the search finds a section by what is in it, and shows only those", async () => {
   setUp();
   renderPage("/machines/nas");
 
   const search = await screen.findByLabelText("Search");
   fireEvent.change(search, { target: { value: "uptime" } });
   const nav = screen.getByRole("navigation", { name: "Categories" });
-  expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["Overview"]);
+  expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["General"]);
+  expect(screen.queryByRole("region", { name: "Log" })).not.toBeInTheDocument();
   fireEvent.change(search, { target: { value: "zzz" } });
   expect(within(nav).getByText("Nothing matches.")).toBeInTheDocument();
 });
@@ -428,29 +429,33 @@ test("a machine's dialog sets up its SSH from there", async () => {
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
 });
 
-test("a set-up machine's dialog: its overview, tools, what runs there, its own log, and a terminal", async () => {
+test("a set-up machine's dialog, one scroll: its overview under General, tools, what runs there, its log, a terminal", async () => {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
-  renderPage("/machines/nas/overview");
+  renderPage("/machines/nas");
 
-  // The overview: system, uptime, what's waiting, how full, its Tailscale address.
-  expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
-  expect(screen.getByText("3d 2h")).toBeInTheDocument();
-  expect(screen.getByText(/12 waiting/)).toBeInTheDocument();
-  expect(screen.getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
-  expect(screen.getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
-  expect(screen.getByText("100.64.0.7")).toBeInTheDocument();
+  // The overview, under General: system, uptime, what's waiting, how full, its Tailscale address.
+  await screen.findByRole("region", { name: "General" });
+  const general = () => category("General");
+  expect(await within(general()).findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
+  expect(within(general()).getByText("3d 2h")).toBeInTheDocument();
+  expect(within(general()).getByText(/12 waiting/)).toBeInTheDocument();
+  expect(within(general()).getByText("6.0 GB / 8.0 GB")).toBeInTheDocument();
+  expect(within(general()).getByText("95.0 GB / 100.0 GB")).toBeInTheDocument();
+  expect(within(general()).getByText("100.64.0.7")).toBeInTheDocument();
   // Each tool's card, an added one's with what is in it — sessions another tool claims left out.
-  open("Tools");
-  expect(await screen.findByText("build")).toBeInTheDocument();
-  expect(screen.queryByText("claude-site")).not.toBeInTheDocument();
-  expect(screen.getByText("1 session")).toBeInTheDocument();
-  expect(screen.getByText("1 project, 1 running")).toBeInTheDocument();
-  open("Running");
-  expect(await screen.findByText("plex-1")).toBeInTheDocument();
+  const tools = category("Tools");
+  expect(await within(tools).findByText("build")).toBeInTheDocument();
+  expect(within(tools).queryByText("claude-site")).not.toBeInTheDocument();
+  expect(within(tools).getByText("1 session")).toBeInTheDocument();
+  expect(within(tools).getByText("1 project, 1 running")).toBeInTheDocument();
+  expect(await within(category("Running")).findByText("plex-1")).toBeInTheDocument();
   // Only this machine's entries.
-  open("Log");
-  expect(await screen.findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
+  expect(await within(category("Log")).findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
+  // The side menu marks the section picked.
+  open("Running");
+  expect(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name: "Running" }))
+    .toHaveAttribute("aria-current", "location");
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
 
   fireEvent.click(within(dialog()).getByRole("button", { name: "Terminal" }));

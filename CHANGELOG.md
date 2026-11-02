@@ -20,8 +20,9 @@ Everything so far:
   containers, services, Proxmox guests — listed on hover — and opens a terminal in the
   browser. Every terminal session is logged. Loskai's key, the config download and the log
   are in Settings › SSH; the cog on a machine's row opens its dialog, laid out like a
-  settings window with a search — General and SSH (each field saving as you edit it), its
-  overview (system, memory, disks, updates waiting), its tools, what runs there, its log. **Tools** — found from what the machine has, nothing to
+  settings window — one scroll, a side menu to jump around, a search — General (with its
+  overview: system, memory, disks, updates waiting) and SSH, each field saving as you edit
+  it, then its tools, what runs there, its log. **Tools** — found from what the machine has, nothing to
   enable: System (update, reboot, shut down), Services (restart or stop a service or
   container), Proxmox (reboot or shut down a guest); a tool the machine lacks is offered to
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it

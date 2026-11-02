@@ -1,7 +1,6 @@
-import { useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Activity,
   Boxes,
   HardDrive,
   KeyRound,
@@ -43,14 +42,16 @@ export interface MachineState {
   setup?: boolean;
 }
 
-// The dialog's categories, in groups split by a line. `words` is what the search finds a
-// category by besides its name — the settings and things in it. Every one but the first two
-// needs the machine's SSH user.
-type SectionId = "general" | "ssh" | "overview" | "tools" | "running" | "log";
+// The dialog's sections, one after another in a single scroll, and in the side menu in
+// groups split by a line. `words` is what the search finds a section by besides its name —
+// the settings and things in it. All but the first two need the machine's SSH user.
+type SectionId = "general" | "ssh" | "tools" | "running" | "log";
 const SECTIONS: { id: SectionId; label: string; icon: ComponentType<{ className?: string }>; group: number; words: string }[] = [
-  { id: "general", label: "General", icon: SlidersHorizontal, group: 0, words: "name hostname address ip moved routes projects folder" },
+  {
+    id: "general", label: "General", icon: SlidersHorizontal, group: 0,
+    words: "name hostname address ip moved routes projects folder overview system os kernel uptime memory disks updates tailscale",
+  },
   { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test remove config" },
-  { id: "overview", label: "Overview", icon: Activity, group: 1, words: "system os kernel uptime memory disks updates tailscale" },
   { id: "tools", label: "Tools", icon: Wrench, group: 1, words: "add install" },
   { id: "running", label: "Running", icon: Boxes, group: 1, words: "containers services guests lxc vm restart stop" },
   { id: "log", label: "Log", icon: ScrollText, group: 2, words: "terminals sessions opened closed refused installs" },
@@ -71,6 +72,15 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [removing, setRemoving] = useState(false);
   const [query, setQuery] = useState("");
+  // The section the side menu marks: the one scrolled to, or the one just picked.
+  const [active, setActive] = useState<string>(() =>
+    SECTIONS.some((s) => s.id === section) ? section! : "general",
+  );
+  const pane = useRef<HTMLDivElement>(null);
+  const anchors = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
+  // While a pick scrolls the pane, the scroll doesn't move the mark.
+  const picking = useRef(0);
+  const opened = useRef(false);
   useScrollLock(true);
 
   const routes = useQuery({
@@ -101,6 +111,34 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
   const runner = useToolRunner(machine && { id: machine.id, name: machine.name }, ssh.data?.key ?? null);
   const close = () => navigate("/machines");
+
+  // Opened at a section (/machines/<id>/ssh): start there, once the sections are drawn.
+  const ready = Boolean(machine && ssh.data);
+  useEffect(() => {
+    if (!ready || opened.current) return;
+    opened.current = true;
+    const at = anchors.current[section as SectionId];
+    if (at && at !== anchors.current.general) pick(section as SectionId, "auto");
+  });
+
+  function pick(s: SectionId, behavior: ScrollBehavior = "smooth") {
+    setActive(s);
+    picking.current = Date.now() + 800;
+    anchors.current[s]?.scrollIntoView?.({ behavior, block: "start" });
+  }
+
+  // The mark follows the scroll: the last section whose top has passed the pane's top, or
+  // the last one once the pane is scrolled to its end.
+  function onScroll() {
+    const el = pane.current;
+    if (!el || Date.now() < picking.current) return;
+    const ids = (Object.keys(anchors.current) as SectionId[]).filter((k) => anchors.current[k]);
+    const top = el.getBoundingClientRect().top + 24;
+    let at = ids[0];
+    for (const k of ids) if (anchors.current[k]!.getBoundingClientRect().top <= top) at = k;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) at = ids[ids.length - 1];
+    if (at) setActive(at);
+  }
 
   if (!machine) {
     return (
@@ -142,27 +180,16 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     });
 
   const available = SECTIONS.filter((s) => s.group === 0 || host?.user);
-  const current = available.find((s) => s.id === section) ?? available[0];
+  // Searching narrows the menu and the sections shown to those it finds.
   const q = query.trim().toLowerCase();
   const toolNames = (tools.data ?? []).map((t) => t.name).join(" ");
   const shown = available.filter(
     (s) => !q || `${s.label} ${s.words} ${s.id === "tools" ? toolNames : ""}`.toLowerCase().includes(q),
   );
-  const go = (s: SectionId) => navigate(`/machines/${id}/${s}`, { replace: true });
 
-  // A category that needs the machine's overview, before there is one to show.
-  const needsOverview = (): ReactNode =>
-    !trusted ? (
-      <NotYet onSetUp={() => setSetup(true)}>Set up SSH to see this.</NotYet>
-    ) : facts.data && !facts.data.ok ? (
-      <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} />
-    ) : (
-      <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-    );
-
-  let body: ReactNode;
-  if (current.id === "general") {
-    body = (
+  const content: Record<SectionId, ReactNode> = {
+    general: (
+      <>
       <div className="divide-y divide-slate-800">
         <SettingRow label="Name" description="What Loskai calls it.">
           <InlineText
@@ -213,9 +240,19 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           </SettingRow>
         )}
       </div>
-    );
-  } else if (current.id === "ssh") {
-    body = (
+      {/* What the machine says about itself, read with the status key. */}
+      {host?.user && (
+        <div className="mt-2 border-t border-slate-800 pt-4">
+          {!trusted ? (
+            <NotYet onSetUp={() => setSetup(true)}>Set up SSH to see its system, memory and disks.</NotYet>
+          ) : (
+            <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} />
+          )}
+        </div>
+      )}
+      </>
+    ),
+    ssh: (
       <div className="divide-y divide-slate-800">
         <SettingRow
           label="User"
@@ -271,13 +308,18 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           </SettingRow>
         )}
       </div>
-    );
-  } else if (current.id === "overview") {
-    body = trusted && facts.data ? <MachineOverview facts={facts.data} onReinstall={() => setSetup(true)} /> : needsOverview();
-  } else if (current.id === "tools") {
-    body = ctx ? <MachineTools ctx={ctx} /> : needsOverview();
-  } else if (current.id === "running") {
-    body = (
+    ),
+    tools: ctx ? (
+      <MachineTools ctx={ctx} />
+    ) : !trusted ? (
+      <NotYet onSetUp={() => setSetup(true)}>Set up SSH to use its tools.</NotYet>
+    ) : facts.data && !facts.data.ok ? (
+      // General says why, with the button to fix it.
+      <p className="text-xs text-slate-500">They need its overview, which can't be read — see General.</p>
+    ) : (
+      <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+    ),
+    running: (
       <div className="overflow-x-auto rounded-xl border border-slate-800 text-xs text-slate-300">
         {!trusted ? (
           <div className="p-3">
@@ -291,10 +333,9 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           <p className="p-3 text-amber-300">Unreachable: {runningHere.error}</p>
         )}
       </div>
-    );
-  } else {
-    body = <SshLog machine={id} />;
-  }
+    ),
+    log: <SshLog machine={id} />,
+  };
 
   return (
     <>
@@ -340,10 +381,10 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                   <div className="mx-2 my-2 hidden border-t border-slate-800 sm:block" />
                 )}
                 <button
-                  onClick={() => go(s.id)}
-                  aria-current={s.id === current.id ? "page" : undefined}
+                  onClick={() => pick(s.id)}
+                  aria-current={s.id === active ? "location" : undefined}
                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition sm:gap-3 ${
-                    s.id === current.id
+                    s.id === active
                       ? "bg-teal-500/10 text-teal-200"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
                   }`}
@@ -355,11 +396,24 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             ))}
             {shown.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">Nothing matches.</p>}
           </nav>
-          <section aria-label={current.label} className="min-w-0 flex-1 overflow-auto p-6">
-            <h2 className="mb-4 text-base font-medium text-slate-100">{current.label}</h2>
-            {result && <SaveBanner result={result} />}
-            {body}
-          </section>
+          <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-6 pb-6">
+            {result && <div className="pt-6"><SaveBanner result={result} /></div>}
+            {shown.map((s) => (
+              <section
+                key={s.id}
+                aria-label={s.label}
+                ref={(el) => {
+                  anchors.current[s.id] = el;
+                }}
+                className="border-b border-slate-800 py-6 last-of-type:border-b-0"
+              >
+                <h2 className="mb-4 text-base font-medium text-slate-100">{s.label}</h2>
+                {content[s.id]}
+              </section>
+            ))}
+            {/* Room for the last section to scroll to the top when picked. */}
+            <div className="h-[40vh]" aria-hidden="true" />
+          </div>
         </div>
       </Shell>
 

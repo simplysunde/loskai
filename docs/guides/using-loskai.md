@@ -100,13 +100,14 @@ row opens and closes like a stack on the Docker tab, showing how many it holds w
 closed. Moving the machine moves them all, except a container route that follows its
 container.
 
-The **cog** on a machine's row opens its dialog, laid out like a settings window: categories
-down the side, with a search that finds one by what is in it.
+The **cog** on a machine's row opens its dialog, laid out like a settings window: every
+section in one scroll, and a menu down the side that jumps to one and marks where you are.
+Its search finds a section by what is in it and shows only those.
 
-- **General** — its name, hostname, address and projects folder.
+- **General** — its name, hostname, address and projects folder, then what the machine says
+  about itself: system, uptime, memory, disks, updates waiting, its Tailscale address.
 - **SSH** — its user and port, whether it is set up (and the button to set it up), and
   removing it from the SSH config.
-- **Overview** — system, uptime, memory, disks, updates waiting, its Tailscale address.
 - **Tools**, **Running** and **Log** — below.
 
 Each field saves when you press Enter or leave it, and Escape puts it back; a value that

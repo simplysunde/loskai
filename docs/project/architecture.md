@@ -275,10 +275,11 @@ machine, worked out each time (`instances.on_address`). Hence:
 The Machines tab lists each machine with the routes on its address beneath, and adds a route
 on a machine through the same Add route picker, starting on its address. The cog on a row
 opens the machine's dialog over the list (`/machines/<id>/<category>`,
-`components/routing/MachineDialog.tsx`) — what belongs to that machine alone, in categories
-down its side like a settings window: General (name, hostname, address, projects folder) and
-SSH (user, port, setup, removal), each field saving on its own (`SettingRow`'s
-`InlineText`) and posting only its change; then Overview, Tools, Running and Log. Naming a
+`components/routing/MachineDialog.tsx`) — what belongs to that machine alone, its sections
+in one scroll with a menu down the side that jumps to them, like a settings window: General
+(name, hostname, address, projects folder, then the overview) and SSH (user, port, setup,
+removal), each field saving on its own (`SettingRow`'s `InlineText`) and posting only its
+change; then Tools, Running and Log. The `<category>` is where it opens. Naming a
 machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
