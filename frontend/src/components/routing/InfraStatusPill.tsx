@@ -28,6 +28,7 @@ export function InfraStatusPill({
   url,
   linkLabel,
   action,
+  configurable = true,
   children,
 }: {
   icon: ReactNode;
@@ -36,6 +37,8 @@ export function InfraStatusPill({
   url?: string | null;
   linkLabel: string;
   action?: ReactNode;
+  // Whether to offer Configure — Settings, an admin's.
+  configurable?: boolean;
   children?: ReactNode;
 }) {
   const status = health?.status ?? "unconfigured";
@@ -65,11 +68,11 @@ export function InfraStatusPill({
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
-        ) : (
+        ) : configurable ? (
           <Link to="/settings/network" title="Configure" aria-label="Configure" className={ICON_BUTTON}>
             <Settings2 className="h-3.5 w-3.5" />
           </Link>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
+import { useMe } from "../lib/useAuth";
 import { copyText } from "../lib/clipboard";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
@@ -51,6 +52,7 @@ interface AssignResult {
 // picker.
 export function Routing() {
   const qc = useQueryClient();
+  const { admin } = useMe();
   const health = useHealth();
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // for editing an existing route
@@ -314,6 +316,7 @@ export function Routing() {
       <div className="mb-4 space-y-3">
         <div className="grid gap-3 md:grid-cols-2">
           <InfraStatusPill
+            configurable={admin}
             icon={<Shield className="h-4 w-4" />}
             name="AdGuard"
             health={h?.adguard}
@@ -357,6 +360,7 @@ export function Routing() {
           </InfraStatusPill>
 
           <InfraStatusPill
+            configurable={admin}
             icon={<Lock className="h-4 w-4" />}
             name="Caddy"
             health={h?.caddy}

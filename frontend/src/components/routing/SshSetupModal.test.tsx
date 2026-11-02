@@ -34,6 +34,9 @@ function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Ans
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
       calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (path === "/api/auth/status") {
+        return new Response(JSON.stringify({ authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
       const key = Object.keys(queues).find((k) => path.endsWith(k));
       const queue = key ? queues[key] : [];
       const answer = (queue.length > 1 ? queue.shift() : queue[0]) ?? { body: {} };

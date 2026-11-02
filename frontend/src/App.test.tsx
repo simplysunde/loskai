@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -99,4 +99,31 @@ test("keeps /certificate reachable even when the tab is hidden", async () => {
 
   expect(await screen.findByRole("heading", { name: "Certificate" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Certificate" })).not.toBeInTheDocument();
+});
+
+// An operator sees the tabs it was given, and Settings only an admin.
+test("an operator's sidebar has only its tabs, and Settings says it's an admin's", async () => {
+  RESPONSES["/api/auth/status"] = { authed: true, needs_setup: false, user: { username: "ola", role: "operator", tabs: ["docker"] } };
+  renderAt("/settings");
+
+  expect(await screen.findByText("Only an admin can open this.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Docker" })).toBeInTheDocument();
+  for (const tab of ["Routing", "Machines", "Settings"]) {
+    expect(screen.queryByRole("link", { name: tab })).not.toBeInTheDocument();
+  }
+  expect(screen.getByText("ola")).toBeInTheDocument();
+});
+
+test("your name in the sidebar changes your own password", async () => {
+  renderAt("/");
+  fireEvent.click(await screen.findByTitle("Change your password"));
+
+  fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "old-password" } });
+  fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a new password" } });
+  fireEvent.change(screen.getByLabelText("New password again"), { target: { value: "a new password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+  expect(await screen.findByText(/Changed\. Your other devices are signed out\./)).toBeInTheDocument();
+  const post = vi.mocked(fetch).mock.calls.find(([path]) => path === "/api/auth/password");
+  expect(JSON.parse(String(post![1]!.body))).toEqual({ current: "old-password", new: "a new password" });
 });

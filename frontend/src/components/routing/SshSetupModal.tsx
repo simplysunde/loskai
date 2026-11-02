@@ -5,6 +5,7 @@ import { Check, Copy, Loader2, ShieldAlert, ShieldCheck, Terminal } from "lucide
 import { api, ApiError } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
 import { useUnlockFor } from "../../lib/settings";
+import { useMe } from "../../lib/useAuth";
 import { runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
@@ -46,6 +47,7 @@ export function SshSetupModal({
 }) {
   const qc = useQueryClient();
   const unlockFor = useUnlockFor();
+  const { admin } = useMe();
   const target = `${host.user}@${host.hostname}${host.port === 22 ? "" : `:${host.port}`}`;
   const [trusted, setTrusted] = useState(false);
   const [mode, setMode] = useState<"install" | "manual">("install");
@@ -183,8 +185,13 @@ export function SshSetupModal({
         )}
       </section>
 
-      {/* 2 — Loskai's own key, if there is none yet */}
-      {isTrusted && !sshKey && (
+      {/* 2 — Loskai's own key, if there is none yet: an admin's to make */}
+      {isTrusted && !sshKey && !admin && (
+        <p className="mt-5 text-sm text-slate-400">
+          Loskai has no SSH key yet — an admin makes it, here or in Settings › SSH.
+        </p>
+      )}
+      {isTrusted && !sshKey && admin && (
         <form
           className="mt-5"
           onSubmit={(e) => {

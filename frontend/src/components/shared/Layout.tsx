@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
+  CircleUser,
   Container,
   LayoutDashboard,
   LogOut,
@@ -15,7 +16,8 @@ import {
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
-import { useAuthStatus } from "../../lib/useAuth";
+import { useAuthStatus, type Tab } from "../../lib/useAuth";
+import { ChangePassword } from "./ChangePassword";
 import { useDashboard } from "../../lib/useDashboard";
 import { navDots } from "../../lib/navDots";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
@@ -28,10 +30,11 @@ const NAV = [
   // The public tabs first: they are what a logged-out visitor sees.
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true, public: true },
   { to: "/certificate", label: "Certificate", icon: ShieldCheck, end: false, public: true },
-  { to: "/docker", label: "Docker", icon: Container, end: false },
-  { to: "/routing", label: "Routing", icon: RouteIcon, end: false },
-  { to: "/machines", label: "Machines", icon: Server, end: false },
-  { to: "/settings", label: "Settings", icon: SettingsIcon, end: false },
+  // `tab`: what an account needs to see it — the tab, or "admin" (shared/access.py decides).
+  { to: "/docker", label: "Docker", icon: Container, end: false, tab: "docker" },
+  { to: "/routing", label: "Routing", icon: RouteIcon, end: false, tab: "routing" },
+  { to: "/machines", label: "Machines", icon: Server, end: false, tab: "machines" },
+  { to: "/settings", label: "Settings", icon: SettingsIcon, end: false, tab: "admin" },
 ] as const;
 
 const DOT: Record<ModuleState, string> = {
@@ -52,6 +55,12 @@ export function Layout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const me = auth?.user ?? null;
+  // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
+  // still sees them all — clicking one asks them to log in.
+  const mayOpen = (tab?: Tab | "admin") =>
+    !tab || !me || me.role === "admin" || (tab !== "admin" && me.tabs.includes(tab));
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -66,7 +75,9 @@ export function Layout() {
   // in every mode by design.
   const certTab = dash?.certificate_tab;
   const showCert = certTab === "public" || (certTab === "admin" && authed);
-  const nav = NAV.filter((item) => item.to !== "/certificate" || showCert);
+  const nav = NAV.filter(
+    (item) => (item.to !== "/certificate" || showCert) && mayOpen("tab" in item ? item.tab : undefined),
+  );
 
   const dotFor = health.data ? navDots(health.data) : {};
 
@@ -124,10 +135,25 @@ export function Layout() {
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
 
+        {me && (
+          <button
+            onClick={() => setChangingPassword(true)}
+            title="Change your password"
+            className="mx-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+          >
+            <CircleUser className="h-4 w-4 shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate text-slate-300">{me.username}</span>
+              <span className="block text-[10px] text-slate-500">{me.role === "admin" ? "admin" : "operator"}</span>
+            </span>
+          </button>
+        )}
+        {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}
+
         {authed && (
           <button
             onClick={logout}
-            title="Signs out every device"
+            title="Signs you out on every device"
             className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
           >
             <LogOut className="h-4 w-4" /> Log out

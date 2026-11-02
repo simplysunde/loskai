@@ -1817,7 +1817,7 @@ comparing Loskai's security with Proxmox's.
 - [x] 35b Access by tab: `shared/access.py`, enforced in the middleware and both terminal
       WebSockets; the AdGuard password hidden from operators
 - [x] 35c Key slots and a per-user unlock
-- [ ] 35d Frontend: setup and login with a username, the nav showing only granted tabs,
+- [x] 35d Frontend: setup and login with a username, the nav showing only granted tabs,
       Settings › Users and Security
 - [ ] 35e Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, the guides; HISTORY
 

@@ -7,6 +7,7 @@ import { api, ApiError } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
+import { useMe } from "../lib/useAuth";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
@@ -33,6 +34,7 @@ export function Machines() {
   const qc = useQueryClient();
   const health = useHealth();
   const navigate = useNavigate();
+  const { may } = useMe();
   // The machine open in its dialog, from the cog on its row.
   const { id: openId, section } = useParams();
   // Naming a machine; editing one is in its dialog.
@@ -192,10 +194,15 @@ export function Machines() {
             setDeletePassword("");
             setConfirmDelete(m);
           }}
-          onAddRoute={(m) => {
-            setError(null);
-            setRouteOn(m);
-          }}
+          // Routes are the Routing tab's, even on a machine's row.
+          onAddRoute={
+            may("routing")
+              ? (m) => {
+                  setError(null);
+                  setRouteOn(m);
+                }
+              : undefined
+          }
           busyId={remove.isPending ? remove.variables?.id : null}
         />
       )}

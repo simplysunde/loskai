@@ -63,6 +63,8 @@ const FACTS = {
 let facts: unknown = FACTS;
 let factsStatus = 200;
 let settingsReply: unknown = {};
+const ADMIN_STATUS = { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } };
+let authStatus: unknown = ADMIN_STATUS;
 let sshKey: unknown = null;
 let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
 const TOOLS = [
@@ -122,6 +124,7 @@ beforeEach(() => {
   facts = FACTS;
   factsStatus = 200;
   settingsReply = {};
+  authStatus = ADMIN_STATUS;
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
   vi.stubGlobal(
@@ -150,6 +153,8 @@ beforeEach(() => {
               ? deleteReply
             : path === "/api/ssh/tools"
               ? TOOLS
+            : path === "/api/auth/status"
+              ? authStatus
             : path === "/api/settings"
               ? settingsReply
             : path === "/api/ssh/log"
@@ -781,4 +786,13 @@ test("the unlock prompt says how long Settings › SSH keeps the key unlocked", 
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
   expect(await screen.findByText("Your password unlocks it for 3 hours.")).toBeInTheDocument();
+});
+
+test("an operator without Routing gets no Add route on a machine's row", async () => {
+  authStatus = { authed: true, needs_setup: false, user: { username: "ola", role: "operator", tabs: ["machines"] } };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  expect(within(nasRow()).queryByTitle("Add a route on this machine")).toBeNull();
+  expect(within(nasRow()).getByTitle(/^Machine settings/)).toBeInTheDocument();
 });

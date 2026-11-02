@@ -54,6 +54,8 @@ function renderWizard({
           ? { base_domain: { value: "example.no", source: "stored", secret: false } }
           : path === "/api/routes"
             ? { url: "https://grafana.example.no", warning: null }
+            : path === "/api/auth/status"
+              ? { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } }
             : { recipes, invalid, shadowed, sources, local_count };
     return new Response(JSON.stringify(body), {
       status: 200,

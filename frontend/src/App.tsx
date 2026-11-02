@@ -15,6 +15,7 @@ import { Network } from "./pages/settings/Network";
 import { Security } from "./pages/settings/Security";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { Ssh } from "./pages/settings/Ssh";
+import { Users } from "./pages/settings/Users";
 
 // The Docker page pulls in xterm (~half the bundle). Load it only when that tab is
 // opened so the initial JS chunk stays small.
@@ -46,7 +47,7 @@ export default function App() {
         <Route
           path="/docker"
           element={
-            <RequireAuth>
+            <RequireAuth tab="docker">
               <Suspense fallback={<PageFallback />}>
                 <Docker />
               </Suspense>
@@ -56,7 +57,7 @@ export default function App() {
         <Route
           path="/routing"
           element={
-            <RequireAuth>
+            <RequireAuth tab="routing">
               <Routing />
             </RequireAuth>
           }
@@ -64,7 +65,7 @@ export default function App() {
         <Route
           path="/machines"
           element={
-            <RequireAuth>
+            <RequireAuth tab="machines">
               <Machines />
             </RequireAuth>
           }
@@ -73,7 +74,7 @@ export default function App() {
         <Route
           path="/machines/:id/:section?"
           element={
-            <RequireAuth>
+            <RequireAuth tab="machines">
               <Machines />
             </RequireAuth>
           }
@@ -81,7 +82,7 @@ export default function App() {
         <Route
           path="/settings"
           element={
-            <RequireAuth>
+            <RequireAuth tab="admin">
               <SettingsLayout />
             </RequireAuth>
           }
@@ -89,6 +90,7 @@ export default function App() {
           <Route index element={<General />} />
           <Route path="network" element={<Network />} />
           <Route path="ssh" element={<Ssh />} />
+          <Route path="users" element={<Users />} />
           <Route path="security" element={<Security />} />
         </Route>
         {/* Unmatched paths keep the chrome — the pane says what went wrong. */}
