@@ -261,10 +261,13 @@ async def open_terminal(machine_id: str, cols: int, rows: int, command: str | No
 
 
 def log(event: str, machine_id: str, peer: str | None, **details) -> None:
-    """Record an SSH event — a terminal opened, closed or refused, an install — for the log
-    the app shows. Sessions, not keystrokes: what is typed can be a password at a sudo prompt.
+    """Record an SSH event — a terminal opened, closed or refused, an install — and who did
+    it, for the log the app shows. Sessions, not keystrokes: what is typed can be a password at a sudo prompt.
     Best-effort: a log that can't be written never stops the session."""
     entry = {"at": datetime.now(UTC).isoformat(), "event": event, "machine": machine_id, "from": peer}
+    # Who: the account acting, where there is one (a request or a terminal of theirs).
+    if (me := auth.current_user()) is not None:
+        entry["user"] = me.username
     entry.update(details)
     try:
         client.append_log(entry)

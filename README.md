@@ -24,7 +24,7 @@ docker compose build
 docker compose up -d
 ```
 
-Open `http://<docker-host>:8080`, set the admin password on first run, then use the
+Open `http://<docker-host>:8080`, create the admin account on first run, then use the
 Routing tab to assign clean HTTPS names to your services. One image serves the API and
 the built UI on **:8080**.
 

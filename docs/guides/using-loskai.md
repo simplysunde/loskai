@@ -14,6 +14,18 @@ forwards to the service (the *route*); **AdGuard** tells your devices where the 
 (the *DNS rewrite*). Loskai does both in one step and remembers it in `data/instances.json`.
 Nothing else is stored.
 
+## Accounts
+
+The first time you open Loskai it asks you to create the **admin** account — a username and a
+password. In **Settings › Users** an admin adds more: another **admin**, who can do
+everything, or an **operator**, given any of the Docker, Routing and Machines tabs and able
+to do everything in those — and nothing else, Settings included. A route belongs to Routing,
+so an operator without it can install an app but not give it a URL.
+
+You stay signed in while you use Loskai, and are signed out after 2 hours without use (an
+admin changes that in Settings › Security). **Log out** signs you out on every device. Your
+name at the bottom of the sidebar changes your password.
+
 ## Dashboard
 
 ![Dashboard](../images/dashboard.png)
@@ -176,7 +188,7 @@ you type the password once, at sudo's prompt in the terminal, and Loskai never s
 machine, as deleting it does, then its entry; the machine stays, by name.
 
 **Deleting** a machine is under the ⋮ on its row. A set-up one has Loskai's key taken off it first — its two lines in
-`authorized_keys`, nothing else — so it asks for your admin password if the key is locked.
+`authorized_keys`, nothing else — so it asks for your password if the key is locked.
 If the machine can't be reached it is deleted anyway, and Loskai tells you its lines are
 still there. Adding it again later installs the same key again.
 
@@ -185,10 +197,13 @@ still there. Adding it again later installs the same key again.
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
-- **SSH** — Loskai's key (its fingerprint, New key), how long the admin password unlocks it
+- **SSH** — Loskai's key (its fingerprint, New key), how long your password unlocks it
   (15 minutes unless you pick 1, 3, 8 or 24 hours), the SSH config for your own computer,
   and the log of terminals and installs.
-- **Security** — the admin password.
+- **Users** — the accounts: add one, set its role and tabs, set its password, remove it.
+- **Security** — how long a session lasts without use (2 hours unless changed).
+
+Settings is an admin's.
 
 ---
 

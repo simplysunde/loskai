@@ -124,8 +124,9 @@ docker compose up -d --build
 
 ## Step 4 — First run
 
-1. Open `http://<docker-host>:8080` and **set the admin password** (unless `LOSKAI_PASSWORD`
-   is in `.env`).
+1. Open `http://<docker-host>:8080` and **create the admin account** — a username and a
+   password (unless `LOSKAI_PASSWORD` is in `.env`, which makes it as `admin`, or
+   `LOSKAI_USERNAME`). More accounts are added in Settings › Users.
 2. Check the dashboard — the **Caddy** and **AdGuard** cards should show connected. Greyed out
    = Loskai can't reach that service; re-check its IP and firewall rule.
 3. **Cold start:** a brand-new Caddy has no routes, so `loskai.example.no` won't resolve yet —

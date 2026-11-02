@@ -16,6 +16,7 @@ interface LogEntry {
   action?: string;
   programs?: string[];
   command?: string;
+  user?: string; // the account that did it
   allow?: boolean; // sudo-rule: put on (true) or taken off
   sudo_rule_left?: boolean; // uninstall: the sudo rule stayed
 }
@@ -74,6 +75,7 @@ export function SshLog({ machine }: { machine?: string }) {
             <tr>
               <th className="py-1 pr-3 font-medium">When</th>
               {!machine && <th className="py-1 pr-3 font-medium">Machine</th>}
+              <th className="py-1 pr-3 font-medium">Who</th>
               <th className="py-1 pr-3 font-medium">From</th>
               <th className="py-1 font-medium">What</th>
             </tr>
@@ -85,6 +87,7 @@ export function SshLog({ machine }: { machine?: string }) {
                   {new Date(e.at).toLocaleString()}
                 </td>
                 {!machine && <td className="py-1 pr-3">{e.machine}</td>}
+                <td className="py-1 pr-3 text-slate-400">{e.user ?? "—"}</td>
                 <td className="py-1 pr-3 font-mono text-slate-400">{e.from ?? "—"}</td>
                 <td
                   title={e.command ? `$ ${e.command}` : undefined}

@@ -184,9 +184,13 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
 - Every route form pre-fills a container through **`containerPrefill`** — a new one must
   too. Two forms once disagreed, which is how a container gets routed twice.
 
-**Security is enforced on the API, never the frontend.** One admin password (no accounts),
-hashed, an `HttpOnly` session cookie. Middleware gates **every `/api/*`** except the set in
-`PUBLIC_ROUTES` (`shared/auth.py`):
+**Security is enforced on the API, never the frontend.** Accounts (`shared/users.py`): an
+admin does everything; an operator only the tabs it is given. Passwords hashed, an `HttpOnly`
+session cookie naming the account, ended by its idle time or its user's logout. Middleware
+gates **every `/api/*`** except the set in `PUBLIC_ROUTES` (`shared/auth.py`), and then asks
+`shared/access.py` — one line per route: any account, its tabs, or admin; a route with no
+line is admin-only, and a test fails until it has one. A new route gets its line in the
+same commit. The public set:
 
 - `GET /api/dashboard` — the public launcher.
 - `GET /api/auth/status`, `POST /api/login`, `POST /api/logout`, `POST /api/auth/setup` —
@@ -213,11 +217,11 @@ The frontend merges Caddy and AdGuard into one Routing view; the backends stay i
 
 **Settings: env var > `settings.json` > unset**, each value tagged with its source, and
 everything optional. Loskai stores no third-party secret except the AdGuard password; its
-own admin password only as a hash; and its **SSH private key** only encrypted with that
-password (`data/ssh/id_ed25519`). Never return the key, log it, or put it in an export —
+accounts' passwords only as hashes; and its **SSH private key** only encrypted, behind a
+key slot per account sealed with that account's password (`modules/ssh/keys.py`). Never return the key, log it, or put it in an export —
 only its public half leaves `modules/ssh/client.py`. An action that uses it asks for the
-password again (`auth.check_password`, which shares the login backoff), which unlocks it
-for 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key kept in the clear is the **status key**
+user's password again (`auth.check_password`, which shares the login backoff), which unlocks
+it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key kept in the clear is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
 command in `logic.STATUS_COMMAND` — it only reads, and never gets any other use
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password

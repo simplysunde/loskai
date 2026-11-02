@@ -4,6 +4,42 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — Accounts: an admin, and operators limited to tabs (Phase 35)
+
+**This reverses "one password, no accounts"** (2026-08, and architecture.md's access section
+until now). That was right while one person ran Loskai: logout could end every session by
+replacing the signing secret, and the SSH key could be encrypted with *the* password. After
+comparing Loskai's security with Proxmox's, Sunde asked for separate users and a session that
+ends when idle, with a first-run setup that creates the admin account, as most self-hosted
+services do.
+
+**Roles.** A viewer role was planned and dropped — "a viewer is in essence a public user": the
+Dashboard is that. What is left: an **admin** for everything, and an **operator** given tabs,
+able to do everything in those — "lock them to routing or docker or machines" — and nothing
+else. Routes stay the Routing tab's, even from the installer or a machine's row, so one tab
+owns every route change. The rule lives once, `shared/access.py`, a line per API route; the
+default is admin, and a test lists every route so a new one can't be reachable by an
+operator by accident.
+
+**Sessions** now name an account and a *generation*. Logout, a new password, or the account
+removed bumps it, ending that user's sessions on every device and no one else's — the
+per-user form of what replacing the secret did. They end after 2 idle hours (a setting) and
+renew while used, as Proxmox's ticket does; the old 7-day cookie outlived a lost laptop.
+
+**The SSH key got key slots**, because "encrypted with the admin password" had no answer for
+a second person with the Machines tab: give them the admin's password, or store the key in
+the clear. Instead a random key encrypts it, sealed once per account with its own password
+(scrypt, AES-GCM), LUKS-style — a `data/` copy is still useless without a password, each
+user unlocks for themselves like `sudo`, and their logout locks only theirs. A slot can only
+be made while the random key is at hand, which is why an account added while the key is
+locked gets its slot later: the first time it unlocks while someone else has it unlocked.
+
+**Upgrading**: the old hash in `settings.json` becomes the account `admin` and leaves
+`settings.json`; the old key, encrypted with that password, moves to slots at its first
+unlock. Checked live: an install with only the old hash logged in as `admin`, and in
+Chromium a first-run admin added an operator with Docker, who then saw only Docker, was told
+at `/routing` that the account lacks that tab, and got `403` with the reason from the API.
+
 ## 2026-11-02 — How long the SSH key stays unlocked is a setting
 
 Fifteen minutes meant typing the admin password again and again through an evening's work,

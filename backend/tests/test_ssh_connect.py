@@ -296,6 +296,7 @@ def test_deleting_a_set_up_machine_takes_loskai_s_lines_off_it_first(api, machin
     assert last["command"] == logic.UNINSTALL_SCRIPT and last["key"].get_comment() == "loskai"
     assert api.get("/api/ssh/log").json()[0] | {"at": None} == {
         "at": None, "event": "uninstall", "machine": "nas", "from": None, "ok": True,
+        "user": "admin",  # who deleted it
     }
 
 

@@ -84,7 +84,7 @@ shell's, and per-user installs (Claude Code) live there.
 ## Rules for the command
 
 - **It only reads.** Nothing in it changes the machine. A command that acts belongs to the
-  main key, which needs the admin password.
+  main key, which a user unlocks with their own password.
 - **No double quotes and no backslashes** — it sits inside `command="…"`. A test fails if
   either appears.
 - **POSIX `sh`.** It runs under the user's login shell, which may be `dash`, `bash` or

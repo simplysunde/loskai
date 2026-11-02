@@ -283,8 +283,9 @@ change; then Tools, Running and Log. The `<category>` is where it opens. Naming 
 machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-**SSH, so far (Phase 34a–d).** Loskai's key is made with the admin password, which
-encrypts it (`data/ssh/id_ed25519`), and "New key" in Settings › SSH replaces it. The public key is read from
+**SSH, so far (Phase 34a–d).** Loskai's key is made by an admin and encrypted
+(`data/ssh/id_ed25519`) behind key slots, one per account sealed with its password (Phase
+35, `keys.py`); "New key" in Settings › SSH replaces it and keeps the slots. The public key is read from
 the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
 the shown key can't belong to another. A machine's form has an SSH user and port, written to
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › SSH
@@ -365,7 +366,7 @@ What that commits to — designed in from the start, not added after:
 
 - **Loskai becomes the key to every machine it manages.** Today a compromised Loskai owns
   the Docker host, through the socket; with this, every machine. The protections it already
-  has become load-bearing — LAN-only, remote access through WireGuard, one admin password,
+  has become load-bearing — LAN-only, remote access through WireGuard, the login,
   the gate on the API — and `SECURITY.md` and the "no third-party secret but AdGuard's"
   rule change in the same commit that adds the key.
 - **Loskai's own key, never yours.** Loskai generates its own key pair; you add its public
@@ -388,16 +389,18 @@ What that commits to — designed in from the start, not added after:
   replace the agent it proposes, with nothing to install on the machine.
 
 **Keeping the key safe** (decided 2026-10-28). The gate in front of it was hardened first —
-the `Origin` check, logout ending every session, the login backoff, the `Secure` cookie (see
+the `Origin` check, logout ending the user's sessions, the login backoff, the `Secure` cookie (see
 [Security and access](#security-and-access)). The design then assumes each layer can fail,
 and limits what the next one loses:
 
-- **The private key is encrypted with the admin password**, so a copy of `data/`, a disk
-  image or a backup never holds a usable key. It never appears in an API response, a log,
-  the backup download or the config export. Resetting the password (there is no change
-  form) leaves it unreadable: "New key" makes another.
-- **SSH actions ask for the password again**, like `sudo`, and that is what unlocks the key:
-  in memory, for 15 minutes unless Settings › SSH says longer — not at login. A stolen session cookie then reaches the Docker
+- **The private key is encrypted**, with a random key that `keyslots.json` holds sealed
+  once per account with that account's password (scrypt, AES-GCM — Phase 35), so a copy of
+  `data/`, a disk image or a backup never holds a usable key without a password. It never
+  appears in an API response, a log, the backup download or the config export. A changed
+  password re-seals its slot; a reset one with no key at hand drops it.
+- **SSH actions ask for your password again**, like `sudo`, and that is what unlocks the key
+  — for you, not for anyone else: in memory, for 15 minutes unless Settings › SSH says
+  longer — not at login; your logout locks it. A stolen session cookie then reaches the Docker
   tab, not the machines, and after a restart nothing reaches them until someone types it.
 - **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
   offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
@@ -412,7 +415,7 @@ and limits what the next one loses:
   opens its setup: the host key is shown and trusted *before* any password is sent; then
   Loskai installs its lines with the machine's password, used once and never stored, or
   you add them yourself. Either way it ends by logging in with the key.
-- **A status-only key**, the one exception to "encrypted with the admin password": it is
+- **A status-only key**, the one exception to "encrypted behind a password": it is
   kept `0600` in the clear so each machine's running list works without the password, and
   the machine limits it to one read-only command (`restrict`, `from=`, a forced `command=`)
   — a copy lists what runs and does nothing else.
@@ -566,7 +569,8 @@ is needed before the UI is up, and a list is better edited there). The page is s
 **General** (app-wide, recipe sources, backup), **Network** (how Loskai reaches AdGuard,
 Caddy and WireGuard — fields only; their status lives on Routing, next to what they gate)
 **SSH** (what is the same for every machine: Loskai's key, the SSH config to download, the
-log — one machine's own SSH is behind the cog on its row) and **Security** (the admin password).
+log — one machine's own SSH is behind the cog on its row), **Users** (the accounts) and
+**Security** (how long a session lasts idle). Settings is an admin's.
 
 ### WireGuard
 
@@ -597,7 +601,8 @@ Loskai is the highest-privilege service in the homelab — it holds the Docker s
 designed in, not added on.
 
 **Two tiers.** The Dashboard and Certificate page are public; everything else — the Docker,
-Routing, Machines and Settings tabs and every action — is behind one admin password. The
+Routing, Machines and Settings tabs and every action — is behind a login, and then behind
+what the account may do: an admin everything, an operator its tabs. The
 gate is inside Loskai, not a Caddy `basicauth`, which would also lock the public pages.
 
 **The gate is the API, never the frontend.** Middleware rejects every `/api/*` request
@@ -616,20 +621,34 @@ is `Host` (Caddy keeps it), or `X-Forwarded-Host` for a proxy that rewrites `Hos
 can't forge that header — checked live, the browser either drops it or never sends the request. Proved live on
 2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
-**One password, no accounts.** Set by `LOSKAI_PASSWORD` or at first run, stored only as a
-hash; `POST /api/login` issues a signed `HttpOnly` cookie, `Secure` when the login came over
-HTTPS — Caddy says so in `X-Forwarded-Proto` — so a login on plain `:8080` still works
-there. **Log out ends every session**:
-the cookie carries no id to revoke one by, so logout replaces the signing secret
-(`auth.end_all_sessions`) — with one admin, the only sessions are your own. An open
-terminal re-checks its cookie every 5 s, so a logout closes it too. **Wrong
-passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during which
-login answers `429`; 15 quiet minutes start the count again. The count is one for all
+**Accounts, and what each may do** (Phase 35, replacing "one password, no accounts").
+`data/users.json` (`shared/users.py`) holds the accounts: an **admin** does everything; an
+**operator** is given tabs — Docker, Routing, Machines — and may do everything in those and
+nothing else. There is always an admin. First-run setup creates it; `LOSKAI_PASSWORD`
+(with `LOSKAI_USERNAME`) seeds it instead, and an install from before accounts keeps its
+one password as the account `admin`. **Which account may call what is one table**,
+`shared/access.py`: a line per route — any account, its tabs, or admin — read by the
+middleware; a route with no line is admin-only, and a test fails until every route has one.
+Routes are Routing's even from the installer or a machine's row; a record changed by id is
+its own tab's (a machine Machines', a route Routing's); the terminal WebSockets need Docker
+or Machines. The frontend shows only what the account may use, but the API is the gate.
+
+`POST /api/login` issues a signed `HttpOnly` cookie naming the account and its
+*generation*, `Secure` when the login came over HTTPS — Caddy says so in
+`X-Forwarded-Proto` — so a login on plain `:8080` still works there. **A session ends after
+it has been idle** for `session_idle_minutes` (2 hours, like Proxmox's ticket; 30 minutes to
+7 days) and is renewed — a fresh cookie — by a request more than a minute after the last.
+**Log out ends your sessions on every device**: it bumps your generation, so every cookie
+naming the old one stops working, and no one else's; a new password or the account removed
+does the same. An open terminal re-checks its cookie every 5 s, so a logout closes it too.
+**Wrong passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during
+which login answers `429`; 15 quiet minutes start the count again. A wrong username costs
+the same as a wrong password, and the answer doesn't say which. The count is one for all
 clients — behind Caddy every request comes from Caddy's address — so a guesser's waits are
-the admin's too, and one who keeps guessing keeps the admin out; it lives in memory, and a
+everyone's, and one who keeps guessing keeps everyone out; it lives in memory, and a
 restart clears it. Counting per client is open (TODO). The AdGuard password is the only
-third-party secret Loskai stores, because it must replay it. Files holding secrets are
-written owner-only.
+third-party secret Loskai stores, because it must replay it, and only an admin reads it
+back. Files holding secrets are written owner-only.
 
 **The process runs as the owner of `./data`**, not root — the entrypoint drops to it and the
 socket's group — so anything Loskai writes on the host is the user's.

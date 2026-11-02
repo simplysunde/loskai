@@ -13,7 +13,7 @@ Everything so far:
 - **Machines** — name the computers on your network; every route on a machine's address is
   listed under it (its row opens like a stack's) and moves with it when the address changes. A Docker route can follow its
   container the same way. Loskai makes
-  its own SSH key, encrypted with your admin password, and keeps an SSH config of your
+  its own SSH key, encrypted behind each account's password, and keeps an SSH config of your
   machines — set a machine's SSH user and port in its form, download the file from
   Settings › SSH. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —
@@ -40,7 +40,7 @@ Everything so far:
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
 - **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key
-  off it first, with the admin password if the key is locked; one that can't be reached
+  off it first, with your password if the key is locked; one that can't be reached
   goes anyway, with a warning that they are still there.
 - **How long the SSH key stays unlocked** is a setting in Settings › SSH: 15 minutes, 1, 3,
   8 or 24 hours (`SSH_UNLOCK_MINUTES` too).
@@ -63,6 +63,11 @@ Everything so far:
   install or later under Edit.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
-- **Security** — one admin password; only Loskai's own pages can act with its session, not
-  your other apps under the same domain; the app runs as the owner of its data folder, not
-  root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).
+- **Accounts** — first run creates the admin account; Settings › Users adds more: admins,
+  and operators limited to the tabs they're given (Docker, Routing, Machines). A session
+  ends after 2 hours without use (Settings › Security) and renews while used; logging out
+  ends yours on every device. Each account unlocks Loskai's SSH key with its own password.
+  An existing install's password becomes the account `admin`.
+- **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
+  with its session, not your other apps under the same domain; the app runs as the owner of
+  its data folder, not root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).

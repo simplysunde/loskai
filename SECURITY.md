@@ -13,8 +13,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **It writes your Caddy routes and AdGuard DNS rewrites.** It deletes only the rewrites it
   made, matched by name *and* answer — except Settings › Network's confirmed "clear all".
 - **It holds an SSH key to the machines you give it** (once its public key is on them).
-  The key is stored encrypted with the admin password and is usable for a while after
-  you type that password — 15 minutes unless Settings › SSH says longer (up to 24 hours,
+  The key is stored encrypted, behind a key slot per account sealed with that account's
+  password, and is usable for a while after you type yours — your unlock, not anyone
+  else's — 15 minutes unless Settings › SSH says longer (up to 24 hours,
   each hour longer that a stolen session reaches your machines too); logging out locks it
   sooner. It works only from the Docker host
   when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
@@ -56,11 +57,17 @@ your network. Read this before deciding where it runs and who can reach it.
 
 ## How access is controlled
 
-- **One admin password**, stored only as an Argon2 hash. A login sets an `HttpOnly`,
-  `SameSite=Lax` session cookie that lasts 7 days. **Log out ends every session**, on every
-  device — a copied cookie stops working too, and an open terminal closes within seconds.
-  After 5 wrong passwords, each one costs a wait that doubles up to a minute: a guesser gets
-  about one try a minute.
+- **Accounts.** First-run setup creates an **admin**, who can add more. An admin can do
+  everything; an **operator** only what is in the tabs it is given (Docker, Routing,
+  Machines) — Settings and the accounts are an admin's. The API enforces it, one rule per
+  route (`shared/access.py`), and a route without one is admin-only. Passwords are stored
+  only as Argon2 hashes, in `data/users.json` (owner-only).
+- **Sessions.** A login sets an `HttpOnly`, `SameSite=Lax` cookie naming the account. It ends
+  after 2 hours without use (Settings › Security: 30 minutes to 7 days) and renews while
+  used. **Log out ends your sessions on every device** — a copied cookie stops working too,
+  and an open terminal closes within seconds; so does a changed password, or the account
+  removed. After 5 wrong passwords, each one costs a wait that doubles up to a minute: a
+  guesser gets about one try a minute.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
   icons. The terminal WebSocket checks the session itself.

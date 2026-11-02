@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 35** (below) — accounts: an admin, and operators limited to tabs.
+**Now:** **Phase 35** (below) — accounts: an admin, and operators limited to tabs; built.
 **Phase 34** — Machines managed over SSH; 34a–h built
 (the overview, plugins, tmux, Claude Code). **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
@@ -1819,7 +1819,14 @@ comparing Loskai's security with Proxmox's.
 - [x] 35c Key slots and a per-user unlock
 - [x] 35d Frontend: setup and login with a username, the nav showing only granted tabs,
       Settings › Users and Security
-- [ ] 35e Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, the guides; HISTORY
+- [x] 35e Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, the guides; HISTORY
+- [x] Live: an install with only the old password logged in as `admin` (users.json 0600,
+      the hash gone from settings.json); in Chromium, first-run setup made the admin, who
+      added an operator with Docker; the operator saw only Docker, `/routing` said the tab is
+      missing, the API answered 403 with the reason. 759 backend, 285 frontend
+- [ ] Sunde: after deploying, log in as `admin` with the old password (rename it in
+      Settings › Users if wanted — by adding a new admin and removing `admin`); unlock the SSH
+      key once, which moves it to key slots
 
 ---
 
