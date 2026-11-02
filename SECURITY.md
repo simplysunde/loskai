@@ -13,8 +13,10 @@ your network. Read this before deciding where it runs and who can reach it.
 - **It writes your Caddy routes and AdGuard DNS rewrites.** It deletes only the rewrites it
   made, matched by name *and* answer — except Settings › Network's confirmed "clear all".
 - **It holds an SSH key to the machines you give it** (once its public key is on them).
-  The key is stored encrypted with the admin password and is usable for 15 minutes after
-  you type that password — logging out locks it sooner. It works only from the Docker host
+  The key is stored encrypted with the admin password and is usable for a while after
+  you type that password — 15 minutes unless Settings › SSH says longer (up to 24 hours,
+  each hour longer that a stolen session reaches your machines too); logging out locks it
+  sooner. It works only from the Docker host
   when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
   itself, also from Loskai's own Docker networks). Give Loskai's login
   user on each machine only the `sudo` you want it to have.

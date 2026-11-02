@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # internal CA is the default TLS mode, so the page is useful out of the box. An ACME
     # deployment has no internal root to hand out and sets this to "hidden".
     certificate_tab: str | None = None
+    # How long the admin password unlocks Loskai's SSH key for, in minutes: one of
+    # settings.SSH_UNLOCK_CHOICES. Unset means 15.
+    ssh_unlock_minutes: str | None = None
 
     # --- Env-only settings (never written to settings.json) ---
     # Drives the compose bind mount, so it lives in the compose/env only. The default is

@@ -10,8 +10,7 @@ import time
 import asyncssh
 
 from ...shared import auth
-
-UNLOCK_SECONDS = 15 * 60
+from ...shared import settings as settings_store
 
 _key: asyncssh.SSHKey | None = None
 _until = 0.0  # time.time() it locks at
@@ -19,9 +18,10 @@ _epoch: str | None = None
 
 
 def unlock(key: asyncssh.SSHKey) -> float:
-    """Hold `key` for `UNLOCK_SECONDS`; returns when it locks."""
+    """Hold `key` for as long as Settings › SSH says (15 minutes unless changed); returns
+    when it locks. A change to the setting applies from the next unlock."""
     global _key, _until, _epoch
-    _key, _until, _epoch = key, time.time() + UNLOCK_SECONDS, auth.session_epoch()
+    _key, _until, _epoch = key, time.time() + settings_store.ssh_unlock_seconds(), auth.session_epoch()
     return _until
 
 

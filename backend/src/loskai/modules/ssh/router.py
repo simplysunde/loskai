@@ -101,8 +101,8 @@ class PasswordRequest(BaseModel):
 
 @router.post("/unlock")
 def unlock_key(body: PasswordRequest) -> dict | None:
-    """Unlock the key for `unlock.UNLOCK_SECONDS` with the admin password (checked with the
-    login backoff). Logging out locks it again."""
+    """Unlock the key with the admin password (checked with the login backoff), for as long
+    as Settings › SSH says. Logging out locks it again."""
     if client.public_key() is None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
     auth.check_password(body.password, wrong_status=403)

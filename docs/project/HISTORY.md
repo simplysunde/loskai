@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — How long the SSH key stays unlocked is a setting
+
+Fifteen minutes meant typing the admin password again and again through an evening's work,
+and Sunde asked for at least three hours, or a setting. A setting (`ssh_unlock_minutes`,
+Settings › SSH, and `SSH_UNLOCK_MINUTES`) with fixed choices — 15 minutes, 1, 3, 8, 24
+hours — rather than a number: each is a deliberate step, and validation is a lookup. The
+default stays 15: the unlock is what keeps a stolen session cookie from reaching the
+machines, and each hour longer is an hour it would. Logout still locks it at once. A change
+applies from the next unlock; the prompts name the chosen length rather than "15 minutes".
+
 ## 2026-11-02 — Updates without a password: a sudo rule, not a stored password
 
 Sunde asked whether the password typed when setting SSH up could be kept, so System's

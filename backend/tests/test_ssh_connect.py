@@ -4,6 +4,7 @@ the key must be unlocked, logout locks it, and the running list is cached."""
 
 import asyncio
 import json
+import time
 
 import asyncssh
 import pytest
@@ -212,6 +213,19 @@ def test_unlock_takes_the_admin_password(api, machine_net):
     r = api.post("/api/ssh/unlock", json={"password": PASSWORD})
 
     assert r.status_code == 200 and r.json()["unlocked_until"] is not None
+
+
+def test_an_unlock_lasts_as_long_as_settings_say(api, machine_net):
+    from datetime import datetime
+
+    _with_key(api)
+    unlock.lock()
+    assert api.put("/api/settings", json={"ssh_unlock_minutes": "180"}, headers=ORIGIN).status_code == 200
+
+    until = api.post("/api/ssh/unlock", json={"password": PASSWORD}).json()["unlocked_until"]
+
+    left = datetime.fromisoformat(until).timestamp() - time.time()
+    assert 3 * 3600 - 60 < left <= 3 * 3600
 
 
 def test_the_key_view_offers_both_lines(api, machine_net):

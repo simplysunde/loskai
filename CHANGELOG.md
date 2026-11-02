@@ -42,6 +42,8 @@ Everything so far:
 - **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key
   off it first, with the admin password if the key is locked; one that can't be reached
   goes anyway, with a warning that they are still there.
+- **How long the SSH key stays unlocked** is a setting in Settings › SSH: 15 minutes, 1, 3,
+  8 or 24 hours (`SSH_UNLOCK_MINUTES` too).
 - **Updates without a password** — a machine's SSH section can allow System's Update to run
   without sudo asking: a sudo rule for exactly its update commands, put on in its terminal
   (you type the password once, at sudo's prompt) and taken off there, or with the machine.

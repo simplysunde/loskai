@@ -243,7 +243,7 @@ async def test(machine_id: str) -> dict:
 
 async def open_terminal(machine_id: str, cols: int, rows: int, command: str | None = None):
     """A shell on the machine — or a tool's `command` (see `plan`) — with the main key,
-    which must be unlocked, so a terminal is only opened within 15 minutes of the admin
+    which must be unlocked, so a terminal is only opened within the unlock time of the admin
     password. Returns the target, connection and process; the caller closes the connection."""
     t = target(machine_id)
     host_key = _trusted(t)

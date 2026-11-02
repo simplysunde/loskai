@@ -222,3 +222,17 @@ def test_certificate_tab_falls_back_when_env_is_a_typo(monkeypatch):
     degrade to the default rather than silently hiding the page."""
     monkeypatch.setattr(config.settings, "certificate_tab", "publik")
     assert s.certificate_tab() == "public"
+
+
+def test_the_ssh_unlock_lasts_15_minutes_unless_set():
+    assert s.ssh_unlock_seconds() == 15 * 60
+    s.update({"ssh_unlock_minutes": "180"})
+    assert s.ssh_unlock_seconds() == 3 * 3600
+
+
+def test_the_ssh_unlock_takes_only_its_choices(monkeypatch):
+    with pytest.raises(ValueError, match="minutes"):
+        s.update({"ssh_unlock_minutes": "99999"})
+    # The env layer isn't validated: a value not among the choices means the default.
+    monkeypatch.setattr(config.settings, "ssh_unlock_minutes", "forever")
+    assert s.ssh_unlock_seconds() == 15 * 60

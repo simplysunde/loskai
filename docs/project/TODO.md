@@ -1768,6 +1768,9 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       Live in Chromium against a password-sudo Debian container: rule written, update ran
       with no prompt (install/reboot still asked), Remove left only the user's own key line.
       Tailscale's operator tried, didn't let `up`/`down` run unprivileged — dropped
+- [x] **How long the key stays unlocked is a setting** (Settings › SSH, `ssh_unlock_minutes`,
+      `SSH_UNLOCK_MINUTES`): 15 min, 1, 3, 8, 24 h; default 15. Live: set to 3 hours in the
+      page, a new key's unlock ran 3.00 h
 - [ ] Sunde: on each machine, Install again (status line v5), then Allow updates without a
       password where wanted
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects

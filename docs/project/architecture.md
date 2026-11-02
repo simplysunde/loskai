@@ -295,8 +295,9 @@ the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keyg
 on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
 Install it for me logs in once with the machine's password and replaces Loskai's lines in
 `authorized_keys` (`logic.INSTALL_SCRIPT`), or the lines are pasted by hand; either ends with
-a test using both keys (`connect.py`). The main key is unlocked in memory for 15 minutes by
-the admin password (`unlock.py`) and locked by logout. Each set-up machine's row shows how
+a test using both keys (`connect.py`). The main key is unlocked in memory by the admin
+password (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
+(`ssh_unlock_minutes`) — and locked by logout. Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
 30 s, only while someone is looking. The machine's dialog adds its **overview** — system,
@@ -396,7 +397,7 @@ and limits what the next one loses:
   the backup download or the config export. Resetting the password (there is no change
   form) leaves it unreadable: "New key" makes another.
 - **SSH actions ask for the password again**, like `sudo`, and that is what unlocks the key:
-  in memory, for 15 minutes — not at login. A stolen session cookie then reaches the Docker
+  in memory, for 15 minutes unless Settings › SSH says longer — not at login. A stolen session cookie then reaches the Docker
   tab, not the machines, and after a restart nothing reaches them until someone types it.
 - **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
   offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless

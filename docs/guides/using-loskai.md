@@ -185,7 +185,8 @@ still there. Adding it again later installs the same key again.
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
-- **SSH** — Loskai's key (its fingerprint, New key), the SSH config for your own computer,
+- **SSH** — Loskai's key (its fingerprint, New key), how long the admin password unlocks it
+  (15 minutes unless you pick 1, 3, 8 or 24 hours), the SSH config for your own computer,
   and the log of terminals and installs.
 - **Security** — the admin password.
 

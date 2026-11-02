@@ -62,6 +62,7 @@ const FACTS = {
 };
 let facts: unknown = FACTS;
 let factsStatus = 200;
+let settingsReply: unknown = {};
 let sshKey: unknown = null;
 let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
 const TOOLS = [
@@ -120,6 +121,7 @@ beforeEach(() => {
   sshTrusted = {};
   facts = FACTS;
   factsStatus = 200;
+  settingsReply = {};
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
   vi.stubGlobal(
@@ -148,6 +150,8 @@ beforeEach(() => {
               ? deleteReply
             : path === "/api/ssh/tools"
               ? TOOLS
+            : path === "/api/settings"
+              ? settingsReply
             : path === "/api/ssh/log"
               ? [
                   { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
@@ -766,4 +770,15 @@ test("removing the SSH connection with Loskai's key locked asks for the admin pa
   expect(calls[unlockAt].body).toEqual({ password: "admin-pw" });
   expect(unlockAt).toBeLessThan(calls.findIndex((c) => c.path === "/api/machines"));
   expect(calls.find((c) => c.path === "/api/machines")!.body).toMatchObject({ instance_id: "nas", ssh: null });
+});
+
+test("the unlock prompt says how long Settings › SSH keeps the key unlocked", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  settingsReply = { ssh_unlock_minutes: { value: "180", source: "stored", secret: false } };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
+  expect(await screen.findByText("Your admin password unlocks it for 3 hours.")).toBeInTheDocument();
 });

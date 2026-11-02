@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
+import { useUnlockFor } from "../../lib/settings";
 import { runQuery, type ToolRun } from "../../lib/tools";
 import type { SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
@@ -27,6 +28,7 @@ export function MachineTerminal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const unlockFor = useUnlockFor();
   const unlocked = Boolean(sshKey?.unlocked_until && Date.parse(sshKey.unlocked_until) > Date.now());
   const [needUnlock, setNeedUnlock] = useState(!unlocked);
   // Bumped to open a new session after unlocking.
@@ -59,7 +61,7 @@ export function MachineTerminal({
           }}
         >
           <p className="text-sm text-slate-300">Loskai's key is locked.</p>
-          <p className="mt-1 text-xs text-slate-500">Your admin password unlocks it for 15 minutes.</p>
+          <p className="mt-1 text-xs text-slate-500">Your admin password unlocks it for {unlockFor}.</p>
           <input
             autoFocus
             type="password"

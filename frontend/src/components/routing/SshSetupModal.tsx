@@ -4,6 +4,7 @@ import { Check, Copy, Loader2, ShieldAlert, ShieldCheck, Terminal } from "lucide
 
 import { api, ApiError } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
+import { useUnlockFor } from "../../lib/settings";
 import { runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
@@ -44,6 +45,7 @@ export function SshSetupModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const unlockFor = useUnlockFor();
   const target = `${host.user}@${host.hostname}${host.port === 22 ? "" : `:${host.port}`}`;
   const [trusted, setTrusted] = useState(false);
   const [mode, setMode] = useState<"install" | "manual">("install");
@@ -268,7 +270,7 @@ export function SshSetupModal({
           {needAdmin && (
             <>
               <p className="mt-3 text-xs text-slate-500">
-                Your admin password unlocks Loskai's key for 15 minutes.
+                Your admin password unlocks Loskai's key for {unlockFor}.
               </p>
               <AdminPassword value={adminPassword} onChange={setAdminPassword} />
             </>

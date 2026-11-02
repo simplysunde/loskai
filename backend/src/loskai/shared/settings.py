@@ -35,6 +35,7 @@ CONFIGURABLE_KEYS = [
     "host_ip",
     "recipes_repos",
     "certificate_tab",
+    "ssh_unlock_minutes",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
@@ -57,6 +58,12 @@ STORED_ONLY_KEYS = {"recipes_repos"}
 # docs/guides/certificate-setup.md.
 CERTIFICATE_TAB_MODES = ("public", "admin", "hidden")
 CERTIFICATE_TAB_DEFAULT = "public"
+
+# How long typing the admin password unlocks Loskai's SSH key (modules/ssh/unlock.py), in
+# minutes — a few fixed choices, from a short sudo-like window to a working day and a whole
+# one. Logging out locks it whatever this says.
+SSH_UNLOCK_CHOICES = ("15", "60", "180", "480", "1440")
+SSH_UNLOCK_DEFAULT = "15"
 
 # Recipe sources are the one configurable value that is a list rather than a string: a
 # git repo per entry, each independently enabled. Capped only to keep one bad PUT from
@@ -125,6 +132,13 @@ def certificate_tab() -> str:
     """
     val = value("certificate_tab")
     return val if val in CERTIFICATE_TAB_MODES else CERTIFICATE_TAB_DEFAULT
+
+
+def ssh_unlock_seconds() -> int:
+    """How long an unlock of the SSH key lasts. Unset, or an env value not among the choices
+    (the env layer isn't validated), means the default."""
+    val = str(value("ssh_unlock_minutes") or "")
+    return int(val if val in SSH_UNLOCK_CHOICES else SSH_UNLOCK_DEFAULT) * 60
 
 
 def _source_view(entry: Any) -> dict[str, Any]:
@@ -207,6 +221,10 @@ def _validate(key: str, val: Any) -> None:
                 "interface', which is something to listen on, not something to connect "
                 "to. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
+    if key == "ssh_unlock_minutes" and val not in SSH_UNLOCK_CHOICES:
+        raise ValueError(
+            f"How long the SSH key stays unlocked must be one of {', '.join(SSH_UNLOCK_CHOICES)} minutes"
+        )
     if key == "certificate_tab" and val not in CERTIFICATE_TAB_MODES:
         raise ValueError(
             f"Certificate tab must be one of {', '.join(CERTIFICATE_TAB_MODES)}"
