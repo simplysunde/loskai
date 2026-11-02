@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-02 — Editing a machine says nothing about SSH unless its fields were edited
+
+A review found the machine form deleting SSH config entries. It compared the user field
+with the entry, and an empty field beside an entry meant "remove it" — but an entry with no
+`User` line (it inherits one from `Host *`) opens empty, so changing only the address
+deleted the whole block, `IdentityFile` and `ProxyJump` with it; so did opening the form
+before the config had loaded. Now the save carries `ssh` only once the SSH fields are
+touched — set, or cleared to remove — and otherwise leaves the entry to the backend's keep
+path, which only follows a rename or move. The fields show the entry until then, however
+late it arrives.
+
 ## 2026-11-02 — A service target can't start with `-`
 
 A review found the `service` kind was the one target allowed to begin with `-`, so a target

@@ -104,7 +104,7 @@ test("submit stays disabled until both fields are valid", () => {
   expect(submit()).toBeEnabled();
 });
 
-const sshUser = () => screen.getByPlaceholderText("none");
+const sshUser = () => screen.getByLabelText("SSH user");
 
 test("an SSH user puts the machine in the SSH config", () => {
   const { onSubmit } = renderModal();
@@ -148,4 +148,36 @@ test("a bad SSH user or port keeps the form from saving", () => {
   fireEvent.change(sshUser(), { target: { value: "-root" } });
 
   expect(submit()).toBeDisabled();
+});
+
+test("an entry with no User line — it comes from Host * — survives a move", () => {
+  const { onSubmit } = renderModal({
+    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
+    ssh: { hostname: "192.168.10.50", port: 22 },
+  });
+
+  expect(screen.getByPlaceholderText("from SSH config")).toHaveValue("");
+  fireEvent.change(address(), { target: { value: "192.168.10.60" } });
+  fireEvent.click(submit());
+
+  // Left out, the backend keeps the entry and only moves it.
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
+});
+
+test("an entry that arrives after the form opened shows, and isn't removed", () => {
+  const props = {
+    open: true,
+    baseDomain: "example.no",
+    editing: { id: "nas", hostname: "nas", address: "192.168.10.50", name: "nas" },
+    onSubmit: vi.fn(),
+    onClose: () => {},
+  };
+  const { rerender } = render(<AddMachineModal {...props} ssh={null} />);
+  rerender(<AddMachineModal {...props} ssh={{ hostname: "192.168.10.50", user: "admin", port: 22 }} />);
+
+  expect(sshUser()).toHaveValue("admin");
+  fireEvent.change(address(), { target: { value: "192.168.10.60" } });
+  fireEvent.click(submit());
+
+  expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty("ssh");
 });

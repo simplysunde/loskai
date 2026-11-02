@@ -17,7 +17,7 @@ export interface NewMachine {
 
 // The backend's rule (assign.MachineSsh): a login name, as `useradd` would take it.
 const SSH_USER = /^[A-Za-z_][A-Za-z0-9_.-]{0,31}$/;
-const SSH_HINT = "The user Loskai logs in as over SSH. Empty: not in the SSH config.";
+const SSH_HINT = "The user Loskai logs in as over SSH. Clearing it takes the machine out of the SSH config.";
 
 const INPUT =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
@@ -48,8 +48,11 @@ export function AddMachineModal({
 }) {
   const [hostname, setHostname] = useState(editing?.hostname ?? "");
   const [address, setAddress] = useState(editing?.address ?? "");
-  const [sshUser, setSshUser] = useState(ssh?.user ?? "");
-  const [sshPort, setSshPort] = useState(String(ssh?.port ?? 22));
+  // The SSH fields as edited — null until one is touched. Until then they show the entry
+  // (which may arrive after the form opens) and the save says nothing about SSH.
+  const [sshEdit, setSshEdit] = useState<{ user: string; port: string } | null>(null);
+  const sshUser = sshEdit?.user ?? ssh?.user ?? "";
+  const sshPort = sshEdit?.port ?? String(ssh?.port ?? 22);
 
   useScrollLock(open);
 
@@ -60,9 +63,10 @@ export function AddMachineModal({
   const port = Number(sshPort);
   const sshOk = !sshUser || (SSH_USER.test(sshUser) && Number.isInteger(port) && port >= 1 && port <= 65535);
   const canSubmit = hostnameOk && addressOk && sshOk && !pending;
-  // Only say something about SSH when there is something to say: an entry to set, or one to
-  // remove. Left out, the backend keeps the entry and only carries a rename or move to it.
-  const sshChange = sshUser ? { ssh: { user: sshUser, port } } : ssh ? { ssh: null } : {};
+  // Only say something about SSH when its fields were edited: an entry to set, or one to
+  // remove. Left out, the backend keeps the entry as it is — an IdentityFile, a ProxyJump, a
+  // User it inherits from `Host *` — and only carries a rename or move to it.
+  const sshChange = !sshEdit ? {} : sshUser ? { ssh: { user: sshUser, port } } : ssh ? { ssh: null } : {};
   const fqdn = baseDomain ? assembleFqdn(hostname || "name", baseDomain) : hostname;
 
   return (
@@ -131,8 +135,8 @@ export function AddMachineModal({
             <span className="mb-1 block text-xs font-medium text-slate-400">SSH user</span>
             <input
               value={sshUser}
-              onChange={(e) => setSshUser(e.target.value.trim())}
-              placeholder="none"
+              onChange={(e) => setSshEdit({ user: e.target.value.trim(), port: sshPort })}
+              placeholder={ssh ? "from SSH config" : "none"}
               className={INPUT}
             />
           </label>
@@ -140,7 +144,7 @@ export function AddMachineModal({
             <span className="mb-1 block text-xs font-medium text-slate-400">Port</span>
             <input
               value={sshPort}
-              onChange={(e) => setSshPort(e.target.value.trim())}
+              onChange={(e) => setSshEdit({ user: sshUser, port: e.target.value.trim() })}
               inputMode="numeric"
               disabled={!sshUser}
               className={`${INPUT} disabled:opacity-50`}
