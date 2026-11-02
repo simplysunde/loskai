@@ -4,7 +4,6 @@ import { Check, Loader2 } from "lucide-react";
 import { ApiError } from "../../lib/api";
 
 // One setting: its name and a line on what it does on the left, its control on the right.
-// Rows sit in a `divide-y` list, so a thin line runs between them.
 export function SettingRow({
   label,
   description,
@@ -15,7 +14,7 @@ export function SettingRow({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0">
         <div className="text-sm text-slate-200">{label}</div>
         {description && <div className="mt-0.5 text-xs text-slate-500">{description}</div>}
@@ -107,7 +106,7 @@ export function InlineText({
               e.currentTarget.blur();
             }
           }}
-          className={`w-56 rounded-lg border bg-slate-950 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500 ${
+          className={`w-56 rounded-lg border bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500 ${
             error ? "border-rose-500/60" : "border-slate-700"
           } ${mono ? "font-mono" : ""}`}
         />

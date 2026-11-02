@@ -58,7 +58,7 @@ const SECTIONS: { id: SectionId; label: string; icon: ComponentType<{ className?
 ];
 
 const BUTTON =
-  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs hover:bg-slate-800";
+  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs hover:bg-slate-800";
 
 // One machine, from the cog on its row — at /machines/<id>/<category>, over the Machines tab.
 // What belongs to this machine alone: its name, address and SSH login (each saved as it is
@@ -190,7 +190,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const content: Record<SectionId, ReactNode> = {
     general: (
       <>
-      <div className="divide-y divide-slate-800">
+      <div>
         <SettingRow label="Name" description="What Loskai calls it.">
           <InlineText
             label="Name"
@@ -242,7 +242,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       </div>
       {/* What the machine says about itself, read with the status key. */}
       {host?.user && (
-        <div className="mt-2 border-t border-slate-800 pt-4">
+        <div className="mt-3">
           {!trusted ? (
             <NotYet onSetUp={() => setSetup(true)}>Set up SSH to see its system, memory and disks.</NotYet>
           ) : (
@@ -253,7 +253,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       </>
     ),
     ssh: (
-      <div className="divide-y divide-slate-800">
+      <div>
         <SettingRow
           label="User"
           description={
@@ -365,7 +365,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             aria-label="Categories"
             className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2 sm:block sm:w-52 sm:space-y-0.5 sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3"
           >
-            <label className="mb-3 hidden items-center sm:flex gap-2 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5">
+            <label className="mb-2 hidden items-center sm:flex gap-2 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5">
               <Search className="h-3.5 w-3.5 text-slate-500" />
               <input
                 aria-label="Search"
@@ -383,7 +383,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 <button
                   onClick={() => pick(s.id)}
                   aria-current={s.id === active ? "location" : undefined}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition sm:gap-3 ${
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition sm:gap-3 ${
                     s.id === active
                       ? "bg-teal-500/10 text-teal-200"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
@@ -396,8 +396,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             ))}
             {shown.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">Nothing matches.</p>}
           </nav>
-          <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-6 pb-6">
-            {result && <div className="pt-6"><SaveBanner result={result} /></div>}
+          <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-5 pb-5">
+            {result && <div className="pt-4"><SaveBanner result={result} /></div>}
             {shown.map((s) => (
               <section
                 key={s.id}
@@ -405,9 +405,9 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 ref={(el) => {
                   anchors.current[s.id] = el;
                 }}
-                className="border-b border-slate-800 py-6 last-of-type:border-b-0"
+                className="border-b border-slate-800 py-4 last-of-type:border-b-0"
               >
-                <h2 className="mb-4 text-base font-medium text-slate-100">{s.label}</h2>
+                <h2 className="mb-2 text-sm font-semibold text-slate-100">{s.label}</h2>
                 {content[s.id]}
               </section>
             ))}
