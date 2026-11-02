@@ -1,6 +1,7 @@
 import { Check, Loader2, Plus, Settings, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { ApiError } from "../../lib/api";
 import { useFacts, useSsh } from "../../lib/ssh";
 import { toolSummary, type ToolContext } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
@@ -28,19 +29,28 @@ export function ToolDialog({
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
   const tool = tools.data?.find((t) => t.id === toolId);
 
+  // The machine answered but couldn't be read, or a request failed outright (a 409 when its
+  // SSH user or host key is gone) — either way, never a spinner that doesn't stop.
+  const failed = [facts, tools, ssh].find((q) => q.isError && !q.data)?.error;
+  const error =
+    facts.data && !facts.data.ok
+      ? facts.data.error
+      : failed && (failed instanceof ApiError ? failed.message : "Couldn't reach Loskai");
+
   let body: React.ReactNode = <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
-  if (tool && facts.data && !facts.data.ok) {
+  if (error) {
     // A shortcut to where it is fixed: the machine's SSH setup reinstalls the status line.
+    const old = facts.data?.old;
     const setup: MachineState = { setup: true };
     body = (
       <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-amber-300">{facts.data.error}</p>
+        <p className="text-xs text-amber-300">{error}</p>
         <Link
           to={`/machines/${machine.id}`}
-          state={facts.data.old ? setup : undefined}
+          state={old ? setup : undefined}
           className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
         >
-          <Settings className="h-3.5 w-3.5" /> {facts.data.old ? "Install again" : "Settings"}
+          <Settings className="h-3.5 w-3.5" /> {old ? "Install again" : "Settings"}
         </Link>
       </div>
     );

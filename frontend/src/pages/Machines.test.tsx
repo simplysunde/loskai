@@ -62,6 +62,7 @@ const FACTS = {
   ],
 };
 let facts: unknown = FACTS;
+let factsStatus = 200;
 let sshKey: unknown = null;
 let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
 const TOOLS = [
@@ -119,6 +120,7 @@ beforeEach(() => {
   sshHosts = {};
   sshTrusted = {};
   facts = FACTS;
+  factsStatus = 200;
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
   vi.stubGlobal(
@@ -160,7 +162,7 @@ beforeEach(() => {
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
       return new Response(JSON.stringify(data), {
-        status: 200,
+        status: path.endsWith("/facts") ? factsStatus : 200,
         headers: { "Content-Type": "application/json" },
       });
     }),
@@ -519,6 +521,22 @@ test("a tool's dialog on an older status line goes straight to installing it aga
 
   // The machine's page, its SSH setup open.
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+});
+
+test("a tool's dialog whose request fails says why, and links to the machine's settings", async () => {
+  setUp();
+  factsStatus = 409;
+  facts = { detail: "Storage box has no SSH user" };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /tmux/ }));
+
+  // Not a spinner that never stops.
+  expect(await screen.findByText("Storage box has no SSH user")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Settings" }));
+  expect(await screen.findByRole("heading", { name: "Storage box" })).toBeInTheDocument();
 });
 
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
