@@ -183,12 +183,11 @@ SHELL_COMMAND = "if command -v bash >/dev/null 2>&1; then exec bash; else exec s
 async def exec_terminal(websocket: WebSocket, container_id: str):
     # WS bypasses the HTTP auth middleware — gate it here (this is a root shell), the
     # Origin included: a browser opens a WebSocket from any page, cookie attached.
-    if not (
-        auth.same_origin(websocket.headers)
-        and auth.valid_session(websocket.cookies.get(auth.SESSION_COOKIE))
-    ):
+    user = auth.session_user(websocket.cookies.get(auth.SESSION_COOKIE))
+    if not (auth.same_origin(websocket.headers) and user and user.may("docker")):
         await websocket.close(code=1008)  # policy violation
         return
+    auth.act_as(user)
     await websocket.accept()
 
     try:

@@ -1814,7 +1814,7 @@ comparing Loskai's security with Proxmox's.
 
 - [x] 35a Accounts and sessions: `shared/users.py` (`data/users.json`), username login,
       first-run setup, the migration, per-user idle sessions and logout, own password change
-- [ ] 35b Access by tab: `shared/access.py`, enforced in the middleware and both terminal
+- [x] 35b Access by tab: `shared/access.py`, enforced in the middleware and both terminal
       WebSockets; the AdGuard password hidden from operators
 - [ ] 35c Key slots and a per-user unlock
 - [ ] 35d Frontend: setup and login with a username, the nav showing only granted tabs,

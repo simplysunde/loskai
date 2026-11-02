@@ -304,7 +304,7 @@ sudo's prompt in its terminal, and taken off with the machine or its SSH connect
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 67 HTTP routes plus the two
+  API subsets Loskai calls), `api.md` (Loskai's own: 71 HTTP routes plus the two
   terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

@@ -383,7 +383,16 @@ router = APIRouter(prefix="/api", tags=["settings"])
 
 @router.get("/settings")
 def get_settings() -> dict[str, Any]:
-    return get_view()
+    """Every tab reads a setting or two (the base domain); only an admin sees the secrets."""
+    from .auth import current_user  # auth imports this module
+
+    view = get_view()
+    me = current_user()
+    if me is None or not me.admin:
+        for entry in view.values():
+            if entry["secret"]:
+                entry["value"] = None
+    return view
 
 
 @router.put("/settings")

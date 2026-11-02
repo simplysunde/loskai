@@ -24,6 +24,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from ..config import settings as env
+from . import access
 from . import settings as settings_store
 from . import store
 from . import users
@@ -198,8 +199,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             for verb, pattern in PUBLIC_PATTERNS
         )
         found = _read_session(request.cookies.get(SESSION_COOKIE))
-        if path.startswith("/api/") and not public and found is None:
-            return JSONResponse({"detail": "Authentication required"}, status_code=401)
+        if path.startswith("/api/") and not public:
+            if found is None:
+                return JSONResponse({"detail": "Authentication required"}, status_code=401)
+            # Signed in — but may this account call this? (access.py, one line per route)
+            need = access.rule_for(request.method, path)
+            if not access.allows(found[0], need):
+                return JSONResponse({"detail": access.refusal(need)}, status_code=403)
         act_as(found[0] if found else None)
         response = await call_next(request)
         # In use: a fresh cookie, so the idle clock starts again — unless the request ended

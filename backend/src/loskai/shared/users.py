@@ -18,6 +18,8 @@ from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from ..config import settings as env
 from . import settings as settings_store
@@ -228,3 +230,61 @@ def ensure_seeded() -> None:
     elif env.loskai_password:
         # Hashed as given: the env is the operator's choice, and refusing it would stop startup.
         create(env.loskai_username or "admin", "", "admin", hashed=_ph.hash(env.loskai_password))
+
+
+# --- Routes: the accounts, for an admin (access.py) ---
+
+router = APIRouter(prefix="/api", tags=["users"])
+
+
+class NewUser(BaseModel):
+    username: str
+    password: str
+    role: str
+    tabs: list[str] = []
+
+
+class UserChange(BaseModel):
+    role: str | None = None
+    tabs: list[str] | None = None
+    password: str | None = None  # an admin setting someone's password
+
+
+def _answer(action):
+    try:
+        return action()
+    except UserError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+
+
+@router.get("/users")
+def list_users() -> list[dict]:
+    return [u.view() for u in all_users()]
+
+
+@router.post("/users")
+def add_user(body: NewUser) -> dict:
+    return _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs)).view()
+
+
+@router.patch("/users/{username}")
+def change_user(username: str, body: UserChange) -> dict:
+    """A new role and tabs, takes effect on that user's next request; a new password ends
+    their sessions."""
+    def apply() -> User:
+        user = get(username)
+        if user is None:
+            raise UserError(404, f"No user {username!r}")
+        if body.role is not None or body.tabs is not None:
+            user = set_role(username, body.role or user.role, body.tabs if body.tabs is not None else user.tabs)
+        if body.password is not None:
+            user = set_password(username, body.password)
+        return user
+
+    return _answer(apply).view()
+
+
+@router.delete("/users/{username}")
+def remove_user(username: str) -> dict:
+    _answer(lambda: delete(username))
+    return {"deleted": username}

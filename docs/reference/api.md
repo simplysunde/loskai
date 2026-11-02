@@ -21,8 +21,17 @@ app is running — this document is the human-readable overview.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie, also `Secure` when the request came over HTTPS (Caddy's
   `X-Forwarded-Proto: https`). The frontend redirects to `/login` on any `401`.
+- **Who may call what.** An admin account may call everything. An operator may call the
+  routes of the tabs it was given (Docker, Routing, Machines) and the few every account
+  needs (`GET /api/health`, `GET /api/settings` — secrets left out unless admin —
+  `GET /api/launcher`, `POST /api/auth/password`); anything else is `403` with why, in
+  words ("Your account doesn't have the Routing tab", "Only an admin can do that").
+  `shared/access.py` holds one line per route, and a route with none is admin-only. Routes
+  are Routing's — a route made from the install wizard or a machine's row needs that tab
+  too — and a record changed by id is its own tab's: a machine Machines', a route Routing's.
+  The terminal WebSockets need the Docker or Machines tab, and close `1008` without it.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
-  `400` bad input, `401` no session, `403` another page's request, `404` not found, `409` conflict, `422` validation,
+  `400` bad input, `401` no session, `403` another page's request or an account that may not, `404` not found, `409` conflict, `422` validation,
   `500` a store file exists but doesn't parse (the message names the path — see
   [Deployment → data volume](../guides/deployment.md)), `502` an upstream
   (Caddy/AdGuard/Docker) is unreachable.
@@ -43,6 +52,20 @@ app is running — this document is the human-readable overview.
 | `POST /api/auth/setup` | First run only: body `{ username, password }` creates the admin account and signs in as it. `409` once any account exists, `422` for a username that isn't lowercase letters, digits and `_ . -` starting with a letter, or a password under 8 characters. |
 | `POST /api/auth/password` | Body `{ current, new }`: change your own password. `403` when `current` is wrong (with the login backoff), `422` when `new` is too short. Your other sessions end; this one gets a fresh cookie. |
 | `GET /api/caddy/root-certificate` | Caddy's internal root CA: `{ pem, common_name, filename }`. Public because the device that needs it has no admin password and can't yet trust the HTTPS route — see the Caddy section below. |
+
+
+## Users — `/api/users` (admin only)
+
+The accounts (`shared/users.py`, `data/users.json`, owner-only). An account is
+`{ username, role, tabs, created }` — `role` `admin` or `operator`, `tabs` the ones an operator
+was given (an admin's lists them all); its password hash never leaves the server.
+
+| Method & path | Purpose |
+|---|---|
+| `GET /users` | Every account. |
+| `POST /users` | Body `{ username, password, role, tabs }`. `422` for a username that isn't lowercase letters, digits and `_ . -` starting with a letter, a password under 8 characters, an unknown role or tab, or an operator with no tab; `409` when the name is taken. |
+| `PATCH /users/{username}` | Body `{ role?, tabs?, password? }`. A new role or tabs applies on that user's next request; a new password ends their sessions. `409` when it would leave Loskai without an admin. |
+| `DELETE /users/{username}` | Removes the account, and with it its sessions. `409` for the last admin. |
 
 ---
 

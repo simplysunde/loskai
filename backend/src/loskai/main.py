@@ -81,6 +81,7 @@ async def corrupt_store(request: Request, exc: CorruptStoreError) -> JSONRespons
 
 # Shared routers first, then the five module routers.
 app.include_router(auth.router)
+app.include_router(users_module.router)
 app.include_router(settings_module.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)

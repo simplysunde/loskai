@@ -35,7 +35,7 @@ from ..modules.docker import recipes
 from ..modules.docker.client import docker_client
 from ..modules.ssh import connect as ssh_connect
 from ..modules.ssh import machines as ssh_machines
-from . import follow
+from . import access, auth, follow
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
@@ -633,6 +633,8 @@ async def delete_assign(instance_id: str) -> dict:
 # here rather than in shared/instances.py (which must not import the module clients).
 @router.delete("/instances/{instance_id}")
 async def delete_instance_route(instance_id: str) -> dict:
+    if (inst := instances_store.get_instance(instance_id)) is not None:
+        access.require_instance(auth.current_user(), inst.kind)
     base = settings_store.value("base_domain")
     try:
         return await delete_instance(caddy, adguard, instance_id, base_domain=base)

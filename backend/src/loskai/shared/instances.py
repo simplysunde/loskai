@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError, model_validator
 
 from ..config import settings
-from . import icons, store
+from . import access, auth, icons, store
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +297,7 @@ def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
     inst = get_instance(instance_id)
     if inst is None:
         raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    access.require_instance(auth.current_user(), inst.kind)
     updates: dict = {}
     if body.private is not None:
         updates["private"] = body.private

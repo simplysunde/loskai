@@ -216,9 +216,11 @@ async def terminal(
     when the action can't run here, `4404` no such machine, tool or action, `4502` when
     the machine refuses; the close reason says which in words."""
     cookie = websocket.cookies.get(auth.SESSION_COOKIE)
-    if not (auth.same_origin(websocket.headers) and auth.valid_session(cookie)):
+    user = auth.session_user(cookie)
+    if not (auth.same_origin(websocket.headers) and user and user.may("machines")):
         await websocket.close(code=1008)
         return
+    auth.act_as(user)
     await websocket.accept()
     peer = _peer(websocket)
     command, details = None, None
