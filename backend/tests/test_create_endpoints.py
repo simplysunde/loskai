@@ -23,14 +23,14 @@ def data_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"password": PASSWORD})
-        c.post("/api/login", json={"password": PASSWORD})
+        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
+        c.post("/api/login", json={"username": "admin", "password": PASSWORD})
         yield c
 
 
 def test_both_creation_endpoints_require_a_session():
     with TestClient(app) as anon:
-        anon.post("/api/auth/setup", json={"password": PASSWORD})
+        anon.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         anon.cookies.clear()  # setup signs you in; this is the logged-out case
         machine = anon.post("/api/machines", json={"hostname": "nas", "address": "192.168.10.50"})
         route = anon.post("/api/routes", json={"prefix": "g", "upstream": "192.168.10.50:80"})

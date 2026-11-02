@@ -46,7 +46,8 @@ def test_update_removes_key_when_blank():
 
 
 def test_view_excludes_admin_hash_and_marks_secret():
-    s.set_admin_password_hash("$argon2id$whatever")
+    # An install from before accounts still has its hash here until startup moves it.
+    s._update_stored(lambda stored: {**stored, "admin_password_hash": "$argon2id$whatever"})
     view = s.get_view()
     assert "admin_password_hash" not in view
     assert view["adguard_password"]["secret"] is True
@@ -162,7 +163,7 @@ def test_host_ip_accepts_bare_ip():
 
 # Keys the Settings model deliberately keeps out of CONFIGURABLE_KEYS: they drive the
 # compose file or the process itself, so the UI must never write them (see config.py).
-ENV_ONLY_KEYS = {"stacks_dir", "loskai_password", "data_dir", "static_dir"}
+ENV_ONLY_KEYS = {"stacks_dir", "loskai_password", "loskai_username", "data_dir", "static_dir"}
 
 
 def test_configurable_keys_match_the_env_model():
@@ -236,3 +237,11 @@ def test_the_ssh_unlock_takes_only_its_choices(monkeypatch):
     # The env layer isn't validated: a value not among the choices means the default.
     monkeypatch.setattr(config.settings, "ssh_unlock_minutes", "forever")
     assert s.ssh_unlock_seconds() == 15 * 60
+
+
+def test_a_session_lasts_two_idle_hours_unless_set():
+    assert s.session_idle_seconds() == 2 * 3600
+    s.update({"session_idle_minutes": "480"})
+    assert s.session_idle_seconds() == 8 * 3600
+    with pytest.raises(ValueError, match="minutes"):
+        s.update({"session_idle_minutes": "5"})

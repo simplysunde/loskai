@@ -32,7 +32,7 @@ def env(monkeypatch):
 @pytest.fixture
 def client():
     with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"password": PASSWORD})
+        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         yield c
 
 
@@ -95,7 +95,7 @@ def test_guessing_through_the_key_endpoint_meets_the_login_backoff(client):
         client.post("/api/ssh/key", json={"password": "wrong"})
 
     assert client.post("/api/ssh/key", json={"password": PASSWORD}).status_code == 429
-    assert client.post("/api/login", json={"password": PASSWORD}).status_code == 429  # one count
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 429  # one count
 
 
 def test_an_existing_key_is_only_replaced_when_asked(client):
@@ -121,7 +121,7 @@ def test_without_the_docker_host_s_ip_the_line_has_no_from(client, monkeypatch):
 
 def test_ssh_needs_a_session():
     with TestClient(app) as anon:
-        anon.post("/api/auth/setup", json={"password": PASSWORD})
+        anon.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         anon.cookies.clear()
 
         assert anon.get("/api/ssh").status_code == 401

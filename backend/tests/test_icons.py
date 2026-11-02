@@ -28,8 +28,8 @@ def data_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"password": PASSWORD})
-        c.post("/api/login", json={"password": PASSWORD})
+        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
+        c.post("/api/login", json={"username": "admin", "password": PASSWORD})
         store.upsert_instance(
             store.Instance(id="grafana", name="Grafana", type="external",
                            subdomain="grafana", upstream="192.168.10.50:3000")

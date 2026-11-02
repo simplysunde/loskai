@@ -36,6 +36,7 @@ CONFIGURABLE_KEYS = [
     "recipes_repos",
     "certificate_tab",
     "ssh_unlock_minutes",
+    "session_idle_minutes",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
@@ -65,6 +66,11 @@ CERTIFICATE_TAB_DEFAULT = "public"
 SSH_UNLOCK_CHOICES = ("15", "60", "180", "480", "1440")
 SSH_UNLOCK_DEFAULT = "15"
 
+# How long a session lasts without activity, in minutes; each request renews it. 2 hours,
+# like Proxmox's ticket, unless chosen otherwise — up to a week.
+SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
+SESSION_IDLE_DEFAULT = "120"
+
 # Recipe sources are the one configurable value that is a list rather than a string: a
 # git repo per entry, each independently enabled. Capped only to keep one bad PUT from
 # turning "Refresh recipes" into an unbounded pile of git clones.
@@ -88,10 +94,9 @@ def _read_stored() -> dict[str, Any]:
 def verify_readable() -> None:
     """Fail fast at startup when settings.json exists but doesn't parse.
 
-    Deliberately *not* a fall back to an empty dict: `auth.password_set()` reads
-    `admin_password_hash` from here, and `POST /api/auth/setup` is public and only
-    refuses once a hash exists — so a silent default would re-open first-run setup on a
-    configured install, and the first write would clobber every other stored key.
+    Deliberately *not* a fall back to an empty dict: an install from before accounts
+    keeps its admin password here until `users.ensure_seeded` moves it, and the first
+    write would clobber every other stored key.
     Raises `store.CorruptStoreError` (naming the path) — startup then aborts.
     """
     _read_stored()
@@ -139,6 +144,12 @@ def ssh_unlock_seconds() -> int:
     (the env layer isn't validated), means the default."""
     val = str(value("ssh_unlock_minutes") or "")
     return int(val if val in SSH_UNLOCK_CHOICES else SSH_UNLOCK_DEFAULT) * 60
+
+
+def session_idle_seconds() -> int:
+    """How long a session lives without a request. Unset or not a choice: the default."""
+    val = str(value("session_idle_minutes") or "")
+    return int(val if val in SESSION_IDLE_CHOICES else SESSION_IDLE_DEFAULT) * 60
 
 
 def _source_view(entry: Any) -> dict[str, Any]:
@@ -221,6 +232,10 @@ def _validate(key: str, val: Any) -> None:
                 "interface', which is something to listen on, not something to connect "
                 "to. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
+    if key == "session_idle_minutes" and val not in SESSION_IDLE_CHOICES:
+        raise ValueError(
+            f"How long a session lasts idle must be one of {', '.join(SESSION_IDLE_CHOICES)} minutes"
+        )
     if key == "ssh_unlock_minutes" and val not in SSH_UNLOCK_CHOICES:
         raise ValueError(
             f"How long the SSH key stays unlocked must be one of {', '.join(SSH_UNLOCK_CHOICES)} minutes"
@@ -288,11 +303,13 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def admin_password_hash() -> str | None:
+    """The one admin password of an install from before accounts — read once, to make it the
+    account `admin` (users.ensure_seeded), then dropped."""
     return _read_stored().get("admin_password_hash")
 
 
-def set_admin_password_hash(hashed: str) -> None:
-    _update_stored(lambda stored: {**stored, "admin_password_hash": hashed})
+def drop_admin_password_hash() -> None:
+    _update_stored(lambda stored: {k: v for k, v in stored.items() if k != "admin_password_hash"})
 
 
 # --- Answer-IP derivation (used by the AdGuard rewrite / assign flow) ---

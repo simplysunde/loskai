@@ -46,7 +46,7 @@ def test_root_certificate_needs_no_session(monkeypatch):
     _serve(monkeypatch, {"root_certificate": ROOT_PEM, "root_common_name": "Caddy Local"})
 
     with TestClient(app) as client:
-        client.post("/api/auth/setup", json={"password": "smoke-test-password"})
+        client.post("/api/auth/setup", json={"username": "admin", "password": "smoke-test-password"})
         r = client.get("/api/caddy/root-certificate")  # no login
 
     assert r.status_code == 200, r.text

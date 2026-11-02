@@ -88,10 +88,10 @@ def create_key(body: KeyRequest) -> dict | None:
     login backoff — and encrypts the new key."""
     if client.public_key() is not None and not body.replace:
         raise HTTPException(status_code=409, detail="Loskai already has a key — use New key to replace it")
-    auth.check_password(body.password, wrong_status=403)
+    me = auth.check_password(body.password, wrong_status=403)
     client.create_key(body.password)
     # The password was just typed, so the new key starts unlocked, as after Unlock.
-    unlock.unlock(client.load_key(body.password))
+    unlock.unlock(client.load_key(body.password), me.username)
     return _key_view()
 
 
@@ -105,7 +105,7 @@ def unlock_key(body: PasswordRequest) -> dict | None:
     as Settings › SSH says. Logging out locks it again."""
     if client.public_key() is None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
-    auth.check_password(body.password, wrong_status=403)
+    me = auth.check_password(body.password, wrong_status=403)
     try:
         key = client.load_key(body.password)
     except asyncssh.KeyImportError:
@@ -113,7 +113,7 @@ def unlock_key(body: PasswordRequest) -> dict | None:
         raise HTTPException(
             status_code=409, detail="The key was made with an earlier password — make a New key"
         )
-    unlock.unlock(key)
+    unlock.unlock(key, me.username)
     return _key_view()
 
 

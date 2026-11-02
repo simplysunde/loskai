@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # How long the admin password unlocks Loskai's SSH key for, in minutes: one of
     # settings.SSH_UNLOCK_CHOICES. Unset means 15.
     ssh_unlock_minutes: str | None = None
+    # How long a session lasts without activity, in minutes: one of
+    # settings.SESSION_IDLE_CHOICES. Unset means 120.
+    session_idle_minutes: str | None = None
 
     # --- Env-only settings (never written to settings.json) ---
     # Drives the compose bind mount, so it lives in the compose/env only. The default is
@@ -71,8 +74,10 @@ class Settings(BaseSettings):
     # so `_REPO_ROOT` is `/` there, not `/app`) surfaces as `stacks_dir_ok: false` rather
     # than silently scanning the wrong place.
     stacks_dir: str = str(_REPO_ROOT / "stacks")
-    # Seeds the admin password hash at first run; only ever stored hashed.
+    # Seed the first admin account at first run — its password only ever stored hashed —
+    # and its name (`admin` unless set).
     loskai_password: str | None = None
+    loskai_username: str | None = None
     # Where settings.json + instances.json + the session secret live — and `recipes/`,
     # the folder recipes are hand-added to, which is why this is a host bind mount
     # (compose: `./data:/data`) and not a path inside the image. Anchored to the repo's own

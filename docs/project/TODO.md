@@ -1812,7 +1812,7 @@ comparing Loskai's security with Proxmox's.
 
 **Steps** — a commit each, every check run:
 
-- [ ] 35a Accounts and sessions: `shared/users.py` (`data/users.json`), username login,
+- [x] 35a Accounts and sessions: `shared/users.py` (`data/users.json`), username login,
       first-run setup, the migration, per-user idle sessions and logout, own password change
 - [ ] 35b Access by tab: `shared/access.py`, enforced in the middleware and both terminal
       WebSockets; the AdGuard password hidden from operators

@@ -40,8 +40,8 @@ def test_corrupt_instances_names_the_path_on_an_authed_route(data_dir):
     (data_dir / "instances.json").write_text('[{"id": "grafana"')
 
     with TestClient(app) as client:
-        client.post("/api/auth/setup", json={"password": PASSWORD})
-        client.post("/api/login", json={"password": PASSWORD})
+        client.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
+        client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
         r = client.get("/api/export")
 

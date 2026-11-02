@@ -15,6 +15,7 @@ from loskai import config
 from loskai.main import app
 from loskai.modules.ssh import client as ssh_client
 from loskai.shared import instances as instances_store
+from loskai.shared import users as users_module
 from loskai.modules.ssh import connect, logic, unlock
 from loskai.modules.ssh import tool as tool_module
 from loskai.shared import assign as assign_module
@@ -78,7 +79,7 @@ def machine_net(monkeypatch):
 @pytest.fixture
 def api():
     with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"password": PASSWORD})
+        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         c.post("/api/machines", json={
             "hostname": "nas", "address": "192.168.10.50", "ssh": {"user": "loskai", "port": 2222},
         })
@@ -199,7 +200,7 @@ def test_a_new_key_starts_unlocked_and_logout_locks_it(api, machine_net):
     assert api.get("/api/ssh").json()["key"]["unlocked_until"] is not None
 
     api.post("/api/logout")
-    api.post("/api/login", json={"password": PASSWORD})
+    api.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     assert api.get("/api/ssh").json()["key"]["unlocked_until"] is None
     assert unlock.unlocked_key() is None
@@ -457,7 +458,7 @@ def test_logging_out_closes_an_open_terminal(api, shell, monkeypatch):
 
     with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
         ws.receive_bytes()
-        auth.end_all_sessions()
+        users_module.end_sessions("admin")
         with pytest.raises(WebSocketDisconnect):
             ws.receive_bytes()
             ws.receive_bytes()

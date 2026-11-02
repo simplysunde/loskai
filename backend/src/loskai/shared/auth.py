@@ -1,13 +1,14 @@
-"""Single-password auth — the real security boundary.
+"""Accounts and sessions — the real security boundary.
 
-The gate is server-side: middleware rejects every unauthenticated `/api/*` request
-except the login flow and the public dashboard. The React `RequireAuth` wrapper is
-UX only. There are no accounts — one admin password, stored hashed (argon2), verified
-into a signed HttpOnly session cookie. The static bundle is served unauthenticated.
+The gate is server-side: middleware rejects every unauthenticated `/api/*` request except
+the login flow and the public dashboard, and `access.py` decides what a signed-in user may
+call. The React `RequireAuth` wrapper is UX only. An account (`users.py`) logs in with its
+username and password into a signed HttpOnly cookie naming it; the static bundle is served
+unauthenticated.
 """
 
 import asyncio
-import hashlib
+import contextvars
 import math
 import re
 import secrets
@@ -16,8 +17,6 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from argon2 import PasswordHasher
-from argon2.exceptions import Argon2Error
 from fastapi import APIRouter, HTTPException, Request, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
@@ -27,13 +26,15 @@ from starlette.responses import JSONResponse
 from ..config import settings as env
 from . import settings as settings_store
 from . import store
-
-_ph = PasswordHasher()
+from . import users
+from .users import User
 
 SESSION_COOKIE = "loskai_session"
-SESSION_MAX_AGE = 7 * 24 * 3600  # seconds
-_SESSION_SALT = "loskai-session-v1"
-MIN_PASSWORD_LEN = 8
+# v2: the cookie names an account and its generation (v1 said only "authed").
+_SESSION_SALT = "loskai-session-v2"
+# A session is renewed — a fresh cookie, a fresh idle clock — on a request at least this
+# long after its last renewal, so an active one never ends and an idle one does.
+RENEW_AFTER = 60  # seconds
 
 # The only endpoints reachable without a session: the public dashboard + the login
 # flow (you can't authenticate if login itself requires auth). Everything else 401s.
@@ -56,21 +57,7 @@ PUBLIC_ROUTES = {
 }
 
 
-# --- Password hashing ---
-
-
-def hash_password(password: str) -> str:
-    return _ph.hash(password)
-
-
-def verify_password(hashed: str, password: str) -> bool:
-    try:
-        return _ph.verify(hashed, password)
-    except Argon2Error:
-        return False
-
-
-# --- Session cookie (signed, not encrypted — payload is just a marker) ---
+# --- Session cookie (signed, not encrypted — it names an account, nothing secret) ---
 
 
 def _secret_path() -> Path:
@@ -97,28 +84,59 @@ def _new_secret() -> str:
     return secret
 
 
-def end_all_sessions() -> None:
-    """Every cookie is signed with the secret, so a new one invalidates them all. A cookie
-    holds no id to revoke one by, and with one admin there is no one else's session to keep."""
-    _new_secret()
-
-
-def session_epoch() -> str:
-    """Changes exactly when `end_all_sessions` does — for state that must end with the
-    sessions, such as Loskai's unlocked SSH key. A digest, so the secret itself stays here."""
-    return hashlib.sha256(_session_secret().encode()).hexdigest()
-
-
 def _serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(_session_secret(), salt=_SESSION_SALT)
 
 
-def make_session() -> str:
-    return _serializer().dumps({"authed": True})
+def make_session(user: User) -> str:
+    """A cookie for `user` under its current generation: logging out, a new password or the
+    account removed bumps the generation, and every cookie of that user stops working."""
+    return _serializer().dumps({"u": user.username, "g": user.generation})
 
 
-# How often an open terminal re-checks its cookie: logging out (which replaces the session
-# secret) or the session expiring closes it within this many seconds.
+def _read_session(token: str | None) -> tuple[User, float] | None:
+    """The account a cookie names and when it was issued, while it is valid: signed by
+    Loskai, younger than the idle time, its account still there under the same generation."""
+    if not token:
+        return None
+    try:
+        payload, issued = _serializer().loads(
+            token, max_age=settings_store.session_idle_seconds(), return_timestamp=True
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    user = users.get(str(payload.get("u")))
+    if user is None or user.generation != payload.get("g"):
+        return None
+    return user, issued.timestamp()
+
+
+def session_user(token: str | None) -> User | None:
+    found = _read_session(token)
+    return found[0] if found else None
+
+
+def valid_session(token: str | None) -> bool:
+    return session_user(token) is not None
+
+
+# The account a request acts as — set by the middleware for HTTP, by each WebSocket for
+# itself — so code far from the request (Loskai's SSH key, the log) knows who.
+_current: contextvars.ContextVar[User | None] = contextvars.ContextVar("loskai_user", default=None)
+
+
+def current_user() -> User | None:
+    return _current.get()
+
+
+def act_as(user: User | None) -> None:
+    _current.set(user)
+
+
+# How often an open terminal re-checks its cookie: logging out (which ends the user's
+# sessions) or the session going idle closes it within this many seconds.
 SESSION_RECHECK = 5.0
 
 
@@ -127,16 +145,6 @@ async def session_ended(token: str | None) -> None:
     at connect; a shell must not outlive the session, so every terminal waits on this."""
     while valid_session(token):
         await asyncio.sleep(SESSION_RECHECK)
-
-
-def valid_session(token: str | None) -> bool:
-    if not token:
-        return False
-    try:
-        _serializer().loads(token, max_age=SESSION_MAX_AGE)
-    except (BadSignature, SignatureExpired):
-        return False
-    return True
 
 
 # --- Origin check ---
@@ -168,14 +176,9 @@ def same_origin(headers) -> bool:
 # --- First-run seeding + state ---
 
 
-def password_set() -> bool:
-    return settings_store.admin_password_hash() is not None
-
-
 def ensure_seeded() -> None:
-    """If LOSKAI_PASSWORD is set in the env and no hash exists yet, seed it once."""
-    if not password_set() and env.loskai_password:
-        settings_store.set_admin_password_hash(hash_password(env.loskai_password))
+    """The first account, from an older install's password or `LOSKAI_PASSWORD`."""
+    users.ensure_seeded()
 
 
 # --- Middleware ---
@@ -194,12 +197,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.method == verb and pattern.match(path)
             for verb, pattern in PUBLIC_PATTERNS
         )
-        if path.startswith("/api/") and not public:
-            if not valid_session(request.cookies.get(SESSION_COOKIE)):
-                return JSONResponse(
-                    {"detail": "Authentication required"}, status_code=401
-                )
-        return await call_next(request)
+        found = _read_session(request.cookies.get(SESSION_COOKIE))
+        if path.startswith("/api/") and not public and found is None:
+            return JSONResponse({"detail": "Authentication required"}, status_code=401)
+        act_as(found[0] if found else None)
+        response = await call_next(request)
+        # In use: a fresh cookie, so the idle clock starts again — unless the request ended
+        # the session (logout) or replaced it (a new password).
+        if found and time.time() - found[1] > RENEW_AFTER and not any(c.startswith(SESSION_COOKIE + "=") for c in response.headers.getlist("set-cookie")):
+            user = users.get(found[0].username)
+            if user is not None and user.generation == found[0].generation:
+                _set_cookie(request, response, user)
+        return response
 
 
 # --- Login backoff ---
@@ -243,13 +252,16 @@ class _Backoff:
 _backoff = _Backoff()
 
 
-def check_password(password: str, wrong_status: int = 401) -> None:
-    """The one place a typed password is checked — at login, and again before an action that
-    asks for it (Loskai's SSH key) — so the backoff covers both: a stolen cookie can't guess
-    through the second. `wrong_status` is 403 there, since a 401 sends the page to /login."""
-    hashed = settings_store.admin_password_hash()
-    if hashed is None:
-        raise HTTPException(status_code=409, detail="No admin password set — complete first-run setup")
+def check_password(password: str, wrong_status: int = 401, username: str | None = None) -> User:
+    """The one place a typed password is checked — at login (`username` given), and again
+    before an action that asks for it (Loskai's SSH key: the signed-in user's own) — so the
+    backoff covers both: a stolen cookie can't guess through the second. `wrong_status` is
+    403 there, since a 401 sends the page to /login. Returns the account."""
+    if username is None:
+        me = current_user()
+        if me is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        username = me.username
     # One password check at a time, so parallel guesses can't all land before the first
     # failure counts. The rest are turned away, not queued: a queue would hold a worker
     # thread each, which every other sync route needs too.
@@ -268,10 +280,12 @@ def check_password(password: str, wrong_status: int = 401) -> None:
                 detail=f"Too many wrong passwords. Try again in {seconds} s.",
                 headers={"Retry-After": str(seconds)},
             )
-        if not verify_password(hashed, password):
+        user = users.verify(username, password)
+        if user is None:
             _backoff.failed()
-            raise HTTPException(status_code=wrong_status, detail="Invalid password")
+            raise HTTPException(status_code=wrong_status, detail="Wrong username or password" if wrong_status == 401 else "Wrong password")
         _backoff.reset()
+        return user
     finally:
         _backoff.lock.release()
 
@@ -281,8 +295,14 @@ def check_password(password: str, wrong_status: int = 401) -> None:
 router = APIRouter(prefix="/api", tags=["auth"])
 
 
-class PasswordBody(BaseModel):
+class LoginBody(BaseModel):
+    username: str
     password: str
+
+
+class NewPassword(BaseModel):
+    current: str
+    new: str
 
 
 def _over_https(request: Request) -> bool:
@@ -292,11 +312,11 @@ def _over_https(request: Request) -> bool:
     return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
 
 
-def _issue_session(request: Request, response: Response) -> None:
+def _set_cookie(request: Request, response: Response, user: User) -> None:
     response.set_cookie(
         SESSION_COOKIE,
-        make_session(),
-        max_age=SESSION_MAX_AGE,
+        make_session(user),
+        max_age=settings_store.session_idle_seconds(),
         httponly=True,
         samesite="lax",
         # Secure when it was set over HTTPS, so it is never sent in the clear; a login on
@@ -306,40 +326,52 @@ def _issue_session(request: Request, response: Response) -> None:
 
 
 @router.get("/auth/status")
-def auth_status(request: Request) -> dict[str, bool]:
-    return {
-        "authed": valid_session(request.cookies.get(SESSION_COOKIE)),
-        "password_set": password_set(),
-    }
+def auth_status(request: Request) -> dict:
+    """Whether this browser is signed in, as whom, and whether first-run setup is due."""
+    user = session_user(request.cookies.get(SESSION_COOKIE))
+    return {"authed": user is not None, "needs_setup": not users.any_users(), "user": user.view() if user else None}
 
 
 @router.post("/login")
-def login(body: PasswordBody, request: Request, response: Response) -> dict[str, bool]:
-    check_password(body.password)
-    _issue_session(request, response)
-    return {"authed": True}
+def login(body: LoginBody, request: Request, response: Response) -> dict:
+    user = check_password(body.password, username=body.username.strip().lower())
+    _set_cookie(request, response, user)
+    return {"authed": True, "user": user.view()}
 
 
 @router.post("/logout")
 def logout(request: Request, response: Response) -> dict[str, bool]:
-    # Deleting the cookie only forgets this browser's copy; a stolen one would live out its
-    # 7 days. Only a signed-in logout ends them, or anyone on the LAN could sign the admin out.
-    if valid_session(request.cookies.get(SESSION_COOKIE)):
-        end_all_sessions()
+    # Deleting the cookie only forgets this browser's copy; a stolen one would live on.
+    # Ending the user's sessions ends it too — on every device, theirs and nobody else's.
+    # Only a signed-in logout does, or anyone on the LAN could sign a user out.
+    user = session_user(request.cookies.get(SESSION_COOKIE))
+    if user is not None:
+        users.end_sessions(user.username)
     response.delete_cookie(SESSION_COOKIE)
     return {"authed": False}
 
 
 @router.post("/auth/setup")
-def setup(body: PasswordBody, request: Request, response: Response) -> dict[str, bool]:
-    """First-run: set the initial admin password. Refuses once one exists."""
-    if password_set():
-        raise HTTPException(status_code=409, detail="Admin password already set")
-    if len(body.password) < MIN_PASSWORD_LEN:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Password must be at least {MIN_PASSWORD_LEN} characters",
-        )
-    settings_store.set_admin_password_hash(hash_password(body.password))
-    _issue_session(request, response)
-    return {"authed": True, "password_set": True}
+def setup(body: LoginBody, request: Request, response: Response) -> dict:
+    """First run: create the admin account and sign in as it. Refuses once any account exists."""
+    if users.any_users():
+        raise HTTPException(status_code=409, detail="Loskai is already set up")
+    try:
+        user = users.create(body.username.strip().lower(), body.password, "admin")
+    except users.UserError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    _set_cookie(request, response, user)
+    return {"authed": True, "user": user.view()}
+
+
+@router.post("/auth/password")
+def change_password(body: NewPassword, request: Request, response: Response) -> dict:
+    """Change your own password, given the current one. Your other sessions end; this one
+    goes on with a fresh cookie."""
+    me = check_password(body.current, wrong_status=403)
+    try:
+        user = users.set_password(me.username, body.new)
+    except users.UserError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    _set_cookie(request, response, user)
+    return {"user": user.view()}

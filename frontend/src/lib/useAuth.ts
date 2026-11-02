@@ -2,9 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./api";
 
+// An account: an admin does everything; an operator only its tabs.
+export type Tab = "docker" | "routing" | "machines";
+export interface Me {
+  username: string;
+  role: "admin" | "operator";
+  tabs: Tab[];
+}
+
 export interface AuthStatus {
   authed: boolean;
-  password_set: boolean;
+  needs_setup: boolean; // no account yet: first-run setup creates the admin
+  user: Me | null;
 }
 
 // /api/auth/status always returns 200 (authed true/false) — the SPA uses it to choose

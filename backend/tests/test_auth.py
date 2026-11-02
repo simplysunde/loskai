@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from loskai import config
 from loskai.main import app
 from loskai.modules.docker.client import docker_client
-from loskai.shared import auth, store
+from loskai.shared import auth, store, users
 from loskai.shared import settings as s
 
 
@@ -21,66 +21,89 @@ def isolated_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "loskai_password", None)
 
 
-def test_password_hash_roundtrip():
-    hashed = auth.hash_password("correct horse battery")
-    assert hashed != "correct horse battery"  # never plaintext
-    assert auth.verify_password(hashed, "correct horse battery")
-    assert not auth.verify_password(hashed, "wrong")
+def _admin(password="correct horse battery"):
+    return users.create("admin", password, "admin")
 
 
-def test_session_sign_and_verify():
-    token = auth.make_session()
-    assert auth.valid_session(token)
+def test_an_account_s_password_is_checked_against_its_hash():
+    _admin()
+
+    assert users.verify("admin", "correct horse battery").username == "admin"
+    assert users.verify("admin", "wrong") is None
+    assert users.verify("nobody", "correct horse battery") is None
+    assert "correct horse battery" not in (store.read_json(config.settings.data_dir + "/users.json", {}).__str__())
+
+
+def test_a_session_names_its_account():
+    user = _admin()
+    token = auth.make_session(user)
+
+    assert auth.session_user(token).username == "admin"
     assert not auth.valid_session("tampered")
     assert not auth.valid_session(None)
 
 
-def test_the_session_secret_is_owner_only(tmp_path):
-    # Whoever can read it can sign an admin session.
-    auth.make_session()
+def test_the_session_secret_and_the_accounts_are_owner_only(tmp_path):
+    # Whoever can read the secret can sign a session; the accounts hold the hashes.
+    auth.make_session(_admin())
     assert (tmp_path / "session_secret").stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / "users.json").stat().st_mode & 0o777 == 0o600
 
 
 def test_an_empty_secret_is_never_signed_with(tmp_path):
     # itsdangerous signs with an empty key, so a cookie anyone can make would pass.
+    _admin()
     (tmp_path / "session_secret").write_text("")
-    forged = URLSafeTimedSerializer("", salt=auth._SESSION_SALT).dumps({"authed": True})
+    forged = URLSafeTimedSerializer("", salt=auth._SESSION_SALT).dumps({"u": "admin", "g": 0})
 
     assert not auth.valid_session(forged)
     assert (tmp_path / "session_secret").read_text().strip()
 
 
-def test_a_failed_rotation_keeps_the_old_secret(tmp_path, monkeypatch):
-    session = auth.make_session()
+def test_a_session_ends_when_idle_for_longer_than_settings_say(monkeypatch):
+    token = auth.make_session(_admin())
+    monkeypatch.setattr(s, "session_idle_seconds", lambda: -1)
 
-    def fail(_fd):
-        raise OSError(28, "No space left on device")
-
-    monkeypatch.setattr(store.os, "fsync", fail)
-    with pytest.raises(OSError):
-        auth.end_all_sessions()
-
-    assert auth.valid_session(session)
-    assert not list(tmp_path.glob("*.tmp"))
-    assert (tmp_path / "session_secret").stat().st_mode & 0o777 == 0o600
+    assert not auth.valid_session(token)
 
 
-def test_ensure_seeded_sets_hash_from_env(monkeypatch):
-    assert not auth.password_set()
+def test_ensure_seeded_makes_the_first_admin_from_env(monkeypatch):
+    assert not users.any_users()
     monkeypatch.setattr(config.settings, "loskai_password", "seeded-password")
+    monkeypatch.setattr(config.settings, "loskai_username", "sunde")
     auth.ensure_seeded()
-    assert auth.password_set()
-    assert auth.verify_password(s.admin_password_hash(), "seeded-password")
+
+    assert users.verify("sunde", "seeded-password").role == "admin"
 
 
 def test_ensure_seeded_is_idempotent(monkeypatch):
-    monkeypatch.setattr(config.settings, "loskai_password", "first")
+    monkeypatch.setattr(config.settings, "loskai_password", "first-password")
     auth.ensure_seeded()
-    first_hash = s.admin_password_hash()
-    # Env change after a hash exists must not re-seed.
-    monkeypatch.setattr(config.settings, "loskai_password", "second")
+    # An env change after an account exists must not re-seed.
+    monkeypatch.setattr(config.settings, "loskai_password", "second-password")
     auth.ensure_seeded()
-    assert s.admin_password_hash() == first_hash
+
+    assert users.verify("admin", "first-password") is not None
+    assert len(users.all_users()) == 1
+
+
+def test_an_install_from_before_accounts_keeps_its_password_as_the_admin(tmp_path):
+    # Its one password, hashed in settings.json, becomes the account `admin`; the key goes.
+    from argon2 import PasswordHasher
+
+    store.write_json(tmp_path / "settings.json", {"admin_password_hash": PasswordHasher().hash("old-password"), "base_domain": "x.no"})
+    auth.ensure_seeded()
+
+    assert users.verify("admin", "old-password").role == "admin"
+    stored = store.read_json(tmp_path / "settings.json", {})
+    assert "admin_password_hash" not in stored and stored["base_domain"] == "x.no"
+
+
+def test_an_unreadable_users_file_stops_startup(tmp_path):
+    # Read as empty, it would re-open the public first-run setup.
+    (tmp_path / "users.json").write_text("{not json")
+    with pytest.raises(store.CorruptStoreError):
+        users.verify_readable()
 
 
 # --- The Origin check, through the real HTTP path ---
@@ -92,7 +115,7 @@ SIBLING = {"origin": "https://jellyfin.example.no"}  # another app under the sam
 @pytest.fixture
 def client():
     with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"password": PASSWORD})
+        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         yield c
 
 
@@ -105,13 +128,13 @@ def test_a_sibling_page_cannot_change_anything_with_the_cookie(client, tmp_path)
 
 
 def test_the_login_flow_is_checked_too(client):
-    assert client.post("/api/login", json={"password": PASSWORD}, headers=SIBLING).status_code == 403
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers=SIBLING).status_code == 403
     assert client.post("/api/logout", headers=SIBLING).status_code == 403
 
 
 def test_own_pages_and_non_browser_clients_pass(client):
-    own = client.post("/api/login", json={"password": PASSWORD}, headers={"origin": "http://testserver"})
-    bare = client.post("/api/login", json={"password": PASSWORD})  # curl sends no Origin
+    own = client.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={"origin": "http://testserver"})
+    bare = client.post("/api/login", json={"username": "admin", "password": PASSWORD})  # curl sends no Origin
 
     assert own.status_code == 200
     assert bare.status_code == 200
@@ -120,8 +143,8 @@ def test_own_pages_and_non_browser_clients_pass(client):
 def test_behind_a_proxy_that_rewrites_host_the_forwarded_host_counts(client):
     proxied = {"host": "loskai:8080", "x-forwarded-host": "loskai.example.no"}
 
-    own = client.post("/api/login", json={"password": PASSWORD}, headers={**proxied, "origin": "https://loskai.example.no"})
-    other = client.post("/api/login", json={"password": PASSWORD}, headers={**proxied, **SIBLING})
+    own = client.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={**proxied, "origin": "https://loskai.example.no"})
+    other = client.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={**proxied, **SIBLING})
 
     assert own.status_code == 200
     assert other.status_code == 403
@@ -161,7 +184,7 @@ def test_loskai_s_own_page_opens_the_terminal(client, monkeypatch):
 
 
 def test_log_out_ends_the_session_not_just_the_cookie(client):
-    client.post("/api/login", json={"password": PASSWORD})
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
     stolen = client.cookies.get(auth.SESSION_COOKIE)
 
     client.post("/api/logout")
@@ -171,18 +194,21 @@ def test_log_out_ends_the_session_not_just_the_cookie(client):
     assert client.get("/api/launcher").status_code == 401
 
 
-def test_log_out_ends_every_session(client):
-    with TestClient(app) as phone:
-        phone.post("/api/login", json={"password": PASSWORD})
-        client.post("/api/login", json={"password": PASSWORD})
+def test_log_out_ends_your_sessions_on_every_device_and_no_one_else_s(client):
+    users.create("ola", "ola-password", "operator", ["docker"])
+    with TestClient(app) as phone, TestClient(app) as colleague:
+        phone.post("/api/login", json={"username": "admin", "password": PASSWORD})
+        colleague.post("/api/login", json={"username": "ola", "password": "ola-password"})
+        client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
         client.post("/api/logout")
 
         assert phone.get("/api/launcher").status_code == 401
+        assert colleague.get("/api/launcher").status_code == 200
 
 
 def test_a_signed_out_logout_ends_nothing(client):
-    client.post("/api/login", json={"password": PASSWORD})
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
     session = client.cookies.get(auth.SESSION_COOKIE)
 
     with TestClient(app) as stranger:
@@ -204,7 +230,7 @@ def test_log_out_closes_an_open_terminal(client, monkeypatch):
     shell = _Exec()
     monkeypatch.setattr(docker_client, "exec_create", lambda *a: "exec-id")
     monkeypatch.setattr(docker_client, "exec_start", lambda exec_id: shell)
-    client.post("/api/login", json={"password": PASSWORD})
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     with client.websocket_connect("/api/docker/containers/abc/exec") as ws:
         shell.peer.sendall(b"$ ")
@@ -220,7 +246,7 @@ def test_log_out_closes_an_open_terminal(client, monkeypatch):
 
 
 def _wrong(client):
-    return client.post("/api/login", json={"password": "wrong password"})
+    return client.post("/api/login", json={"username": "admin", "password": "wrong password"})
 
 
 def test_wrong_passwords_beyond_the_free_ones_cost_a_wait(client):
@@ -228,7 +254,7 @@ def test_wrong_passwords_beyond_the_free_ones_cost_a_wait(client):
         assert _wrong(client).status_code == 401
     assert _wrong(client).status_code == 401  # this one starts the wait
 
-    refused = client.post("/api/login", json={"password": PASSWORD})
+    refused = client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     assert refused.status_code == 429  # the right password too: no guess is checked
     assert refused.headers["Retry-After"] == "2"
@@ -255,7 +281,7 @@ def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
         _wrong(client)
     now[0] += 2
 
-    assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
     for _ in range(auth.FREE_FAILURES):
         assert _wrong(client).status_code == 401  # free again
 
@@ -268,21 +294,21 @@ def _cookie_header(response) -> str:
 
 
 def test_a_login_through_caddy_s_https_gets_a_secure_cookie(client):
-    r = client.post("/api/login", json={"password": PASSWORD}, headers={"x-forwarded-proto": "https"})
+    r = client.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={"x-forwarded-proto": "https"})
 
     assert "; secure" in _cookie_header(r)
     assert "httponly" in _cookie_header(r)
 
 
 def test_a_login_over_plain_http_gets_one_that_works_there(client):
-    r = client.post("/api/login", json={"password": PASSWORD})
+    r = client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     assert "; secure" not in _cookie_header(r)
 
 
 def test_first_run_setup_follows_the_same_rule(tmp_path):
     with TestClient(app) as c:
-        r = c.post("/api/auth/setup", json={"password": PASSWORD}, headers={"x-forwarded-proto": "https"})
+        r = c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD}, headers={"x-forwarded-proto": "https"})
 
     assert "; secure" in _cookie_header(r)
 
@@ -290,13 +316,13 @@ def test_first_run_setup_follows_the_same_rule(tmp_path):
 def test_a_login_during_another_s_check_is_turned_away_not_queued(client):
     auth._backoff.lock.acquire()  # a password check in progress
     try:
-        r = client.post("/api/login", json={"password": PASSWORD})
+        r = client.post("/api/login", json={"username": "admin", "password": PASSWORD})
     finally:
         auth._backoff.lock.release()
 
     assert r.status_code == 429
     assert r.headers["Retry-After"] == "1"
-    assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
 
 
 def test_failures_long_ago_are_forgotten(monkeypatch):
@@ -346,3 +372,52 @@ def test_without_bash_the_container_terminal_falls_back_to_sh(tmp_path):
     done = _shell(str(tmp_path), "echo fell-back-to-sh\n")
 
     assert done.stdout == "fell-back-to-sh\n"
+
+
+# --- Accounts: setup, a session renewed while used, your own password ---
+
+
+def test_first_run_setup_creates_the_admin_account_once(tmp_path):
+    with TestClient(app) as c:
+        assert c.get("/api/auth/status").json() == {"authed": False, "needs_setup": True, "user": None}
+        bad = c.post("/api/auth/setup", json={"username": "Not OK", "password": PASSWORD})
+        short = c.post("/api/auth/setup", json={"username": "sunde", "password": "short"})
+        r = c.post("/api/auth/setup", json={"username": "Sunde", "password": PASSWORD})
+        again = c.post("/api/auth/setup", json={"username": "evil", "password": PASSWORD})
+
+        assert bad.status_code == 422 and short.status_code == 422
+        assert r.status_code == 200 and r.json()["user"]["username"] == "sunde"  # lowercased
+        assert again.status_code == 409 and users.get("evil") is None
+        status = c.get("/api/auth/status").json()
+        assert status["authed"] and status["user"]["role"] == "admin" and not status["needs_setup"]
+
+
+def test_a_wrong_username_is_refused_like_a_wrong_password(client):
+    r = client.post("/api/login", json={"username": "nobody", "password": PASSWORD})
+
+    assert r.status_code == 401 and r.json()["detail"] == "Wrong username or password"
+
+
+def test_a_session_in_use_is_renewed_and_one_just_issued_is_not(client, monkeypatch):
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
+    assert "set-cookie" not in client.get("/api/launcher").headers  # fresh: nothing to renew
+
+    monkeypatch.setattr(auth, "RENEW_AFTER", -1)
+    renewed = client.get("/api/launcher")
+
+    assert renewed.headers["set-cookie"].startswith(auth.SESSION_COOKIE + "=")
+
+
+def test_changing_your_password_ends_your_other_sessions_and_keeps_this_one(client):
+    with TestClient(app) as phone:
+        phone.post("/api/login", json={"username": "admin", "password": PASSWORD})
+        client.post("/api/login", json={"username": "admin", "password": PASSWORD})
+
+        wrong = client.post("/api/auth/password", json={"current": "nope", "new": "a new password"})
+        short = client.post("/api/auth/password", json={"current": PASSWORD, "new": "short"})
+        r = client.post("/api/auth/password", json={"current": PASSWORD, "new": "a new password"})
+
+        assert wrong.status_code == 403 and short.status_code == 422 and r.status_code == 200
+        assert client.get("/api/launcher").status_code == 200
+        assert phone.get("/api/launcher").status_code == 401
+        assert users.verify("admin", "a new password") is not None

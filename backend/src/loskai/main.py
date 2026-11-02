@@ -24,6 +24,7 @@ from .modules.ssh import router as ssh_router
 from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, export, follow, health, instances
 from .shared import settings as settings_module
+from .shared import users as users_module
 from .shared.store import CorruptStoreError
 
 
@@ -45,7 +46,9 @@ async def lifespan(app: FastAPI):
     # booting on defaults — an empty dict would mean "no admin password set", which
     # re-opens the public first-run setup route. See settings.verify_readable.
     settings_module.verify_readable()
-    # Seed the admin password from LOSKAI_PASSWORD once, if provided.
+    # The same for users.json: read as empty, it would re-open first-run setup.
+    users_module.verify_readable()
+    # The first account: an older install's admin password, or LOSKAI_PASSWORD.
     auth.ensure_seeded()
     # Routes that follow their container — Loskai's only background task. Started, not
     # awaited: it must never hold up startup, and an unreachable daemon is its own problem

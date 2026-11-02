@@ -18,8 +18,8 @@ def data_dir(tmp_path, monkeypatch):
 
 def test_health_endpoint_serializes_with_consistency_list():
     with TestClient(app) as client:
-        client.post("/api/auth/setup", json={"password": PASSWORD})
-        client.post("/api/login", json={"password": PASSWORD})
+        client.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
+        client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
         r = client.get("/api/health")
 

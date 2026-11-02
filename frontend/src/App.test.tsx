@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App";
 
 const DEFAULTS: Record<string, unknown> = {
-  "/api/auth/status": { authed: true, password_set: true },
+  "/api/auth/status": { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } },
   "/api/dashboard": { services: [], certificate_tab: "public" },
   "/api/caddy/root-certificate": {
     pem: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n",
@@ -68,14 +68,14 @@ test("an unmatched path explains itself and keeps the nav", () => {
 // setting is read from the *public* payload — the shell has to decide before anyone has
 // logged in.
 test("shows the Certificate tab to a logged-out visitor when it is public", async () => {
-  RESPONSES["/api/auth/status"] = { authed: false, password_set: true };
+  RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
   renderAt("/");
 
   expect(await screen.findByRole("link", { name: "Certificate" })).toBeInTheDocument();
 });
 
 test("hides the Certificate tab from a logged-out visitor in admin mode", async () => {
-  RESPONSES["/api/auth/status"] = { authed: false, password_set: true };
+  RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
   RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "admin" };
   renderAt("/");
 

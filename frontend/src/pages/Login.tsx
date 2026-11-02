@@ -6,10 +6,11 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuthStatus } from "../lib/useAuth";
 
-// The security screen: single-password login, or first-run "set admin password" when
-// no password is configured yet (GET /api/auth/status -> password_set: false).
+// The security screen: log in with a username and password, or — on first run, before any
+// account exists (GET /api/auth/status -> needs_setup) — create the admin account.
 export function Login() {
   const { data, isLoading } = useAuthStatus();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export function Login() {
   }
   if (data?.authed) return <Navigate to={redirectTo} replace />;
 
-  const firstRun = !data?.password_set;
+  const firstRun = Boolean(data?.needs_setup);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,7 +42,7 @@ export function Login() {
     }
     setSubmitting(true);
     try {
-      await api.post(firstRun ? "/api/auth/setup" : "/api/login", { password });
+      await api.post(firstRun ? "/api/auth/setup" : "/api/login", { username, password });
       await qc.invalidateQueries({ queryKey: ["auth-status"] });
       navigate(redirectTo, { replace: true });
     } catch (err) {
@@ -58,22 +59,23 @@ export function Login() {
           <Anchor className="h-6 w-6" />
         </div>
         <h1 className="text-xl font-semibold text-slate-100">
-          {firstRun ? "Set your admin password" : "Loskai"}
+          {firstRun ? "Create the admin account" : "Loskai"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {firstRun
-            ? "First run — create the password that guards the admin tier."
+            ? "First run — the account that runs Loskai. More can be added in Settings › Users."
             : "Safe passage for your Docker deployments."}
         </p>
       </div>
 
       <form onSubmit={submit} className="space-y-3">
+        <Field label="Username" value={username} onChange={setUsername} autoFocus autoComplete="username" />
         <Field
           label="Password"
           type="password"
           value={password}
           onChange={setPassword}
-          autoFocus
+          autoComplete={firstRun ? "new-password" : "current-password"}
         />
         {firstRun && (
           <Field
@@ -81,16 +83,17 @@ export function Login() {
             type="password"
             value={confirm}
             onChange={setConfirm}
+            autoComplete="new-password"
           />
         )}
         {error && <p className="text-sm text-rose-400">{error}</p>}
         <button
           type="submit"
-          disabled={submitting || !password}
+          disabled={submitting || !username || !password}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {firstRun ? "Create password" : "Log in"}
+          {firstRun ? "Create account" : "Log in"}
         </button>
       </form>
     </Shell>
@@ -113,12 +116,14 @@ function Field({
   value,
   onChange,
   autoFocus,
+  autoComplete,
 }: {
   label: string;
   type?: string;
   value: string;
   onChange: (v: string) => void;
   autoFocus?: boolean;
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -127,6 +132,7 @@ function Field({
         type={type}
         value={value}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
       />
