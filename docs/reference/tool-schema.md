@@ -16,8 +16,8 @@ it `requires`, as the machine's overview found them:
   its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
   are.
 - **Added tools** need a program the machine may not have yet, such as tmux. One whose
-  missing programs Loskai can all install is offered in the Tools category of the machine's
-  dialog as **Add**. Adding it installs them, and from then on it applies.
+  missing programs Loskai can all install is offered under **Add tool**, on the Tools
+  heading of the machine's dialog. Adding it installs them, and from then on it applies.
 
 **The Tools category of the machine's dialog has a card for each tool that applies**; the Running
 list's rows get the row actions. Which is standard follows from the programs: a tool

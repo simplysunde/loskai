@@ -527,7 +527,9 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
   // Proxmox needs pct, which only comes with Proxmox: not offered, and no Reboot on rows.
   expect(screen.queryByText("Proxmox")).not.toBeInTheDocument();
   expect(within(category("Tools")).queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Versions" }));
+  // The ones Loskai can add are behind Add tool, on the Tools heading.
+  fireEvent.click(within(category("Tools")).getByRole("button", { name: "Add tool" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: /Versions.*installs kubectl/ }));
 
   expect(await screen.findByText("Add Versions — Storage box")).toBeInTheDocument();
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();

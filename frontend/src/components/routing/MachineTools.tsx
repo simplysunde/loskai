@@ -129,11 +129,10 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   );
 }
 
-// A machine's tools on its page: a card for each that applies here — an added one's name
-// opens its own page — then the ones Loskai can add, by installing what they lack.
+// A machine's tools, in its dialog: a card for each that applies here. The ones Loskai can
+// add are behind Add tool, on the Tools heading.
 export function MachineTools({ ctx }: { ctx: ToolContext }) {
   const programs = ctx.facts.programs ?? [];
-  const more = ctx.tools.filter((t) => addable(t, programs));
   return (
     <div className="space-y-2">
       {ctx.tools
@@ -141,22 +140,32 @@ export function MachineTools({ ctx }: { ctx: ToolContext }) {
         .map((t) => (
           <ToolCard key={t.id} tool={t} ctx={ctx} />
         ))}
-      {more.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-          Add
-          {more.map((t) => (
-            <button
-              key={t.id}
-              title={`${t.description}\nInstalls ${missing(t, programs).join(", ")}`}
-              onClick={() => ctx.onRun({ tool: t.id, install: true, title: `Add ${t.name}` })}
-              className={BUTTON}
-            >
-              <Plus className="h-3.5 w-3.5" /> {t.name}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
+  );
+}
+
+// Add tool, beside the Tools heading: the tools the machine lacks only what Loskai can install,
+// each saying what that is. Picking one installs it, in the terminal. Nothing to add, no button.
+export function AddToolMenu({ ctx }: { ctx: ToolContext }) {
+  const programs = ctx.facts.programs ?? [];
+  const more = ctx.tools.filter((t) => addable(t, programs));
+  if (more.length === 0) return null;
+  return (
+    <RowMenu
+      label="Add tool"
+      trigger={
+        <>
+          <Plus className="h-3.5 w-3.5" /> Add tool
+        </>
+      }
+      triggerClass={BUTTON}
+      items={more.map((t) => ({
+        label: t.name,
+        hint: `installs ${missing(t, programs).join(", ")}`,
+        icon: <ToolIcon id={t.id} />,
+        onClick: () => ctx.onRun({ tool: t.id, install: true, title: `Add ${t.name}` }),
+      }))}
+    />
   );
 }
 

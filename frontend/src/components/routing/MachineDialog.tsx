@@ -27,7 +27,7 @@ import { SshLog } from "../settings/SshLog";
 import type { NewMachine } from "./AddMachineModal";
 import { isMachine } from "./machine";
 import { MachineOverview } from "./MachineOverview";
-import { MachineTools, RowButtons } from "./MachineTools";
+import { AddToolMenu, MachineTools, RowButtons } from "./MachineTools";
 import { RunningList } from "./RunningPill";
 import { SaveBanner } from "./SaveBanner";
 import type { RouteRow } from "./ServiceTable";
@@ -336,6 +336,10 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     ),
     log: <SshLog machine={id} />,
   };
+  // What a section's heading has on its right.
+  const headingActions: Partial<Record<SectionId, ReactNode>> = {
+    tools: ctx && <AddToolMenu ctx={ctx} />,
+  };
 
   return (
     <>
@@ -407,7 +411,10 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 }}
                 className="border-b border-slate-800 py-4 last-of-type:border-b-0"
               >
-                <h2 className="mb-2 text-sm font-semibold text-slate-100">{s.label}</h2>
+                <div className="mb-2 flex items-center justify-between gap-4">
+                  <h2 className="text-sm font-semibold text-slate-100">{s.label}</h2>
+                  {headingActions[s.id]}
+                </div>
                 {content[s.id]}
               </section>
             ))}

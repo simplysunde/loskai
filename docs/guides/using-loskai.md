@@ -122,8 +122,8 @@ it and answer a `sudo` password prompt there; hovering a button shows the comman
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
 back up.
 
-A tool the machine doesn't have yet is in the **Add** line beneath — clicking it installs
-what it needs, in the terminal. The **Tools** button (the wrench) on the machine's row in the
+A tool the machine doesn't have yet is under **Add tool**, on the right of the Tools
+heading — each says what it installs, and picking one installs it, in the terminal. The **Tools** button (the wrench) on the machine's row in the
 Machines tab lists the added tools — tmux, Claude Code, Tailscale — with how each stands
 there, and opens one in a dialog: the tool itself, or, if it isn't added yet, what it needs
 and Add.
