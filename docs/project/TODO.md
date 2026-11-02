@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 34** (below) — Machines managed over SSH; 34a–h built
+**Now:** **Phase 35** (below) — accounts: an admin, and operators limited to tabs.
+**Phase 34** — Machines managed over SSH; 34a–h built
 (the overview, plugins, tmux, Claude Code). **Phase 33** (below) — recipe options: optional features (Jellyfin's hardware
 transcoding) as checkboxes, written to the override. **Phase 32** — the stack editor opens as
 a form: settings, folders, and the app read-only; the files stay a click away. **Phase 31** — recipe updates: Check for updates
@@ -1775,6 +1776,50 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       password where wanted
 - [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
+
+---
+
+## Phase 35 — Accounts: an admin, and operators limited to tabs
+
+Replaces "one admin password, no accounts" (architecture.md › Access). Asked 2026-11-02, after
+comparing Loskai's security with Proxmox's.
+
+**Decisions (2026-11-02, Sunde)**
+
+- **Two roles.** An **admin** does everything, Settings and users included. An **operator**
+  is given tabs — any of Docker, Routing, Machines — and may do everything in those, nothing
+  outside. No viewer: a logged-out visitor already sees the Dashboard, and that is all one
+  needs. Routes are Routing's: the install wizard's route step and a machine's Add route need
+  the Routing tab too.
+- **Every API route names who may call it** (`shared/access.py`): any signed-in user, a tab,
+  or admin. A route not in the table is admin-only, and a test fails until each route has an
+  entry. The middleware enforces it; a few check their body (`DELETE /api/instances/{id}` is
+  Machines for a machine, Routing for a route).
+- **First-run setup creates the admin account** — a username and a password, like most
+  self-hosted services. `LOSKAI_PASSWORD` still seeds it (`LOSKAI_USERNAME`, default `admin`).
+  An existing install's password becomes the account `admin`.
+- **Sessions are per user, end after 2 hours without activity** (Settings › Security,
+  `session_idle_minutes`: 30 min to 7 days) and renew while used. Logging out ends *your*
+  sessions on every device; a changed password or a deleted account ends that user's.
+- **Loskai's SSH key gets key slots.** It is encrypted with a random key, and that key with
+  each user's password, so anyone with the Machines tab unlocks it with their own password,
+  and an unlock is theirs: it ends when they log out. An existing key moves to slots at the
+  admin's next unlock. A user without a slot gets one the first time they unlock while
+  someone else has it unlocked, or when an admin sets their password while it is unlocked.
+- **Settings › Users** (admin): add, set role and tabs, reset a password, remove — never the
+  last admin. **Settings › Security**: change your own password; the idle time (admin).
+- **Who did it**: the SSH log records the user.
+
+**Steps** — a commit each, every check run:
+
+- [ ] 35a Accounts and sessions: `shared/users.py` (`data/users.json`), username login,
+      first-run setup, the migration, per-user idle sessions and logout, own password change
+- [ ] 35b Access by tab: `shared/access.py`, enforced in the middleware and both terminal
+      WebSockets; the AdGuard password hidden from operators
+- [ ] 35c Key slots and a per-user unlock
+- [ ] 35d Frontend: setup and login with a username, the nav showing only granted tabs,
+      Settings › Users and Security
+- [ ] 35e Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, the guides; HISTORY
 
 ---
 
