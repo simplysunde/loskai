@@ -168,6 +168,8 @@ beforeEach(() => {
               ? settingsReply
             : path === "/api/ssh/log"
               ? [
+                  { at: "2026-11-01T11:00:00Z", event: "setting", machine: "nas", from: "192.168.10.5", user: "admin",
+                    tool: "git", setting: "email", value: "ola@example.no", ok: true },
                   { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
                   { at: "2026-11-01T09:00:00Z", event: "open", machine: "pve", from: "192.168.10.5", target: "root@192.168.10.10" },
                 ]
@@ -680,6 +682,13 @@ test("the Git card reads the machine's commit name and email, and sets one", asy
     }),
   );
   await vi.waitFor(() => expect(within(tools).getByLabelText("Email")).toHaveValue("ola@example.no"));
+});
+
+test("a setting changed is in the machine's log, with what it was set to", async () => {
+  setUp();
+  renderPage("/machines/nas/log");
+
+  expect(await within(await screen.findByRole("region", { name: "Log" })).findByText("Set git › email to ola@example.no")).toBeInTheDocument();
 });
 
 test("with Loskai's key locked, the Git card asks for your password to read them", async () => {

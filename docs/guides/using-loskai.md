@@ -121,7 +121,7 @@ The **cog** on a machine's row opens its dialog, laid out like a settings window
 section in one scroll, and a menu down the side that jumps to one and marks where you are.
 Its search finds a section by what is in it and shows only those.
 
-- **General** — its machine name (what DNS answers for), address and projects folder, then what the machine says
+- **General** — its machine name (what DNS answers for) and address, then what the machine says
   about itself: system, uptime, memory, disks, updates waiting, its Tailscale address.
 - **SSH** — a switch beside the heading turns it on or off, each in a dialog that says what
   happens. Then its user and port, side by side; whether it is set up (and the button to set
@@ -159,9 +159,13 @@ and Add.
   its Tailscale address, and Tailscale's card lists your tailnet — each device, its
   address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
-- **Claude Code** lists the git projects in the machine's projects folder — `~/projects`
-  unless you change it in the machine's dialog, under General (`~` or one folder in it;
-  a tool's dialog has a **Settings** button there) — with each one's
+- **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
+  git's global `user.name` and `user.email`, read from the machine and set there as you
+  edit them (with Loskai's key, so the card asks for your password while it is locked) —
+  and the machine's **projects folder**, `~/projects` unless you change it (`~` or one
+  folder in it).
+- **Claude Code** lists the git projects in the machine's projects folder, set on the Git
+  card (a tool's dialog has a **Settings** button there), with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
   worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,

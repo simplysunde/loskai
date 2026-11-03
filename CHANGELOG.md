@@ -32,7 +32,8 @@ Everything so far:
   installed with its own installer; connect (the login link shows in the terminal),
   status, disconnect; the machine's Tailscale address in its overview, and the tailnet —
   each device, online or not — on its card. **Claude Code**: the
-  git projects in the machine's projects folder (`~/projects`, changeable per machine), each
+  git projects in the machine's projects folder (`~/projects`, changeable per machine on the
+  Git card), each
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude
   conversation; **Claude**
   opens its running session, else continues the last conversation, else starts one — in
@@ -49,6 +50,8 @@ Everything so far:
 - **Updates without a password** — a machine's SSH section can allow System's Update to run
   without sudo asking: a sudo rule for exactly its update commands, switched on (with the
   password once) and off in its SSH section, and taken off with the machine.
+- **Git** — a tool for a machine's git: its commit name and email (`git config --global`),
+  read and set from its card, and the projects folder Claude Code finds its projects in.
 - **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,
   Tailscale's Disconnect, adding a tool — ask for sudo's password in a dialog first, only
   when sudo would, check it on the machine, and close their terminal when they are done.

@@ -105,8 +105,8 @@ A command for POSIX `sh`, run as the machine's SSH user:
 - **System's `update` must stay plain `sudo <program> <args>` steps joined by `&&`**: the
   sudo rule for updates without a password allows exactly those steps
   (`tool.update_commands`), so a change there needs the rule allowed again on each machine.
-- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed in
-  the machine's dialog, under General (`~` or one folder in it), as an absolute path.
+- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed on
+  the Git tool's card (`~` or one folder in it), as an absolute path.
 
 ### `target` and `ask`
 
@@ -133,6 +133,27 @@ like `claude-site` — is listed on that tool's card, not tmux's.
 `ask` takes the same kinds, for an action on something that doesn't exist yet: the card
 shows a name field beside its button, and the name is checked against the kind and passed
 as `$1`, exactly like a target. An action has one or the other.
+
+### `settings`
+
+A tool can also have **settings**: values on the machine its card shows and sets, such as
+Git's commit name and email. A tool needs at least one action or one setting.
+
+```yaml
+settings:
+  email:
+    label: Email                                   # required
+    description: On every commit made here.        # required
+    value: email                                   # required — a kind, as for `target`
+    read: git config --global user.email           # required — prints the value
+    write: git config --global user.email "$1"     # required — sets it to $1
+```
+
+The card reads them all when it opens, in one command over SSH with Loskai's main key, so
+they show while the key is unlocked; a `read` that prints nothing, or fails, is "not set".
+Editing one runs its `write` with the new value as `$1`, checked against its kind first
+(`git-name` and `email`, beside the target kinds), then reads them all back. Each change is
+in the SSH log as `setting`, with the value — so a setting is never a secret.
 
 ### `session`
 

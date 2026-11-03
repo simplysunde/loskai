@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 
 interface LogEntry {
   at: string;
-  event: "open" | "close" | "refused" | "install" | "action" | "add-tool" | "sudo-rule" | "uninstall";
+  event: "open" | "close" | "refused" | "install" | "action" | "add-tool" | "sudo-rule" | "uninstall" | "setting";
   machine: string;
   from: string | null;
   target?: string;
@@ -19,6 +19,8 @@ interface LogEntry {
   user?: string; // the account that did it
   allow?: boolean; // sudo-rule: put on (true) or taken off
   sudo_rule_left?: boolean; // uninstall: the sudo rule stayed
+  setting?: string; // setting: which, and what it was set to
+  value?: string;
 }
 
 function what(e: LogEntry): string {
@@ -37,6 +39,8 @@ function what(e: LogEntry): string {
       return `Adding ${e.tool}: installing ${(e.programs ?? []).join(", ")}`;
     case "sudo-rule":
       return e.allow ? "Allowing updates without a password" : "Taking off updates without a password";
+    case "setting":
+      return `${e.ok ? "Set" : "Couldn't set"} ${e.tool} › ${e.setting} to ${e.value ?? ""}`;
     case "uninstall":
       return !e.ok
         ? `Couldn't take Loskai's key off: ${e.error ?? ""}`

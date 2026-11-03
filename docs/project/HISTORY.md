@@ -4,6 +4,28 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-03 — Git as a tool, and tools that have settings (Phase 37)
+
+Sunde asked for Git as a tool, where each machine's projects folder and its global git user
+and email are set. Name and email aren't actions; they are values on the machine. So the
+tool schema gained **settings**: a value, a command reading it and one writing it, the new
+value reaching the write only as `$1`, checked against a kind, as a target is. That kept the
+rule a tool file holds to: the browser names what to change and gives the value, and the
+command comes from the file.
+
+**How they are read** was Sunde's choice: with Loskai's main key, when the card is open.
+The other way was the overview, read with the status key, which would always show them.
+It was turned down because a new fact means a new status line, and every machine
+installing again. The cost of this way: the values show only while the key is unlocked, and
+the card asks for the password then. A write is checked by reading back, not by its exit
+code.
+
+**The projects folder moved** from General to the Git card. It is still Loskai's, on the
+machine's record, and Claude Code still lists its projects there. Git requires git, so it is
+an added tool, offered under Add tool where git is missing. Tried on the Debian test
+container: the card asked for the password, read nothing set, set both, and `git config
+--global --list` on the machine showed them.
+
 ## 2026-11-03 — A machine's name is its hostname
 
 Sunde asked whether Name and Hostname in a machine's dialog weren't the same, and chose

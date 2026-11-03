@@ -1902,9 +1902,11 @@ and email are set.
 
 - [x] 37a Backend: `settings` in the tool schema, `git.yml`, the two routes, the log; tests
 - [x] 37b Frontend: settings in a tool's card, the projects folder moved to Git's; tests
-- [ ] 37c Docs: tool-schema.md, api.md (+2 routes), using-loskai.md, architecture.md, CLAUDE.md, HISTORY, CHANGELOG
-- [ ] Live, against the Debian container: the Git card reads the name and email, sets them,
-      and `git config --global` on the machine says so
+- [x] 37c Docs: tool-schema.md, api.md (+2 routes), using-loskai.md, architecture.md, CLAUDE.md, HISTORY, CHANGELOG
+- [x] Live, in Chromium against the Debian container: the card asked for the password
+      (key locked after a restart), read nothing set, set Name and Email, refused "not an
+      address" with "Not a valid email", and `git config --global --list` on the machine
+      showed both; the SSH log has each as `setting`
 
 ---
 

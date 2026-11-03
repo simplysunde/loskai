@@ -57,7 +57,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   machine's dialog can run — data shipped in the image, like recipes, applying where the
   machine has the programs they require (nothing enabled or stored): an action's command
   comes from its file, never from the request, and a row's target reaches it only as `$1`
-  (`docs/reference/tool-schema.md`).
+  — as does the new value of a tool's **setting**, a value on the machine its card reads and
+  writes with the main key (Git's commit name and email) (`docs/reference/tool-schema.md`).
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,

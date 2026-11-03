@@ -277,8 +277,8 @@ on a machine through the same Add route picker, starting on its address. The cog
 opens the machine's dialog over the list (`/machines/<id>/<category>`,
 `components/routing/MachineDialog.tsx`) — what belongs to that machine alone, its sections
 in one scroll with a menu down the side that jumps to them, like a settings window: General
-(name, hostname, address, projects folder, then the overview) and SSH (user, port, setup,
-removal), each field saving on its own (`SettingRow`'s `InlineText`) and posting only its
+(machine name, address, then the overview) and SSH (on or off, the login, setup, updates
+without a password), each field saving on its own (`SettingRow`'s `InlineText`) and posting only its
 change; then Tools, Running and Log. The `<category>` is where it opens. Naming a
 machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
@@ -336,8 +336,11 @@ standard ones (System, Services, Proxmox) wherever they fit — and one lacking 
 Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) is offered
 to add, which installs them. The machine's dialog has a card for each tool that applies, under Tools; each
 added tool is also in the Tools menu on the machine's row, which opens it in a dialog. The one thing stored is a machine's **projects folder**
-(`projects_folder`, `~/projects` unless changed), where the Claude Code tool's projects
-are. Like a recipe,
+(`projects_folder`, `~/projects` unless changed, set on the Git tool's card), where the
+Claude Code tool's projects are. A tool's **settings** are the machine's own values, never
+stored: its card reads them with the main key (`connect.read_settings`, every `read` in one
+command) and writes one as `$1` through its `write` (`connect.write_setting`), reading them
+back after. Like a recipe,
 a tool is data: the browser names a tool, an action and a row's target, and
 `connect.plan` works the command out from the file and the machine's overview — the target
 only ever `$1` — refusing before anything runs when it can't run there. The action runs in
