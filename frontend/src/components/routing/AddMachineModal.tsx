@@ -26,6 +26,7 @@ const INPUT =
 export function AddMachineModal({
   open,
   baseDomain,
+  address: initialAddress = "",
   pending = false,
   error,
   onSubmit,
@@ -33,13 +34,15 @@ export function AddMachineModal({
 }: {
   open: boolean;
   baseDomain: string | null;
+  // Already known — the Docker host's, named from its row.
+  address?: string;
   pending?: boolean;
   error?: string | null;
   onSubmit: (machine: NewMachine) => void;
   onClose: () => void;
 }) {
   const [hostname, setHostname] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(initialAddress);
   const [sshUser, setSshUser] = useState("");
   const [sshPort, setSshPort] = useState("22");
 

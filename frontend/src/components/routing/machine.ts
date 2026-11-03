@@ -28,3 +28,17 @@ export function routesOn(machine: RouteRow, rows: RouteRow[]): RouteRow[] {
     .filter((r) => !isMachine(r) && machineAt(r.upstream, [machine]))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+// The Docker host, listed before anyone names it — the way a fresh install is on Routing
+// before it has a URL. Read from Settings' Docker host IP each time, never stored: naming
+// it makes it a machine like any other, and then this row is gone. Its id can't be an
+// instance's.
+export const DOCKER_HOST_ID = ":docker-host";
+
+export function unnamedDockerHost(hostIp: string | null | undefined, machines: RouteRow[]): RouteRow | null {
+  if (!hostIp || machines.some((m) => m.upstream === hostIp)) return null;
+  return {
+    id: DOCKER_HOST_ID, name: "Docker host", type: "external", kind: "machine", subdomain: null,
+    fqdn: null, upstream: hostIp, private: false, routed: false, synced: null,
+  };
+}

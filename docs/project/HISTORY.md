@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-03 — The Docker host is on the Machines tab before it is named
+
+Sunde asked for the machine Loskai runs on to show up by itself, "kinda like what we do
+with dockers": a fresh install is on Routing before it has a URL. So the Docker host is a
+row read from `host_ip` each time, and stored nowhere. Its routes (those on its address) are
+under it, and its one action is **Name it**, the usual Name a machine with the address
+filled in. Creating the record by itself was turned down. Loskai would have had to choose a
+name and write a DNS rewrite on its own, and a deleted one would come straight back. Until
+it is named it has no SSH, tools or dialog, because each of those hangs off the name: the
+SSH config's `Host`. With no `host_ip` set there is no row: a bridged Loskai can't find its
+host's address by itself.
+
 ## 2026-11-02 — Accounts: an admin, and operators limited to tabs (Phase 35)
 
 **This reverses "one password, no accounts"** (2026-08, and architecture.md's access section

@@ -400,6 +400,46 @@ test("a machine's row adds a route on its address", async () => {
   expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
 });
 
+test("the Docker host is listed before it is named, with the routes on its address", async () => {
+  settingsReply = { host_ip: { value: "192.168.10.220", source: "env" } };
+  ROUTES.push({
+    id: "whoami", name: "whoami", type: "docker", kind: "service", subdomain: "whoami",
+    fqdn: "whoami.example.no", upstream: "192.168.10.220:8081", private: false, routed: true, synced: true,
+  });
+  sessionStorage.setItem("loskai.machines.expanded", JSON.stringify([":docker-host"]));
+  try {
+    renderPage();
+    const row = (await screen.findByText("Docker host")).closest("tr") as HTMLElement;
+
+    expect(within(row).getByText("not named")).toBeInTheDocument();
+    expect(screen.getByText(":8081")).toBeInTheDocument();
+    // Nothing to set up until it has a name: no settings, no delete.
+    expect(within(row).queryByTitle("Machine settings")).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(row).getByTitle(/Name it/));
+    expect(screen.getByPlaceholderText("192.168.10.50")).toHaveValue("192.168.10.220");
+    fireEvent.change(screen.getByPlaceholderText("rack1.vm3"), { target: { value: "dockerhost" } });
+    fireEvent.click(screen.getByRole("button", { name: "Name machine" }));
+
+    await vi.waitFor(() =>
+      expect(calls.find((c) => c.path === "/api/machines")?.body).toEqual({
+        hostname: "dockerhost", address: "192.168.10.220", name: "dockerhost",
+      }),
+    );
+  } finally {
+    ROUTES.pop();
+  }
+});
+
+test("a Docker host already named is listed once, as itself", async () => {
+  settingsReply = { host_ip: { value: "192.168.10.50", source: "env" } };
+  renderPage();
+
+  await screen.findByText("Storage box");
+  expect(screen.queryByText("Docker host")).not.toBeInTheDocument();
+});
+
 test("naming a machine with an SSH user opens its page, starting its SSH setup", async () => {
   renderPage();
   await screen.findByText("Storage box");

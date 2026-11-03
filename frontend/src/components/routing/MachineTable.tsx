@@ -11,6 +11,7 @@ import {
   MoreVertical,
   Route as RouteIcon,
   Settings,
+  Tag,
   Terminal,
   Trash2,
 } from "lucide-react";
@@ -21,7 +22,7 @@ import type { Running, SshHost } from "../../lib/ssh";
 import type { Tool } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { splitUpstream } from "../../lib/validation";
-import { routesOn } from "./machine";
+import { DOCKER_HOST_ID, routesOn } from "./machine";
 import { ToolsMenu } from "./MachineTools";
 import { RunningPill } from "./RunningPill";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
@@ -38,6 +39,7 @@ export function MachineTable({
   onOpen,
   onDelete,
   onAddRoute,
+  onName,
   onTerminal,
   onUpdate,
   tools,
@@ -61,6 +63,9 @@ export function MachineTable({
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
+  // The Docker host before it is named (`DOCKER_HOST_ID`): naming it is all its row offers,
+  // beside Add route — no SSH, DNS or settings until it is a machine.
+  onName?: (machine: RouteRow) => void;
   // The tools in the image: a set-up machine's row opens each added one in a dialog.
   tools?: Tool[];
   onTool?: (machine: RouteRow, toolId: string) => void;
@@ -111,6 +116,7 @@ export function MachineTable({
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((m) => {
               const deps = routesOn(m, rows);
+              const unnamed = m.id === DOCKER_HOST_ID;
               const host = m.subdomain ? ssh[m.subdomain] : undefined;
               const sshReady = Boolean(host?.user);
               const open = expanded.isOpen(m.id);
@@ -128,6 +134,7 @@ export function MachineTable({
                         <Chevron className="h-4 w-4 text-slate-500" />
                         <HardDrive className="h-3.5 w-3.5 text-teal-300/70" />
                         <span className="font-medium text-slate-100">{m.name}</span>
+                        {unnamed && <span className="text-xs text-slate-500">not named</span>}
                         {/* Collapsed, the row still says how many it holds. */}
                         {!open && deps.length > 0 && (
                           <span className="text-xs text-slate-500">{deps.length}</span>
@@ -146,7 +153,11 @@ export function MachineTable({
                       )}
                     </td>
                     <td className="px-4 py-2">
-                      <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
+                      {unnamed ? (
+                        <span className="text-xs text-slate-600">—</span>
+                      ) : (
+                        <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
+                      )}
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1.5">
@@ -176,16 +187,21 @@ export function MachineTable({
                             <Download className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
+                        {unnamed && onName && (
+                          <IconButton title="Name it — a DNS name, then SSH and its tools" onClick={() => onName(m)}>
+                            <Tag className="h-3.5 w-3.5" />
+                          </IconButton>
+                        )}
                         {/* Its dialog: name, address, SSH, what runs there. Amber while it has
                             an SSH user but isn't set up yet. */}
-                        <IconButton
+                        {!unnamed && <IconButton
                           title={sshReady && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
                           warn={sshReady && !trusted[m.id]}
                           onClick={() => onOpen(m)}
                         >
                           <Settings className="h-3.5 w-3.5" />
-                        </IconButton>
-                        <RowMenu
+                        </IconButton>}
+                        {!unnamed && <RowMenu
                           label="More"
                           trigger={
                             busyId === m.id ? (
@@ -203,7 +219,7 @@ export function MachineTable({
                               onClick: () => onDelete(m),
                             },
                           ]}
-                        />
+                        />}
                       </div>
                     </td>
                   </tr>

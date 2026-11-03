@@ -11,7 +11,7 @@ import { useMe } from "../lib/useAuth";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
-import { isMachine, routesOn } from "../components/routing/machine";
+import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SaveBanner } from "../components/routing/SaveBanner";
@@ -37,8 +37,9 @@ export function Machines() {
   const { may } = useMe();
   // The machine open in its dialog, from the cog on its row.
   const { id: openId, section } = useParams();
-  // Naming a machine; editing one is in its dialog.
-  const [naming, setNaming] = useState(false);
+  // Naming a machine — the Docker host's address when named from its row; editing one is
+  // in its dialog.
+  const [naming, setNaming] = useState<{ address?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
@@ -81,7 +82,9 @@ export function Machines() {
     const d = dnsById.get(r.id);
     return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
   });
-  const machines = rows.filter(isMachine);
+  const named = rows.filter(isMachine);
+  const dockerHost = unnamedDockerHost(settings.data?.host_ip?.value, named);
+  const machines = dockerHost ? [...named, dockerHost] : named;
   const routedOrigins = new Set(
     rows.filter((r) => r.origin && r.routed).map((r) => r.origin as string),
   );
@@ -97,7 +100,7 @@ export function Machines() {
   // one, so given a user, its setup opens there next.
   const save = useSaveMachine({
     onSaved: (data, m) => {
-      setNaming(false);
+      setNaming(null);
       const state: MachineState = { result: data, setup: Boolean(m.ssh) };
       navigate(`/machines/${data.instance_id}`, { state });
     },
@@ -151,7 +154,7 @@ export function Machines() {
         <button
           onClick={() => {
             setError(null);
-            setNaming(true);
+            setNaming({});
           }}
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
         >
@@ -189,6 +192,10 @@ export function Machines() {
               ? (machine) => setTerminalFor({ machine, run: { tool: "system", action: "update", title: "Update" } })
               : undefined
           }
+          onName={(m) => {
+            setError(null);
+            setNaming({ address: m.upstream ?? "" });
+          }}
           onDelete={(m) => {
             setDeleteError(null);
             setDeletePassword("");
@@ -208,13 +215,14 @@ export function Machines() {
       )}
 
       <AddMachineModal
-        key={String(naming)}
-        open={naming}
+        key={naming ? `naming-${naming.address ?? ""}` : "closed"}
+        open={naming !== null}
         baseDomain={baseDomain}
+        address={naming?.address}
         pending={save.isPending}
         error={error}
         onSubmit={(m) => save.mutate(m)}
-        onClose={() => setNaming(false)}
+        onClose={() => setNaming(null)}
       />
 
       <AddRouteModal
