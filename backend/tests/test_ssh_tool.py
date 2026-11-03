@@ -268,3 +268,42 @@ def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
         tool.allow_script("apt")
     with pytest.raises(ToolError, match="no command for"):
         tool.update_commands("dnf")
+
+
+# --- Settings: a value on the machine a tool's card shows and sets ---
+
+
+def test_git_s_settings_are_its_name_and_email():
+    git = tool.load()["git"]
+
+    assert list(git.settings) == ["name", "email"] and git.actions == {}
+    assert git.settings["email"].write == 'git config --global user.email "$1"'
+
+
+def test_a_tool_needs_an_action_or_a_setting_and_a_setting_names_its_kind():
+    with pytest.raises(tool.ToolError, match="unless it has `settings`"):
+        tool.parse("t", {"name": "T", "description": "d"})
+    with pytest.raises(tool.ToolError, match=r"settings.x.value` must be one of"):
+        tool.parse("t", {"name": "T", "description": "d", "settings": {
+            "x": {"label": "X", "description": "d", "value": "anything", "read": "true", "write": "true"}}})
+
+
+def test_settings_are_read_in_one_script_and_unset_ones_are_none():
+    git = tool.load()["git"]
+    script = tool.read_settings_script(git)
+
+    assert script.count("git config --global user.") == 2
+    assert tool.parse_settings(git, "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n") == {
+        "name": "Ola Nordmann", "email": None}
+
+
+def test_a_value_reaches_the_write_command_only_as_1():
+    t = tool.parse("t", {"name": "T", "description": "d", "settings": {
+        "n": {"label": "N", "description": "d", "value": "git-name", "read": "true", "write": 'printf "<%s>" "$1"'}}})
+
+    out = subprocess.run(["sh", "-c", tool.write_setting_script(t, "n", "Ola; touch /tmp/pwned $(id)")],
+                         capture_output=True, text=True, timeout=10).stdout
+
+    assert out == "<Ola; touch /tmp/pwned $(id)>"
+    with pytest.raises(tool.ToolError, match="Not a git name"):
+        tool.write_setting_script(t, "n", "line\nbreak")

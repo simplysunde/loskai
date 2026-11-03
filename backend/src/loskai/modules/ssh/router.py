@@ -232,6 +232,29 @@ async def prepare_run(machine_id: str, body: RunRequest) -> dict:
         raise HTTPException(exc.status_code, exc.detail)
 
 
+@router.get("/machines/{machine_id}/tools/{tool_id}/settings")
+async def tool_settings(machine_id: str, tool_id: str) -> dict:
+    """A tool's settings as the machine has them now (`{ values }`), read with the main key."""
+    try:
+        return {"values": await connect.read_settings(machine_id, tool_id)}
+    except connect.SshError as exc:
+        raise HTTPException(exc.status_code, exc.detail)
+
+
+class SettingRequest(BaseModel):
+    value: str
+
+
+@router.put("/machines/{machine_id}/tools/{tool_id}/settings/{setting_id}")
+async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body: SettingRequest, request: Request) -> dict:
+    """Set one of a tool's settings on the machine; `{ values }` read back after."""
+    try:
+        values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), _peer(request))
+    except connect.SshError as exc:
+        raise HTTPException(exc.status_code, exc.detail)
+    return {"values": values}
+
+
 @router.get("/log")
 def session_log(limit: int = 200) -> list[dict]:
     """The SSH log, newest first: terminals opened, closed and refused, and installs."""

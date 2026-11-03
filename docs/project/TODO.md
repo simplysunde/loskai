@@ -1877,6 +1877,35 @@ without you. The shell, tmux, Claude and Tailscale's Connect keep the terminal a
 - [ ] Sunde: try Update on a machine whose sudo asks for a password — nothing needs
       installing again for this
 
+## Phase 37 — Git as a tool: who commits are by, and where the projects are
+
+Asked 2026-11-03: a Git tool where each machine's projects folder and its global git user
+and email are set.
+
+**Decisions (2026-11-03, Sunde)**
+
+- **A tool can have settings** (`settings:` in its file): a value on the machine, with
+  a command that reads it and one that writes it, the new value reaching the write command
+  only as `$1`, checked against a kind as a target is. The Git tool has Name
+  (`user.name`) and Email (`user.email`), both `git config --global`.
+- **Read and written with Loskai's key**, when the card is open
+  (`GET`/`PUT /api/ssh/machines/{id}/tools/{tool}/settings`). Nothing to install again;
+  the values show while the key is unlocked, and the card says to unlock otherwise.
+  The overview (the status key) was the other way, and was turned down: it would have
+  needed a new status line, and every machine installing again.
+- **The projects folder moves to the Git card**, out of General. It stays Loskai's,
+  on the machine's record, and Claude Code still finds its projects there.
+- **Git needs git** on the machine, so it is an added tool, offered under Add tool where
+  git is missing.
+
+**Steps** — a commit each, every check run:
+
+- [x] 37a Backend: `settings` in the tool schema, `git.yml`, the two routes, the log; tests
+- [ ] 37b Frontend: settings in a tool's card, the projects folder moved to Git's; tests
+- [ ] 37c Docs: tool-schema.md, api.md (+2 routes), using-loskai.md, architecture.md, CLAUDE.md, HISTORY, CHANGELOG
+- [ ] Live, against the Debian container: the Git card reads the name and email, sets them,
+      and `git config --global` on the machine says so
+
 ---
 
 ## Backlog / Future ideas

@@ -1,0 +1,19 @@
+# git on the machine: who the commits made there are by. Its card also holds the machine's
+# projects folder, which Claude Code finds its projects in.
+# docs/reference/tool-schema.md is the format.
+name: Git
+description: Who commits made on it are by, and where its projects are.
+requires: [git]
+settings:
+  name:
+    label: Name
+    description: On every commit made here — git's global user.name.
+    value: git-name
+    read: git config --global user.name
+    write: git config --global user.name "$1"
+  email:
+    label: Email
+    description: On every commit made here — git's global user.email.
+    value: email
+    read: git config --global user.email
+    write: git config --global user.email "$1"

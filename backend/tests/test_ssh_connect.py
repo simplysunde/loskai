@@ -4,6 +4,7 @@ the key must be unlocked, logout locks it, and the running list is cached."""
 
 import asyncio
 import json
+import shlex
 import time
 
 import asyncssh
@@ -70,6 +71,12 @@ def machine_net(monkeypatch):
             return Done(state["facts"] if command == "facts" else STATUS)
         if command == logic.UNINSTALL_SCRIPT:
             return Done(state.get("uninstall_out", ""))
+        # A tool's settings: read back as the machine has them; a write is recorded.
+        if "#loskai-setting" in command:
+            return Done(state.get("settings_out", ""))
+        if "git config --global" in command:
+            state.setdefault("writes", []).append(command)
+            return Done(exit_status=state.get("write_status", 0), stderr="error: could not lock config file\n")
         # sudo as the machine has it: "password" asks for `sudo_password`, "nopasswd" doesn't
         # ask, "none" — the user isn't in sudoers.
         if command == "sudo -n true":
@@ -827,6 +834,56 @@ def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
 
     assert _closed_with(api, TERMINAL.replace("/nas/", "/pve/") + f"&tool=system&action=update&ticket={ticket}")[0] in (4404, 4409)
     assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
+
+
+# --- A tool's settings ---
+
+GIT_FACTS = APT_FACTS + "git\n"
+SETTINGS = "/api/ssh/machines/nas/tools/git/settings"
+
+
+def test_git_s_name_and_email_are_read_from_the_machine_with_the_main_key(api, machine_net):
+    _ready(api, machine_net, GIT_FACTS)
+    machine_net["settings_out"] = "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n"
+
+    assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None}}
+    read = machine_net["logins"][-1]
+    assert read["key"].get_comment() == "loskai" and read["command"].startswith("sh -c ")
+
+
+def test_setting_one_writes_it_as_1_then_reads_them_back_and_logs_it(api, machine_net):
+    _ready(api, machine_net, GIT_FACTS)
+    machine_net["settings_out"] = "#loskai-setting name\n#loskai-setting email\nola@example.no\n"
+
+    r = api.put(SETTINGS + "/email", json={"value": " ola@example.no "}, headers=ORIGIN)
+
+    assert r.status_code == 200 and r.json()["values"]["email"] == "ola@example.no"
+    assert machine_net["writes"] == ["sh -c " + shlex.quote(
+        "sh -c 'git config --global user.email \"$1\"' loskai ola@example.no")]
+    entry = api.get("/api/ssh/log").json()[0]
+    assert entry["event"] == "setting" and entry["value"] == "ola@example.no" and entry["ok"] is True
+
+
+def test_a_setting_is_refused_before_anything_runs_when_it_can_t_be_set(api, machine_net):
+    _ready(api, machine_net, GIT_FACTS)
+
+    assert api.put(SETTINGS + "/email", json={"value": "not an address"}, headers=ORIGIN).status_code == 422
+    assert api.put(SETTINGS + "/colour", json={"value": "x"}, headers=ORIGIN).status_code == 404
+    assert "writes" not in machine_net
+    machine_net["write_status"] = 255
+    r = api.put(SETTINGS + "/name", json={"value": "Ola"}, headers=ORIGIN)
+    assert r.status_code == 502 and r.json()["detail"] == "The machine said: error: could not lock config file"
+
+
+def test_git_s_settings_need_git_and_the_key(api, machine_net):
+    _ready(api, machine_net)  # no git there
+    assert api.get(SETTINGS).json()["detail"] == "Git needs git — add it first"
+
+    api.post("/api/logout", headers=ORIGIN)
+    api.post("/api/login", json={"username": "admin", "password": PASSWORD})
+    connect._drop_cached("nas")
+    machine_net["facts"] = GIT_FACTS
+    assert api.get(SETTINGS).status_code == 423  # the key locked with the logout
 
 
 # --- Removing a machine's SSH connection ---

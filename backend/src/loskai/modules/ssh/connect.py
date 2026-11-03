@@ -10,6 +10,7 @@ goes to the machine whose fingerprint was accepted.
 import asyncio
 import logging
 import secrets
+import shlex
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -498,6 +499,62 @@ def take_password(ticket: str, machine_id: str) -> str:
     if held is None or held[3] < time.monotonic() or held[1] != machine_id or held[0] != (me.username if me else None):
         raise SshError(409, "That password is no longer held — run it again")
     return held[2]
+
+
+# --- A tool's settings ---
+
+
+async def _tool_here(machine_id: str, tool_id: str) -> tool.Tool:
+    """The tool, applying on this machine — it has every program it requires."""
+    t = tool.load().get(tool_id)
+    if t is None:
+        raise SshError(404, f"No tool {tool_id!r}")
+    f = await facts(machine_id)
+    if not f.get("ok"):
+        raise SshError(409, f"Its overview is needed first: {f.get('error')}")
+    lacking = tool.missing(t, set(f.get("programs") or []))
+    if lacking:
+        raise SshError(409, f"{t.name} needs {', '.join(lacking)} — add it first")
+    return t
+
+
+async def _run_main(t: Target, script: str) -> asyncssh.SSHCompletedProcess:
+    """`script` under `sh` on the machine, with the main key — no terminal."""
+    host_key = _trusted(t)
+    key = _main_key()
+    try:
+        return await client.run(t.host, t.port, t.user, host_key, f"sh -c {shlex.quote(script)}", client_key=key)
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "key"))
+
+
+async def read_settings(machine_id: str, tool_id: str) -> dict[str, str | None]:
+    """A tool's settings as the machine has them now, by id — None where unset. Read with
+    the main key, so the key must be unlocked (423)."""
+    t = target(machine_id)
+    found = await _tool_here(machine_id, tool_id)
+    result = await _run_main(t, tool.read_settings_script(found))
+    return tool.parse_settings(found, str(result.stdout or ""))
+
+
+async def write_setting(
+    machine_id: str, tool_id: str, setting_id: str, value: str, peer: str | None = None,
+) -> dict[str, str | None]:
+    """Set one of a tool's settings on the machine, then read them all back — the effect,
+    not the exit code. Logged, with the value. Raises SshError 404/422 for no such setting
+    or a value it can't take, 502 when the machine says no."""
+    t = target(machine_id)
+    found = await _tool_here(machine_id, tool_id)
+    try:
+        script = tool.write_setting_script(found, setting_id, value)
+    except tool.ToolError as exc:
+        raise SshError(404 if setting_id not in found.settings else 422, str(exc))
+    result = await _run_main(t, script)
+    log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
+    if result.exit_status != 0:
+        said = str(result.stderr or result.stdout or "").strip().splitlines()
+        raise SshError(502, f"The machine said: {said[0] if said else f'exit {result.exit_status}'}")
+    return await read_settings(machine_id, tool_id)
 
 
 def after_action(machine_id: str) -> None:

@@ -14,7 +14,7 @@ Everything here is pure; `connect.py` decides which machine and runs it.
 
 import re
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -60,6 +60,9 @@ TARGETS = {
     "vm": re.compile(r"^\d{1,9}$"),
     "session": re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@+=,~-]{0,99}$"),
     "project": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
+    # A setting's values: a person's name as git writes it on a commit, and an address.
+    "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
+    "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),
 }
 
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
@@ -87,12 +90,26 @@ class Action:
 
 
 @dataclass(frozen=True)
+class Setting:
+    """A value on the machine the tool's card shows and sets — read and written with
+    Loskai's key, the new value reaching `write` only as `$1`."""
+
+    id: str
+    label: str
+    description: str
+    value: str  # a kind in TARGETS: what it may be set to
+    read: str  # prints the value; nothing (or failing) when it isn't set
+    write: str  # sets it to "$1"
+
+
+@dataclass(frozen=True)
 class Tool:
     id: str
     name: str
     description: str
     requires: tuple[str, ...]  # programs from logic.PROGRAMS
     actions: dict[str, Action]
+    settings: dict[str, Setting] = field(default_factory=dict)
 
 
 def parse(tool_id: str, doc: object) -> Tool:
@@ -102,7 +119,7 @@ def parse(tool_id: str, doc: object) -> Tool:
         problems.append(f"the file name {tool_id!r} must be lowercase letters, digits and -")
     if not isinstance(doc, dict):
         raise ToolError(f"{tool_id}: not a YAML mapping")
-    unknown = set(doc) - {"name", "description", "requires", "actions"}
+    unknown = set(doc) - {"name", "description", "requires", "actions", "settings"}
     if unknown:
         problems.append(f"unknown keys: {', '.join(sorted(map(str, unknown)))}")
     for key in ("name", "description"):
@@ -117,10 +134,14 @@ def parse(tool_id: str, doc: object) -> Tool:
         if program not in PROGRAMS:
             problems.append(f"`requires`: {program!r} isn't a program the overview detects ({', '.join(PROGRAMS)})")
 
+    settings, problems_settings = _settings(doc.get("settings"))
+    problems += problems_settings
     actions: dict[str, Action] = {}
     raw_actions = doc.get("actions")
-    if not isinstance(raw_actions, dict) or not raw_actions:
-        problems.append("`actions` must map at least one action id to its action")
+    if raw_actions is None and settings:
+        raw_actions = {}
+    elif not isinstance(raw_actions, dict) or not raw_actions:
+        problems.append("`actions` must map at least one action id to its action, unless it has `settings`")
         raw_actions = {}
     for action_id, raw in raw_actions.items():
         where = f"actions.{action_id}"
@@ -169,8 +190,38 @@ def parse(tool_id: str, doc: object) -> Tool:
         raise ToolError(f"{tool_id}: " + "; ".join(problems))
     return Tool(
         id=tool_id, name=doc["name"], description=doc["description"],
-        requires=tuple(requires), actions=actions,
+        requires=tuple(requires), actions=actions, settings=settings,
     )
+
+
+def _settings(raw: object) -> tuple[dict[str, Setting], list[str]]:
+    if raw is None:
+        return {}, []
+    if not isinstance(raw, dict) or not raw:
+        return {}, ["`settings` must map at least one setting id to its setting"]
+    problems: list[str] = []
+    out: dict[str, Setting] = {}
+    for setting_id, spec in raw.items():
+        where = f"settings.{setting_id}"
+        if not isinstance(setting_id, str) or not _ID.match(setting_id):
+            problems.append(f"`{where}`: a setting id is lowercase letters, digits and -")
+            continue
+        if not isinstance(spec, dict):
+            problems.append(f"`{where}` must be a mapping")
+            continue
+        extra = set(spec) - {"label", "description", "value", "read", "write"}
+        if extra:
+            problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
+        for key in ("label", "description", "read", "write"):
+            if not isinstance(spec.get(key), str) or not spec[key].strip():
+                problems.append(f"`{where}.{key}` is required")
+        if spec.get("value") not in TARGETS:
+            problems.append(f"`{where}.value` must be one of {', '.join(TARGETS)}")
+        out[setting_id] = Setting(
+            id=setting_id, label=str(spec.get("label", "")), description=str(spec.get("description", "")),
+            value=str(spec.get("value", "")), read=str(spec.get("read", "")), write=str(spec.get("write", "")),
+        )
+    return out, problems
 
 
 def _by_manager(where: str, value: object) -> list[str]:
@@ -208,7 +259,46 @@ def view(t: Tool) -> dict:
              "run": a.run}
             for a in t.actions.values()
         ],
+        "settings": [
+            {"id": s.id, "label": s.label, "description": s.description, "value": s.value,
+             "read": s.read, "write": s.write}
+            for s in t.settings.values()
+        ],
     }
+
+
+# What a setting's read prints its id before, so one connection reads them all.
+_SETTING_MARK = "#loskai-setting "
+
+
+def read_settings_script(t: Tool) -> str:
+    """One script reading each of the tool's settings, each after a line naming it."""
+    return "; ".join(
+        f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null" for s in t.settings.values()
+    )
+
+
+def parse_settings(t: Tool, out: str) -> dict[str, str | None]:
+    """`read_settings_script`'s output → each setting's value, None where nothing was printed."""
+    values: dict[str, str | None] = dict.fromkeys(t.settings)
+    current = None
+    for line in out.splitlines():
+        if line.startswith(_SETTING_MARK):
+            current = line[len(_SETTING_MARK):].strip()
+        elif current in values and values[current] is None and line.strip():
+            values[current] = line.strip()
+    return values
+
+
+def write_setting_script(t: Tool, setting_id: str, value: str) -> str:
+    """What sets one of the tool's settings: its `write`, the value as `$1` — checked against
+    its kind first. Raises ToolError for no such setting, or a value it can't take."""
+    s = t.settings.get(setting_id)
+    if s is None:
+        raise ToolError(f"{t.name} has no setting {setting_id!r}")
+    if not TARGETS[s.value].match(value):
+        raise ToolError(f"Not a {s.value.replace('-', ' ')}: {value!r}")
+    return f"sh -c {shlex.quote(s.write)} loskai {shlex.quote(value)}"
 
 
 def parse_folder(text: str) -> str:
