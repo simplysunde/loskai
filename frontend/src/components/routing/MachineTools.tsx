@@ -15,6 +15,7 @@ import {
   type ToolTarget,
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
+import { ToolSettings } from "./ToolSettings";
 
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
@@ -60,7 +61,9 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const asks = t.actions.filter((a) => a.ask);
   const lists = listsOf(t, ctx);
   const sessions = new Set((ctx.facts.tmux ?? []).map((s) => s.name));
-  if (own.length + asks.length + lists.length === 0) return null;
+  // Git's card holds the projects folder even without settings of its own.
+  const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
+  if (own.length + asks.length + lists.length === 0 && !settings) return null;
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
@@ -70,6 +73,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
         </div>
       )}
+      {settings && <ToolSettings tool={t} ctx={ctx} />}
       {/* Tailscale's card: the tailnet as this machine sees it — devices, not targets. */}
       {t.requires.includes("tailscale") && (ctx.facts.tailnet?.length ?? 0) > 0 && (
         <ul className="mt-2 space-y-1 text-xs text-slate-300">

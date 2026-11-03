@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Boxes,
   HardDrive,
@@ -50,10 +50,10 @@ type SectionId = "general" | "ssh" | "tools" | "running" | "log";
 const SECTIONS: { id: SectionId; label: string; icon: ComponentType<{ className?: string }>; group: number; words: string }[] = [
   {
     id: "general", label: "General", icon: SlidersHorizontal, group: 0,
-    words: "name hostname address ip moved routes projects folder overview system os kernel uptime memory disks updates tailscale",
+    words: "name hostname address ip moved routes overview system os kernel uptime memory disks updates tailscale",
   },
   { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test turn on off remove config sudo password updates" },
-  { id: "tools", label: "Tools", icon: Wrench, group: 1, words: "add install" },
+  { id: "tools", label: "Tools", icon: Wrench, group: 1, words: "add install projects folder git name email" },
   { id: "running", label: "Running", icon: Boxes, group: 1, words: "containers services guests lxc vm restart stop" },
   { id: "log", label: "Log", icon: ScrollText, group: 2, words: "terminals sessions opened closed refused installs" },
 ];
@@ -67,7 +67,6 @@ const BUTTON =
 // same for every machine is in Settings › SSH.
 export function MachineDialog({ id, section }: { id: string; section?: string }) {
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const handed = (useLocation().state ?? {}) as MachineState;
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
@@ -238,19 +237,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             onSave={(v) => post({ address: v })}
           />
         </SettingRow>
-        {host?.user && ssh.data && (
-          <SettingRow label="Projects folder" description="Where Claude Code finds its projects: ~ or one folder in it.">
-            <InlineText
-              label="Projects folder"
-              value={ssh.data.projects[id]}
-              mono
-              onSave={async (v) => {
-                await api.put(`/api/ssh/machines/${id}/projects`, { folder: v });
-                await qc.invalidateQueries({ queryKey: ["ssh"] });
-              }}
-            />
-          </SettingRow>
-        )}
       </div>
       {/* What the machine says about itself, read with the status key. */}
       {host?.user && (

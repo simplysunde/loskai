@@ -72,11 +72,11 @@ export function ToolDialog({
             {tool.description}
             {summary && <span className="text-slate-500"> · {summary}</span>}
           </p>
-          {/* The machine's own settings — where its projects folder is set. */}
+          {/* The machine's own settings — its projects folder is on the Git tool's card. */}
           <Link
-            to={`/machines/${machine.id}/general`}
+            to={`/machines/${machine.id}/tools`}
             onClick={onClose}
-            title="The machine's settings — its projects folder is under General"
+            title="The machine's settings — its projects folder is on the Git tool's card"
             className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
           >
             <Settings className="h-3.5 w-3.5" /> Settings

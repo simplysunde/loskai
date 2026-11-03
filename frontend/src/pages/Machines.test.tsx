@@ -67,6 +67,7 @@ const ADMIN_STATUS = { authed: true, needs_setup: false, user: { username: "admi
 let authStatus: unknown = ADMIN_STATUS;
 let sshKey: unknown = null;
 let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
+let gitStatus = 200;
 const TOOLS = [
   {
     id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], installable: [],
@@ -105,6 +106,13 @@ const TOOLS = [
     actions: [{ id: "up", label: "Connect", description: "Up.", target: null, ask: null, confirm: null, session: null, run: "sudo tailscale up" }],
   },
   {
+    id: "git", name: "Git", description: "Who commits are by.", requires: ["git"], installable: ["git"], actions: [],
+    settings: [
+      { id: "name", label: "Name", description: "On every commit.", value: "git-name", read: "git config --global user.name", write: "x" },
+      { id: "email", label: "Email", description: "On every commit.", value: "email", read: "git config --global user.email", write: "x" },
+    ],
+  },
+  {
     id: "versions", name: "Versions", description: "Git things.", requires: ["kubectl"], installable: ["kubectl"],
     actions: [{ id: "log", label: "Log", description: "Show it.", target: null, ask: null, confirm: null, run: "git log" }],
   },
@@ -127,6 +135,7 @@ beforeEach(() => {
   authStatus = ADMIN_STATUS;
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
+  gitStatus = 200;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -164,13 +173,19 @@ beforeEach(() => {
                 ]
             : path === "/api/ssh/running"
               ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days" }], services: [], guests: [] } }
+            : path.endsWith("/tools/git/settings")
+              ? gitStatus === 423
+                ? { detail: "Loskai's key is locked — enter your password" }
+                : { values: { name: "Ola Nordmann", email: null } }
+            : path.endsWith("/tools/git/settings/email")
+              ? { values: { name: "Ola Nordmann", email: "ola@example.no" } }
             : path.endsWith("/facts")
               ? facts
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
       return new Response(JSON.stringify(data), {
-        status: path.endsWith("/facts") ? factsStatus : 200,
+        status: path.endsWith("/facts") ? factsStatus : path.endsWith("/tools/git/settings") ? gitStatus : 200,
         headers: { "Content-Type": "application/json" },
       });
     }),
@@ -642,9 +657,45 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   expect(screen.getByText("~/projects/")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Settings" }));
 
-  // The machine's dialog, where the folder is set — the tool's own dialog closed.
+  // The machine's dialog, where the folder is set on Git's card — the tool's own dialog closed.
   expect(await screen.findByLabelText("Projects folder")).toHaveValue("~/projects");
   expect(screen.queryByText("~/projects/")).not.toBeInTheDocument();
+});
+
+test("the Git card reads the machine's commit name and email, and sets one", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  expect(await within(tools).findByLabelText("Name")).toHaveValue("Ola Nordmann");
+  const email = within(tools).getByLabelText("Email");
+  expect(email).toHaveValue("");
+  fireEvent.focus(email);
+  fireEvent.change(email, { target: { value: "ola@example.no" } });
+  fireEvent.blur(email);
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual({
+      path: "/api/ssh/machines/nas/tools/git/settings/email", method: "PUT", body: { value: "ola@example.no" },
+    }),
+  );
+  await vi.waitFor(() => expect(within(tools).getByLabelText("Email")).toHaveValue("ola@example.no"));
+});
+
+test("with Loskai's key locked, the Git card asks for your password to read them", async () => {
+  setUp();
+  gitStatus = 423;
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  expect(await within(tools).findByText(/Loskai's key is locked/)).toBeInTheDocument();
+  expect(within(tools).getByLabelText("Name")).toBeDisabled();
+  fireEvent.change(within(tools).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  gitStatus = 200;
+  fireEvent.click(within(tools).getByRole("button", { name: "Unlock" }));
+
+  await vi.waitFor(() => expect(within(tools).getByLabelText("Name")).toHaveValue("Ola Nordmann"));
+  expect(calls.find((c) => c.path === "/api/ssh/unlock")?.body).toEqual({ password: "admin-pw" });
 });
 
 test("Tailscale says its address and how much of the tailnet is online, and lists it", async () => {
@@ -744,11 +795,12 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
 });
 
-test("the projects folder is set in the machine's dialog, under General", async () => {
+test("the projects folder is set on the Git card, not under General", async () => {
   setUp();
   renderPage("/machines/nas");
 
-  const folder = await screen.findByLabelText("Projects folder");
+  const folder = await within(await screen.findByRole("region", { name: "Tools" })).findByLabelText("Projects folder");
+  expect(within(category("General")).queryByLabelText("Projects folder")).toBeNull();
   fireEvent.focus(folder);
   fireEvent.change(folder, { target: { value: "~" } });
   fireEvent.keyDown(folder, { key: "Enter" });

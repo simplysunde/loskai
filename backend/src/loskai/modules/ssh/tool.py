@@ -297,7 +297,7 @@ def write_setting_script(t: Tool, setting_id: str, value: str) -> str:
     if s is None:
         raise ToolError(f"{t.name} has no setting {setting_id!r}")
     if not TARGETS[s.value].match(value):
-        raise ToolError(f"Not a {s.value.replace('-', ' ')}: {value!r}")
+        raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
     return f"sh -c {shlex.quote(s.write)} loskai {shlex.quote(value)}"
 
 

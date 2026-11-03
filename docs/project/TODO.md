@@ -1901,7 +1901,7 @@ and email are set.
 **Steps** — a commit each, every check run:
 
 - [x] 37a Backend: `settings` in the tool schema, `git.yml`, the two routes, the log; tests
-- [ ] 37b Frontend: settings in a tool's card, the projects folder moved to Git's; tests
+- [x] 37b Frontend: settings in a tool's card, the projects folder moved to Git's; tests
 - [ ] 37c Docs: tool-schema.md, api.md (+2 routes), using-loskai.md, architecture.md, CLAUDE.md, HISTORY, CHANGELOG
 - [ ] Live, against the Debian container: the Git card reads the name and email, sets them,
       and `git config --global` on the machine says so

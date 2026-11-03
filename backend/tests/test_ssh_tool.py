@@ -305,5 +305,5 @@ def test_a_value_reaches_the_write_command_only_as_1():
                          capture_output=True, text=True, timeout=10).stdout
 
     assert out == "<Ola; touch /tmp/pwned $(id)>"
-    with pytest.raises(tool.ToolError, match="Not a git name"):
+    with pytest.raises(tool.ToolError, match="Not a valid git name"):
         tool.write_setting_script(t, "n", "line\nbreak")

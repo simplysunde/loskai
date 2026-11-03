@@ -20,6 +20,16 @@ export interface ToolAction {
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
+// A value on the machine a tool's card shows and sets (`settings:` in its file).
+export interface ToolSetting {
+  id: string;
+  label: string;
+  description: string;
+  value: string; // the kind of value it takes
+  read: string;
+  write: string;
+}
+
 export interface Tool {
   id: string;
   name: string;
@@ -27,6 +37,7 @@ export interface Tool {
   requires: string[]; // programs, as the overview names them
   installable: string[]; // those Loskai can install
   actions: ToolAction[];
+  settings?: ToolSetting[];
 }
 
 // What the machine's terminal is asked to run — named, never the command itself: a tool's
