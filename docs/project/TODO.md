@@ -1864,7 +1864,7 @@ without you. The shell, tmux, Claude and Tailscale's Connect keep the terminal a
 
 - [x] 36a Backend: `automatic` in the tool schema; `connect.prepare` and the ticket; the
       wrapper reads the password; `POST …/run`; the WebSocket's `ticket`; tests
-- [ ] 36b Frontend: MachineTerminal asks for the password when `run` says so, and closes
+- [x] 36b Frontend: MachineTerminal asks for the password when `run` says so, and closes
       an automatic run when it ends; tests
 - [ ] 36c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md (+1 route), tool-schema.md,
       using-loskai.md, HISTORY, CHANGELOG

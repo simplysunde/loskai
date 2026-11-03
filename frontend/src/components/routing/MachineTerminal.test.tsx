@@ -79,3 +79,76 @@ test("a session the server closes as locked brings the password back", async () 
 
   expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
 });
+
+// --- An automatic run: sudo's password first, and it closes itself ---
+
+type Reply = { status?: number; body: unknown };
+
+function renderRun(replies: Reply[], run = { tool: "system", action: "update", title: "Update" }) {
+  const calls: { path: string; body: unknown }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (!path.endsWith("/run")) return new Response("{}", { headers: { "Content-Type": "application/json" } });
+      calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : null });
+      const reply = replies.shift() ?? { body: {} };
+      return new Response(JSON.stringify(reply.body), {
+        status: reply.status ?? 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
+  );
+  const onClose = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={KEY} run={run} onClose={onClose} />
+    </QueryClientProvider>,
+  );
+  return { calls, onClose };
+}
+
+test("an automatic run asks for sudo's password, checked before its terminal opens, and closes when done", async () => {
+  const { calls, onClose } = renderRun([
+    { body: { automatic: true, needs_password: true, ticket: null } },
+    { status: 422, body: { detail: "sudo on it didn't take that password for loskai" } },
+    { body: { automatic: true, needs_password: true, ticket: "t1" } },
+  ]);
+
+  const field = await screen.findByLabelText("sudo password");
+  expect(screen.getByText(/never stored or logged/)).toBeInTheDocument();
+  fireEvent.change(field, { target: { value: "wrong" } });
+  fireEvent.click(screen.getByRole("button", { name: "Run" }));
+  expect(await screen.findByText("sudo on it didn't take that password for loskai")).toBeInTheDocument();
+  expect(screen.queryByText(/shell at/)).toBeNull();
+
+  fireEvent.change(field, { target: { value: "right" } });
+  fireEvent.click(screen.getByRole("button", { name: "Run" }));
+  expect(
+    await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update&ticket=t1"),
+  ).toBeInTheDocument();
+  expect(calls.map((c) => c.body)).toEqual([
+    { tool: "system", action: "update" },
+    { tool: "system", action: "update", password: "wrong" },
+    { tool: "system", action: "update", password: "right" },
+  ]);
+
+  sessions[sessions.length - 1].onClosed?.(1000, "");
+  expect(onClose).toHaveBeenCalled();
+});
+
+test("a run sudo needs no password for opens at once; one that isn't automatic stays open when it ends", async () => {
+  const { onClose } = renderRun([{ body: { automatic: false, needs_password: false, ticket: null } }],
+    { tool: "tmux", action: "attach", target: "work", title: "Attach" } as never);
+
+  expect(await screen.findByText(/shell at .*tool=tmux&action=attach&target=work$/)).toBeInTheDocument();
+  expect(screen.queryByLabelText("sudo password")).toBeNull();
+  sessions[sessions.length - 1].onClosed?.(1000, "");
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test("a key that locked before the run asks for your password first", async () => {
+  renderRun([{ status: 423, body: { detail: "Loskai's key is locked — enter your password" } }]);
+
+  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
+});

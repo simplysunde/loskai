@@ -15,6 +15,8 @@ export interface ToolAction {
   confirm: string | null;
   // The tmux session it runs in: null Loskai's own, a name shared per target, false none.
   session: string | false | null;
+  // Runs to the end by itself: sudo's password is asked for first, and its terminal closes.
+  automatic?: boolean;
   run: string | Record<string, string>; // one command, or one per package manager
 }
 

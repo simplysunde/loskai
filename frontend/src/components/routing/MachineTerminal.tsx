@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
@@ -10,12 +10,24 @@ import { Modal } from "../shared/Modal";
 import { XtermSession } from "../shared/XtermSession";
 
 // The server closes a machine's terminal with 4000 + an HTTP status: 4423 while the key is
-// locked — the one case the password below fixes.
+// locked — the one case the password below fixes. A session that ends by itself closes 1000.
 const LOCKED = 4423;
+const ENDED = 1000;
+
+// What `POST …/run` says about a run before its terminal opens.
+interface Prepared {
+  automatic: boolean;
+  needs_password: boolean;
+  ticket: string | null;
+}
+
+type Stage = "unlock" | "preparing" | "password" | "terminal";
 
 // A shell on a machine over SSH — or a tool's action, given `run`. It needs Loskai's key
-// unlocked, so a locked key asks for your password here first; once open, it lasts
-// until it is closed or the session ends, however long that is.
+// unlocked, so a locked key asks for your password here first. An automatic action asks
+// next for sudo's password when sudo would — checked on the machine before anything runs —
+// and its terminal closes itself once it is done; anything else lasts until it is closed or
+// the session ends, however long that is.
 export function MachineTerminal({
   machine,
   sshKey,
@@ -30,30 +42,59 @@ export function MachineTerminal({
   const qc = useQueryClient();
   const unlockFor = useUnlockFor();
   const unlocked = Boolean(sshKey?.unlocked_until && Date.parse(sshKey.unlocked_until) > Date.now());
-  const [needUnlock, setNeedUnlock] = useState(!unlocked);
+  const [stage, setStage] = useState<Stage>(!unlocked ? "unlock" : run ? "preparing" : "terminal");
   // Bumped to open a new session after unlocking.
   const [session, setSession] = useState(0);
   const [password, setPassword] = useState("");
+  const [sudoPassword, setSudoPassword] = useState("");
+  const [prepared, setPrepared] = useState<Prepared | null>(null);
+
+  const prepare = useMutation({
+    mutationFn: (withPassword?: string) => {
+      const { title: _title, ...named } = run!;
+      return api.post<Prepared>(`/api/ssh/machines/${machine.id}/run`, {
+        ...named,
+        ...(withPassword !== undefined ? { password: withPassword } : {}),
+      });
+    },
+    onSuccess: (p) => {
+      setPrepared(p);
+      setSudoPassword("");
+      setStage(p.needs_password && !p.ticket ? "password" : "terminal");
+      setSession((n) => n + 1);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 423) setStage("unlock");
+    },
+  });
+
+  // Asked once the key is open, before anything runs.
+  useEffect(() => {
+    if (stage === "preparing" && prepare.isIdle) prepare.mutate(undefined);
+  }, [stage, prepare]);
 
   const unlock = useMutation({
     mutationFn: () => api.post<SshKey>("/api/ssh/unlock", { password }),
     onSuccess: () => {
       setPassword("");
-      setNeedUnlock(false);
+      prepare.reset();
+      setStage(run ? "preparing" : "terminal");
       setSession((n) => n + 1);
       qc.invalidateQueries({ queryKey: ["ssh"] });
     },
   });
 
+  const query = run ? `?${runQuery(run)}${prepared?.ticket ? `&ticket=${encodeURIComponent(prepared.ticket)}` : ""}` : "";
+
   return (
     <Modal
       title={`${run?.title ?? "Terminal"} — ${machine.name}`}
       onClose={onClose}
-      // The unlock prompt is a small dialog; the terminal, once connected, a wide one.
-      wide={!needUnlock}
-      narrow={needUnlock}
+      // The prompts are a small dialog; the terminal, once connected, a wide one.
+      wide={stage === "terminal"}
+      narrow={stage !== "terminal"}
     >
-      {needUnlock ? (
+      {stage === "unlock" ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -70,7 +111,7 @@ export function MachineTerminal({
             placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+            className={INPUT}
           />
           {unlock.isError && (
             <p className="mt-2 text-sm text-rose-400">
@@ -78,25 +119,72 @@ export function MachineTerminal({
             </p>
           )}
           <div className="mt-3 flex justify-end">
-            <button
-              type="submit"
-              disabled={!password || unlock.isPending}
-              className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-            >
+            <button type="submit" disabled={!password || unlock.isPending} className={SUBMIT}>
               {unlock.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Unlock and connect
+            </button>
+          </div>
+        </form>
+      ) : stage === "preparing" ? (
+        prepare.isError && !(prepare.error instanceof ApiError && prepare.error.status === 423) ? (
+          <p className="text-sm text-rose-400">
+            {prepare.error instanceof ApiError ? prepare.error.message : "Couldn't get it ready"}
+          </p>
+        ) : (
+          <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+        )
+      ) : stage === "password" ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            prepare.mutate(sudoPassword);
+          }}
+        >
+          <p className="text-sm text-slate-300">sudo on {machine.name} asks for a password.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {run?.title} runs as root, so sudo wants the password of the user Loskai logs in
+            as there. It is checked on the machine first, then used for this run only — never
+            stored or logged. The terminal closes itself when it is done.
+          </p>
+          <input
+            autoFocus
+            type="password"
+            autoComplete="off"
+            aria-label="sudo password"
+            placeholder={`sudo password on ${machine.name}`}
+            value={sudoPassword}
+            onChange={(e) => setSudoPassword(e.target.value)}
+            className={INPUT}
+          />
+          {prepare.isError && (
+            <p className="mt-2 text-sm text-rose-400">
+              {prepare.error instanceof ApiError ? prepare.error.message : "Couldn't check it"}
+            </p>
+          )}
+          <div className="mt-3 flex justify-end">
+            <button type="submit" disabled={!sudoPassword || prepare.isPending} className={SUBMIT}>
+              {prepare.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Run
             </button>
           </div>
         </form>
       ) : (
         <XtermSession
           key={session}
-          url={`/api/ssh/machines/${machine.id}/terminal${run ? `?${runQuery(run)}` : ""}`}
+          url={`/api/ssh/machines/${machine.id}/terminal${query}`}
           onClosed={(code) => {
-            if (code === LOCKED) setNeedUnlock(true);
+            if (code === LOCKED) {
+              prepare.reset();
+              setStage("unlock");
+            } else if (code === ENDED && prepared?.automatic) onClose();
           }}
         />
       )}
     </Modal>
   );
 }
+
+const INPUT =
+  "mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
+const SUBMIT =
+  "flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50";
