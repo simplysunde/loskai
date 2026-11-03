@@ -136,7 +136,11 @@ isn't valid says why and saves nothing. A machine set up before the overview exi
 nothing to switch on, each as a card under its **Tools**. **System** updates it (with its own package manager), reboots it or shuts it down;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
-it and answer a `sudo` password prompt there; hovering a button shows the command. With
+it; hovering a button shows the command. One that runs by itself — System's, Services,
+Proxmox, ending a tmux session, Tailscale's Disconnect, adding a tool — asks first for
+sudo's password in a dialog when sudo would, checks it on the machine, and closes its
+terminal when it is done; a failure stays open with its exit code. The others (a shell,
+tmux, Claude, Connect) answer sudo in the terminal as usual. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
 back up.
 
@@ -187,8 +191,8 @@ hovering lists them. On Proxmox, or where the user isn't in the `docker` group, 
 **Updates without a password**: System's Update otherwise asks for the user's `sudo`
 password in the terminal. Switching it on puts a sudo rule on the machine that lets Loskai's user
 run exactly the update commands for its package manager — and nothing else — without one;
-you type the password once, at sudo's prompt in the terminal, and Loskai never sees it.
-Switching it off removes it, the same way. It is not needed where Loskai logs in as root (Proxmox).
+you give the password once, in the dialog, and it is used for that run only. Switching it
+off removes it, with no password. It is not needed where Loskai logs in as root (Proxmox).
 
 **Turning SSH off** (the switch on the SSH heading) takes Loskai's sudo rule and key off the
 machine, as deleting it does, then its entry; the machine stays, by name. Turning it on asks

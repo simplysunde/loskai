@@ -1866,10 +1866,16 @@ without you. The shell, tmux, Claude and Tailscale's Connect keep the terminal a
       wrapper reads the password; `POST …/run`; the WebSocket's `ticket`; tests
 - [x] 36b Frontend: MachineTerminal asks for the password when `run` says so, and closes
       an automatic run when it ends; tests
-- [ ] 36c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md (+1 route), tool-schema.md,
+- [x] 36c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md (+1 route), tool-schema.md,
       using-loskai.md, HISTORY, CHANGELOG
-- [ ] Live, against the Debian container: Update and Reboot through the dialog, with the
-      wrong password and then the right one; with the rule on, no dialog
+- [x] Live, in Chromium against the Debian 13 container (sudo asks; tmux on it, so through
+      the FIFO): Update asked, a wrong password was said in the dialog, the right one ran
+      apt and the terminal closed itself after 4 s. Switching the rule on asked the same way
+      and closed itself, and Update then asked nothing. The password never appeared in what
+      the terminal received, nor in the SSH log or the backend's log, and `/tmp` on the
+      machine held nothing after. Reboot wasn't run: a container can't
+- [ ] Sunde: try Update on a machine whose sudo asks for a password — nothing needs
+      installing again for this
 
 ---
 

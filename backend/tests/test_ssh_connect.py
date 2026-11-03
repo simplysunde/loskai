@@ -772,7 +772,7 @@ def _prepare(api, password=None, **run):
 def test_an_automatic_run_asks_for_sudo_s_password_only_when_sudo_would(api, machine_net):
     _ready(api, machine_net, APT_FACTS + "tmux\n")
 
-    assert _prepare(api).json() == {"automatic": True, "needs_password": True, "ticket": None}
+    assert _prepare(api).json() == {"automatic": True, "needs_password": True, "user": "loskai", "ticket": None}
     machine_net["sudo"] = "nopasswd"
     assert _prepare(api).json()["needs_password"] is False
     # Not automatic: the terminal is the place for it, as before.
@@ -797,10 +797,10 @@ def test_a_wrong_password_is_said_before_the_terminal_and_a_user_without_sudo_to
     _ready(api, machine_net)
 
     r = _prepare(api, password="wrong")
-    assert r.status_code == 422 and "didn't take that password" in r.json()["detail"]
+    assert r.status_code == 422 and r.json()["detail"] == "sudo didn't accept that password for loskai"
     machine_net["sudo"] = "none"
     r = _prepare(api, password="sudo-pw")
-    assert r.status_code == 409 and r.json()["detail"] == "loskai may not use sudo on it"
+    assert r.status_code == 409 and r.json()["detail"] == "loskai may not use sudo there"
 
 
 def test_the_password_goes_to_the_terminal_once_as_its_first_line_and_never_into_the_log(api, machine_net, shell):

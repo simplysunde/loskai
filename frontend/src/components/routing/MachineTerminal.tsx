@@ -18,6 +18,7 @@ const ENDED = 1000;
 interface Prepared {
   automatic: boolean;
   needs_password: boolean;
+  user?: string; // the login sudo asks the password of
   ticket: string | null;
 }
 
@@ -140,11 +141,12 @@ export function MachineTerminal({
             prepare.mutate(sudoPassword);
           }}
         >
-          <p className="text-sm text-slate-300">sudo on {machine.name} asks for a password.</p>
+          <p className="text-sm text-slate-300">
+            sudo on {machine.name} asks for {prepared?.user ? <span className="font-mono">{prepared.user}</span> : "its user"}'s password.
+          </p>
           <p className="mt-1 text-xs text-slate-500">
-            {run?.title} runs as root, so sudo wants the password of the user Loskai logs in
-            as there. It is checked on the machine first, then used for this run only — never
-            stored or logged. The terminal closes itself when it is done.
+            {run?.title} runs as root. Checked on the machine first, used for this run only,
+            never stored or logged.
           </p>
           <input
             autoFocus

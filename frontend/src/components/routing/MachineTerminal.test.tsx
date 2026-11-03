@@ -110,16 +110,17 @@ function renderRun(replies: Reply[], run = { tool: "system", action: "update", t
 
 test("an automatic run asks for sudo's password, checked before its terminal opens, and closes when done", async () => {
   const { calls, onClose } = renderRun([
-    { body: { automatic: true, needs_password: true, ticket: null } },
-    { status: 422, body: { detail: "sudo on it didn't take that password for loskai" } },
+    { body: { automatic: true, needs_password: true, user: "loskai", ticket: null } },
+    { status: 422, body: { detail: "sudo didn't accept that password for loskai" } },
     { body: { automatic: true, needs_password: true, ticket: "t1" } },
   ]);
 
   const field = await screen.findByLabelText("sudo password");
   expect(screen.getByText(/never stored or logged/)).toBeInTheDocument();
+  expect(screen.getByText("loskai")).toBeInTheDocument();
   fireEvent.change(field, { target: { value: "wrong" } });
   fireEvent.click(screen.getByRole("button", { name: "Run" }));
-  expect(await screen.findByText("sudo on it didn't take that password for loskai")).toBeInTheDocument();
+  expect(await screen.findByText("sudo didn't accept that password for loskai")).toBeInTheDocument();
   expect(screen.queryByText(/shell at/)).toBeNull();
 
   fireEvent.change(field, { target: { value: "right" } });

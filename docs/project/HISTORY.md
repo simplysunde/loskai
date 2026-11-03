@@ -4,6 +4,43 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-03 — sudo's password in a dialog, for the actions that run by themselves (Phase 36)
+
+Sunde asked for a password needed to go on to be asked for in a dialog that says why, so a
+run could start and end by itself, and only for automatic commands. This walks back a line
+written the day before: "Loskai never sees it", about the sudo prompt in the terminal. That
+was true only loosely. What is typed in the browser's terminal already passes through
+Loskai's WebSocket on its way to the machine; Loskai relayed it without reading it. A
+dialog changes what Loskai does with it, not where it travels. Loskai now handles it once,
+as it does a machine's password in Install it for me. So the rules are the same: it is used
+for one run, checked before anything runs, held in memory a minute at most, and never
+stored, logged or put in a command line.
+
+**Which actions.** `automatic: true` in the tool file, opted into: an action that runs to
+the end with nothing to read or answer. Status, Pull and Push stay as they were, because
+their output is the point. A shell, an attach, Claude and Tailscale's Connect stay too,
+because you work in them (Connect shows a login link). Adding a tool and the sudo rule
+always run this way.
+
+**Asked only when sudo would.** `POST …/run` works the run out as the terminal will, then
+asks nothing for root, a command without `sudo`, the Update the rule covers, or a user
+`sudo -n true` lets in. A wrong password is said in the dialog: `sudo -S -v` checks it over a
+connection of its own before the terminal opens.
+
+**How it reaches sudo** was the part to prove. The pty is opened with echo off (an SSH
+terminal mode), so the first line, the password, can't show even if it arrives before the
+command reads it. The command reads it into a shell variable, turns echo back on, and
+pipes it to `sudo -S -v` in the run's tty. Every `sudo` after it in the run then finds
+sudo's timestamp, so Update's two steps ask once. A tmux pane is another tty, so the
+password goes there through a FIFO in a `mktemp -d` folder. Then the outer shell attaches,
+and the folder is removed once the pane has read it. A session already running is
+attached to, and the password is not sent. On Debian 13 (sudo 1.9.16, tmux 3.5) it worked
+with and without tmux. It never appeared in what the terminal sent back, and the terminal
+closed by itself.
+
+**Success closes it.** The job ends at once with exit 0. A failure prints `[failed, exit
+N]` and waits for Enter, and the dialog closes when the session ends.
+
 ## 2026-11-03 — A machine's SSH section: two switches and one login row
 
 Sunde wanted the SSH section shorter, closer to a desktop settings window. SSH on and off is

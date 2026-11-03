@@ -474,20 +474,20 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
     if result.exit_status == 127:
         raise SshError(409, "sudo isn't installed on it — log in as root, or install sudo")
     if "not in the sudoers" in said or "may not run sudo" in said:
-        raise SshError(409, f"{t.user} may not use sudo on it")
+        raise SshError(409, f"{t.user} may not use sudo there")
     if result.exit_status == 0 and password is None:
         return no
     if password is None:
-        return {**no, "needs_password": True}
+        return {**no, "needs_password": True, "user": t.user}
     if result.exit_status != 0:
-        raise SshError(422, f"sudo on it didn't take that password for {t.user}")
+        raise SshError(422, f"sudo didn't accept that password for {t.user}")
     me = auth.current_user()
     now = time.monotonic()
     for stale in [k for k, v in _passwords.items() if v[3] < now]:
         del _passwords[stale]
     ticket = secrets.token_urlsafe(24)
     _passwords[ticket] = (me.username if me else None, machine_id, password, now + PASSWORD_TTL)
-    return {**no, "needs_password": True, "ticket": ticket}
+    return {**no, "needs_password": True, "user": t.user, "ticket": ticket}
 
 
 def take_password(ticket: str, machine_id: str) -> str:

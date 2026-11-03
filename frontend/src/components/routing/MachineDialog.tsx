@@ -339,11 +339,11 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                     can't tell
                   </span>
                 )}
-                {/* Either way it happens in the machine's terminal, at sudo's prompt; the
-                    switch moves when the overview reads the rule back. */}
+                {/* Either way an automatic run in the machine's terminal; the switch moves
+                    when the overview reads the rule back. */}
                 <Switch
                   label="Updates without a password"
-                  title="Opens its terminal: you type your sudo password once, there — Loskai never sees it"
+                  title="On asks for sudo's password once, for that run only; off needs none"
                   checked={facts.data.sudo_rule === "on"}
                   onChange={() =>
                     facts.data?.ok && facts.data.sudo_rule === "on"

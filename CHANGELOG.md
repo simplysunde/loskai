@@ -46,8 +46,11 @@ Everything so far:
 - **How long the SSH key stays unlocked** is a setting in Settings › SSH: 15 minutes, 1, 3,
   8 or 24 hours (`SSH_UNLOCK_MINUTES` too).
 - **Updates without a password** — a machine's SSH section can allow System's Update to run
-  without sudo asking: a sudo rule for exactly its update commands, put on in its terminal
-  (you type the password once, at sudo's prompt) and taken off there, or with the machine.
+  without sudo asking: a sudo rule for exactly its update commands, switched on (with the
+  password once) and off in its SSH section, and taken off with the machine.
+- **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,
+  Tailscale's Disconnect, adding a tool — ask for sudo's password in a dialog first, only
+  when sudo would, check it on the machine, and close their terminal when they are done.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. What a program in the
   terminal copies — tmux, Claude Code's `c`, an editor — reaches your clipboard (OSC 52);
   Shift+drag selects even where a program uses the mouse. The container terminal

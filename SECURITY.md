@@ -44,10 +44,17 @@ your network. Read this before deciding where it runs and who can reach it.
 - **Updates without a password, if you allow them.** A machine's SSH section can put a sudo
   rule on it, `/etc/sudoers.d/loskai`: Loskai's user may run exactly System's update
   commands (`apt-get update`, `apt-get -y dist-upgrade`, or the machine's package manager's
-  one) and remove that file — nothing else — without a password. You type the password
-  once, at sudo's prompt in the machine's terminal; Loskai never sees it. `visudo` checks
+  one) and remove that file — nothing else — without a password. You give the password
+  once, as for any automatic action (below). `visudo` checks
   the rule before it is put in place. Anyone who gets Loskai's user on that machine can
   then install pending updates, and only that.
+- **sudo's password, for an action that runs by itself.** Update, Reboot, restarting a
+  service and the like ask for it in a dialog before their terminal opens. Loskai checks it
+  on the machine with `sudo -S -v` and keeps it in memory for at most a minute, for that
+  run, your account and that machine. It reaches the run as the first line of its
+  terminal, which opens with echo off, so it never shows. It is never stored, logged or put
+  in a command line: in tmux it goes through a FIFO in a private folder, removed at once.
+  Like everything typed in a terminal, it passes through Loskai on its way.
 - **Deleting a machine, or removing its SSH connection, takes Loskai's things off it** —
   the sudo rule first, then its two `authorized_keys` lines, and nothing else — before
   Loskai forgets it. A machine that can't be reached then goes anyway, and Loskai says what

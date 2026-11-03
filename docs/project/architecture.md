@@ -309,12 +309,23 @@ picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to 
 is [ssh-status.md](../reference/ssh-status.md).
 
 **Updates without a password** are a sudo rule on the machine (`logic.SUDO_RULE`), never a
-stored password: `tool.allow_script` writes it in the machine's terminal — the user types
-the password at sudo's prompt — naming the user and exactly System's update steps
+stored password: `tool.allow_script` writes it in the machine's terminal, as an automatic
+run (below), naming the user and exactly System's update steps
 (`tool.update_commands`, read from the tool file) plus the rule's own removal, checked by
 `visudo` before it is moved into place. The overview says whether it is there (status line
 v5). It comes off first whenever Loskai's things do — deleting the machine or removing its
 SSH connection (`logic.UNINSTALL_SCRIPT`) — through the rule itself, so no password.
+
+**An automatic run** (`automatic: true` in its tool file; adding a tool and the sudo rule
+always) asks for sudo's password before its terminal opens, and only when sudo would.
+`POST …/run` (`connect.prepare`) answers no for root, a command without `sudo`, what the
+rule covers, or a user `sudo -n true` lets in. Given the password, it checks it with
+`sudo -S -v` over a connection of its own and holds it in memory under a one-time ticket
+for a minute, for that user and machine. The terminal takes the ticket: its pty opens with
+echo off, the password is the first line, and `tool.visible` reads it and hands it to
+`sudo -S -v` in the run's own tty, so every `sudo` after it finds sudo's timestamp. A tmux
+pane is another tty, so there it goes through a FIFO in a `mktemp -d` folder. The run
+ends by itself when it succeeds, and the dialog closes with it.
 
 **Tools** are what a machine's dialog can *do* (Phase 34f): YAML files in
 `modules/ssh/tools/`, shipped in the image. Each names the programs it requires (from the

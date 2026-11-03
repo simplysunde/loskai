@@ -56,6 +56,7 @@ actions:                          # required — at least one
     label: Reboot
     description: Restart the machine.
     confirm: Everything on it stops until it is back up.   # optional — asked first
+    automatic: true               # optional — runs to the end by itself (below)
     run: sudo reboot
   restart-service:
     label: Restart
@@ -143,13 +144,24 @@ Which tmux session the action runs in, where the machine has tmux:
   card's row says `running` while it is there.
 - **`false`**: none — for an action that is tmux itself, such as attaching to a session.
 
+### `automatic`
+
+`true` for an action that runs to the end without anyone at it: System's update, a reboot,
+restarting a service. Before its terminal opens, sudo's password is asked for in a dialog,
+when sudo would ask, and checked on the machine. The terminal then closes itself when the
+command succeeds; a failure stays open with its exit code. Leave it out for anything whose
+output is the point (a status, a pull) or that you work in (a shell, an attach, Claude,
+a login link): those answer sudo in the terminal. Adding a tool, and the sudo rule, always
+run this way.
+
 ## How an action runs
 
 `tool.visible` builds what the terminal runs:
 
 1. The command under `sh -c`, with the target as `$1`.
 2. Then `[done, exit N] Enter closes this.`, waiting for Enter, so the output stays on
-   screen.
+   screen. An `automatic` one ends at once when it succeeds, and otherwise says
+   `[failed, exit N]` and waits.
 3. **Inside tmux** when the machine has it, in the session `session` says. Closing the
    browser tab leaves it running, and running the same action again attaches to it rather
    than starting a second.
@@ -157,6 +169,8 @@ Which tmux session the action runs in, where the machine has tmux:
 Adding a tool runs the same way, but never inside tmux: tmux may be what it installs.
 
 It opens in the machine's terminal, so it needs Loskai's key unlocked like any terminal.
+With sudo's password from the dialog, the terminal's first line is that password, which
+the command reads with echo off and hands to `sudo -S -v`; in tmux, through a FIFO.
 The SSH log records it as `action` (with the tool, the action, the target, the command and
 the tmux session) or `add-tool` (with the tool, the programs and the command).
 
