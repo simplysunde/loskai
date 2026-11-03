@@ -328,7 +328,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         {host?.user && trusted && (
           <SettingRow
             label="Updates without a password"
-            description="System's Update runs without asking: a sudo rule on the machine for exactly its update commands. You type your password once, in its terminal — Loskai never sees it."
+            description="System's Update runs without asking: a sudo rule on the machine for exactly its update commands."
           >
             {host.user === "root" ? (
               <span className="text-xs text-slate-500">not needed — it logs in as root</span>
@@ -343,6 +343,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                     switch moves when the overview reads the rule back. */}
                 <Switch
                   label="Updates without a password"
+                  title="Opens its terminal: you type your sudo password once, there — Loskai never sees it"
                   checked={facts.data.sudo_rule === "on"}
                   onChange={() =>
                     facts.data?.ok && facts.data.sudo_rule === "on"
