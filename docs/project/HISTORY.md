@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-03 — A machine's SSH section: two switches and one login row
+
+Sunde wanted the SSH section shorter, closer to a desktop settings window. SSH on and off is
+now a switch on the section's heading. On means the machine has an entry in the SSH config.
+Either way it opens a dialog first: turning it on asks for the user and port and says what
+the setup will do next; turning it off is the old Remove confirmation. User and port share
+one row, the user wider. Updates without a password is a switch too. Allow and Take it off
+were already one action at a time, run in the terminal, so the switch only starts that
+action. It moves when the overview reads the rule back, never before. Where the machine
+doesn't show its sudoers folder ("can't tell"), the switch shows off and only allows. Its
+rule still comes off when SSH is turned off or the machine is deleted.
+
 ## 2026-11-03 — The Docker host is on the Machines tab before it is named
 
 Sunde asked for the machine Loskai runs on to show up by itself, "kinda like what we do

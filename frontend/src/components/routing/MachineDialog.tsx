@@ -22,7 +22,8 @@ import { applies, useTools, type ToolTarget } from "../../lib/tools";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { InlineText, SettingRow } from "../shared/SettingRow";
+import { Modal } from "../shared/Modal";
+import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
 import { SshLog } from "../settings/SshLog";
 import type { NewMachine } from "./AddMachineModal";
 import { isMachine } from "./machine";
@@ -51,7 +52,7 @@ const SECTIONS: { id: SectionId; label: string; icon: ComponentType<{ className?
     id: "general", label: "General", icon: SlidersHorizontal, group: 0,
     words: "name hostname address ip moved routes projects folder overview system os kernel uptime memory disks updates tailscale",
   },
-  { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test remove config sudo password updates" },
+  { id: "ssh", label: "SSH", icon: KeyRound, group: 0, words: "user login port host key set up setup test turn on off remove config sudo password updates" },
   { id: "tools", label: "Tools", icon: Wrench, group: 1, words: "add install" },
   { id: "running", label: "Running", icon: Boxes, group: 1, words: "containers services guests lxc vm restart stop" },
   { id: "log", label: "Log", icon: ScrollText, group: 2, words: "terminals sessions opened closed refused installs" },
@@ -71,6 +72,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [removing, setRemoving] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   // Your password, when removing the connection needs Loskai's key unlocked.
   const [removePassword, setRemovePassword] = useState("");
   const [query, setQuery] = useState("");
@@ -273,37 +275,44 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     ),
     ssh: (
       <div>
-        <SettingRow
-          label="User"
-          description={
-            host && !host.user
-              ? "Your SSH config gives it — set one here for Loskai to manage the machine."
-              : "The user Loskai logs in as. Give it one to manage the machine over SSH."
-          }
-        >
-          <InlineText
-            label="SSH user"
-            value={host?.user ?? ""}
-            placeholder={host ? "from SSH config" : "none"}
-            validate={(v) =>
-              !v
-                ? "Remove it from the SSH config below instead."
-                : SSH_USER.test(v)
-                  ? null
-                  : "A login name: letters, digits, _ . - (not starting with a digit)."
+        {!host && (
+          <p className="py-2 text-xs text-slate-500">
+            Off — Loskai doesn't log in to this machine. Turn it on to manage it over SSH.
+          </p>
+        )}
+        {host && (
+          <SettingRow
+            label="Login"
+            description={
+              !host.user
+                ? "Your SSH config gives the user — set one here for Loskai to manage the machine."
+                : "The user Loskai logs in as, and the port its SSH server listens on."
             }
-            onSave={(v) => post({ ssh: { user: v, port: host?.port ?? 22 } })}
-          />
-        </SettingRow>
-        <SettingRow label="Port" description="Where its SSH server listens.">
-          <InlineText
-            label="SSH port"
-            value={String(host?.port ?? 22)}
-            disabled={!host?.user}
-            validate={(v) => (/^\d+$/.test(v) && +v >= 1 && +v <= 65535 ? null : "A port from 1 to 65535.")}
-            onSave={(v) => post({ ssh: { user: host!.user!, port: Number(v) } })}
-          />
-        </SettingRow>
+          >
+            <InlineText
+              label="SSH user"
+              width="w-40"
+              value={host.user ?? ""}
+              placeholder="from SSH config"
+              validate={(v) =>
+                !v
+                  ? "Turn SSH off above instead."
+                  : SSH_USER.test(v)
+                    ? null
+                    : "A login name: letters, digits, _ . - (not starting with a digit)."
+              }
+              onSave={(v) => post({ ssh: { user: v, port: host.port ?? 22 } })}
+            />
+            <InlineText
+              label="SSH port"
+              width="w-14"
+              value={String(host.port ?? 22)}
+              disabled={!host.user}
+              validate={(v) => (/^\d+$/.test(v) && +v >= 1 && +v <= 65535 ? null : "A port from 1 to 65535.")}
+              onSave={(v) => post({ ssh: { user: host.user!, port: Number(v) } })}
+            />
+          </SettingRow>
+        )}
         {host?.user && (
           <SettingRow label="Setup" description="Its host key, Loskai's key on it, and a test.">
             {trusted ? (
@@ -325,45 +334,26 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
               <span className="text-xs text-slate-500">not needed — it logs in as root</span>
             ) : facts.data?.ok ? (
               <>
-                {facts.data.sudo_rule === "on" ? (
-                  <span className="text-xs text-emerald-300">on</span>
-                ) : facts.data.sudo_rule === "off" ? (
-                  <span className="text-xs text-slate-500">off</span>
-                ) : (
+                {facts.data.sudo_rule !== "on" && facts.data.sudo_rule !== "off" && (
                   <span title="The machine doesn't let its user look in /etc/sudoers.d" className="cursor-help text-xs text-slate-500">
                     can't tell
                   </span>
                 )}
-                {facts.data.sudo_rule !== "on" && (
-                  <button
-                    onClick={() => runner.start({ sudo: "allow", title: "Allow updates without a password" })}
-                    className={`${BUTTON} text-slate-200`}
-                  >
-                    Allow
-                  </button>
-                )}
-                {facts.data.sudo_rule !== "off" && (
-                  <button
-                    onClick={() => runner.start({ sudo: "remove", title: "Take off updates without a password" })}
-                    className={`${BUTTON} text-slate-200`}
-                  >
-                    Take it off
-                  </button>
-                )}
+                {/* Either way it happens in the machine's terminal, at sudo's prompt; the
+                    switch moves when the overview reads the rule back. */}
+                <Switch
+                  label="Updates without a password"
+                  checked={facts.data.sudo_rule === "on"}
+                  onChange={() =>
+                    facts.data?.ok && facts.data.sudo_rule === "on"
+                      ? runner.start({ sudo: "remove", title: "Take off updates without a password" })
+                      : runner.start({ sudo: "allow", title: "Allow updates without a password" })
+                  }
+                />
               </>
             ) : (
               <span className="text-xs text-slate-500">needs its overview — see General</span>
             )}
-          </SettingRow>
-        )}
-        {host && (
-          <SettingRow
-            label="Remove the SSH connection"
-            description="Takes Loskai's key and its sudo rule off the machine, then its entry out of the SSH config."
-          >
-            <button onClick={() => setRemoving(true)} className={`${BUTTON} text-rose-300`}>
-              Remove
-            </button>
           </SettingRow>
         )}
       </div>
@@ -398,6 +388,14 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   // What a section's heading has on its right.
   const headingActions: Partial<Record<SectionId, ReactNode>> = {
     tools: ctx && <AddToolMenu ctx={ctx} />,
+    // On is an entry in the SSH config. Either way a dialog says what happens first.
+    ssh: (
+      <Switch
+        label="SSH"
+        checked={Boolean(host)}
+        onChange={() => (host ? setRemoving(true) : setEnabling(true))}
+      />
+    ),
   };
 
   return (
@@ -485,8 +483,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
       <ConfirmDialog
         open={removing}
-        title={`Remove ${machine.name}'s SSH connection?`}
-        confirmLabel="Remove"
+        title={`Turn off SSH for ${machine.name}?`}
+        confirmLabel="Turn off"
         destructive
         onConfirm={() =>
           removeSsh.mutate({
@@ -514,10 +512,21 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         )}
         {removeSsh.isError && (
           <span className="mt-2 block text-rose-400">
-            {removeSsh.error instanceof ApiError ? removeSsh.error.message : "Couldn't remove it"}
+            {removeSsh.error instanceof ApiError ? removeSsh.error.message : "Couldn't turn it off"}
           </span>
         )}
       </ConfirmDialog>
+
+      {enabling && (
+        <EnableSsh
+          name={machine.name}
+          onClose={() => setEnabling(false)}
+          onSave={async (login) => {
+            await post({ ssh: login });
+            setEnabling(false);
+          }}
+        />
+      )}
 
       {/* Shown once the SSH config has the login: just after a save, on its refetch. */}
       {setup && host?.user && (
@@ -570,6 +579,62 @@ function Shell({
     </div>
   );
 }
+
+// Turning SSH on: the login, and what comes next. Saving puts it in the SSH config, and the
+// setup — trust its host key, then Loskai's key onto it — opens straight after, as when a
+// user is typed in.
+function EnableSsh({
+  name,
+  onSave,
+  onClose,
+}: {
+  name: string;
+  onSave: (login: { user: string; port: number }) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [user, setUser] = useState("");
+  const [port, setPort] = useState("22");
+  const save = useMutation({ mutationFn: () => onSave({ user, port: Number(port) }) });
+  const ok = SSH_USER.test(user) && /^\d+$/.test(port) && +port >= 1 && +port <= 65535;
+  return (
+    <Modal title={`Turn on SSH for ${name}`} onClose={onClose} narrow>
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <p className="text-xs text-slate-500">
+          Loskai logs in with its own key, as the user you give it — a <span className="font-mono">loskai</span>{" "}
+          user with sudo is a good choice. Next you trust the machine's host key, then either type
+          the machine's password once and Loskai puts its key there, or add the key yourself.
+        </p>
+        <div className="flex gap-2">
+          <input aria-label="SSH user" placeholder="User" value={user} autoFocus
+            onChange={(e) => setUser(e.target.value.trim())} className={`${FIELD} flex-1`} />
+          <input aria-label="SSH port" inputMode="numeric" value={port}
+            onChange={(e) => setPort(e.target.value.trim())} className={`${FIELD} w-20`} />
+        </div>
+        {user && !ok && (
+          <p className="text-xs text-rose-400">A login name (letters, digits, _ . -) and a port from 1 to 65535.</p>
+        )}
+        {save.isError && (
+          <p className="text-xs text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't turn it on"}</p>
+        )}
+        <div className="flex justify-end">
+          <button type="submit" disabled={!ok || save.isPending}
+            className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50">
+            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Turn on
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+const FIELD =
+  "rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 function NotYet({ onSetUp, children }: { onSetUp: () => void; children: ReactNode }) {
   return (

@@ -347,15 +347,18 @@ test("a field that isn't valid says why and saves nothing; Escape puts it back",
   expect(calls.some((c) => c.path === "/api/machines")).toBe(false);
 });
 
-test("a machine's SSH user is set in its dialog, and setting one starts the setup", async () => {
+test("SSH is turned on from its heading, in a dialog that says what comes next, and the setup starts", async () => {
   renderPage("/machines/pve/ssh");
 
-  const user = await screen.findByLabelText("SSH user");
-  expect(screen.getByLabelText("SSH port")).toBeDisabled();
-  fireEvent.focus(user);
-  fireEvent.change(user, { target: { value: "root" } });
+  const toggle = await screen.findByRole("switch", { name: "SSH" });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  expect(screen.queryByLabelText("SSH user")).toBeNull();
+  fireEvent.click(toggle);
+  const dialog = screen.getByText("Turn on SSH for pve").closest("div.flex-col") as HTMLElement;
+  expect(within(dialog).getByText(/trust the machine's host key/)).toBeInTheDocument();
+  fireEvent.change(within(dialog).getByLabelText("SSH user"), { target: { value: "root" } });
   sshHosts = { pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
-  fireEvent.blur(user);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Turn on" }));
 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.path === "/api/machines")?.body).toMatchObject({
@@ -365,13 +368,33 @@ test("a machine's SSH user is set in its dialog, and setting one starts the setu
   expect(await screen.findByText(/SSH — /)).toBeInTheDocument();
 });
 
-test("removing a machine from the SSH config is its own button, confirmed", async () => {
+test("a set-up machine's login is one row, the user and the port each saving itself", async () => {
   setUp();
   renderPage("/machines/nas/ssh");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  const port = await screen.findByLabelText("SSH port");
+  expect(screen.getByLabelText("SSH user")).toHaveValue("loskai");
+  fireEvent.focus(port);
+  fireEvent.change(port, { target: { value: "2222" } });
+  fireEvent.blur(port);
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.path === "/api/machines")?.body).toMatchObject({
+      instance_id: "nas", ssh: { user: "loskai", port: 2222 },
+    }),
+  );
+});
+
+test("turning SSH off is confirmed first, saying what comes off the machine", async () => {
+  setUp();
+  renderPage("/machines/nas/ssh");
+
+  const toggle = await screen.findByRole("switch", { name: "SSH" });
+  expect(toggle).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(toggle);
+  expect(screen.getByText(/Loskai's key and its sudo rule come off the machine/)).toBeInTheDocument();
   expect(calls.some((c) => c.path === "/api/machines")).toBe(false);
-  fireEvent.click(screen.getAllByRole("button", { name: "Remove" }).at(-1)!);
+  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.path === "/api/machines")?.body).toMatchObject({ instance_id: "nas", ssh: null }),
@@ -771,10 +794,9 @@ test("updates without a password are allowed in the machine's terminal, and take
   facts = { ...FACTS, sudo_rule: "off" };
   renderPage("/machines/nas/ssh");
 
-  const row = (await screen.findByText("Updates without a password")).parentElement!.parentElement as HTMLElement;
-  expect(await within(row).findByText("off")).toBeInTheDocument();
-  expect(within(row).queryByRole("button", { name: "Take it off" })).toBeNull();
-  fireEvent.click(within(row).getByRole("button", { name: "Allow" }));
+  const toggle = await screen.findByRole("switch", { name: "Updates without a password" });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  fireEvent.click(toggle);
 
   expect(await screen.findByText("Allow updates without a password — Storage box")).toBeInTheDocument();
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?sudo=allow")).toBeInTheDocument();
@@ -785,10 +807,9 @@ test("a machine with the rule on offers to take it off", async () => {
   facts = { ...FACTS, sudo_rule: "on" };
   renderPage("/machines/nas/ssh");
 
-  const row = (await screen.findByText("Updates without a password")).parentElement!.parentElement as HTMLElement;
-  expect(await within(row).findByText("on")).toBeInTheDocument();
-  expect(within(row).queryByRole("button", { name: "Allow" })).toBeNull();
-  fireEvent.click(within(row).getByRole("button", { name: "Take it off" }));
+  const toggle = await screen.findByRole("switch", { name: "Updates without a password" });
+  expect(toggle).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(toggle);
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?sudo=remove")).toBeInTheDocument();
 });
 
@@ -798,17 +819,17 @@ test("a machine logged into as root needs no rule", async () => {
   renderPage("/machines/nas/ssh");
 
   expect(await screen.findByText("not needed — it logs in as root")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+  expect(screen.queryByRole("switch", { name: "Updates without a password" })).toBeNull();
 });
 
-test("removing the SSH connection with Loskai's key locked asks for the admin password first", async () => {
+test("turning SSH off with Loskai's key locked asks for your password first", async () => {
   setUp();
   sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
   renderPage("/machines/nas/ssh");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
   fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
-  fireEvent.click(screen.getAllByRole("button", { name: "Remove" }).at(-1)!);
+  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
 
   await vi.waitFor(() => expect(calls.find((c) => c.path === "/api/machines")).toBeTruthy());
   const unlockAt = calls.findIndex((c) => c.path === "/api/ssh/unlock");

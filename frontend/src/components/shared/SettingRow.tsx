@@ -35,6 +35,7 @@ export function InlineText({
   placeholder,
   disabled = false,
   mono = false,
+  width = "w-56",
 }: {
   label: string;
   value: string;
@@ -43,6 +44,8 @@ export function InlineText({
   placeholder?: string;
   disabled?: boolean;
   mono?: boolean;
+  // Two fields share a row's right side between them: a narrower one each.
+  width?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
@@ -106,12 +109,47 @@ export function InlineText({
               e.currentTarget.blur();
             }
           }}
-          className={`w-56 rounded-lg border bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500 ${
+          className={`${width} rounded-lg border bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500 ${
             error ? "border-rose-500/60" : "border-slate-700"
           } ${mono ? "font-mono" : ""}`}
         />
       </div>
       {error && <span className="max-w-xs text-right text-xs text-rose-400">{error}</span>}
     </div>
+  );
+}
+
+// An on/off setting. It only asks: what changing it does — a dialog, a terminal — is the
+// caller's, and the switch moves when that has happened.
+export function Switch({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  title,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked ? "bg-teal-600" : "bg-slate-700"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`}
+      />
+    </button>
   );
 }
