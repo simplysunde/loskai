@@ -674,6 +674,18 @@ async def test_a_stored_machine_link_from_before_is_read_and_dropped(monkeypatch
 # --- The two verbs (thin wrappers over one orchestration) ---
 
 
+async def test_a_machine_is_called_by_its_hostname_and_a_rename_renames_it():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
+    await assign.name_machine(caddy, ag, prefix="nas", upstream="192.168.10.50", name="Storage box",
+                              base_domain=BASE, current_ip=IP)
+    assert instances_store.get_instance("nas").name == "nas"
+
+    await assign.name_machine(caddy, ag, prefix="storage", upstream="192.168.10.50", instance_id="nas",
+                              base_domain=BASE, current_ip=IP)
+
+    assert instances_store.get_instance("nas").name == "storage"
+
+
 async def test_name_machine_wrapper_makes_a_machine():
     caddy, ag = FakeCaddy(), FakeAdGuard()
 

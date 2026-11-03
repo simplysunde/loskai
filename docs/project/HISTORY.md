@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-03 — A machine's name is its hostname
+
+Sunde asked whether Name and Hostname in a machine's dialog weren't the same, and chose
+to merge them. A machine's hostname is usually what the machine calls itself, and Loskai
+never connects by it anyway: SSH goes to the address, and the hostname is only the SSH
+config entry's `Host`. So a machine's record takes `name` from its hostname on every save,
+and `POST /api/machines` no longer takes a `name`. What went: a label that differs from the
+DNS name. A machine already labelled differently keeps that label until its next save.
+Services keep both, because their name is what a dashboard card shows.
+
+The merge also removed a bug. The dialog's Name field showed its saved tick, but editing
+an existing machine never applied the name it sent. `assign` only set `name` on a new
+record, so the field "saved" and changed nothing.
+
 ## 2026-11-03 — sudo's password in a dialog, for the actions that run by themselves (Phase 36)
 
 Sunde asked for a password needed to go on to be asked for in a dialog that says why, so a

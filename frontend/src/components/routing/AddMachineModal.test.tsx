@@ -51,7 +51,6 @@ test("submitting sends the machine shape — no port, no TLS, no route mode", ()
   expect(onSubmit).toHaveBeenCalledWith({
     hostname: "rack1.vm3",
     address: "192.168.10.55",
-    name: "rack1.vm3",
     instance_id: undefined,
   });
 });

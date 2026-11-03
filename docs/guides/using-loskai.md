@@ -121,7 +121,7 @@ The **cog** on a machine's row opens its dialog, laid out like a settings window
 section in one scroll, and a menu down the side that jumps to one and marks where you are.
 Its search finds a section by what is in it and shows only those.
 
-- **General** — its name, hostname, address and projects folder, then what the machine says
+- **General** — its hostname (which is its name too), address and projects folder, then what the machine says
   about itself: system, uptime, memory, disks, updates waiting, its Tailscale address.
 - **SSH** — a switch beside the heading turns it on or off, each in a dialog that says what
   happens. Then its user and port, side by side; whether it is set up (and the button to set

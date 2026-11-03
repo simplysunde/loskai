@@ -326,7 +326,7 @@ test("a machine's cog opens its dialog, where a field saves itself — only that
     return c;
   });
   // Nothing about SSH: the entry keeps what it has and only moves.
-  expect(post.body).toEqual({ instance_id: "nas", address: "192.168.10.70", hostname: "nas", name: "Storage box" });
+  expect(post.body).toEqual({ instance_id: "nas", address: "192.168.10.70", hostname: "nas" });
   const banner = await screen.findByText(/Moved plex with it/);
   expect(within(banner).getByText("nas.example.no")).toBeInTheDocument();
 });
@@ -447,7 +447,7 @@ test("the Docker host is listed before it is named, with the routes on its addre
 
     await vi.waitFor(() =>
       expect(calls.find((c) => c.path === "/api/machines")?.body).toEqual({
-        hostname: "dockerhost", address: "192.168.10.220", name: "dockerhost",
+        hostname: "dockerhost", address: "192.168.10.220",
       }),
     );
   } finally {

@@ -195,7 +195,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     save.mutateAsync({
       hostname,
       address: machine.upstream ?? "",
-      name: machine.name,
       instance_id: machine.id,
       ...change,
     });
@@ -212,19 +211,11 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     general: (
       <>
       <div>
-        <SettingRow label="Name" description="What Loskai calls it.">
-          <InlineText
-            label="Name"
-            value={machine.name}
-            validate={(v) => (v ? null : "It needs a name.")}
-            onSave={(v) => post({ name: v })}
-          />
-        </SettingRow>
         <SettingRow
           label="Hostname"
           description={
             <>
-              The name DNS answers for — dots allowed →{" "}
+              Its name, which DNS answers for — dots allowed →{" "}
               <span className="text-teal-300">{baseDomain ? assembleFqdn(hostname, baseDomain) : hostname}</span>
             </>
           }
@@ -489,7 +480,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         destructive
         onConfirm={() =>
           removeSsh.mutate({
-            hostname, address: machine.upstream ?? "", name: machine.name, instance_id: machine.id, ssh: null,
+            hostname, address: machine.upstream ?? "", instance_id: machine.id, ssh: null,
           })
         }
         onCancel={() => {

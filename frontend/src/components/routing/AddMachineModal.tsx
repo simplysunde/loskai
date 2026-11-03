@@ -9,7 +9,6 @@ import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "
 export interface NewMachine {
   hostname: string;
   address: string;
-  name?: string;
   instance_id?: string;
   ssh?: { user: string; port: number } | null;
 }
@@ -161,7 +160,6 @@ export function AddMachineModal({
               onSubmit({
                 hostname,
                 address,
-                name: hostname,
                 ...sshChange,
               })
             }

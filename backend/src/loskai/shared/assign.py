@@ -196,6 +196,8 @@ async def assign(
                 "follow_container": follow_container,
                 # Re-pointing a machine at a port turns it into a service, and vice versa.
                 "kind": "machine" if route_mode == "dns_only" else "service",
+                # A machine is called by its hostname: one name, the one it has on the LAN.
+                **({"name": prefix} if route_mode == "dns_only" else {}),
             }
         )
     else:
@@ -205,7 +207,7 @@ async def assign(
         # A container gets a `docker` instance linked by name; everything else is `external`
         # (a built-in network service carries its `origin` marker, a bare LAN target none).
         inst = Instance(
-            id=prefix, name=name or prefix,
+            id=prefix, name=prefix if route_mode == "dns_only" else name or prefix,
             type="docker" if container else "external",
             container=container, origin=origin,
             subdomain=prefix, upstream=upstream,
@@ -502,14 +504,13 @@ class MachineSsh(BaseModel):
 
 
 class MachineCreate(BaseModel):
-    """Name a LAN machine. `hostname` may be dotted (`rack1.vm3`) — no wildcard cert has to
-    cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports.
+    """Name a LAN machine. `hostname` is its name too, and may be dotted (`rack1.vm3`) — no
+    wildcard cert has to cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports.
     `ssh` sets (an object) or removes (null) its SSH config entry; left out, the entry only
     follows a rename or a move."""
 
     hostname: str
     address: str
-    name: str | None = None
     instance_id: str | None = None
     ssh: MachineSsh | None = None
 
@@ -583,7 +584,7 @@ async def post_machine(body: MachineCreate) -> dict:
         result = await name_machine(
             caddy, adguard,
             prefix=body.hostname, upstream=body.address,
-            instance_id=body.instance_id, name=body.name,
+            instance_id=body.instance_id,
             base_domain=base, current_ip=current_ip,
         )
     except AssignError as exc:
