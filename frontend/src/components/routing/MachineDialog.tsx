@@ -212,16 +212,16 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       <>
       <div>
         <SettingRow
-          label="Hostname"
+          label="Machine name"
           description={
             <>
-              Its name, which DNS answers for — dots allowed →{" "}
+              What DNS answers for — dots allowed →{" "}
               <span className="text-teal-300">{baseDomain ? assembleFqdn(hostname, baseDomain) : hostname}</span>
             </>
           }
         >
           <InlineText
-            label="Hostname"
+            label="Machine name"
             value={hostname}
             validate={(v) =>
               isValidDnsOnlyPrefix(v.toLowerCase()) ? null : "Each dot-separated label: lowercase letters, digits, hyphens."

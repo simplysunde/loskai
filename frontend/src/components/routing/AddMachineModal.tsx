@@ -78,7 +78,7 @@ export function AddMachineModal({
 
         <label className="mt-4 block">
           <span className="mb-1 block text-xs font-medium text-slate-400">
-            Hostname (dots allowed)
+            Machine name (dots allowed)
           </span>
           <input
             autoFocus
