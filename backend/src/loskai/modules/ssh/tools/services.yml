@@ -6,23 +6,27 @@ actions:
   restart-service:
     label: Restart
     description: Restart this service.
+    automatic: true
     target: service
     run: sudo systemctl restart "$1"
   stop-service:
     label: Stop
     description: Stop this service.
+    automatic: true
     target: service
     confirm: It stays stopped until it is started again, or the machine restarts.
     run: sudo systemctl stop "$1"
   restart-container:
     label: Restart
     description: Restart this container.
+    automatic: true
     target: container
     # The SSH user may reach Docker only through sudo — as the running list may have.
     run: if docker info >/dev/null 2>&1; then docker restart "$1"; else sudo docker restart "$1"; fi
   stop-container:
     label: Stop
     description: Stop this container.
+    automatic: true
     target: container
     confirm: It stays stopped until it is started again.
     run: if docker info >/dev/null 2>&1; then docker stop "$1"; else sudo docker stop "$1"; fi

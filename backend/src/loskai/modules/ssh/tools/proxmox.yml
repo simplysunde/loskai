@@ -7,22 +7,26 @@ actions:
   reboot-lxc:
     label: Reboot
     description: Reboot this LXC.
+    automatic: true
     target: lxc
     run: sudo pct reboot "$1"
   shutdown-lxc:
     label: Shut down
     description: Shut this LXC down cleanly.
+    automatic: true
     target: lxc
     confirm: It stays off until it is started again.
     run: sudo pct shutdown "$1"
   reboot-vm:
     label: Reboot
     description: Reboot this VM.
+    automatic: true
     target: vm
     run: sudo qm reboot "$1"
   shutdown-vm:
     label: Shut down
     description: Shut this VM down cleanly.
+    automatic: true
     target: vm
     confirm: It stays off until it is started again.
     run: sudo qm shutdown "$1"

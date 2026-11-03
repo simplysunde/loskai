@@ -14,6 +14,7 @@ actions:
   kill:
     label: End
     description: End this session and everything running in it.
+    automatic: true
     target: session
     session: false
     confirm: Everything running in it stops.

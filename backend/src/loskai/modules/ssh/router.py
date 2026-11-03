@@ -202,6 +202,36 @@ def set_projects(machine_id: str, body: ProjectsRequest) -> dict:
     return {"folder": tool.show_folder(folder)}
 
 
+class RunRequest(BaseModel):
+    tool: str | None = None
+    action: str | None = None
+    target: str | None = None
+    install: bool = False
+    sudo: Literal["allow", "remove"] | None = None
+    password: str | None = None
+
+
+async def _plan(machine_id: str, r: RunRequest, password: bool = False) -> tuple[str, dict, bool]:
+    """A tool's action, an install or the sudo rule — what the terminal runs for them."""
+    if r.tool:
+        return await connect.plan(machine_id, r.tool, r.action, r.target, r.install, password)
+    if r.sudo:
+        return await connect.plan_sudo(machine_id, r.sudo == "allow", password)
+    raise connect.SshError(422, "Name a tool's action, an install, or the sudo rule")
+
+
+@router.post("/machines/{machine_id}/run")
+async def prepare_run(machine_id: str, body: RunRequest) -> dict:
+    """Before a run's terminal opens: whether it is automatic, and whether sudo needs a
+    password for it (`connect.prepare`). Given the `password`, sudo checks it, and the
+    answer carries the `ticket` the terminal takes — once, within a minute."""
+    try:
+        _, details, automatic = await _plan(machine_id, body)
+        return await connect.prepare(machine_id, details, automatic, body.password)
+    except connect.SshError as exc:
+        raise HTTPException(exc.status_code, exc.detail)
+
+
 @router.get("/log")
 def session_log(limit: int = 200) -> list[dict]:
     """The SSH log, newest first: terminals opened, closed and refused, and installs."""
@@ -212,12 +242,13 @@ def session_log(limit: int = 200) -> list[dict]:
 async def terminal(
     websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24,
     tool: str | None = None, action: str | None = None, target: str | None = None,
-    install: bool = False, sudo: Literal["allow", "remove"] | None = None,
+    install: bool = False, sudo: Literal["allow", "remove"] | None = None, ticket: str | None = None,
 ):
     """A shell on the machine — or, given `tool` and `action` (and `target` for a row's
     action) or `install` (what the tool lacks), that command, worked out by `connect.plan`
     from the tool file; or `sudo` — putting on or taking off the rule that lets System's
-    update run without a password (`connect.plan_sudo`). The request only names it. Like the container
+    update run without a password (`connect.plan_sudo`). The request only names it; a
+    `ticket` from `POST …/run` brings sudo's password, sent as the run's first line. Like the container
     terminal it sits outside the HTTP middleware, so it checks the session and the `Origin`
     itself (closing `1008`), and closes when the session ends. It also needs the key
     unlocked: closed `4423` while it is locked, `4409` before the host key is trusted or
@@ -231,14 +262,17 @@ async def terminal(
     auth.act_as(user)
     await websocket.accept()
     peer = _peer(websocket)
-    command, details = None, None
+    command, details, password = None, None, None
     try:
-        if tool:
-            command, details = await connect.plan(machine_id, tool, action, target, install)
-        elif sudo:
-            command, details = await connect.plan_sudo(machine_id, sudo == "allow")
+        if ticket:
+            if not (tool or sudo):
+                raise connect.SshError(422, "A password is only for a tool's action")
+            password = connect.take_password(ticket, machine_id)
+        if tool or sudo:
+            asked = RunRequest(tool=tool, action=action, target=target, install=install, sudo=sudo)
+            command, details, _ = await _plan(machine_id, asked, password is not None)
         t, conn, process = await connect.open_terminal(
-            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command
+            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command, password
         )
     except connect.SshError as exc:
         asked = {"tool": tool, "action": "install" if install else action} if tool else {"sudo": sudo} if sudo else {}
@@ -248,7 +282,9 @@ async def terminal(
         return
     started = time.monotonic()
     if details:
-        connect.log(details.pop("event"), machine_id, peer, **details)
+        details.pop("covered", None)
+        # That sudo's password came with it — never the password.
+        connect.log(details.pop("event"), machine_id, peer, **details, **({"sudo_password": True} if password else {}))
     else:
         connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
 

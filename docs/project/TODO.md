@@ -1828,6 +1828,49 @@ comparing Loskai's security with Proxmox's.
       Settings › Users if wanted — by adding a new admin and removing `admin`); unlock the SSH
       key once, which moves it to key slots
 
+## Phase 36 — Automatic runs: sudo's password in a dialog, and they close themselves
+
+Asked 2026-11-03: a password needed to go on should be asked for in a dialog that says why,
+so a run can start and end by itself. **Only automatic actions**, the ones that run to the end
+without you. The shell, tmux, Claude and Tailscale's Connect keep the terminal as it is.
+
+**Decisions (2026-11-03, Sunde)**
+
+- **An action is automatic when its tool file says `automatic: true`.**
+  - Marked automatic: System's three actions, Services, Proxmox, tmux's End and Tailscale's Disconnect.
+  - Also automatic: adding a tool, and turning updates without a password on or off.
+  - Not automatic: anything whose output is the point (Status, Pull, Push) or that you work in.
+- **Asked only when needed.** Before the terminal opens, `POST /api/ssh/machines/{id}/run`
+  works the run out as the terminal would. No password is needed when any of these holds:
+  - the user is root;
+  - the command has no `sudo`;
+  - the sudo rule covers it (System's Update);
+  - `sudo -n true` works.
+  Otherwise the dialog asks.
+- **The password is checked there**, with `sudo -S -v` over its own connection, so a wrong
+  one is said in the dialog. Accepted, it is held in memory for a minute under a one-time
+  ticket, for this user and this machine. The terminal's WebSocket takes the ticket. It is
+  never stored, logged or put in a command line.
+- **On the machine** the terminal opens with echo off. Loskai sends the password as the
+  first line; the command reads it, turns echo back on and hands it to
+  `sudo -S -v` — in tmux, through a FIFO in a `mktemp -d` folder, since a tmux pane is
+  another tty. Every `sudo` after it in the run finds the timestamp. Tried 2026-11-03 on
+  Debian 13: the password never appeared on screen, and the session closed itself.
+- **Success closes the terminal.** A failure stays open with its exit code until Enter.
+- **The reversal is recorded:** "a sudo password never reaches Loskai" becomes "used for one
+  run and kept nowhere", as with the machine password in Install it for me.
+
+**Steps** — a commit each, every check run:
+
+- [x] 36a Backend: `automatic` in the tool schema; `connect.prepare` and the ticket; the
+      wrapper reads the password; `POST …/run`; the WebSocket's `ticket`; tests
+- [ ] 36b Frontend: MachineTerminal asks for the password when `run` says so, and closes
+      an automatic run when it ends; tests
+- [ ] 36c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md (+1 route), tool-schema.md,
+      using-loskai.md, HISTORY, CHANGELOG
+- [ ] Live, against the Debian container: Update and Reboot through the dialog, with the
+      wrong password and then the right one; with the rule on, no dialog
+
 ---
 
 ## Backlog / Future ideas

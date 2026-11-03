@@ -6,6 +6,7 @@ actions:
   update:
     label: Update
     description: Refresh the package lists, then install every update.
+    automatic: true
     run:
       # dist-upgrade, not upgrade: what the overview counts, and what Proxmox requires.
       apt: sudo apt-get update && sudo apt-get -y dist-upgrade
@@ -15,10 +16,12 @@ actions:
   reboot:
     label: Reboot
     description: Restart the machine.
+    automatic: true
     confirm: Everything on it stops until it is back up.
     run: sudo reboot
   shutdown:
     label: Shut down
     description: Turn the machine off.
+    automatic: true
     confirm: It stays off until someone turns it on again.
     run: sudo poweroff

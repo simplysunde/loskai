@@ -209,16 +209,22 @@ def _connect(
 async def open_shell(
     host: str, port: int, user: str, host_key: str, client_key: asyncssh.SSHKey, cols: int, rows: int,
     command: str | None = None,
+    first_line: str | None = None,
 ) -> tuple[asyncssh.SSHClientConnection, asyncssh.SSHClientProcess]:
-    """A login shell on a pty — or `command` on one — bytes in and out. The caller closes
-    the connection, which hangs up the pty, so what runs ends with the browser's terminal
-    (a tmux session excepted: it is made to outlive it)."""
+    """A login shell on a pty — or `command` on one — bytes in and out. Given `first_line`
+    (sudo's password), the pty starts with echo off, so it never shows, and that line is
+    sent before anything else; `command` turns echo back on once it has read it. The caller
+    closes the connection, which hangs up the pty, so what runs ends with the browser's
+    terminal (a tmux session excepted: it is made to outlive it)."""
     conn = await _connect(host, port, user, host_key, client_key)
     try:
         process = await conn.create_process(
             command, term_type="xterm-256color", term_size=(cols, rows),
+            term_modes={asyncssh.PTY_ECHO: 0} if first_line is not None else None,
             encoding=None, stderr=asyncssh.STDOUT,
         )
+        if first_line is not None:
+            process.stdin.write((first_line + "\n").encode())
     except BaseException:
         conn.close()
         raise

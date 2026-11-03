@@ -9,6 +9,7 @@ goes to the machine whose fingerprint was accepted.
 
 import asyncio
 import logging
+import secrets
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -244,16 +245,20 @@ async def test(machine_id: str) -> dict:
 # --- The terminal ---
 
 
-async def open_terminal(machine_id: str, cols: int, rows: int, command: str | None = None):
+async def open_terminal(
+    machine_id: str, cols: int, rows: int, command: str | None = None, password: str | None = None,
+):
     """A shell on the machine — or a tool's `command` (see `plan`) — with the main key,
-    which must be unlocked, so a terminal is only opened within the unlock time of the admin
-    password. Returns the target, connection and process; the caller closes the connection."""
+    which must be unlocked, so a terminal is only opened within the unlock time of the
+    user's password. Given sudo's `password`, it is the first line the command reads
+    (`tool.visible`). Returns the target, connection and process; the caller closes the
+    connection."""
     t = target(machine_id)
     host_key = _trusted(t)
     key = _main_key()
     try:
         conn, process = await asyncio.wait_for(
-            client.open_shell(t.host, t.port, t.user, host_key, key, cols, rows, command), client.TIMEOUT
+            client.open_shell(t.host, t.port, t.user, host_key, key, cols, rows, command, password), client.TIMEOUT
         )
     except Exception as exc:  # noqa: BLE001
         raise SshError(502, _describe(exc, t, "key"))
@@ -359,12 +364,15 @@ async def facts(machine_id: str) -> dict:
 
 
 async def plan(
-    machine_id: str, tool_id: str, action_id: str | None, target_name: str | None, install: bool
-) -> tuple[str, dict]:
+    machine_id: str, tool_id: str, action_id: str | None, target_name: str | None, install: bool,
+    password: bool = False,
+) -> tuple[str, dict, bool]:
     """What a terminal runs for a tool's action — or to install what the tool lacks — on
-    this machine, and what the log says about it. The command comes from the tool file
-    and the machine's overview (its package manager, its programs), never from the request.
-    Raises SshError: 404 no such tool or action, 409 it can't run here as asked."""
+    this machine, what the log says about it, and whether it is automatic (`Action.automatic`;
+    an install is). The command comes from the tool file and the machine's overview (its
+    package manager, its programs), never from the request; with `password` it reads
+    sudo's first (`tool.visible`). Raises SshError: 404 no such tool or action, 409 it can't
+    run here as asked."""
     t = tool.load().get(tool_id)
     if t is None:
         raise SshError(404, f"No tool {tool_id!r}")
@@ -379,9 +387,9 @@ async def plan(
         if install:
             script = tool.install_script(t, programs, manager)
             # Never in tmux: it may be tmux that is missing.
-            return tool.visible(script, None, None), {
+            return tool.visible(script, None, None, automatic=True, password=password), {
                 "event": "add-tool", "tool": t.id, "programs": tool.to_install(t, programs), "command": script,
-            }
+            }, True
         lacking = tool.missing(t, programs)
         if lacking:
             raise SshError(409, f"{t.name} needs {', '.join(lacking)} — add it first")
@@ -393,16 +401,24 @@ async def plan(
     except tool.ToolError as exc:
         raise SshError(409, str(exc))
     session = tool.session_name(t, action, target_name) if "tmux" in programs else None
-    return tool.visible(script, target_name, session, inst.projects_folder if inst else None), {
+    command = tool.visible(
+        script, target_name, session, inst.projects_folder if inst else None,
+        automatic=action.automatic, password=password,
+    )
+    details = {
         "event": "action", "tool": t.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,
     }
+    # The sudo rule lets this one run without a password — once it is on the machine.
+    if (t.id, action.id) == tool.RULE_ACTION and f.get("sudo_rule") == "on":
+        details["covered"] = True
+    return command, details, action.automatic
 
 
-async def plan_sudo(machine_id: str, allow: bool) -> tuple[str, dict]:
+async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tuple[str, dict, bool]:
     """What a terminal runs to put the sudo rule on (`allow`) — for System's update on this
-    machine's package manager — or to take it off, and what the log says. Raises SshError
-    409 before the overview says which package manager it has."""
+    machine's package manager — or to take it off, and what the log says; always automatic.
+    Raises SshError 409 before the overview says which package manager it has."""
     target(machine_id)  # an SSH user, or 409
     if allow:
         f = await facts(machine_id)
@@ -414,7 +430,74 @@ async def plan_sudo(machine_id: str, allow: bool) -> tuple[str, dict]:
             raise SshError(409, str(exc))
     else:
         script = tool.REMOVE_RULE_SCRIPT
-    return tool.visible(script, None, None), {"event": "sudo-rule", "allow": allow, "command": script}
+    command = tool.visible(script, None, None, automatic=True, password=password)
+    # Taking the rule off is the rule's own last line: it needs no password.
+    details = {"event": "sudo-rule", "allow": allow, "command": script}
+    if not allow:
+        details["covered"] = True
+    return command, details, True
+
+
+# --- sudo's password, for an automatic run ---
+
+PASSWORD_TTL = 60  # seconds a checked password waits for its terminal
+
+# ticket → (username, machine id, password, expiry). In memory only, taken once.
+_passwords: dict[str, tuple[str | None, str, str, float]] = {}
+
+
+async def prepare(machine_id: str, details: dict, automatic: bool, password: str | None) -> dict:
+    """Whether a run asks for sudo's password before its terminal opens — only an automatic
+    one, and only when sudo would: not for root, a command without `sudo`, one the sudo rule
+    covers, or a user sudo lets in without a password (`sudo -n true`). Given the
+    `password`, sudo checks it (`sudo -S -v`, over a connection of its own) and it is held
+    for the terminal under a one-time ticket, for this user and machine, for
+    `PASSWORD_TTL`. It is never logged, stored, or put in a command line.
+    Raises SshError 422 when sudo refuses it, 409 when the user may not use sudo there."""
+    no = {"automatic": automatic, "needs_password": False, "ticket": None}
+    if not automatic:
+        return no
+    t = target(machine_id)
+    if t.user == "root" or "sudo" not in details["command"] or details.get("covered"):
+        return no
+    host_key = _trusted(t)
+    key = _main_key()
+    try:
+        result = await client.run(
+            t.host, t.port, t.user, host_key,
+            "sudo -n true" if password is None else "sudo -S -p '' -v",
+            client_key=key, stdin=None if password is None else password + "\n",
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise SshError(502, _describe(exc, t, "key"))
+    said = str(result.stderr or "")
+    if result.exit_status == 127:
+        raise SshError(409, "sudo isn't installed on it — log in as root, or install sudo")
+    if "not in the sudoers" in said or "may not run sudo" in said:
+        raise SshError(409, f"{t.user} may not use sudo on it")
+    if result.exit_status == 0 and password is None:
+        return no
+    if password is None:
+        return {**no, "needs_password": True}
+    if result.exit_status != 0:
+        raise SshError(422, f"sudo on it didn't take that password for {t.user}")
+    me = auth.current_user()
+    now = time.monotonic()
+    for stale in [k for k, v in _passwords.items() if v[3] < now]:
+        del _passwords[stale]
+    ticket = secrets.token_urlsafe(24)
+    _passwords[ticket] = (me.username if me else None, machine_id, password, now + PASSWORD_TTL)
+    return {**no, "needs_password": True, "ticket": ticket}
+
+
+def take_password(ticket: str, machine_id: str) -> str:
+    """The password held under `ticket` — once, for the user who gave it, on that machine.
+    Raises SshError 409 when it is gone or isn't theirs."""
+    held = _passwords.pop(ticket, None)
+    me = auth.current_user()
+    if held is None or held[3] < time.monotonic() or held[1] != machine_id or held[0] != (me.username if me else None):
+        raise SshError(409, "That password is no longer held — run it again")
+    return held[2]
 
 
 def after_action(machine_id: str) -> None:

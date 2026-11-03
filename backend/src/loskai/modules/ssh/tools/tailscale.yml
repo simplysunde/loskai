@@ -15,5 +15,6 @@ actions:
   down:
     label: Disconnect
     description: Take this machine off the tailnet until it is connected again.
+    automatic: true
     confirm: If you reach it over Tailscale, you can't until it is back up.
     run: sudo tailscale down

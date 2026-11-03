@@ -81,6 +81,9 @@ class Action:
     # The tmux session it runs in: None for Loskai's own (`session_name`), a name to share
     # one between actions (with `-<target>`), False for none — an action that is tmux itself.
     session: str | bool | None = None
+    # Runs to the end without anyone at it: sudo's password is asked for in a dialog first,
+    # and its terminal closes itself when it succeeds.
+    automatic: bool = False
 
 
 @dataclass(frozen=True)
@@ -128,7 +131,7 @@ def parse(tool_id: str, doc: object) -> Tool:
             problems.append(f"`{where}` must be a mapping")
             continue
         # `on:` would be YAML 1.1's `true`, hence `target`.
-        extra = set(raw) - {"label", "description", "run", "target", "ask", "confirm", "session"}
+        extra = set(raw) - {"label", "description", "run", "target", "ask", "confirm", "session", "automatic"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description"):
@@ -153,10 +156,13 @@ def parse(tool_id: str, doc: object) -> Tool:
         confirm = raw.get("confirm")
         if confirm is not None and (not isinstance(confirm, str) or not confirm.strip()):
             problems.append(f"`{where}.confirm` must be a sentence")
+        automatic = raw.get("automatic", False)
+        if not isinstance(automatic, bool):
+            problems.append(f"`{where}.automatic` must be true or false")
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
             run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
-            session=session,
+            session=session, automatic=automatic is True,
         )
 
     if problems:
@@ -198,7 +204,8 @@ def view(t: Tool) -> dict:
         "installable": [p for p in t.requires if p in INSTALLERS],
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
-             "ask": a.ask, "confirm": a.confirm, "session": a.session, "run": a.run}
+             "ask": a.ask, "confirm": a.confirm, "session": a.session, "automatic": a.automatic,
+             "run": a.run}
             for a in t.actions.values()
         ],
     }
@@ -242,12 +249,17 @@ def action_script(t: Tool, action_id: str, manager: str | None) -> str:
 _SUDO_STEP = re.compile(r"^sudo ([a-z][a-z0-9-]*)((?: [A-Za-z0-9._/-]+)*)$")
 
 
+# The one action the sudo rule lets run without a password.
+RULE_ACTION = ("system", "update")
+
+
 def update_commands(manager: str | None) -> list[str]:
     """System's update on a machine with `manager`, as the commands it runs under sudo
     (`apt-get update`, `apt-get -y dist-upgrade`) — what the sudo rule allows, read from the
     tool file so the rule and the button can't disagree. ToolError when it isn't plain
     `sudo` steps joined by `&&`."""
-    script = action_script(load()["system"], "update", manager)
+    tool_id, action_id = RULE_ACTION
+    script = action_script(load()[tool_id], action_id, manager)
     steps = []
     for part in script.split("&&"):
         m = _SUDO_STEP.match(part.strip())
@@ -258,8 +270,9 @@ def update_commands(manager: str | None) -> list[str]:
 
 
 def allow_script(manager: str | None) -> str:
-    """Puts the sudo rule (`SUDO_RULE`) on a machine with `manager`, in its terminal: the
-    user types their password once, at sudo's prompt, and Loskai never sees it. The rule
+    """Puts the sudo rule (`SUDO_RULE`) on a machine with `manager`, in its terminal, with
+    the user's password — given in the dialog before it (`connect.prepare`), or else typed
+    at sudo's prompt. The rule
     names the user and each command by its full path as sudo finds it; `visudo` checks it
     before it is put in place, so a rule sudo can't read changes nothing. Then it checks
     that sudo reads it — a sudo that ignores `/etc/sudoers.d` says so."""
@@ -338,24 +351,57 @@ def check_target(kind: str | None, target: str | None) -> None:
         raise ToolError(f"Not a {kind}: {target!r}")
 
 
-def visible(script: str, target: str | None, session: str | None, projects: str | None = None) -> str:
+# Hands sudo the password read at the start (`$p`), so every `sudo` after it in the run finds
+# its timestamp; a password that no longer works leaves them asking, as usual.
+_SUDO_VALIDATE = "printf '%s\\n' \"$p\" | sudo -S -p '' -v 2>/dev/null; p="
+# The first line the terminal is sent is sudo's password: read with echo off — the pty is
+# opened without it — and echo back on for the rest.
+_READ_PASSWORD = "IFS= read -r p; stty echo 2>/dev/null; "
+
+
+def visible(
+    script: str, target: str | None, session: str | None, projects: str | None = None,
+    *, automatic: bool = False, password: bool = False,
+) -> str:
     """The command a terminal runs for an action: `script` under `sh`, the target as `$1`;
-    then it says how it ended and waits for Enter, so the output stays on screen. `sudo`
+    then it says how it ended and waits for Enter, so the output stays on screen — or, when
+    `automatic`, ends at once if it succeeded. `sudo`
     is a plain call for root (Proxmox logs in as root, often without sudo), `~/.local/bin`
     is on the PATH, as the overview has it, and `$PROJECTS` is the machine's projects
     folder (`projects`, as stored; None: the default). Given a tmux `session`, it runs
     inside it — closing the tab leaves it running, and running the same action again
-    attaches to it rather than starting a second."""
+    attaches to it rather than starting a second.
+
+    With `password`, the terminal's first line is sudo's password (`connect.prepare`
+    checked it). It is never in a command line: read into a shell variable, and handed to
+    `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
+    through a FIFO in a folder of its own, read once and removed."""
     folder = PROJECTS if projects is None else projects
     body = (
         "PATH=$PATH:$HOME/.local/bin; PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
         'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     )
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")
-    job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
-    if session:
-        return f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}"
-    return job
+    if automatic:
+        job += "; s=$?; [ $s = 0 ] && exit 0; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
+    else:
+        job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
+    if not password:
+        if session:
+            return f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}"
+        return job
+    if not session:
+        return _READ_PASSWORD + _SUDO_VALIDATE + "; " + job
+    # The pane starts in the FIFO's folder, reads it, and goes home. A session already
+    # running is attached to, as `-A` does, and the password not sent.
+    inner = "IFS= read -r p < p; cd; " + _SUDO_VALIDATE + "; " + job
+    name = shlex.quote(session)
+    return (
+        _READ_PASSWORD + 'd=$(mktemp -d) && mkfifo "$d/p" && '
+        f'if tmux new-session -d -s {name} -c "$d" {shlex.quote(inner)} 2>/dev/null; '
+        """then printf '%s\\n' "$p" > "$d/p"; fi; p=; rm -rf "$d"; """
+        f"exec tmux attach-session -t ={name}"
+    )
 
 
 def session_name(t: Tool, action: Action, target: str | None) -> str | None:

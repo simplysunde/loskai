@@ -110,6 +110,45 @@ def test_a_failing_action_says_its_exit_status():
     assert "[done, exit 3]" in out
 
 
+def test_an_automatic_action_ends_by_itself_when_it_succeeds_and_waits_when_it_fails():
+    ok = subprocess.run(["sh", "-c", tool.visible("echo ran", None, None, automatic=True) + "; echo after"],
+                        input="", capture_output=True, text=True, timeout=10).stdout
+    failed = subprocess.run(["sh", "-c", tool.visible("exit 3", None, None, automatic=True)], input="\n",
+                            capture_output=True, text=True, timeout=10).stdout
+
+    assert ok == "ran\n"  # exited at once: nothing after it ran, nothing waited for Enter
+    assert "[failed, exit 3] Enter closes this." in failed
+
+
+def test_sudo_s_password_is_read_first_and_handed_to_sudo_never_put_in_a_command(tmp_path):
+    # A sudo that records what it is given on stdin, and runs the rest.
+    fake = tmp_path / "sudo"
+    fake.write_text(f'#!/bin/sh\nif [ "$1" = -S ]; then cat > {tmp_path}/given; exit 0; fi\nexec "$@"\n')
+    fake.chmod(0o755)
+    command = tool.visible("sudo echo ran", None, None, automatic=True, password=True)
+
+    out = subprocess.run(["sh", "-c", command], input="hunter22 x\n", capture_output=True, text=True,
+                         timeout=10, env={"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)})
+
+    assert (tmp_path / "given").read_text() == "hunter22 x\n"
+    assert out.stdout == "ran\n" and "hunter22" not in command
+
+
+def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_session_is_attached():
+    command = tool.visible("true", None, "loskai-system-update", automatic=True, password=True)
+
+    assert command.startswith("IFS= read -r p; stty echo")
+    assert 'mkfifo "$d/p"' in command and 'rm -rf "$d"' in command
+    assert "tmux new-session -d -s loskai-system-update" in command
+    assert command.endswith("exec tmux attach-session -t =loskai-system-update")
+
+
+def test_automatic_must_be_true_or_false():
+    with pytest.raises(tool.ToolError, match="automatic` must be true or false"):
+        tool.parse("t", {"name": "T", "description": "d", "actions": {
+            "go": {"label": "Go", "description": "d", "automatic": "yes", "run": "true"}}})
+
+
 def test_with_tmux_the_action_runs_in_a_session_named_after_it():
     services = tool.load()["services"]
     name = tool.session_name(services, services.actions["restart-container"], "jelly.fin:1")

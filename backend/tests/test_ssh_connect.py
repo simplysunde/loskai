@@ -49,7 +49,8 @@ def env(monkeypatch):
 @pytest.fixture
 def machine_net(monkeypatch):
     """The machine at 192.168.10.50: offers `state["host_key"]`, records every login."""
-    state = {"host_key": HOST_KEY, "logins": [], "password": "machine-pw", "fail": None, "facts": FACTS}
+    state = {"host_key": HOST_KEY, "logins": [], "password": "machine-pw", "fail": None, "facts": FACTS,
+             "sudo": "password", "sudo_password": "sudo-pw"}
 
     async def scan(host, port):
         return state["host_key"]
@@ -69,6 +70,14 @@ def machine_net(monkeypatch):
             return Done(state["facts"] if command == "facts" else STATUS)
         if command == logic.UNINSTALL_SCRIPT:
             return Done(state.get("uninstall_out", ""))
+        # sudo as the machine has it: "password" asks for `sudo_password`, "nopasswd" doesn't
+        # ask, "none" — the user isn't in sudoers.
+        if command == "sudo -n true":
+            return Done(exit_status=0 if state["sudo"] == "nopasswd" else 1, stderr="sudo: a password is required\n")
+        if command == "sudo -S -p '' -v":
+            if state["sudo"] == "none":
+                return Done(exit_status=1, stderr="loskai is not in the sudoers file.\n")
+            return Done(exit_status=0 if stdin == state["sudo_password"] + "\n" else 1, stderr="Sorry, try again.\n")
         return Done()
 
     monkeypatch.setattr(ssh_client, "scan_host_key", scan)
@@ -383,8 +392,9 @@ class FakeShell:
 def shell(monkeypatch, machine_net):
     opened: dict = {}
 
-    async def open_shell(host, port, user, host_key, client_key, cols, rows, command=None):
-        opened.update(host=host, port=port, user=user, key=client_key, size=(cols, rows), command=command)
+    async def open_shell(host, port, user, host_key, client_key, cols, rows, command=None, first_line=None):
+        opened.update(host=host, port=port, user=user, key=client_key, size=(cols, rows), command=command,
+                      first_line=first_line)
         opened["shell"] = FakeShell()
         return opened["shell"], opened["shell"]
 
@@ -599,7 +609,7 @@ def test_the_tools_are_listed_with_their_commands(api):
     reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
                       "ask": None, "confirm": "Everything on it stops until it is back up.", "session": None,
-                      "run": "sudo reboot"}
+                      "automatic": True, "run": "sudo reboot"}
     assert tools["proxmox"]["installable"] == []
     assert tools["tailscale"]["installable"] == ["tailscale"]
 
@@ -717,7 +727,7 @@ def test_the_sudo_rule_goes_on_in_the_terminal_for_the_machine_s_package_manager
         ws.receive_bytes()
 
     # The user types the password at sudo's prompt there; Loskai only wrote the script.
-    assert shell["command"] == tool_module.visible(tool_module.allow_script("apt"), None, None)
+    assert shell["command"] == tool_module.visible(tool_module.allow_script("apt"), None, None, automatic=True)
     entry = api.get("/api/ssh/log").json()[1]
     assert entry["event"] == "sudo-rule" and entry["allow"] is True
 
@@ -728,7 +738,7 @@ def test_the_sudo_rule_comes_off_in_the_terminal(api, machine_net, shell):
     with api.websocket_connect(TERMINAL + "&sudo=remove", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
-    assert shell["command"] == tool_module.visible(tool_module.REMOVE_RULE_SCRIPT, None, None)
+    assert shell["command"] == tool_module.visible(tool_module.REMOVE_RULE_SCRIPT, None, None, automatic=True)
 
 
 def test_the_sudo_rule_needs_the_overview_to_know_the_package_manager(api, machine_net):
@@ -749,6 +759,74 @@ def test_a_sudo_rule_that_stays_on_a_deleted_machine_is_said(api, machine_net):
 
     assert r.status_code == 200 and "its sudo rule stayed" in r.json()["warning"]
     assert "rm -f /etc/sudoers.d/loskai" in r.json()["warning"]
+
+
+# --- sudo's password, asked for before an automatic run ---
+
+
+def _prepare(api, password=None, **run):
+    body = {"tool": "system", "action": "update", **run, **({"password": password} if password else {})}
+    return api.post("/api/ssh/machines/nas/run", json=body, headers=ORIGIN)
+
+
+def test_an_automatic_run_asks_for_sudo_s_password_only_when_sudo_would(api, machine_net):
+    _ready(api, machine_net, APT_FACTS + "tmux\n")
+
+    assert _prepare(api).json() == {"automatic": True, "needs_password": True, "ticket": None}
+    machine_net["sudo"] = "nopasswd"
+    assert _prepare(api).json()["needs_password"] is False
+    # Not automatic: the terminal is the place for it, as before.
+    machine_net["logins"].clear()
+    assert _prepare(api, tool="tmux", action="new", target="work").json() == {
+        "automatic": False, "needs_password": False, "ticket": None}
+    assert not [x for x in machine_net["logins"] if x["command"].startswith("sudo")]
+
+
+def test_no_password_is_asked_for_root_or_what_the_sudo_rule_covers(api, machine_net):
+    _ready(api, machine_net, APT_FACTS + "#=sudo\non\n")
+    assert _prepare(api).json()["needs_password"] is False  # Update, with the rule on
+    assert _prepare(api, action="reboot").json()["needs_password"] is True
+    assert _prepare(api, sudo="remove", tool=None, action=None).json()["needs_password"] is False
+
+    api.post("/api/machines", json={"hostname": "nas", "address": "192.168.10.50", "instance_id": "nas",
+                                    "ssh": {"user": "root", "port": 2222}})
+    assert _prepare(api, action="reboot").json()["needs_password"] is False
+
+
+def test_a_wrong_password_is_said_before_the_terminal_and_a_user_without_sudo_too(api, machine_net):
+    _ready(api, machine_net)
+
+    r = _prepare(api, password="wrong")
+    assert r.status_code == 422 and "didn't take that password" in r.json()["detail"]
+    machine_net["sudo"] = "none"
+    r = _prepare(api, password="sudo-pw")
+    assert r.status_code == 409 and r.json()["detail"] == "loskai may not use sudo on it"
+
+
+def test_the_password_goes_to_the_terminal_once_as_its_first_line_and_never_into_the_log(api, machine_net, shell):
+    _ready(api, machine_net)
+    ticket = _prepare(api, password="sudo-pw").json()["ticket"]
+    url = TERMINAL + f"&tool=system&action=update&ticket={ticket}"
+
+    with api.websocket_connect(url, headers=ORIGIN) as ws:
+        ws.receive_bytes()
+
+    assert shell["first_line"] == "sudo-pw"
+    assert shell["command"].startswith("IFS= read -r p; stty echo") and "sudo-pw" not in shell["command"]
+    entry = api.get("/api/ssh/log").json()[1]
+    assert entry["event"] == "action" and entry["sudo_password"] is True
+    assert "sudo-pw" not in ssh_client._log_path().read_text()
+    assert "sudo-pw" not in json.dumps(api.get("/api/ssh/log").json())
+    # Taken once.
+    assert _closed_with(api, url) == (4409, "That password is no longer held — run it again")
+
+
+def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
+    _ready(api, machine_net)
+    ticket = _prepare(api, password="sudo-pw").json()["ticket"]
+
+    assert _closed_with(api, TERMINAL.replace("/nas/", "/pve/") + f"&tool=system&action=update&ticket={ticket}")[0] in (4404, 4409)
+    assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
 
 
 # --- Removing a machine's SSH connection ---
