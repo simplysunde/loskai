@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -114,15 +114,24 @@ test("an operator's sidebar has only its tabs, and Settings says it's an admin's
   expect(screen.getByText("ola")).toBeInTheDocument();
 
   fireEvent.click(screen.getByTitle("Your account"));
-  expect(screen.getByText(/^Operator — Docker\. An admin changes this/)).toBeInTheDocument();
+  expect(screen.getByText("Operator — Docker")).toBeInTheDocument();
 });
 
-test("your name in the sidebar opens your account, where you change your password", async () => {
+test("Log out is in the menu on your name", async () => {
+  renderAt("/");
+  fireEvent.click(await screen.findByTitle("Your account"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
+
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/logout")).toBe(true));
+});
+
+test("your name in the sidebar opens a menu: change your password, or log out", async () => {
   renderAt("/");
   fireEvent.click(await screen.findByTitle("Your account"));
 
-  expect(screen.getByText("Your account")).toBeInTheDocument();
-  expect(screen.getByText(/^Admin — every tab/)).toBeInTheDocument();
+  expect(screen.getByText("Admin — every tab")).toBeInTheDocument();
+  expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Change password", "Log out"]);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Change password" }));
 
   fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "old-password" } });
   fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a new password" } });

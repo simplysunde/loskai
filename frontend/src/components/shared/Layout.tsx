@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
+  ChevronsUpDown,
   CircleUser,
   Container,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -17,7 +19,8 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus, type Tab } from "../../lib/useAuth";
-import { AccountDialog } from "./AccountDialog";
+import { ChangePassword } from "./ChangePassword";
+import { RowMenu } from "./RowMenu";
 import { useDashboard } from "../../lib/useDashboard";
 import { navDots } from "../../lib/navDots";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
@@ -55,7 +58,7 @@ export function Layout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
-  const [account, setAccount] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const me = auth?.user ?? null;
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
@@ -135,30 +138,32 @@ export function Layout() {
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
 
+        {/* You: your name opens what you do as yourself — a menu above it, like Claude's. */}
         {me && (
-          <button
-            onClick={() => setAccount(true)}
-            title="Your account"
-            className="mx-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-          >
-            <CircleUser className="h-4 w-4 shrink-0" />
-            <span className="min-w-0">
-              <span className="block truncate text-slate-300">{me.username}</span>
-              <span className="block text-[10px] text-slate-500">{me.role === "admin" ? "admin" : "operator"}</span>
-            </span>
-          </button>
+          <div className="mx-3 mb-3 mt-0.5">
+            <RowMenu
+              label="Your account"
+              up
+              heading={me.role === "admin" ? "Admin — every tab" : `Operator — ${NAV.filter((n) => "tab" in n && me.tabs.includes(n.tab as Tab)).map((n) => n.label).join(", ")}`}
+              triggerClass="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+              trigger={
+                <>
+                  <CircleUser className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-slate-300">{me.username}</span>
+                    <span className="block text-[10px] text-slate-500">{me.role === "admin" ? "admin" : "operator"}</span>
+                  </span>
+                  <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                </>
+              }
+              items={[
+                { label: "Change password", icon: <KeyRound className="h-3.5 w-3.5" />, onClick: () => setChangingPassword(true) },
+                { label: "Log out", icon: <LogOut className="h-3.5 w-3.5" />, onClick: () => void logout(), title: "Signs you out on every device" },
+              ]}
+            />
+          </div>
         )}
-        {me && account && <AccountDialog me={me} onClose={() => setAccount(false)} />}
-
-        {authed && (
-          <button
-            onClick={logout}
-            title="Signs you out on every device"
-            className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-          >
-            <LogOut className="h-4 w-4" /> Log out
-          </button>
-        )}
+        {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}
       </aside>
 
       {/* The one scrolling region — useScrollLock freezes it by this attribute. */}

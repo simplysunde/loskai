@@ -7,10 +7,12 @@ export interface RowMenuItem {
   onClick: () => void;
   danger?: boolean;
   hint?: string; // a muted second part, after the label
+  title?: string; // a tooltip, for what the label leaves out
 }
 
 // A row's less-used actions behind one "⋯" button — or behind `trigger`, a labelled button
-// in `triggerClass`; `onOpenChange` hears it open and close. The list is fixed-positioned from the button rather than absolute:
+// in `triggerClass`; `onOpenChange` hears it open and close. `up` opens it above the button,
+// from its left edge (the sidebar's foot), and `heading` is a muted first line. The list is fixed-positioned from the button rather than absolute:
 // tables sit in `overflow-x-auto` boxes, which would clip it. Any click outside, Escape or a
 // scroll closes it.
 export function RowMenu({
@@ -19,15 +21,19 @@ export function RowMenu({
   trigger,
   triggerClass,
   onOpenChange,
+  up = false,
+  heading,
 }: {
   label: string;
   items: RowMenuItem[];
   trigger?: React.ReactNode;
   triggerClass?: string;
   onOpenChange?: (open: boolean) => void;
+  up?: boolean;
+  heading?: React.ReactNode;
 }) {
   const button = useRef<HTMLButtonElement>(null);
-  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const [at, setAt] = useState<React.CSSProperties | null>(null);
   const isOpen = Boolean(at);
 
   useEffect(() => onOpenChange?.(isOpen), [isOpen, onOpenChange]);
@@ -46,7 +52,7 @@ export function RowMenu({
 
   function open() {
     const r = button.current!.getBoundingClientRect();
-    setAt({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    setAt(up ? { bottom: window.innerHeight - r.top + 4, left: r.left, minWidth: r.width } : { top: r.bottom + 4, right: window.innerWidth - r.right });
   }
 
   return (
@@ -67,13 +73,15 @@ export function RowMenu({
           <div className="fixed inset-0 z-40" onClick={() => setAt(null)} />
           <div
             role="menu"
-            style={{ top: at.top, right: at.right }}
+            style={at}
             className="fixed z-50 min-w-36 rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl"
           >
+            {heading && <div className="border-b border-slate-800 px-3 pt-1 pb-2 text-xs text-slate-500">{heading}</div>}
             {items.map((item) => (
               <button
                 key={item.label}
                 role="menuitem"
+                title={item.title}
                 onClick={() => {
                   setAt(null);
                   item.onClick();

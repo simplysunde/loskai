@@ -76,7 +76,7 @@ Everything so far:
   Loskai page keeps you signed in, even in a background tab, as Proxmox's does; you are
   signed out 2 hours after the last one closes (Settings › Security). Logging out ends your
   sessions on every device, and an open terminal with them, as taking away its tab does. Your
-  name in the sidebar opens Your account: your role and tabs, and your password. An operator's SSH log, in a machine's dialog, shows only what
+  name in the sidebar opens a menu: your role and tabs, Change password and Log out. An operator's SSH log, in a machine's dialog, shows only what
   they did. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
