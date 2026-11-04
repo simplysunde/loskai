@@ -1,21 +1,8 @@
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
-import type { FieldDef } from "../../lib/settings";
+import { SESSION_IDLE_CHOICES, type FieldDef } from "../../lib/settings";
 
-// How long a session lasts once no Loskai page is open — the same choices the backend allows
-// (shared/settings.SESSION_IDLE_CHOICES); the first listed is the default.
 const SESSION_FIELDS: FieldDef[] = [
-  {
-    key: "session_idle_minutes",
-    label: "Sign out this long after the last page closes",
-    options: [
-      { value: "120", label: "2 hours" },
-      { value: "30", label: "30 minutes" },
-      { value: "60", label: "1 hour" },
-      { value: "480", label: "8 hours" },
-      { value: "1440", label: "24 hours" },
-      { value: "10080", label: "7 days" },
-    ],
-  },
+  { key: "session_idle_minutes", label: "Sign out this long after the last page closes", options: SESSION_IDLE_CHOICES },
 ];
 
 // Sessions, for everyone. Your own password is changed from the menu on your name in the sidebar;

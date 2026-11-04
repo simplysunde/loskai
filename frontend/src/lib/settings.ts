@@ -43,7 +43,18 @@ export interface FieldDef {
   options?: { value: string; label: string }[];
 }
 
-// How long the admin password unlocks Loskai's SSH key — `ssh_unlock_minutes`, the choices
+// How long a session lasts once no Loskai page is open — `session_idle_minutes`, the choices
+// the backend allows (shared/settings.SESSION_IDLE_CHOICES); the first is the default.
+export const SESSION_IDLE_CHOICES = [
+  { value: "120", label: "2 hours" },
+  { value: "30", label: "30 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "480", label: "8 hours" },
+  { value: "1440", label: "24 hours" },
+  { value: "10080", label: "7 days" },
+];
+
+// How long your password unlocks Loskai's SSH key — `ssh_unlock_minutes`, the choices
 // the backend allows (shared/settings.SSH_UNLOCK_CHOICES); the first is the default.
 export const SSH_UNLOCK_CHOICES = [
   { value: "15", label: "15 minutes" },

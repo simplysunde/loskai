@@ -1,5 +1,8 @@
 """Tier-1: settings priority chain (env > stored > unset) + answer-IP derivation."""
 
+import pathlib
+import re
+
 import pytest
 
 from loskai import config
@@ -245,3 +248,15 @@ def test_a_session_lasts_two_idle_hours_unless_set():
     assert s.session_idle_seconds() == 8 * 3600
     with pytest.raises(ValueError, match="minutes"):
         s.update({"session_idle_minutes": "5"})
+
+
+def test_the_settings_pages_offer_exactly_the_choices_the_backend_allows():
+    # A choice the page offers and the backend refuses would fail with a 422 on save.
+    ts = (pathlib.Path(__file__).parents[2] / "frontend/src/lib/settings.ts").read_text()
+
+    def offered(name: str) -> set[str]:
+        block = re.search(rf"export const {name} = \[(.*?)\];", ts, re.S)
+        return set(re.findall(r'value: "(\d+)"', block.group(1)))
+
+    assert offered("SESSION_IDLE_CHOICES") == set(s.SESSION_IDLE_CHOICES)
+    assert offered("SSH_UNLOCK_CHOICES") == set(s.SSH_UNLOCK_CHOICES)
