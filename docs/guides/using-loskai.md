@@ -25,7 +25,8 @@ so an operator without it can install an app but not give it a URL.
 You stay signed in while a Loskai page is open, even in a background tab, and are signed
 out 2 hours after you close the last one (an admin changes that in Settings › Security).
 Your name at the bottom of the sidebar opens a menu: your role and tabs, **Change
-password**, and **Log out**, which signs you out on every device.
+password**, and **Log out**, which signs you out on every device and back to the
+Dashboard; **Log in** is in its place then.
 
 ## Dashboard
 

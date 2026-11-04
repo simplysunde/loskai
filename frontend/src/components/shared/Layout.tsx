@@ -6,6 +6,7 @@ import {
   Container,
   KeyRound,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Moon,
   Route as RouteIcon,
@@ -14,7 +15,7 @@ import {
   ShieldCheck,
   Sun,
 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus, type Tab } from "../../lib/useAuth";
@@ -136,6 +137,16 @@ export function Layout() {
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
+
+        {/* Signed out (the Dashboard and Certificate are public): where your name would be. */}
+        {auth && !authed && (
+          <Link
+            to="/login"
+            className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+          >
+            <LogIn className="h-4 w-4" /> Log in
+          </Link>
+        )}
 
         {/* You: your name opens what you do as yourself — a menu above it, like Claude's. */}
         {me && (

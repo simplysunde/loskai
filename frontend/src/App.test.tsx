@@ -117,6 +117,21 @@ test("an operator's sidebar has only its tabs, and Settings says it's an admin's
   expect(screen.getByText("Operator — Docker")).toBeInTheDocument();
 });
 
+test("signed out, the sidebar offers Log in where your name would be", async () => {
+  RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
+  renderAt("/");
+
+  expect(await screen.findByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
+  expect(screen.queryByTitle("Your account")).not.toBeInTheDocument();
+});
+
+test("signed in, there is no Log in", async () => {
+  renderAt("/");
+
+  await screen.findByTitle("Your account");
+  expect(screen.queryByRole("link", { name: "Log in" })).not.toBeInTheDocument();
+});
+
 test("Log out is in the menu on your name, and lands on the Dashboard", async () => {
   const assign = vi.fn();
   vi.stubGlobal("location", { ...window.location, assign, pathname: "/settings" });
