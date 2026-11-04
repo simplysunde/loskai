@@ -188,9 +188,9 @@ def test_a_script_installer_gets_curl_first_where_it_is_missing():
     tailscale = tool.load()["tailscale"]
 
     assert tool.install_script(tailscale, set(), "apt") == (
-        "sudo apt-get update && sudo apt-get install -y curl && curl -fsSL https://tailscale.com/install.sh | sh"
+        "sudo apt-get update && sudo apt-get install -y curl && curl -fsSL https://tailscale.com/install.sh | sudo sh"
     )
-    assert tool.install_script(tailscale, {"curl"}, "apt") == "curl -fsSL https://tailscale.com/install.sh | sh"
+    assert tool.install_script(tailscale, {"curl"}, "apt") == "curl -fsSL https://tailscale.com/install.sh | sudo sh"
     assert tool.to_install(tailscale, set()) == ["curl", "tailscale"]
 
 

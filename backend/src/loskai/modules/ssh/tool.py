@@ -41,7 +41,9 @@ INSTALLERS: dict[str, dict] = {
     "git": {"packages": {"apt": "git", "dnf": "git", "apk": "git", "pacman": "git"}},
     # Every script is fetched with curl, so a machine without it gets it first.
     "curl": {"packages": {"apt": "curl", "dnf": "curl", "apk": "curl", "pacman": "curl"}},
-    "tailscale": {"script": "curl -fsSL https://tailscale.com/install.sh | sh"},
+    # Piped to sudo, not sh: the installer calls sudo itself, and a command that says sudo is
+    # one whose password the dialog asks for first (connect.prepare).
+    "tailscale": {"script": "curl -fsSL https://tailscale.com/install.sh | sudo sh"},
     "claude": {"script": "curl -fsSL https://claude.ai/install.sh | bash"},
 }
 

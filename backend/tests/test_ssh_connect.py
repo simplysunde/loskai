@@ -791,6 +791,16 @@ def test_an_automatic_run_asks_for_sudo_s_password_only_when_sudo_would(api, mac
     assert not [x for x in machine_net["logins"] if x["command"].startswith("sudo")]
 
 
+
+def test_adding_tailscale_asks_for_sudo_s_password_first(api, machine_net):
+    # Its installer calls sudo itself; the command has to say so, or the dialog never asks
+    # and the run stops at sudo's prompt in a terminal meant to need no one.
+    _ready(api, machine_net, APT_FACTS + "curl\n")
+
+    asked = _prepare(api, tool="tailscale", action=None, install=True).json()
+
+    assert asked["automatic"] is True and asked["needs_password"] is True
+
 def test_no_password_is_asked_for_root_or_what_the_sudo_rule_covers(api, machine_net):
     _ready(api, machine_net, APT_FACTS + "#=sudo\non\n")
     assert _prepare(api).json()["needs_password"] is False  # Update, with the rule on
