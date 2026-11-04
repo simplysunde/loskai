@@ -227,7 +227,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if found and time.time() - found[1] > RENEW_AFTER and not any(c.startswith(SESSION_COOKIE + "=") for c in response.headers.getlist("set-cookie")):
             user = users.get(found[0].username)
             if user is not None and user.generation == found[0].generation:
-                _set_cookie(request, response, user)
+                set_cookie(request, response, user)
         return response
 
 
@@ -332,7 +332,7 @@ def _over_https(request: Request) -> bool:
     return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
 
 
-def _set_cookie(request: Request, response: Response, user: User) -> None:
+def set_cookie(request: Request, response: Response, user: User) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         make_session(user),
@@ -355,7 +355,7 @@ def auth_status(request: Request) -> dict:
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response) -> dict:
     user = check_password(body.password, username=body.username.strip().lower())
-    _set_cookie(request, response, user)
+    set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 
 
@@ -380,7 +380,7 @@ def setup(body: LoginBody, request: Request, response: Response) -> dict:
         user = users.create(body.username.strip().lower(), body.password, "admin")
     except users.UserError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
-    _set_cookie(request, response, user)
+    set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 
 
@@ -397,5 +397,5 @@ def change_password(body: NewPassword, request: Request, response: Response) -> 
     from ..modules.ssh import keys  # the SSH module reads accounts too
 
     keys.reseal(me.username, body.current, body.new)
-    _set_cookie(request, response, user)
+    set_cookie(request, response, user)
     return {"user": user.view()}

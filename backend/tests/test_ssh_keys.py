@@ -122,3 +122,35 @@ def test_a_key_from_before_accounts_moves_to_slots_at_its_first_unlock(admin):
         client.load_key(ADMIN)  # no longer the password itself
     unlock.lock()
     assert _unlock(admin, ADMIN).status_code == 200  # now through the slot
+
+
+def test_an_admin_setting_their_own_password_in_users_keeps_their_slot(admin):
+    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
+
+    changed = admin.patch("/api/users/admin", json={"password": "a new admin password"}, headers=ORIGIN)
+
+    assert changed.status_code == 200
+    # Their unlock ended with their old sessions — but the slot was re-sealed, not dropped.
+    assert keys.unseal(keys._slots()["admin"], "a new admin password") is not None
+    assert admin.get("/api/users").status_code == 200  # and they are still signed in
+    assert _unlock(admin, "a new admin password").status_code == 200
+
+
+def test_a_refused_password_changes_nothing_else(admin):
+    _add(admin, "ola", ["machines"])
+
+    refused = admin.patch("/api/users/ola", json={"tabs": ["docker"], "password": "short"}, headers=ORIGIN)
+
+    assert refused.status_code == 422
+    assert next(u for u in admin.get("/api/users").json() if u["username"] == "ola")["tabs"] == ["machines"]
+
+
+def test_taking_the_machines_tab_away_ends_that_user_s_unlock(admin):
+    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
+    ola = _add(admin, "ola", ["docker", "machines"])
+    assert _unlock(ola, "ola-password").status_code == 200
+
+    admin.patch("/api/users/ola", json={"tabs": ["docker"]}, headers=ORIGIN)
+
+    assert unlock.unlocked_key("ola") is None and not keys.has_slot("ola")
+    assert _unlocked(admin)

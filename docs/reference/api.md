@@ -64,7 +64,7 @@ was given (an admin's lists them all); its password hash never leaves the server
 |---|---|
 | `GET /users` | Every account. |
 | `POST /users` | Body `{ username, password, role, tabs }`. `422` for a username that isn't lowercase letters, digits and `_ . -` starting with a letter, a password under 8 characters, an unknown role or tab, or an operator with no tab; `409` when the name is taken. |
-| `PATCH /users/{username}` | Body `{ role?, tabs?, password? }`. A new role or tabs applies on that user's next request; a new password ends their sessions. `409` when it would leave Loskai without an admin. |
+| `PATCH /users/{username}` | Body `{ role?, tabs?, password? }`. A new role or tabs applies on that user's next request (taking Machines away ends their unlock of the key, and their slot on it); a new password ends their sessions — your own goes on, with a fresh cookie — and re-seals their slot while someone has the key unlocked, else drops it. The password is checked first: `422` changes nothing. `409` when it would leave Loskai without an admin. |
 | `DELETE /users/{username}` | Removes the account, and with it its sessions. `409` for the last admin. |
 
 ---

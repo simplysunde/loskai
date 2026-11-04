@@ -18,7 +18,7 @@ from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from ..config import settings as env
@@ -250,18 +250,27 @@ class UserChange(BaseModel):
     password: str | None = None  # an admin setting someone's password
 
 
-def _key_slot(user: User, password: str | None) -> None:
+def _kek_in_use() -> bytes | None:
+    from ..modules.ssh import unlock  # the SSH module reads accounts too
+
+    return unlock.kek_in_use()
+
+
+def _key_slot(user: User, password: str | None, kek: bytes | None) -> None:
     """Keep an account's slot on Loskai's SSH key in step (modules/ssh/keys.py): one that may
     use the Machines tab gets a slot sealed with `password` while someone has the key
-    unlocked; one that may not — or whose password changed with no way to re-seal — loses
-    it, so an old password never opens the key."""
-    from ..modules.ssh import keys, unlock  # the SSH module reads accounts too
+    unlocked (`kek`, read *before* the change: a new password ends its user's unlock, and
+    an admin setting their own would otherwise find the key locked and lose their slot);
+    one that may not — or whose password changed with no way to re-seal — loses it, so an
+    old password never opens the key."""
+    from ..modules.ssh import keys, unlock
 
-    kek = unlock.kek_in_use()
     if user.may("machines") and password is not None and kek is not None:
         keys.grant(user.username, password, kek)
     elif not user.may("machines") or password is not None:
         keys.drop(user.username)
+    if not user.may("machines"):
+        unlock.lock(user.username)
 
 
 def _answer(action):
@@ -279,18 +288,25 @@ def list_users() -> list[dict]:
 @router.post("/users")
 def add_user(body: NewUser) -> dict:
     user = _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs))
-    _key_slot(user, body.password)
+    _key_slot(user, body.password, _kek_in_use())
     return user.view()
 
 
 @router.patch("/users/{username}")
-def change_user(username: str, body: UserChange) -> dict:
+def change_user(username: str, body: UserChange, request: Request, response: Response) -> dict:
     """A new role and tabs, takes effect on that user's next request; a new password ends
-    their sessions."""
+    their sessions — an admin's own goes on, with a fresh cookie, as Change password's does.
+    The password is checked first, so a refused one changes nothing."""
+    from . import auth  # auth reads accounts
+
+    kek = _kek_in_use()
+
     def apply() -> User:
         user = get(username)
         if user is None:
             raise UserError(404, f"No user {username!r}")
+        if body.password is not None:
+            check_password_rule(body.password)
         if body.role is not None or body.tabs is not None:
             user = set_role(username, body.role or user.role, body.tabs if body.tabs is not None else user.tabs)
         if body.password is not None:
@@ -298,7 +314,10 @@ def change_user(username: str, body: UserChange) -> dict:
         return user
 
     user = _answer(apply)
-    _key_slot(user, body.password)
+    _key_slot(user, body.password, kek)
+    me = auth.current_user()
+    if body.password is not None and me is not None and me.username == username:
+        auth.set_cookie(request, response, user)
     return user.view()
 
 
