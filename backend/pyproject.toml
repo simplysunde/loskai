@@ -18,7 +18,6 @@ dependencies = [
     "docker>=7.2.0",
     "pyyaml>=6.0.3",
     "asyncssh[bcrypt]>=2.24.1",
-    "cryptography>=50",
 ]
 
 [dependency-groups]
