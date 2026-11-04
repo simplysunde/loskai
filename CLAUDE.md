@@ -205,7 +205,8 @@ same commit. The public set:
 **The two terminal WebSockets — a container's (`WS /api/docker/containers/{id}/exec`) and a
 machine's (`WS /api/ssh/machines/{id}/terminal`) — sit outside the middleware**: WebSockets
 never traverse it, so each checks the cookie and the `Origin` itself (`auth.same_origin`),
-closes with 1008, and waits on `auth.session_ended` to close when the session does. Each
+closes with 1008, and waits on `auth.session_ended` to close when the session does (a
+logout, its tab taken away, or nothing typed for the idle time). Each
 opens a shell — the machine's also needs the SSH key unlocked; never add a WS route without
 repeating all three. **Every request that changes something is
 Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`

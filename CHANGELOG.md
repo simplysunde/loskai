@@ -73,8 +73,9 @@ Everything so far:
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **Accounts** — first run creates the admin account; Settings › Users adds more: admins,
   and operators limited to the tabs they're given (Docker, Routing, Machines). A session
-  ends after 2 hours without use (Settings › Security) and renews while used; logging out
-  ends yours on every device. Each account unlocks Loskai's SSH key with its own password.
+  ends after 2 hours without use (Settings › Security) and renews while used — typing in
+  a terminal counts; logging out ends yours on every device, and an open terminal with it,
+  as taking away its tab does. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of
