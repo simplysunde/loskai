@@ -1933,7 +1933,7 @@ review's eight faults and left one open: the last slot dropped, and the key with
 
 - [x] 38a Backend: the plain key, the unlock as a window, no slots; tests
 - [x] 38b Frontend: the Users page's words about slots; tests
-- [ ] 38c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, using-loskai.md, HISTORY,
+- [x] 38c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, using-loskai.md, HISTORY,
       CHANGELOG
 - [ ] Live, against the Debian container: New key, set up, unlock, a terminal; an old
       encrypted key gives the message

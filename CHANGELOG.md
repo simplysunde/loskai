@@ -15,7 +15,7 @@ Everything so far:
   The machine Loskai runs on is listed before it is named, ready to name. A machine's name
   is its hostname. A Docker route can follow its
   container the same way. Loskai makes
-  its own SSH key, encrypted behind each account's password, and keeps an SSH config of your
+  its own SSH key, used only after you type your password again, and keeps an SSH config of your
   machines — set a machine's SSH user and port in its form, download the file from
   Settings › SSH. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —

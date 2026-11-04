@@ -283,9 +283,8 @@ change; then Tools, Running and Log. The `<category>` is where it opens. Naming 
 machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-**SSH, so far (Phase 34a–d).** Loskai's key is made by an admin and encrypted
-(`data/ssh/id_ed25519`) behind key slots, one per account sealed with its password (Phase
-35, `keys.py`); "New key" in Settings › SSH replaces it and keeps the slots. The public key is read from
+**SSH, so far (Phase 34a–d).** Loskai's key is made by an admin and kept owner-only
+(`data/ssh/id_ed25519`, `0600`; Phase 38); "New key" in Settings › SSH replaces it. The public key is read from
 the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
 the shown key can't belong to another. A machine's form has an SSH user and port, written to
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › SSH
@@ -296,8 +295,8 @@ the host key, asked for as ed25519 first so its fingerprint is the one `ssh-keyg
 on the machine, is trusted into `data/ssh/known_hosts` under the machine's **id**; then
 Install it for me logs in once with the machine's password and replaces Loskai's lines in
 `authorized_keys` (`logic.INSTALL_SCRIPT`), or the lines are pasted by hand; either ends with
-a test using both keys (`connect.py`). The main key is unlocked in memory by the admin
-password (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
+a test using both keys (`connect.py`). The main key is unlocked by each user's own
+password, typed again (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
 (`ssh_unlock_minutes`) — and locked by logout. Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `logic.parse_running` — and hovering lists it; the backend asks each machine at most every
@@ -407,15 +406,17 @@ the `Origin` check, logout ending the user's sessions, the login backoff, the `S
 [Security and access](#security-and-access)). The design then assumes each layer can fail,
 and limits what the next one loses:
 
-- **The private key is encrypted**, with a random key that `keyslots.json` holds sealed
-  once per account with that account's password (scrypt, AES-GCM — Phase 35), so a copy of
-  `data/`, a disk image or a backup never holds a usable key without a password. It never
-  appears in an API response, a log, the backup download or the config export. A changed
-  password re-seals its slot; a reset one with no key at hand drops it.
+- **The private key is an owner-only file** (`0600`), as a key in `~/.ssh` without a
+  passphrase is (Phase 38). It never appears in an API response, a log, the backup download
+  or the config export. A copy of `data/` does hold a usable key — the `from=` below is what
+  limits it then. It was encrypted behind a slot per account sealed with its password
+  (Phase 35) until that cost three faults in one review and could lose the key; see
+  HISTORY, 2026-11-04.
 - **SSH actions ask for your password again**, like `sudo`, and that is what unlocks the key
-  — for you, not for anyone else: in memory, for 15 minutes unless Settings › SSH says
-  longer — not at login; your logout locks it. A stolen session cookie then reaches the Docker
-  tab, not the machines, and after a restart nothing reaches them until someone types it.
+  — for you, not for anyone else: for 15 minutes unless Settings › SSH says longer — not at
+  login. Your logout, a new password or losing the Machines tab locks it. A stolen session
+  cookie then reaches the Docker tab, not the machines, and after a restart nothing reaches
+  them until someone types it.
 - **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
   offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
   anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.
@@ -429,8 +430,8 @@ and limits what the next one loses:
   opens its setup: the host key is shown and trusted *before* any password is sent; then
   Loskai installs its lines with the machine's password, used once and never stored, or
   you add them yourself. Either way it ends by logging in with the key.
-- **A status-only key**, the one exception to "encrypted behind a password": it is
-  kept `0600` in the clear so each machine's running list works without the password, and
+- **A status-only key**, the one used without unlocking: kept `0600` like the main key, so
+  each machine's running list works without a password, and
   the machine limits it to one read-only command (`restrict`, `from=`, a forced `command=`)
   — a copy lists what runs and does nothing else.
 - **Rotating is one button.** A new key pair replaces the old, and the Machines tab shows

@@ -4,6 +4,30 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-04 — Loskai's SSH key, kept simply (Phase 38) — walks back Phase 35's key slots
+
+After the review, Sunde asked whether login and security should be redesigned now that how
+Loskai is used is clearer, and then said: "I want to keep everything as simple as possible".
+Accounts, sessions, roles, the Origin check and the access table stayed. They are the
+conventional part, and the review found only slips there.
+
+**The key slots went.** The key had been encrypted with a random key, sealed once per
+account with its password, as LUKS does. It cost three of the review's eight faults, and it
+left one open: an admin resetting a password while no one had the key unlocked dropped
+that account's slot, and the last slot dropped lost the key. The guarantee bought with it
+was narrow: a copy of `data/` without a password couldn't use the key.
+
+**Now the key is an owner-only file**, like the status key and like a key in `~/.ssh`
+without a passphrase. **Unlock stayed, as a password check**, so a stolen cookie still
+doesn't reach a machine. Every account with Machines unlocks for itself. What a copy of
+`data/` now gives is the key. The `from=` on each machine's line still limits it to the
+Docker host.
+
+Encrypting it with a secret kept outside `data/` was the other way. It was turned down: one
+more thing to deploy and keep, for a backup of `data/` on its own. **An old, encrypted key
+isn't moved.** Loskai isn't released, and the only install with one is Sunde's, with one
+machine. Unlock says to make a New key.
+
 ## 2026-11-04 — A review of accounts (Phase 35), and what it changed
 
 A code review found eight faults in accounts and the key slots. Each was fixed with a test

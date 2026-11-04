@@ -2,13 +2,13 @@
 
 # The status key's forced command
 
-**Read this when** you are adding something Loskai reads from a machine without the admin
+**Read this when** you are adding something Loskai reads from a machine without anyone's
 password — a fact in the machine's overview, an entry in its running list — or changing how it is
 read.
 
-Loskai keeps a second SSH key, the **status key**, unencrypted (`data/ssh/status_ed25519`),
-so a machine's running list and overview work while the main key is locked. It is safe to
-keep in the clear only because **the machine** limits it: its `authorized_keys` line is
+Loskai keeps a second SSH key, the **status key** (`data/ssh/status_ed25519`), used without
+anyone unlocking it, so a machine's running list and overview work while the main key is
+locked. That is safe only because **the machine** limits it: its `authorized_keys` line is
 
 ```
 restrict,from="<Docker host>",command="<STATUS_COMMAND>" ssh-ed25519 AAAA… loskai-status

@@ -49,8 +49,9 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `recipes.py` (sources, sync, validation, install, options, the recipe icon),
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
-- `modules/ssh/` — Loskai's keys (`client.py`; the main one encrypted with the admin
-  password, held unlocked by `unlock.py` — 15 minutes unless Settings › SSH says longer) and its SSH config and known_hosts,
+- `modules/ssh/` — Loskai's keys (`client.py`, owner-only files; the main one usable only
+  while its user has unlocked it with their password, `unlock.py` — 15 minutes unless
+  Settings › SSH says longer) and its SSH config and known_hosts,
   edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
   the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
   rename, move and delete. **Tools** (`tool.py`, the files in `tools/`) are what a
@@ -219,11 +220,11 @@ The frontend merges Caddy and AdGuard into one Routing view; the backends stay i
 
 **Settings: env var > `settings.json` > unset**, each value tagged with its source, and
 everything optional. Loskai stores no third-party secret except the AdGuard password; its
-accounts' passwords only as hashes; and its **SSH private key** only encrypted, behind a
-key slot per account sealed with that account's password (`modules/ssh/keys.py`). Never return the key, log it, or put it in an export —
+accounts' passwords only as hashes; and its **SSH private key** as an owner-only file
+(`0600`, like a key in `~/.ssh`), limited on each machine by `from=` to the Docker host. Never return the key, log it, or put it in an export —
 only its public half leaves `modules/ssh/client.py`. An action that uses it asks for the
 user's password again (`auth.check_password`, which shares the login backoff), which unlocks
-it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key kept in the clear is the **status key**
+it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key used without unlocking is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
 command in `logic.STATUS_COMMAND` — it only reads, and never gets any other use
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password
