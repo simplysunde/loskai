@@ -200,7 +200,7 @@ export function SshSetupModal({
           }}
         >
           <p className="text-sm text-slate-300">Loskai has no SSH key yet.</p>
-          <p className="mt-1 text-xs text-slate-500">Your password creates it, and encrypts it.</p>
+          <p className="mt-1 text-xs text-slate-500">Your password creates it.</p>
           <AdminPassword value={adminPassword} onChange={setAdminPassword} />
           {createKey.isError && (
             <p className="mt-2 text-sm text-rose-400">{message(createKey.error, "Couldn't make the key")}</p>

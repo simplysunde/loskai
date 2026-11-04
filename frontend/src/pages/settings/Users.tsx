@@ -50,8 +50,8 @@ export function Users() {
         <p className="text-xs text-slate-500">
           An <span className="text-slate-300">admin</span> can do everything, Settings and users
           included. An <span className="text-slate-300">operator</span> sees only the tabs it is
-          given, and can do everything in those. Each signs in with their own password, which
-          also unlocks Loskai's SSH key for them.
+          given, and can do everything in those. Each signs in with their own password, and types
+          it again to unlock Loskai's SSH key for a while.
         </p>
         <button onClick={() => setAdding(true)} className={`${BUTTON} shrink-0 text-slate-200`}>
           <Plus className="h-3.5 w-3.5" /> Add user
@@ -226,11 +226,7 @@ function NewPassword({ account, onClose }: { account: Account; onClose: () => vo
       >
         <input aria-label="New password" type="password" autoComplete="new-password" autoFocus
           placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} className={INPUT} />
-        <p className="text-xs text-slate-500">
-          Their sessions end. With Loskai's SSH key unlocked, their key slot moves to the new
-          password; otherwise it goes, and they get it back the first time they unlock while
-          someone else has it unlocked.
-        </p>
+        <p className="text-xs text-slate-500">Their sessions end.</p>
         {save.isError && (
           <p className="text-xs text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't set it"}</p>
         )}
