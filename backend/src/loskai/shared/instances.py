@@ -253,7 +253,7 @@ def get_icon(instance_id: str):
 
 @router.post("/instances/{instance_id}/icon")
 async def put_icon(instance_id: str, request: Request) -> Instance:
-    """Replace this instance's launcher icon. Admin-only (the middleware gates it).
+    """Replace this instance's launcher icon — the record's own tab's (`require_instance`).
 
     The image is the raw request body, not a multipart form: the bytes are sniffed either
     way (see `icons.sniff`), so a form part would add a dependency — `python-multipart` —
@@ -264,6 +264,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
     inst = get_instance(instance_id)
     if inst is None:
         raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    access.require_instance(auth.current_user(), inst.kind)
 
     data = bytearray()
     async for chunk in request.stream():
@@ -286,6 +287,7 @@ def delete_icon(instance_id: str) -> Instance:
     inst = get_instance(instance_id)
     if inst is None:
         raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    access.require_instance(auth.current_user(), inst.kind)
     icons.remove_all(instance_id)
     return upsert_instance(inst.model_copy(update={"icon": None}))
 

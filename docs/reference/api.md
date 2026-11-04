@@ -29,7 +29,8 @@ app is running — this document is the human-readable overview.
   `shared/access.py` holds one line per route, and a route with none is admin-only. Routes
   are Routing's — a route made from the install wizard or a machine's row needs that tab
   too — and a record changed is its own tab's, however it was found (by id, or by the
-  container or `origin` `POST /api/routes` names): a machine Machines', a route Routing's.
+  container or `origin` `POST /api/routes` names), its icon included: a machine Machines', a
+  route Routing's.
   The terminal WebSockets need the Docker or Machines tab, and close `1008` without it.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
   `400` bad input, `401` no session, `403` another page's request or an account that may not, `404` not found, `409` conflict, `422` validation,

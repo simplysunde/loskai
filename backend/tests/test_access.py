@@ -107,6 +107,12 @@ def test_a_record_s_own_tab_decides_who_deletes_or_renames_it(admin):
     assert routing.delete("/api/instances/nas", headers=ORIGIN).status_code == 403
     assert instances_store.get_instance("nas") is not None
     assert routing.patch("/api/instances/web", json={"private": True}, headers=ORIGIN).status_code == 200
+    # Its icon too: Routing can't change a machine's, Machines can't change a route's.
+    machines = _operator(admin, "kari", ["machines"])
+    assert routing.delete("/api/instances/nas/icon", headers=ORIGIN).status_code == 403
+    assert routing.post("/api/instances/nas/icon", content=b"x", headers=ORIGIN).status_code == 403
+    assert machines.delete("/api/instances/web/icon", headers=ORIGIN).status_code == 403
+    assert machines.delete("/api/instances/nas/icon", headers=ORIGIN).status_code == 200
 
 
 def test_the_create_endpoints_change_only_a_record_on_the_caller_s_tab(admin):

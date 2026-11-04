@@ -645,8 +645,8 @@ one password as the account `admin`. **Which account may call what is one table*
 `shared/access.py`: a line per route — any account, its tabs, or admin — read by the
 middleware; a route with no line is admin-only, and a test fails until every route has one.
 Routes are Routing's even from the installer or a machine's row; a record changed by id is
-its own tab's (a machine Machines', a route Routing's), the create endpoints and
-`DELETE /api/assign` included; the terminal WebSockets need Docker
+its own tab's (a machine Machines', a route Routing's), the create endpoints,
+`DELETE /api/assign` and the icon included; the terminal WebSockets need Docker
 or Machines. The frontend shows only what the account may use, but the API is the gate.
 
 `POST /api/login` issues a signed `HttpOnly` cookie naming the account and its
