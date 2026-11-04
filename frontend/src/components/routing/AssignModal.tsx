@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { RouteFields } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
@@ -65,6 +66,7 @@ export function AssignModal({
     initialTls,
   });
   useScrollLock(open);
+  useEscape(open, onClose);
 
   if (!open) return null;
 

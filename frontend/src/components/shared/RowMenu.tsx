@@ -41,12 +41,18 @@ export function RowMenu({
   useEffect(() => {
     if (!at) return;
     const close = () => setAt(null);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    // Ahead of a dialog's Escape (useEscape), and marked handled: the menu closes, not the
+    // dialog it is in.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      close();
+    };
     window.addEventListener("scroll", close, true);
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("scroll", close, true);
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
     };
   }, [at]);
 

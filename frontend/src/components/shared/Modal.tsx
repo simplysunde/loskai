@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 
 // Generic modal shell for the larger dialogs (logs, terminal, stack editor, wizard).
@@ -18,6 +19,7 @@ export function Modal({
   narrow?: boolean; // a short prompt — a password, say
 }) {
   useScrollLock(true);
+  useEscape(true, onClose);
 
   return (
     <div

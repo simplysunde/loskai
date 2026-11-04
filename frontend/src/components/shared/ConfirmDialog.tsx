@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 
 export function ConfirmDialog({
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   useScrollLock(open);
+  useEscape(open, onCancel);
 
   if (!open) return null;
   return (

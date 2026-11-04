@@ -76,6 +76,7 @@ export function HostSelect({
             e.preventDefault();
             pick(shown[active]);
           } else if (e.key === "Escape") {
+            if (expanded) e.preventDefault(); // closes the list, not the dialog around it
             setOpen(false);
           }
         }}

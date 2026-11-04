@@ -4,6 +4,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { useSsh, type SshKey } from "../../lib/ssh";
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 
 // Loskai's own key, the one it logs in to every machine with. Using it needs nothing here:
@@ -54,6 +55,7 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   useScrollLock(true);
+  useEscape(true, onClose);
 
   const make = useMutation({
     mutationFn: () => api.post<SshKey>("/api/ssh/key", { password, replace: true }),

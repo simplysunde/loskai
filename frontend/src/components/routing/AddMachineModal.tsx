@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { HardDrive, Loader2 } from "lucide-react";
 
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
 
@@ -46,6 +47,7 @@ export function AddMachineModal({
   const [sshPort, setSshPort] = useState("22");
 
   useScrollLock(open);
+  useEscape(open, onClose);
 
   if (!open) return null;
 

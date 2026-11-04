@@ -19,6 +19,7 @@ import type { SettingsView } from "../../lib/settings";
 import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import type { ToolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -534,6 +535,7 @@ function Shell({
   onClose: () => void;
   children: ReactNode;
 }) {
+  useEscape(true, onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div

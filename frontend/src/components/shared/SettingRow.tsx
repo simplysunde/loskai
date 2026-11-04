@@ -105,6 +105,7 @@ export function InlineText({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
             if (e.key === "Escape") {
+              if (draft !== value) e.preventDefault(); // puts it back, and the dialog stays
               escaped.current = true;
               e.currentTarget.blur();
             }

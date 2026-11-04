@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { SettingsView } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
+import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { containerLabel, containerPrefill, type PrefillSource } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
@@ -112,6 +113,7 @@ export function AddRouteModal({
   const health = useHealth();
 
   useScrollLock(open);
+  useEscape(open, onClose);
 
   if (!open) return null;
 

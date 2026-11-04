@@ -106,6 +106,7 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
             else if (e.key === "Escape") {
+              if (draft !== current) e.preventDefault(); // puts it back, and the dialog stays
               setDraft(current);
               e.currentTarget.blur();
             }
