@@ -83,11 +83,6 @@ visible without unpacking a phase back out. The checklists stay in
   moment each wait ends keeps the admin out until it stops or Loskai restarts. The proposed
   fix: key the count by client, trusting Caddy's `X-Forwarded-For` only on requests from
   Caddy's own address. Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
-- **Decide: an SSH key slot dropped when it is the last.** An admin resetting someone's
-  password while no one has the key unlocked drops that account's slot (an old password must
-  not open the key). If it was the last slot, no one can unlock the key again, and the fix is
-  New key and installing it on every machine again. Options: refuse the reset until someone
-  unlocks, or warn and ask. Found by the 2026-11-04 review.
 - **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd
   process alive after its connection closes (live, 2026-10-30: four closed terminals, four
   `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which
@@ -1912,6 +1907,37 @@ and email are set.
       (key locked after a restart), read nothing set, set Name and Email, refused "not an
       address" with "Not a valid email", and `git config --global --list` on the machine
       showed both; the SSH log has each as `setting`
+
+## Phase 38 — Loskai's SSH key, kept simply
+
+Asked 2026-11-04, after the review: "I want to keep everything as simple as possible". The
+key behind a slot per account, sealed with that account's password, cost three of the
+review's eight faults and left one open: the last slot dropped, and the key with it.
+
+**Decisions (2026-11-04, Sunde)**
+
+- **The key is a plain owner-only file** (`0600`) in `data/ssh/`, like the status key and
+  like a key in `~/.ssh` without a passphrase. Never returned, logged or exported, as before.
+  A secret elsewhere to encrypt it with was the other way, and was turned down: one more
+  thing to deploy and lose, for a backup of `data/` on its own.
+- **Unlock stays, as a password check.** Typing your password lets you use the key for
+  15 minutes, or what Settings › SSH says. Logging out, a new password or losing the
+  Machines tab ends it. A stolen cookie still doesn't reach a machine.
+- **Every account with Machines unlocks for itself**, with nobody else needed first. Key
+  slots, `keys.py`, moving an old key and "can't unlock the key yet" all go.
+- **An old key isn't moved.** Loskai isn't released, and the only install with one is
+  Sunde's, with one machine. Unlock says the key is from an older version, and to make a
+  New key in Settings › SSH and set each machine up again.
+
+**Steps** — a commit each, every check run:
+
+- [ ] 38a Backend: the plain key, the unlock as a window, no slots; tests
+- [ ] 38b Frontend: the Users page's words about slots; tests
+- [ ] 38c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, using-loskai.md, HISTORY,
+      CHANGELOG
+- [ ] Live, against the Debian container: New key, set up, unlock, a terminal; an old
+      encrypted key gives the message
+- [ ] Sunde: New key in Settings › SSH, then set up each machine again
 
 ---
 
