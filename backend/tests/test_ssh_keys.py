@@ -75,9 +75,9 @@ def test_a_new_password_or_losing_machines_ends_an_unlock(admin):
     _unlock(ola, "ola-password")
 
     admin.patch("/api/users/ola", json={"tabs": ["docker"]}, headers=ORIGIN)
-    assert unlock.unlocked_key("ola") is None
-
     admin.patch("/api/users/ola", json={"tabs": ["machines"]}, headers=ORIGIN)
+    assert unlock.unlocked_key("ola") is None  # given back, the tab doesn't bring it back
+
     _unlock(ola, "ola-password")
     admin.patch("/api/users/ola", json={"password": "reset-by-admin"}, headers=ORIGIN)
     assert unlock.unlocked_key("ola") is None

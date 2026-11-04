@@ -296,6 +296,11 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
         return user
 
     user = _answer(apply)
+    if not user.may("machines"):
+        # Ended now, not when it is next used: given the tab back, they unlock again.
+        from ..modules.ssh import unlock  # the SSH module reads accounts too
+
+        unlock.lock(username)
     me = auth.current_user()
     if body.password is not None and me is not None and me.username == username:
         auth.set_cookie(request, response, user)

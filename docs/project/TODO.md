@@ -1935,8 +1935,13 @@ review's eight faults and left one open: the last slot dropped, and the key with
 - [x] 38b Frontend: the Users page's words about slots; tests
 - [x] 38c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, using-loskai.md, HISTORY,
       CHANGELOG
-- [ ] Live, against the Debian container: New key, set up, unlock, a terminal; an old
-      encrypted key gives the message
+- [x] Live, against the Debian container: New key wrote a plain `0600` file and no
+      `keyslots.json`; set up, install and test passed. With the admin logged out, an
+      operator with Machines got `423`, unlocked by itself, read Git's settings and ran a
+      command in a terminal. Machines taken away and given back: the next terminal was
+      refused `4423`, which first showed the unlock surviving and was fixed. An old
+      encrypted key gave the 409 to make a New key. No private key in the backend's or
+      the SSH log
 - [ ] Sunde: New key in Settings › SSH, then set up each machine again
 
 ---
