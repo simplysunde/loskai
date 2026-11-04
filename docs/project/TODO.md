@@ -1944,6 +1944,44 @@ review's eight faults and left one open: the last slot dropped, and the key with
       the SSH log
 - [ ] Sunde: New key in Settings › SSH, then set up each machine again
 
+## Phase 39 — Your own devices' keys on every machine _(planned, not started)_
+
+Asked 2026-11-04: the SSH config download (Settings › SSH) names no key, so it works from
+a computer only if that computer's own key is already on each machine. Loskai's key can't
+be used there: each machine accepts it only from the Docker host (`from=`). The idea came
+from a standalone desktop SSH app built on Loskai. With this phase, any SSH client and the
+downloaded config are enough, and such an app would only add convenience.
+
+**Proposal** — to refine before building:
+
+- **Settings › SSH lists your devices' public keys** — a name and an `ssh-ed25519 …` line
+  each (a laptop, a desktop). Public keys only: each private key stays on its own device,
+  and Loskai never sees one.
+- **Loskai installs them beside its own lines** when it sets a machine up, and takes them off
+  with its own when the machine or its SSH connection is removed. Each is marked
+  ` loskai-device-<name>` at the end of its line, as Loskai's own end in ` loskai` and
+  ` loskai-status`. So `INSTALL_SCRIPT` and `UNINSTALL_SCRIPT` replace exactly Loskai's
+  lines, and every line Loskai didn't write stays.
+- **No `from=` on a device's line by default**, since a laptop moves between networks. It
+  can be set per key.
+- **Logged** in the SSH log: a device's key added, removed, installed on a machine.
+
+**Open questions**
+
+- **Which user a device logs in as.** Loskai's SSH user, the one the config names, comes
+  with the `sudo` that user has. Or the machine's own user — a second user per machine,
+  and a second line in the config.
+- **Who manages the list.** Each account its own devices, or the admin only.
+- **Keeping machines in step.** A key added or removed later has to reach every set-up
+  machine, with the main key unlocked. Loskai could do it on the spot, machine by machine,
+  saying which ones it couldn't reach. Or it could wait for each machine's next Install
+  again.
+- **Admin-only or per role**, for the config download itself.
+
+**Steps** — once the questions are answered: backend (the list, the install and uninstall
+scripts, the log), frontend (Settings › SSH), docs, and a live check: a laptop's key added,
+then `ssh -F <downloaded config> box` from the laptop, removed again with the machine.
+
 ---
 
 ## Backlog / Future ideas
