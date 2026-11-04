@@ -18,7 +18,7 @@ import {
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { api } from "../../lib/api";
-import { useAuthStatus, type Tab } from "../../lib/useAuth";
+import { useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
 import { ChangePassword } from "./ChangePassword";
 import { RowMenu } from "./RowMenu";
 import { useDashboard } from "../../lib/useDashboard";
@@ -57,11 +57,10 @@ export function Layout() {
   const { data: dash } = useDashboard();
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [changingPassword, setChangingPassword] = useState(false);
-  const me = auth?.user ?? null;
+  const { me, may } = useMe();
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
-  const mayOpen = (tab?: Tab | "admin") =>
-    !tab || !me || me.role === "admin" || (tab !== "admin" && me.tabs.includes(tab));
+  const mayOpen = (tab?: Tab | "admin") => !tab || !me || may(tab);
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -154,7 +153,7 @@ export function Layout() {
             <RowMenu
               label="Your account"
               up
-              heading={me.role === "admin" ? "Admin — every tab" : `Operator — ${NAV.filter((n) => "tab" in n && me.tabs.includes(n.tab as Tab)).map((n) => n.label).join(", ")}`}
+              heading={me.role === "admin" ? "Admin — every tab" : `Operator — ${NAV.filter((n) => "tab" in n && may(n.tab)).map((n) => n.label).join(", ")}`}
               triggerClass="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
               trigger={
                 <>
