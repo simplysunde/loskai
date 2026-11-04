@@ -355,6 +355,11 @@ def auth_status(request: Request) -> dict:
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response) -> dict:
     user = check_password(body.password, username=body.username.strip().lower())
+    from ..modules.ssh import keys  # the SSH module reads accounts too
+
+    # An upgraded install's key, still encrypted with this password: into slots before the
+    # password can change (keys.move_legacy). It stays locked.
+    keys.move_legacy(user.username, body.password)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 

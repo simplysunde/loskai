@@ -154,3 +154,21 @@ def test_taking_the_machines_tab_away_ends_that_user_s_unlock(admin):
 
     assert unlock.unlocked_key("ola") is None and not keys.has_slot("ola")
     assert _unlocked(admin)
+
+
+def test_a_key_from_before_accounts_survives_a_password_change_before_its_first_unlock(admin):
+    client.create_key(ADMIN)
+    keys._slots_path().unlink(missing_ok=True)  # as an upgraded install has it
+
+    admin.post("/api/auth/password", json={"current": ADMIN, "new": "a new admin password"}, headers=ORIGIN)
+
+    assert _unlock(admin, "a new admin password").status_code == 200
+
+
+def test_logging_in_moves_a_key_from_before_accounts_to_slots(admin):
+    client.create_key(ADMIN)
+    keys._slots_path().unlink(missing_ok=True)
+
+    _login("admin", ADMIN)
+
+    assert keys.has_slot("admin") and not _unlocked(admin)  # moved, still locked

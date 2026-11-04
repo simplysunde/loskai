@@ -10,7 +10,7 @@ A slot is made when someone may use the key and the KEK is at hand: by whoever m
 key; for a new account, or a reset password, while an admin has it unlocked; and for an
 account with none, the first time it unlocks while someone else has it unlocked. A key from
 before accounts — encrypted with the admin password itself — moves to slots the first time
-that password opens it.
+that password is typed: a login, an unlock or a password change (`move_legacy`).
 """
 
 import base64
@@ -91,19 +91,10 @@ def create(username: str, password: str, kek: bytes | None) -> tuple[asyncssh.SS
 def open_for(username: str, password: str, kek_in_use: bytes | None) -> tuple[asyncssh.SSHKey, bytes]:
     """The key and its KEK, for an account whose password was just checked. Raises NoSlot
     when it can't be opened; FileNotFoundError before there is a key."""
+    if (moved := move_legacy(username, password)) is not None:
+        return moved
     slots = _slots()
     kek = unseal(slots[username], password) if username in slots else None
-    if kek is None and not _slots_path().exists():
-        # A key from before accounts, encrypted with the admin password: if this is that
-        # password, it moves to slots now.
-        try:
-            key = client.load_key(password)
-        except (asyncssh.KeyImportError, asyncssh.KeyEncryptionError):
-            raise NoSlot()
-        kek = os.urandom(32)
-        client.store_key(key, _passphrase(kek))
-        _set_slots(lambda _: {username: seal(kek, password)})
-        return key, kek
     if kek is None:
         # No slot of its own (or a stale one): someone else has it unlocked, so this account
         # gets one now — its password was just checked.
@@ -114,12 +105,30 @@ def open_for(username: str, password: str, kek_in_use: bytes | None) -> tuple[as
     return client.load_key(_passphrase(kek)), kek
 
 
+def move_legacy(username: str, password: str) -> tuple[asyncssh.SSHKey, bytes] | None:
+    """A key from before accounts, encrypted with the admin password itself and no slots
+    yet: if `password` is that password, it moves to slots now — this account's — and the
+    key and its KEK are returned. Done at the first unlock, login and password change: a
+    password changed first would leave it encrypted with one no one types any more."""
+    if _slots_path().exists() or client.public_key() is None:
+        return None
+    try:
+        key = client.load_key(password)
+    except (asyncssh.KeyImportError, asyncssh.KeyEncryptionError):
+        return None
+    kek = os.urandom(32)
+    client.store_key(key, _passphrase(kek))
+    _set_slots(lambda _: {username: seal(kek, password)})
+    return key, kek
+
+
 def grant(username: str, password: str, kek: bytes) -> None:
     _set_slots(lambda slots: {**slots, username: seal(kek, password)})
 
 
 def reseal(username: str, old: str, new: str) -> None:
     """A user's own password change: their slot re-sealed, the key untouched."""
+    move_legacy(username, old)
     slots = _slots()
     if username in slots and (kek := unseal(slots[username], old)) is not None:
         grant(username, new, kek)
