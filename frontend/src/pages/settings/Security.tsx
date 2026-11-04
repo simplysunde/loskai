@@ -18,7 +18,7 @@ const SESSION_FIELDS: FieldDef[] = [
   },
 ];
 
-// Sessions, for everyone. Your own password is changed from your name in the sidebar;
+// Sessions, for everyone. Your own password is changed in Your account (your name in the sidebar);
 // other accounts are under Users.
 export function Security() {
   return (
@@ -36,7 +36,7 @@ export function Security() {
         <h2 className="text-sm font-medium text-slate-200">Passwords</h2>
         <p className="mt-1 text-xs text-slate-500">
           Each account's password is stored hashed (argon2) and never returned. Change your own
-          from your name at the bottom of the sidebar; an admin sets anyone's under Users.
+          in Your account — your name at the bottom of the sidebar; an admin sets anyone's under Users.
         </p>
       </section>
     </div>

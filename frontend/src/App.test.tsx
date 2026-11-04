@@ -112,11 +112,17 @@ test("an operator's sidebar has only its tabs, and Settings says it's an admin's
     expect(screen.queryByRole("link", { name: tab })).not.toBeInTheDocument();
   }
   expect(screen.getByText("ola")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByTitle("Your account"));
+  expect(screen.getByText(/^Operator — Docker\. An admin changes this/)).toBeInTheDocument();
 });
 
-test("your name in the sidebar changes your own password", async () => {
+test("your name in the sidebar opens your account, where you change your password", async () => {
   renderAt("/");
-  fireEvent.click(await screen.findByTitle("Change your password"));
+  fireEvent.click(await screen.findByTitle("Your account"));
+
+  expect(screen.getByText("Your account")).toBeInTheDocument();
+  expect(screen.getByText(/^Admin — every tab/)).toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "old-password" } });
   fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a new password" } });

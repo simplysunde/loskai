@@ -17,7 +17,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus, type Tab } from "../../lib/useAuth";
-import { ChangePassword } from "./ChangePassword";
+import { AccountDialog } from "./AccountDialog";
 import { useDashboard } from "../../lib/useDashboard";
 import { navDots } from "../../lib/navDots";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
@@ -55,7 +55,7 @@ export function Layout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [account, setAccount] = useState(false);
   const me = auth?.user ?? null;
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
@@ -137,8 +137,8 @@ export function Layout() {
 
         {me && (
           <button
-            onClick={() => setChangingPassword(true)}
-            title="Change your password"
+            onClick={() => setAccount(true)}
+            title="Your account"
             className="mx-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
           >
             <CircleUser className="h-4 w-4 shrink-0" />
@@ -148,7 +148,7 @@ export function Layout() {
             </span>
           </button>
         )}
-        {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}
+        {me && account && <AccountDialog me={me} onClose={() => setAccount(false)} />}
 
         {authed && (
           <button
