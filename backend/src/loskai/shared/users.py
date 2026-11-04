@@ -127,8 +127,11 @@ def _check_tabs(role: str, tabs: list[str]) -> list[str]:
     return [t for t in TABS if t in tabs]
 
 
-def create(username: str, password: str, role: str, tabs: list[str] | None = None, *, hashed: str | None = None) -> User:
-    """A new account. `hashed` takes an existing hash instead of a password (the migration)."""
+def create(username: str, password: str, role: str, tabs: list[str] | None = None, *, hashed: str | None = None,
+           first: bool = False) -> User:
+    """A new account. `hashed` takes an existing hash instead of a password (the migration).
+    `first`: only as the first account — checked under the store lock, so two first-run
+    setups at once can't both make an admin."""
     check_username(username)
     if hashed is None:
         check_password_rule(password)
@@ -136,6 +139,8 @@ def create(username: str, password: str, role: str, tabs: list[str] | None = Non
     user = User(username, role, _check_tabs(role, tabs or []), hashed, 0, time.time())
 
     def add(users: list[User]) -> list[User]:
+        if first and users:
+            raise UserError(409, "Loskai is already set up")
         if any(u.username == username for u in users):
             raise UserError(409, f"There is already a user {username!r}")
         return [*users, user]

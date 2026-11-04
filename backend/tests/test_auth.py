@@ -89,6 +89,17 @@ def test_the_seeded_username_is_lowercased_and_one_that_can_t_be_a_name_stops_st
     assert users.verify("sunde", "seeded-password") is not None
 
 
+def test_two_first_run_setups_at_once_make_one_admin(monkeypatch):
+    # Both pass the early check before either has written — the race, made certain.
+    monkeypatch.setattr(users, "any_users", lambda: False)
+    with TestClient(app) as owner, TestClient(app) as stranger:
+        assert owner.post("/api/auth/setup", json={"username": "admin", "password": "owner-password"}).status_code == 200
+        late = stranger.post("/api/auth/setup", json={"username": "x", "password": "stranger-password"})
+
+    assert late.status_code == 409
+    assert [u.username for u in users.all_users()] == ["admin"]
+
+
 def test_ensure_seeded_is_idempotent(monkeypatch):
     monkeypatch.setattr(config.settings, "loskai_password", "first-password")
     auth.ensure_seeded()
