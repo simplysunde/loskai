@@ -117,12 +117,16 @@ test("an operator's sidebar has only its tabs, and Settings says it's an admin's
   expect(screen.getByText("Operator — Docker")).toBeInTheDocument();
 });
 
-test("Log out is in the menu on your name", async () => {
-  renderAt("/");
+test("Log out is in the menu on your name, and lands on the Dashboard", async () => {
+  const assign = vi.fn();
+  vi.stubGlobal("location", { ...window.location, assign, pathname: "/settings" });
+  renderAt("/settings");
   fireEvent.click(await screen.findByTitle("Your account"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
 
-  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/logout")).toBe(true));
+  await waitFor(() => expect(assign).toHaveBeenCalledWith("/"));
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/logout")).toBe(true);
+  vi.unstubAllGlobals();
 });
 
 test("your name in the sidebar opens a menu: change your password, or log out", async () => {

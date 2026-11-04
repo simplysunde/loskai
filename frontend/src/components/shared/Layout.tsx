@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
   ChevronsUpDown,
@@ -15,7 +14,7 @@ import {
   ShieldCheck,
   Sun,
 } from "lucide-react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { useAuthStatus, type Tab } from "../../lib/useAuth";
@@ -55,8 +54,6 @@ export function Layout() {
   const authed = !!auth?.authed;
   const health = useHealth(authed);
   const { data: dash } = useDashboard();
-  const qc = useQueryClient();
-  const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [changingPassword, setChangingPassword] = useState(false);
   const me = auth?.user ?? null;
@@ -86,8 +83,10 @@ export function Layout() {
 
   async function logout() {
     await api.post("/api/logout");
-    await qc.invalidateQueries();
-    navigate("/", { replace: true });
+    // A fresh load of the Dashboard. Refetched in place, the page's own queries would
+    // answer 401 — which sends the browser to /login — and the account's data would stay
+    // in memory.
+    window.location.assign("/");
   }
 
   return (
