@@ -1,5 +1,5 @@
-"""Loskai's SSH key and config through the real HTTP path: the key is encrypted with the
-admin password and never leaves, and the config follows the machines while every line it
+"""Loskai's SSH key and config through the real HTTP path: the key is an owner-only file that
+never leaves, and the config follows the machines while every line it
 doesn't own stays as written."""
 
 import os
@@ -59,7 +59,7 @@ def test_no_key_until_one_is_made(client):
     assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "projects": {}}
 
 
-def test_the_key_is_encrypted_behind_the_admin_s_key_slot_and_never_returned(client, ssh_dir):
+def test_the_key_is_made_and_never_returned(client, ssh_dir):
     r = client.post("/api/ssh/key", json={"password": PASSWORD})
 
     assert r.status_code == 200, r.text
@@ -67,17 +67,7 @@ def test_the_key_is_encrypted_behind_the_admin_s_key_slot_and_never_returned(cli
     assert view["public_key"].startswith("ssh-ed25519 ") and view["public_key"].endswith(" loskai")
     assert view["authorized_keys"] == f'from="192.168.10.216" {view["public_key"]}'
     with open(ssh_dir + "/id_ed25519") as f:
-        private = f.read()
-    with pytest.raises(asyncssh.KeyImportError):
-        asyncssh.import_private_key(private)  # useless without the password
-    with pytest.raises((asyncssh.KeyImportError, asyncssh.KeyEncryptionError)):
-        asyncssh.import_private_key(private, passphrase=PASSWORD)  # a random key encrypts it
-    # The admin's password opens their slot, and that the key; the slot file is theirs alone.
-    from loskai.modules.ssh import keys
-
-    key, _ = keys.open_for("admin", PASSWORD, None)
-    assert os.stat(ssh_dir + "/keyslots.json").st_mode & 0o777 == 0o600
-    assert PASSWORD not in open(ssh_dir + "/keyslots.json").read()
+        key = asyncssh.import_private_key(f.read())
     assert key.export_public_key("openssh").decode().strip() == view["public_key"]
     assert view["fingerprint"] == key.get_fingerprint()
     for answer in (r, client.get("/api/ssh"), client.get("/api/ssh/config")):

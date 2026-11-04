@@ -1931,7 +1931,7 @@ review's eight faults and left one open: the last slot dropped, and the key with
 
 **Steps** — a commit each, every check run:
 
-- [ ] 38a Backend: the plain key, the unlock as a window, no slots; tests
+- [x] 38a Backend: the plain key, the unlock as a window, no slots; tests
 - [ ] 38b Frontend: the Users page's words about slots; tests
 - [ ] 38c Docs: CLAUDE.md, SECURITY.md, architecture.md, api.md, using-loskai.md, HISTORY,
       CHANGELOG

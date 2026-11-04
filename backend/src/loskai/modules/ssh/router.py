@@ -2,7 +2,7 @@
 and setting a machine up: trusting its host key, installing the keys, testing them, and
 what runs there.
 
-Making, replacing or unlocking the key asks for the admin password, which encrypts it;
+Making, replacing or unlocking the key asks for your password again (`unlock.py`);
 nothing here ever returns a private key. A machine's own password (Install it for me) is
 used for one connection and kept nowhere.
 """
@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from ...shared import auth
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
-from . import client, connect, keys, logic, tool, unlock
+from . import client, connect, logic, tool, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
 
@@ -86,19 +86,12 @@ class KeyRequest(BaseModel):
 @router.post("/key")
 def create_key(body: KeyRequest) -> dict | None:
     """Make Loskai's key, or replace it (`replace`). The admin's password is checked — with
-    the login backoff — and seals their key slot; other accounts' slots carry over."""
+    the login backoff — and, just typed, unlocks the new key for them, as Unlock does."""
     if client.public_key() is not None and not body.replace:
         raise HTTPException(status_code=409, detail="Loskai already has a key — use New key to replace it")
     me = auth.check_password(body.password, wrong_status=403)
-    # The key-encryption key in use, if anyone has the key unlocked or this admin has a
-    # slot: kept, so every other account's slot still opens the new key.
-    kek = unlock.kek_in_use()
-    if kek is None and keys.has_slot(me.username):
-        with contextlib.suppress(keys.NoSlot, FileNotFoundError):
-            kek = keys.open_for(me.username, body.password, None)[1]
-    key, kek = keys.create(me.username, body.password, kek)
-    # The password was just typed, so the new key starts unlocked, as after Unlock.
-    unlock.unlock(key, kek, me.username)
+    client.create_key()
+    unlock.unlock(me.username)
     return _key_view()
 
 
@@ -114,14 +107,14 @@ def unlock_key(body: PasswordRequest) -> dict | None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
     me = auth.check_password(body.password, wrong_status=403)
     try:
-        key, kek = keys.open_for(me.username, body.password, unlock.kek_in_use())
-    except keys.NoSlot:
+        client.load_key()
+    except asyncssh.KeyImportError:
         raise HTTPException(
             status_code=409,
-            detail="Your account can't unlock Loskai's key yet — unlock it while another user has "
-            "it unlocked, or have an admin set your password while they do",
+            detail="Loskai's key is from an older version — make a New key in Settings › SSH, "
+            "then set each machine up again",
         )
-    unlock.unlock(key, kek, me.username)
+    unlock.unlock(me.username)
     return _key_view()
 
 

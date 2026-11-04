@@ -208,8 +208,8 @@ def public_key_of(private_key: str, comment: str) -> str:
 
 # --- The status-only key ---
 #
-# A second key, kept unencrypted so each machine's running list works without the admin
-# password. The machine limits it, not Loskai: `restrict` (no shell, pty, forwarding),
+# A second key, used without anyone unlocking it, so each machine's running list works
+# without a password. The machine limits it, not Loskai: `restrict` (no shell, pty, forwarding),
 # `from=` the Docker host, and this forced command, which only reads. Whatever command the
 # client asks for, this runs instead; the request only picks one of two fixed answers
 # (`$SSH_ORIGINAL_COMMAND`, compared in a `case`, never run): `facts` — the machine's

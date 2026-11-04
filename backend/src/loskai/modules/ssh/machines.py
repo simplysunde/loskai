@@ -64,7 +64,7 @@ def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
 def prepare_removal(inst: Instance):
     """Before anything of a machine's delete — or its SSH connection's removal — happens:
     where Loskai's lines are, to take them off once nothing else can stop it (None: there
-    are none). SshError 423 while the key is locked — the page asks for the admin password,
+    are none). SshError 423 while the key is locked — the page asks for your password,
     nothing changed."""
     return connect.removal(inst.id)
 

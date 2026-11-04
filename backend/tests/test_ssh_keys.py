@@ -1,11 +1,11 @@
-"""Loskai's SSH key behind key slots: each account unlocks it with its own password."""
+"""Unlocking Loskai's SSH key: each account with the Machines tab, with its own password."""
 
 import pytest
 from fastapi.testclient import TestClient
 
 from loskai import config
 from loskai.main import app
-from loskai.modules.ssh import client, keys, unlock
+from loskai.modules.ssh import client, unlock
 
 ADMIN = "correct horse battery"
 ORIGIN = {"origin": "http://testserver"}
@@ -23,6 +23,7 @@ def fresh(monkeypatch):
 def admin():
     with TestClient(app) as c:
         c.post("/api/auth/setup", json={"username": "admin", "password": ADMIN})
+        c.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
         yield c
 
 
@@ -46,18 +47,15 @@ def _unlocked(c: TestClient) -> bool:
     return c.get("/api/ssh").json()["key"]["unlocked_until"] is not None
 
 
-def test_a_slot_opens_only_with_its_password():
-    slot = keys.seal(b"k" * 32, "right password")
-
-    assert keys.unseal(slot, "right password") == b"k" * 32
-    assert keys.unseal(slot, "wrong password") is None
+def test_making_the_key_unlocks_it_for_whoever_made_it(admin):
+    assert _unlocked(admin) and unlock.unlocked_key("admin") is not None
 
 
 def test_an_unlock_is_the_user_s_own(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-    ola = _add(admin, "ola", ["machines"])  # made while the admin has it unlocked: a slot
+    ola = _add(admin, "ola", ["machines"])
 
     assert _unlocked(admin) and not _unlocked(ola)  # like sudo: each types their own
+    assert _unlock(ola, "ola-wrong").status_code == 403
     assert _unlock(ola, "ola-password").status_code == 200
     assert _unlocked(ola)
 
@@ -65,74 +63,41 @@ def test_an_unlock_is_the_user_s_own(admin):
     assert _unlocked(admin)  # their logout locks only theirs
 
 
-def test_an_account_made_while_locked_gets_its_slot_when_someone_else_unlocks(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-    admin.post("/api/logout", headers=ORIGIN)  # locks it
-    admin2 = _login("admin", ADMIN)
-    ola = _add(admin2, "ola", ["machines"])
-    assert not keys.has_slot("ola")
+def test_anyone_with_machines_unlocks_with_no_one_else_unlocked(admin):
+    admin.post("/api/logout", headers=ORIGIN)
+    ola = _add(_login("admin", ADMIN), "ola", ["machines"])
 
-    refused = _unlock(ola, "ola-password")
-    assert refused.status_code == 409 and "can't unlock Loskai's key yet" in refused.json()["detail"]
-
-    assert _unlock(admin2, ADMIN).status_code == 200
-    assert _unlock(ola, "ola-password").status_code == 200 and keys.has_slot("ola")
+    assert _unlock(ola, "ola-password").status_code == 200
 
 
-def test_an_account_without_the_machines_tab_gets_no_slot(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-    _add(admin, "ola", ["docker"])
+def test_a_new_password_or_losing_machines_ends_an_unlock(admin):
+    ola = _add(admin, "ola", ["docker", "machines"])
+    _unlock(ola, "ola-password")
 
-    assert not keys.has_slot("ola")
+    admin.patch("/api/users/ola", json={"tabs": ["docker"]}, headers=ORIGIN)
+    assert unlock.unlocked_key("ola") is None
 
-
-def test_a_changed_password_reseals_the_slot_and_a_reset_one_while_locked_drops_it(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-    ola = _add(admin, "ola", ["machines"])
-
-    ola.post("/api/auth/password", json={"current": "ola-password", "new": "ola-new-password"}, headers=ORIGIN)
-    assert keys.unseal(keys._slots()["ola"], "ola-new-password") is not None
-    assert keys.unseal(keys._slots()["ola"], "ola-password") is None
-
-    unlock.lock()
+    admin.patch("/api/users/ola", json={"tabs": ["machines"]}, headers=ORIGIN)
+    _unlock(ola, "ola-password")
     admin.patch("/api/users/ola", json={"password": "reset-by-admin"}, headers=ORIGIN)
-    assert not keys.has_slot("ola")  # the old password must not open the key
+    assert unlock.unlocked_key("ola") is None
+    assert _unlocked(admin)
 
 
-def test_a_new_key_keeps_every_other_slot(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
+def test_an_account_made_again_under_a_name_doesn_t_get_its_unlock(admin):
+    ola = _add(admin, "ola", ["machines"])
+    _unlock(ola, "ola-password")
+    admin.delete("/api/users/ola", headers=ORIGIN)
     _add(admin, "ola", ["machines"])
-    first = client.public_key()
 
-    admin.post("/api/ssh/key", json={"password": ADMIN, "replace": True}, headers=ORIGIN)
-
-    assert client.public_key() != first
-    key, _ = keys.open_for("ola", "ola-password", None)
-    assert key.export_public_key("openssh").decode().strip() == client.public_key()
+    assert unlock.unlocked_key("ola") is None
 
 
-def test_a_key_from_before_accounts_moves_to_slots_at_its_first_unlock(admin):
-    # Encrypted with the old admin password itself, and no slots yet.
-    client.create_key(ADMIN)
-    public = client.public_key()
-
-    assert _unlock(admin, ADMIN).status_code == 200
-    assert keys.has_slot("admin") and client.public_key() == public
-    with pytest.raises(Exception):
-        client.load_key(ADMIN)  # no longer the password itself
-    unlock.lock()
-    assert _unlock(admin, ADMIN).status_code == 200  # now through the slot
-
-
-def test_an_admin_setting_their_own_password_in_users_keeps_their_slot(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-
+def test_an_admin_setting_their_own_password_in_users_stays_signed_in(admin):
     changed = admin.patch("/api/users/admin", json={"password": "a new admin password"}, headers=ORIGIN)
 
     assert changed.status_code == 200
-    # Their unlock ended with their old sessions — but the slot was re-sealed, not dropped.
-    assert keys.unseal(keys._slots()["admin"], "a new admin password") is not None
-    assert admin.get("/api/users").status_code == 200  # and they are still signed in
+    assert admin.get("/api/users").status_code == 200
     assert _unlock(admin, "a new admin password").status_code == 200
 
 
@@ -145,30 +110,23 @@ def test_a_refused_password_changes_nothing_else(admin):
     assert next(u for u in admin.get("/api/users").json() if u["username"] == "ola")["tabs"] == ["machines"]
 
 
-def test_taking_the_machines_tab_away_ends_that_user_s_unlock(admin):
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-    ola = _add(admin, "ola", ["docker", "machines"])
-    assert _unlock(ola, "ola-password").status_code == 200
+def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):
+    first = client.public_key()
 
-    admin.patch("/api/users/ola", json={"tabs": ["docker"]}, headers=ORIGIN)
+    admin.post("/api/ssh/key", json={"password": ADMIN, "replace": True}, headers=ORIGIN)
 
-    assert unlock.unlocked_key("ola") is None and not keys.has_slot("ola")
-    assert _unlocked(admin)
+    assert client.public_key() != first
+    assert unlock.unlocked_key("admin").export_public_key("openssh").decode().strip() == client.public_key()
 
 
-def test_a_key_from_before_accounts_survives_a_password_change_before_its_first_unlock(admin):
-    client.create_key(ADMIN)
-    keys._slots_path().unlink(missing_ok=True)  # as an upgraded install has it
+def test_a_key_from_before_phase_38_says_to_make_a_new_one(admin):
+    import asyncssh
 
-    admin.post("/api/auth/password", json={"current": ADMIN, "new": "a new admin password"}, headers=ORIGIN)
+    old = asyncssh.generate_private_key("ssh-ed25519", comment="loskai")
+    client._private_path().write_text(old.export_private_key("openssh", passphrase="sealed").decode())
+    unlock.lock()
 
-    assert _unlock(admin, "a new admin password").status_code == 200
+    refused = _unlock(admin, ADMIN)
 
-
-def test_logging_in_moves_a_key_from_before_accounts_to_slots(admin):
-    client.create_key(ADMIN)
-    keys._slots_path().unlink(missing_ok=True)
-
-    _login("admin", ADMIN)
-
-    assert keys.has_slot("admin") and not _unlocked(admin)  # moved, still locked
+    assert refused.status_code == 409 and "New key" in refused.json()["detail"]
+    assert unlock.unlocked_key("admin") is None

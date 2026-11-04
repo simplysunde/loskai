@@ -181,7 +181,7 @@ async def install(machine_id: str, password: str) -> dict:
     for that one connection and kept nowhere."""
     t = target(machine_id)
     host_key = _trusted(t)
-    _main_key()  # locked → ask for the admin password before the machine's is used
+    _main_key()  # locked → ask for your password before the machine's is used
     try:
         result = await client.run(
             t.host, t.port, t.user, host_key, logic.INSTALL_SCRIPT,
@@ -199,7 +199,7 @@ def removal(machine_id: str) -> tuple[Target, str] | None:
     """Where Loskai's lines would be taken off a machine about to be deleted — its target and
     trusted host key, read now, before the delete clears its name — or None when it has none
     to take: no SSH user, a host key never trusted, or no key made yet. SshError 423 while
-    the key is locked, so the page asks for the admin password before anything changes."""
+    the key is locked, so the page asks for your password before anything changes."""
     try:
         t = target(machine_id)
         host_key = _trusted(t)

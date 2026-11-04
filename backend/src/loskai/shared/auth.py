@@ -355,11 +355,6 @@ def auth_status(request: Request) -> dict:
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response) -> dict:
     user = check_password(body.password, username=body.username.strip().lower())
-    from ..modules.ssh import keys  # the SSH module reads accounts too
-
-    # An upgraded install's key, still encrypted with this password: into slots before the
-    # password can change (keys.move_legacy). It stays locked.
-    keys.move_legacy(user.username, body.password)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 
@@ -398,9 +393,5 @@ def change_password(body: NewPassword, request: Request, response: Response) -> 
         user = users.set_password(me.username, body.new)
     except users.UserError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
-    # Their slot on Loskai's SSH key, re-sealed with the new password.
-    from ..modules.ssh import keys  # the SSH module reads accounts too
-
-    keys.reseal(me.username, body.current, body.new)
     set_cookie(request, response, user)
     return {"user": user.view()}

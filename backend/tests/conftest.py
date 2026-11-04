@@ -61,12 +61,3 @@ def _fresh_login_backoff(monkeypatch):
     """The wrong-password count lives in the process, so one test's failed logins would
     make a later test's login wait."""
     monkeypatch.setattr(auth, "_backoff", auth._Backoff())
-
-
-@pytest.fixture(autouse=True)
-def _cheap_key_encryption(monkeypatch):
-    """Encrypting Loskai's SSH key costs ~0.7 s at the real bcrypt rounds; the tests check
-    that it is encrypted, not how hard it is to crack."""
-    from loskai.modules.ssh import client as ssh_client
-
-    monkeypatch.setattr(ssh_client, "KDF_ROUNDS", 1)

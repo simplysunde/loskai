@@ -1,11 +1,10 @@
 """SSH module I/O: Loskai's keys, its SSH config and known_hosts, all in `data/ssh/`, and
 the connections to the machines.
 
-The main private key is stored encrypted (OpenSSH format, bcrypt KDF) with a random key that
-each account's slot seals with its password (`keys.py`), so a copy of `data/` never holds a
-usable key. The status key is the one kept in the
-clear — the machine limits it to listing what runs (`logic.status_line`). Nothing here
-returns a private key: only public halves leave this module. Editing the files is
+Both private keys are owner-only files (`0600`), as a key in `~/.ssh` is: the main key, used
+only while its user has unlocked it (`unlock.py`, a password check), and the status key,
+which each machine limits to listing what runs (`logic.status_line`). Nothing here returns a
+private key: only public halves leave this module. Editing the files is
 `logic.py`'s; this only reads and replaces them.
 """
 
@@ -23,7 +22,6 @@ from . import logic
 
 KEY_TYPE = "ssh-ed25519"
 KEY_COMMENT = "loskai"
-KDF_ROUNDS = 128  # bcrypt rounds encrypting the key — OpenSSH's and asyncssh's default
 
 
 def ssh_dir() -> Path:
@@ -54,23 +52,17 @@ def public_key() -> str | None:
     return logic.public_key_of(path.read_text(encoding="utf-8"), KEY_COMMENT)
 
 
-def create_key(passphrase: str) -> str:
-    """Generate a new key pair, replacing any old one, and return its public key. The
-    private half is encrypted with `passphrase` before it touches the disk."""
-    return store_key(asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT), passphrase)
-
-
-def store_key(key: asyncssh.SSHKey, passphrase: str) -> str:
-    """Write `key` as the main key, encrypted with `passphrase`; returns its public key."""
-    private = key.export_private_key("openssh", passphrase=passphrase, rounds=KDF_ROUNDS).decode()
+def create_key() -> str:
+    """Generate a new key pair, replacing any old one, and return its public key."""
+    private = asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT).export_private_key("openssh").decode()
     store.replace_private(_private_path(), private)
     return logic.public_key_of(private, KEY_COMMENT)
 
 
-def load_key(passphrase: str) -> asyncssh.SSHKey:
-    """The main private key, decrypted. Raises `asyncssh.KeyImportError` for a wrong
-    passphrase, and FileNotFoundError before there is a key."""
-    return asyncssh.import_private_key(_private_path().read_text(encoding="utf-8"), passphrase)
+def load_key() -> asyncssh.SSHKey:
+    """The main private key. Raises `asyncssh.KeyImportError` for a key from before
+    Phase 38, which is encrypted, and FileNotFoundError before there is a key."""
+    return asyncssh.import_private_key(_private_path().read_text(encoding="utf-8"))
 
 
 def status_key() -> asyncssh.SSHKey:

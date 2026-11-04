@@ -60,7 +60,7 @@ STORED_ONLY_KEYS = {"recipes_repos"}
 CERTIFICATE_TAB_MODES = ("public", "admin", "hidden")
 CERTIFICATE_TAB_DEFAULT = "public"
 
-# How long typing the admin password unlocks Loskai's SSH key (modules/ssh/unlock.py), in
+# How long typing your password unlocks Loskai's SSH key (modules/ssh/unlock.py), in
 # minutes — a few fixed choices, from a short sudo-like window to a working day and a whole
 # one. Logging out locks it whatever this says.
 SSH_UNLOCK_CHOICES = ("15", "60", "180", "480", "1440")

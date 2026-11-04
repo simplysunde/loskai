@@ -259,29 +259,6 @@ class UserChange(BaseModel):
     password: str | None = None  # an admin setting someone's password
 
 
-def _kek_in_use() -> bytes | None:
-    from ..modules.ssh import unlock  # the SSH module reads accounts too
-
-    return unlock.kek_in_use()
-
-
-def _key_slot(user: User, password: str | None, kek: bytes | None) -> None:
-    """Keep an account's slot on Loskai's SSH key in step (modules/ssh/keys.py): one that may
-    use the Machines tab gets a slot sealed with `password` while someone has the key
-    unlocked (`kek`, read *before* the change: a new password ends its user's unlock, and
-    an admin setting their own would otherwise find the key locked and lose their slot);
-    one that may not — or whose password changed with no way to re-seal — loses it, so an
-    old password never opens the key."""
-    from ..modules.ssh import keys, unlock
-
-    if user.may("machines") and password is not None and kek is not None:
-        keys.grant(user.username, password, kek)
-    elif not user.may("machines") or password is not None:
-        keys.drop(user.username)
-    if not user.may("machines"):
-        unlock.lock(user.username)
-
-
 def _answer(action):
     try:
         return action()
@@ -296,9 +273,7 @@ def list_users() -> list[dict]:
 
 @router.post("/users")
 def add_user(body: NewUser) -> dict:
-    user = _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs))
-    _key_slot(user, body.password, _kek_in_use())
-    return user.view()
+    return _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs)).view()
 
 
 @router.patch("/users/{username}")
@@ -307,8 +282,6 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
     their sessions — an admin's own goes on, with a fresh cookie, as Change password's does.
     The password is checked first, so a refused one changes nothing."""
     from . import auth  # auth reads accounts
-
-    kek = _kek_in_use()
 
     def apply() -> User:
         user = get(username)
@@ -323,7 +296,6 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
         return user
 
     user = _answer(apply)
-    _key_slot(user, body.password, kek)
     me = auth.current_user()
     if body.password is not None and me is not None and me.username == username:
         auth.set_cookie(request, response, user)
@@ -333,8 +305,8 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
 @router.delete("/users/{username}")
 def remove_user(username: str) -> dict:
     _answer(lambda: delete(username))
-    from ..modules.ssh import keys, unlock
+    from ..modules.ssh import unlock  # the SSH module reads accounts too
 
-    keys.drop(username)
+    # Its unlock goes too: an account made again under the name starts at the same generation.
     unlock.lock(username)
     return {"deleted": username}
