@@ -4,6 +4,35 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-04 — A review of accounts (Phase 35), and what it changed
+
+A code review found eight faults in accounts and the key slots. Each was fixed with a test
+that failed before. The choices worth keeping:
+
+- **What keeps a terminal open is typing in it.** A terminal re-checked the cookie it was
+  opened with. That copy is never renewed (the browser's is, by its requests), so a terminal
+  in use closed at the idle time. Now it follows the account: a logout, a new password, the
+  account removed, or its tab taken away closes it. So does nothing typed for the idle time.
+  Output alone doesn't count: a terminal left showing a log is idle.
+- **The key-encryption key is read before a password changes.** An admin setting their own
+  password in Users ended their own unlock first. The key then looked locked, and their slot
+  was dropped. On a one-admin install that was the key's last slot. Dropping the *last* slot
+  when an admin resets someone's password with the key locked is still possible; it is in
+  TODO.
+- **A key from before accounts moves to slots at login**, and at a password change, not
+  only at its first unlock. Changing the password first had left it encrypted with a
+  password no one types any more.
+- **The create endpoints check the record's own tab**, however they found the record. The
+  check is inside `assign` (its `acting`), where the record is found by id, container or
+  `origin`.
+- **An operator reads only its own entries in the SSH log.** It was not made admin-only,
+  because operators read it in a machine's dialog.
+- **A `LOSKAI_USERNAME` that can't be a username stops startup**, after lowercasing.
+  Skipping it would open first-run setup to whoever gets there first.
+
+Left as they were: the one login backoff for all accounts (already open in TODO), and the
+middleware reading `users.json` and `settings.json` on every request (only a cost).
+
 ## 2026-11-03 — Git as a tool, and tools that have settings (Phase 37)
 
 Sunde asked for Git as a tool, where each machine's projects folder and its global git user

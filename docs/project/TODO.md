@@ -83,6 +83,11 @@ visible without unpacking a phase back out. The checklists stay in
   moment each wait ends keeps the admin out until it stops or Loskai restarts. The proposed
   fix: key the count by client, trusting Caddy's `X-Forwarded-For` only on requests from
   Caddy's own address. Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
+- **Decide: an SSH key slot dropped when it is the last.** An admin resetting someone's
+  password while no one has the key unlocked drops that account's slot (an old password must
+  not open the key). If it was the last slot, no one can unlock the key again, and the fix is
+  New key and installing it on every machine again. Options: refuse the reset until someone
+  unlocks, or warn and ask. Found by the 2026-11-04 review.
 - **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd
   process alive after its connection closes (live, 2026-10-30: four closed terminals, four
   `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which
