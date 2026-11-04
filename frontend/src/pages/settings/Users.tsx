@@ -35,7 +35,9 @@ export function Users() {
   const [editing, setEditing] = useState<Account | null>(null);
   const [resetting, setResetting] = useState<Account | null>(null);
   const [removing, setRemoving] = useState<Account | null>(null);
-  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
+  // Your own role among them: the sidebar's, from auth-status, follows.
+  const refresh = () =>
+    Promise.all([qc.invalidateQueries({ queryKey: ["users"] }), qc.invalidateQueries({ queryKey: ["auth-status"] })]);
   const remove = useMutation({
     mutationFn: (name: string) => api.del(`/api/users/${name}`),
     onSuccess: () => {

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import { useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
 import { ChangePassword } from "./ChangePassword";
 import { RowMenu } from "./RowMenu";
@@ -57,6 +57,7 @@ export function Layout() {
   const { data: dash } = useDashboard();
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const { me, may } = useMe();
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
@@ -82,7 +83,14 @@ export function Layout() {
   const dotFor = health.data ? navDots(health.data) : {};
 
   async function logout() {
-    await api.post("/api/logout");
+    setLogoutError(null);
+    try {
+      await api.post("/api/logout");
+    } catch (err) {
+      // Still signed in: say so, rather than a menu that closed and nothing more.
+      setLogoutError(err instanceof ApiError ? err.message : "Couldn't reach Loskai");
+      return;
+    }
     // A fresh load of the Dashboard. Refetched in place, the page's own queries would
     // answer 401 — which sends the browser to /login — and the account's data would stay
     // in memory.
@@ -170,6 +178,7 @@ export function Layout() {
                 { label: "Log out", icon: <LogOut className="h-3.5 w-3.5" />, onClick: () => void logout(), title: "Signs you out on every device" },
               ]}
             />
+            {logoutError && <p className="px-3 pt-1 text-xs text-rose-400">Not logged out: {logoutError}</p>}
           </div>
         )}
         {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}

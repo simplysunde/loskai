@@ -144,6 +144,23 @@ test("Log out is in the menu on your name, and lands on the Dashboard", async ()
   vi.unstubAllGlobals();
 });
 
+test("a logout that fails says so, and stays", async () => {
+  const assign = vi.fn();
+  vi.stubGlobal("location", { ...window.location, assign, pathname: "/" });
+  const ok = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (path, init) =>
+    path === "/api/logout"
+      ? new Response(JSON.stringify({ detail: "Cross-origin request refused" }), { status: 403 })
+      : ok(path, init),
+  );
+  renderAt("/");
+  fireEvent.click(await screen.findByTitle("Your account"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
+
+  expect(await screen.findByText("Not logged out: Cross-origin request refused")).toBeInTheDocument();
+  expect(assign).not.toHaveBeenCalled();
+});
+
 test("your name in the sidebar opens a menu: change your password, or log out", async () => {
   renderAt("/");
   fireEvent.click(await screen.findByTitle("Your account"));

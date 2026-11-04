@@ -64,3 +64,16 @@ test("adding an operator needs a tab, and sends what was chosen", async () => {
     }),
   );
 });
+
+test("saving an account asks who you are again, so the sidebar follows your own role", async () => {
+  renderUsers();
+  await screen.findByText("(you)");
+  fireEvent.click(screen.getByRole("button", { name: "Edit admin" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await vi.waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
+  const patched = calls.findIndex((c) => c.method === "PATCH");
+  await vi.waitFor(() =>
+    expect(calls.slice(patched + 1).some((c) => c.path === "/api/auth/status")).toBe(true),
+  );
+});
