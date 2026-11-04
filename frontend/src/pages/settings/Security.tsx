@@ -1,12 +1,12 @@
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 import type { FieldDef } from "../../lib/settings";
 
-// How long a session lasts idle — the same choices the backend allows
+// How long a session lasts once no Loskai page is open — the same choices the backend allows
 // (shared/settings.SESSION_IDLE_CHOICES); the first listed is the default.
 const SESSION_FIELDS: FieldDef[] = [
   {
     key: "session_idle_minutes",
-    label: "Sign out after this long idle",
+    label: "Sign out this long after the last page closes",
     options: [
       { value: "120", label: "2 hours" },
       { value: "30", label: "30 minutes" },
@@ -26,8 +26,8 @@ export function Security() {
       <section>
         <h2 className="text-sm font-medium text-slate-200">Sessions</h2>
         <p className="mt-1 mb-3 text-xs text-slate-500">
-          A session ends when it hasn't been used for this long, and renews while it is — like
-          Proxmox's. Logging out ends your sessions on every device.
+          An open Loskai page keeps you signed in, even in a background tab — like Proxmox. Logging
+          out ends your sessions on every device.
         </p>
         <InlineSettingsFields fields={SESSION_FIELDS} />
       </section>

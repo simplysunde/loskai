@@ -10,7 +10,6 @@ import contextlib
 import json
 import logging
 import socket
-import time
 from urllib.parse import urlparse
 
 from docker.errors import APIError, NotFound
@@ -213,16 +212,12 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
                 break
             await websocket.send_bytes(data)
 
-    typed = time.time()
-
     async def to_container():
-        nonlocal typed
         while True:
             msg = await websocket.receive()
             if msg.get("type") == "websocket.disconnect":
                 break
             if msg.get("bytes") is not None:  # keystrokes -> stdin
-                typed = time.time()
                 await asyncio.to_thread(raw.sendall, msg["bytes"])
             elif msg.get("text") is not None:  # control frames (resize)
                 try:
@@ -236,9 +231,7 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
 
     out = asyncio.create_task(to_client())
     inp = asyncio.create_task(to_container())
-    ended = asyncio.create_task(
-        auth.session_ended(websocket.cookies.get(auth.SESSION_COOKIE), "docker", lambda: typed)
-    )
+    ended = asyncio.create_task(auth.session_ended(websocket.cookies.get(auth.SESSION_COOKIE), "docker"))
     try:
         await asyncio.wait({out, inp, ended}, return_when=asyncio.FIRST_COMPLETED)
     finally:

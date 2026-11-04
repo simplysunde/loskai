@@ -14,7 +14,6 @@ import re
 import secrets
 import threading
 import time
-from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -138,27 +137,25 @@ def act_as(user: User | None) -> None:
 
 
 # How often an open terminal re-checks its session: logging out (which ends the user's
-# sessions), losing the tab or going idle closes it within this many seconds.
+# sessions) or losing the tab closes it within this many seconds.
 SESSION_RECHECK = 5.0
 
 
-async def session_ended(token: str | None, tab: str, last_input: Callable[[], float]) -> None:
+async def session_ended(token: str | None, tab: str) -> None:
     """Returns once the session `token` opened a terminal with is over: its account gone, its
-    sessions ended (logout, a new password), `tab` taken away, or idle — nothing typed in the
-    terminal (`last_input`, a timestamp) for the idle time. The browser's cookie is renewed
-    by its requests, never this copy, so typing is what keeps a terminal in use. A WebSocket
-    checks the cookie once, at connect; a shell must not outlive the session, so every
-    terminal waits on this."""
+    sessions ended (logout, a new password) or `tab` taken away. Not the idle time: a
+    terminal lives in an open page, and an open page keeps its session — the cookie the
+    terminal was opened with is never renewed, the browser's is. A WebSocket checks the
+    cookie once, at connect; a shell must not outlive the session, so every terminal waits
+    on this."""
     found = _read_session(token)
     if found is None:
         return
-    opened, issued = found
+    opened = found[0]
     while True:
         await asyncio.sleep(SESSION_RECHECK)
         user = users.get(opened.username)
         if user is None or user.generation != opened.generation or not user.may(tab):
-            return
-        if time.time() - max(issued, last_input()) > settings_store.session_idle_seconds():
             return
 
 

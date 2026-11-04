@@ -22,8 +22,8 @@ everything, or an **operator**, given any of the Docker, Routing and Machines ta
 to do everything in those — and nothing else, Settings included. A route belongs to Routing,
 so an operator without it can install an app but not give it a URL.
 
-You stay signed in while you use Loskai, and are signed out after 2 hours without use (an
-admin changes that in Settings › Security). **Log out** signs you out on every device. Your
+You stay signed in while a Loskai page is open, even in a background tab, and are signed
+out 2 hours after you close the last one (an admin changes that in Settings › Security). **Log out** signs you out on every device. Your
 name at the bottom of the sidebar changes your password.
 
 ## Dashboard
@@ -216,7 +216,8 @@ still there. Adding it again later installs the same key again.
   (15 minutes unless you pick 1, 3, 8 or 24 hours), the SSH config for your own computer,
   and the log of terminals and installs.
 - **Users** — the accounts: add one, set its role and tabs, set its password, remove it.
-- **Security** — how long a session lasts without use (2 hours unless changed).
+- **Security** — how long you stay signed in once no Loskai page is open (2 hours unless
+  changed).
 
 Settings is an admin's.
 

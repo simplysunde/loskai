@@ -34,12 +34,15 @@ export type HealthMap = Record<ModuleName, ModuleHealth> & {
 
 // Polls the aggregate health every 30s (docs/project/architecture.md: one poll, all modules, no reload on a
 // single module going down). Disabled when logged out — /api/health is gated, so
-// polling it unauthenticated would 401-redirect the public dashboard.
+// polling it unauthenticated would 401-redirect the public dashboard. It goes on in a
+// background tab too: each poll renews the session, so an open page keeps it, as
+// Proxmox's does.
 export function useHealth(enabled = true) {
   return useQuery({
     queryKey: ["health"],
     queryFn: () => api.get<HealthMap>("/api/health"),
     refetchInterval: enabled ? 30_000 : false,
+    refetchIntervalInBackground: true,
     enabled,
   });
 }

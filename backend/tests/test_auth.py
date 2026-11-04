@@ -2,7 +2,6 @@
 
 import asyncio
 import socket
-import time
 
 import pytest
 from docker.errors import DockerException
@@ -256,10 +255,10 @@ def test_log_out_closes_an_open_terminal(client, monkeypatch):
     assert shell._sock.fileno() == -1  # and the exec socket closed with it
 
 
-def _ends_within(token, seconds, tab="machines", last_input=lambda: 0.0) -> bool:
+def _ends_within(token, seconds, tab="machines") -> bool:
     async def run():
         try:
-            await asyncio.wait_for(auth.session_ended(token, tab, last_input), seconds)
+            await asyncio.wait_for(auth.session_ended(token, tab), seconds)
             return True
         except TimeoutError:
             return False
@@ -267,14 +266,14 @@ def _ends_within(token, seconds, tab="machines", last_input=lambda: 0.0) -> bool
     return asyncio.run(run())
 
 
-def test_typing_keeps_a_terminal_past_its_cookie_s_idle_time(monkeypatch):
-    # The browser's cookie is renewed by its requests; the terminal's copy never is.
+def test_a_terminal_outlasts_its_cookie_s_idle_time(monkeypatch):
+    # It lives in an open page, which keeps its session; the cookie it was opened with is
+    # never renewed, the browser's is.
     monkeypatch.setattr(auth, "SESSION_RECHECK", 0.05)
     monkeypatch.setattr(s, "session_idle_seconds", lambda: 1)
     token = auth.make_session(_admin())
 
-    assert not _ends_within(token, 2.5, last_input=time.time)
-    assert _ends_within(token, 2.5)  # nothing typed: idle
+    assert not _ends_within(token, 2.5)
 
 
 def test_a_terminal_ends_when_its_tab_is_taken_away(monkeypatch):
@@ -283,11 +282,11 @@ def test_a_terminal_ends_when_its_tab_is_taken_away(monkeypatch):
     ola = users.create("ola", "ola-password", "operator", ["docker", "machines"])
     token = auth.make_session(ola)
 
-    assert not _ends_within(token, 0.3, last_input=time.time)
+    assert not _ends_within(token, 0.3)
     users.set_role("ola", "operator", ["docker"])
 
-    assert _ends_within(token, 0.3, last_input=time.time)
-    assert not _ends_within(token, 0.3, tab="docker", last_input=time.time)
+    assert _ends_within(token, 0.3)
+    assert not _ends_within(token, 0.3, tab="docker")
 
 
 # --- Login backoff ---

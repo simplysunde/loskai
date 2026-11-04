@@ -585,7 +585,7 @@ is needed before the UI is up, and a list is better edited there). The page is s
 Caddy and WireGuard — fields only; their status lives on Routing, next to what they gate)
 **SSH** (what is the same for every machine: Loskai's key, the SSH config to download, the
 log — one machine's own SSH is behind the cog on its row), **Users** (the accounts) and
-**Security** (how long a session lasts idle). Settings is an admin's.
+**Security** (how long a session lasts once no page is open). Settings is an admin's.
 
 ### WireGuard
 
@@ -654,12 +654,14 @@ or Machines. The frontend shows only what the account may use, but the API is th
 `X-Forwarded-Proto` — so a login on plain `:8080` still works there. **A session ends after
 it has been idle** for `session_idle_minutes` (2 hours, like Proxmox's ticket; 30 minutes to
 7 days) and is renewed — a fresh cookie — by a request more than a minute after the last.
+**An open page keeps it**, as Proxmox's UI renews its ticket: the health poll, every 30 s,
+goes on in a background tab (`useHealth`), so idle means no Loskai page open.
 **Log out ends your sessions on every device**: it bumps your generation, so every cookie
 naming the old one stops working, and no one else's; a new password or the account removed
 does the same. An open terminal re-checks every 5 s and closes when its session is over:
-the account's generation moved on (a logout), its tab taken away, or nothing typed in it for
-the idle time — typing counts as use, since the terminal's copy of the cookie is never
-renewed.
+the account's generation moved on (a logout) or its tab taken away. Not the idle time: a
+terminal lives in an open page, which keeps the session, while the terminal's own copy of
+the cookie is never renewed.
 **Wrong passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during
 which login answers `429`; 15 quiet minutes start the count again. A wrong username costs
 the same as a wrong password, and the answer doesn't say which. The count is one for all

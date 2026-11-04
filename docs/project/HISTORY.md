@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-04 — An open page keeps the session, as Proxmox's does
+
+Sunde asked whether a session could stay alive while the page is open, as Proxmox's does.
+Proxmox's ticket lasts 2 hours, and its UI renews the ticket while open. Loskai was nearly
+there already: every signed-in page polls `/api/health` every 30 s, and a request renews the
+session. But the poll paused in a hidden tab, TanStack Query's default, so a background tab
+was signed out after 2 hours. It now polls in the background too. A session therefore ends
+2 hours after the last page closes.
+
+**This walks back the same day's typing rule for terminals**, from the review fixes below.
+A terminal had closed when nothing was typed in it for the idle time. Under this model it
+lives as long as its page, and ends on a logout or its tab taken away.
+
+The cost is that an unlocked computer with Loskai open stays signed in. The SSH key's unlock
+still runs out after 15 minutes, so the machines still ask for a password.
+
 ## 2026-11-04 — Loskai's SSH key, kept simply (Phase 38) — walks back Phase 35's key slots
 
 After the review, Sunde asked whether login and security should be redesigned now that how

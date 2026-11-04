@@ -69,9 +69,11 @@ your network. Read this before deciding where it runs and who can reach it.
   Machines) — Settings and the accounts are an admin's. The API enforces it, one rule per
   route (`shared/access.py`), and a route without one is admin-only. Passwords are stored
   only as Argon2 hashes, in `data/users.json` (owner-only).
-- **Sessions.** A login sets an `HttpOnly`, `SameSite=Lax` cookie naming the account. It ends
-  after 2 hours without use (Settings › Security: 30 minutes to 7 days) and renews while
-  used. **Log out ends your sessions on every device** — a copied cookie stops working too,
+- **Sessions.** A login sets an `HttpOnly`, `SameSite=Lax` cookie naming the account. An open
+  Loskai page keeps it, even in a background tab, as Proxmox's does; it ends 2 hours after
+  the last page closes (Settings › Security: 30 minutes to 7 days). An unlocked computer
+  with Loskai open stays signed in — the SSH key still asks for your password again after
+  15 minutes. **Log out ends your sessions on every device** — a copied cookie stops working too,
   and an open terminal closes within seconds; so does a changed password, or the account
   removed. After 5 wrong passwords, each one costs a wait that doubles up to a minute: a
   guesser gets about one try a minute.

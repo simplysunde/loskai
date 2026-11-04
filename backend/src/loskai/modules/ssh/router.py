@@ -315,16 +315,12 @@ async def terminal(
                 break
             await websocket.send_bytes(data)
 
-    typed = time.time()
-
     async def to_machine():
-        nonlocal typed
         while True:
             msg = await websocket.receive()
             if msg.get("type") == "websocket.disconnect":
                 break
             if msg.get("bytes") is not None:  # keystrokes and pastes -> the shell
-                typed = time.time()
                 process.stdin.write(msg["bytes"])
             elif msg.get("text") is not None:  # control frames (resize)
                 try:
@@ -337,7 +333,7 @@ async def terminal(
     tasks = {
         asyncio.create_task(to_client()),
         asyncio.create_task(to_machine()),
-        asyncio.create_task(auth.session_ended(cookie, "machines", lambda: typed)),
+        asyncio.create_task(auth.session_ended(cookie, "machines")),
     }
     try:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)

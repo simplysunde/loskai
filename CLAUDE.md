@@ -188,7 +188,8 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
 
 **Security is enforced on the API, never the frontend.** Accounts (`shared/users.py`): an
 admin does everything; an operator only the tabs it is given. Passwords hashed, an `HttpOnly`
-session cookie naming the account, ended by its idle time or its user's logout. Middleware
+session cookie naming the account, kept while a page is open (its health poll renews it,
+even in a background tab) and ended by its idle time after that, or its user's logout. Middleware
 gates **every `/api/*`** except the set in `PUBLIC_ROUTES` (`shared/auth.py`), and then asks
 `shared/access.py` — one line per route: any account, its tabs, or admin; a route with no
 line is admin-only, and a test fails until it has one. A new route gets its line in the
@@ -207,7 +208,7 @@ same commit. The public set:
 machine's (`WS /api/ssh/machines/{id}/terminal`) — sit outside the middleware**: WebSockets
 never traverse it, so each checks the cookie and the `Origin` itself (`auth.same_origin`),
 closes with 1008, and waits on `auth.session_ended` to close when the session does (a
-logout, its tab taken away, or nothing typed for the idle time). Each
+logout or its tab taken away). Each
 opens a shell — the machine's also needs the SSH key unlocked; never add a WS route without
 repeating all three. **Every request that changes something is
 Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`
