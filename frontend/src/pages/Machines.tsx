@@ -167,8 +167,7 @@ export function Machines() {
       {result && <SaveBanner result={result} />}
       {deleteWarning && (
         <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-          {deleteWarning} — remove its <span className="font-mono">loskai</span> lines from{" "}
-          <span className="font-mono">~/.ssh/authorized_keys</span> by hand.
+          {deleteWarning}
         </p>
       )}
 

@@ -79,7 +79,10 @@ async def remove_keys(inst: Instance, removal) -> str | None:
         sudo_left = await connect.uninstall(*removal)
     except connect.SshError as exc:
         connect.log("uninstall", inst.id, None, ok=False, error=exc.detail)
-        return f"Loskai's key and any sudo rule it added are still on the machine: {exc.detail}"
+        return (
+            f"Loskai's key and any sudo rule it added are still on the machine ({exc.detail}) — "
+            f"remove its loskai lines from ~/.ssh/authorized_keys by hand, and as root: rm -f {logic.SUDO_RULE}"
+        )
     connect.log("uninstall", inst.id, None, ok=True, **({"sudo_rule_left": True} if sudo_left else {}))
     if sudo_left:
         return f"Loskai's key is off, but its sudo rule stayed — as root: rm -f {logic.SUDO_RULE}"

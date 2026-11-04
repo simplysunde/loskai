@@ -311,7 +311,21 @@ test("a machine deleted with Loskai's key still on it says so", async () => {
   expect(screen.queryByLabelText("Your password")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-  expect(await screen.findByText(/No route to host — remove its/)).toBeInTheDocument();
+  expect(await screen.findByText("Loskai's key is still on the machine: No route to host")).toBeInTheDocument();
+});
+
+test("a delete warning is shown as said — not told to remove lines that are already off", async () => {
+  setUp();
+  deleteReply = { deleted: true, instance_id: "nas", warning: "Loskai's key is off, but its sudo rule stayed — as root: rm -f /etc/sudoers.d/loskai" };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByTitle("More"));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+  expect(await screen.findByText(/its sudo rule stayed/)).toBeInTheDocument();
+  expect(screen.queryByText(/authorized_keys/)).not.toBeInTheDocument();
 });
 
 test("every route on a machine's address is listed under it, by port", async () => {

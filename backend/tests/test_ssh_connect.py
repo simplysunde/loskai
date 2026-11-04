@@ -355,7 +355,9 @@ def test_a_machine_that_can_t_be_reached_is_deleted_with_a_warning(api, machine_
 
     r = api.delete("/api/instances/nas")
 
-    assert r.status_code == 200 and r.json()["warning"].startswith("Loskai's key and any sudo rule it added are still on the machine")
+    warning = r.json()["warning"]
+    assert r.status_code == 200 and warning.startswith("Loskai's key and any sudo rule it added are still on the machine")
+    assert "authorized_keys by hand" in warning and "rm -f /etc/sudoers.d/loskai" in warning  # what to do
     assert logic.known_key(ssh_client.read_known_hosts(), "nas") is None
 
 
