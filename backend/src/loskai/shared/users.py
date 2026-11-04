@@ -228,8 +228,17 @@ def ensure_seeded() -> None:
         create("admin", "", "admin", hashed=legacy)
         settings_store.drop_admin_password_hash()
     elif env.loskai_password:
-        # Hashed as given: the env is the operator's choice, and refusing it would stop startup.
-        create(env.loskai_username or "admin", "", "admin", hashed=_ph.hash(env.loskai_password))
+        # Lowercased, as login lowercases what is typed. A name that still isn't one stops
+        # startup, saying which variable: skipping it would open first-run setup to anyone.
+        name = (env.loskai_username or "admin").strip().lower()
+        if not USERNAME.match(name):
+            raise RuntimeError(
+                f"LOSKAI_USERNAME={env.loskai_username!r} isn't a username: lowercase letters, "
+                "digits, _ . - and starting with a letter"
+            )
+        # The password hashed as given: the env is the operator's choice, and refusing it
+        # would stop startup.
+        create(name, "", "admin", hashed=_ph.hash(env.loskai_password))
 
 
 # --- Routes: the accounts, for an admin (access.py) ---

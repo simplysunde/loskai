@@ -78,6 +78,18 @@ def test_ensure_seeded_makes_the_first_admin_from_env(monkeypatch):
     assert users.verify("sunde", "seeded-password").role == "admin"
 
 
+def test_the_seeded_username_is_lowercased_and_one_that_can_t_be_a_name_stops_startup(monkeypatch):
+    monkeypatch.setattr(config.settings, "loskai_password", "seeded-password")
+    monkeypatch.setattr(config.settings, "loskai_username", "Bad Name")
+    with pytest.raises(RuntimeError, match="LOSKAI_USERNAME='Bad Name'"):
+        auth.ensure_seeded()
+    assert not users.any_users()  # and first-run setup isn't what it falls back to
+
+    monkeypatch.setattr(config.settings, "loskai_username", "Sunde")
+    auth.ensure_seeded()
+    assert users.verify("sunde", "seeded-password") is not None
+
+
 def test_ensure_seeded_is_idempotent(monkeypatch):
     monkeypatch.setattr(config.settings, "loskai_password", "first-password")
     auth.ensure_seeded()

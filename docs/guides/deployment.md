@@ -74,7 +74,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 |---|---|
 | `BASE_DOMAIN` | Your domain; service prefixes are appended (e.g. `grafana.example.no`). |
 | `LOSKAI_PASSWORD` | The first admin account's password, at first run (otherwise the setup page asks); only ever stored hashed. More accounts are made in Settings › Users. |
-| `LOSKAI_USERNAME` | That account's username — `admin` unless set. |
+| `LOSKAI_USERNAME` | That account's username — `admin` unless set. Lowercased; one that still isn't a username (letters, digits, `_ . -`, starting with a letter) stops Loskai starting, with a message saying so. |
 | `SESSION_IDLE_MINUTES` | How long a session lasts without activity: `30`, `60`, `120` (default), `480`, `1440` or `10080` minutes. Also in Settings › Security. |
 | `CADDY_ADMIN_URL` | Caddy Admin API. A LAN IP = external/preferred mode; a hostname (`http://caddy:2019`) = co-located mode. |
 | `ADGUARD_URL` | AdGuard Home REST API endpoint. |
