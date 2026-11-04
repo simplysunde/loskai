@@ -114,18 +114,21 @@ def append_log(entry: dict) -> None:
         store.update_text(path, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
 
 
-def read_log(limit: int) -> list[dict]:
-    """The last `limit` entries, newest first."""
+def read_log(limit: int, user: str | None = None) -> list[dict]:
+    """The last `limit` entries, newest first — only `user`'s, given one."""
     path = _log_path()
     if not path.exists():
         return []
-    lines = path.read_text(encoding="utf-8").splitlines()[-limit:]
     out = []
-    for line in reversed(lines):
+    for line in reversed(path.read_text(encoding="utf-8").splitlines()):
         try:
-            out.append(json.loads(line))
+            entry = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if user is None or entry.get("user") == user:
+            out.append(entry)
+            if len(out) == limit:
+                break
     return out
 
 

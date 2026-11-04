@@ -1,5 +1,6 @@
 """Who may call what: an admin everything, an operator only its tabs (shared/access.py)."""
 
+import json
 import pathlib
 import re
 
@@ -126,6 +127,21 @@ def test_the_create_endpoints_change_only_a_record_on_the_caller_s_tab(admin):
 
     assert instances_store.get_instance("nas") == nas
     assert instances_store.get_instance("web") == web
+
+
+def test_an_operator_reads_only_its_own_entries_in_the_ssh_log(admin):
+    from loskai.modules.ssh import client as ssh_client
+
+    machines = _operator(admin, "ola", ["machines"])
+    path = ssh_client._log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(
+        json.dumps({"at": "2026-11-04T10:00:00", "event": "open", "machine": "nas", "from": None, "user": who}) + "\n"
+        for who in ["admin", "ola", "admin"]
+    ))
+
+    assert [e["user"] for e in admin.get("/api/ssh/log").json()] == ["admin", "ola", "admin"]
+    assert [e["user"] for e in machines.get("/api/ssh/log").json()] == ["ola"]
 
 
 def test_a_terminal_needs_its_tab(admin):

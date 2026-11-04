@@ -75,7 +75,8 @@ Everything so far:
   and operators limited to the tabs they're given (Docker, Routing, Machines). A session
   ends after 2 hours without use (Settings › Security) and renews while used — typing in
   a terminal counts; logging out ends yours on every device, and an open terminal with it,
-  as taking away its tab does. Each account unlocks Loskai's SSH key with its own password.
+  as taking away its tab does. An operator's SSH log, in a machine's dialog, shows only what
+  they did. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of

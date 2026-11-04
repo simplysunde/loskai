@@ -257,8 +257,12 @@ async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body:
 
 @router.get("/log")
 def session_log(limit: int = 200) -> list[dict]:
-    """The SSH log, newest first: terminals opened, closed and refused, and installs."""
-    return client.read_log(max(1, min(limit, client.LOG_KEEP)))
+    """The SSH log, newest first: terminals opened, closed and refused, and installs. All of
+    it for an admin — an audit trail is Settings' — and an operator's own entries for them."""
+    me = auth.current_user()
+    if me is None:  # the middleware sets one; never the whole log without it
+        raise HTTPException(401, "Authentication required")
+    return client.read_log(max(1, min(limit, client.LOG_KEEP)), None if me.admin else me.username)
 
 
 @router.websocket("/machines/{machine_id}/terminal")
