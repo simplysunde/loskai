@@ -8,7 +8,8 @@ is never reachable by an operator by accident.
 
 Routes are Routing's: the install wizard's route step and a machine's Add route need the
 Routing tab too. A record's own tab depends on what it is — a machine is Machines', a route
-Routing's — so the routes that change one by id also call `require_instance`.
+Routing's — so the routes that change one also call `require_instance`: by id, and the
+create endpoints on the record they find (`assign.assign`'s `acting`).
 """
 
 import re

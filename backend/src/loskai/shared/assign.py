@@ -39,6 +39,7 @@ from . import access, auth, follow
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
+from .users import User
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,10 @@ async def assign(
     scheme: Literal["https", "both", "http"] = "https",
     route_mode: Literal["proxy", "dns_only"] = "proxy",
     follow_container: bool = False,
+    acting: User | None = None,
 ) -> dict:
+    """`acting` is the account asking (the endpoints pass it): a record this changes must be
+    on its tab — a machine the Machines tab's, a route Routing's — whichever way it was found."""
     validate_prefix(prefix, route_mode)
     if not base_domain:
         raise AssignError(400, "base_domain is not set — configure it in Settings")
@@ -178,6 +182,8 @@ async def assign(
         existing = instances_store.get_by_container(container)
     if existing is None and origin:
         existing = instances_store.get_by_origin(origin)
+    if existing is not None and acting is not None:
+        access.require_instance(acting, existing.kind)
 
     target_id = existing.id if existing else prefix
     if subdomain_taken(prefix, exclude_id=target_id):
@@ -569,6 +575,8 @@ async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
     base, current_ip = _context()
     prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
+    if prev is not None:  # before its SSH entry is read, below
+        access.require_instance(auth.current_user(), prev.kind)
     if refusal := ssh_machines.rename_refusal(prev, body.hostname):
         raise HTTPException(status_code=409, detail=refusal)
     # Removing its SSH connection takes off what Loskai put on the machine, as deleting it
@@ -585,7 +593,7 @@ async def post_machine(body: MachineCreate) -> dict:
             caddy, adguard,
             prefix=body.hostname, upstream=body.address,
             instance_id=body.instance_id,
-            base_domain=base, current_ip=current_ip,
+            base_domain=base, current_ip=current_ip, acting=auth.current_user(),
         )
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
@@ -615,7 +623,7 @@ async def post_route(body: RouteCreate) -> dict:
             instance_id=body.instance_id, name=body.name, container=body.container,
             origin=body.origin, upstream_tls=body.upstream_tls,
             scheme=body.scheme, base_domain=base, current_ip=current_ip,
-            follow_container=body.follow_container,
+            follow_container=body.follow_container, acting=auth.current_user(),
         )
     except AssignError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
@@ -623,6 +631,8 @@ async def post_route(body: RouteCreate) -> dict:
 
 @router.delete("/assign/{instance_id}")
 async def delete_assign(instance_id: str) -> dict:
+    if (inst := instances_store.get_instance(instance_id)) is not None:
+        access.require_instance(auth.current_user(), inst.kind)
     base = settings_store.value("base_domain")
     try:
         return await unassign(caddy, adguard, instance_id, base_domain=base)

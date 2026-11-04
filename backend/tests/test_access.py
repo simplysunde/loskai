@@ -108,6 +108,26 @@ def test_a_record_s_own_tab_decides_who_deletes_or_renames_it(admin):
     assert routing.patch("/api/instances/web", json={"private": True}, headers=ORIGIN).status_code == 200
 
 
+def test_the_create_endpoints_change_only_a_record_on_the_caller_s_tab(admin):
+    admin.put("/api/settings", json={"base_domain": "home.lan"}, headers=ORIGIN)
+    nas = Instance(id="nas", name="nas", type="external", kind="machine", upstream="10.0.0.5", subdomain="nas", origin="gateway")
+    web = Instance(id="web", name="web", type="external", kind="service", upstream="10.0.0.6:80", subdomain="web")
+    instances_store.upsert_instance(nas)
+    instances_store.upsert_instance(web)
+    routing = _operator(admin, "ola", ["routing"])
+    machines = _operator(admin, "kari", ["machines"])
+
+    # A route can't be turned into a machine from Machines, nor a machine into a route from
+    # Routing — however the record is found.
+    assert machines.post("/api/machines", json={"hostname": "web", "address": "10.0.0.6", "instance_id": "web"}, headers=ORIGIN).status_code == 403
+    assert routing.post("/api/routes", json={"prefix": "nas", "upstream": "10.0.0.5:80", "instance_id": "nas"}, headers=ORIGIN).status_code == 403
+    assert routing.post("/api/routes", json={"prefix": "gw", "upstream": "10.0.0.5:80", "origin": "gateway"}, headers=ORIGIN).status_code == 403
+    assert routing.delete("/api/assign/nas", headers=ORIGIN).status_code == 403
+
+    assert instances_store.get_instance("nas") == nas
+    assert instances_store.get_instance("web") == web
+
+
 def test_a_terminal_needs_its_tab(admin):
     machines = _operator(admin, "ola", ["machines"])
 
