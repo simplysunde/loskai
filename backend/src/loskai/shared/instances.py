@@ -300,6 +300,9 @@ def delete_icon(instance_id: str) -> Instance:
 @router.patch("/instances/{instance_id}")
 def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
     """Update mutable display fields (private flag, display name). Subdomain/upstream
-    are changed through the assign flow, never here."""
+    are changed through the assign flow, never here — and so is a machine's name, which is
+    its hostname (`assign.name_machine`)."""
     inst = _owned(instance_id)
+    if body.name is not None and is_machine(inst) and body.name != inst.name:
+        raise HTTPException(status_code=409, detail="A machine's name is its hostname — rename it in its dialog")
     return update_fields(instance_id, **body.model_dump(exclude_none=True)) or inst

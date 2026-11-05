@@ -86,7 +86,7 @@ was given (an admin's lists them all); its password hash never leaves the server
 
 | Method & path | Purpose |
 |---|---|
-| `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. |
+| `PATCH /api/instances/{id}` | Body `{ private?, name? }` — update display fields. Subdomain/upstream change through the assign flow, never here. A machine's name is its hostname, so a new `name` for one is `409` — it is renamed through `POST /api/machines`. |
 | `GET /api/instances/{id}/icon` | The launcher icon. **Public** — the Dashboard is unauthenticated, so a card renders its icon before anyone logs in. `404` when none is set. Served under the content type sniffed at upload. |
 | `POST /api/instances/{id}/icon` | Set the launcher icon. The image is the **raw request body**, not a multipart form (the bytes are sniffed either way, so a form part would only carry a filename and type that are ignored — and would add a `python-multipart` dependency). PNG, JPEG or WebP, **detected by magic bytes**, max 512 KB. **SVG is refused**: these are served from Loskai's own origin, and an SVG is a script container. `413` if oversized, `422` if unsupported. One icon per instance — uploading replaces any previous one, including a different format. |
 | `DELETE /api/instances/{id}/icon` | Remove it; the card falls back to its generic glyph. |

@@ -198,3 +198,14 @@ def test_renaming_changes_only_the_name(client):
     assert client.patch("/api/instances/grafana", json={"name": "Graphs"}).status_code == 200
     stored = store.get_instance("grafana")
     assert (stored.name, stored.private, stored.upstream) == ("Graphs", False, "192.168.10.50:3000")
+
+
+def test_a_machine_is_renamed_by_its_hostname_only(client):
+    store.upsert_instance(store.Instance(id="nas", name="nas", type="external", kind="machine",
+                                         subdomain="nas", route_mode="dns_only", upstream="192.168.10.60"))
+
+    r = client.patch("/api/instances/nas", json={"name": "NAS box"})
+
+    assert r.status_code == 409 and "hostname" in r.json()["detail"]
+    assert store.get_instance("nas").name == "nas"
+    assert client.patch("/api/instances/nas", json={"private": True}).status_code == 200
