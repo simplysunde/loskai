@@ -57,8 +57,12 @@ async def relay(
                     ctrl = json.loads(msg["text"])
                 except json.JSONDecodeError:
                     continue
-                if ctrl.get("type") == "resize":
-                    await resize(int(ctrl["rows"]), int(ctrl["cols"]))
+                if isinstance(ctrl, dict) and ctrl.get("type") == "resize":
+                    try:
+                        rows, cols = int(ctrl["rows"]), int(ctrl["cols"])
+                    except (KeyError, TypeError, ValueError):
+                        continue  # a malformed frame is dropped, never the terminal
+                    await resize(rows, cols)
 
     tasks = {
         asyncio.create_task(to_browser()),

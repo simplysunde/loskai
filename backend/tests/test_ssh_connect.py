@@ -440,6 +440,20 @@ def test_the_terminal_is_a_shell_on_the_machine_with_the_main_key(api, shell):
     assert shell["shell"].closed  # the browser's terminal closed, so the shell is hung up
 
 
+def test_a_malformed_resize_is_ignored_and_the_terminal_goes_on(api, shell):
+    _with_key(api)
+    _trust(api)
+
+    with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
+        assert ws.receive_bytes() == b"welcome\r\n"
+        for bad in ({"type": "resize", "rows": None}, {"type": "resize", "cols": "wide", "rows": 30}, {"type": "resize"}):
+            ws.send_text(json.dumps(bad))
+        ws.send_bytes(b"x")
+        assert ws.receive_bytes() == b"got:x"
+
+    assert shell["shell"].sizes == []
+
+
 def test_a_sibling_page_can_t_open_a_terminal(api, shell):
     _with_key(api)
     _trust(api)
