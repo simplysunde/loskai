@@ -17,11 +17,10 @@ from pathlib import Path
 import yaml
 
 from ...shared import store
-from . import recipes, stacks
+from . import dotenv, recipes, stacks
 from .recipes import RecipeError
 from .stacks import StackError
 
-_ENV_KEY_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=", re.MULTILINE)
 _TRAILER_RE = re.compile(r"^[A-Za-z][\w-]*: \S")
 _NEXT_NAME = ".compose.next.yml"
 _UPDATABLE = {"available", "edited", "untracked"}
@@ -76,7 +75,7 @@ def image_changes(installed: str, offered: str) -> list[dict]:
 def new_questions(env_spec: list[dict], env_text: str) -> tuple[dict[str, str], list[str]]:
     """The recipe's questions the .env has no line for: the defaults to add, and the keys
     with no default — which an update can't answer, so it is refused."""
-    have = set(_ENV_KEY_RE.findall(env_text))
+    have = set(dotenv.parse_env(env_text))
     defaults: dict[str, str] = {}
     unanswered: list[str] = []
     for entry in env_spec:
@@ -115,7 +114,7 @@ def parse_log(output: str) -> list[dict]:
 
 def _offered(recipe: dict) -> str:
     folder = Path(recipe["path"])
-    path = next(folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file())
+    path = recipes.recipe_compose(folder)
     return path.read_text(encoding="utf-8")
 
 
@@ -124,12 +123,12 @@ def _commits_since(recipe: dict, since: str | None) -> list[dict]:
     install with no record, or a commit the cache no longer has."""
     if not since or recipe["source_url"] is None:
         return []
-    cache = recipes._repo_cache(recipe["source_url"])
+    cache = recipes.repo_cache(recipe["source_url"])
     try:
         folder = Path(recipe["path"]).relative_to(cache)
         proc = subprocess.run(
             ["git", "-C", str(cache), "log", "--format=%H%x1f%as%x1f%s%x1f%b%x1e", f"{since}..HEAD", "--", str(folder)],
-            capture_output=True, text=True, timeout=recipes._GIT_TIMEOUT,
+            capture_output=True, text=True, timeout=recipes.GIT_TIMEOUT,
         )
     except (ValueError, FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -167,11 +166,11 @@ def _entry(directory: Path, compose: Path, record: dict | None, recipe: dict) ->
 def _installed() -> list[tuple[Path, Path, dict | None, dict | None, str]]:
     """Each stack that came from a recipe — by its record, or for one from before records,
     by a name some recipe has: (folder, compose file, record, recipe or None, recipe id)."""
-    catalog = recipes._merged()["recipes"]
+    catalog = recipes.merged_recipes()["recipes"]
     found = []
     base = stacks.stacks_dir()
     for directory in sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []:
-        compose = stacks._compose_file(directory)
+        compose = stacks.compose_path(directory)
         if compose is None:
             continue
         record = recipes.read_record(directory)
@@ -216,9 +215,9 @@ def apply_update(name: str) -> dict:
     offered = _offered(recipe)
     candidate = directory / _NEXT_NAME
     candidate.write_text(offered, encoding="utf-8")
-    override = stacks._override_file(directory)
+    override = stacks.override_path(directory)
     files = ["-f", _NEXT_NAME] + (["-f", override.name] if override else [])
-    checked = stacks._run_compose(directory, *files, "config", "--quiet")
+    checked = stacks.run_compose(directory, *files, "config", "--quiet")
     if not checked["ok"]:
         candidate.unlink(missing_ok=True)
         raise RecipeError(f"the new version doesn't load with this stack's files: {checked['output']}")
@@ -228,6 +227,6 @@ def apply_update(name: str) -> dict:
     defaults, _ = new_questions(recipe["env"], env.read_text(encoding="utf-8") if env.is_file() else "")
     if defaults:
         text = env.read_text(encoding="utf-8") if env.is_file() else ""
-        store.write_private(env, text + ("" if not text or text.endswith("\n") else "\n") + recipes.render_env(defaults))
+        store.write_private(env, text + ("" if not text or text.endswith("\n") else "\n") + dotenv.render_env(defaults))
     recipes.write_record(directory, recipe, offered)
     return stacks.stack_action(name, "pull")

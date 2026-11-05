@@ -83,7 +83,7 @@ def installed(tmp_path, monkeypatch):
         runs.append(args)
         return {"ok": True, "output": " ".join(args)}
 
-    monkeypatch.setattr(stacks, "_run_compose", run)
+    monkeypatch.setattr(stacks, "run_compose", run)
     monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
     monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])
@@ -166,7 +166,7 @@ def test_an_update_replaces_only_the_recipes_file(installed):
 
 def test_an_update_the_users_files_cant_run_with_writes_nothing(installed, monkeypatch):
     (installed["recipe"] / "compose.yml").write_text(V2)
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": False, "output": "service 'app' has no image"})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": False, "output": "service 'app' has no image"})
     with pytest.raises(RecipeError, match="doesn't load with this stack's files: service 'app'"):
         updates.apply_update("grafana")
     assert (installed["stack"] / "compose.yml").read_text() == V1
@@ -212,7 +212,7 @@ def test_a_git_sources_commits_since_the_install_are_listed(tmp_path, monkeypatc
     _git(cache, "init", "-q")
     _git(cache, "add", ".")
     _git(cache, "commit", "-qm", "First")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
     monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
     monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])

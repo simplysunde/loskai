@@ -51,7 +51,7 @@ def _validate_name(name: str) -> None:
         raise StackError(f"invalid stack name: {name!r}")
 
 
-def _compose_file(directory: Path) -> Path | None:
+def compose_path(directory: Path) -> Path | None:
     for candidate in _COMPOSE_NAMES:
         p = directory / candidate
         if p.is_file():
@@ -59,11 +59,11 @@ def _compose_file(directory: Path) -> Path | None:
     return None
 
 
-def _override_file(directory: Path) -> Path | None:
+def override_path(directory: Path) -> Path | None:
     return next((directory / n for n in _OVERRIDE_NAMES if (directory / n).is_file()), None)
 
 
-def _stack_dir(name: str) -> Path:
+def stack_path(name: str) -> Path:
     _validate_name(name)
     return stacks_dir() / name
 
@@ -78,7 +78,7 @@ def list_stacks() -> list[dict]:
 
     stacks: list[dict] = []
     for directory in sorted(p for p in base.iterdir() if p.is_dir()):
-        compose_file = _compose_file(directory)
+        compose_file = compose_path(directory)
         if compose_file is None:
             continue
         declared = logic.declared_services(compose_file.read_text(encoding="utf-8"))
@@ -131,8 +131,8 @@ def claim_dir(name: str) -> tuple[Path, bool]:
     A folder with a compose file is a live stack: refused. One without is what Delete
     leaves when it keeps the data — taken over, which is how installing the same thing
     again gets its data back."""
-    directory = _stack_dir(name)
-    if _compose_file(directory) is not None:
+    directory = stack_path(name)
+    if compose_path(directory) is not None:
         raise StackError(f"stack '{name}' already exists")
     reused = directory.is_dir()
     directory.mkdir(parents=True, exist_ok=True)
@@ -140,12 +140,12 @@ def claim_dir(name: str) -> tuple[Path, bool]:
 
 
 def get_stack(name: str) -> dict:
-    directory = _stack_dir(name)
-    compose = _compose_file(directory)
+    directory = stack_path(name)
+    compose = compose_path(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found", 404)
     env_file = directory / ".env"
-    override = _override_file(directory)
+    override = override_path(directory)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     return {
         "name": name,
@@ -160,7 +160,7 @@ def get_stack(name: str) -> dict:
     }
 
 
-def _run_compose(directory: Path, *args: str) -> dict:
+def run_compose(directory: Path, *args: str) -> dict:
     try:
         proc = subprocess.run(
             ["docker", "compose", *args],
@@ -177,18 +177,18 @@ def _run_compose(directory: Path, *args: str) -> dict:
 def stack_action(name: str, action: str) -> dict:
     if action not in _ACTIONS:
         raise StackError(f"unknown action: {action}")
-    directory = _stack_dir(name)
-    if _compose_file(directory) is None:
+    directory = stack_path(name)
+    if compose_path(directory) is None:
         raise StackError(f"stack '{name}' not found", 404)
     if action == "up":
-        return _run_compose(directory, "up", "-d")
+        return run_compose(directory, "up", "-d")
     if action == "pull":
-        pulled = _run_compose(directory, "pull")
+        pulled = run_compose(directory, "pull")
         if not pulled["ok"]:
             return pulled
-        up = _run_compose(directory, "up", "-d")
+        up = run_compose(directory, "up", "-d")
         return {"ok": up["ok"], "output": pulled["output"] + "\n" + up["output"]}
-    return _run_compose(directory, action)  # down | restart
+    return run_compose(directory, action)  # down | restart
 
 
 def create_stack(name: str, compose_content: str, env_content: str = "") -> dict:
@@ -202,7 +202,7 @@ def create_stack(name: str, compose_content: str, env_content: str = "") -> dict
     (directory / "compose.yml").write_text(compose_content, encoding="utf-8")
     if env_content:
         store.write_private(directory / ".env", env_content)
-    return _run_compose(directory, "up", "-d")
+    return run_compose(directory, "up", "-d")
 
 
 def update_stack_file(name: str, file: str, content: str) -> None:
@@ -213,13 +213,13 @@ def update_stack_file(name: str, file: str, content: str) -> None:
     with no folders does."""
     if file not in ("compose.yml", OVERRIDE_NAME, ".env"):
         raise StackError("only compose.yml, compose.override.yml or .env may be edited")
-    directory = _stack_dir(name)
+    directory = stack_path(name)
     if not directory.is_dir():
         raise StackError(f"stack '{name}' not found", 404)
     if file == ".env":
         store.write_private(directory / file, content)
         return
-    existing = _compose_file(directory) if file == "compose.yml" else _override_file(directory)
+    existing = compose_path(directory) if file == "compose.yml" else override_path(directory)
     target = existing or directory / file
     if file == OVERRIDE_NAME and not content.strip():
         target.unlink(missing_ok=True)
@@ -238,12 +238,12 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
     override and `.env` go: the stack leaves the list, the data stays, and installing it again picks the
     folder back up (claim_dir). A folder left with nothing in it is removed.
     `down` never takes `-v`, so named volumes survive either way."""
-    directory = _stack_dir(name)
+    directory = stack_path(name)
     if not directory.is_dir():
         raise StackError(f"stack '{name}' not found", 404)
     result = {"ok": True, "output": ""}
-    if _compose_file(directory) is not None:
-        result = _run_compose(directory, "down")
+    if compose_path(directory) is not None:
+        result = run_compose(directory, "down")
     if delete_data:
         try:
             shutil.rmtree(directory)

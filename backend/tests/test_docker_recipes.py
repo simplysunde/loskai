@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 from loskai import config
-from loskai.modules.docker import logic, recipes
+from loskai.modules.docker import dotenv, logic, override, recipes
 from loskai.shared import instances as instances_store
 from loskai.shared import settings as settings_store
 
@@ -40,7 +40,7 @@ def test_env_entry_needs_key_and_label():
 
 
 def test_render_env_quotes_every_value():
-    assert recipes.render_env({"PORT": "3000", "PW": "secret"}) == 'PORT="3000"\nPW="secret"\n'
+    assert dotenv.render_env({"PORT": "3000", "PW": "secret"}) == 'PORT="3000"\nPW="secret"\n'
 
 
 # Each of these arrived at the container altered when written verbatim — and the install
@@ -61,13 +61,13 @@ def test_render_env_quotes_every_value():
     ],
 )
 def test_render_env_escapes_what_compose_would_rewrite(value, encoded):
-    assert recipes.render_env({"V": value}) == f"V={encoded}\n"
+    assert dotenv.render_env({"V": value}) == f"V={encoded}\n"
 
 
 def test_a_newline_in_a_value_stays_on_one_line():
     """Verbatim, a newline started a second KEY= line — and COMPOSE_PROJECT_NAME in a .env
     re-points the project, and with it the container the install links to."""
-    rendered = recipes.render_env({"V": "x\nCOMPOSE_PROJECT_NAME=hijacked"})
+    rendered = dotenv.render_env({"V": "x\nCOMPOSE_PROJECT_NAME=hijacked"})
     assert rendered.count("\n") == 1 and not rendered.startswith("COMPOSE")
 
 
@@ -413,13 +413,13 @@ def test_sync_follows_a_rewritten_history(data_dir, tmp_path):
     url = origin.as_uri()
     recipes._sync_one(url)
     # A cache seen live had no fetch refspec, so no remote-tracking branch to reset to.
-    git("config", "--unset-all", "remote.origin.fetch", cwd=recipes._repo_cache(url))
+    git("config", "--unset-all", "remote.origin.fetch", cwd=recipes.repo_cache(url))
 
     (work / "a.txt").write_text("rewritten\n")
     git("commit", "-a", "--amend", "-m", "rewritten", cwd=work)
     git("push", "--force", "origin", "main", cwd=work)
     recipes._sync_one(url)
-    cache = recipes._repo_cache(url)
+    cache = recipes.repo_cache(url)
     assert (cache / "a.txt").read_text() == "rewritten\n"
     # Still only the tip, as the clone took: not the rewritten head's whole history.
     count = subprocess.run(["git", "-C", str(cache), "rev-list", "--count", "HEAD"], capture_output=True, text=True)
@@ -571,7 +571,7 @@ def test_install_survives_a_daemon_that_went_away(installable, monkeypatch):
 def test_install_refuses_a_duplicate_stack(installable, monkeypatch):
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
     recipes.install_recipe("grafana", {})
-    with pytest.raises(recipes.RecipeError, match="already exists"):
+    with pytest.raises(recipes.stacks.StackError, match="already exists"):
         recipes.install_recipe("grafana", {})
 
 
@@ -744,7 +744,7 @@ def test_override_is_long_syntax_that_never_creates_a_folder():
     install succeeds with an empty library. `create_host_path: false` fails it instead."""
     import yaml
 
-    text = recipes.render_override("app", [("/srv/my$stuff", "/media/my$stuff")], True)
+    text = override.render_override("app", [("/srv/my$stuff", "/media/my$stuff")], True)
     volume = yaml.safe_load(text)["services"]["app"]["volumes"][0]
     assert volume == {
         "type": "bind",
@@ -837,37 +837,37 @@ def test_switching_an_option_adds_and_removes_exactly_its_lines():
     import yaml
 
     base = "services:\n  app:\n    devices:\n      - /dev/ttyUSB0:/dev/ttyUSB0\n"
-    on = recipes.set_options(base, [HWACCEL], {"hwaccel": True})
+    on = override.set_options(base, [HWACCEL], {"hwaccel": True})
     assert yaml.safe_load(on)["services"]["app"]["devices"] == ["/dev/ttyUSB0:/dev/ttyUSB0", "/dev/dri:/dev/dri"]
-    assert recipes.option_on(on, HWACCEL) and not recipes.option_on(base, HWACCEL)
+    assert override.option_on(on, HWACCEL) and not override.option_on(base, HWACCEL)
     # On twice is still once.
-    assert recipes.set_options(on, [HWACCEL], {"hwaccel": True}) == on
-    off = recipes.set_options(on, [HWACCEL], {"hwaccel": False})
+    assert override.set_options(on, [HWACCEL], {"hwaccel": True}) == on
+    off = override.set_options(on, [HWACCEL], {"hwaccel": False})
     assert yaml.safe_load(off)["services"]["app"]["devices"] == ["/dev/ttyUSB0:/dev/ttyUSB0"]
     # Off with nothing else left: no override at all.
-    assert recipes.set_options(recipes.set_options("", [HWACCEL], {"hwaccel": True}), [HWACCEL], {"hwaccel": False}) == ""
+    assert override.set_options(override.set_options("", [HWACCEL], {"hwaccel": True}), [HWACCEL], {"hwaccel": False}) == ""
 
 
 def test_an_option_for_an_empty_service_entry_is_added():
-    on = recipes.set_options("services:\n  app:\n", [HWACCEL], {"hwaccel": True})
-    assert recipes.option_on(on, HWACCEL)
+    on = override.set_options("services:\n  app:\n", [HWACCEL], {"hwaccel": True})
+    assert override.option_on(on, HWACCEL)
 
 
 @pytest.mark.parametrize("entry", ["[]", '""'])
 def test_an_option_never_replaces_a_service_entry_that_isnt_a_mapping(entry):
-    with pytest.raises(recipes.RecipeError, match="isn't a mapping"):
-        recipes.set_options(f"services:\n  app: {entry}\n", [HWACCEL], {"hwaccel": True})
+    with pytest.raises(override.OverrideError, match="isn't a mapping"):
+        override.set_options(f"services:\n  app: {entry}\n", [HWACCEL], {"hwaccel": True})
 
 
 def test_a_hand_pasted_snippet_reads_as_on():
     pasted = "services:\n  app:\n    devices:\n    - /dev/dri:/dev/dri\n"
-    assert recipes.option_on(pasted, HWACCEL)
+    assert override.option_on(pasted, HWACCEL)
 
 
 def test_an_override_the_option_cant_switch_is_said():
     weird = "services:\n  app:\n    devices: /dev/dri\n"
-    with pytest.raises(recipes.RecipeError, match="isn't a list"):
-        recipes.set_options(weird, [HWACCEL], {"hwaccel": True})
+    with pytest.raises(override.OverrideError, match="isn't a list"):
+        override.set_options(weird, [HWACCEL], {"hwaccel": True})
 
 
 NVIDIA = {
@@ -882,25 +882,25 @@ def test_a_gpu_reservation_is_added_and_removed_inside_what_is_there():
     import yaml
 
     base = "services:\n  app:\n    deploy:\n      resources:\n        limits:\n          memory: 4g\n"
-    on = recipes.set_options(base, [NVIDIA], {"nvidia": True})
+    on = override.set_options(base, [NVIDIA], {"nvidia": True})
     deploy = yaml.safe_load(on)["services"]["app"]["deploy"]
     assert deploy["resources"]["limits"] == {"memory": "4g"}
     assert deploy["resources"]["reservations"]["devices"][0]["driver"] == "nvidia"
-    assert recipes.option_on(on, NVIDIA)
-    off = recipes.set_options(on, [NVIDIA], {"nvidia": False})
+    assert override.option_on(on, NVIDIA)
+    off = override.set_options(on, [NVIDIA], {"nvidia": False})
     assert yaml.safe_load(off)["services"]["app"]["deploy"] == {"resources": {"limits": {"memory": "4g"}}}
-    assert recipes.set_options(recipes.set_options("", [NVIDIA], {"nvidia": True}), [NVIDIA], {"nvidia": False}) == ""
+    assert override.set_options(override.set_options("", [NVIDIA], {"nvidia": True}), [NVIDIA], {"nvidia": False}) == ""
 
 
 def test_an_option_never_overwrites_a_value_set_otherwise():
     clash = {**NVIDIA, "set": {"deploy": {"replicas": 1}}}
-    with pytest.raises(recipes.RecipeError, match="is already 3"):
-        recipes.set_options("services:\n  app:\n    deploy:\n      replicas: 3\n", [clash], {"nvidia": True})
+    with pytest.raises(override.OverrideError, match="is already 3"):
+        override.set_options("services:\n  app:\n    deploy:\n      replicas: 3\n", [clash], {"nvidia": True})
 
 
 def test_a_port_reads_the_same_as_a_number_or_text():
     dlna = {"id": "dlna", "label": "DLNA", "help": None, "service": "app", "set": {"ports": ["1900:1900/udp", 7359]}}
-    assert recipes.option_on("services:\n  app:\n    ports:\n    - 1900:1900/udp\n    - '7359'\n", dlna)
+    assert override.option_on("services:\n  app:\n    ports:\n    - 1900:1900/udp\n    - '7359'\n", dlna)
 
 
 def test_deploy_must_be_a_mapping():
@@ -928,7 +928,7 @@ def test_install_writes_the_chosen_options_beside_the_folders(gpu_recipe):
 
 def test_install_with_an_option_and_no_folders_still_writes_it(gpu_recipe):
     recipes.install_recipe("jellyfin", {}, [], ["hwaccel"])
-    assert recipes.option_on((gpu_recipe / "compose.override.yml").read_text(), HWACCEL)
+    assert override.option_on((gpu_recipe / "compose.override.yml").read_text(), HWACCEL)
 
 
 def test_an_unknown_option_fails_before_touching_disk(gpu_recipe):

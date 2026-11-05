@@ -97,7 +97,7 @@ def test_get_missing_stack_raises(stacks_dir):
 
 
 def test_create_stack_writes_files(stacks_dir, monkeypatch):
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": "up"})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": "up"})
     stacks.create_stack("new", COMPOSE, "SECRET=x\n")
     assert (stacks_dir / "new" / "compose.yml").read_text() == COMPOSE
     assert (stacks_dir / "new" / ".env").read_text() == "SECRET=x\n"
@@ -166,7 +166,7 @@ def test_yaml_that_wont_load_is_refused_with_its_line_and_nothing_written(stacks
 
 
 def test_create_refuses_yaml_that_wont_load(stacks_dir, monkeypatch):
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": "up"})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": "up"})
     with pytest.raises(StackError, match="compose.yml line"):
         stacks.create_stack("new", "services:\n\tapp:\n")
     assert not (stacks_dir / "new").exists()
@@ -174,7 +174,7 @@ def test_create_refuses_yaml_that_wont_load(stacks_dir, monkeypatch):
 
 def test_delete_stack_removes_dir(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
     stacks.delete_stack("web")
     assert not (stacks_dir / "web").exists()
 
@@ -189,7 +189,7 @@ def _with_data(base, name):
 def test_delete_keeps_the_data_by_default(stacks_dir, monkeypatch):
     """Recipes keep data beside the compose file; Delete must not take it with it."""
     d = _with_data(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
 
     result = stacks.delete_stack("web")
 
@@ -205,7 +205,7 @@ def test_delete_removes_the_override_but_keeps_the_data(stacks_dir, monkeypatch)
     would come back to mount the old folders on the next install."""
     d = _with_data(stacks_dir, "web")
     (d / "compose.override.yml").write_text("services: {}\n")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
 
     assert stacks.delete_stack("web")["kept"] == ["data/"]
     assert not (d / "compose.override.yml").exists()
@@ -221,7 +221,7 @@ def test_get_stack_shows_the_override(stacks_dir):
 
 def test_delete_with_data_removes_the_folder(stacks_dir, monkeypatch):
     _with_data(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
 
     assert stacks.delete_stack("web", delete_data=True)["kept"] == []
     assert not (stacks_dir / "web").exists()
@@ -230,7 +230,7 @@ def test_delete_with_data_removes_the_folder(stacks_dir, monkeypatch):
 def test_data_loskai_cannot_delete_is_removed_through_the_daemon(stacks_dir, monkeypatch):
     # A database writes its files as its own user; Loskai, not root, can't remove them.
     d = _with_data(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
     real_rmtree = stacks.shutil.rmtree
 
     def denied(path):
@@ -253,7 +253,7 @@ def test_data_loskai_cannot_delete_is_removed_through_the_daemon(stacks_dir, mon
 def test_delete_always_stops_the_stack_first(stacks_dir, monkeypatch):
     _with_data(stacks_dir, "web")
     ran = []
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: ran.append(a) or {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: ran.append(a) or {"ok": True, "output": ""})
 
     stacks.delete_stack("web")
 
@@ -276,7 +276,7 @@ def test_a_file_beside_the_compose_file_is_named_without_a_slash(stacks_dir):
 
 def test_a_new_stack_takes_over_a_folder_delete_left(stacks_dir, monkeypatch):
     d = _with_data(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
     stacks.delete_stack("web")
 
     stacks.create_stack("web", COMPOSE)
@@ -287,7 +287,7 @@ def test_a_new_stack_takes_over_a_folder_delete_left(stacks_dir, monkeypatch):
 
 def test_a_live_stack_is_never_taken_over(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "web")
-    monkeypatch.setattr(stacks, "_run_compose", lambda d, *a: {"ok": True, "output": ""})
+    monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
 
     with pytest.raises(StackError, match="already exists"):
         stacks.create_stack("web", COMPOSE)

@@ -15,60 +15,15 @@ import re
 import yaml
 
 from ...shared import store
-from . import logic, recipes, stacks
-from .recipes import RecipeError
+from . import dotenv, logic, override, recipes, stacks
 from .stacks import StackError
 
 _VAR_RE = re.compile(r"\$\$|\$\{([A-Za-z_]\w*)(?:(:?[-?+])([^}]*))?\}|\$([A-Za-z_]\w*)")
-_ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$")
-_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_UNESCAPE = {"n": "\n", "r": "\r", "t": "\t"}
 # The headers Loskai writes — not the user's comments. The first is from before Phase 31.
 _OWN_HEADERS = {
     "# Folders added in Loskai's install wizard. Reinstall to change them.",
-    recipes.OVERRIDE_HEADER.strip(),
+    override.OVERRIDE_HEADER.strip(),
 }
-
-
-# --- Pure: .env ---
-
-
-def _env_value(raw: str) -> str:
-    raw = raw.strip()
-    if raw.startswith('"') and raw.endswith('"') and len(raw) > 1:
-        return re.sub(r"\\(.)", lambda m: _UNESCAPE.get(m[1], m[1]), raw[1:-1])
-    if raw.startswith("'") and raw.endswith("'") and len(raw) > 1:
-        return raw[1:-1]
-    return re.split(r"\s+#", raw, maxsplit=1)[0].strip()
-
-
-def parse_env(text: str) -> dict[str, str]:
-    """`.env` text → values, as Compose reads them."""
-    values: dict[str, str] = {}
-    for line in text.splitlines():
-        m = _ENV_LINE_RE.match(line)
-        if m and not line.lstrip().startswith("#"):
-            values[m[1]] = _env_value(m[2])
-    return values
-
-
-def set_env(text: str, changes: dict[str, str]) -> str:
-    """Apply changed values to `.env` text: a changed key's line is rewritten in place, a
-    new one appended, a cleared one removed — so the default applies again. Every other
-    line, comments included, stays as written."""
-    lines: list[str] = []
-    done: set[str] = set()
-    for line in text.splitlines():
-        m = _ENV_LINE_RE.match(line)
-        key = m[1] if m and not line.lstrip().startswith("#") else None
-        if key in changes:
-            if key not in done and changes[key] != "":
-                lines.append(recipes.render_env({key: changes[key]}).rstrip("\n"))
-            done.add(key)
-            continue
-        lines.append(line)
-    lines += [recipes.render_env({k: v}).rstrip("\n") for k, v in changes.items() if k not in done and v != ""]
-    return "\n".join(lines) + "\n" if lines else ""
 
 
 # --- Pure: compose.yml ---
@@ -156,59 +111,6 @@ def app_summary(doc: object, values: dict[str, str]) -> list[dict]:
 # --- Pure: compose.override.yml ---
 
 
-def _folder(entry: object) -> dict | None:
-    """One override volume as a form row, or None when the form can't show it: a named
-    volume, tmpfs, or a bind with options besides read-only."""
-    if isinstance(entry, str):
-        parts = entry.split(":")
-        if len(parts) not in (2, 3):
-            return None
-        source, target, mode = parts[0], parts[1], parts[2] if len(parts) == 3 else ""
-        if set(mode.split(",")) - {"", "ro", "rw"}:
-            return None
-        writable = "ro" not in mode.split(",")
-    elif isinstance(entry, dict):
-        if set(entry) - {"type", "source", "target", "read_only", "bind"} or entry.get("type", "bind") != "bind":
-            return None
-        bind = entry.get("bind") or {}
-        if not isinstance(bind, dict) or set(bind) - {"create_host_path"}:
-            return None
-        source, target, writable = entry.get("source"), entry.get("target"), not entry.get("read_only", False)
-        if not isinstance(source, str) or not isinstance(target, str):
-            return None
-    else:
-        return None
-    if not source.startswith(("/", "./", "../")):
-        return None
-    return {"source": source.replace("$$", "$"), "target": target.replace("$$", "$"), "writable": bool(writable)}
-
-
-def parse_override(text: str) -> tuple[list[dict], bool]:
-    """The override's folders as rows, and whether it sets anything else — which the form
-    leaves alone and says is there."""
-    doc = yaml.safe_load(text) if text.strip() else None
-    if not isinstance(doc, dict):
-        return [], bool(text.strip()) and doc is not None
-    other = set(doc) - {"services"}
-    folders: list[dict] = []
-    services = doc.get("services") or {}
-    if not isinstance(services, dict):
-        return [], True
-    for name, svc in services.items():
-        if not isinstance(svc, dict):
-            other.add(name)
-            continue
-        if set(svc) - {"volumes"}:
-            other.add(name)
-        for entry in svc.get("volumes") or []:
-            row = _folder(entry)
-            if row is None:
-                other.add(name)
-            else:
-                folders.append({"service": name, **row})
-    return folders, bool(other)
-
-
 def folders_problem(folders: list[dict], services: set[str]) -> str | None:
     seen: set[tuple[str, str]] = set()
     for f in folders:
@@ -226,39 +128,6 @@ def folders_problem(folders: list[dict], services: set[str]) -> str | None:
             return f"two folders land at {target}"
         seen.add((f["service"], target))
     return None
-
-
-def build_override(text: str, folders: list[dict]) -> str | None:
-    """The override with its folders replaced by these — everything the form can't show
-    is kept. None when nothing is left, so the file goes."""
-    doc = yaml.safe_load(text) if text.strip() else None
-    doc = doc if isinstance(doc, dict) else {}
-    services = doc.get("services") if isinstance(doc.get("services"), dict) else {}
-    for f in folders:
-        # `jellyfin:` with nothing under it loads as None: an empty service, not "other".
-        if services.get(f["service"]) is None:
-            services[f["service"]] = {}
-    for name in list(services):
-        svc = services[name]
-        if not isinstance(svc, dict):
-            continue
-        ours = [
-            recipes.bind_volume(f["source"].strip(), f["target"].strip(), not f["writable"])
-            for f in folders if f["service"] == name
-        ]
-        kept = [e for e in svc.get("volumes") or [] if _folder(e) is None]
-        svc["volumes"] = ours + kept
-        if not svc["volumes"]:
-            del svc["volumes"]
-        if not svc:
-            del services[name]
-    if services:
-        doc["services"] = services
-    else:
-        doc.pop("services", None)
-    if not doc:
-        return None
-    return recipes.OVERRIDE_HEADER + yaml.safe_dump(doc, sort_keys=False)
 
 
 # --- I/O ---
@@ -281,18 +150,18 @@ def _options(recipe: dict | None, declared: set[str]) -> list[dict]:
 
 def _disk(directory) -> tuple[str, str]:
     env_file = directory / ".env"
-    override = stacks._override_file(directory)
+    override_file = stacks.override_path(directory)
     return (
         env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
-        override.read_text(encoding="utf-8") if override else "",
+        override_file.read_text(encoding="utf-8") if override_file else "",
     )
 
 
 def get_form(name: str, base: dict | None = None) -> dict:
     """The stack as fields — from its files, or from `base`: the text view's unsaved `.env`
     and override, so switching back to the form keeps what was typed there."""
-    directory = stacks._stack_dir(name)
-    compose = stacks._compose_file(directory)
+    directory = stacks.stack_path(name)
+    compose = stacks.compose_path(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found", 404)
     compose_text = compose.read_text(encoding="utf-8")
@@ -304,7 +173,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
     problem = override_text.strip() and logic.yaml_problem(override_text)
     if problem:
         raise StackError(f"compose.override.yml {problem}")
-    env = parse_env(env_text)
+    env = dotenv.parse_env(env_text)
     recipe = recipes.stack_recipe(directory)
     questions = {str(q["key"]): q for q in (recipe["env"] if recipe else [])}
 
@@ -327,11 +196,11 @@ def get_form(name: str, base: dict | None = None) -> dict:
     # An option's own lines aren't "something else" in the override: read the rest with
     # every option off. One the form can't switch (not a list) leaves it as it is.
     try:
-        rest = recipes.set_options(override_text, options, {o["id"]: False for o in options})
-    except RecipeError:
+        rest = override.set_options(override_text, options, {o["id"]: False for o in options})
+    except override.OverrideError:
         rest = override_text
-    folders, _ = parse_override(override_text)
-    _, other = parse_override(rest)
+    folders, _ = override.parse_override(override_text)
+    _, other = override.parse_override(rest)
     return {
         "settings": settings,
         "folders": folders,
@@ -344,7 +213,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
         "services": sorted(declared),
         "app": app_summary(doc, env),
         "options": [
-            {"id": o["id"], "label": o["label"], "help": o["help"], "on": recipes.option_on(override_text, o)}
+            {"id": o["id"], "label": o["label"], "help": o["help"], "on": override.option_on(override_text, o)}
             for o in options
         ],
         "recipe": {"id": recipe["id"], "name": recipe["name"], "icon": recipe["icon"]} if recipe else None,
@@ -365,8 +234,8 @@ def save_form(
     or to `base`, the text view's unsaved `.env` and override. Everything is checked before
     anything is written. `preview` writes nothing and returns the `.env` and override the
     save would leave, for the text view to open with."""
-    directory = stacks._stack_dir(name)
-    compose = stacks._compose_file(directory)
+    directory = stacks.stack_path(name)
+    compose = stacks.compose_path(directory)
     if compose is None:
         raise StackError(f"stack '{name}' not found", 404)
     disk_env, disk_override = _disk(directory)
@@ -393,7 +262,7 @@ def save_form(
         if problem:
             raise StackError(problem)
         try:
-            new_override = build_override(override_text, rows) or ""
+            new_override = override.build_override(override_text, rows) or ""
         except yaml.YAMLError:
             raise StackError(f"compose.override.yml {logic.yaml_problem(override_text)}")
     elif new_override.strip():
@@ -406,14 +275,12 @@ def save_form(
         if unknown:
             raise StackError(f"this stack has no option {', '.join(unknown)}")
         try:
-            new_override = recipes.set_options(new_override, spec, {k: bool(v) for k, v in options.items()})
-        except RecipeError as exc:
-            raise StackError(str(exc))
+            new_override = override.set_options(new_override, spec, {k: bool(v) for k, v in options.items()})
         except yaml.YAMLError:
             raise StackError(f"compose.override.yml {logic.yaml_problem(new_override)}")
     new_env = env_text
     if settings:
-        bad = [k for k in settings if not _KEY_RE.match(str(k))]
+        bad = [k for k in settings if not dotenv.KEY_RE.match(str(k))]
         if bad:
             raise StackError(f"not a variable name: {', '.join(bad)}")
         questions = {str(q["key"]): q for q in ((recipe or {}).get("env") or [])}
@@ -422,14 +289,14 @@ def save_form(
                 problem = recipes.path_problem(str(value))
                 if problem:
                     raise StackError(f"{questions[key]['label']}: {problem}")
-        new_env = set_env(env_text, {str(k): str(v) for k, v in settings.items()})
+        new_env = dotenv.set_env(env_text, {str(k): str(v) for k, v in settings.items()})
 
     if preview:
         return {"env": new_env, "override": new_override}
     if new_env != disk_env:
         store.write_private(directory / ".env", new_env)
     if new_override != disk_override:
-        target = stacks._override_file(directory) or directory / stacks.OVERRIDE_NAME
+        target = stacks.override_path(directory) or directory / stacks.OVERRIDE_NAME
         if new_override.strip():
             target.write_text(new_override, encoding="utf-8")
         else:

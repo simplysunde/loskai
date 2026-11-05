@@ -25,9 +25,8 @@ from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ...shared import store
 from ...shared.instances import Instance
-from . import logic, stacks
+from . import dotenv, logic, override, stacks
 from .client import DOCKER_ERRORS, describe_error, docker_client
-from .stacks import StackError
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,6 @@ SOURCE_LOCAL = "local"
 ENV_TYPES = {"text", "path"}
 # A .env key Compose can read back as one: shell-identifier shape. Anything else (`=`, a
 # space, a newline) would split or merge lines in the generated file.
-_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _OPTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 # What an option may add to a service: lists that extend it, and `deploy` for a GPU
 # reservation — never anything that replaces what the recipe set up.
@@ -48,7 +46,7 @@ _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]")
 # of anything outside this set. Mirrored here so container discovery asks the daemon for
 # the label Compose actually wrote.
 _PROJECT_RE = re.compile(r"[^a-z0-9_-]")
-_GIT_TIMEOUT = 120
+GIT_TIMEOUT = 120
 
 
 class RecipeError(LoskaiError):
@@ -85,7 +83,7 @@ def validate_manifest(data: object) -> list[str]:
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
             continue
-        if not _ENV_KEY_RE.match(str(entry["key"])):
+        if not dotenv.KEY_RE.match(str(entry["key"])):
             errors.append(f"env[{i}] key '{entry['key']}' is not a valid variable name")
         etype = entry.get("type", "text")
         if etype not in ENV_TYPES:
@@ -243,123 +241,6 @@ def resolve_mounts(spec: dict | None, folders: list) -> list[tuple[str, str]]:
     return pairs
 
 
-def _canon(value: object) -> str:
-    """One form to compare an option's line with the file's: `1900` and `"1900"` are one
-    port, and a device reservation is a mapping."""
-    return json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else str(value)
-
-
-def _has(have: object, want: object) -> bool:
-    if isinstance(want, dict):
-        return isinstance(have, dict) and all(k in have and _has(have[k], v) for k, v in want.items())
-    if isinstance(want, list):
-        return isinstance(have, list) and {_canon(w) for w in want} <= {_canon(h) for h in have}
-    return have is not None and _canon(have) == _canon(want)
-
-
-def _add(have: object, want: object, where: str) -> object:
-    """`want` merged into `have`: a list gains the items it lacks, a mapping each key, and a
-    value already set to something else is refused rather than overwritten."""
-    if isinstance(want, dict):
-        if have is None:
-            have = {}
-        if not isinstance(have, dict):
-            raise RecipeError(f"compose.override.yml: {where} isn't a mapping — use Edit as text")
-        for key, value in want.items():
-            have[key] = _add(have.get(key), value, f"{where}.{key}")
-        return have
-    if isinstance(want, list):
-        if have is None:
-            have = []
-        if not isinstance(have, list):
-            raise RecipeError(f"compose.override.yml: {where} isn't a list — use Edit as text")
-        known = {_canon(h) for h in have}
-        return have + [w for w in want if _canon(w) not in known]
-    if have is not None and _canon(have) != _canon(want):
-        raise RecipeError(f"compose.override.yml: {where} is already {have} — use Edit as text")
-    return want
-
-
-def _remove(have: object, want: object) -> object:
-    """`have` without what `want` added; None when nothing is left of it."""
-    if isinstance(want, dict) and isinstance(have, dict):
-        for key, value in want.items():
-            if key in have:
-                rest = _remove(have[key], value)
-                if rest is None:
-                    del have[key]
-                else:
-                    have[key] = rest
-        return have or None
-    if isinstance(want, list) and isinstance(have, list):
-        drop = {_canon(w) for w in want}
-        return [h for h in have if _canon(h) not in drop] or None
-    return None if have is not None and _canon(have) == _canon(want) else have
-
-
-def option_on(override_text: str, option: dict) -> bool:
-    """An option is on when the override has every line it adds — read from the file, so a
-    hand edit or an older pasted snippet shows as it is."""
-    doc = yaml.safe_load(override_text) if override_text.strip() else None
-    services = doc.get("services") if isinstance(doc, dict) else None
-    svc = services.get(option["service"]) if isinstance(services, dict) else None
-    return isinstance(svc, dict) and _has(svc, option["set"])
-
-
-def set_options(override_text: str, options: list[dict], on: dict[str, bool]) -> str:
-    """The override with these options switched: on adds the lines an option lists, off
-    removes exactly those, and nothing else changes. "" when nothing is left."""
-    doc = yaml.safe_load(override_text) if override_text.strip() else None
-    doc = doc if isinstance(doc, dict) else {}
-    services = doc.get("services") if isinstance(doc.get("services"), dict) else {}
-    for option in options:
-        if option["id"] not in on:
-            continue
-        name = option["service"]
-        svc = services.get(name)
-        if svc is None:  # absent, or `jellyfin:` with nothing under it
-            svc = {}
-        if not isinstance(svc, dict):
-            raise RecipeError(f"compose.override.yml: '{name}' isn't a mapping — use Edit as text")
-        for key, want in option["set"].items():
-            if on[option["id"]]:
-                svc[key] = _add(svc.get(key), want, f"{name}'s '{key}'")
-            else:
-                rest = _remove(svc.get(key), want)
-                if rest is None:
-                    svc.pop(key, None)
-                else:
-                    svc[key] = rest
-        if svc:
-            services[name] = svc
-        else:
-            services.pop(name, None)
-    if services:
-        doc["services"] = services
-    else:
-        doc.pop("services", None)
-    return OVERRIDE_HEADER + yaml.safe_dump(doc, sort_keys=False) if doc else ""
-
-
-# Heads every override Loskai writes: the file is the user's, and an update never touches it.
-OVERRIDE_HEADER = "# Your folders and changes, merged over compose.yml. Edit them on the stack in Loskai.\n"
-
-
-def bind_volume(source: str, target: str, read_only: bool) -> dict:
-    """One folder as an override volume. Long syntax with `create_host_path: false`: a
-    mistyped folder fails the deploy with "bind source path does not exist", where the
-    short form has Docker create an empty, root-owned folder and mount that — a library
-    that installs fine and stays empty. `$` is doubled because Compose interpolates the
-    override like any other file."""
-    return {
-        "type": "bind",
-        "source": source.replace("$", "$$"),
-        "target": target.replace("$", "$$"),
-        "read_only": read_only,
-        "bind": {"create_host_path": False},
-    }
-
-
 def resolve_options(spec: list[dict], chosen: list) -> dict[str, bool]:
     """The options switched on at install, by id. An id the recipe doesn't have is refused."""
     if not isinstance(chosen, list):
@@ -369,39 +250,6 @@ def resolve_options(spec: list[dict], chosen: list) -> dict[str, bool]:
     if unknown:
         raise RecipeError(f"this recipe has no option {', '.join(unknown)}")
     return {str(c): True for c in chosen}
-
-
-def render_override(service: str, pairs: list[tuple[str, str]], read_only: bool) -> str:
-    """The compose.override.yml holding the folders added at install. Compose merges it
-    into compose.yml by itself, so the recipe's own file is never rewritten."""
-    volumes = [bind_volume(source, target, read_only) for source, target in pairs]
-    return OVERRIDE_HEADER + yaml.safe_dump({"services": {service: {"volumes": volumes}}}, sort_keys=False)
-
-
-def _env_escape(value: str) -> str:
-    # Backslash first, or the escapes added after it would be doubled.
-    return (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("$", "\\$")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-    )
-
-
-def render_env(values: dict[str, str]) -> str:
-    r"""Install values -> .env text, every value double-quoted and escaped so Compose reads
-    back exactly what was typed.
-
-    Written verbatim, Compose interpolates `$` (`pa$word1` arrives as `pa`), reads ` #` as
-    a comment (`correct horse #battery` arrives as `correct horse`), and a newline starts
-    a new `KEY=` line. All of these *succeed* — `up` exits 0 and the app simply has a
-    different password. Single quotes would fix the first two but cannot hold a `'`.
-    Double quotes with `\\`, `\"`, `\$`, `\n` and `\r` escaped round-trip all of it,
-    checked against `docker compose config` and a real container's environment on
-    2026-10-03.
-    """
-    return "".join(f'{k}="{_env_escape(v)}"\n' for k, v in values.items())
 
 
 def source_slug(url: str) -> str:
@@ -446,7 +294,7 @@ def _cache_root() -> Path:
     return Path(settings.data_dir) / "recipes-cache"
 
 
-def _repo_cache(url: str) -> Path:
+def repo_cache(url: str) -> Path:
     return _cache_root() / source_slug(url)
 
 
@@ -469,7 +317,7 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
     except yaml.YAMLError as exc:
         raise RecipeError(f"invalid YAML: {exc}")
     errors = validate_manifest(data)
-    compose = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
+    compose = recipe_compose(folder)
     if compose is None:
         errors.append("compose.yml missing")
     elif logic.sets_project_name(compose.read_text(encoding="utf-8")):
@@ -532,6 +380,11 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
     }
 
 
+def recipe_compose(folder: Path) -> Path | None:
+    """A recipe folder's compose file — `compose.yml`, or `compose.yaml`."""
+    return next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
+
+
 ICON_FILE = "icon.png"
 
 
@@ -569,7 +422,7 @@ def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, di
     return valid, invalid
 
 
-def _merged() -> dict:
+def merged_recipes() -> dict:
     """Scan every enabled source in priority order, then the local dir.
 
     First source to define a recipe id wins; a later copy is flagged in `shadowed` (with
@@ -581,7 +434,7 @@ def _merged() -> dict:
     Recipes carry their folder `path` here; `list_recipes` drops it for the API.
     """
     labels = source_labels(settings_store.recipe_sources()[0])
-    scans = [(labels[s["url"]], s["url"], _repo_cache(s["url"])) for s in enabled_sources()]
+    scans = [(labels[s["url"]], s["url"], repo_cache(s["url"])) for s in enabled_sources()]
     scans.append((SOURCE_LOCAL, None, _local_dir()))
 
     merged: dict[str, dict] = {}
@@ -600,7 +453,7 @@ def _merged() -> dict:
 
 def _source_status(source: dict, label: str, counts: dict[str, int]) -> dict:
     """One source as the UI shows it: what it is, and whether it has ever synced."""
-    cache = _repo_cache(source["url"])
+    cache = repo_cache(source["url"])
     synced = (cache / ".git").is_dir()
     return {
         "url": source["url"],
@@ -615,7 +468,7 @@ def _source_status(source: dict, label: str, counts: dict[str, int]) -> dict:
 
 def list_recipes() -> dict:
     """The merged recipe list, plus what was skipped, shadowed, and scanned."""
-    merged = _merged()
+    merged = merged_recipes()
     recipes = sorted(merged["recipes"].values(), key=lambda r: r["name"].lower())
     counts: dict[str, int] = {}
     for recipe in recipes:
@@ -635,7 +488,7 @@ def list_recipes() -> dict:
 
 
 def get_recipe(recipe_id: str) -> dict:
-    recipe = _merged()["recipes"].get(recipe_id)
+    recipe = merged_recipes()["recipes"].get(recipe_id)
     if recipe is None:
         raise RecipeError(f"recipe '{recipe_id}' not found", 404)
     return recipe
@@ -645,7 +498,7 @@ def get_recipe(recipe_id: str) -> dict:
 
 
 def _sync_one(url: str) -> str:
-    cache = _repo_cache(url)
+    cache = repo_cache(url)
     try:
         if (cache / ".git").is_dir():
             # The cache is a mirror, so it follows the source even when its history was
@@ -654,18 +507,18 @@ def _sync_one(url: str) -> str:
             # the tip, as the clone took: the new head's history would otherwise come with it.
             proc = subprocess.run(
                 ["git", "-C", str(cache), "fetch", "--depth", "1", "origin", "HEAD"],
-                capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+                capture_output=True, text=True, timeout=GIT_TIMEOUT,
             )
             if proc.returncode == 0:
                 proc = subprocess.run(
                     ["git", "-C", str(cache), "reset", "--hard", "FETCH_HEAD"],
-                    capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+                    capture_output=True, text=True, timeout=GIT_TIMEOUT,
                 )
         else:
             cache.parent.mkdir(parents=True, exist_ok=True)
             proc = subprocess.run(
                 ["git", "clone", "--depth", "1", url, str(cache)],
-                capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+                capture_output=True, text=True, timeout=GIT_TIMEOUT,
             )
     except FileNotFoundError:
         raise RecipeError("git not found in the container")
@@ -725,7 +578,7 @@ def install_recipe(
     pairs = resolve_mounts(recipe["mounts"], mounts or [])
     chosen = resolve_options(recipe["options"], options or [])
     folder = Path(recipe["path"])
-    compose_src = next((folder / n for n in ("compose.yml", "compose.yaml") if (folder / n).is_file()), None)
+    compose_src = recipe_compose(folder)
     if compose_src is None:
         raise RecipeError("recipe compose.yml missing")
 
@@ -742,10 +595,7 @@ def install_recipe(
             )
         reused = False
     else:
-        try:
-            target, reused = stacks.claim_dir(recipe_id)
-        except StackError as exc:
-            raise RecipeError(str(exc))
+        target, reused = stacks.claim_dir(recipe_id)
 
     if recipe["type"] == "git_build":
         _git_clone(recipe["git_repo"], target)
@@ -753,15 +603,15 @@ def install_recipe(
     compose_text = compose_src.read_text(encoding="utf-8")
     (target / "compose.yml").write_text(compose_text, encoding="utf-8")
     write_record(target, recipe, compose_text)
-    store.write_private(target / ".env", render_env(values))
-    override = target / stacks.OVERRIDE_NAME
+    store.write_private(target / ".env", dotenv.render_env(values))
+    override_file = target / stacks.OVERRIDE_NAME
     spec = recipe["mounts"]
-    override_text = render_override(spec["service"], pairs, spec["read_only"]) if pairs else ""
-    override_text = set_options(override_text, recipe["options"], chosen)
+    override_text = override.render_override(spec["service"], pairs, spec["read_only"]) if pairs else ""
+    override_text = override.set_options(override_text, recipe["options"], chosen)
     if override_text:
-        override.write_text(override_text, encoding="utf-8")
+        override_file.write_text(override_text, encoding="utf-8")
     else:
-        override.unlink(missing_ok=True)
+        override_file.unlink(missing_ok=True)
 
     build = recipe["type"] == "git_build"
     result = _compose_up(target, build=build)
@@ -827,7 +677,7 @@ def stack_recipe(directory: Path) -> dict | None:
     record = read_record(directory)
     rid = record["recipe"] if record else directory.name
     try:
-        return _merged()["recipes"].get(rid)
+        return merged_recipes()["recipes"].get(rid)
     except (OSError, RecipeError):
         return None
 
@@ -888,8 +738,8 @@ def source_commit(url: str | None) -> str | None:
         return None
     try:
         proc = subprocess.run(
-            ["git", "-C", str(_repo_cache(url)), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+            ["git", "-C", str(repo_cache(url)), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=GIT_TIMEOUT,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
@@ -949,7 +799,7 @@ def _git_clone(repo: str, target: Path) -> None:
     try:
         proc = subprocess.run(
             ["git", "clone", "--depth", "1", repo, str(target)],
-            capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+            capture_output=True, text=True, timeout=GIT_TIMEOUT,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         raise RecipeError(f"git clone failed: {exc}")
@@ -959,4 +809,4 @@ def _git_clone(repo: str, target: Path) -> None:
 
 def _compose_up(directory: Path, build: bool) -> dict:
     args = ["up", "-d", "--build"] if build else ["up", "-d"]
-    return stacks._run_compose(directory, *args)
+    return stacks.run_compose(directory, *args)

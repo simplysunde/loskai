@@ -555,7 +555,8 @@ compose file; see stacks outside `STACKS_DIR` (they are listed under Other conta
 and [`migration.md`](../guides/migration.md) brings them in); build arbitrary images (only
 a `git_build` recipe). Without the socket, nothing.
 
-**Code:** `modules/docker/` — `stacks.py`, `recipes.py`, `stackform.py`, `updates.py`,
+**Code:** `modules/docker/` — `stacks.py`, `recipes.py`, `dotenv.py`, `override.py`,
+`stackform.py`, `updates.py`,
 `logic.py` (pure), `client.py`, `quick_commands.py`, `check_recipes.py`; frontend
 `components/docker/`, `pages/Docker.tsx`. **Contracts:** [`api.md`](../reference/api.md),
 [`recipe-schema.md`](../reference/recipe-schema.md).

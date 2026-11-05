@@ -4,7 +4,7 @@ changing only what the form shows."""
 import pytest
 import yaml
 
-from loskai.modules.docker import recipes, stackform, stacks
+from loskai.modules.docker import dotenv, override, recipes, stackform, stacks
 from loskai.modules.docker.stacks import StackError
 
 COMPOSE = """\
@@ -27,16 +27,16 @@ volumes:
 
 def test_env_values_read_as_compose_reads_them():
     text = 'PORT="8080"\n# TZ=nope\nexport A=plain # note\nB=\'it$s\'\nC="pa\\$s \\"q\\""\n'
-    assert stackform.parse_env(text) == {"PORT": "8080", "A": "plain", "B": "it$s", "C": 'pa$s "q"'}
+    assert dotenv.parse_env(text) == {"PORT": "8080", "A": "plain", "B": "it$s", "C": 'pa$s "q"'}
 
 
 def test_a_changed_value_is_rewritten_in_place_and_the_rest_kept():
     text = '# answers\nPORT="8080"\nTZ="Europe/Oslo"\n'
-    assert stackform.set_env(text, {"PORT": "9000"}) == '# answers\nPORT="9000"\nTZ="Europe/Oslo"\n'
-    assert stackform.set_env(text, {"NEW": "a$b"}) == text + 'NEW="a\\$b"\n'
+    assert dotenv.set_env(text, {"PORT": "9000"}) == '# answers\nPORT="9000"\nTZ="Europe/Oslo"\n'
+    assert dotenv.set_env(text, {"NEW": "a$b"}) == text + 'NEW="a\\$b"\n'
     # Cleared: the line goes, so the compose default applies again.
-    assert stackform.set_env(text, {"TZ": ""}) == '# answers\nPORT="8080"\n'
-    assert stackform.set_env("", {"PORT": ""}) == ""
+    assert dotenv.set_env(text, {"TZ": ""}) == '# answers\nPORT="8080"\n'
+    assert dotenv.set_env("", {"PORT": ""}) == ""
 
 
 # --- Pure: compose.yml ---
@@ -72,17 +72,17 @@ def test_the_app_is_its_values():
 
 
 def test_override_folders_in_either_syntax_become_rows():
-    install = recipes.render_override("jellyfin", [("/srv/media/anime", "/media/anime")], False)
-    assert stackform.parse_override(install) == (
+    install = override.render_override("jellyfin", [("/srv/media/anime", "/media/anime")], False)
+    assert override.parse_override(install) == (
         [{"service": "jellyfin", "source": "/srv/media/anime", "target": "/media/anime", "writable": True}],
         False,
     )
     short = "services:\n  jellyfin:\n    volumes:\n      - /srv/music:/music:ro\n"
-    assert stackform.parse_override(short) == (
+    assert override.parse_override(short) == (
         [{"service": "jellyfin", "source": "/srv/music", "target": "/music", "writable": False}],
         False,
     )
-    assert stackform.parse_override("") == ([], False)
+    assert override.parse_override("") == ([], False)
 
 
 def test_what_the_form_cant_show_is_flagged():
@@ -92,7 +92,7 @@ def test_what_the_form_cant_show_is_flagged():
         "services:\n  jellyfin:\n    volumes:\n      - type: tmpfs\n        target: /tmp\n",
         "networks:\n  x: {}\n",
     ):
-        assert stackform.parse_override(text)[1], text
+        assert override.parse_override(text)[1], text
 
 
 def test_rebuilding_replaces_the_folders_and_keeps_everything_else():
@@ -104,30 +104,30 @@ def test_rebuilding_replaces_the_folders_and_keeps_everything_else():
         {"service": "jellyfin", "source": "/srv/anime", "target": "/media/anime", "writable": True},
         {"service": "jellyfin", "source": "/srv/$music", "target": "/music", "writable": False},
     ]
-    out = stackform.build_override(text, rows)
-    assert out.startswith(recipes.OVERRIDE_HEADER)
+    out = override.build_override(text, rows)
+    assert out.startswith(override.OVERRIDE_HEADER)
     svc = yaml.safe_load(out)["services"]["jellyfin"]
     assert svc["environment"] == ["A=b"]
     assert svc["volumes"] == [
-        recipes.bind_volume("/srv/anime", "/media/anime", False),
-        recipes.bind_volume("/srv/$music", "/music", True),
+        override.bind_volume("/srv/anime", "/media/anime", False),
+        override.bind_volume("/srv/$music", "/music", True),
         "media:/media",
     ]
     assert svc["volumes"][1]["source"] == "/srv/$$music"
     # Round trip: the rows read back as written.
-    assert stackform.parse_override(out)[0] == rows
+    assert override.parse_override(out)[0] == rows
 
 
 def test_no_folders_and_nothing_else_removes_the_override():
-    install = recipes.render_override("jellyfin", [("/srv/a", "/media/a")], False)
-    assert stackform.build_override(install, []) is None
+    install = override.render_override("jellyfin", [("/srv/a", "/media/a")], False)
+    assert override.build_override(install, []) is None
 
 
 def test_a_folder_for_an_empty_service_entry_is_kept():
     # `jellyfin:` with nothing under it loads as None; the folder used to be dropped silently.
     row = {"service": "jellyfin", "source": "/srv/a", "target": "/media/a", "writable": True}
-    out = stackform.build_override("services:\n  jellyfin:\n", [row])
-    assert stackform.parse_override(out)[0] == [row]
+    out = override.build_override("services:\n  jellyfin:\n", [row])
+    assert override.parse_override(out)[0] == [row]
 
 
 def test_folders_are_checked_before_anything_is_written():
@@ -150,7 +150,7 @@ def stack(tmp_path):
     (folder / "compose.yml").write_text(COMPOSE)
     (folder / ".env").write_text('# kept\nPORT="8096"\n')
     (folder / "compose.override.yml").write_text(
-        recipes.render_override("jellyfin", [("/srv/media/anime", "/media/anime")], False)
+        override.render_override("jellyfin", [("/srv/media/anime", "/media/anime")], False)
     )
     return folder
 
@@ -243,7 +243,7 @@ def test_a_preview_returns_the_files_and_writes_nothing(stack):
         preview=True,
     )
     assert out["env"] == '# kept\nPORT="9000"\n'
-    assert stackform.parse_override(out["override"])[0] == [
+    assert override.parse_override(out["override"])[0] == [
         {"service": "jellyfin", "source": "/srv/media/anime", "target": "/media/anime", "writable": True}
     ]
     assert (stack / ".env").read_text() == env_before

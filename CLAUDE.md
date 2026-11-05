@@ -46,7 +46,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
 - `modules/<name>/` — `client.py` is I/O only; logic is pure (`service.py`, `logic.py`);
   `router.py` is the HTTP surface. WireGuard is only a reachability probe and a peer DNS hint.
 - `modules/docker/` — `stacks.py` (a stack is a folder in `STACKS_DIR`; compose runs),
-  `recipes.py` (sources, sync, validation, install, options, the recipe icon),
+  `recipes.py` (sources, sync, validation, install, the recipe icon), `dotenv.py` (`.env`
+  read, changed and written), `override.py` (`compose.override.yml`: folders and options),
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
 - `modules/ssh/` — Loskai's keys (`client.py`, owner-only files; the main one usable only
@@ -288,7 +289,7 @@ with the machine or its SSH connection.
   `clone --depth 1`, then `fetch --depth 1` + `reset --hard FETCH_HEAD`, so a rewritten
   source keeps syncing.
 - **Every value in a generated `.env` is double-quoted and escaped** (`resolve_answers` +
-  `render_env`). Written as `KEY=value`, Compose interpolates `$` and cuts at ` #`, and a
+  `dotenv.render_env`). Written as `KEY=value`, Compose interpolates `$` and cuts at ` #`, and a
   password arrives altered while `up` exits 0. Don't simplify it back. A `type: path` answer
   is refused where Compose would mount it wrongly: `~` (compose runs as root in the
   container, so it means `/root`), a bare name (a named volume), a `:`.
