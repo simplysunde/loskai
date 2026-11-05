@@ -1,6 +1,7 @@
 ---
 name: sweep
-description: Loskai's whole-project simplification sweep — first an honest, read-only estimate of how much the backend, frontend, tests and docs could be simplified or restructured while keeping every function as it is, then (on Sunde's go-ahead) the bugs found fixed first and the restructuring done area by area as a TODO phase, each step committed, tested and checked live against real Docker, Caddy, a machine over SSH and a browser. Use it whenever the question is how much Loskai could be simplified, cleaned up, deduplicated or restructured, or a "complete sweep", refactor or cleanup pass "keeping the functionality" is asked for — even if the word sweep isn't used.
+description: Loskai's whole-project simplification sweep, run by hand with /sweep — an honest read-only estimate of how much the backend, frontend, tests and docs could be simplified while keeping every function, then, on the go-ahead, bugs first and the restructuring area by area as a TODO phase, each step committed, tested and checked live. It reviews the entire codebase, so it is never started for a question about one part.
+disable-model-invocation: true
 ---
 
 # Sweep (Loskai)
