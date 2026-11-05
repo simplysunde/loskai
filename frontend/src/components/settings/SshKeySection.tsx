@@ -4,9 +4,8 @@ import { Loader2, RefreshCw } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
 import { useSsh, type SshKey } from "../../lib/ssh";
-import { useEscape } from "../../lib/useEscape";
-import { useScrollLock } from "../../lib/useScrollLock";
 import { INPUT } from "../../lib/ui";
+import { Overlay } from "../shared/Modal";
 
 // Loskai's own key, the one it logs in to every machine with. Using it needs nothing here:
 // a machine's SSH setup creates it and puts it on that machine. What is left is the rare
@@ -55,8 +54,6 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  useScrollLock(true);
-  useEscape(true, onClose);
 
   const make = useMutation({
     mutationFn: () => api.post<SshKey>("/api/ssh/key", { password, replace: true }),
@@ -68,10 +65,8 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <Overlay onClose={onClose}>
       <form
-        className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -107,6 +102,6 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </form>
-    </div>
+    </Overlay>
   );
 }

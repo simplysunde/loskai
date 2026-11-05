@@ -20,11 +20,9 @@ import { useSettings } from "../../lib/settings";
 import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import type { ToolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
-import { useEscape } from "../../lib/useEscape";
-import { useScrollLock } from "../../lib/useScrollLock";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { Modal } from "../shared/Modal";
+import { Modal, Overlay } from "../shared/Modal";
 import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
 import { SshLog } from "../settings/SshLog";
 import type { NewMachine } from "./AddMachineModal";
@@ -86,7 +84,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   // While a pick scrolls the pane, the scroll doesn't move the mark.
   const picking = useRef(0);
   const opened = useRef(false);
-  useScrollLock(true);
 
   const routes = useRoutes();
   const settings = useSettings();
@@ -529,28 +526,23 @@ function Shell({
   onClose: () => void;
   children: ReactNode;
 }) {
-  useEscape(true, onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-3">
-          <div className="min-w-0 text-sm font-semibold text-slate-100">{title}</div>
-          <div className="flex shrink-0 items-center gap-2">
-            {action}
-            <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-slate-400 hover:bg-slate-800">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+    <Overlay
+      onClose={onClose}
+      label={label}
+      className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
+    >
+      <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-3">
+        <div className="min-w-0 text-sm font-semibold text-slate-100">{title}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          {action}
+          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-slate-400 hover:bg-slate-800">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        {children}
       </div>
-    </div>
+      {children}
+    </Overlay>
   );
 }
 

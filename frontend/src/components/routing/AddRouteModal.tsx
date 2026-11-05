@@ -6,14 +6,13 @@ import { useContainers, type Container } from "../../lib/containers";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
-import { useEscape } from "../../lib/useEscape";
-import { useScrollLock } from "../../lib/useScrollLock";
 import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
+import { Overlay } from "../shared/Modal";
 
 // The route payload the parent posts to /api/routes.
 export interface NewRoute {
@@ -88,8 +87,6 @@ export function AddRouteModal({
   const settings = useSettings(open);
   const health = useHealth();
 
-  useScrollLock(open);
-  useEscape(open, onClose);
 
   if (!open) return null;
 
@@ -142,120 +139,115 @@ export function AddRouteModal({
   const canSubmit = fields.valid && !pending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-slate-100">Add route</h2>
+    <Overlay onClose={onClose}>
+      <h2 className="text-base font-semibold text-slate-100">Add route</h2>
 
-        <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
-          <SourceTab active={source === "container"} onClick={() => reset("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
-            Container
-          </SourceTab>
-          <SourceTab active={source === "network"} onClick={() => reset("network")} icon={<Network className="h-3.5 w-3.5" />}>
-            Network
-          </SourceTab>
-          <SourceTab active={source === "external"} onClick={() => reset("external")} icon={<Globe className="h-3.5 w-3.5" />}>
-            External
-          </SourceTab>
-        </div>
+      <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
+        <SourceTab active={source === "container"} onClick={() => reset("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
+          Container
+        </SourceTab>
+        <SourceTab active={source === "network"} onClick={() => reset("network")} icon={<Network className="h-3.5 w-3.5" />}>
+          Network
+        </SourceTab>
+        <SourceTab active={source === "external"} onClick={() => reset("external")} icon={<Globe className="h-3.5 w-3.5" />}>
+          External
+        </SourceTab>
+      </div>
 
-        {source === "container" && (
-          <PickList empty="No unrouted containers.">
-            {unroutedContainers.map((c) => (
-              <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
+      {source === "container" && (
+        <PickList empty="No unrouted containers.">
+          {unroutedContainers.map((c) => (
+            <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
+          ))}
+        </PickList>
+      )}
+      {source === "network" && (
+        <>
+          <PickList empty="All services are routed.">
+            {networkItems.map((s) => (
+              <PickItem key={s.origin} active={picked === s.origin} onClick={() => pickNetwork(s)} title={s.name} sub={s.upstream || "no URL set — see below"} />
             ))}
           </PickList>
-        )}
-        {source === "network" && (
-          <>
-            <PickList empty="All services are routed.">
-              {networkItems.map((s) => (
-                <PickItem key={s.origin} active={picked === s.origin} onClick={() => pickNetwork(s)} title={s.name} sub={s.upstream || "no URL set — see below"} />
-              ))}
-            </PickList>
-            {networkItems.some((s) => !s.upstream) && (
-              <p className="mt-2 text-xs text-slate-500">
-                A service with no URL set gets one in{" "}
-                <Link to="/settings/network" className="underline underline-offset-2 hover:text-slate-300">
-                  Settings &rsaquo; Network
-                </Link>
-                .
-              </p>
-            )}
-          </>
-        )}
-        {source === "external" && (
-          <>
-            <p className="mt-1 text-xs text-slate-500">
-              Any address. A route on a named machine's address is listed under it, and moves
-              with it. Machines are named on the{" "}
-              <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
-                Machines
-              </Link>{" "}
-              tab.
+          {networkItems.some((s) => !s.upstream) && (
+            <p className="mt-2 text-xs text-slate-500">
+              A service with no URL set gets one in{" "}
+              <Link to="/settings/network" className="underline underline-offset-2 hover:text-slate-300">
+                Settings &rsaquo; Network
+              </Link>
+              .
             </p>
-          </>
-        )}
+          )}
+        </>
+      )}
+      {source === "external" && (
+        <>
+          <p className="mt-1 text-xs text-slate-500">
+            Any address. A route on a named machine's address is listed under it, and moves
+            with it. Machines are named on the{" "}
+            <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
+              Machines
+            </Link>{" "}
+            tab.
+          </p>
+        </>
+      )}
 
-        <RouteFields
-          fields={fields}
-          hosts={hosts}
-          follow={
-            source === "container" && picked
-              ? {
-                  on: follow,
-                  derived,
-                  set: (on) => {
-                    setFollow(on);
-                    if (on && derived) fields.set({ upstream: derived });
-                  },
-                }
-              : undefined
-          }
+      <RouteFields
+        fields={fields}
+        hosts={hosts}
+        follow={
+          source === "container" && picked
+            ? {
+                on: follow,
+                derived,
+                set: (on) => {
+                  setFollow(on);
+                  if (on && derived) fields.set({ upstream: derived });
+                },
+              }
+            : undefined
+        }
+      />
+      <SchemeSelect value={scheme} onChange={setScheme} />
+
+      <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+        <input
+          type="checkbox"
+          checked={fields.tls}
+          onChange={(e) => fields.setTls(e.target.checked)}
         />
-        <SchemeSelect value={scheme} onChange={setScheme} />
+        Backend speaks HTTPS (skip cert verification)
+      </label>
 
-        <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-          <input
-            type="checkbox"
-            checked={fields.tls}
-            onChange={(e) => fields.setTls(e.target.checked)}
-          />
-          Backend speaks HTTPS (skip cert verification)
-        </label>
+      <p className="mt-4 text-xs text-slate-500">
+        →{" "}
+        <span className="font-mono text-slate-300">
+          {scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
+        </span>
+      </p>
+      {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
-        <p className="mt-4 text-xs text-slate-500">
-          →{" "}
-          <span className="font-mono text-slate-300">
-            {scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
-          </span>
-        </p>
-        {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
-            Cancel
-          </button>
-          <button
-            disabled={!canSubmit}
-            onClick={() =>
-              onSubmit({
-                ...fields.payload(),
-                scheme,
-                ...link,
-                ...(source === "container" && picked ? { follow_container: follow } : {}),
-              })
-            }
-            className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-          >
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Add route
-          </button>
-        </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
+          Cancel
+        </button>
+        <button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit({
+              ...fields.payload(),
+              scheme,
+              ...link,
+              ...(source === "container" && picked ? { follow_container: follow } : {}),
+            })
+          }
+          className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+        >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Add route
+        </button>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
