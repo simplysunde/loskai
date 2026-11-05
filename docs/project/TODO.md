@@ -393,6 +393,8 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
 
 ## Phase 35 — Accounts: an admin, and operators limited to tabs
 
+_Its key slots were walked back by Phase 38 (below); what it says about them is history._
+
 Replaces "one admin password, no accounts" (architecture.md › Access). Asked 2026-11-02, after
 comparing Loskai's security with Proxmox's.
 
@@ -580,9 +582,12 @@ are fixed first, each with a regression test.
       click closes and a click inside doesn't; the new-key form submits; Escape in a
       Settings field saves nothing; a locked terminal asks for your password, says a wrong
       one, and opens with the right one
-- [ ] 40q Tests: shared fixtures (backend) and render/fetch helpers (frontend)
-- [ ] 40r Docs: stale facts fixed; the docs check counts modules and checks `api.md`'s routes
-- [ ] 40s Docs: finished phases to the archive; each repeated fact in one place
+- [x] 40q Tests: shared fixtures (backend) and render/fetch helpers (frontend)
+- [x] 40r Docs: stale facts fixed; the docs check counts modules and checks `api.md`'s routes
+- [x] 40s Docs: finished phases to the archive (TODO.md 1,986 → 627 lines); a superseded note
+      on each HISTORY entry a later one overturned. Not done: folding CLAUDE.md's rules and
+      architecture.md's narrative into one — each is written for its reader, and the
+      enumerations that drift are what check-docs now pins
 
 ---
 

@@ -4,6 +4,49 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-05 — The sweep: each decision in one place (Phase 40)
+
+Sunde asked how much a sweep of the whole project could simplify while keeping every function
+as it is. Three read-only reviews — backend, frontend, tests and docs — found the code already
+lean: about 5–7% could go. So the sweep aimed at the dozen decisions made in two or more
+places, the pattern behind this project's worst bugs, rather than at size. Four bugs came out
+of the reviews and were fixed first, each with a test that failed before; a fifth turned up
+during the sweep.
+
+- **A stack is matched to its containers by folder.** Compose lowercases a folder's name and
+  drops its dots to make the project name, so `My.App` showed as down. The `working_dir`
+  label was already the rule for recipes (CLAUDE.md); the stack list now follows it too.
+- **A write that follows an await sets only its own fields** (`instances.update_fields`),
+  under the store lock. An icon upload, a rename and AdGuard's reconcile each wrote back the
+  whole record they had read, undoing a follower's re-point made meanwhile.
+- **A failed action says so.** Routing's row failures went to an error shown only inside a
+  closed dialog; the Docker tab ignored a compose run answering `ok: false`. Both now show
+  above the table (`ActionError`), and a confirm dialog shows its own failure.
+- **Escape in a Settings field saved what was typed.** `blur()` fires `onBlur` before the
+  restored draft renders; the machine dialog's fields knew this and used a ref. Both use one
+  hook now (`useAutoSave`).
+
+What became one: the error-to-status translation (`LoskaiError`, one handler — 27 try/except
+blocks went, and deleting a stack stopped answering 404 to every refusal); the two terminal
+WebSockets' gate and relay (`shared/terminal.py` — CLAUDE.md had said to repeat all three
+checks by hand); running on a machine with the main key (`connect._run`, five copies); `.env`
+and the override (`dotenv.py`, `override.py`); a route's name and link scheme; the frontend's
+queries (one hook and one type each), dialogs (`Overlay`), the unlock check and password
+field, and the SSH login check — one copy of which took `1e3` as port 1000.
+
+**Not done, on purpose:** merging the two route forms outright (little saved, ~700 lines of
+tests rewritten — they share their lower half instead); pydantic for the recipe and tool
+validators (authors would get worse messages); merging the LXC scripts (each runs alone
+through curl, and can't be tested off Proxmox); one component for the primary buttons (their
+padding differs between a header and a form on purpose). Left for Sunde: the pre-accounts
+password migration, `deploy.sh`'s move from `/opt`, the unused `git_build` and
+`registry_pull` recipe modes, and the code that reads the old encrypted key.
+
+The docs: TODO.md had grown to 1,986 lines, mostly finished phases, and went to the archive;
+three pages said four modules; `SECURITY.md` still said there were no accounts. `check-docs`
+now reads every module count in CLAUDE.md and both READMEs, and every route against its row in
+`api.md` — the kind of drift that had only ever been caught by a person reading.
+
 ## 2026-11-04 — An open page keeps the session, as Proxmox's does
 
 Sunde asked whether a session could stay alive while the page is open, as Proxmox's does.
@@ -45,6 +88,9 @@ isn't moved.** Loskai isn't released, and the only install with one is Sunde's, 
 machine. Unlock says to make a New key.
 
 ## 2026-11-04 — A review of accounts (Phase 35), and what it changed
+
+_Superseded in part the same day: the typing rule for terminals by "An open page keeps the
+session", and the two key-slot fixes by Phase 38, which removed the slots (both above)._
 
 A code review found eight faults in accounts and the key slots. Each was fixed with a test
 that failed before. The choices worth keeping:
@@ -171,6 +217,9 @@ SSH config's `Host`. With no `host_ip` set there is no row: a bridged Loskai can
 host's address by itself.
 
 ## 2026-11-02 — Accounts: an admin, and operators limited to tabs (Phase 35)
+
+_Its key slots — the SSH key sealed per account — were walked back two days later by Phase
+38 (above); the accounts themselves stand._
 
 **This reverses "one password, no accounts"** (2026-08, and architecture.md's access section
 until now). That was right while one person ran Loskai: logout could end every session by
@@ -1521,6 +1570,8 @@ carry it.
 
 ## 2026-09-27 — The ACME path was only ever wired for one provider
 
+_Superseded hours later: ACME support was removed outright (the entry above)._
+
 Weighing public certificates turned up a defect in a path that has shipped for weeks.
 `CADDY_DNS_PLUGIN` looked configurable and drove `caddy add-package`, so the correct plugin
 was installed — but the Caddyfile the script wrote said `dns duckdns {env.DUCKDNS_TOKEN}`
@@ -2787,6 +2838,8 @@ mode-aware help text. Both route modals now explain the rule inline.
   `docs/lxc-script-authoring.md` (reference for new `create-<service>-lxc.sh` scripts).
 
 ## 2026-07-20 — Internal CA as default; split AdGuard + Caddy into two LXCs
+
+_Its `TLS_MODE=acme` was removed on 2026-09-27; the internal CA is the only mode now._
 
 **Realigned the TLS/certificate story in the docs** so the internal CA (`local_certs` /
 `tls internal`) is the default in **both dev and production**, and public ACME certs
