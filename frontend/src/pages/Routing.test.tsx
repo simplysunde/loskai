@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { Routing } from "./Routing";
+import { renderWithQuery, json } from "../test/render";
 
 const ADGUARD_ROUTE = {
   id: "adguard", name: "AdGuard", type: "external", kind: "service", subdomain: "adguard",
@@ -35,24 +35,17 @@ function stubApi(routes: unknown[]) {
                 : path === "/api/routes"
                   ? { caddy: "ok", adguard: "ok", url: "https://adguard.example.no", warning: null }
                   : [];
-      return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(data);
     }),
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
 
 function renderPage() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <Routing />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithQuery(
+    <MemoryRouter>
+      <Routing />
+    </MemoryRouter>,
   );
 }
 
@@ -91,7 +84,7 @@ function failing(method: string, path: string, detail: string) {
   const ok = vi.mocked(fetch).getMockImplementation()!;
   vi.mocked(fetch).mockImplementation(async (p, init) =>
     (init?.method ?? "GET") === method && String(p) === path
-      ? new Response(JSON.stringify({ detail }), { status: 502, headers: { "Content-Type": "application/json" } })
+      ? json({ detail }, 502)
       : ok(p, init),
   );
 }

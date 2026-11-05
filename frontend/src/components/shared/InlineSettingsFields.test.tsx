@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import { InlineSettingsFields } from "./InlineSettingsFields";
+import { renderWithQuery, json } from "../../test/render";
 
 const SETTINGS = { base_domain: { value: "example.no", source: "stored", secret: false } };
 
@@ -12,19 +12,13 @@ function renderField() {
     "fetch",
     vi.fn(async (_path: string, init?: RequestInit) => {
       if (init?.method === "PUT") puts.push(JSON.parse(String(init.body)));
-      return new Response(JSON.stringify(SETTINGS), { status: 200, headers: { "Content-Type": "application/json" } });
+      return json(SETTINGS);
     }),
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <InlineSettingsFields fields={[{ key: "base_domain", label: "Base domain" }]} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<InlineSettingsFields fields={[{ key: "base_domain", label: "Base domain" }]} />);
   return puts;
 }
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("Escape puts a field back and saves nothing", async () => {
   const puts = renderField();

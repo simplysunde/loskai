@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import { RecipeUpdates, type RecipeUpdate } from "./RecipeUpdates";
+import { renderWithQuery, json } from "../../test/render";
 
 const CURRENT: RecipeUpdate = {
   stack: "whoami",
@@ -41,19 +41,13 @@ function renderUpdates({
   const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
     if (path.endsWith("/update-from-recipe")) return apply();
     const body = path.endsWith("/refresh") ? { ok: true, output: "" } : list;
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <RecipeUpdates onClose={() => {}} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<RecipeUpdates onClose={() => {}} />);
   return fetchMock;
 }
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("it syncs the sources, then lists every installed recipe with what can be updated", async () => {
   const fetchMock = renderUpdates();
@@ -111,10 +105,7 @@ test("one that can't be updated says why, with no Update button", async () => {
 test("a refused update stays on screen", async () => {
   renderUpdates({
     apply: () =>
-      new Response(JSON.stringify({ detail: "the new version doesn't load with this stack's files: no image" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      }),
+      json({ detail: "the new version doesn't load with this stack's files: no image" }, 400),
   });
 
   fireEvent.click(await screen.findByText("Jellyfin"));

@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import { RecipeSources } from "./RecipeSources";
+import { renderWithQuery, json } from "../../test/render";
 
 const SETTINGS = "/api/settings";
 const RECIPES = "/api/docker/recipes";
@@ -28,10 +28,7 @@ function renderPanel({
       return new Response("{}", { status: settingsStatus, headers: { "Content-Type": "application/json" } });
     }
     if (path === SETTINGS && options?.method === "PUT") {
-      return new Response(JSON.stringify(saveStatus === 200 ? {} : { detail: saveDetail }), {
-        status: saveStatus,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(saveStatus === 200 ? {} : { detail: saveDetail }, saveStatus);
     }
     const body =
       path === SETTINGS
@@ -39,18 +36,10 @@ function renderPanel({
         : path === RECIPES
           ? { sources: status, local_count: 1 }
           : { ok: true, results: [{ url: BUILTIN, label: "loskai-recipes", ok: true, output: "up to date" }] };
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <RecipeSources />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<RecipeSources />);
   return {
     fetchMock,
     saved: () =>
@@ -64,7 +53,6 @@ function renderPanel({
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("the built-in default is listed as an ordinary, labelled row", async () => {
   renderPanel();

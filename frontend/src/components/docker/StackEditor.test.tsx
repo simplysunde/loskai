@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import { StackEditor } from "./StackEditor";
+import { renderWithQuery, json } from "../../test/render";
 
 const COMPOSE = "services:\n  jellyfin:\n    image: jellyfin/jellyfin:12.2\n";
 const OVERRIDE = "services:\n  jellyfin:\n    volumes:\n      - /srv/films:/media/films\n";
@@ -40,15 +40,10 @@ async function renderEditor({
           override_file: override === null ? null : "compose.override.yml",
           services: ["jellyfin"],
         };
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={onClose} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={onClose} />);
   fireEvent.click(await screen.findByText("Edit as text"));
   return { fetchMock, onClose };
 }
@@ -58,7 +53,6 @@ const calls = (fetchMock: ReturnType<typeof vi.fn>) =>
     .filter(([, init]) => init?.method)
     .map(([path, init]) => `${init.method} ${path} ${init.method === "PUT" ? JSON.parse(init.body).file : ""}`.trim());
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("each file has a tab, and the override's can be edited", async () => {
   const { fetchMock, onClose } = await renderEditor();
@@ -96,10 +90,7 @@ test("a stack without an override offers one, with an example to start from", as
 test("a file the server refuses opens its tab and says why", async () => {
   const { onClose } = await renderEditor({
     put: () =>
-      new Response(JSON.stringify({ detail: "compose.override.yml line 4: indented with a tab — YAML needs spaces" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      }),
+      json({ detail: "compose.override.yml line 4: indented with a tab — YAML needs spaces" }, 400),
   });
 
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));

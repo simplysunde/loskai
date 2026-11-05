@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 
 import { Machines } from "./Machines";
+import { renderWithQuery, json } from "../test/render";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
 vi.mock("../components/shared/XtermSession", () => ({
@@ -186,15 +186,11 @@ beforeEach(() => {
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};
-      return new Response(JSON.stringify(data), {
-        status: path.endsWith("/facts") ? factsStatus : path.endsWith("/tools/git/settings") ? gitStatus : 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(data, path.endsWith("/facts") ? factsStatus : path.endsWith("/tools/git/settings") ? gitStatus : 200);
     }),
   );
 });
 
-afterEach(() => vi.unstubAllGlobals());
 
 const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElement;
 // The machine's dialog: its side menu, and the category shown.
@@ -205,16 +201,13 @@ const open = (name: string) =>
 
 // The routes as App has them, so the cog and naming a machine go where they really do.
 function renderPage(at = "/machines") {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route path="/machines" element={<Machines />} />
-          <Route path="/machines/:id/:section?" element={<Machines />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithQuery(
+    <MemoryRouter initialEntries={[at]}>
+      <Routes>
+        <Route path="/machines" element={<Machines />} />
+        <Route path="/machines/:id/:section?" element={<Machines />} />
+      </Routes>
+    </MemoryRouter>,
   );
 }
 

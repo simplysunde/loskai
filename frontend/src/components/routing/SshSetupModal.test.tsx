@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import type { SshKey } from "../../lib/ssh";
 import { SshSetupModal } from "./SshSetupModal";
+import { renderWithQuery, json } from "../../test/render";
 
 const FP = "SHA256:XwXWP1efObJOv+IhNojI/m+P5drO8my+LOVsqOVPaRQ";
 const UNLOCKED: SshKey = {
@@ -22,7 +22,6 @@ const TESTED = {
 type Answer = { status?: number; body: unknown };
 let calls: { path: string; body: unknown }[] = [];
 
-afterEach(() => vi.unstubAllGlobals());
 
 function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Answer[]>) {
   calls = [];
@@ -34,27 +33,21 @@ function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Ans
     vi.fn(async (path: string, init?: RequestInit) => {
       calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : null });
       if (path === "/api/auth/status") {
-        return new Response(JSON.stringify({ authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return json({ authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } });
       }
       const key = Object.keys(queues).find((k) => path.endsWith(k));
       const queue = key ? queues[key] : [];
       const answer = (queue.length > 1 ? queue.shift() : queue[0]) ?? { body: {} };
-      return new Response(JSON.stringify(answer.body), {
-        status: answer.status ?? 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(answer.body, answer.status ?? 200);
     }),
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <SshSetupModal
-        machine={{ id: "nas", name: "nas" }}
-        host={{ hostname: "192.168.10.50", user: "loskai", port: 22 }}
-        sshKey={sshKey}
-        onClose={() => {}}
-      />
-    </QueryClientProvider>,
+  renderWithQuery(
+    <SshSetupModal
+      machine={{ id: "nas", name: "nas" }}
+      host={{ hostname: "192.168.10.50", user: "loskai", port: 22 }}
+      sshKey={sshKey}
+      onClose={() => {}}
+    />,
   );
 }
 

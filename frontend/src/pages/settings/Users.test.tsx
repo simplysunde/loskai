@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { Users } from "./Users";
+import { json } from "../../test/render";
 
 const calls: { path: string; method: string; body: unknown }[] = [];
 const ACCOUNTS = [
@@ -21,7 +22,7 @@ function renderUsers() {
           : path === "/api/users" && !init?.method
             ? ACCOUNTS
             : {};
-      return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+      return json(body);
     }),
   );
   render(
@@ -32,7 +33,6 @@ function renderUsers() {
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   calls.length = 0;
 });
 

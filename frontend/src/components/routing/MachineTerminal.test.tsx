@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import type { SshKey } from "../../lib/ssh";
 import { MachineTerminal } from "./MachineTerminal";
+import { json } from "../../test/render";
 
 // xterm needs a real canvas; what matters here is which session opens, and when.
 const sessions: { url: string; onClosed?: (code: number, reason: string) => void }[] = [];
@@ -23,16 +24,12 @@ const KEY: SshKey = {
 };
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   sessions.length = 0;
 });
 
 function renderTerminal(sshKey: SshKey, unlockStatus = 200) {
   const fetchMock = vi.fn(async () =>
-    new Response(JSON.stringify(unlockStatus === 200 ? KEY : { detail: "Invalid password" }), {
-      status: unlockStatus,
-      headers: { "Content-Type": "application/json" },
-    }),
+    json(unlockStatus === 200 ? KEY : { detail: "Invalid password" }, unlockStatus),
   );
   vi.stubGlobal("fetch", fetchMock);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -91,10 +88,7 @@ function renderRun(replies: Reply[], run = { tool: "system", action: "update", t
       if (!path.endsWith("/run")) return new Response("{}", { headers: { "Content-Type": "application/json" } });
       calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : null });
       const reply = replies.shift() ?? { body: {} };
-      return new Response(JSON.stringify(reply.body), {
-        status: reply.status ?? 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(reply.body, reply.status ?? 200);
     }),
   );
   const onClose = vi.fn();

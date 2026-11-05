@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import App from "./App";
+import { json } from "./test/render";
 
 const DEFAULTS: Record<string, unknown> = {
   "/api/auth/status": { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } },
@@ -27,16 +28,12 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) =>
-      new Response(JSON.stringify(RESPONSES[path] ?? {}), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+      json(RESPONSES[path] ?? {}),
     ),
   );
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   RESPONSES = { ...DEFAULTS };
 });
 
@@ -141,7 +138,6 @@ test("Log out is in the menu on your name, and lands on the Dashboard", async ()
 
   await waitFor(() => expect(assign).toHaveBeenCalledWith("/"));
   expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/logout")).toBe(true);
-  vi.unstubAllGlobals();
 });
 
 test("a logout that fails says so, and stays", async () => {

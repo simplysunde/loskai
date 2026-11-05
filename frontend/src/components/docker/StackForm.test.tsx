@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import { StackEditor } from "./StackEditor";
 import type { StackFormData } from "./StackForm";
+import { renderWithQuery, json } from "../../test/render";
 
 const FORM: StackFormData = {
   settings: [
@@ -42,22 +42,16 @@ function renderForm(form: StackFormData = FORM) {
           : path.endsWith("/form")
             ? form
             : detail;
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={onClose} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={onClose} />);
   return { fetchMock, onClose };
 }
 
 const sent = (fetchMock: ReturnType<typeof vi.fn>) =>
   fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT").map(([, init]) => JSON.parse(init.body));
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("the stack opens as labelled values, the app read-only", async () => {
   renderForm();
@@ -181,15 +175,10 @@ test("after a save whose up failed, undoing the change can be saved", async () =
       : init?.method === "PUT"
         ? { ok: true }
         : { ...FORM, options: [{ ...FORM.options[0], on }] };
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={vi.fn()} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={vi.fn()} />);
 
   fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
   fireEvent.click(screen.getByText("Save"));
@@ -208,18 +197,13 @@ test("a read-back after a failed up that fails says so", async () => {
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     if (path.endsWith("/form") && !init?.method) {
       loads += 1;
-      if (loads > 1) return new Response(JSON.stringify({ detail: "disk gone" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      if (loads > 1) return json({ detail: "disk gone" }, 500);
     }
     const body = path.endsWith("/action") ? { ok: false, output: "up failed" } : init?.method === "PUT" ? { ok: true } : FORM;
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={vi.fn()} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={vi.fn()} />);
 
   fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
   fireEvent.click(screen.getByText("Save"));
@@ -230,15 +214,10 @@ test("a save that closes the editor reads nothing back", async () => {
   const onClose = vi.fn();
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     const body = path.endsWith("/action") ? { ok: true, output: "" } : init?.method === "PUT" ? { ok: true } : FORM;
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={onClose} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={onClose} />);
 
   fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
   fireEvent.click(screen.getByText("Save"));
@@ -253,17 +232,12 @@ test("a save whose up couldn't run reads the stack back too", async () => {
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     if (init?.method === "PUT") on = JSON.parse(String(init.body)).options?.hwaccel ?? on;
     if (path.endsWith("/action"))
-      return new Response(JSON.stringify({ detail: "docker CLI not found in the container" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return json({ detail: "docker CLI not found in the container" }, 400);
     const body = init?.method === "PUT" ? { ok: true } : { ...FORM, options: [{ ...FORM.options[0], on }] };
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <StackEditor name="jellyfin" onClose={vi.fn()} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<StackEditor name="jellyfin" onClose={vi.fn()} />);
 
   fireEvent.click(await screen.findByRole("checkbox", { name: /Hardware transcoding/ }));
   fireEvent.click(screen.getByText("Save"));

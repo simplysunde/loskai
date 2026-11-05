@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { InstallWizard } from "./InstallWizard";
+import { renderWithQuery, json } from "../../test/render";
 
 const GRAFANA = {
   id: "grafana",
@@ -57,26 +57,19 @@ function renderWizard({
             : path === "/api/auth/status"
               ? { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } }
             : { recipes, invalid, shadowed, sources, local_count };
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(body);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <InstallWizard onClose={() => {}} />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithQuery(
+    <MemoryRouter>
+      <InstallWizard onClose={() => {}} />
+    </MemoryRouter>,
   );
   return fetchMock;
 }
 
 const pickGrafana = async () => fireEvent.click(await screen.findByText("Grafana"));
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("a recipe with an icon shows it in the catalog; one without keeps its letter", async () => {
   renderWizard({ recipes: [{ ...GRAFANA, icon: true }, { ...GRAFANA, id: "whoami", name: "Whoami" }] });

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { AddRouteModal } from "./AddRouteModal";
+import { json } from "../../test/render";
 
 // The modal reads three queries; none of them matter to the field validation under test,
 // so they answer with the smallest shape each consumer needs.
@@ -26,10 +27,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) =>
-      new Response(JSON.stringify(RESPONSES[path] ?? {}), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+      json(RESPONSES[path] ?? {}),
     ),
   );
 });
@@ -37,7 +35,6 @@ beforeEach(() => {
 const DEFAULT_SETTINGS = RESPONSES["/api/settings"];
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   RESPONSES["/api/docker/containers"] = [];
   RESPONSES["/api/caddy/routes"] = [];
   RESPONSES["/api/settings"] = DEFAULT_SETTINGS;

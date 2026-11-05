@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import type { SshKey } from "../../lib/ssh";
 import { SshKeySection } from "./SshKeySection";
+import { renderWithQuery, json } from "../../test/render";
 
 const KEY: SshKey = {
   public_key: "ssh-ed25519 AAAAC3Nza loskai",
@@ -16,23 +16,14 @@ const KEY: SshKey = {
   unlocked_until: null,
 };
 
-afterEach(() => vi.unstubAllGlobals());
 
 function renderSection(key: SshKey | null, replace: { status: number; body: unknown } = { status: 200, body: KEY }) {
   const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
     const answer = path === "/api/ssh" ? { status: 200, body: { key, hosts: {}, trusted: {} } } : replace;
-    return new Response(JSON.stringify(answer.body), {
-      status: answer.status,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(answer.body, answer.status);
   });
   vi.stubGlobal("fetch", fetchMock);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <SshKeySection />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<SshKeySection />);
   return { fetchMock };
 }
 

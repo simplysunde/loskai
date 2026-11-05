@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { ClearRewrites } from "./ClearRewrites";
 
@@ -47,7 +47,6 @@ function renderPanel({
 const openDialog = () =>
   fireEvent.click(screen.getByRole("button", { name: /Clear rewrites/ }));
 
-afterEach(() => vi.unstubAllGlobals());
 
 test("the button only opens the dialog — nothing is cleared yet", async () => {
   const { cleared } = renderPanel();

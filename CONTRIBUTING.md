@@ -29,6 +29,10 @@ make check-docs                       # links, page headers, and the docs agains
   current ones are walk-backs of earlier attempts, with the reason recorded.
 - **Keep I/O out of the logic.** Each module's `client.py` only talks to the network; all
   decisions live in pure functions, which is what lets the tests run without one.
+- **A new test starts from the shared setup.** Backend: `tests/conftest.py` gives every test
+  its own data and stacks folders and keeps Docker away — ask for `data_dir` to reach the
+  files. Frontend: `src/test/render.tsx` has `renderWithQuery` (a fresh query cache) and
+  `json` (what a stubbed `fetch` answers); a `vi.stubGlobal` is undone after each test.
 - **Recipes live in their own repo** — the format is
   [recipe-schema.md](docs/reference/recipe-schema.md).
 

@@ -12,7 +12,6 @@ function Poller() {
 afterEach(() => {
   focusManager.setFocused(undefined);
   vi.useRealTimers();
-  vi.unstubAllGlobals();
 });
 
 // Each poll renews the session, so an open page keeps it even in a background tab, as

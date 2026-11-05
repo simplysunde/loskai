@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { StackGroups } from "./StackGroups";
 import { VolumeList } from "./VolumeList";
+import { renderWithQuery, json } from "../../test/render";
 
 const container = (name: string, project: string | null, status = "running") => ({
   id: name, name, image: `${name}/img`, project, status, uptime: 60, ports: [],
@@ -39,21 +39,16 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) =>
-      new Response(JSON.stringify(RESPONSES[path] ?? {}), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+      json(RESPONSES[path] ?? {}),
     ),
   );
 });
 afterEach(() => {
-  vi.unstubAllGlobals();
   sessionStorage.clear();
 });
 
 function renderWith(ui: React.ReactElement) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  renderWithQuery(ui);
 }
 
 const noop = () => {};
@@ -104,10 +99,7 @@ test("with nothing unmanaged, there is no second table", async () => {
       path === "/api/docker/containers"
         ? containers.filter((c) => c.project === "immich" || c.project === "whoami")
         : (RESPONSES[String(path)] ?? {});
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(data);
   });
   groups();
   await screen.findByText("immich-server");
@@ -120,10 +112,7 @@ test("start and stop are one toggle: Stop only once everything is up", async () 
   const calls: { path: string; body: unknown }[] = [];
   vi.mocked(fetch).mockImplementation(async (path, init) => {
     if (init?.method === "POST") calls.push({ path: String(path), body: JSON.parse(String(init.body)) });
-    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(RESPONSES[String(path)] ?? {});
   });
   groups();
   await screen.findByText("immich-server");
@@ -145,10 +134,7 @@ test("a project from elsewhere gets the toggle too, as plain start/stop per cont
   const calls: string[] = [];
   vi.mocked(fetch).mockImplementation(async (path, init) => {
     if (init?.method === "POST") calls.push(String(path));
-    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(RESPONSES[String(path)] ?? {});
   });
   groups();
   await screen.findByText("other-app");
@@ -339,10 +325,7 @@ test("only an unused volume can be deleted, and only after confirming", async ()
   const calls: { path: string; method: string }[] = [];
   vi.mocked(fetch).mockImplementation(async (path, init) => {
     calls.push({ path: String(path), method: init?.method ?? "GET" });
-    return new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(RESPONSES[String(path)] ?? {});
   });
   renderWith(<VolumeList />);
   await screen.findByText("immich_pgdata");
@@ -374,10 +357,7 @@ test("the tables render from the list alone; CPU and memory fill in from their o
         : path === "/api/docker/containers/stats"
           ? { "immich-server": { cpu: 12.5, mem: { percent: 30 } } }
           : (RESPONSES[String(path)] ?? {});
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(data);
   });
   groups();
 
@@ -396,7 +376,7 @@ test("a compose run that fails says so above the tables, with its output", async
     const body = init?.method === "POST"
       ? { ok: false, output: "Error response from daemon: port is already allocated" }
       : (RESPONSES[String(path)] ?? {});
-    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    return json(body);
   });
   groups();
   await screen.findByText("immich-server");
@@ -413,8 +393,8 @@ test("a compose run that fails says so above the tables, with its output", async
 test("a container action Loskai refuses says why", async () => {
   vi.mocked(fetch).mockImplementation(async (path, init) =>
     init?.method === "POST"
-      ? new Response(JSON.stringify({ detail: "Docker is unreachable" }), { status: 502, headers: { "Content-Type": "application/json" } })
-      : new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), { status: 200, headers: { "Content-Type": "application/json" } }),
+      ? json({ detail: "Docker is unreachable" }, 502)
+      : json(RESPONSES[String(path)] ?? {}),
   );
   groups();
   await screen.findByText("immich-server");

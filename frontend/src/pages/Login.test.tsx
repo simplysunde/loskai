@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { Login } from "./Login";
+import { json } from "../test/render";
 
 let status: unknown;
 const posts: { path: string; body: unknown }[] = [];
@@ -13,10 +14,7 @@ function renderLogin() {
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") posts.push({ path, body: JSON.parse(String(init.body)) });
-      return new Response(JSON.stringify(path === "/api/auth/status" ? status : { authed: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(path === "/api/auth/status" ? status : { authed: true });
     }),
   );
   render(
@@ -32,7 +30,6 @@ function renderLogin() {
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   posts.length = 0;
 });
 

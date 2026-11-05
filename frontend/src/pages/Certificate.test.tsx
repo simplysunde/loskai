@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { Certificate } from "./Certificate";
+import { json } from "../test/render";
 
 const ROOT_PEM = "-----BEGIN CERTIFICATE-----\nMIIBozCCAUmg\n-----END CERTIFICATE-----\n";
 
@@ -16,16 +17,12 @@ beforeEach(() => {
     "fetch",
     vi.fn(
       async () =>
-        new Response(JSON.stringify(response.body), {
-          status: response.status,
-          headers: { "Content-Type": "application/json" },
-        }),
+        json(response.body, response.status),
     ),
   );
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   response = {
     status: 200,
     body: { pem: ROOT_PEM, common_name: "Caddy Local Authority", filename: "caddy-root.crt" },
