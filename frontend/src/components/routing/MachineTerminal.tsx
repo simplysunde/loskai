@@ -5,10 +5,11 @@ import { Loader2 } from "lucide-react";
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import { runQuery, type ToolRun } from "../../lib/tools";
-import type { SshKey } from "../../lib/ssh";
+import { keyUnlocked, type SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
 import { XtermSession } from "../shared/XtermSession";
 import { INPUT } from "../../lib/ui";
+import { YourPassword } from "../shared/YourPassword";
 
 // The server closes a machine's terminal with 4000 + an HTTP status: 4423 while the key is
 // locked — the one case the password below fixes. A session that ends by itself closes 1000.
@@ -43,7 +44,7 @@ export function MachineTerminal({
 }) {
   const qc = useQueryClient();
   const unlockFor = useUnlockFor();
-  const unlocked = Boolean(sshKey?.unlocked_until && Date.parse(sshKey.unlocked_until) > Date.now());
+  const unlocked = keyUnlocked(sshKey);
   const [stage, setStage] = useState<Stage>(!unlocked ? "unlock" : run ? "preparing" : "terminal");
   // Bumped to open a new session after unlocking.
   const [session, setSession] = useState(0);
@@ -105,16 +106,7 @@ export function MachineTerminal({
         >
           <p className="text-sm text-slate-300">Loskai's key is locked.</p>
           <p className="mt-1 text-xs text-slate-500">Your password unlocks it for {unlockFor}.</p>
-          <input
-            autoFocus
-            type="password"
-            autoComplete="current-password"
-            aria-label="Your password"
-            placeholder="Your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={`mt-3 ${INPUT}`}
-          />
+          <YourPassword autoFocus value={password} onChange={setPassword} className={`mt-3 ${INPUT}`} />
           {unlock.isError && (
             <p className="mt-2 text-sm text-rose-400">
               {apiMessage(unlock.error, "Couldn't unlock the key")}

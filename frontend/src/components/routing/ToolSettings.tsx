@@ -7,6 +7,7 @@ import { useUnlockFor } from "../../lib/settings";
 import type { ToolContext } from "../../lib/toolRows";
 import type { Tool } from "../../lib/tools";
 import { InlineText, SettingRow } from "../shared/SettingRow";
+import { YourPassword } from "../shared/YourPassword";
 
 type Values = { values: Record<string, string | null> };
 
@@ -96,15 +97,7 @@ function Unlock({ onDone }: { onDone: () => void }) {
       }}
     >
       <span className="mr-auto text-xs text-slate-500">Loskai's key is locked — your password unlocks it for {unlockFor}.</span>
-      <input
-        type="password"
-        autoComplete="current-password"
-        aria-label="Your password"
-        placeholder="Your password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-48 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500"
-      />
+      <YourPassword value={password} onChange={setPassword} className="w-48 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500" />
       <button
         type="submit"
         disabled={!password || unlock.isPending}

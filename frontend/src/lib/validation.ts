@@ -58,6 +58,11 @@ export function isValidPort(port: string): boolean {
   return /^\d+$/.test(p) && +p >= 1 && +p <= 65535;
 }
 
+// A machine's SSH login: a user name SSH takes, and a port.
+export function isValidSshLogin(user: string, port: string): boolean {
+  return SSH_USER.test(user) && isValidPort(port);
+}
+
 // A dns_only target is the AdGuard answer itself — a bare IPv4 address, no port, no
 // scheme. IPv6 is out of scope for now (mirrors the backend's validate_upstream guard).
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;

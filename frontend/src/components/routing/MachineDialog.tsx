@@ -17,10 +17,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, apiMessage } from "../../lib/api";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { keyUnlocked, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import type { ToolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
-import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
+import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, isValidSshLogin, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Modal, Overlay } from "../shared/Modal";
 import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
@@ -35,6 +35,7 @@ import { SshSetupModal } from "./SshSetupModal";
 import { useSaveMachine, type SaveResult } from "./useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
 import { INPUT } from "../../lib/ui";
+import { YourPassword } from "../shared/YourPassword";
 
 // What opening a machine can hand over: what a save said, and whether to start its SSH
 // setup — after naming it, or from a tool's "Install again".
@@ -105,10 +106,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
   // Removing the SSH connection takes Loskai's key and sudo rule off the machine first, which
   // needs the key unlocked: your password, typed in the dialog when it is locked.
-  const keyUnlocked = Boolean(
-    ssh.data?.key?.unlocked_until && Date.parse(ssh.data.key.unlocked_until) > Date.now(),
-  );
-  const removeNeedsPassword = trusted && Boolean(ssh.data?.key) && !keyUnlocked;
+  const removeNeedsPassword = trusted && Boolean(ssh.data?.key) && !keyUnlocked(ssh.data?.key);
   const removeSsh = useMutation({
     mutationFn: async (change: NewMachine) => {
       if (removeNeedsPassword) await api.post("/api/ssh/unlock", { password: removePassword });
@@ -277,7 +275,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
               width="w-14"
               value={String(host.port ?? 22)}
               disabled={!host.user}
-              validate={(v) => (/^\d+$/.test(v) && +v >= 1 && +v <= 65535 ? null : "A port from 1 to 65535.")}
+              validate={(v) => (isValidPort(v) ? null : "A port from 1 to 65535.")}
               onSave={(v) => post({ ssh: { user: host.user!, port: Number(v) } })}
             />
           </SettingRow>
@@ -470,15 +468,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           ? "Loskai's key and its sudo rule come off the machine — nothing else there changes — then its entry, user and port go, and its host key is forgotten."
           : "Its entry goes, and with it the user and port."}
         {removeNeedsPassword && (
-          <input
-            type="password"
-            autoComplete="current-password"
-            aria-label="Your password"
-            placeholder="Your password — unlocks Loskai's key"
-            value={removePassword}
-            onChange={(e) => setRemovePassword(e.target.value)}
-            className={`mt-3 block ${INPUT}`}
-          />
+          <YourPassword value={removePassword} onChange={setRemovePassword} className={`mt-3 block ${INPUT}`} placeholder="Your password — unlocks Loskai's key" />
         )}
         {removeSsh.isError && (
           <span className="mt-2 block text-rose-400">
@@ -561,7 +551,7 @@ function EnableSsh({
   const [user, setUser] = useState("");
   const [port, setPort] = useState("22");
   const save = useMutation({ mutationFn: () => onSave({ user, port: Number(port) }) });
-  const ok = SSH_USER.test(user) && /^\d+$/.test(port) && +port >= 1 && +port <= 65535;
+  const ok = isValidSshLogin(user, port);
   return (
     <Modal title={`Turn on SSH for ${name}`} onClose={onClose} narrow>
       <form

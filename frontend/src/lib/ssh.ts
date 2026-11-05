@@ -11,6 +11,11 @@ export interface SshKey {
   from: string | null; // the Docker host's IP the keys are limited to
   unlocked_until: string | null; // when the main key locks again; null while locked
 }
+// Whether the main key is unlocked now — for your account (the backend's `unlocked_until`).
+export function keyUnlocked(key?: SshKey | null): boolean {
+  return Boolean(key?.unlocked_until && Date.parse(key.unlocked_until) > Date.now());
+}
+
 export interface SshHost {
   hostname?: string;
   user?: string;

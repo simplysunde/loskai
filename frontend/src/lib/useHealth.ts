@@ -4,6 +4,12 @@ import { api } from "./api";
 
 export type ModuleState = "healthy" | "degraded" | "unreachable" | "unconfigured";
 
+// The host in AdGuard's answer IP — where Caddy listens, and its cert page with it. The
+// value is a bare IP, but an older setting may carry a scheme, a path or a port.
+export function answerHost(answerIp?: string | null): string {
+  return (answerIp ?? "").replace(/^\w+:\/\//, "").split("/")[0].split(":")[0];
+}
+
 export interface ModuleHealth {
   status: ModuleState;
   detail?: string;

@@ -6,6 +6,7 @@ import { api, apiMessage } from "../../lib/api";
 import { useSsh, type SshKey } from "../../lib/ssh";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
+import { YourPassword } from "../shared/YourPassword";
 
 // Loskai's own key, the one it logs in to every machine with. Using it needs nothing here:
 // a machine's SSH setup creates it and puts it on that machine. What is left is the rare
@@ -77,16 +78,7 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
         <p className="mt-2 text-xs text-amber-300">
           Machines stop accepting Loskai until their SSH setup is run again.
         </p>
-        <input
-          autoFocus
-          type="password"
-          autoComplete="current-password"
-          aria-label="Your password"
-          placeholder="Your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={`mt-4 ${INPUT}`}
-        />
+        <YourPassword autoFocus value={password} onChange={setPassword} className={`mt-4 ${INPUT}`} />
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">

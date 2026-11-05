@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  isValidSshLogin,
   assembleFqdn,
   isValidDnsOnlyPrefix,
   isValidDnsTarget,
@@ -74,4 +75,13 @@ describe("isValidDnsTarget", () => {
     expect(isValidDnsTarget("")).toBe(false);
     expect(isValidDnsTarget("::1")).toBe(false); // IPv6 out of scope
   });
+});
+
+test("an SSH login is a user SSH takes and a port, written as digits", () => {
+  expect(isValidSshLogin("loskai", "22")).toBe(true);
+  expect(isValidSshLogin("loskai", "65535")).toBe(true);
+  // Number("1e3") is 1000 — one form once let it through; the port check never did.
+  expect(isValidSshLogin("loskai", "1e3")).toBe(false);
+  expect(isValidSshLogin("loskai", "0")).toBe(false);
+  expect(isValidSshLogin("lo skai", "22")).toBe(false);
 });

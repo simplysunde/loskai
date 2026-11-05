@@ -17,7 +17,7 @@ import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
 import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { useHealth } from "../lib/useHealth";
+import { answerHost, useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
@@ -102,10 +102,7 @@ export function Routing() {
       }
     : undefined;
 
-  const caddyHost = (h?.adguard?.answer_ip ?? "")
-    .replace(/^\w+:\/\//, "")
-    .split("/")[0]
-    .split(":")[0];
+  const caddyHost = answerHost(h?.adguard?.answer_ip);
   const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
   // Once AdGuard is routed (from its pill or the picker — both set `origin`), its link-out

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { HardDrive, Loader2 } from "lucide-react";
 
-import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
+import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidSshLogin } from "../../lib/validation";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
 
@@ -49,10 +49,9 @@ export function AddMachineModal({
 
   const hostnameOk = isValidDnsOnlyPrefix(hostname);
   const addressOk = isValidDnsTarget(address);
-  const port = Number(sshPort);
-  const sshOk = !sshUser || (SSH_USER.test(sshUser) && Number.isInteger(port) && port >= 1 && port <= 65535);
+  const sshOk = !sshUser || isValidSshLogin(sshUser, sshPort);
   const canSubmit = hostnameOk && addressOk && sshOk && !pending;
-  const sshChange = sshUser ? { ssh: { user: sshUser, port } } : {};
+  const sshChange = sshUser ? { ssh: { user: sshUser, port: Number(sshPort) } } : {};
   const fqdn = baseDomain ? assembleFqdn(hostname || "name", baseDomain) : hostname;
 
   return (

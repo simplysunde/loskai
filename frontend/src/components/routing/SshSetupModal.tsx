@@ -6,7 +6,8 @@ import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import { useMe } from "../../lib/useAuth";
 import { CopyButton } from "../shared/CopyButton";
-import { runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
+import { YourPassword } from "../shared/YourPassword";
+import { keyUnlocked, runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -80,7 +81,7 @@ export function SshSetupModal({
     },
   });
 
-  const locked = !sshKey?.unlocked_until || Date.parse(sshKey.unlocked_until) <= Date.now();
+  const locked = !keyUnlocked(sshKey);
   const needAdmin = askAdmin || locked;
 
   const connect = useMutation({
@@ -197,7 +198,7 @@ export function SshSetupModal({
         >
           <p className="text-sm text-slate-300">Loskai has no SSH key yet.</p>
           <p className="mt-1 text-xs text-slate-500">Your password creates it.</p>
-          <AdminPassword value={adminPassword} onChange={setAdminPassword} />
+          <YourPassword value={adminPassword} onChange={setAdminPassword} className={`mt-2 ${INPUT}`} />
           {createKey.isError && (
             <p className="mt-2 text-sm text-rose-400">{apiMessage(createKey.error, "Couldn't make the key")}</p>
           )}
@@ -268,7 +269,7 @@ export function SshSetupModal({
               <p className="mt-3 text-xs text-slate-500">
                 Your password unlocks Loskai's key for {unlockFor}.
               </p>
-              <AdminPassword value={adminPassword} onChange={setAdminPassword} />
+              <YourPassword value={adminPassword} onChange={setAdminPassword} className={`mt-2 ${INPUT}`} />
             </>
           )}
 
@@ -303,19 +304,5 @@ export function SshSetupModal({
         </section>
       )}
     </Modal>
-  );
-}
-
-function AdminPassword({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <input
-      type="password"
-      autoComplete="current-password"
-      aria-label="Your password"
-      placeholder="Your password"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={`mt-2 ${INPUT}`}
-    />
   );
 }

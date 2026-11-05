@@ -6,7 +6,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { api, apiMessage } from "../lib/api";
 import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { useRunning, useSsh } from "../lib/ssh";
+import { keyUnlocked, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
 import { useMe } from "../lib/useAuth";
 import { useHealth } from "../lib/useHealth";
@@ -22,6 +22,7 @@ import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMa
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
 import { INPUT } from "../lib/ui";
+import { YourPassword } from "../components/shared/YourPassword";
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
 // certificate. Every route on a machine's address is on it, so moving it here re-points them all.
@@ -94,13 +95,11 @@ export function Machines() {
     onError: (err) => setError(apiMessage(err, "Add route failed")),
   });
 
-  const keyUnlocked = Boolean(
-    ssh.data?.key?.unlocked_until && Date.parse(ssh.data.key.unlocked_until) > Date.now(),
-  );
+  const unlocked = keyUnlocked(ssh.data?.key);
   const removesKeys = (row: RouteRow | null) => Boolean(row && ssh.data?.key && ssh.data.trusted[row.id]);
   const remove = useMutation({
     mutationFn: async (row: RouteRow) => {
-      if (removesKeys(row) && !keyUnlocked) await api.post("/api/ssh/unlock", { password: deletePassword });
+      if (removesKeys(row) && !unlocked) await api.post("/api/ssh/unlock", { password: deletePassword });
       return api.del<{ warning: string | null }>(`/api/instances/${row.id}`);
     },
     onSuccess: (data) => {
@@ -254,16 +253,8 @@ export function Machines() {
         {removesKeys(confirmDelete)
           ? " Loskai's key is taken off the machine first; nothing else on it changes."
           : " The machine itself isn't affected."}
-        {removesKeys(confirmDelete) && !keyUnlocked && (
-          <input
-            type="password"
-            autoComplete="current-password"
-            aria-label="Your password"
-            placeholder="Your password — unlocks Loskai's key"
-            value={deletePassword}
-            onChange={(e) => setDeletePassword(e.target.value)}
-            className={`mt-3 block ${INPUT}`}
-          />
+        {removesKeys(confirmDelete) && !unlocked && (
+          <YourPassword value={deletePassword} onChange={setDeletePassword} className={`mt-3 block ${INPUT}`} placeholder="Your password — unlocks Loskai's key" />
         )}
         {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}
         {/* Deleting a machine doesn't break what runs on it: nothing links those routes,

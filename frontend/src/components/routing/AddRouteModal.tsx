@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useContainers, type Container } from "../../lib/containers";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { useHealth } from "../../lib/useHealth";
+import { answerHost, useHealth } from "../../lib/useHealth";
 import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
@@ -90,10 +90,7 @@ export function AddRouteModal({
 
   if (!open) return null;
 
-  const caddyHost = (health.data?.adguard?.answer_ip ?? "")
-    .replace(/^\w+:\/\//, "")
-    .split("/")[0]
-    .split(":")[0];
+  const caddyHost = answerHost(health.data?.adguard?.answer_ip);
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
   const pickedContainer =
