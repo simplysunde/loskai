@@ -3,23 +3,24 @@ import { expect, test } from "vitest";
 import type { Container } from "../../lib/containers";
 import { groupByStack, groupStatus, groupTotals, type Stack } from "./groupByStack";
 
-function c(name: string, project: string | null = null): Container {
+// `stack` is the backend's answer: the managed stack whose folder compose ran it from.
+function c(name: string, project: string | null = null, stack: string | null = null): Container {
   return {
-    id: name, name, image: `${name}/img`, project, status: "running", uptime: 1, ports: [],
+    id: name, name, image: `${name}/img`, project, stack, status: "running", uptime: 1, ports: [],
     subdomain: null, suggested_upstream: null, cpu: null, mem: null,
   };
 }
-function s(name: string, status: Stack["status"] = "up", project: string | null = name): Stack {
-  return { name, services: [], status, project };
+function s(name: string, status: Stack["status"] = "up"): Stack {
+  return { name, services: [], status };
 }
 
 const CONTAINERS = [
   c("portainer"),
   c("adminer"),
-  c("immich-server", "immich"),
+  c("immich-server", "immich", "immich"),
   c("loskai", "loskai"),
-  c("immich-db", "immich"),
-  c("jellyfin", "jellyfin"),
+  c("immich-db", "immich", "immich"),
+  c("jellyfin", "jellyfin", "jellyfin"),
 ];
 const STACKS = [s("immich", "partial"), s("jellyfin"), s("paperless", "down")];
 
@@ -38,9 +39,10 @@ test("containers nest under their stack, other projects next, each lone containe
   expect(groups[0].containers.map((x) => x.name)).toEqual(["immich-db", "immich-server"]);
 });
 
-test("a stack's containers are those of the project the backend found in its folder", () => {
-  // Compose names `My.App`'s project `myapp`; a `web` run from another folder isn't the stack.
-  const groups = groupByStack([c("myapp-web-1", "myapp"), c("web-app-1", "web")], [s("My.App", "up", "myapp"), s("web", "down", null)]);
+test("a stack's containers are those run from its folder, whatever their project is called", () => {
+  // Compose names `My.App`'s project `myapp`; a `web` project run from another folder shares
+  // the web stack's name, and is not the stack.
+  const groups = groupByStack([c("myapp-web-1", "myapp", "My.App"), c("web-app-1", "web")], [s("My.App"), s("web", "down")]);
   expect(groups.map((g) => [g.key, g.containers.map((x) => x.name)])).toEqual([
     ["stack:My.App", ["myapp-web-1"]],
     ["stack:web", []],
@@ -60,12 +62,12 @@ test("no container is lost or listed twice", () => {
 });
 
 test("with nothing loose, there are no standalone groups", () => {
-  const groups = groupByStack([c("a", "jellyfin")], [s("jellyfin")]);
+  const groups = groupByStack([c("a", "jellyfin", "jellyfin")], [s("jellyfin")]);
   expect(groups.map((g) => g.key)).toEqual(["stack:jellyfin"]);
 });
 
 test("Loskai's own container is never grouped", () => {
-  const groups = groupByStack([{ ...c("loskai", "loskai"), self: true }, c("a", "jellyfin")], [s("jellyfin")]);
+  const groups = groupByStack([{ ...c("loskai", "loskai"), self: true }, c("a", "jellyfin", "jellyfin")], [s("jellyfin")]);
   expect(groups.map((g) => g.key)).toEqual(["stack:jellyfin"]);
 });
 

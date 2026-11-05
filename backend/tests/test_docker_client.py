@@ -202,7 +202,7 @@ def test_compose_dirs_maps_each_folder_to_its_project_and_running_services(monke
 
     _use(monkeypatch, FakeDocker([stacked("myapp-web-1", "web"), stacked("myapp-db-1", "db", running=False), FakeContainer("plain")]))
 
-    assert DockerClient().compose_dirs() == {"/srv/My.App": {"project": "myapp", "running": {"web"}}}
+    assert DockerClient().compose_dirs() == {"/srv/My.App": {"running": {"web"}}}
 
 
 def test_a_container_carries_its_compose_project(monkeypatch, data_dir):

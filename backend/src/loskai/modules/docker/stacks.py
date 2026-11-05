@@ -85,10 +85,22 @@ def list_stacks() -> list[dict]:
         stacks.append({
             "name": directory.name,
             "services": sorted(declared),
-            **_status(declared, directory, compose),
+            "status": _status(declared, directory, compose),
             "data": stack_data(directory),
         })
     return stacks
+
+
+def stack_of(compose_dir: str | None) -> str | None:
+    """The stack a container belongs to: the one whose folder compose ran it from (its
+    `working_dir` label) — never matched by name, which compose lowercases and strips, and
+    which a project started elsewhere can share. None for a container no stack started."""
+    if not compose_dir:
+        return None
+    folder = Path(compose_dir).resolve()
+    if folder.parent != stacks_dir().resolve() or compose_path(folder) is None:
+        return None
+    return folder.name
 
 
 def _compose_state() -> dict[Path, dict] | None:
@@ -100,17 +112,13 @@ def _compose_state() -> dict[Path, dict] | None:
     return {Path(folder).resolve(): entry for folder, entry in found.items()}
 
 
-def _status(declared: set[str], directory: Path, compose: dict[Path, dict] | None) -> dict:
-    """A stack's up/down status and its compose project — the name its containers carry,
-    which the Docker tab groups them by. Status unknown while the daemon is down."""
+def _status(declared: set[str], directory: Path, compose: dict[Path, dict] | None) -> str:
+    """A stack's up/down status, from the containers run from its folder — unknown while the
+    daemon is down."""
     if compose is None:
-        return {"status": "unknown", "project": None}
+        return "unknown"
     entry = compose.get(directory.resolve())
-    running = entry["running"] if entry else set()
-    return {
-        "status": logic.compute_stack_status(declared, running),
-        "project": entry["project"] if entry else None,
-    }
+    return logic.compute_stack_status(declared, entry["running"] if entry else set())
 
 
 def stack_data(directory: Path) -> list[str]:
@@ -149,7 +157,7 @@ def get_stack(name: str) -> dict:
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     return {
         "name": name,
-        "status": _status(declared, directory, _compose_state())["status"],
+        "status": _status(declared, directory, _compose_state()),
         "services": sorted(declared),
         "compose": compose.read_text(encoding="utf-8"),
         "compose_file": compose.name,

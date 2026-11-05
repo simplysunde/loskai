@@ -41,15 +41,13 @@ def test_list_stacks_computes_status(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "db", "services:\n  db:\n    image: postgres\n")
     monkeypatch.setattr(
         stacks.docker_client, "compose_dirs",
-        lambda: {str(stacks_dir / "web"): {"project": "web", "running": {"app"}}},
+        lambda: {str(stacks_dir / "web"): {"running": {"app"}}},
     )
 
     by_name = {s["name"]: s for s in stacks.list_stacks()}
     assert by_name["web"]["status"] == "up"
     assert by_name["db"]["status"] == "down"
     assert by_name["web"]["services"] == ["app"]
-    assert by_name["web"]["project"] == "web"
-    assert by_name["db"]["project"] is None
 
 
 def test_a_stack_is_matched_by_its_folder_not_its_name(stacks_dir, monkeypatch):
@@ -58,13 +56,13 @@ def test_a_stack_is_matched_by_its_folder_not_its_name(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "My.App")
     _make_stack(stacks_dir, "web")
     monkeypatch.setattr(stacks.docker_client, "compose_dirs", lambda: {
-        str(stacks_dir / "My.App"): {"project": "myapp", "running": {"app"}},
-        "/home/me/web": {"project": "web", "running": {"app"}},
+        str(stacks_dir / "My.App"): {"running": {"app"}},
+        "/home/me/web": {"running": {"app"}},
     })
 
     by_name = {s["name"]: s for s in stacks.list_stacks()}
-    assert (by_name["My.App"]["status"], by_name["My.App"]["project"]) == ("up", "myapp")
-    assert (by_name["web"]["status"], by_name["web"]["project"]) == ("down", None)
+    assert by_name["My.App"]["status"] == "up"
+    assert by_name["web"]["status"] == "down"
     assert stacks.get_stack("My.App")["status"] == "up"
 
 
@@ -297,3 +295,17 @@ def test_name_validation_blocks_traversal(stacks_dir):
     for bad in ["../etc", "a/b", ".."]:
         with pytest.raises(StackError):
             stacks.get_stack(bad)
+
+
+def test_a_container_s_stack_is_the_folder_it_was_run_from(stacks_dir):
+    """Not its project name: compose names My.App's project myapp, and a project called web
+    run from another folder isn't the web stack."""
+    _make_stack(stacks_dir, "My.App")
+    _make_stack(stacks_dir, "web")
+    (stacks_dir / "data-only").mkdir()  # a folder Delete left: no compose file, no stack
+
+    assert stacks.stack_of(str(stacks_dir / "My.App")) == "My.App"
+    assert stacks.stack_of(str(stacks_dir / "web") + "/") == "web"
+    assert stacks.stack_of("/home/me/web") is None
+    assert stacks.stack_of(str(stacks_dir / "data-only")) is None
+    assert stacks.stack_of(None) is None

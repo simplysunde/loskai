@@ -172,18 +172,17 @@ class DockerClient:
             yield chunk.decode("utf-8", errors="replace")
 
     def compose_dirs(self) -> dict[str, dict]:
-        """Compose folder (the `working_dir` label) -> `{"project", "running"}`: the project
-        name compose gave the containers it ran from there, and which of their services are
-        up. A stack is matched by its folder, never by its name — compose lowercases a
-        folder's name and drops its dots to make the project's."""
+        """Compose folder (the `working_dir` label) -> `{"running"}`: which services of the
+        containers compose ran from there are up. A stack is matched by its folder, never by
+        its name — compose lowercases a folder's name and drops its dots to make the
+        project's."""
         result: dict[str, dict] = {}
         for c in self._get().containers.list(all=True):
             labels = c.labels or {}
             folder = labels.get("com.docker.compose.project.working_dir")
-            project = labels.get("com.docker.compose.project")
             service = labels.get("com.docker.compose.service")
-            if folder and project and service:
-                entry = result.setdefault(folder, {"project": project, "running": set()})
+            if folder and service:
+                entry = result.setdefault(folder, {"running": set()})
                 if c.status == "running":
                     entry["running"].add(service)
         return result

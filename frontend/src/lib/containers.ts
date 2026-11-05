@@ -12,6 +12,9 @@ export interface Container {
   project?: string | null;
   // The folder compose was run from (a host path) — null when compose didn't start it.
   compose_dir?: string | null;
+  // The managed stack it belongs to — the backend matches it by that folder, never by name
+  // (a project started elsewhere can share a stack's name); null for none.
+  stack?: string | null;
   // The container Loskai itself runs in — shown apart, never grouped.
   self?: boolean;
   status: string;

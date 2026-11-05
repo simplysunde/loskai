@@ -4,9 +4,6 @@ export interface Stack {
   name: string;
   services: string[];
   status: "up" | "down" | "partial" | "unknown";
-  // The compose project its containers carry — found by their folder, since compose
-  // lowercases the folder's name; null when it has none (or the daemon is down).
-  project?: string | null;
   // What else the folder holds besides compose.yml and .env — its data. Folders end in "/".
   data?: string[];
 }
@@ -26,27 +23,25 @@ export type Group =
 export function groupByStack(all: Container[], stacks: Stack[]): Group[] {
   const containers = all.filter((c) => !c.self);
   const byName = (a: Container, b: Container) => a.name.localeCompare(b.name);
-  const managed = new Set(stacks.map((s) => s.project).filter(Boolean));
   const groups: Group[] = stacks.map((stack) => ({
     kind: "stack",
     key: `stack:${stack.name}`,
     stack,
-    containers: containers.filter((c) => stack.project && c.project === stack.project).sort(byName),
+    containers: containers.filter((c) => c.stack === stack.name).sort(byName),
   }));
 
-  const others = [
-    ...new Set(containers.map((c) => c.project).filter((p): p is string => !!p && !managed.has(p))),
-  ].sort();
+  const loose = containers.filter((c) => !c.stack);
+  const others = [...new Set(loose.map((c) => c.project).filter((p): p is string => !!p))].sort();
   for (const name of others) {
     groups.push({
       kind: "project",
       key: `project:${name}`,
       name,
-      containers: containers.filter((c) => c.project === name).sort(byName),
+      containers: loose.filter((c) => c.project === name).sort(byName),
     });
   }
 
-  for (const c of containers.filter((c) => !c.project).sort(byName)) {
+  for (const c of loose.filter((c) => !c.project).sort(byName)) {
     groups.push({ kind: "standalone", key: `standalone:${c.name}`, name: c.name, containers: [c] });
   }
   return groups;

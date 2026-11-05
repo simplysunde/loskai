@@ -5,8 +5,10 @@ import { StackGroups } from "./StackGroups";
 import { VolumeList } from "./VolumeList";
 import { renderWithQuery, json } from "../../test/render";
 
+// immich and whoami are the managed stacks below: the backend names a container's stack.
 const container = (name: string, project: string | null, status = "running") => ({
-  id: name, name, image: `${name}/img`, project, status, uptime: 60, ports: [],
+  id: name, name, image: `${name}/img`, project, stack: project === "immich" || project === "whoami" ? project : null,
+  status, uptime: 60, ports: [],
   subdomain: null, suggested_upstream: null, cpu: 1, mem: { percent: 2 },
 });
 
@@ -21,8 +23,8 @@ const RESPONSES: Record<string, unknown> = {
     { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
   ],
   "/api/docker/stacks": [
-    { name: "immich", services: ["server", "db"], status: "partial", project: "immich" },
-    { name: "whoami", services: ["whoami"], status: "up", project: "whoami" },
+    { name: "immich", services: ["server", "db"], status: "partial" },
+    { name: "whoami", services: ["whoami"], status: "up" },
   ],
   "/api/docker/volumes": [
     { name: "immich_pgdata", driver: "local", size: 2048, project: "immich", anonymous: false, used_by: ["immich-db"] },
