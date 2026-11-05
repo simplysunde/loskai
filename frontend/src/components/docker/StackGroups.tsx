@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
@@ -20,10 +20,11 @@ import {
   UploadCloud,
 } from "lucide-react";
 
-import { api } from "../../lib/api";
+import { api, ApiError, apiMessage } from "../../lib/api";
 import { docUrl } from "../../lib/docs";
 import { formatPercent, formatUptime } from "../../lib/format";
 import { useExpanded } from "../../lib/useExpanded";
+import { ActionError } from "../shared/ActionError";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -40,6 +41,9 @@ import {
 // the stacks Loskai manages (their header row is where their links, status and actions
 // live), then everything else, listed but not managed. Loskai's own container sits apart
 // above both. One table, so a container and its stack are never two tabs apart.
+// A compose verb as the failure says it: "Couldn't start immich".
+const SAID: Record<string, string> = { up: "start", down: "stop", pull: "update" };
+
 export function StackGroups({
   baseDomain,
   onLogs,
@@ -83,10 +87,18 @@ export function StackGroups({
     retry: false,
   });
 
+  const [failed, setFailed] = useState<{ title: string; detail: string } | null>(null);
+  const reports = {
+    onMutate: () => setFailed(null),
+    onError: (err: unknown, v: { name: string; verb: string }) =>
+      setFailed({ title: `Couldn't ${SAID[v.verb] ?? v.verb} ${v.name}`, detail: apiMessage(err) }),
+  };
+
   const containerAction = useMutation({
-    mutationFn: ({ id, verb }: { id: string; verb: string }) =>
+    mutationFn: ({ id, verb }: { id: string; name: string; verb: string }) =>
       api.post(`/api/docker/containers/${id}/${verb}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-containers"] }),
+    ...reports,
   });
   // A compose project started elsewhere has no compose file here, so its toggle is plain
   // docker start/stop on each container — it pauses and resumes, it cannot recreate one.
@@ -98,14 +110,19 @@ export function StackGroups({
           .map((c) => api.post(`/api/docker/containers/${c.id}/${verb}`)),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-containers"] }),
+    ...reports,
   });
   const stackAction = useMutation({
-    mutationFn: ({ name, verb }: { name: string; verb: string }) =>
-      api.post(`/api/docker/stacks/${name}/action`, { action: verb }),
-    onSuccess: () => {
+    mutationFn: async ({ name, verb }: { name: string; verb: string }) => {
+      const r = await api.post<{ ok: boolean; output: string }>(`/api/docker/stacks/${name}/action`, { action: verb });
+      // Compose ran and failed: the request succeeded, so its output is the error.
+      if (!r.ok) throw new ApiError(200, r.output || `docker compose ${verb} failed`);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
     },
+    ...reports,
   });
 
   if (containers.isLoading || stacks.isLoading) {
@@ -170,7 +187,7 @@ export function StackGroups({
               key={c.id}
               c={c}
               busy={containerAction.isPending && containerAction.variables?.id === c.id}
-              onAction={(verb) => containerAction.mutate({ id: c.id, verb })}
+              onAction={(verb) => containerAction.mutate({ id: c.id, name: c.name, verb })}
               onLogs={() => onLogs(c)}
               onTerminal={() => onTerminal(c)}
               onRemove={() => onRemove(c)}
@@ -182,6 +199,7 @@ export function StackGroups({
 
   return (
     <div className="space-y-3">
+      {failed && <ActionError {...failed} onDismiss={() => setFailed(null)} />}
       {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
       <GroupTable
         title="Stacks"

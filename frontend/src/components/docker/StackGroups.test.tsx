@@ -389,3 +389,38 @@ test("the tables render from the list alone; CPU and memory fill in from their o
   expect(await within(row).findByText("12.5%")).toBeInTheDocument();
   expect(within(row).getByText("30.0%")).toBeInTheDocument();
 });
+
+test("a compose run that fails says so above the tables, with its output", async () => {
+  // The request succeeds — `ok: false` is compose's own failure, which must not read as done.
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    const body = init?.method === "POST"
+      ? { ok: false, output: "Error response from daemon: port is already allocated" }
+      : (RESPONSES[String(path)] ?? {});
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  groups();
+  await screen.findByText("immich-server");
+
+  fireEvent.click(within(header("immich")).getByRole("button", { name: "Compose up" }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Couldn't start immich");
+  expect(alert).toHaveTextContent("port is already allocated");
+  fireEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("a container action Loskai refuses says why", async () => {
+  vi.mocked(fetch).mockImplementation(async (path, init) =>
+    init?.method === "POST"
+      ? new Response(JSON.stringify({ detail: "Docker is unreachable" }), { status: 502, headers: { "Content-Type": "application/json" } })
+      : new Response(JSON.stringify(RESPONSES[String(path)] ?? {}), { status: 200, headers: { "Content-Type": "application/json" } }),
+  );
+  groups();
+  await screen.findByText("immich-server");
+
+  fireEvent.click(within(header("whoami")).getByRole("button", { name: "Compose down" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't stop whoami");
+  expect(screen.getByRole("alert")).toHaveTextContent("Docker is unreachable");
+});

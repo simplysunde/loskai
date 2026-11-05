@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, FilePlus2, PackagePlus } from "lucide-react";
 
-import { api } from "../lib/api";
+import { api, apiMessage } from "../lib/api";
 import type { SettingsView } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import type { Container, Stack } from "../components/docker/groupByStack";
@@ -147,7 +147,12 @@ export function Docker() {
         title="Remove container"
         destructive
         confirmLabel="Remove"
-        onCancel={() => setRemoveContainer(null)}
+        pending={removeMut.isPending}
+        error={removeMut.error && apiMessage(removeMut.error)}
+        onCancel={() => {
+          setRemoveContainer(null);
+          removeMut.reset();
+        }}
         onConfirm={() => removeContainer && removeMut.mutate(removeContainer)}
       >
         Remove <span className="font-medium text-slate-200">{removeContainer?.name}</span>? This
@@ -159,7 +164,12 @@ export function Docker() {
         title="Remove containers"
         destructive
         confirmLabel="Remove"
-        onCancel={() => setRemoveProject(null)}
+        pending={removeProjectMut.isPending}
+        error={removeProjectMut.error && apiMessage(removeProjectMut.error)}
+        onCancel={() => {
+          setRemoveProject(null);
+          removeProjectMut.reset();
+        }}
         onConfirm={() => removeProject && removeProjectMut.mutate(removeProject)}
       >
         Remove the {removeProject?.containers.length} containers of{" "}
@@ -179,7 +189,12 @@ export function Docker() {
         title="Delete stack"
         destructive
         confirmLabel={deleteData ? "Delete with data" : "Delete"}
-        onCancel={() => setDeleteStack(null)}
+        pending={deleteStackMut.isPending}
+        error={deleteStackMut.error && apiMessage(deleteStackMut.error)}
+        onCancel={() => {
+          setDeleteStack(null);
+          deleteStackMut.reset();
+        }}
         onConfirm={() =>
           deleteStack && deleteStackMut.mutate({ name: deleteStack.name, data: deleteData })
         }
