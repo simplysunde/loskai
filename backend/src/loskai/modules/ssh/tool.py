@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 
 from ...shared.errors import LoskaiError
-from .logic import PROGRAMS, SUDO_RULE, remove_sudo_rule
+from .logic import PROGRAMS, SUDO_RULE, USER_PATH, remove_sudo_rule
 
 DIR = Path(__file__).parent / "tools"
 
@@ -473,7 +473,7 @@ def visible(
     through a FIFO in a folder of its own, read once and removed."""
     folder = PROJECTS if projects is None else projects
     body = (
-        "PATH=$PATH:$HOME/.local/bin; PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
+        USER_PATH + "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
         'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     )
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")

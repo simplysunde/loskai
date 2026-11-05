@@ -534,7 +534,7 @@ async def read_settings(machine_id: str, tool_id: str) -> dict[str, str | None]:
     the main key, so the key must be unlocked (423)."""
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    result = await _run(t, f"sh -c {shlex.quote(tool.read_settings_script(found))}")
+    result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + tool.read_settings_script(found))}")
     return tool.parse_settings(found, str(result.stdout or ""))
 
 
@@ -550,7 +550,7 @@ async def write_setting(
         script = tool.write_setting_script(found, setting_id, value)
     except tool.ToolError as exc:
         raise SshError(404 if setting_id not in found.settings else 422, str(exc))
-    result = await _run(t, f"sh -c {shlex.quote(script)}")
+    result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + script)}")
     log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
     if result.exit_status != 0:
         said = str(result.stderr or result.stdout or "").strip().splitlines()

@@ -249,12 +249,15 @@ _RUNNING = (
     "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
     "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
 )
-# The programs the overview reports — what a tool requires (tool.py). `~/.local/bin` too: a
-# forced command gets sshd's PATH, not the login shell's, and per-user installs (Claude
-# Code) go there.
+# What every command Loskai runs on a machine starts with — the overview, an action, a
+# tool's settings — so each finds the same programs: a forced command or `sh -c` gets
+# sshd's PATH, not the login shell's, and per-user installs (Claude Code) go in
+# `~/.local/bin`.
+USER_PATH = "PATH=$PATH:$HOME/.local/bin; "
+# The programs the overview reports — what a tool requires (tool.py).
 PROGRAMS = ("tmux", "claude", "docker", "pct", "qm", "git", "sudo", "tailscale", "curl")
 _FACTS = (
-    "PATH=$PATH:$HOME/.local/bin; "
+    USER_PATH +
     "echo '#=os'; cat /etc/os-release 2>/dev/null; "
     "echo '#=kernel'; uname -sr; "
     "echo '#=uptime'; cut -d' ' -f1 /proc/uptime; "

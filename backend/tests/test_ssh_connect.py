@@ -915,6 +915,8 @@ def test_git_s_name_and_email_are_read_from_the_machine_with_the_main_key(api, m
     assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None}}
     read = machine_net["logins"][-1]
     assert read["key"].get_comment() == "loskai" and read["command"].startswith("sh -c ")
+    # The overview finds programs in ~/.local/bin, so the settings it offers look there too.
+    assert read["command"].startswith("sh -c " + shlex.quote(logic.USER_PATH)[:-1])
 
 
 def test_setting_one_writes_it_as_1_then_reads_them_back_and_logs_it(api, machine_net):
@@ -925,7 +927,7 @@ def test_setting_one_writes_it_as_1_then_reads_them_back_and_logs_it(api, machin
 
     assert r.status_code == 200 and r.json()["values"]["email"] == "ola@example.no"
     assert machine_net["writes"] == ["sh -c " + shlex.quote(
-        "sh -c 'git config --global user.email \"$1\"' loskai ola@example.no")]
+        logic.USER_PATH + "sh -c 'git config --global user.email \"$1\"' loskai ola@example.no")]
     entry = api.get("/api/ssh/log").json()[0]
     assert entry["event"] == "setting" and entry["value"] == "ola@example.no" and entry["ok"] is True
 
