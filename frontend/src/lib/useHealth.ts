@@ -4,10 +4,16 @@ import { api } from "./api";
 
 export type ModuleState = "healthy" | "degraded" | "unreachable" | "unconfigured";
 
-// The host in AdGuard's answer IP — where Caddy listens, and its cert page with it. The
-// value is a bare IP, but an older setting may carry a scheme, a path or a port.
+// The host in AdGuard's answer IP — where Caddy listens, and its cert page with it — as it
+// is written in a URL or before a port: an IPv6 address in brackets. The value is a bare
+// IP, but an older setting may carry a scheme, a path or a port.
 export function answerHost(answerIp?: string | null): string {
-  return (answerIp ?? "").replace(/^\w+:\/\//, "").split("/")[0].split(":")[0];
+  const host = (answerIp ?? "").replace(/^\w+:\/\//, "").split("/")[0];
+  const bracketed = host.match(/^\[([^\]]+)\]/);
+  if (bracketed) return `[${bracketed[1]}]`;
+  // More than one colon is an IPv6 address, not a host and a port.
+  if ((host.match(/:/g) ?? []).length > 1) return `[${host}]`;
+  return host.split(":")[0];
 }
 
 export interface ModuleHealth {
