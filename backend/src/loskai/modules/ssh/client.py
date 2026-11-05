@@ -106,22 +106,10 @@ def append_log(entry: dict) -> None:
         store.update_text(path, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
 
 
-def read_log(limit: int, user: str | None = None) -> list[dict]:
-    """The last `limit` entries, newest first — only `user`'s, given one."""
+def read_log() -> str:
+    """The SSH log as written, one JSON entry a line — "" before the first."""
     path = _log_path()
-    if not path.exists():
-        return []
-    out = []
-    for line in reversed(path.read_text(encoding="utf-8").splitlines()):
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if user is None or entry.get("user") == user:
-            out.append(entry)
-            if len(out) == limit:
-                break
-    return out
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def read_config() -> str:

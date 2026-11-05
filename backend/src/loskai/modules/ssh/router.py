@@ -234,7 +234,7 @@ def session_log(limit: int = 200) -> list[dict]:
     me = auth.current_user()
     if me is None:  # the middleware sets one; never the whole log without it
         raise HTTPException(401, "Authentication required")
-    return client.read_log(max(1, min(limit, client.LOG_KEEP)), None if me.admin else me.username)
+    return logic.log_entries(client.read_log(), max(1, min(limit, client.LOG_KEEP)), None if me.admin else me.username)
 
 
 @router.websocket("/machines/{machine_id}/terminal")

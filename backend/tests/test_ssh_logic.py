@@ -449,3 +449,16 @@ def test_taking_off_loskai_s_things_starts_with_the_sudo_rule():
     script = logic.UNINSTALL_SCRIPT
     assert script.index("sudo -n rm -f /etc/sudoers.d/loskai") < script.index("authorized_keys")
     assert "echo '!sudo-rule'" in script
+
+
+def test_the_log_is_read_newest_first_and_an_operator_reads_only_its_own():
+    text = "\n".join([
+        '{"event": "open", "user": "ola"}',
+        "not json",
+        '{"event": "install", "user": "admin"}',
+        '{"event": "close", "user": "ola"}',
+    ])
+    assert [e["event"] for e in logic.log_entries(text, 10)] == ["close", "install", "open"]
+    assert [e["event"] for e in logic.log_entries(text, 10, "ola")] == ["close", "open"]
+    assert [e["event"] for e in logic.log_entries(text, 1, "ola")] == ["close"]
+    assert logic.log_entries("", 10) == []
