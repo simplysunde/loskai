@@ -25,12 +25,12 @@ export function useAutoSave(
     if (!focused.current) setDraft(value);
   }, [value]);
 
-  // Also for a select, whose pick is the edit.
-  const run = async (next: string) => {
+  // Also for a select, whose pick is the edit. True when it saved.
+  const run = async (next: string): Promise<boolean> => {
     const problem = validate?.(next) ?? null;
     if (problem) {
       setError(problem);
-      return;
+      return false;
     }
     setError(null);
     setState("saving");
@@ -38,9 +38,11 @@ export function useAutoSave(
       await save(next);
       setState("saved");
       setTimeout(() => setState("idle"), 1500);
+      return true;
     } catch (err) {
       setState("idle");
       setError(apiMessage(err, failed));
+      return false;
     }
   };
 

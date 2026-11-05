@@ -40,10 +40,11 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
   );
 
   // A select has no blur-to-commit worth having: picking an option *is* the edit, and
-  // there's no half-typed state to protect, so it saves straight away.
+  // there's no half-typed state to protect, so it saves straight away — and shows the
+  // stored value again when the save is refused.
   const choose = (val: string) => {
     setDraft(val);
-    if (val !== current) void run(val);
+    if (val !== current) void run(val).then((saved) => saved || setDraft(current));
   };
 
   return (

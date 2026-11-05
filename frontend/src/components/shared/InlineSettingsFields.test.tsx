@@ -41,3 +41,22 @@ test("Enter saves the field", async () => {
 
   await waitFor(() => expect(puts).toEqual([{ base_domain: "home.no" }]));
 });
+
+test("a refused choice goes back to the stored one, and says why", async () => {
+  const choices = [{ value: "120", label: "2 hours" }, { value: "10080", label: "7 days" }];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_path: string, init?: RequestInit) =>
+      init?.method === "PUT"
+        ? json({ detail: "Settings are read-only here" }, 422)
+        : json({ session_idle_minutes: { value: "120", source: "stored", secret: false } }),
+    ),
+  );
+  renderWithQuery(<InlineSettingsFields fields={[{ key: "session_idle_minutes", label: "Idle", options: choices }]} />);
+  const select = await screen.findByDisplayValue("2 hours");
+
+  fireEvent.change(select, { target: { value: "10080" } });
+
+  expect(await screen.findByText("Settings are read-only here")).toBeInTheDocument();
+  expect(select).toHaveValue("120");
+});
