@@ -77,7 +77,8 @@ Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocat
 of `compose.yml`: the working tree, live-reloading — `make live`), `caddy/` (the
 Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `check-docs.sh`,
 `sync-recipe-schema.sh`, the LXC scripts, `container-entrypoint.sh`). `data/` and
-`stacks/` are a running Loskai's state — tracked only as `.gitkeep`.
+`stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
+recurring work is done here — `sweep`, a whole-project simplification pass.
 
 **The recipes live in a sibling repo, `../loskai-recipes`**, with its own `CLAUDE.md`. Its
 commit messages are user-facing — Check for updates shows them as "What changed".
