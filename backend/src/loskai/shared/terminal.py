@@ -9,11 +9,19 @@ route uses both, never its own copy.
 
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import WebSocket
 
 from . import auth
+
+logger = logging.getLogger(__name__)
+
+
+def clamp(size: int) -> int:
+    """A terminal's rows or columns, as a pty takes them: 1 to 1000."""
+    return max(1, min(size, 1000))
 
 
 async def accept(websocket: WebSocket, tab: str) -> str | None:
@@ -59,10 +67,13 @@ async def relay(
                     continue
                 if isinstance(ctrl, dict) and ctrl.get("type") == "resize":
                     try:
-                        rows, cols = int(ctrl["rows"]), int(ctrl["cols"])
+                        rows, cols = clamp(int(ctrl["rows"])), clamp(int(ctrl["cols"]))
                     except (KeyError, TypeError, ValueError):
                         continue  # a malformed frame is dropped, never the terminal
-                    await resize(rows, cols)
+                    try:
+                        await resize(rows, cols)
+                    except Exception as exc:  # noqa: BLE001 — a size the shell refuses ends nothing
+                        logger.debug("resize to %sx%s refused: %s", rows, cols, exc)
 
     tasks = {
         asyncio.create_task(to_browser()),

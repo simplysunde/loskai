@@ -448,10 +448,26 @@ def test_a_malformed_resize_is_ignored_and_the_terminal_goes_on(api, shell):
         assert ws.receive_bytes() == b"welcome\r\n"
         for bad in ({"type": "resize", "rows": None}, {"type": "resize", "cols": "wide", "rows": 30}, {"type": "resize"}):
             ws.send_text(json.dumps(bad))
+        ws.send_text(json.dumps({"type": "resize", "rows": -1, "cols": 10**12}))  # clamped
         ws.send_bytes(b"x")
         assert ws.receive_bytes() == b"got:x"
 
-    assert shell["shell"].sizes == []
+    assert shell["shell"].sizes == [(1000, 1)]
+
+
+def test_a_resize_the_shell_refuses_doesn_t_end_the_terminal(api, shell, monkeypatch):
+    def refuse(self, cols, rows):
+        raise OverflowError("size out of range")
+
+    monkeypatch.setattr(FakeShell, "change_terminal_size", refuse)
+    _with_key(api)
+    _trust(api)
+
+    with api.websocket_connect(TERMINAL, headers=ORIGIN) as ws:
+        assert ws.receive_bytes() == b"welcome\r\n"
+        ws.send_text(json.dumps({"type": "resize", "rows": 30, "cols": 100}))
+        ws.send_bytes(b"x")
+        assert ws.receive_bytes() == b"got:x"
 
 
 def test_a_sibling_page_can_t_open_a_terminal(api, shell):

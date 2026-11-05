@@ -267,7 +267,7 @@ async def machine_terminal(
         if ticket:
             password = connect.take_password(ticket, machine_id, details)
         t, conn, process = await connect.open_terminal(
-            machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command, password
+            machine_id, terminal.clamp(cols), terminal.clamp(rows), command, password
         )
     except connect.SshError as exc:
         asked = {"tool": tool, "action": "install" if install else action} if tool else {"sudo": sudo} if sudo else {}
