@@ -17,7 +17,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, apiMessage } from "../../lib/api";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { keyUnlocked, useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { removalNeedsPassword, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, isValidSshLogin, SSH_USER } from "../../lib/validation";
@@ -106,7 +106,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
   // Removing the SSH connection takes Loskai's key and sudo rule off the machine first, which
   // needs the key unlocked: your password, typed in the dialog when it is locked.
-  const removeNeedsPassword = trusted && Boolean(ssh.data?.key) && !keyUnlocked(ssh.data?.key);
+  const removeNeedsPassword = removalNeedsPassword(ssh.data, id);
   const removeSsh = useMutation({
     mutationFn: async (change: NewMachine) => {
       if (removeNeedsPassword) await api.post("/api/ssh/unlock", { password: removePassword });

@@ -28,6 +28,17 @@ export interface SshStatus {
   projects: Record<string, string>; // each machine's projects folder: "~/projects", "~"
 }
 
+// Whether removing a machine, or its SSH connection, takes Loskai's things off it first — it is
+// set up (its host key trusted) and there is a key — and so whether it needs your password
+// while the key is locked. The backend's own test is `connect.removal`.
+export function takesKeysOff(ssh: SshStatus | undefined, machineId: string): boolean {
+  return Boolean(ssh?.key && ssh.trusted[machineId]);
+}
+
+export function removalNeedsPassword(ssh: SshStatus | undefined, machineId: string): boolean {
+  return takesKeysOff(ssh, machineId) && !keyUnlocked(ssh?.key);
+}
+
 export function useSsh() {
   return useQuery({ queryKey: ["ssh"], queryFn: () => api.get<SshStatus>("/api/ssh") });
 }

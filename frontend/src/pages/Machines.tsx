@@ -6,7 +6,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { api, apiMessage } from "../lib/api";
 import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { keyUnlocked, useRunning, useSsh } from "../lib/ssh";
+import { removalNeedsPassword, takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
 import { useMe } from "../lib/useAuth";
 import { useHealth } from "../lib/useHealth";
@@ -95,11 +95,9 @@ export function Machines() {
     onError: (err) => setError(apiMessage(err, "Add route failed")),
   });
 
-  const unlocked = keyUnlocked(ssh.data?.key);
-  const removesKeys = (row: RouteRow | null) => Boolean(row && ssh.data?.key && ssh.data.trusted[row.id]);
   const remove = useMutation({
     mutationFn: async (row: RouteRow) => {
-      if (removesKeys(row) && !unlocked) await api.post("/api/ssh/unlock", { password: deletePassword });
+      if (removalNeedsPassword(ssh.data, row.id)) await api.post("/api/ssh/unlock", { password: deletePassword });
       return api.del<{ warning: string | null }>(`/api/instances/${row.id}`);
     },
     onSuccess: (data) => {
@@ -250,10 +248,10 @@ export function Machines() {
       >
         This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>{" "}
         and its DNS rewrite{confirmDelete?.subdomain && sshHosts[confirmDelete.subdomain] ? " and SSH entry" : ""}.
-        {removesKeys(confirmDelete)
+        {confirmDelete && takesKeysOff(ssh.data, confirmDelete.id)
           ? " Loskai's key is taken off the machine first; nothing else on it changes."
           : " The machine itself isn't affected."}
-        {removesKeys(confirmDelete) && !unlocked && (
+        {confirmDelete && removalNeedsPassword(ssh.data, confirmDelete.id) && (
           <YourPassword value={deletePassword} onChange={setDeletePassword} className={`mt-3 block ${INPUT}`} placeholder="Your password — unlocks Loskai's key" />
         )}
         {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}
