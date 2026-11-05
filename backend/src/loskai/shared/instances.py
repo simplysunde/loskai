@@ -147,16 +147,19 @@ def upsert_instance(instance: Instance) -> Instance:
     return instance
 
 
-def update_fields(instance_id: str, **fields: Any) -> Instance | None:
+def update_fields(
+    instance_id: str, when: Callable[[Instance], bool] | None = None, **fields: Any
+) -> Instance | None:
     """Set these fields of one record, and nothing else — under the store lock, so a change
     made since it was read (the follower re-pointing it, an assign) is kept. A caller that
     awaits between reading a record and writing it back must use this, never
-    `upsert_instance`. Returns the updated record, or None when it is gone."""
+    `upsert_instance`. With `when`, only while the record as stored still passes it
+    (compare-and-set). Returns the updated record, or None when it is gone or didn't pass."""
     updated: list[Instance] = []
 
     def apply(instances: list[Instance]) -> list[Instance]:
         for idx, inst in enumerate(instances):
-            if inst.id == instance_id:
+            if inst.id == instance_id and (when is None or when(inst)):
                 instances[idx] = inst.model_copy(update=fields)
                 updated.append(instances[idx])
         return instances
@@ -174,54 +177,22 @@ def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> In
     over a value derived from the state before it. Unassigning leaves `upstream` and
     `follow_container` as they were, so the route itself has to be checked too.
     Returns the updated record, or None when it no longer qualified."""
-    updated: list[Instance] = []
-
-    def repoint(instances: list[Instance]) -> list[Instance]:
-        for idx, inst in enumerate(instances):
-            if (
-                inst.id == instance_id
-                and inst.follow_container
-                and inst.subdomain
-                and inst.route_mode == "proxy"
-                and inst.upstream == expected
-            ):
-                instances[idx] = inst.model_copy(update={"upstream": upstream})
-                updated.append(instances[idx])
-        return instances
-
-    _update(repoint)
-    return updated[0] if updated else None
+    return update_fields(
+        instance_id,
+        lambda i: bool(i.follow_container and i.subdomain and i.route_mode == "proxy" and i.upstream == expected),
+        upstream=upstream,
+    )
 
 
 def give_icon(instance_id: str, icon: str) -> Instance | None:
     """Set the icon of a record that has none, and nothing else — under the store lock, so a
     change made while the icon was looked up (the follower re-pointing it) is kept."""
-    updated: list[Instance] = []
-
-    def set_icon(instances: list[Instance]) -> list[Instance]:
-        for idx, inst in enumerate(instances):
-            if inst.id == instance_id and not inst.icon:
-                instances[idx] = inst.model_copy(update={"icon": icon})
-                updated.append(instances[idx])
-        return instances
-
-    _update(set_icon)
-    return updated[0] if updated else None
+    return update_fields(instance_id, lambda i: not i.icon, icon=icon)
 
 
 def set_projects_folder(instance_id: str, folder: str | None) -> Instance | None:
     """Set a machine's projects folder, and nothing else — under the store lock."""
-    updated: list[Instance] = []
-
-    def apply(instances: list[Instance]) -> list[Instance]:
-        for idx, inst in enumerate(instances):
-            if inst.id == instance_id and is_machine(inst):
-                instances[idx] = inst.model_copy(update={"projects_folder": folder})
-                updated.append(instances[idx])
-        return instances
-
-    _update(apply)
-    return updated[0] if updated else None
+    return update_fields(instance_id, is_machine, projects_folder=folder)
 
 
 def delete_instance(instance_id: str) -> bool:
@@ -245,6 +216,16 @@ def list_routed() -> list[Instance]:
 
 
 router = APIRouter(prefix="/api", tags=["instances"])
+
+
+def _owned(instance_id: str) -> Instance:
+    """The record, for a change by the current account — 404 when there is none, 403 when
+    it is another tab's (`access.require_instance`)."""
+    inst = get_instance(instance_id)
+    if inst is None:
+        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    access.require_instance(auth.current_user(), inst.kind)
+    return inst
 
 
 class InstancePatch(BaseModel):
@@ -279,10 +260,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
 
     Read with a cap rather than `await request.body()`, so an oversized upload is refused
     after one chunk instead of being buffered in full first."""
-    inst = get_instance(instance_id)
-    if inst is None:
-        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
-    access.require_instance(auth.current_user(), inst.kind)
+    _owned(instance_id)
 
     data = bytearray()
     async for chunk in request.stream():
@@ -303,10 +281,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
 @router.delete("/instances/{instance_id}/icon")
 def delete_icon(instance_id: str) -> Instance:
     """Drop the icon; the card falls back to its generic glyph."""
-    inst = get_instance(instance_id)
-    if inst is None:
-        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
-    access.require_instance(auth.current_user(), inst.kind)
+    inst = _owned(instance_id)
     icons.remove_all(instance_id)
     return update_fields(instance_id, icon=None) or inst
 
@@ -315,8 +290,5 @@ def delete_icon(instance_id: str) -> Instance:
 def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
     """Update mutable display fields (private flag, display name). Subdomain/upstream
     are changed through the assign flow, never here."""
-    inst = get_instance(instance_id)
-    if inst is None:
-        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
-    access.require_instance(auth.current_user(), inst.kind)
+    inst = _owned(instance_id)
     return update_fields(instance_id, **body.model_dump(exclude_none=True)) or inst
