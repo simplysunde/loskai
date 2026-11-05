@@ -862,6 +862,19 @@ def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
     assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
 
 
+def test_a_ticket_never_taken_is_gone_when_its_time_is_up(api, machine_net, monkeypatch):
+    """Closing the dialog before the terminal opens must not leave sudo's password in memory."""
+    _ready(api, machine_net)
+    monkeypatch.setattr(connect, "PASSWORD_TTL", 0.05)
+    monkeypatch.setattr(connect, "_passwords", {})  # other tests' tickets still have their minute
+
+    assert _prepare(api, password="sudo-pw").json()["ticket"]
+    assert len(connect._passwords) == 1
+    time.sleep(0.3)
+
+    assert connect._passwords == {}
+
+
 def test_a_ticket_is_only_for_the_run_it_was_given_for(api, machine_net, shell):
     """The password was typed for Update; a terminal opened for another action with that
     ticket gets nothing — sudo's password goes only where the dialog said."""

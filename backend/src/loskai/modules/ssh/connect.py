@@ -493,10 +493,11 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
         raise SshError(422, f"sudo didn't accept that password for {t.user}")
     me = auth.current_user()
     now = time.monotonic()
-    for stale in [k for k, v in _passwords.items() if v[4] < now]:
-        del _passwords[stale]
     ticket = secrets.token_urlsafe(24)
     _passwords[ticket] = (me.username if me else None, machine_id, _run_of(details), password, now + PASSWORD_TTL)
+    # Gone when its minute is up, taken or not — a dialog closed before its terminal opened
+    # leaves nothing behind.
+    asyncio.get_running_loop().call_later(PASSWORD_TTL, _passwords.pop, ticket, None)
     return {**no, "needs_password": True, "user": t.user, "ticket": ticket}
 
 
