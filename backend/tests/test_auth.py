@@ -508,3 +508,15 @@ def test_changing_your_password_ends_your_other_sessions_and_keeps_this_one(clie
         assert client.get("/api/launcher").status_code == 200
         assert phone.get("/api/launcher").status_code == 401
         assert users.verify("admin", "a new password") is not None
+
+
+def test_an_account_whose_hash_is_broken_is_a_wrong_password_and_counted(client):
+    """users.json is hand-editable: an empty or mangled hash must answer 401, not 500, and
+    count toward the wait like any wrong password."""
+    store.update_json(users._path(), {"users": []}, lambda raw: {
+        "users": [{**u, "hash": "not-a-hash"} if u["username"] == "admin" else u for u in raw["users"]]
+    })
+    for _ in range(auth.FREE_FAILURES + 1):
+        assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 401
+
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 429

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from argon2 import PasswordHasher
-from argon2.exceptions import Argon2Error
+from argon2.exceptions import Argon2Error, InvalidHashError
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
@@ -217,11 +217,13 @@ def delete(username: str) -> None:
 
 
 def verify(username: str, password: str) -> User | None:
-    """The account if the password is its own, else None — the same work either way."""
+    """The account if the password is its own, else None — the same work either way. A hash
+    that isn't one (empty, or edited by hand) is a wrong password, not a crash: it is
+    counted like any other."""
     user = get(username)
     try:
         _ph.verify(user.hash if user else _DUMMY_HASH, password)
-    except Argon2Error:
+    except (Argon2Error, InvalidHashError):  # InvalidHashError is a ValueError, not an Argon2Error
         return None
     return user
 
