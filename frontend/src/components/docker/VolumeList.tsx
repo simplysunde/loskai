@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 
@@ -64,7 +64,7 @@ export function VolumeList() {
       {remove.error && (
         <div className="mb-2 rounded-lg border border-rose-600/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
           Couldn't delete the volume:{" "}
-          {remove.error instanceof ApiError ? remove.error.message : "request failed"}
+          {apiMessage(remove.error, "request failed")}
         </div>
       )}
       <p className="mb-2 text-xs text-slate-500">

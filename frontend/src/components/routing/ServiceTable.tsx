@@ -1,5 +1,6 @@
-import { Eye, EyeOff, HardDrive, ImagePlus, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import { Eye, EyeOff, HardDrive, ImagePlus, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
+import { IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
 import { isMachine, machineAt, machineLabel } from "./machine";
@@ -171,39 +172,36 @@ export function ServiceTable({
                           busy={privateBusyId === row.id}
                           title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
                           onClick={() => onTogglePrivate(row)}
-                          icon={row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        />
+                        >
+                          {row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </IconButton>
                       )}
                       {onAssign && (
                         <IconButton
-                          busy={false}
                           title={row.routed ? "Change URL" : "Assign a URL"}
                           onClick={() => onAssign(row)}
-                          icon={
-                            row.routed ? (
-                              <Pencil className="h-3.5 w-3.5" />
-                            ) : (
-                              <Plus className="h-3.5 w-3.5" />
-                            )
-                          }
-                        />
+                        >
+                          {row.routed ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                        </IconButton>
                       )}
                       {row.routed && onRemoveRoute && (
                         <IconButton
                           busy={actionBusyId === row.id}
                           title="Remove route (keep the instance)"
                           onClick={() => onRemoveRoute(row)}
-                          icon={<Unlink className="h-3.5 w-3.5" />}
-                        />
+                        >
+                          <Unlink className="h-3.5 w-3.5" />
+                        </IconButton>
                       )}
                       {onDelete && (
                         <IconButton
                           busy={actionBusyId === row.id}
                           title="Delete instance"
-                          danger
+                          tone="danger"
                           onClick={() => onDelete(row)}
-                          icon={<Trash2 className="h-3.5 w-3.5" />}
-                        />
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconButton>
                       )}
                     </div>
                   </td>
@@ -237,47 +235,6 @@ export function DnsCell({ present, conflict }: { present?: boolean | null; confl
       )}
       {conflict && <StatusBadge status="degraded" label="conflict" />}
     </div>
-  );
-}
-
-function IconButton({
-  busy,
-  title,
-  icon,
-  onClick,
-  danger = false,
-  disabled = false,
-}: {
-  busy: boolean;
-  title: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  disabled?: boolean;
-}) {
-  const base = `inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs ${
-    danger ? "text-rose-300" : "text-slate-300"
-  }`;
-  // Disabled action: render a non-interactive span (a `disabled` <button> suppresses the
-  // hover tooltip in most browsers) so the explanatory title still shows on hover.
-  if (disabled && !busy) {
-    return (
-      <span aria-disabled="true" title={title} className={`${base} cursor-not-allowed opacity-40`}>
-        {icon}
-      </span>
-    );
-  }
-  return (
-    <button
-      disabled={busy}
-      onClick={onClick}
-      title={title}
-      className={`${base} disabled:opacity-40 ${
-        danger ? "hover:bg-rose-500/10" : "hover:bg-slate-800"
-      }`}
-    >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
-    </button>
   );
 }
 

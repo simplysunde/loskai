@@ -2,8 +2,6 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  Check,
-  Copy,
   Link2,
   Loader2,
   Lock,
@@ -16,7 +14,6 @@ import {
 
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
-import { copyText } from "../lib/clipboard";
 import { useContainers } from "../lib/containers";
 import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
@@ -24,12 +21,13 @@ import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
-import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
+import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { NETWORK_SERVICES, urlToUpstream } from "../components/routing/networkServices";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { CopyButton } from "../components/shared/CopyButton";
 
 interface Orphan {
   id: string;
@@ -316,7 +314,7 @@ export function Routing() {
                   disabled={routeAdguard.isPending}
                   title={`Route AdGuard at ${adguardService.prefix}.${baseDomain}`}
                   aria-label="Route AdGuard"
-                  className={`${ICON_BUTTON} disabled:opacity-50`}
+                  className={`${PILL_BUTTON} disabled:opacity-50`}
                 >
                   {routeAdguard.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -520,26 +518,6 @@ export function Routing() {
 // Copy the by-IP cert-page URL — the thing you paste to a phone or TV when onboarding it
 // onto the LAN, which is why this lives next to the link rather than in settings.
 function CopyCertLink({ url }: { url: string | null }) {
-  const [copied, setCopied] = useState(false);
   if (!url) return null;
-
-  return (
-    <button
-      type="button"
-      title={`Copy ${url}`}
-      onClick={async () => {
-        if (!(await copyText(url))) return;
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-      className={ICON_BUTTON}
-    >
-      {copied ? (
-        <Check className="h-3.5 w-3.5 text-emerald-400" />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      )}
-      <span className="sr-only">Copy cert page link</span>
-    </button>
-  );
+  return <CopyButton text={url} title={`Copy ${url}`} label="Copy cert page link" className={PILL_BUTTON} />;
 }

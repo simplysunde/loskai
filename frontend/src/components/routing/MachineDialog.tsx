@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { useFacts, useRunning, useSsh } from "../../lib/ssh";
@@ -36,6 +36,7 @@ import { SaveBanner } from "./SaveBanner";
 import { SshSetupModal } from "./SshSetupModal";
 import { useSaveMachine, type SaveResult } from "./useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
+import { INPUT } from "../../lib/ui";
 
 // What opening a machine can hand over: what a save said, and whether to start its SSH
 // setup — after naming it, or from a tool's "Install again".
@@ -479,12 +480,12 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             placeholder="Your password — unlocks Loskai's key"
             value={removePassword}
             onChange={(e) => setRemovePassword(e.target.value)}
-            className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+            className={`mt-3 block ${INPUT}`}
           />
         )}
         {removeSsh.isError && (
           <span className="mt-2 block text-rose-400">
-            {removeSsh.error instanceof ApiError ? removeSsh.error.message : "Couldn't turn it off"}
+            {apiMessage(removeSsh.error, "Couldn't turn it off")}
           </span>
         )}
       </ConfirmDialog>
@@ -593,7 +594,7 @@ function EnableSsh({
           <p className="text-xs text-rose-400">A login name (letters, digits, _ . -) and a port from 1 to 65535.</p>
         )}
         {save.isError && (
-          <p className="text-xs text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't turn it on"}</p>
+          <p className="text-xs text-rose-400">{apiMessage(save.error, "Couldn't turn it on")}</p>
         )}
         <div className="flex justify-end">
           <button type="submit" disabled={!ok || save.isPending}

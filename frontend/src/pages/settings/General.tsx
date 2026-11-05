@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Download, Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import type { FieldDef } from "../../lib/settings";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 import { RecipeSources } from "../../components/settings/RecipeSources";
@@ -37,7 +37,7 @@ export function General() {
       a.click();
       URL.revokeObjectURL(url);
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Export failed"),
+    onError: (err) => setError(apiMessage(err, "Export failed")),
   });
 
   return (

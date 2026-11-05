@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import type { ToolContext } from "../../lib/toolRows";
 import type { Tool } from "../../lib/tools";
@@ -66,7 +66,7 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
       ) : (
         values.isError && (
           <p className="py-1 text-xs text-rose-400">
-            {values.error instanceof ApiError ? values.error.message : "Couldn't read them"}
+            {apiMessage(values.error, "Couldn't read them")}
           </p>
         )
       )}
@@ -114,7 +114,7 @@ function Unlock({ onDone }: { onDone: () => void }) {
       </button>
       {unlock.isError && (
         <span className="w-full text-right text-xs text-rose-400">
-          {unlock.error instanceof ApiError ? unlock.error.message : "Couldn't unlock it"}
+          {apiMessage(unlock.error, "Couldn't unlock it")}
         </span>
       )}
     </form>

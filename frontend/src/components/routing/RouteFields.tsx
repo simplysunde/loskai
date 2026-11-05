@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { HostSelect } from "./HostSelect";
 import type { HostOption } from "./hostOptions";
 import type { RouteFieldsState } from "./useRouteFields";
+import { INPUT } from "../../lib/ui";
 
-const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 // A container's route can follow it: the upstream is the container's live address, kept in
 // step by the backend when its port changes (shared/follow.py). Passed only for a

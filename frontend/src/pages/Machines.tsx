@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiMessage } from "../lib/api";
 import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
@@ -21,6 +21,7 @@ import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
+import { INPUT } from "../lib/ui";
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
 // certificate. Every route on a machine's address is on it, so moving it here re-points them all.
@@ -90,7 +91,7 @@ export function Machines() {
       setResult(data);
       invalidate();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Add route failed"),
+    onError: (err) => setError(apiMessage(err, "Add route failed")),
   });
 
   const keyUnlocked = Boolean(
@@ -110,7 +111,7 @@ export function Machines() {
       qc.invalidateQueries({ queryKey: ["ssh"] });
     },
     onError: (err) => {
-      setDeleteError(err instanceof ApiError ? err.message : "Delete failed");
+      setDeleteError(apiMessage(err, "Delete failed"));
       // The key may have locked meanwhile: ask again, with the password field.
       qc.invalidateQueries({ queryKey: ["ssh"] });
     },
@@ -261,7 +262,7 @@ export function Machines() {
             placeholder="Your password — unlocks Loskai's key"
             value={deletePassword}
             onChange={(e) => setDeletePassword(e.target.value)}
-            className="mt-3 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+            className={`mt-3 block ${INPUT}`}
           />
         )}
         {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}

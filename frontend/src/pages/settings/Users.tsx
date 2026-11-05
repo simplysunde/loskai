@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { useMe, type Tab } from "../../lib/useAuth";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { Modal } from "../../components/shared/Modal";
+import { INPUT } from "../../lib/ui";
 
 interface Account {
   username: string;
@@ -20,8 +21,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "machines", label: "Machines" },
 ];
 
-const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 const BUTTON =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800";
 
@@ -124,7 +123,7 @@ export function Users() {
         Their sessions end now, and they can no longer sign in.
         {remove.isError && (
           <span className="mt-2 block text-rose-400">
-            {remove.error instanceof ApiError ? remove.error.message : "Couldn't remove it"}
+            {apiMessage(remove.error, "Couldn't remove it")}
           </span>
         )}
       </ConfirmDialog>
@@ -196,7 +195,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: Account; onClose
           <p className="text-xs text-slate-500">Everything, Settings and users included.</p>
         )}
         {save.isError && (
-          <p className="text-xs text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't save it"}</p>
+          <p className="text-xs text-rose-400">{apiMessage(save.error, "Couldn't save it")}</p>
         )}
         <div className="flex justify-end">
           <button type="submit" disabled={!ready || save.isPending}
@@ -230,7 +229,7 @@ function NewPassword({ account, onClose }: { account: Account; onClose: () => vo
           placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} className={INPUT} />
         <p className="text-xs text-slate-500">Their sessions end.</p>
         {save.isError && (
-          <p className="text-xs text-rose-400">{save.error instanceof ApiError ? save.error.message : "Couldn't set it"}</p>
+          <p className="text-xs text-rose-400">{apiMessage(save.error, "Couldn't set it")}</p>
         )}
         <div className="flex justify-end">
           <button type="submit" disabled={password.length < 8 || save.isPending}

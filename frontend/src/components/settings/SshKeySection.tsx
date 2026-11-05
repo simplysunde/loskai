@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { useSsh, type SshKey } from "../../lib/ssh";
 import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
+import { INPUT } from "../../lib/ui";
 
 // Loskai's own key, the one it logs in to every machine with. Using it needs nothing here:
 // a machine's SSH setup creates it and puts it on that machine. What is left is the rare
@@ -63,7 +64,7 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ["ssh"] });
       onClose();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Couldn't replace the key"),
+    onError: (err) => setError(apiMessage(err, "Couldn't replace the key")),
   });
 
   return (
@@ -89,7 +90,7 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
           placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-4 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+          className={`mt-4 ${INPUT}`}
         />
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">

@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
@@ -196,7 +197,7 @@ export function MachineTable({
                             an SSH user but isn't set up yet. */}
                         {!unnamed && <IconButton
                           title={sshReady && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
-                          warn={sshReady && !trusted[m.id]}
+                          tone={sshReady && !trusted[m.id] ? "warn" : "plain"}
                           onClick={() => onOpen(m)}
                         >
                           <Settings className="h-3.5 w-3.5" />
@@ -263,38 +264,6 @@ export function MachineTable({
   );
 }
 
-function IconButton({
-  title,
-  onClick,
-  children,
-  danger = false,
-  warn = false,
-}: {
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  danger?: boolean;
-  warn?: boolean;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={`${ICON_BUTTON_SHAPE} ${
-        danger
-          ? "text-rose-300 hover:bg-rose-500/10"
-          : warn
-            ? "text-amber-300 hover:bg-amber-500/10"
-            : "text-slate-300 hover:bg-slate-800"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-const ICON_BUTTON_SHAPE = "inline-flex items-center rounded-lg border border-slate-700 px-2 py-1 text-xs";
-const ICON_BUTTON = `${ICON_BUTTON_SHAPE} text-slate-300 hover:bg-slate-800`;
 
 function sshTitle(alias: string, host: SshHost): string {
   return `ssh ${alias} — ${host.user ?? "?"}@${host.hostname ?? alias}, port ${host.port}`;

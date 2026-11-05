@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Loader2, ShieldAlert, ShieldCheck, Terminal } from "lucide-react";
+import { Check, Loader2, ShieldAlert, ShieldCheck, Terminal } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
-import { copyText } from "../../lib/clipboard";
+import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import { useMe } from "../../lib/useAuth";
+import { CopyButton } from "../shared/CopyButton";
 import { runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
+import { INPUT } from "../../lib/ui";
 
 interface Scan {
   fingerprint: string;
@@ -23,12 +24,8 @@ interface Tested {
   running: Running;
 }
 
-const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 const PRIMARY =
   "flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50";
-
-const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 // Setting a machine up for SSH, in the order that keeps a password safe: its host key is
 // shown and trusted first, so a password only ever goes to the machine whose fingerprint
@@ -55,7 +52,6 @@ export function SshSetupModal({
   const [machinePassword, setMachinePassword] = useState("");
   // The key can lock between opening this and submitting; a 423 brings the field back.
   const [askAdmin, setAskAdmin] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const scan = useQuery({
     queryKey: ["ssh-scan", machine.id],
@@ -133,7 +129,7 @@ export function SshSetupModal({
         )}
         {scan.isError && (
           <p className="text-sm text-rose-400">
-            {message(scan.error, "Couldn't reach the machine")}{" "}
+            {apiMessage(scan.error, "Couldn't reach the machine")}{" "}
             <button onClick={() => scan.refetch()} className="text-teal-400 underline underline-offset-2">
               Try again
             </button>
@@ -169,7 +165,7 @@ export function SshSetupModal({
               <code className="text-slate-400">ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>
             </p>
             {trust.isError && (
-              <p className="mt-1 text-sm text-rose-400">{message(trust.error, "Couldn't trust it")}</p>
+              <p className="mt-1 text-sm text-rose-400">{apiMessage(trust.error, "Couldn't trust it")}</p>
             )}
             <div className="mt-2 flex justify-end">
               <button
@@ -203,7 +199,7 @@ export function SshSetupModal({
           <p className="mt-1 text-xs text-slate-500">Your password creates it.</p>
           <AdminPassword value={adminPassword} onChange={setAdminPassword} />
           {createKey.isError && (
-            <p className="mt-2 text-sm text-rose-400">{message(createKey.error, "Couldn't make the key")}</p>
+            <p className="mt-2 text-sm text-rose-400">{apiMessage(createKey.error, "Couldn't make the key")}</p>
           )}
           <div className="mt-3 flex justify-end">
             <button type="submit" disabled={!adminPassword || createKey.isPending} className={PRIMARY}>
@@ -258,18 +254,11 @@ export function SshSetupModal({
                 <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-2 text-[11px] text-slate-400">
                   {machineLines.join("\n")}
                 </pre>
-                <button
-                  type="button"
+                <CopyButton
+                  text={machineLines.join("\n") + "\n"}
                   title="Copy both lines"
-                  onClick={async () => {
-                    if (!(await copyText(machineLines.join("\n") + "\n"))) return;
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
                   className="inline-flex shrink-0 items-center rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
+                />
               </div>
             </>
           )}
@@ -284,7 +273,7 @@ export function SshSetupModal({
           )}
 
           {connect.isError && (
-            <p className="mt-2 text-sm text-rose-400">{message(connect.error, "Couldn't connect")}</p>
+            <p className="mt-2 text-sm text-rose-400">{apiMessage(connect.error, "Couldn't connect")}</p>
           )}
           <div className="mt-4 flex justify-end">
             <button type="submit" disabled={!canConnect} className={PRIMARY}>

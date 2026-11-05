@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { Modal } from "../shared/Modal";
 import { TabButton } from "../shared/TabButton";
 import { EditorFooter, SwitchView } from "./EditorFooter";
 import { useSaveAndUp } from "./useSaveAndUp";
 import { StackForm } from "./StackForm";
+import { INPUT } from "../../lib/ui";
 
 type FileKey = "compose" | "env" | "override";
 
@@ -112,7 +113,7 @@ function TextFiles({
         setLabels({ ...FILE_NAMES, compose: s.compose_file, override: s.override_file ?? FILE_NAMES.override });
         if (s.services[0]) setService(s.services[0]);
       })
-      .catch((e) => setLoadError(e instanceof ApiError ? e.message : "Failed to load"))
+      .catch((e) => setLoadError(apiMessage(e, "Failed to load")))
       .finally(() => setLoading(false));
   }, [name, creating, carried]);
 
@@ -154,7 +155,7 @@ function TextFiles({
           value={stackName}
           onChange={(e) => setStackName(e.target.value)}
           placeholder="stack name"
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+          className={INPUT}
         />
       )}
       <div role="tablist" className="flex w-fit gap-1 rounded-lg border border-slate-800 p-1">

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
 import { ChangePassword } from "./ChangePassword";
 import { RowMenu } from "./RowMenu";
@@ -87,7 +87,7 @@ export function Layout() {
       await api.post("/api/logout");
     } catch (err) {
       // Still signed in: say so, rather than a menu that closed and nothing more.
-      setLogoutError(err instanceof ApiError ? err.message : "Couldn't reach Loskai");
+      setLogoutError(apiMessage(err, "Couldn't reach Loskai"));
       return;
     }
     // A fresh load of the Dashboard. Refetched in place, the page's own queries would

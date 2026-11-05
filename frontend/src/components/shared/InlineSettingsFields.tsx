@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { useSettings, type FieldDef, type SettingField } from "../../lib/settings";
+import { INPUT } from "../../lib/ui";
 
-const FIELD_CLASS =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500";
+const FIELD_CLASS = `${INPUT} disabled:cursor-not-allowed disabled:text-slate-500`;
 
 // Auto-saving settings fields: each field is always editable and commits on blur / Enter
 // (one key at a time, partial PUT) — no per-panel Save button. Env-sourced values stay
@@ -48,7 +48,7 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to save"),
+    onError: (err) => setError(apiMessage(err, "Failed to save")),
   });
 
   const commit = () => {

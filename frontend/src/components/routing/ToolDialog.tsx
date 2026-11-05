@@ -1,7 +1,7 @@
 import { Check, Loader2, Plus, Settings, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { ApiError } from "../../lib/api";
+import { apiMessage } from "../../lib/api";
 import { useFacts, useSsh } from "../../lib/ssh";
 import { toolSummary, type ToolContext } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
@@ -35,7 +35,7 @@ export function ToolDialog({
   const error =
     facts.data && !facts.data.ok
       ? facts.data.error
-      : failed && (failed instanceof ApiError ? failed.message : "Couldn't reach Loskai");
+      : failed && (apiMessage(failed, "Couldn't reach Loskai"));
 
   let body: React.ReactNode = <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
   if (error) {

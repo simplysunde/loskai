@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import type { ModuleHealth, ModuleState } from "../../lib/useHealth";
 import { StatusBadge } from "../shared/StatusBadge";
 
-export const ICON_BUTTON =
+export const PILL_BUTTON =
   "flex items-center rounded-md border border-slate-700 p-1.5 text-slate-300 hover:bg-slate-800";
 
 const STATUS_LABEL: Record<ModuleState, string> = {
@@ -64,12 +64,12 @@ export function InfraStatusPill({
             rel="noreferrer"
             title={linkLabel}
             aria-label={linkLabel}
-            className={ICON_BUTTON}
+            className={PILL_BUTTON}
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         ) : configurable ? (
-          <Link to="/settings/network" title="Configure" aria-label="Configure" className={ICON_BUTTON}>
+          <Link to="/settings/network" title="Configure" aria-label="Configure" className={PILL_BUTTON}>
             <Settings2 className="h-3.5 w-3.5" />
           </Link>
         ) : null}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { recipeSources, useSettings, type RecipeSource } from "../../lib/settings";
 
 // What GET /api/docker/recipes reports per source — sync state the settings list shows so
@@ -53,7 +53,7 @@ export function RecipeSources() {
       qc.invalidateQueries({ queryKey: ["settings"] });
       qc.invalidateQueries({ queryKey: ["docker-recipes"] });
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save"),
+    onError: (err) => setError(apiMessage(err, "Could not save")),
   });
 
   const sync = useMutation({
@@ -71,7 +71,7 @@ export function RecipeSources() {
     },
     onError: (err) => {
       setNote(null);
-      setError(err instanceof ApiError ? err.message : "Sync failed");
+      setError(apiMessage(err, "Sync failed"));
     },
   });
 

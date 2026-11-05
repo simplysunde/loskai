@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { Modal } from "./Modal";
+import { INPUT } from "../../lib/ui";
 
-const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 // Your own password, from the menu on your name in the sidebar — every account has one, so
 // it isn't in Settings, which is an admin's. Your other sessions end; this one stays signed in.
@@ -41,7 +40,7 @@ export function ChangePassword({ onClose }: { onClose: () => void }) {
             value={confirm} onChange={(e) => setConfirm(e.target.value)} className={INPUT} />
           {mismatch && <p className="text-xs text-rose-400">The new passwords don't match.</p>}
           {change.isError && (
-            <p className="text-xs text-rose-400">{change.error instanceof ApiError ? change.error.message : "Couldn't change it"}</p>
+            <p className="text-xs text-rose-400">{apiMessage(change.error, "Couldn't change it")}</p>
           )}
           <div className="flex justify-end">
             <button

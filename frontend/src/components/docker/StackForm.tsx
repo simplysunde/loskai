@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CornerDownRight, Database, Folder as FolderIcon, Loader2, Lock, Plus, X } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { pathProblem } from "../../lib/validation";
 import { EditorFooter, SwitchView } from "./EditorFooter";
 import { OptionList, type RecipeOption } from "./RecipeOptions";
@@ -59,7 +59,7 @@ export function StackForm({
         setFolders(f.folders);
         setOptionsOn(Object.fromEntries(f.options.map((o) => [o.id, o.on])));
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
+      .catch((e) => setError(apiMessage(e, "Failed to load")));
   }, [name, base, loads]);
 
   if (!form) {
@@ -224,7 +224,7 @@ export function StackForm({
               try {
                 onTextView(await api.put<Carried>(`/api/docker/stacks/${name}/form`, { ...payload, preview: true }));
               } catch (e) {
-                setSwitchError(e instanceof ApiError ? e.message : "Couldn't carry the changes over");
+                setSwitchError(apiMessage(e, "Couldn't carry the changes over"));
               }
             }}
           />

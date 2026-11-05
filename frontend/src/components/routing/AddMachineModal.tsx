@@ -4,6 +4,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, SSH_USER } from "../../lib/validation";
+import { INPUT } from "../../lib/ui";
 
 // What the parent posts to /api/machines. `ssh` sets the machine's SSH config entry, null
 // removes it, and left out the entry only follows a rename or a move.
@@ -16,8 +17,6 @@ export interface NewMachine {
 
 const SSH_HINT = "The user Loskai logs in as over SSH. Empty: not in the SSH config.";
 
-const INPUT =
-  "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 // Naming a machine is its own form, not a mode of the route picker: there is no source to
 // choose, no port, no TLS, and the hostname may be dotted — none of which is true of a

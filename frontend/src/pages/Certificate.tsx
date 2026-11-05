@@ -2,15 +2,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  Check,
-  Copy,
   Download,
   Loader2,
   ShieldCheck,
 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
-import { copyText } from "../lib/clipboard";
+import { CopyButton } from "../components/shared/CopyButton";
 
 interface RootCert {
   pem: string;
@@ -272,8 +270,6 @@ function Step({
 }
 
 function Code({ label, children }: { label: string; children: string }) {
-  const [copied, setCopied] = useState(false);
-
   return (
     <div className="mb-3">
       <div className="mb-1 text-xs text-slate-500">{label}</div>
@@ -281,23 +277,12 @@ function Code({ label, children }: { label: string; children: string }) {
         <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-slate-300">
           {children}
         </pre>
-        <button
-          type="button"
+        <CopyButton
+          text={children}
           title="Copy"
-          onClick={async () => {
-            if (!(await copyText(children))) return;
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
+          label="Copy command"
           className="shrink-0 rounded-md border border-slate-700 p-1.5 text-slate-400 hover:bg-slate-800"
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-emerald-400" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-          <span className="sr-only">Copy command</span>
-        </button>
+        />
       </div>
     </div>
   );

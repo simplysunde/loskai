@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Loader2 } from "lucide-react";
 
-import { ApiError } from "../../lib/api";
+import { apiMessage } from "../../lib/api";
 
 // One setting: its name and a line on what it does on the left, its control on the right.
 export function SettingRow({
@@ -85,7 +85,7 @@ export function InlineText({
       setTimeout(() => setState("idle"), 1500);
     } catch (err) {
       setState("idle");
-      setError(err instanceof ApiError ? err.message : "Couldn't save it");
+      setError(apiMessage(err, "Couldn't save it"));
     }
   };
 

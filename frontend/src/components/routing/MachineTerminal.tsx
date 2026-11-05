@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import { runQuery, type ToolRun } from "../../lib/tools";
 import type { SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
 import { XtermSession } from "../shared/XtermSession";
+import { INPUT } from "../../lib/ui";
 
 // The server closes a machine's terminal with 4000 + an HTTP status: 4423 while the key is
 // locked — the one case the password below fixes. A session that ends by itself closes 1000.
@@ -112,11 +113,11 @@ export function MachineTerminal({
             placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={INPUT}
+            className={`mt-3 ${INPUT}`}
           />
           {unlock.isError && (
             <p className="mt-2 text-sm text-rose-400">
-              {unlock.error instanceof ApiError ? unlock.error.message : "Couldn't unlock the key"}
+              {apiMessage(unlock.error, "Couldn't unlock the key")}
             </p>
           )}
           <div className="mt-3 flex justify-end">
@@ -129,7 +130,7 @@ export function MachineTerminal({
       ) : stage === "preparing" ? (
         prepare.isError && !(prepare.error instanceof ApiError && prepare.error.status === 423) ? (
           <p className="text-sm text-rose-400">
-            {prepare.error instanceof ApiError ? prepare.error.message : "Couldn't get it ready"}
+            {apiMessage(prepare.error, "Couldn't get it ready")}
           </p>
         ) : (
           <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
@@ -156,11 +157,11 @@ export function MachineTerminal({
             placeholder={`sudo password on ${machine.name}`}
             value={sudoPassword}
             onChange={(e) => setSudoPassword(e.target.value)}
-            className={INPUT}
+            className={`mt-3 ${INPUT}`}
           />
           {prepare.isError && (
             <p className="mt-2 text-sm text-rose-400">
-              {prepare.error instanceof ApiError ? prepare.error.message : "Couldn't check it"}
+              {apiMessage(prepare.error, "Couldn't check it")}
             </p>
           )}
           <div className="mt-3 flex justify-end">
@@ -186,7 +187,5 @@ export function MachineTerminal({
   );
 }
 
-const INPUT =
-  "mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 const SUBMIT =
   "flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50";

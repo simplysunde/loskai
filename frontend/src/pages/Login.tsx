@@ -3,8 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Anchor, Loader2 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiMessage } from "../lib/api";
 import { homeFor, useAuthStatus, type Me } from "../lib/useAuth";
+import { INPUT } from "../lib/ui";
 
 // The security screen: log in with a username and password, or — on first run, before any
 // account exists (GET /api/auth/status -> needs_setup) — create the admin account.
@@ -47,7 +48,7 @@ export function Login() {
       // Where they came from, else the first tab this account has.
       navigate(from ?? homeFor(done.user), { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(apiMessage(err, "Something went wrong"));
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +136,7 @@ function Field({
         autoFocus={autoFocus}
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+        className={INPUT}
       />
     </label>
   );

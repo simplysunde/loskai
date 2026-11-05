@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { api, ApiError } from "../../lib/api";
+import { api, ApiError, apiMessage } from "../../lib/api";
 import { useMe } from "../../lib/useAuth";
 import { useContainers } from "../../lib/containers";
 import { useSettings } from "../../lib/settings";
@@ -11,6 +11,7 @@ import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
 import { OptionList, type RecipeOption } from "./RecipeOptions";
+import { INPUT } from "../../lib/ui";
 
 interface RecipeEnv {
   key: string;
@@ -578,7 +579,7 @@ function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: st
       </p>
       {route.error && (
         <p className="mt-1 text-xs text-rose-400">
-          {route.error instanceof ApiError ? route.error.message : "Routing failed"}
+          {apiMessage(route.error, "Routing failed")}
         </p>
       )}
     </div>
@@ -624,7 +625,7 @@ function FillStep({
             value={answers[e.key] ?? ""}
             onChange={(ev) => setAnswers({ ...answers, [e.key]: ev.target.value })}
             placeholder={e.type === "path" ? "./data or /srv/media" : undefined}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+            className={INPUT}
           />
           {e.type === "path" && <PathNote value={answers[e.key] ?? ""} recipeId={recipe.id} />}
         </label>
@@ -734,7 +735,7 @@ function FolderRows({
                 value={f}
                 onChange={(ev) => set(i, ev.target.value)}
                 placeholder="/srv/media/movies"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+                className={INPUT}
               />
               <button
                 onClick={() => setFolders(folders.filter((_, j) => j !== i))}

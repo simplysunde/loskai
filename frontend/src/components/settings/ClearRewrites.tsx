@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 type Rewrite = { domain: string; answer: string; managed: boolean };
@@ -59,7 +59,7 @@ export function ClearRewrites() {
     onError: (err) => {
       setConfirming(false);
       setNote(null);
-      setError(err instanceof ApiError ? err.message : "Could not reach AdGuard.");
+      setError(apiMessage(err, "Could not reach AdGuard."));
     },
   });
 

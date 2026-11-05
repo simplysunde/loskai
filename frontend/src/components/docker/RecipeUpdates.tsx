@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
-import { api, ApiError } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
 import { Modal } from "../shared/Modal";
 
 export type RecipeUpdate = {
@@ -41,7 +41,7 @@ export function RecipeUpdates({ onClose }: { onClose: () => void }) {
       // A source that can't be reached keeps what it last synced; the check still runs.
       const synced = await api
         .post<{ ok: boolean; output: string }>("/api/docker/recipes/refresh")
-        .catch((e) => ({ ok: false, output: e instanceof ApiError ? e.message : "sync failed" }));
+        .catch((e) => ({ ok: false, output: apiMessage(e, "sync failed") }));
       const list = await api.get<RecipeUpdate[]>("/api/docker/recipes/updates");
       return { list, syncFailed: synced.ok ? null : synced.output };
     },
@@ -58,7 +58,7 @@ export function RecipeUpdates({ onClose }: { onClose: () => void }) {
         </div>
       ) : check.isError ? (
         <p className="text-sm text-rose-400">
-          {check.error instanceof ApiError ? check.error.message : "Couldn't check for updates"}
+          {apiMessage(check.error, "Couldn't check for updates")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -111,7 +111,7 @@ function UpdateRow({
       setOutput(r.ok ? null : r.output || "docker compose up failed");
       onUpdated();
     },
-    onError: (e) => setOutput(e instanceof ApiError ? e.message : "Update failed"),
+    onError: (e) => setOutput(apiMessage(e, "Update failed")),
   });
   const changed = u.status !== "current" && u.status !== "gone";
   const Chevron = open ? ChevronDown : ChevronRight;
