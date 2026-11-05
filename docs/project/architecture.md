@@ -661,7 +661,8 @@ it has been idle** for `session_idle_minutes` (2 hours, like Proxmox's ticket; 3
 goes on in a background tab (`useHealth`), so idle means no Loskai page open.
 **Log out ends your sessions on every device**: it bumps your generation, so every cookie
 naming the old one stops working, and no one else's; a new password or the account removed
-does the same. An open terminal re-checks every 5 s and closes when its session is over:
+does the same. An account starts at a generation of its creation time, so one made again
+under a removed one's name doesn't take up its sessions. An open terminal re-checks every 5 s and closes when its session is over:
 the account's generation moved on (a logout) or its tab taken away. Not the idle time: a
 terminal lives in an open page, which keeps the session, while the terminal's own copy of
 the cookie is never renewed.

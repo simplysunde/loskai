@@ -208,3 +208,15 @@ def test_a_removed_account_s_sessions_end(admin):
     admin.delete("/api/users/ola", headers=ORIGIN)
 
     assert op.get("/api/docker/volumes").status_code == 401
+
+
+def test_a_removed_account_s_sessions_stay_ended_when_the_name_is_used_again(admin):
+    """The cookie names the account and its generation; a new account under the same name
+    must not take up the old one's sessions — here as an admin."""
+    op = _operator(admin, "ola", ["docker"])
+    admin.delete("/api/users/ola", headers=ORIGIN)
+    r = admin.post("/api/users", json={"username": "ola", "password": "ola-password-2", "role": "admin", "tabs": []}, headers=ORIGIN)
+    assert r.status_code == 200, r.text
+
+    assert op.get("/api/docker/volumes").status_code == 401
+    assert op.get("/api/users").status_code == 401

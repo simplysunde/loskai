@@ -136,7 +136,11 @@ def create(username: str, password: str, role: str, tabs: list[str] | None = Non
     if hashed is None:
         check_password_rule(password)
         hashed = _ph.hash(password)
-    user = User(username, role, _check_tabs(role, tabs or []), hashed, 0, time.time())
+    now = time.time()
+    # Not 0: a session names the account and its generation, so an account made again under
+    # a removed one's name would take up its sessions. Starting at the creation time, in
+    # milliseconds, no earlier account of that name can have carried the same number.
+    user = User(username, role, _check_tabs(role, tabs or []), hashed, int(now * 1000), now)
 
     def add(users: list[User]) -> list[User]:
         if first and users:
@@ -306,6 +310,6 @@ def remove_user(username: str) -> dict:
     delete(username)
     from ..modules.ssh import unlock  # the SSH module reads accounts too
 
-    # Its unlock goes too: an account made again under the name starts at the same generation.
+    # Its unlock goes now, as its sessions do.
     unlock.lock(username)
     return {"deleted": username}
