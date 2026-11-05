@@ -1986,12 +1986,19 @@ are fixed first, each with a regression test.
       through the form (`.env` escaped, folders and option on and off, the override gone
       when empty); and each scheme against a real Caddy — the container's body from the
       right server, at its head
-- [ ] 40l Frontend: one hook and one type per query
-- [ ] 40m Frontend: shared buttons, error text, copy button and input class
-- [ ] 40n Frontend: one modal shell
-- [ ] 40o Frontend: the key unlock and the port, login and Caddy-host checks each in one place
-- [ ] 40p Frontend: the route forms share their lower half; one auto-saving field; tool
-      context once; dead code and `recharts`
+- [x] 40l Frontend: one hook and one type per query
+- [x] 40m Frontend: shared buttons, error text, copy button and input class
+- [x] 40n Frontend: one modal shell
+- [x] 40o Frontend: the key unlock and the port, login and Caddy-host checks each in one place
+- [x] 40p Frontend: the route forms share their lower half; one auto-saving field; tool
+      context once; dead code and `recharts` — and found on the way: Escape in a Settings
+      field saved what was typed (`useAutoSave` fixes it, with a test). The primary buttons
+      stay as they are: their padding differs between a page's header and a form on purpose
+- [x] Frontend live: every tab renders with its data; Escape closes the top dialog of a
+      confirm over the machine dialog, and the earlier Escape cases still hold; a backdrop
+      click closes and a click inside doesn't; the new-key form submits; Escape in a
+      Settings field saves nothing; a locked terminal asks for your password, says a wrong
+      one, and opens with the right one
 - [ ] 40q Tests: shared fixtures (backend) and render/fetch helpers (frontend)
 - [ ] 40r Docs: stale facts fixed; the docs check counts modules and checks `api.md`'s routes
 - [ ] 40s Docs: finished phases to the archive; each repeated fact in one place
