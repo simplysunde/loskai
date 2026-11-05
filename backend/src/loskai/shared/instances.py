@@ -292,10 +292,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
                 status_code=413,
                 detail=f"image is larger than {icons.MAX_BYTES // 1024} KB",
             )
-    try:
-        filename = icons.save(instance_id, bytes(data))
-    except icons.IconError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+    filename = icons.save(instance_id, bytes(data))
     updated = update_fields(instance_id, icon=filename)
     if updated is None:  # deleted while it uploaded
         icons.remove_all(instance_id)

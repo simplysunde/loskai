@@ -36,6 +36,7 @@ from ..modules.docker.client import docker_client
 from ..modules.ssh import connect as ssh_connect
 from ..modules.ssh import machines as ssh_machines
 from . import access, auth, follow
+from .errors import LoskaiError
 from . import instances as instances_store
 from . import settings as settings_store
 from .instances import Instance
@@ -47,11 +48,9 @@ logger = logging.getLogger(__name__)
 _LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 
 
-class AssignError(Exception):
+class AssignError(LoskaiError):
     def __init__(self, status_code: int, detail: str) -> None:
-        self.status_code = status_code
-        self.detail = detail
-        super().__init__(detail)
+        super().__init__(detail, status_code)
 
 
 def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "proxy") -> None:
@@ -584,19 +583,13 @@ async def post_machine(body: MachineCreate) -> dict:
     # once the save has gone through.
     removal = None
     if prev is not None and "ssh" in body.model_fields_set and body.ssh is None:
-        try:
-            removal = ssh_machines.prepare_removal(prev)
-        except ssh_connect.SshError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail)
-    try:
-        result = await name_machine(
-            caddy, adguard,
-            prefix=body.hostname, upstream=body.address,
-            instance_id=body.instance_id,
-            base_domain=base, current_ip=current_ip, acting=auth.current_user(),
-        )
-    except AssignError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+        removal = ssh_machines.prepare_removal(prev)
+    result = await name_machine(
+        caddy, adguard,
+        prefix=body.hostname, upstream=body.address,
+        instance_id=body.instance_id,
+        base_domain=base, current_ip=current_ip, acting=auth.current_user(),
+    )
     inst = instances_store.get_instance(result["instance_id"])
     if inst is not None:
         ssh = body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP
@@ -613,20 +606,17 @@ async def post_machine(body: MachineCreate) -> dict:
 async def post_route(body: RouteCreate) -> dict:
     """Create or re-point a proxied service (`instance_id` to edit one)."""
     base, current_ip = _context()
-    try:
-        if body.container:
-            validate_container(body.container)
-        upstream = await _followed_upstream(body) if body.follow_container else body.upstream
-        return await assign_route(
-            caddy, adguard,
-            prefix=body.prefix, upstream=upstream,
-            instance_id=body.instance_id, name=body.name, container=body.container,
-            origin=body.origin, upstream_tls=body.upstream_tls,
-            scheme=body.scheme, base_domain=base, current_ip=current_ip,
-            follow_container=body.follow_container, acting=auth.current_user(),
-        )
-    except AssignError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    if body.container:
+        validate_container(body.container)
+    upstream = await _followed_upstream(body) if body.follow_container else body.upstream
+    return await assign_route(
+        caddy, adguard,
+        prefix=body.prefix, upstream=upstream,
+        instance_id=body.instance_id, name=body.name, container=body.container,
+        origin=body.origin, upstream_tls=body.upstream_tls,
+        scheme=body.scheme, base_domain=base, current_ip=current_ip,
+        follow_container=body.follow_container, acting=auth.current_user(),
+    )
 
 
 @router.delete("/assign/{instance_id}")
@@ -634,10 +624,7 @@ async def delete_assign(instance_id: str) -> dict:
     if (inst := instances_store.get_instance(instance_id)) is not None:
         access.require_instance(auth.current_user(), inst.kind)
     base = settings_store.value("base_domain")
-    try:
-        return await unassign(caddy, adguard, instance_id, base_domain=base)
-    except AssignError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    return await unassign(caddy, adguard, instance_id, base_domain=base)
 
 
 # Full instance deletion is a cross-module action (route + rewrite cleanup), so it lives
@@ -647,7 +634,4 @@ async def delete_instance_route(instance_id: str) -> dict:
     if (inst := instances_store.get_instance(instance_id)) is not None:
         access.require_instance(auth.current_user(), inst.kind)
     base = settings_store.value("base_domain")
-    try:
-        return await delete_instance(caddy, adguard, instance_id, base_domain=base)
-    except AssignError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    return await delete_instance(caddy, adguard, instance_id, base_domain=base)

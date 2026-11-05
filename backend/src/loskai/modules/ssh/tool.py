@@ -19,6 +19,7 @@ from pathlib import Path
 
 import yaml
 
+from ...shared.errors import LoskaiError
 from .logic import PROGRAMS, SUDO_RULE, remove_sudo_rule
 
 DIR = Path(__file__).parent / "tools"
@@ -70,8 +71,10 @@ TARGETS = {
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 
 
-class ToolError(ValueError):
+class ToolError(LoskaiError, ValueError):
     """A tool file that isn't valid, or an action that can't run as asked."""
+
+    status_code = 422
 
 
 @dataclass(frozen=True)

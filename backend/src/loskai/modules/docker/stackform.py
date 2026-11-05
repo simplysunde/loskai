@@ -294,7 +294,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
     directory = stacks._stack_dir(name)
     compose = stacks._compose_file(directory)
     if compose is None:
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     compose_text = compose.read_text(encoding="utf-8")
     try:
         doc = yaml.safe_load(compose_text)
@@ -368,7 +368,7 @@ def save_form(
     directory = stacks._stack_dir(name)
     compose = stacks._compose_file(directory)
     if compose is None:
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     disk_env, disk_override = _disk(directory)
     env_text, override_text = _base(base) or (disk_env, disk_override)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))

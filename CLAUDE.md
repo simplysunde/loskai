@@ -62,8 +62,9 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   writes with the main key (Git's commit name and email) (`docs/reference/tool-schema.md`).
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
-  `settings.py`, `store.py` (atomic JSON I/O, the store lock), `icons.py`, `dashboard.py`,
-  `health.py`, `export.py`.
+  `settings.py`, `store.py` (atomic JSON I/O, the store lock), `errors.py` (`LoskaiError`: a
+  refusal and its HTTP status, decided where it is raised — routers catch nothing to translate),
+  `icons.py`, `dashboard.py`, `health.py`, `export.py`.
 
 Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (one per tab,
 `settings/` its sub-pages), `components/{docker,routing,settings,shared}/`, `lib/` (`api.ts`,

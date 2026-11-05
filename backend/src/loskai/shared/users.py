@@ -18,12 +18,13 @@ from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
 from ..config import settings as env
 from . import settings as settings_store
 from . import store
+from .errors import LoskaiError
 
 ROLES = ("admin", "operator")
 # The tabs an operator can be given, as the API's access table names them.
@@ -37,12 +38,11 @@ _ph = PasswordHasher()
 _DUMMY_HASH = _ph.hash("loskai-no-such-user")
 
 
-class UserError(ValueError):
-    """A change the accounts can't take; `status` is the HTTP answer."""
+class UserError(LoskaiError, ValueError):
+    """A change the accounts can't take."""
 
-    def __init__(self, status: int, detail: str):
-        super().__init__(detail)
-        self.status, self.detail = status, detail
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail, status_code)
 
 
 @dataclass
@@ -264,13 +264,6 @@ class UserChange(BaseModel):
     password: str | None = None  # an admin setting someone's password
 
 
-def _answer(action):
-    try:
-        return action()
-    except UserError as exc:
-        raise HTTPException(status_code=exc.status, detail=exc.detail)
-
-
 @router.get("/users")
 def list_users() -> list[dict]:
     return [u.view() for u in all_users()]
@@ -278,7 +271,7 @@ def list_users() -> list[dict]:
 
 @router.post("/users")
 def add_user(body: NewUser) -> dict:
-    return _answer(lambda: create(body.username.strip().lower(), body.password, body.role, body.tabs)).view()
+    return create(body.username.strip().lower(), body.password, body.role, body.tabs).view()
 
 
 @router.patch("/users/{username}")
@@ -288,19 +281,15 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
     The password is checked first, so a refused one changes nothing."""
     from . import auth  # auth reads accounts
 
-    def apply() -> User:
-        user = get(username)
-        if user is None:
-            raise UserError(404, f"No user {username!r}")
-        if body.password is not None:
-            check_password_rule(body.password)
-        if body.role is not None or body.tabs is not None:
-            user = set_role(username, body.role or user.role, body.tabs if body.tabs is not None else user.tabs)
-        if body.password is not None:
-            user = set_password(username, body.password)
-        return user
-
-    user = _answer(apply)
+    user = get(username)
+    if user is None:
+        raise UserError(404, f"No user {username!r}")
+    if body.password is not None:
+        check_password_rule(body.password)
+    if body.role is not None or body.tabs is not None:
+        user = set_role(username, body.role or user.role, body.tabs if body.tabs is not None else user.tabs)
+    if body.password is not None:
+        user = set_password(username, body.password)
     if not user.may("machines"):
         # Ended now, not when it is next used: given the tab back, they unlock again.
         from ..modules.ssh import unlock  # the SSH module reads accounts too
@@ -314,7 +303,7 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
 
 @router.delete("/users/{username}")
 def remove_user(username: str) -> dict:
-    _answer(lambda: delete(username))
+    delete(username)
     from ..modules.ssh import unlock  # the SSH module reads accounts too
 
     # Its unlock goes too: an account made again under the name starts at the same generation.

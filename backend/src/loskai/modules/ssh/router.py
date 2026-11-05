@@ -121,17 +121,10 @@ def unlock_key(body: PasswordRequest) -> dict | None:
 # --- Setting a machine up ---
 
 
-async def _call(action):
-    try:
-        return await action
-    except connect.SshError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
-
-
 @router.post("/machines/{machine_id}/scan")
 async def scan(machine_id: str) -> dict:
     """The machine's host key now — `new`, `trusted` or `changed` — to show before trusting."""
-    return await _call(connect.scan(machine_id))
+    return await connect.scan(machine_id)
 
 
 class TrustRequest(BaseModel):
@@ -141,7 +134,7 @@ class TrustRequest(BaseModel):
 @router.post("/machines/{machine_id}/trust")
 async def trust(machine_id: str, body: TrustRequest) -> dict:
     """Trust the host key the person was shown (`409` if the machine now offers another)."""
-    return await _call(connect.trust(machine_id, body.fingerprint))
+    return await connect.trust(machine_id, body.fingerprint)
 
 
 @router.post("/machines/{machine_id}/install")
@@ -149,8 +142,8 @@ async def install(machine_id: str, body: PasswordRequest, request: Request) -> d
     """Install it for me: the machine's password, used once to add Loskai's lines, then a
     test with the keys. Needs a trusted host key (`409`) and the key unlocked (`423`)."""
     try:
-        result = await _call(connect.install(machine_id, body.password))
-    except HTTPException as exc:
+        result = await connect.install(machine_id, body.password)
+    except connect.SshError as exc:
         connect.log("install", machine_id, _peer(request), ok=False, error=exc.detail)
         raise
     connect.log("install", machine_id, _peer(request), ok=True)
@@ -160,14 +153,14 @@ async def install(machine_id: str, body: PasswordRequest, request: Request) -> d
 @router.post("/machines/{machine_id}/test")
 async def test(machine_id: str) -> dict:
     """Log in with the key, and read what runs with the status key."""
-    return await _call(connect.test(machine_id))
+    return await connect.test(machine_id)
 
 
 @router.get("/machines/{machine_id}/facts")
 async def facts(machine_id: str) -> dict:
     """The machine's overview — OS, memory, disks, updates, tools, tmux sessions — read with
     the status key, from a short cache (`connect.FACTS_TTL`)."""
-    return await _call(connect.facts(machine_id))
+    return await connect.facts(machine_id)
 
 
 @router.get("/tools")
@@ -184,10 +177,7 @@ class ProjectsRequest(BaseModel):
 def set_projects(machine_id: str, body: ProjectsRequest) -> dict:
     """Set a machine's projects folder — `~` or one folder in it; null or empty for the
     default, `~/projects`. Its tools' actions find it as `$PROJECTS`."""
-    try:
-        folder = tool.parse_folder(body.folder) if body.folder and body.folder.strip() else None
-    except tool.ToolError as exc:
-        raise HTTPException(422, str(exc))
+    folder = tool.parse_folder(body.folder) if body.folder and body.folder.strip() else None
     if folder == tool.PROJECTS:
         folder = None
     if instances_store.set_projects_folder(machine_id, folder) is None:
@@ -218,20 +208,14 @@ async def prepare_run(machine_id: str, body: RunRequest) -> dict:
     """Before a run's terminal opens: whether it is automatic, and whether sudo needs a
     password for it (`connect.prepare`). Given the `password`, sudo checks it, and the
     answer carries the `ticket` the terminal takes — once, within a minute."""
-    try:
-        _, details, automatic = await _plan(machine_id, body)
-        return await connect.prepare(machine_id, details, automatic, body.password)
-    except connect.SshError as exc:
-        raise HTTPException(exc.status_code, exc.detail)
+    _, details, automatic = await _plan(machine_id, body)
+    return await connect.prepare(machine_id, details, automatic, body.password)
 
 
 @router.get("/machines/{machine_id}/tools/{tool_id}/settings")
 async def tool_settings(machine_id: str, tool_id: str) -> dict:
     """A tool's settings as the machine has them now (`{ values }`), read with the main key."""
-    try:
-        return {"values": await connect.read_settings(machine_id, tool_id)}
-    except connect.SshError as exc:
-        raise HTTPException(exc.status_code, exc.detail)
+    return {"values": await connect.read_settings(machine_id, tool_id)}
 
 
 class SettingRequest(BaseModel):
@@ -241,10 +225,7 @@ class SettingRequest(BaseModel):
 @router.put("/machines/{machine_id}/tools/{tool_id}/settings/{setting_id}")
 async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body: SettingRequest, request: Request) -> dict:
     """Set one of a tool's settings on the machine; `{ values }` read back after."""
-    try:
-        values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), _peer(request))
-    except connect.SshError as exc:
-        raise HTTPException(exc.status_code, exc.detail)
+    values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), _peer(request))
     return {"values": values}
 
 

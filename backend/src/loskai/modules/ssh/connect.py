@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 import asyncssh
 
 from ...shared import auth
+from ...shared.errors import LoskaiError
 from ...shared import instances as instances_store
 from ..docker.client import docker_client
 from ...shared import settings as settings_store
@@ -37,11 +38,9 @@ def _drop_cached(machine_id: str) -> None:
     _facts.pop(machine_id, None)
 
 
-class SshError(Exception):
+class SshError(LoskaiError):
     def __init__(self, status_code: int, detail: str):
-        super().__init__(detail)
-        self.status_code = status_code
-        self.detail = detail
+        super().__init__(detail, status_code)
 
 
 @dataclass

@@ -13,6 +13,7 @@ not among them — an SVG is a script container, and these are served from Loska
 from pathlib import Path
 
 from ..config import settings
+from .errors import LoskaiError
 
 # (magic bytes, extension, content type). Raster formats only, on purpose.
 _FORMATS: list[tuple[bytes, str, str]] = [
@@ -24,8 +25,10 @@ _FORMATS: list[tuple[bytes, str, str]] = [
 MAX_BYTES = 512 * 1024
 
 
-class IconError(ValueError):
-    """Rejected upload — the caller turns this into a 4xx with this message."""
+class IconError(LoskaiError, ValueError):
+    """Rejected upload."""
+
+    status_code = 422
 
 
 def sniff(data: bytes) -> tuple[str, str]:

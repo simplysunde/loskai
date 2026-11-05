@@ -25,6 +25,7 @@ from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, export, follow, health, instances
 from .shared import settings as settings_module
 from .shared import users as users_module
+from .shared.errors import LoskaiError
 from .shared.store import CorruptStoreError
 
 
@@ -62,6 +63,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Loskai", lifespan=lifespan)
 app.add_middleware(auth.AuthMiddleware)
+
+
+@app.exception_handler(LoskaiError)
+async def refused(request: Request, exc: LoskaiError) -> JSONResponse:
+    """A request refused for a reason Loskai knows, with the status it was raised with."""
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
 @app.exception_handler(CorruptStoreError)

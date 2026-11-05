@@ -15,6 +15,7 @@ from pathlib import Path
 
 from ...config import settings
 from ...shared import store
+from ...shared.errors import LoskaiError
 from . import logic
 from .client import DOCKER_ERRORS, describe_error, docker_client
 
@@ -32,7 +33,7 @@ _ACTIONS = {"up", "down", "restart", "pull"}
 _COMPOSE_TIMEOUT = 300  # seconds
 
 
-class StackError(Exception):
+class StackError(LoskaiError):
     pass
 
 
@@ -142,7 +143,7 @@ def get_stack(name: str) -> dict:
     directory = _stack_dir(name)
     compose = _compose_file(directory)
     if compose is None:
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     env_file = directory / ".env"
     override = _override_file(directory)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
@@ -178,7 +179,7 @@ def stack_action(name: str, action: str) -> dict:
         raise StackError(f"unknown action: {action}")
     directory = _stack_dir(name)
     if _compose_file(directory) is None:
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     if action == "up":
         return _run_compose(directory, "up", "-d")
     if action == "pull":
@@ -214,7 +215,7 @@ def update_stack_file(name: str, file: str, content: str) -> None:
         raise StackError("only compose.yml, compose.override.yml or .env may be edited")
     directory = _stack_dir(name)
     if not directory.is_dir():
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     if file == ".env":
         store.write_private(directory / file, content)
         return
@@ -239,7 +240,7 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
     `down` never takes `-v`, so named volumes survive either way."""
     directory = _stack_dir(name)
     if not directory.is_dir():
-        raise StackError(f"stack '{name}' not found")
+        raise StackError(f"stack '{name}' not found", 404)
     result = {"ok": True, "output": ""}
     if _compose_file(directory) is not None:
         result = _run_compose(directory, "down")

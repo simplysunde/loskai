@@ -373,10 +373,7 @@ def setup(body: LoginBody, request: Request, response: Response) -> dict:
     """First run: create the admin account and sign in as it. Refuses once any account exists."""
     if users.any_users():  # early, before hashing; `first` is the check that holds
         raise HTTPException(status_code=409, detail="Loskai is already set up")
-    try:
-        user = users.create(body.username.strip().lower(), body.password, "admin", first=True)
-    except users.UserError as exc:
-        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    user = users.create(body.username.strip().lower(), body.password, "admin", first=True)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 
@@ -386,9 +383,6 @@ def change_password(body: NewPassword, request: Request, response: Response) -> 
     """Change your own password, given the current one. Your other sessions end; this one
     goes on with a fresh cookie."""
     me = check_password(body.current, wrong_status=403)
-    try:
-        user = users.set_password(me.username, body.new)
-    except users.UserError as exc:
-        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    user = users.set_password(me.username, body.new)
     set_cookie(request, response, user)
     return {"user": user.view()}

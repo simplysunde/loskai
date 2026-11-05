@@ -20,6 +20,7 @@ import yaml
 
 from ...config import settings
 from ...shared import icons
+from ...shared.errors import LoskaiError
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
 from ...shared import store
@@ -50,7 +51,7 @@ _PROJECT_RE = re.compile(r"[^a-z0-9_-]")
 _GIT_TIMEOUT = 120
 
 
-class RecipeError(Exception):
+class RecipeError(LoskaiError):
     pass
 
 
@@ -538,7 +539,7 @@ def icon_path(recipe_id: str) -> Path:
     """The recipe's icon file, for the wizard's thumbnail. RecipeError when it has none."""
     recipe = get_recipe(recipe_id)
     if not recipe["icon"]:
-        raise RecipeError(f"recipe '{recipe_id}' has no icon")
+        raise RecipeError(f"recipe '{recipe_id}' has no icon", 404)
     return Path(recipe["path"]) / ICON_FILE
 
 
@@ -636,7 +637,7 @@ def list_recipes() -> dict:
 def get_recipe(recipe_id: str) -> dict:
     recipe = _merged()["recipes"].get(recipe_id)
     if recipe is None:
-        raise RecipeError(f"recipe '{recipe_id}' not found")
+        raise RecipeError(f"recipe '{recipe_id}' not found", 404)
     return recipe
 
 

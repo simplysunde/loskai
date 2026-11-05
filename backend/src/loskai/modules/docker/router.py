@@ -31,8 +31,6 @@ from . import stacks as stacks_mod
 from . import updates as updates_mod
 from .client import DOCKER_ERRORS, describe_error, docker_client
 from .quick_commands import quick_commands_for
-from .recipes import RecipeError
-from .stacks import StackError
 
 logger = logging.getLogger(__name__)
 
@@ -133,10 +131,7 @@ async def delete_orphan(instance_id: str) -> dict:
             status_code=409, detail="container still exists — remove its route instead"
         )
     base = settings_store.value("base_domain")
-    try:
-        return await assign_mod.purge_instance(caddy, adguard, inst, base_domain=base)
-    except assign_mod.AssignError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    return await assign_mod.purge_instance(caddy, adguard, inst, base_domain=base)
 
 
 @router.get("/containers/{container_id}/quick-commands")
@@ -264,54 +259,36 @@ def create_stack(payload: dict = Body(...)) -> dict:
     compose = payload.get("compose")
     if not name or not compose:
         raise HTTPException(status_code=422, detail="name and compose are required")
-    try:
-        return stacks_mod.create_stack(name, compose, payload.get("env", ""))
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return stacks_mod.create_stack(name, compose, payload.get("env", ""))
 
 
 @router.get("/stacks/{name}")
 def get_stack(name: str) -> dict:
-    try:
-        return stacks_mod.get_stack(name)
-    except StackError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+    return stacks_mod.get_stack(name)
 
 
 @router.post("/stacks/{name}/action")
 def stack_action(name: str, payload: dict = Body(...)) -> dict:
     action = payload.get("action", "")
-    try:
-        return stacks_mod.stack_action(name, action)
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return stacks_mod.stack_action(name, action)
 
 
 @router.put("/stacks/{name}/file")
 def update_stack_file(name: str, payload: dict = Body(...)) -> dict:
-    try:
-        stacks_mod.update_stack_file(name, payload.get("file", ""), payload.get("content", ""))
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    stacks_mod.update_stack_file(name, payload.get("file", ""), payload.get("content", ""))
     return {"ok": True}
 
 
 @router.get("/stacks/{name}/form")
 def get_stack_form(name: str) -> dict:
     """The stack's files as fields: settings (.env), folders (the override), the app."""
-    try:
-        return stackform_mod.get_form(name)
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return stackform_mod.get_form(name)
 
 
 @router.post("/stacks/{name}/form")
 def read_stack_form(name: str, payload: dict = Body(...)) -> dict:
     """The form for unsaved `{env, override}` text — the text view switching back."""
-    try:
-        return stackform_mod.get_form(name, payload)
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return stackform_mod.get_form(name, payload)
 
 
 @router.put("/stacks/{name}/form")
@@ -327,31 +304,22 @@ def save_stack_form(name: str, payload: dict = Body(...)) -> dict:
         raise HTTPException(status_code=422, detail="folders must be a list")
     if options is not None and not isinstance(options, dict):
         raise HTTPException(status_code=422, detail="options must be an object of id: true|false")
-    try:
-        preview = stackform_mod.save_form(
-            name, settings_in, folders, bool(payload.get("preview")), payload.get("base"), options
-        )
-    except StackError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    preview = stackform_mod.save_form(
+        name, settings_in, folders, bool(payload.get("preview")), payload.get("base"), options
+    )
     return preview or {"ok": True}
 
 
 @router.post("/stacks/{name}/update-from-recipe")
 def update_from_recipe(name: str) -> dict:
     """Replace the stack's compose.yml with its recipe's; the override is never touched."""
-    try:
-        return updates_mod.apply_update(name)
-    except (RecipeError, StackError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return updates_mod.apply_update(name)
 
 
 @router.delete("/stacks/{name}")
 def delete_stack(name: str, delete_data: bool = False) -> dict:
     """Keeps the folder's data unless `?delete_data=true`."""
-    try:
-        return stacks_mod.delete_stack(name, delete_data)
-    except StackError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+    return stacks_mod.delete_stack(name, delete_data)
 
 
 # --- Recipes ---
@@ -365,10 +333,7 @@ def recipes() -> dict:
 @router.post("/recipes/refresh")
 def refresh_recipes(payload: dict = Body(default={})) -> dict:
     """Sync every enabled recipe source, or just the one named by `url`."""
-    try:
-        return recipes_mod.sync_recipes(payload.get("url"))
-    except RecipeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return recipes_mod.sync_recipes(payload.get("url"))
 
 
 @router.get("/recipes/updates")
@@ -381,20 +346,14 @@ def recipe_updates() -> list[dict]:
 def recipe_icon(recipe_id: str) -> FileResponse:
     """The recipe's icon.png, for the wizard's thumbnail. Checked as an image when the
     recipe was loaded, so this only serves it."""
-    try:
-        return FileResponse(recipes_mod.icon_path(recipe_id), media_type="image/png")
-    except RecipeError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+    return FileResponse(recipes_mod.icon_path(recipe_id), media_type="image/png")
 
 
 @router.post("/recipes/{recipe_id}/install")
 def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
-    try:
-        return recipes_mod.install_recipe(
-            recipe_id, payload.get("answers", {}), payload.get("mounts") or [], payload.get("options") or []
-        )
-    except RecipeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return recipes_mod.install_recipe(
+        recipe_id, payload.get("answers", {}), payload.get("mounts") or [], payload.get("options") or []
+    )
 
 
 # --- Volumes ---
