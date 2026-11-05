@@ -165,3 +165,38 @@ def test_cards_carry_a_stable_id_and_an_icon_url_only_when_one_exists(client):
 
     after = client.get("/api/dashboard").json()["services"][0]
     assert after["icon"] == "/api/instances/grafana/icon"
+
+
+def test_a_change_made_while_an_icon_uploads_is_kept(client, monkeypatch):
+    """The upload awaits the body between reading the record and writing it: a re-point
+    by the follower meanwhile must survive, as it does for a recipe's icon (`give_icon`)."""
+    save = icons.save
+
+    def save_while_repointed(instance_id, data):
+        store.upsert_instance(store.get_instance(instance_id).model_copy(update={"upstream": "192.168.10.50:3001"}))
+        return save(instance_id, data)
+
+    monkeypatch.setattr(icons, "save", save_while_repointed)
+    assert client.post("/api/instances/grafana/icon", content=PNG).status_code == 200
+
+    stored = store.get_instance("grafana")
+    assert (stored.icon, stored.upstream) == ("grafana.png", "192.168.10.50:3001")
+
+
+def test_an_icon_for_a_record_deleted_while_it_uploaded_is_not_kept(client, data_dir, monkeypatch):
+    save = icons.save
+
+    def save_while_deleted(instance_id, data):
+        store.delete_instance(instance_id)
+        return save(instance_id, data)
+
+    monkeypatch.setattr(icons, "save", save_while_deleted)
+    assert client.post("/api/instances/grafana/icon", content=PNG).status_code == 404
+    assert store.get_instance("grafana") is None
+    assert list((data_dir / "icons").iterdir()) == []
+
+
+def test_renaming_changes_only_the_name(client):
+    assert client.patch("/api/instances/grafana", json={"name": "Graphs"}).status_code == 200
+    stored = store.get_instance("grafana")
+    assert (stored.name, stored.private, stored.upstream) == ("Graphs", False, "192.168.10.50:3000")

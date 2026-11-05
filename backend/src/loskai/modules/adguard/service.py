@@ -347,9 +347,7 @@ async def reconcile(
         domain = rewrite_domain(inst, base_domain)
         target = target_answer(inst, current_ip)
         if domain in ensured and target and inst.dns_answer != target:
-            instances_store.upsert_instance(
-                inst.model_copy(update={"dns_answer": target})
-            )
+            instances_store.update_fields(inst.id, dns_answer=target)
 
     return {
         "added": added,

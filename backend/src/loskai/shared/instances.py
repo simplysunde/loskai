@@ -147,6 +147,24 @@ def upsert_instance(instance: Instance) -> Instance:
     return instance
 
 
+def update_fields(instance_id: str, **fields: Any) -> Instance | None:
+    """Set these fields of one record, and nothing else — under the store lock, so a change
+    made since it was read (the follower re-pointing it, an assign) is kept. A caller that
+    awaits between reading a record and writing it back must use this, never
+    `upsert_instance`. Returns the updated record, or None when it is gone."""
+    updated: list[Instance] = []
+
+    def apply(instances: list[Instance]) -> list[Instance]:
+        for idx, inst in enumerate(instances):
+            if inst.id == instance_id:
+                instances[idx] = inst.model_copy(update=fields)
+                updated.append(instances[idx])
+        return instances
+
+    _update(apply)
+    return updated[0] if updated else None
+
+
 def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> Instance | None:
     """Re-point a following route's upstream — compare-and-set under the store lock.
 
@@ -278,7 +296,11 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
         filename = icons.save(instance_id, bytes(data))
     except icons.IconError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    return upsert_instance(inst.model_copy(update={"icon": filename}))
+    updated = update_fields(instance_id, icon=filename)
+    if updated is None:  # deleted while it uploaded
+        icons.remove_all(instance_id)
+        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    return updated
 
 
 @router.delete("/instances/{instance_id}/icon")
@@ -289,7 +311,7 @@ def delete_icon(instance_id: str) -> Instance:
         raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
     access.require_instance(auth.current_user(), inst.kind)
     icons.remove_all(instance_id)
-    return upsert_instance(inst.model_copy(update={"icon": None}))
+    return update_fields(instance_id, icon=None) or inst
 
 
 @router.patch("/instances/{instance_id}")
@@ -300,9 +322,4 @@ def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
     if inst is None:
         raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
     access.require_instance(auth.current_user(), inst.kind)
-    updates: dict = {}
-    if body.private is not None:
-        updates["private"] = body.private
-    if body.name is not None:
-        updates["name"] = body.name
-    return upsert_instance(inst.model_copy(update=updates))
+    return update_fields(instance_id, **body.model_dump(exclude_none=True)) or inst
