@@ -623,14 +623,15 @@ gate is inside Loskai, not a Caddy `basicauth`, which would also lock the public
 **The gate is the API, never the frontend.** Middleware rejects every `/api/*` request
 without a session except the public set in `shared/auth.py` (the dashboard, the root
 certificate, the launcher icons, and the login flow itself). The React bundle is served to
-anyone — `RequireAuth` only decides what renders. The container-exec WebSocket, a root
-shell into a container, sits outside the HTTP middleware and checks the session itself.
+anyone — `RequireAuth` only decides what renders. The two terminal WebSockets — a root
+shell into a container, and a machine's — sit outside the HTTP middleware, so both pass one
+gate of their own (`shared/terminal.py`): the session, the `Origin` and the tab.
 
 **Only Loskai's own pages may act.** `SameSite=Lax` keeps the cookie from other *sites*, but
 every app under the base domain is the same site — `jellyfin.example.no` gets it attached to
 a request it sends Loskai. Reading the answer is still blocked by the browser; sending a
 body-less `POST` or opening a WebSocket is not. So every request that changes something, and
-the terminal WebSocket, must carry an `Origin` equal to the address it was sent to
+the terminal WebSockets, must carry an `Origin` equal to the address it was sent to
 (`auth.same_origin`), or none at all — a script, which needs the cookie anyway. That address
 is `Host` (Caddy keeps it), or `X-Forwarded-Host` for a proxy that rewrites `Host`; a page
 can't forge that header — checked live, the browser either drops it or never sends the request. Proved live on

@@ -7,7 +7,6 @@ BaseHTTPMiddleware doesn't cover WS connections, and this is a root shell.
 
 import asyncio
 import contextlib
-import json
 import logging
 import socket
 from urllib.parse import urlparse
@@ -18,10 +17,10 @@ from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 
 from ...shared import assign as assign_mod
-from ...shared import auth
 from ...shared import health as health_registry
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
+from ...shared import terminal
 from ..adguard.client import adguard
 from ..caddy.client import caddy
 from . import logic
@@ -176,15 +175,10 @@ SHELL_COMMAND = "if command -v bash >/dev/null 2>&1; then exec bash; else exec s
 
 @router.websocket("/containers/{container_id}/exec")
 async def exec_terminal(websocket: WebSocket, container_id: str):
-    # WS bypasses the HTTP auth middleware — gate it here (this is a root shell), the
-    # Origin included: a browser opens a WebSocket from any page, cookie attached.
-    user = auth.session_user(websocket.cookies.get(auth.SESSION_COOKIE))
-    if not (auth.same_origin(websocket.headers) and user and user.may("docker")):
-        await websocket.close(code=1008)  # policy violation
+    """A shell in the container — a root shell, so `terminal.accept` gates it."""
+    cookie = await terminal.accept(websocket, "docker")
+    if cookie is None:
         return
-    auth.act_as(user)
-    await websocket.accept()
-
     try:
         exec_id = await asyncio.to_thread(
             docker_client.exec_create,
@@ -199,42 +193,16 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
 
     raw = sock._sock
     raw.settimeout(None)
-
-    async def to_client():
-        while True:
-            data = await asyncio.to_thread(raw.recv, 4096)
-            if not data:
-                break
-            await websocket.send_bytes(data)
-
-    async def to_container():
-        while True:
-            msg = await websocket.receive()
-            if msg.get("type") == "websocket.disconnect":
-                break
-            if msg.get("bytes") is not None:  # keystrokes -> stdin
-                await asyncio.to_thread(raw.sendall, msg["bytes"])
-            elif msg.get("text") is not None:  # control frames (resize)
-                try:
-                    ctrl = json.loads(msg["text"])
-                except json.JSONDecodeError:
-                    continue
-                if ctrl.get("type") == "resize":
-                    await asyncio.to_thread(
-                        docker_client.exec_resize, exec_id, ctrl["rows"], ctrl["cols"]
-                    )
-
-    out = asyncio.create_task(to_client())
-    inp = asyncio.create_task(to_container())
-    ended = asyncio.create_task(auth.session_ended(websocket.cookies.get(auth.SESSION_COOKIE), "docker"))
     try:
-        await asyncio.wait({out, inp, ended}, return_when=asyncio.FIRST_COMPLETED)
+        await terminal.relay(
+            websocket, cookie, "docker",
+            read=lambda: asyncio.to_thread(raw.recv, 4096),
+            write=lambda data: asyncio.to_thread(raw.sendall, data),
+            resize=lambda rows, cols: asyncio.to_thread(docker_client.exec_resize, exec_id, rows, cols),
+        )
     finally:
-        out.cancel()
-        inp.cancel()
-        ended.cancel()
-        # shutdown, not just close: a recv blocked in to_client's thread holds the socket open
-        # past close(), and the thread with it. shutdown wakes it.
+        # shutdown, not just close: a recv blocked in its thread holds the socket open past
+        # close(), and the thread with it. shutdown wakes it.
         with contextlib.suppress(OSError):  # the peer closed it first
             raw.shutdown(socket.SHUT_RDWR)
         try:

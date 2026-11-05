@@ -64,7 +64,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `errors.py` (`LoskaiError`: a
   refusal and its HTTP status, decided where it is raised — routers catch nothing to translate),
-  `icons.py`, `dashboard.py`, `health.py`, `export.py`.
+  `terminal.py` (the terminal WebSockets' gate and relay), `icons.py`, `dashboard.py`,
+  `health.py`, `export.py`.
 
 Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (one per tab,
 `settings/` its sub-pages), `components/{docker,routing,settings,shared}/`, `lib/` (`api.ts`,
@@ -207,11 +208,10 @@ same commit. The public set:
 
 **The two terminal WebSockets — a container's (`WS /api/docker/containers/{id}/exec`) and a
 machine's (`WS /api/ssh/machines/{id}/terminal`) — sit outside the middleware**: WebSockets
-never traverse it, so each checks the cookie and the `Origin` itself (`auth.same_origin`),
-closes with 1008, and waits on `auth.session_ended` to close when the session does (a
-logout or its tab taken away). Each
-opens a shell — the machine's also needs the SSH key unlocked; never add a WS route without
-repeating all three. **Every request that changes something is
+never traverse it, so each passes `shared/terminal.py` — `accept` checks the cookie, the
+`Origin` (`auth.same_origin`) and the tab, closing with 1008, and `relay` closes it when the
+session ends (a logout or its tab taken away). Each opens a shell — the machine's also needs
+the SSH key unlocked; a new WS route uses both, never its own copy. **Every request that changes something is
 Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`
 sends them the cookie, and only the `Origin` tells their requests from Loskai's own. The
 React bundle is served unauthenticated; **never gate the static files or SPA routes** —

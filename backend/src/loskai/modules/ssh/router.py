@@ -7,9 +7,7 @@ nothing here ever returns a private key. A machine's own password (Install it fo
 used for one connection and kept nowhere.
 """
 
-import asyncio
 import contextlib
-import json
 import time
 from datetime import UTC, datetime
 from typing import Literal
@@ -22,6 +20,7 @@ from pydantic import BaseModel
 from ...shared import auth
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
+from ...shared import terminal
 from . import client, connect, logic, tool, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
@@ -240,7 +239,7 @@ def session_log(limit: int = 200) -> list[dict]:
 
 
 @router.websocket("/machines/{machine_id}/terminal")
-async def terminal(
+async def machine_terminal(
     websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24,
     tool: str | None = None, action: str | None = None, target: str | None = None,
     install: bool = False, sudo: Literal["allow", "remove"] | None = None, ticket: str | None = None,
@@ -255,13 +254,9 @@ async def terminal(
     unlocked: closed `4423` while it is locked, `4409` before the host key is trusted or
     when the action can't run here, `4404` no such machine, tool or action, `4502` when
     the machine refuses; the close reason says which in words."""
-    cookie = websocket.cookies.get(auth.SESSION_COOKIE)
-    user = auth.session_user(cookie)
-    if not (auth.same_origin(websocket.headers) and user and user.may("machines")):
-        await websocket.close(code=1008)
+    cookie = await terminal.accept(websocket, "machines")
+    if cookie is None:
         return
-    auth.act_as(user)
-    await websocket.accept()
     peer = _peer(websocket)
     command, details, password = None, None, None
     try:
@@ -289,38 +284,15 @@ async def terminal(
     else:
         connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
 
-    async def to_client():
-        while True:
-            data = await process.stdout.read(4096)
-            if not data:
-                break
-            await websocket.send_bytes(data)
+    async def write(data: bytes) -> None:
+        process.stdin.write(data)
 
-    async def to_machine():
-        while True:
-            msg = await websocket.receive()
-            if msg.get("type") == "websocket.disconnect":
-                break
-            if msg.get("bytes") is not None:  # keystrokes and pastes -> the shell
-                process.stdin.write(msg["bytes"])
-            elif msg.get("text") is not None:  # control frames (resize)
-                try:
-                    ctrl = json.loads(msg["text"])
-                except json.JSONDecodeError:
-                    continue
-                if ctrl.get("type") == "resize":
-                    process.change_terminal_size(int(ctrl["cols"]), int(ctrl["rows"]))
+    async def resize(rows: int, cols: int) -> None:
+        process.change_terminal_size(cols, rows)
 
-    tasks = {
-        asyncio.create_task(to_client()),
-        asyncio.create_task(to_machine()),
-        asyncio.create_task(auth.session_ended(cookie, "machines")),
-    }
     try:
-        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        await terminal.relay(websocket, cookie, "machines", lambda: process.stdout.read(4096), write, resize)
     finally:
-        for task in tasks:
-            task.cancel()
         # Closing the connection hangs up the pty, so the shell ends with the terminal.
         conn.close()
         connect.log("close", machine_id, peer, seconds=round(time.monotonic() - started))
