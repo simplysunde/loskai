@@ -8,7 +8,6 @@ import { SshKeySection } from "./SshKeySection";
 const KEY: SshKey = {
   public_key: "ssh-ed25519 AAAAC3Nza loskai",
   fingerprint: "SHA256:Ap4hJGzRxN2kq9uE0vWzvSPnKCN7tL1cX3m6oQyGcYk",
-  authorized_keys: 'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
   lines: [
     'from="192.168.10.216" ssh-ed25519 AAAAC3Nza loskai',
     'restrict,from="192.168.10.216",command="…" ssh-ed25519 AAAAST loskai-status',
@@ -54,7 +53,7 @@ test("the key is shown by its fingerprint only; New key replaces it after a warn
   const { fetchMock } = renderSection(KEY);
 
   expect(await screen.findByText(KEY.fingerprint)).toBeInTheDocument();
-  expect(screen.queryByText(KEY.authorized_keys)).not.toBeInTheDocument();
+  expect(screen.queryByText(KEY.lines[0])).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /New key/ }));
   expect(screen.getByText(/until their SSH setup is run again/)).toBeInTheDocument();
   enterPassword("hunter2hunter2");
@@ -75,7 +74,7 @@ test("a wrong password is said in the dialog, which stays open", async () => {
 });
 
 test("a key not limited to the Docker host says so", async () => {
-  renderSection({ ...KEY, from: null, authorized_keys: KEY.public_key });
+  renderSection({ ...KEY, from: null, lines: [KEY.public_key, KEY.lines[1]] });
 
   expect(await screen.findByText(/Not limited to the Docker host/)).toBeInTheDocument();
 });

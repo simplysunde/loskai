@@ -119,10 +119,6 @@ def session_user(token: str | None) -> User | None:
     return found[0] if found else None
 
 
-def valid_session(token: str | None) -> bool:
-    return session_user(token) is not None
-
-
 # The account a request acts as — set by the middleware for HTTP, by each WebSocket for
 # itself — so code far from the request (Loskai's SSH key, the log) knows who.
 _current: contextvars.ContextVar[User | None] = contextvars.ContextVar("loskai_user", default=None)
@@ -186,11 +182,6 @@ def same_origin(headers) -> bool:
 
 
 # --- First-run seeding + state ---
-
-
-def ensure_seeded() -> None:
-    """The first account, from an older install's password or `LOSKAI_PASSWORD`."""
-    users.ensure_seeded()
 
 
 # --- Middleware ---

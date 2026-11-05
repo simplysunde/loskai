@@ -40,8 +40,8 @@ def test_a_session_names_its_account():
     token = auth.make_session(user)
 
     assert auth.session_user(token).username == "admin"
-    assert not auth.valid_session("tampered")
-    assert not auth.valid_session(None)
+    assert auth.session_user("tampered") is None
+    assert auth.session_user(None) is None
 
 
 def test_the_session_secret_and_the_accounts_are_owner_only(tmp_path):
@@ -57,7 +57,7 @@ def test_an_empty_secret_is_never_signed_with(tmp_path):
     (tmp_path / "session_secret").write_text("")
     forged = URLSafeTimedSerializer("", salt=auth._SESSION_SALT).dumps({"u": "admin", "g": 0})
 
-    assert not auth.valid_session(forged)
+    assert auth.session_user(forged) is None
     assert (tmp_path / "session_secret").read_text().strip()
 
 
@@ -65,14 +65,14 @@ def test_a_session_ends_when_idle_for_longer_than_settings_say(monkeypatch):
     token = auth.make_session(_admin())
     monkeypatch.setattr(s, "session_idle_seconds", lambda: -1)
 
-    assert not auth.valid_session(token)
+    assert auth.session_user(token) is None
 
 
 def test_ensure_seeded_makes_the_first_admin_from_env(monkeypatch):
     assert not users.any_users()
     monkeypatch.setattr(config.settings, "loskai_password", "seeded-password")
     monkeypatch.setattr(config.settings, "loskai_username", "sunde")
-    auth.ensure_seeded()
+    users.ensure_seeded()
 
     assert users.verify("sunde", "seeded-password").role == "admin"
 
@@ -81,11 +81,11 @@ def test_the_seeded_username_is_lowercased_and_one_that_can_t_be_a_name_stops_st
     monkeypatch.setattr(config.settings, "loskai_password", "seeded-password")
     monkeypatch.setattr(config.settings, "loskai_username", "Bad Name")
     with pytest.raises(RuntimeError, match="LOSKAI_USERNAME='Bad Name'"):
-        auth.ensure_seeded()
+        users.ensure_seeded()
     assert not users.any_users()  # and first-run setup isn't what it falls back to
 
     monkeypatch.setattr(config.settings, "loskai_username", "Sunde")
-    auth.ensure_seeded()
+    users.ensure_seeded()
     assert users.verify("sunde", "seeded-password") is not None
 
 
@@ -102,10 +102,10 @@ def test_two_first_run_setups_at_once_make_one_admin(monkeypatch):
 
 def test_ensure_seeded_is_idempotent(monkeypatch):
     monkeypatch.setattr(config.settings, "loskai_password", "first-password")
-    auth.ensure_seeded()
+    users.ensure_seeded()
     # An env change after an account exists must not re-seed.
     monkeypatch.setattr(config.settings, "loskai_password", "second-password")
-    auth.ensure_seeded()
+    users.ensure_seeded()
 
     assert users.verify("admin", "first-password") is not None
     assert len(users.all_users()) == 1
@@ -116,7 +116,7 @@ def test_an_install_from_before_accounts_keeps_its_password_as_the_admin(tmp_pat
     from argon2 import PasswordHasher
 
     store.write_json(tmp_path / "settings.json", {"admin_password_hash": PasswordHasher().hash("old-password"), "base_domain": "x.no"})
-    auth.ensure_seeded()
+    users.ensure_seeded()
 
     assert users.verify("admin", "old-password").role == "admin"
     stored = store.read_json(tmp_path / "settings.json", {})
@@ -213,7 +213,7 @@ def test_log_out_ends_the_session_not_just_the_cookie(client):
 
     client.post("/api/logout")
 
-    assert not auth.valid_session(stolen)
+    assert auth.session_user(stolen) is None
     client.cookies.set(auth.SESSION_COOKIE, stolen)
     assert client.get("/api/launcher").status_code == 401
 
@@ -238,7 +238,7 @@ def test_a_signed_out_logout_ends_nothing(client):
     with TestClient(app) as stranger:
         stranger.post("/api/logout")
 
-    assert auth.valid_session(session)
+    assert auth.session_user(session) is not None
 
 
 

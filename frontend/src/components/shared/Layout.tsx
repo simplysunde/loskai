@@ -69,8 +69,7 @@ export function Layout() {
     setThemeState(next);
   }
 
-  // Certificate is the one tab whose presence is configurable: an ACME deployment has no
-  // internal root to install, so the link is noise. Undecided until the payload lands —
+  // Certificate is the one tab whose presence is configurable (Settings). Undecided until the payload lands —
   // showing it and taking it away again reads worse than a beat of nothing. This hides
   // the *link*, never the page: /certificate stays reachable, and its download is public
   // in every mode by design.

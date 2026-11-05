@@ -55,8 +55,7 @@ class Settings(BaseSettings):
     host_ip: str | None = None
     # Where the Certificate page appears in the nav: "public" (everyone, like the
     # dashboard), "admin" (only once logged in), "hidden". Unset means public — the
-    # internal CA is the default TLS mode, so the page is useful out of the box. An ACME
-    # deployment has no internal root to hand out and sets this to "hidden".
+    # internal CA is the only TLS mode, so the page is useful out of the box.
     certificate_tab: str | None = None
     # How long your password unlocks Loskai's SSH key for, in minutes: one of
     # settings.SSH_UNLOCK_CHOICES. Unset means 15.

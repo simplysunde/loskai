@@ -9,7 +9,6 @@ const FP = "SHA256:XwXWP1efObJOv+IhNojI/m+P5drO8my+LOVsqOVPaRQ";
 const UNLOCKED: SshKey = {
   public_key: "ssh-ed25519 AAAA loskai",
   fingerprint: "SHA256:main",
-  authorized_keys: 'from="192.168.10.216" ssh-ed25519 AAAA loskai',
   lines: ['from="192.168.10.216" ssh-ed25519 AAAA loskai', 'restrict,command="…" ssh-ed25519 ST loskai-status'],
   from: "192.168.10.216",
   unlocked_until: new Date(Date.now() + 10 * 60_000).toISOString(),

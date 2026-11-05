@@ -17,7 +17,6 @@ vi.mock("../shared/XtermSession", () => ({
 const KEY: SshKey = {
   public_key: "ssh-ed25519 AAAA loskai",
   fingerprint: "SHA256:main",
-  authorized_keys: "ssh-ed25519 AAAA loskai",
   lines: [],
   from: null,
   unlocked_until: new Date(Date.now() + 60_000).toISOString(),

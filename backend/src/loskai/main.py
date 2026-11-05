@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
     # The same for users.json: read as empty, it would re-open first-run setup.
     users_module.verify_readable()
     # The first account: an older install's admin password, or LOSKAI_PASSWORD.
-    auth.ensure_seeded()
+    users_module.ensure_seeded()
     # Routes that follow their container — Loskai's only background task. Started, not
     # awaited: it must never hold up startup, and an unreachable daemon is its own problem
     # (it backs off and retries). See shared/follow.py.

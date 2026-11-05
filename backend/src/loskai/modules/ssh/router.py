@@ -47,7 +47,6 @@ def _key_view() -> dict | None:
     return {
         "public_key": public,
         "fingerprint": logic.fingerprint_of(public),
-        "authorized_keys": logic.authorized_keys_line(public, from_ip),
         # Both lines a machine gets — the main key's, then the status key's.
         "lines": connect.lines(),
         "from": from_ip,

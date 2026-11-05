@@ -65,7 +65,7 @@ def test_the_key_is_made_and_never_returned(client, ssh_dir):
     assert r.status_code == 200, r.text
     view = r.json()
     assert view["public_key"].startswith("ssh-ed25519 ") and view["public_key"].endswith(" loskai")
-    assert view["authorized_keys"] == f'from="192.168.10.216" {view["public_key"]}'
+    assert view["lines"][0] == f'from="192.168.10.216" {view["public_key"]}'
     with open(ssh_dir + "/id_ed25519") as f:
         key = asyncssh.import_private_key(f.read())
     assert key.export_public_key("openssh").decode().strip() == view["public_key"]
@@ -113,7 +113,7 @@ def test_without_the_docker_host_s_ip_the_line_has_no_from(client, monkeypatch):
     view = client.post("/api/ssh/key", json={"password": PASSWORD}).json()
 
     assert view["from"] is None
-    assert view["authorized_keys"] == view["public_key"]
+    assert view["lines"][0] == view["public_key"]
 
 
 def test_ssh_needs_a_session():
