@@ -2,7 +2,7 @@ export interface Container {
   id: string;
   name: string;
   image: string;
-  // The compose project — a managed stack's folder name; null for a plain `docker run`.
+  // The compose project; null for a plain `docker run`.
   project?: string | null;
   // The folder compose was run from (a host path) — null when compose didn't start it.
   compose_dir?: string | null;
@@ -23,6 +23,9 @@ export interface Stack {
   name: string;
   services: string[];
   status: "up" | "down" | "partial" | "unknown";
+  // The compose project its containers carry — found by their folder, since compose
+  // lowercases the folder's name; null when it has none (or the daemon is down).
+  project?: string | null;
   // What else the folder holds besides compose.yml and .env — its data. Folders end in "/".
   data?: string[];
 }
@@ -42,12 +45,12 @@ export type Group =
 export function groupByStack(all: Container[], stacks: Stack[]): Group[] {
   const containers = all.filter((c) => !c.self);
   const byName = (a: Container, b: Container) => a.name.localeCompare(b.name);
-  const managed = new Set(stacks.map((s) => s.name));
+  const managed = new Set(stacks.map((s) => s.project).filter(Boolean));
   const groups: Group[] = stacks.map((stack) => ({
     kind: "stack",
     key: `stack:${stack.name}`,
     stack,
-    containers: containers.filter((c) => c.project === stack.name).sort(byName),
+    containers: containers.filter((c) => stack.project && c.project === stack.project).sort(byName),
   }));
 
   const others = [

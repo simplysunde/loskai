@@ -73,28 +73,43 @@ def list_stacks() -> list[dict]:
     base = stacks_dir()
     if not base.is_dir():
         return []
-    try:
-        projects = docker_client.compose_projects()
-    except DOCKER_ERRORS:
-        projects = None  # daemon down — status unknown, still list the stacks
+    compose = _compose_state()
 
     stacks: list[dict] = []
     for directory in sorted(p for p in base.iterdir() if p.is_dir()):
-        compose = _compose_file(directory)
-        if compose is None:
+        compose_file = _compose_file(directory)
+        if compose_file is None:
             continue
-        declared = logic.declared_services(compose.read_text(encoding="utf-8"))
-        if projects is None:
-            status = "unknown"
-        else:
-            status = logic.compute_stack_status(declared, projects.get(directory.name, set()))
+        declared = logic.declared_services(compose_file.read_text(encoding="utf-8"))
         stacks.append({
             "name": directory.name,
             "services": sorted(declared),
-            "status": status,
+            **_status(declared, directory, compose),
             "data": stack_data(directory),
         })
     return stacks
+
+
+def _compose_state() -> dict[Path, dict] | None:
+    """`client.compose_dirs`, keyed by resolved folder; None while the daemon is down."""
+    try:
+        found = docker_client.compose_dirs()
+    except DOCKER_ERRORS:
+        return None
+    return {Path(folder).resolve(): entry for folder, entry in found.items()}
+
+
+def _status(declared: set[str], directory: Path, compose: dict[Path, dict] | None) -> dict:
+    """A stack's up/down status and its compose project — the name its containers carry,
+    which the Docker tab groups them by. Status unknown while the daemon is down."""
+    if compose is None:
+        return {"status": "unknown", "project": None}
+    entry = compose.get(directory.resolve())
+    running = entry["running"] if entry else set()
+    return {
+        "status": logic.compute_stack_status(declared, running),
+        "project": entry["project"] if entry else None,
+    }
 
 
 def stack_data(directory: Path) -> list[str]:
@@ -131,14 +146,9 @@ def get_stack(name: str) -> dict:
     env_file = directory / ".env"
     override = _override_file(directory)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
-    try:
-        projects = docker_client.compose_projects()
-        status = logic.compute_stack_status(declared, projects.get(name, set()))
-    except DOCKER_ERRORS:
-        status = "unknown"
     return {
         "name": name,
-        "status": status,
+        "status": _status(declared, directory, _compose_state())["status"],
         "services": sorted(declared),
         "compose": compose.read_text(encoding="utf-8"),
         "compose_file": compose.name,

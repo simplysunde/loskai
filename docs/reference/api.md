@@ -199,7 +199,7 @@ the host key trusted for its **id** (`data/ssh/known_hosts`); a machine with no 
 
 | Method & path | Purpose |
 |---|---|
-| `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, data }]`. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. Folders end in `/`. |
+| `GET /stacks` | Discovered stacks: `[{ name, services, status: up\|down\|partial\|unknown, project, data }]`. `project` is the compose project of the containers run from the stack's folder — matched by folder, since compose lowercases the name and drops dots — `null` when there are none or the daemon is down. `data` names what else the folder holds besides `compose.yml` and `.env` — by the recipes' convention, the service's data. Folders end in `/`. |
 | `POST /stacks` | Body `{ name, compose, env? }` — the raw create path (write files + `up -d`). A folder left by a Delete that kept its data (no compose file) is taken over; one that still has a compose file is a live stack, refused. A `compose` that won't load as YAML → `400` with its line. |
 | `GET /stacks/{name}` | Stack detail incl. `compose` + `env` file contents, and `override` + `override_file` — a `compose.override.yml` beside it, which Compose merges in (the install wizard's folders live there), or `null`. |
 | `POST /stacks/{name}/action` | Body `{ action: up\|down\|restart\|pull }`. |

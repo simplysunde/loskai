@@ -8,8 +8,8 @@ function c(name: string, project: string | null = null): Container {
     subdomain: null, suggested_upstream: null, cpu: null, mem: null,
   };
 }
-function s(name: string, status: Stack["status"] = "up"): Stack {
-  return { name, services: [], status };
+function s(name: string, status: Stack["status"] = "up", project: string | null = name): Stack {
+  return { name, services: [], status, project };
 }
 
 const CONTAINERS = [
@@ -35,6 +35,16 @@ test("containers nest under their stack, other projects next, each lone containe
     "standalone:portainer",
   ]);
   expect(groups[0].containers.map((x) => x.name)).toEqual(["immich-db", "immich-server"]);
+});
+
+test("a stack's containers are those of the project the backend found in its folder", () => {
+  // Compose names `My.App`'s project `myapp`; a `web` run from another folder isn't the stack.
+  const groups = groupByStack([c("myapp-web-1", "myapp"), c("web-app-1", "web")], [s("My.App", "up", "myapp"), s("web", "down", null)]);
+  expect(groups.map((g) => [g.key, g.containers.map((x) => x.name)])).toEqual([
+    ["stack:My.App", ["myapp-web-1"]],
+    ["stack:web", []],
+    ["project:web", ["web-app-1"]],
+  ]);
 });
 
 test("a stack with no containers still has its group", () => {

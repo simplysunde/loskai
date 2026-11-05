@@ -13,7 +13,7 @@ COMPOSE = "services:\n  app:\n    image: nginx\n"
 def stacks_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "stacks_dir", str(tmp_path))
     # Default: no compose I/O (daemon absent) -> status unknown.
-    monkeypatch.setattr(stacks.docker_client, "compose_projects", dict)
+    monkeypatch.setattr(stacks.docker_client, "compose_dirs", dict)
     return tmp_path
 
 
@@ -39,12 +39,33 @@ def test_list_stacks_empty(stacks_dir):
 def test_list_stacks_computes_status(stacks_dir, monkeypatch):
     _make_stack(stacks_dir, "web", "services:\n  app:\n    image: nginx\n")
     _make_stack(stacks_dir, "db", "services:\n  db:\n    image: postgres\n")
-    monkeypatch.setattr(stacks.docker_client, "compose_projects", lambda: {"web": {"app"}})
+    monkeypatch.setattr(
+        stacks.docker_client, "compose_dirs",
+        lambda: {str(stacks_dir / "web"): {"project": "web", "running": {"app"}}},
+    )
 
     by_name = {s["name"]: s for s in stacks.list_stacks()}
     assert by_name["web"]["status"] == "up"
     assert by_name["db"]["status"] == "down"
     assert by_name["web"]["services"] == ["app"]
+    assert by_name["web"]["project"] == "web"
+    assert by_name["db"]["project"] is None
+
+
+def test_a_stack_is_matched_by_its_folder_not_its_name(stacks_dir, monkeypatch):
+    """Compose lowercases the folder's name and drops its dots: `My.App`'s project is
+    `myapp`, and a same-named project run from somewhere else is not this stack."""
+    _make_stack(stacks_dir, "My.App")
+    _make_stack(stacks_dir, "web")
+    monkeypatch.setattr(stacks.docker_client, "compose_dirs", lambda: {
+        str(stacks_dir / "My.App"): {"project": "myapp", "running": {"app"}},
+        "/home/me/web": {"project": "web", "running": {"app"}},
+    })
+
+    by_name = {s["name"]: s for s in stacks.list_stacks()}
+    assert (by_name["My.App"]["status"], by_name["My.App"]["project"]) == ("up", "myapp")
+    assert (by_name["web"]["status"], by_name["web"]["project"]) == ("down", None)
+    assert stacks.get_stack("My.App")["status"] == "up"
 
 
 def test_list_stacks_status_unknown_when_daemon_down(stacks_dir, monkeypatch):
@@ -53,7 +74,7 @@ def test_list_stacks_status_unknown_when_daemon_down(stacks_dir, monkeypatch):
     def boom():
         raise stacks.DOCKER_ERRORS[0]("down")
 
-    monkeypatch.setattr(stacks.docker_client, "compose_projects", boom)
+    monkeypatch.setattr(stacks.docker_client, "compose_dirs", boom)
     assert stacks.list_stacks()[0]["status"] == "unknown"
 
 

@@ -179,16 +179,21 @@ class DockerClient:
         for chunk in container.logs(stream=True, follow=True, tail=tail):
             yield chunk.decode("utf-8", errors="replace")
 
-    def compose_projects(self) -> dict[str, set[str]]:
-        """Running compose project -> set of running service names, from the
-        com.docker.compose.* labels. Used to compute each stack's up/down status."""
-        result: dict[str, set[str]] = {}
-        for c in self._get().containers.list():  # running only
+    def compose_dirs(self) -> dict[str, dict]:
+        """Compose folder (the `working_dir` label) -> `{"project", "running"}`: the project
+        name compose gave the containers it ran from there, and which of their services are
+        up. A stack is matched by its folder, never by its name — compose lowercases a
+        folder's name and drops its dots to make the project's."""
+        result: dict[str, dict] = {}
+        for c in self._get().containers.list(all=True):
             labels = c.labels or {}
+            folder = labels.get("com.docker.compose.project.working_dir")
             project = labels.get("com.docker.compose.project")
             service = labels.get("com.docker.compose.service")
-            if project and service:
-                result.setdefault(project, set()).add(service)
+            if folder and project and service:
+                entry = result.setdefault(folder, {"project": project, "running": set()})
+                if c.status == "running":
+                    entry["running"].add(service)
         return result
 
     def container_events(self):
@@ -202,7 +207,7 @@ class DockerClient:
     def containers_in_project(self, project: str) -> list[dict]:
         """`[{"service", "name", "ports"}]` for one compose project, running or not.
 
-        `compose_projects` answers "which services are up" for the stack list; this
+        `compose_dirs` answers "which services are up" for the stack list; this
         answers "what is this project's container actually called", which is what an
         installed recipe's instance has to link to (logic.primary_container).
         """

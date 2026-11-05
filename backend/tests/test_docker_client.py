@@ -201,6 +201,18 @@ def test_caddy_is_resolved_once_per_request_not_per_container(monkeypatch, data_
     assert fake.list_calls == 1
 
 
+def test_compose_dirs_maps_each_folder_to_its_project_and_running_services(monkeypatch, data_dir):
+    def stacked(name, service, running=True):
+        c = FakeContainer(name, running=running, service=service)
+        c.labels["com.docker.compose.project"] = "myapp"
+        c.labels["com.docker.compose.project.working_dir"] = "/srv/My.App"
+        return c
+
+    _use(monkeypatch, FakeDocker([stacked("myapp-web-1", "web"), stacked("myapp-db-1", "db", running=False), FakeContainer("plain")]))
+
+    assert DockerClient().compose_dirs() == {"/srv/My.App": {"project": "myapp", "running": {"web"}}}
+
+
 def test_a_container_carries_its_compose_project(monkeypatch, data_dir):
     """The Docker tab groups containers under their stack by this — a stack's project is
     its folder name."""

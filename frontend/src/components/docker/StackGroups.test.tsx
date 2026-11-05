@@ -21,8 +21,8 @@ const RESPONSES: Record<string, unknown> = {
     { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
   ],
   "/api/docker/stacks": [
-    { name: "immich", services: ["server", "db"], status: "partial" },
-    { name: "whoami", services: ["whoami"], status: "up" },
+    { name: "immich", services: ["server", "db"], status: "partial", project: "immich" },
+    { name: "whoami", services: ["whoami"], status: "up", project: "whoami" },
   ],
   "/api/docker/volumes": [
     { name: "immich_pgdata", driver: "local", size: 2048, project: "immich", anonymous: false, used_by: ["immich-db"] },
