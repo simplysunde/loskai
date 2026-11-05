@@ -37,6 +37,14 @@ visible without unpacking a phase back out. The checklists stay in
   process alive after its connection closes (live, 2026-10-30: four closed terminals, four
   `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which
   Loskai's container can't signal.
+- **A sudo rule Loskai can't see may be left behind.** Taking a machine off checks for the rule
+  with `[ -e /etc/sudoers.d/loskai ]` when `sudo -n rm` fails. Where that folder is 0750 (it
+  is 0755 on Debian), a user other than the one the rule was made for sees nothing, and the
+  removal reports clean. Warning whenever the folder can't be read would warn on every such
+  machine; the fix needs a way to ask sudo itself. From the 2026-11-05 review.
+- **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
+  and email, the only settings today. A setting that holds a secret needs a `secret` flag in
+  the tool schema that keeps its value out. From the 2026-11-05 review.
 - **Phase 28's last check — Sunde's Bambuddy reinstall**, then clearing the migration's
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
