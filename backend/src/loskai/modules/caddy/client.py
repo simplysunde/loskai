@@ -33,39 +33,40 @@ class CaddyClient:
             raise CaddyError("caddy_admin_url is not configured")
         return httpx.AsyncClient(base_url=base, timeout=_TIMEOUT)
 
-    async def server_name(self) -> str:
-        """Discover (and cache) the routing server key — never hardcode srv0, and never
-        the static :80 cert-setup server (see service.select_server_name)."""
-        if self._server_name:
-            return self._server_name
+    async def _servers(self) -> dict:
         async with self._client() as c:
             r = await c.get("/config/apps/http/servers")
             r.raise_for_status()
-            servers = r.json() or {}
+            return r.json() or {}
+
+    def _discover(self, servers: dict) -> None:
+        """Both server keys from one listing — never hardcode srv0 (`service.select_*`)."""
         from . import service  # lazy: service imports this module (avoid an import cycle)
 
-        self._server_name = service.select_server_name(servers)
+        self._http_server_name = service.select_http_server_name(servers) or ""  # "" = none
+        self._server_name = service.select_server_name(servers) if servers else None
+
+    async def server_name(self) -> str:
+        """The routing server's key, cached — never the static :80 cert-setup server.
+        Raises when Caddy has no servers at all."""
+        if not self._server_name:
+            self._discover(await self._servers())
+            if not self._server_name:
+                raise CaddyError("Caddy has no HTTP servers configured")
         return self._server_name
 
     async def http_server_name(self) -> str | None:
         """The `:80` server's key, or None if this Caddy has none. Cached like the routing
-        server, and discovered the same way — never hardcoded."""
-        if self._http_server_name is not None:
-            return self._http_server_name or None
-        async with self._client() as c:
-            r = await c.get("/config/apps/http/servers")
-            r.raise_for_status()
-            servers = r.json() or {}
-        from . import service
+        server's."""
+        if self._http_server_name is None:
+            self._discover(await self._servers())
+        return self._http_server_name or None
 
-        found = service.select_http_server_name(servers)
-        self._http_server_name = found or ""  # "" caches "looked, found none"
-        return found
-
-    async def list_live_http_routes(self) -> list[dict]:
-        """Routes in the `:80` server. `[]` when there is no such server — a deployment
-        without one simply cannot serve `scheme: "http"`, which `upsert_route` rejects."""
-        server = await self.http_server_name()
+    async def list_live_routes(self, http: bool = False) -> list[dict]:
+        """The routes in the routing server — or, `http`, the `:80` one: `[]` when there is
+        no such server, since a deployment without one simply cannot serve `scheme:
+        "http"`, which `upsert_route` rejects."""
+        server = await (self.http_server_name() if http else self.server_name())
         if not server:
             return []
         async with self._client() as c:
@@ -73,43 +74,27 @@ class CaddyClient:
             r.raise_for_status()
             return r.json() or []
 
-    async def push_http_route(self, route: dict) -> None:
-        """Insert into the **`:80`** server, at the head, for the same reason as `:443` and
-        one more: that server's cert-setup site ends in a catch-all `handle`, so an appended
-        route is never reached, and Caddy's automatic HTTP→HTTPS redirect routes live there
-        too and would otherwise win over a plain-HTTP route."""
-        server = await self.http_server_name()
-        if not server:
-            raise CaddyError(
-                "Caddy has no :80 server — a plain-HTTP route has nowhere to go"
-            )
-        async with self._client() as c:
-            r = await c.put(f"/config/apps/http/servers/{server}/routes/0", json=route)
-            r.raise_for_status()
-
-    async def list_live_routes(self) -> list[dict]:
-        server = await self.server_name()
-        async with self._client() as c:
-            r = await c.get(f"/config/apps/http/servers/{server}/routes")
-            r.raise_for_status()
-            return r.json() or []
-
-    async def push_route(self, route: dict) -> None:
+    async def push_route(self, route: dict, http: bool = False) -> None:
         """Insert a route object (built by service.build_route) at the **head** of the
-        server's routes array.
+        routing server's routes array — or, `http`, the `:80` server's.
 
         Not an append. The bootstrap Caddyfile's `*.{$BASE_DOMAIN}` block — which exists
         only to make Caddy issue the wildcard cert — compiles to a handler-less route with
         `"terminal": true`, and the Caddyfile adapter puts it first. It matches every name
         Loskai routes, so an appended route is never reached: Caddy answers the wildcard's
         empty 200 instead of proxying. That fails as a *success*, which is why unit and
-        contract tests never saw it and the 2026-09-05 live smoke did.
+        contract tests never saw it and the 2026-09-05 live smoke did. The `:80` server
+        needs the head for one more reason: its cert-setup site ends in a catch-all
+        `handle`, and Caddy's automatic HTTP→HTTPS redirect routes live there too and
+        would otherwise win over a plain-HTTP route.
 
         `PUT .../routes/0` inserts ahead of it (and is a plain insert on an empty array).
         Ordering among Loskai's own routes stays irrelevant — those match single specific
         hosts and really are disjoint from each other.
         """
-        server = await self.server_name()
+        server = await (self.http_server_name() if http else self.server_name())
+        if not server:
+            raise CaddyError("Caddy has no :80 server — a plain-HTTP route has nowhere to go")
         async with self._client() as c:
             r = await c.put(f"/config/apps/http/servers/{server}/routes/0", json=route)
             r.raise_for_status()
@@ -141,17 +126,12 @@ class CaddyClient:
         if not self.base_url():
             return {"status": "unconfigured"}
         try:
-            async with self._client() as c:
-                r = await c.get("/config/apps/http/servers")
-                r.raise_for_status()
-                servers = r.json() or {}
+            servers = await self._servers()
         except (httpx.HTTPError, CaddyError) as exc:
             return {"status": "unreachable", "detail": describe_error(exc)}
         if not servers:
             return {"status": "degraded", "detail": "no HTTP servers configured"}
-        from . import service  # lazy: avoid an import cycle (service imports this module)
-
-        self._server_name = service.select_server_name(servers)
+        self._discover(servers)
         return {"status": "healthy", "server": self._server_name}
 
 

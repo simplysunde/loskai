@@ -173,6 +173,13 @@ def build_route(
 # --- Orchestration (I/O via the client, logic here) ---
 
 
+# What a routing row carries of its record as stored; the rest of the row is worked out.
+_ROW_FIELDS = {
+    "id", "name", "type", "kind", "subdomain", "route_mode", "upstream", "upstream_tls", "scheme",
+    "private", "container", "origin", "follow_container",
+}
+
+
 async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[dict]:
     """Every instance (routed or not) annotated with `routed` + synced (@id present in
     Caddy). The routing view manages all instances, so unrouted
@@ -186,7 +193,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         # Both servers: a `scheme: "both"` instance is only in sync when its route is in
         # each, and an `http` one must be absent from `:443` entirely.
         live = await client.list_live_routes()
-        live += await client.list_live_http_routes()
+        live += await client.list_live_routes(http=True)
         live_ids = {r["@id"] for r in live if r.get("@id")}
     except (httpx.HTTPError, CaddyError):
         live_ids = None  # Caddy unreachable — sync status is unknown, not "missing"
@@ -201,29 +208,15 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         else:
             expected = expected_route_ids(inst)
             synced = bool(expected) and all(rid in live_ids for rid in expected)
-        rows.append(
-            {
-                "id": inst.id,
-                "name": inst.name,
-                "type": inst.type,
-                "subdomain": inst.subdomain,
-                "route_mode": inst.route_mode,
-                "fqdn": fqdn,
-                "upstream": inst.upstream,
-                "upstream_tls": inst.upstream_tls,
-                "private": inst.private,
-                "container": inst.container,
-                "origin": inst.origin,
-            "scheme": inst.scheme,
+        rows.append({
+            **inst.model_dump(include=_ROW_FIELDS),
+            "fqdn": fqdn,
             # The URL, not the stored filename: the table renders this directly, exactly
             # as the dashboard card does.
             "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
-            "follow_container": inst.follow_container,
-            "kind": inst.kind,
-                "routed": routed,
-                "synced": synced,
-            }
-        )
+            "routed": routed,
+            "synced": synced,
+        })
     return rows
 
 
@@ -236,19 +229,11 @@ async def upsert_route(client: CaddyClient, instance: Instance, base_domain: str
     changing an existing route's scheme converges without a separate migration — and for
     `http` that deletion is load-bearing: absence from the `:443` server is what stops Caddy
     trying to issue a certificate for the name."""
-    http_id = http_route_id(instance.id)
-
+    await teardown_route(client, instance.id)  # both; a 404 is ignored
     if wants_https(instance):
-        await client.delete_route(instance.id)  # ignores 404
         await client.push_route(build_route(instance, base_domain))
-    else:
-        await client.delete_route(instance.id)
-
     if wants_http(instance):
-        await client.delete_route(http_id)
-        await client.push_http_route(build_route(instance, base_domain, route_id=http_id))
-    else:
-        await client.delete_route(http_id)
+        await client.push_route(build_route(instance, base_domain, route_id=http_route_id(instance.id)), http=True)
 
 
 async def teardown_route(client: CaddyClient, instance_id: str) -> None:

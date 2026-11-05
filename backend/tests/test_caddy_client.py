@@ -128,7 +128,7 @@ async def test_push_http_route_inserts_at_head_of_the_80_server(httpx_mock):
         method="PUT", url=f"{BASE}/config/apps/http/servers/srv1/routes/0"
     )
 
-    await client.push_http_route({"@id": "tv-http"})
+    await client.push_route({"@id": "tv-http"}, http=True)
 
     sent = httpx_mock.get_requests()[-1]
     assert sent.method == "PUT"
@@ -145,4 +145,4 @@ async def test_push_http_route_without_an_80_server_raises(httpx_mock):
     client = _client()
 
     with pytest.raises(CaddyError):
-        await client.push_http_route({"@id": "tv-http"})
+        await client.push_route({"@id": "tv-http"}, http=True)

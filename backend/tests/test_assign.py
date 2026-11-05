@@ -32,20 +32,13 @@ class FakeCaddy:
             raise httpx.ConnectError("caddy down")
         self.deleted.append(route_id)
 
-    async def push_route(self, route):
+    async def push_route(self, route, http=False):
+        # `http`: the `:80` server — a `scheme` of "http" or "both" pushes there as well.
         if self.fail:
             import httpx
 
             raise httpx.ConnectError("caddy down")
-        self.pushed.append(route["@id"])
-
-    async def push_http_route(self, route):
-        # The `:80` server — a `scheme` of "http" or "both" pushes here as well.
-        if self.fail:
-            import httpx
-
-            raise httpx.ConnectError("caddy down")
-        self.http_pushed.append(route["@id"])
+        (self.http_pushed if http else self.pushed).append(route["@id"])
 
 
 class FakeAdGuard:

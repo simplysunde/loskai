@@ -121,22 +121,16 @@ class FakeClient:
         self.http_pushed: list[str] = []
         self.deleted: list[str] = []
 
-    async def list_live_routes(self):
-        return [{"@id": i} for i in self._live_ids]
-
-    async def list_live_http_routes(self):
-        return [{"@id": i} for i in self._http_live_ids]
+    async def list_live_routes(self, http=False):
+        return [{"@id": i} for i in (self._http_live_ids if http else self._live_ids)]
 
     async def delete_route(self, route_id):
         self.deleted.append(route_id)
 
-    async def push_route(self, route):
-        self.pushed.append(route["@id"])
-
-    async def push_http_route(self, route):
-        if not self._has_http_server:
+    async def push_route(self, route, http=False):
+        if http and not self._has_http_server:
             raise CaddyError("Caddy has no :80 server — a plain-HTTP route has nowhere to go")
-        self.http_pushed.append(route["@id"])
+        (self.http_pushed if http else self.pushed).append(route["@id"])
 
 
 async def test_list_with_sync_dns_only_row_is_na_for_route():
