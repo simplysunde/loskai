@@ -1,5 +1,5 @@
 import { formatAgo } from "./format";
-import type { Facts } from "./ssh";
+import type { Facts, SshStatus } from "./ssh";
 import { sessionName, type Tool, type ToolAction, type ToolRun, type ToolTarget } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
@@ -59,6 +59,19 @@ export interface ToolContext {
   facts: Facts;
   folder: string;
   onRun: ToolStart;
+}
+
+// What a machine's tools are worked out from, once its overview has been read — null
+// before then. `onRun` starts a run; a summary that starts nothing leaves it out.
+export function toolContext(
+  machineId: string,
+  tools: Tool[] | undefined,
+  facts: Facts | undefined,
+  ssh: SshStatus | undefined,
+  onRun: ToolStart = () => {},
+): ToolContext | null {
+  if (!facts?.ok || !tools || !ssh) return null;
+  return { machineId, tools, facts, folder: ssh.projects[machineId] ?? "", onRun };
 }
 
 export function listsOf(t: Tool, { facts, folder, tools }: ToolContext) {

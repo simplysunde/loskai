@@ -3,7 +3,7 @@ import { Plus, Wrench } from "lucide-react";
 
 import { useFacts, useSsh } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
-import { isLive, listsOf, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { isLive, listsOf, toolContext, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
   applies,
@@ -198,14 +198,8 @@ export function ToolsMenu({
     if (!facts.data.ok) return "";
     const programs = facts.data.programs ?? [];
     if (!applies(t, programs)) return addable(t, programs) ? "not added" : `needs ${missing(t, programs).join(", ")}`;
-    const ctx: ToolContext = {
-      machineId,
-      tools,
-      facts: facts.data,
-      folder: ssh.data?.projects[machineId] ?? "",
-      onRun: () => {},
-    };
-    return toolSummary(t, ctx) || "added";
+    const ctx = toolContext(machineId, tools, facts.data, ssh.data);
+    return (ctx && toolSummary(t, ctx)) || "added";
   };
 
   return (

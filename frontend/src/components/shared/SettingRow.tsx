@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Check, Loader2 } from "lucide-react";
 
-import { apiMessage } from "../../lib/api";
+import { useAutoSave } from "../../lib/useAutoSave";
 
 // One setting: its name and a line on what it does on the left, its control on the right.
 export function SettingRow({
@@ -47,47 +47,7 @@ export function InlineText({
   // Two fields share a row's right side between them: a narrower one each.
   width?: string;
 }) {
-  const [draft, setDraft] = useState(value);
-  const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
-  const [error, setError] = useState<string | null>(null);
-  const focused = useRef(false);
-  const escaped = useRef(false);
-
-  // A value changed elsewhere — a refetch after another row's save — shows, unless typing.
-  useEffect(() => {
-    if (!focused.current) setDraft(value);
-  }, [value]);
-
-  const commit = async () => {
-    focused.current = false;
-    if (escaped.current) {
-      escaped.current = false;
-      setDraft(value);
-      setError(null);
-      return;
-    }
-    const next = draft.trim();
-    if (next === value) {
-      setDraft(value);
-      setError(null);
-      return;
-    }
-    const problem = validate?.(next) ?? null;
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setError(null);
-    setState("saving");
-    try {
-      await onSave(next);
-      setState("saved");
-      setTimeout(() => setState("idle"), 1500);
-    } catch (err) {
-      setState("idle");
-      setError(apiMessage(err, "Couldn't save it"));
-    }
-  };
+  const { state, error, inputProps } = useAutoSave(value, onSave, { trim: true, validate });
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -96,20 +56,9 @@ export function InlineText({
         {state === "saved" && <Check className="h-3.5 w-3.5 text-emerald-400" />}
         <input
           aria-label={label}
-          value={draft}
+          {...inputProps}
           disabled={disabled || state === "saving"}
           placeholder={placeholder}
-          onFocus={() => (focused.current = true)}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => void commit()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              if (draft !== value) e.preventDefault(); // puts it back, and the dialog stays
-              escaped.current = true;
-              e.currentTarget.blur();
-            }
-          }}
           className={`${width} rounded-lg border bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500 ${
             error ? "border-rose-500/60" : "border-slate-700"
           } ${mono ? "font-mono" : ""}`}

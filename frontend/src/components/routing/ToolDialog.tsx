@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { apiMessage } from "../../lib/api";
 import { useFacts, useSsh } from "../../lib/ssh";
-import { toolSummary, type ToolContext } from "../../lib/toolRows";
+import { toolContext, toolSummary } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
@@ -28,6 +28,7 @@ export function ToolDialog({
   const tools = useTools();
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
   const tool = tools.data?.find((t) => t.id === toolId);
+  const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
 
   // The machine answered but couldn't be read, or a request failed outright (a 409 when its
   // SSH user or host key is gone) — either way, never a spinner that doesn't stop.
@@ -35,7 +36,7 @@ export function ToolDialog({
   const error =
     facts.data && !facts.data.ok
       ? facts.data.error
-      : failed && (apiMessage(failed, "Couldn't reach Loskai"));
+      : failed && apiMessage(failed, "Couldn't reach Loskai");
 
   let body: React.ReactNode = <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
   if (error) {
@@ -55,15 +56,8 @@ export function ToolDialog({
         </Link>
       </div>
     );
-  } else if (tool && facts.data && tools.data && ssh.data) {
-    const programs = facts.data.programs ?? [];
-    const ctx: ToolContext = {
-      machineId: machine.id,
-      tools: tools.data,
-      facts: facts.data,
-      folder: ssh.data.projects[machine.id],
-      onRun: runner.start,
-    };
+  } else if (tool && ctx) {
+    const programs = ctx.facts.programs ?? [];
     const summary = applies(tool, programs) ? toolSummary(tool, ctx) : "";
     body = (
       <div className="space-y-4">

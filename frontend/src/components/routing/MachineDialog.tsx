@@ -18,7 +18,7 @@ import { api, apiMessage } from "../../lib/api";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { keyUnlocked, useFacts, useRunning, useSsh } from "../../lib/ssh";
-import type { ToolContext } from "../../lib/toolRows";
+import { toolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, isValidSshLogin, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -170,10 +170,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const programs = facts.data?.programs ?? [];
   const here = (tools.data ?? []).filter((t) => applies(t, programs));
   // What a tool's card needs — once the overview and the tools are in.
-  const ctx: ToolContext | null =
-    facts.data?.ok && tools.data && ssh.data
-      ? { machineId: id, tools: tools.data, facts: facts.data, folder: ssh.data.projects[id], onRun: runner.start }
-      : null;
+  const ctx = toolContext(id, tools.data, facts.data, ssh.data, runner.start);
   const rowActions = (target: ToolTarget, name: string) => (
     <RowButtons here={here} kind={target} name={name} onRun={runner.start} />
   );
