@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, FilePlus2, PackagePlus } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
-import type { SettingsView } from "../lib/settings";
+import type { Container } from "../lib/containers";
+import { useSettings } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
-import type { Container, Stack } from "../components/docker/groupByStack";
+import type { Stack } from "../components/docker/groupByStack";
 import { InstallWizard } from "../components/docker/InstallWizard";
 import { LogViewer } from "../components/docker/LogViewer";
 import { RecipeUpdates } from "../components/docker/RecipeUpdates";
@@ -39,10 +40,7 @@ export function Docker() {
   const [deleteData, setDeleteData] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const settings = useSettings();
   const baseDomain = settings.data?.base_domain?.value ?? null;
 
   const removeMut = useMutation({

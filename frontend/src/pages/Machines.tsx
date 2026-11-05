@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "../lib/api";
-import type { SettingsView } from "../lib/settings";
+import { useRouteRows } from "../lib/routes";
+import { useSettings } from "../lib/settings";
 import { useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
 import { useMe } from "../lib/useAuth";
@@ -20,11 +21,6 @@ import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
-
-interface DnsStatus {
-  answer_ip: string | null;
-  instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
-}
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
 // certificate. Every route on a machine's address is on it, so moving it here re-points them all.
@@ -56,20 +52,8 @@ export function Machines() {
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
 
-  const routes = useQuery({
-    queryKey: ["caddy-routes"],
-    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
-    refetchInterval: 15_000,
-  });
-  const dns = useQuery({
-    queryKey: ["adguard-status"],
-    queryFn: () => api.get<DnsStatus>("/api/adguard/status"),
-    refetchInterval: 15_000,
-  });
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const { routes, rows, routedOrigins } = useRouteRows();
+  const settings = useSettings();
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const ssh = useSsh();
   const tools = useTools();
@@ -77,17 +61,9 @@ export function Machines() {
   const trusted = ssh.data?.trusted ?? {};
   const running = useRunning(Object.keys(trusted).length > 0);
 
-  const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
-  const rows: RouteRow[] = (routes.data ?? []).map((r) => {
-    const d = dnsById.get(r.id);
-    return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
-  });
   const named = rows.filter(isMachine);
   const dockerHost = unnamedDockerHost(settings.data?.host_ip?.value, named);
   const machines = dockerHost ? [...named, dockerHost] : named;
-  const routedOrigins = new Set(
-    rows.filter((r) => r.origin && r.routed).map((r) => r.origin as string),
-  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["caddy-routes"] });

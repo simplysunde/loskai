@@ -3,10 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 
 // The shape of GET /api/settings: every configurable key, each tagged with where its
-// value came from (backend `shared/settings.py`). It lives here rather than beside a
-// form component because four surfaces read the same ["settings"] query — the two
-// settings categories, the Routing page, and the Add route modal — and one cache entry
-// should have exactly one type (same pattern as useHealth).
+// value came from (backend `shared/settings.py`). Read through `useSettings` below — one
+// query, one type, however many surfaces read it.
 export interface SettingField {
   value: string | null;
   source: "env" | "stored" | "unset";
@@ -28,7 +26,7 @@ export interface RecipeSource {
 
 // One cast, here, with the reason: `recipes_repos` cannot ride the `string | null` shape
 // the form fields share, and widening `SettingField` would push the narrowing onto every
-// caller of the four surfaces that read this query.
+// surface that reads this query.
 export function recipeSources(view?: SettingsView): RecipeSource[] {
   return (view?.recipes_repos?.value as unknown as RecipeSource[] | null) ?? [];
 }
@@ -64,12 +62,18 @@ export const SSH_UNLOCK_CHOICES = [
   { value: "1440", label: "24 hours" },
 ];
 
-// "3 hours" — for the prompts that ask for the admin password to unlock the key.
-export function useUnlockFor(): string {
-  const { data } = useQuery({
+// The one ["settings"] query — every surface that reads a setting uses it.
+export function useSettings(enabled = true) {
+  return useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<SettingsView>("/api/settings"),
+    enabled,
   });
+}
+
+// "3 hours" — for the prompts that ask for the admin password to unlock the key.
+export function useUnlockFor(): string {
+  const { data } = useSettings();
   const minutes = data?.ssh_unlock_minutes?.value;
   return (SSH_UNLOCK_CHOICES.find((c) => c.value === minutes) ?? SSH_UNLOCK_CHOICES[0]).label;
 }

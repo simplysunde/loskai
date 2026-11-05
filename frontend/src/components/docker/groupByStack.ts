@@ -1,23 +1,4 @@
-export interface Container {
-  id: string;
-  name: string;
-  image: string;
-  // The compose project; null for a plain `docker run`.
-  project?: string | null;
-  // The folder compose was run from (a host path) — null when compose didn't start it.
-  compose_dir?: string | null;
-  // The container Loskai itself runs in — shown apart, never grouped.
-  self?: boolean;
-  status: string;
-  uptime: number | null;
-  ports: string[];
-  subdomain: string | null;
-  scheme?: "https" | "both" | "http" | null;
-  suggested_upstream: string | null;
-  // Not in the list itself: merged in from /containers/stats, which answers ~2s later.
-  cpu?: number | null;
-  mem?: { percent: number | null } | null;
-}
+import type { Container } from "../../lib/containers";
 
 export interface Stack {
   name: string;

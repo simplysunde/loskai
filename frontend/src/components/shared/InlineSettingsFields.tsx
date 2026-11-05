@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
-import type { FieldDef, SettingField, SettingsView } from "../../lib/settings";
+import { useSettings, type FieldDef, type SettingField } from "../../lib/settings";
 
 const FIELD_CLASS =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:text-slate-500";
@@ -12,10 +12,7 @@ const FIELD_CLASS =
 // (one key at a time, partial PUT) — no per-panel Save button. Env-sourced values stay
 // locked. A subtle spinner/check by the label reports the save.
 export function InlineSettingsFields({ fields }: { fields: FieldDef[] }) {
-  const { data } = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const { data } = useSettings();
   if (!data) return null;
   return (
     <div className="space-y-3">

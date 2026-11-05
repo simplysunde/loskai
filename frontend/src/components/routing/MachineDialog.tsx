@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Boxes,
   HardDrive,
@@ -15,7 +15,8 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "../../lib/api";
-import type { SettingsView } from "../../lib/settings";
+import { useRoutes } from "../../lib/routes";
+import { useSettings } from "../../lib/settings";
 import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import type { ToolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
@@ -32,7 +33,6 @@ import { MachineOverview } from "./MachineOverview";
 import { AddToolMenu, MachineTools, RowButtons } from "./MachineTools";
 import { RunningList } from "./RunningPill";
 import { SaveBanner } from "./SaveBanner";
-import type { RouteRow } from "./ServiceTable";
 import { SshSetupModal } from "./SshSetupModal";
 import { useSaveMachine, type SaveResult } from "./useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
@@ -87,15 +87,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const opened = useRef(false);
   useScrollLock(true);
 
-  const routes = useQuery({
-    queryKey: ["caddy-routes"],
-    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
-    refetchInterval: 15_000,
-  });
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const routes = useRoutes();
+  const settings = useSettings();
   const tools = useTools();
   const ssh = useSsh();
   const trusted = Boolean(ssh.data?.trusted[id]);

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
-import { recipeSources, type RecipeSource, type SettingsView } from "../../lib/settings";
+import { recipeSources, useSettings, type RecipeSource } from "../../lib/settings";
 
 // What GET /api/docker/recipes reports per source — sync state the settings list shows so
 // "added a repo" and "that repo has actually been cloned" are distinguishable here rather
@@ -36,10 +36,7 @@ export function RecipeSources() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const { data: settings } = useSettings();
   const recipes = useQuery({
     queryKey: ["docker-recipes"],
     queryFn: () => api.get<{ sources: SourceStatus[]; local_count: number }>("/api/docker/recipes"),

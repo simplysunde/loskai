@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Container as ContainerIcon, Globe, Loader2, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { api } from "../../lib/api";
-import type { SettingsView } from "../../lib/settings";
+import { useContainers, type Container } from "../../lib/containers";
+import { useRoutes } from "../../lib/routes";
+import { useSettings } from "../../lib/settings";
 import { useHealth } from "../../lib/useHealth";
 import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
-import { containerLabel, containerPrefill, type PrefillSource } from "./containerPrefill";
+import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
-import type { RouteRow } from "./ServiceTable";
 import { RouteFields } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
 
@@ -29,15 +28,6 @@ export interface NewRoute {
 }
 
 export type Source = "container" | "network" | "external";
-
-interface ContainerRow extends PrefillSource {
-  id: string;
-  image: string;
-  subdomain: string | null;
-  // How Caddy must dial *this* container, decided backend-side from the networks the two
-  // share. Optional so a cached payload from before Phase 16 Stage A still renders.
-  upstream_mode?: "docker" | "lan" | null;
-}
 
 // "Add route" picker: choose a source (an unrouted Container, a built-in Network service,
 // or a fresh External target), which pre-fills the prefix + upstream; the fields stay
@@ -89,27 +79,13 @@ export function AddRouteModal({
     initialUpstream: initialMachine ? `${initialMachine.address}:` : "",
   });
 
-  const containers = useQuery({
-    queryKey: ["docker-containers"],
-    queryFn: () => api.get<ContainerRow[]>("/api/docker/containers"),
-    enabled: open,
-    retry: false,
-  });
+  const containers = useContainers({ enabled: open });
   // The rows the Routing page already fetched — no extra endpoint — for the host dropdown's
   // machines. Unlike the Container and Network sources these are NOT filtered by whether
   // they are routed: you are borrowing the address, not routing the thing, so a NAS that
   // already answers to its own name is still a valid upstream for a new route.
-  const rows = useQuery({
-    queryKey: ["caddy-routes"],
-    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
-    enabled: open,
-    retry: false,
-  });
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-    enabled: open,
-  });
+  const rows = useRoutes(open);
+  const settings = useSettings(open);
   const health = useHealth();
 
   useScrollLock(open);
@@ -149,7 +125,7 @@ export function AddRouteModal({
     setDerived(null);
   };
 
-  const pickContainer = (c: ContainerRow) => {
+  const pickContainer = (c: Container) => {
     setPickedMode(c.upstream_mode ?? null);
     fields.set(containerPrefill(c, containers.data));
     setDerived(c.suggested_upstream ?? null);

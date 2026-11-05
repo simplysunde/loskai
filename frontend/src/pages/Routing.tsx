@@ -17,11 +17,13 @@ import {
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { copyText } from "../lib/clipboard";
-import type { SettingsView } from "../lib/settings";
+import { useContainers } from "../lib/containers";
+import { useRouteRows } from "../lib/routes";
+import { useSettings } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
-import { containerPrefill, type PrefillSource } from "../components/routing/containerPrefill";
+import { containerPrefill } from "../components/routing/containerPrefill";
 import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { NETWORK_SERVICES, urlToUpstream } from "../components/routing/networkServices";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
@@ -29,10 +31,6 @@ import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
-interface DnsStatus {
-  answer_ip: string | null;
-  instances: { id: string; domain: string; present: boolean | null; conflict: boolean }[];
-}
 interface Orphan {
   id: string;
   name: string;
@@ -70,20 +68,8 @@ export function Routing() {
     onError: (err: unknown) => setFailed({ title, detail: apiMessage(err) }),
   });
 
-  const routes = useQuery({
-    queryKey: ["caddy-routes"],
-    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
-    refetchInterval: 15_000,
-  });
-  const dns = useQuery({
-    queryKey: ["adguard-status"],
-    queryFn: () => api.get<DnsStatus>("/api/adguard/status"),
-    refetchInterval: 15_000,
-  });
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const { routes, rows: allRows, routedOrigins } = useRouteRows();
+  const settings = useSettings();
   const orphans = useQuery({
     queryKey: ["docker-orphans"],
     queryFn: () => api.get<Orphan[]>("/api/docker/orphans"),
@@ -91,16 +77,8 @@ export function Routing() {
   });
   // The container behind a docker row knows how Caddy reaches it: the upstream hint, and
   // the pre-fill when the row has no upstream stored yet (a recipe install, linked but
-  // never routed). Shares AddRouteModal's query key, so React Query serves both from one
-  // fetch; `retry: false` keeps a down Docker daemon from blocking this page.
-  const containers = useQuery({
-    queryKey: ["docker-containers"],
-    queryFn: () =>
-      api.get<(PrefillSource & { upstream_mode?: "docker" | "lan" | null })[]>(
-        "/api/docker/containers",
-      ),
-    retry: false,
-  });
+  // never routed).
+  const containers = useContainers();
 
   const h = health.data;
   const baseDomain = settings.data?.base_domain?.value ?? null;
@@ -131,9 +109,6 @@ export function Routing() {
     .split("/")[0]
     .split(":")[0];
   const certUrl = caddyHost ? `http://${caddyHost}/` : null;
-  const routedOrigins = new Set(
-    (routes.data ?? []).filter((r) => r.origin && r.routed).map((r) => r.origin as string),
-  );
 
   // Once AdGuard is routed (from its pill or the picker — both set `origin`), its link-out
   // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
@@ -148,11 +123,6 @@ export function Routing() {
   const canRouteAdguard =
     routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
 
-  const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
-  const allRows: RouteRow[] = (routes.data ?? []).map((r) => {
-    const d = dnsById.get(r.id);
-    return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
-  });
   // Machines live on their own tab; the route forms still list them, and the table names them.
   const rows = allRows.filter((r) => !isMachine(r));
   const machines = allRows.filter(isMachine);

@@ -5,9 +5,10 @@ import { Link } from "react-router-dom";
 
 import { api, ApiError } from "../../lib/api";
 import { useMe } from "../../lib/useAuth";
-import type { SettingsView } from "../../lib/settings";
+import { useContainers } from "../../lib/containers";
+import { useSettings } from "../../lib/settings";
 import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
-import { containerPrefill, suggestPrefix, type PrefillSource } from "../routing/containerPrefill";
+import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
 import { OptionList, type RecipeOption } from "./RecipeOptions";
 
@@ -479,16 +480,8 @@ interface RouteResult {
 function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: string }) {
   const qc = useQueryClient();
   const { may } = useMe();
-  const containers = useQuery({
-    queryKey: ["docker-containers"],
-    queryFn: () =>
-      api.get<(PrefillSource & { subdomain: string | null })[]>("/api/docker/containers"),
-    retry: false,
-  });
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.get<SettingsView>("/api/settings"),
-  });
+  const containers = useContainers();
+  const settings = useSettings();
   const container = containers.data?.find((c) => c.name === containerName);
   const prefill = container ? containerPrefill(container) : null;
   const [prefix, setPrefix] = useState<string | null>(null);

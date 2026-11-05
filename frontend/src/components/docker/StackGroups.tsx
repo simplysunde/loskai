@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
+import { useContainers, type Container } from "../../lib/containers";
 import { docUrl } from "../../lib/docs";
 import { formatPercent, formatUptime } from "../../lib/format";
 import { useExpanded } from "../../lib/useExpanded";
@@ -32,7 +33,6 @@ import {
   groupByStack,
   groupStatus,
   groupTotals,
-  type Container,
   type Group,
   type Stack,
 } from "./groupByStack";
@@ -65,12 +65,7 @@ export function StackGroups({
   const qc = useQueryClient();
   const expanded = useExpanded("loskai.docker.expanded");
 
-  const containers = useQuery({
-    queryKey: ["docker-containers"],
-    queryFn: () => api.get<Container[]>("/api/docker/containers"),
-    refetchInterval: 5_000,
-    retry: false,
-  });
+  const containers = useContainers({ poll: true });
   // The slow half (~2s, Docker samples CPU twice): its own query, so the tables render as
   // soon as the list is in and CPU/memory fill in after. Nothing waits on it.
   const stats = useQuery({

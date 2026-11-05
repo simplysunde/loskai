@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 
-import { groupByStack, groupStatus, groupTotals, type Container, type Stack } from "./groupByStack";
+import type { Container } from "../../lib/containers";
+import { groupByStack, groupStatus, groupTotals, type Stack } from "./groupByStack";
 
 function c(name: string, project: string | null = null): Container {
   return {
