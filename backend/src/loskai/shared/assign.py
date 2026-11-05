@@ -285,8 +285,9 @@ async def assign(
                         old_domain, old_answer, describe_error(exc),
                     )
             await adguard_client.add_rewrite(domain, answer)
-            inst = inst.model_copy(update={"dns_answer": answer})
-            instances_store.upsert_instance(inst)
+            # Only the answer: a change made while AdGuard answered (the follower, the
+            # private toggle, an icon) is kept.
+            inst = instances_store.update_fields(inst.id, dns_answer=answer) or inst
             adguard_status = "ok"
         except (httpx.HTTPError, AdGuardError) as exc:
             adguard_status = "error"
@@ -368,8 +369,13 @@ async def _move_routes_on(
     for dep in instances_store.on_address(old_host):
         if dep.follow_container:
             continue
-        moved = dep.model_copy(update={"upstream": move_upstream(dep.upstream, new_host)})
-        instances_store.upsert_instance(moved)
+        # Only its upstream, and only while it is still on the old address: an earlier
+        # route's push was awaited, and a change made meanwhile is kept.
+        moved = instances_store.update_fields(
+            dep.id, lambda i, was=dep.upstream: i.upstream == was, upstream=move_upstream(dep.upstream, new_host)
+        )
+        if moved is None:
+            continue
         updated.append(moved.id)
         if moved.route_mode != "proxy" or not moved.subdomain:
             continue

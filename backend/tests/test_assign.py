@@ -533,6 +533,44 @@ async def test_moving_a_machine_moves_every_route_on_its_address():
     assert sorted(caddy.pushed[-2:]) == ["files", "plex"]
 
 
+async def test_a_change_made_while_adguard_answers_is_kept():
+    """The assign awaits AdGuard after writing the record; the private toggle meanwhile
+    must survive the dns_answer write."""
+    caddy = FakeCaddy()
+
+    class Slow(FakeAdGuard):
+        async def add_rewrite(self, domain, answer):
+            instances_store.update_fields("grafana", private=True)
+            await super().add_rewrite(domain, answer)
+
+    await assign.assign_route(caddy, Slow(), prefix="grafana", upstream="192.168.10.50:3000", base_domain=BASE, current_ip=IP)
+
+    stored = instances_store.get_instance("grafana")
+    assert (stored.private, stored.dns_answer) == (True, IP)
+
+
+async def test_a_route_changed_while_its_machine_moves_keeps_the_change():
+    """Moving re-pushes each route in turn; one whose upstream was set by hand meanwhile is
+    left as it was set, and an earlier route's push doesn't bring back its old copy."""
+    class Slow(FakeCaddy):
+        async def push_route(self, route, http=False):
+            if route["@id"] == "plex":
+                instances_store.update_fields("files", upstream="192.168.10.70:5000", private=True)
+            await super().push_route(route, http)
+
+    caddy, ag = Slow(), FakeAdGuard()
+    await name_machine(caddy, ag)
+    for svc, port in [("plex", "32400"), ("files", "5000")]:
+        await route(caddy, ag, svc, f"192.168.10.50:{port}")
+
+    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+
+    files = instances_store.get_instance("files")
+    assert (files.upstream, files.private) == ("192.168.10.70:5000", True)
+    assert instances_store.get_instance("plex").upstream == "192.168.10.60:32400"
+    assert "plex" in result["moved"]
+
+
 async def test_routes_on_other_addresses_are_left_alone_when_a_machine_moves():
     caddy, ag = FakeCaddy(), FakeAdGuard()
     await name_machine(caddy, ag)
