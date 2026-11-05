@@ -15,6 +15,8 @@ without this it would instead read — and `POST /api/auth/setup` would overwrit
 live state.
 """
 
+from pathlib import Path
+
 import pytest
 
 from loskai.config import Settings, settings
@@ -33,6 +35,13 @@ def _isolated_settings(monkeypatch, tmp_path):
         path = tmp_path / name.removesuffix("_dir")
         path.mkdir()
         monkeypatch.setattr(settings, name, str(path))
+
+
+@pytest.fixture
+def data_dir() -> Path:
+    """This test's data directory (`_isolated_settings` made it) — for a test that reads or
+    writes the files in it."""
+    return Path(settings.data_dir)
 
 
 @pytest.fixture(autouse=True)

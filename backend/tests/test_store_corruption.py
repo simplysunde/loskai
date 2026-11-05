@@ -10,16 +10,9 @@ import json
 
 import pytest
 
-from loskai import config
 from loskai.shared import instances as inst
 from loskai.shared import settings as s
 from loskai.shared.store import CorruptStoreError
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    return tmp_path
 
 
 # --- settings.json: fail loudly ---

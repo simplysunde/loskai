@@ -191,12 +191,6 @@ def test_directories_is_gone_and_says_what_replaces_it():
 # --- Sources + merge (filesystem) ---
 
 
-@pytest.fixture
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    return tmp_path
-
-
 def _make_recipe(base, name, display, extra_manifest="", compose=True):
     folder = base / name
     folder.mkdir(parents=True)

@@ -19,8 +19,7 @@ from loskai.shared import store
 
 
 @pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+def no_env_settings(monkeypatch):
     # Stored-only keys have no attribute to clear (see STORED_ONLY_KEYS), and
     # monkeypatch refuses to set one that doesn't exist.
     for key in set(s.CONFIGURABLE_KEYS) - s.STORED_ONLY_KEYS:

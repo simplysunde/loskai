@@ -2,10 +2,8 @@
 
 from types import SimpleNamespace
 
-import pytest
 from docker.errors import DockerException
 
-from loskai import config
 from loskai.modules.docker import client as client_mod
 from loskai.modules.docker import logic
 from loskai.modules.docker.client import DockerClient
@@ -54,11 +52,6 @@ class FakeDocker:
         if not self._ping_ok:
             raise DockerException("cannot connect")
         return True
-
-
-@pytest.fixture
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 def _use(monkeypatch, fake):

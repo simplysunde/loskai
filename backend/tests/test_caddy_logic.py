@@ -2,18 +2,12 @@
 
 import pytest
 
-from loskai import config
 from loskai.modules.caddy import service
 from loskai.modules.caddy.client import CaddyError
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
 BASE = "example.no"
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 def test_fqdn():

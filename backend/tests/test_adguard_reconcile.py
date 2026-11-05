@@ -4,7 +4,6 @@ migration, manual-conflict detection. The trickiest logic in the app, covered th
 
 import pytest
 
-from loskai import config
 from loskai.modules.adguard import service
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
@@ -134,12 +133,6 @@ class FakeClient:
 
     async def delete_rewrite(self, domain, answer):
         self.deleted.append((domain, answer))
-
-
-@pytest.fixture
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    return tmp_path
 
 
 async def test_reconcile_adds_and_persists_dns_answer(data_dir):

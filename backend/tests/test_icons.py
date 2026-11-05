@@ -19,10 +19,8 @@ SVG = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 
 
 @pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+def base_domain(monkeypatch):
     monkeypatch.setattr(config.settings, "base_domain", "example.no")
-    return tmp_path
 
 
 @pytest.fixture

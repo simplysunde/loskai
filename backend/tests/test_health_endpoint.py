@@ -2,18 +2,11 @@
 validation). Guards against response-model regressions that direct-function-call unit
 tests can't see — e.g. `consistency` being a list under a `dict[str, dict]` annotation."""
 
-import pytest
 from fastapi.testclient import TestClient
 
-from loskai import config
 from loskai.main import app
 
 PASSWORD = "smoke-test-password"
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 def test_health_endpoint_serializes_with_consistency_list():

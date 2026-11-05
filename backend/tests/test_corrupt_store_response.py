@@ -6,19 +6,11 @@ server log. The operator whose file is broken saw a dead public dashboard and no
 why. `main.py` now registers a handler; these pin the shape it returns.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
-from loskai import config
 from loskai.main import app
 
 PASSWORD = "smoke-test-password"
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    return tmp_path
 
 
 def test_corrupt_instances_names_the_path_on_the_public_dashboard(data_dir):

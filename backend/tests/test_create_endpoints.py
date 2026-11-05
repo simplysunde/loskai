@@ -15,8 +15,7 @@ PASSWORD = "smoke-test-password"
 
 
 @pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
+def base_domain(monkeypatch):
     monkeypatch.setattr(config.settings, "base_domain", "example.no")
 
 

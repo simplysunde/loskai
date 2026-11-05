@@ -2,17 +2,10 @@
 best-effort (null + warning when unreachable, never raising)."""
 
 import httpx
-import pytest
 
-from loskai import config
 from loskai.shared import export
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 async def test_export_includes_instances_and_rewrites(monkeypatch):

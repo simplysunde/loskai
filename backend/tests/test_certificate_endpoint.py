@@ -7,20 +7,13 @@ nothing to hand out, which is a normal state, not a broken Caddy.
 """
 
 import httpx
-import pytest
 from fastapi.testclient import TestClient
 
-from loskai import config
 from loskai.main import app
 from loskai.modules.caddy import router as caddy_router
 from loskai.modules.caddy.client import CaddyError
 
 ROOT_PEM = "-----BEGIN CERTIFICATE-----\nMIIBozCCAUmg\n-----END CERTIFICATE-----"
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 class FakeCaddy:

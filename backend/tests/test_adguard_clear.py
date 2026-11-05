@@ -6,7 +6,6 @@ is part of the same call, and that a run which could not restore refuses to dele
 import httpx
 import pytest
 
-from loskai import config
 from loskai.modules.adguard import service
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
@@ -44,12 +43,6 @@ class FakeClient:
             for e in self.existing
             if not (e["domain"] == domain and e["answer"] == answer)
         ]
-
-
-@pytest.fixture
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    return tmp_path
 
 
 async def test_clears_hand_added_rewrites_too(data_dir):

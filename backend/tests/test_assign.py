@@ -3,7 +3,6 @@ orchestration (Caddy required + rollback, AdGuard best-effort) via fake clients.
 
 import pytest
 
-from loskai import config
 from loskai.shared import assign
 from loskai.shared import instances as instances_store
 from loskai.shared.assign import AssignError
@@ -11,11 +10,6 @@ from loskai.shared.instances import Instance
 
 BASE = "example.no"
 IP = "192.168.10.101"
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 class FakeCaddy:

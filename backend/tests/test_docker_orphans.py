@@ -4,15 +4,9 @@ really gone before deleting, so a transient socket read can't purge a live route
 import pytest
 from fastapi import HTTPException
 
-from loskai import config
 from loskai.modules.docker import router as docker_router
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
 def _link(container):
