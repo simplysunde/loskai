@@ -8,17 +8,13 @@ Auth is per-request HTTP Basic (no session flow).
 import httpx
 
 from ...shared import settings as settings_store
+from ...shared.errors import describe_error
 
 _TIMEOUT = 5.0
 
 
 class AdGuardError(Exception):
     """AdGuard reachable but responded in a way we can't use."""
-
-
-def describe_error(exc: Exception) -> str:
-    """Human-readable message — some httpx errors (ConnectError) stringify empty."""
-    return str(exc) or exc.__class__.__name__
 
 
 class AdGuardClient:

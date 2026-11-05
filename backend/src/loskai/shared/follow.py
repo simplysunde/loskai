@@ -17,7 +17,6 @@ unreachable greys out nothing — it backs off and retries.
 
 import asyncio
 import logging
-from urllib.parse import urlparse
 
 import httpx
 
@@ -38,9 +37,7 @@ def derived_upstreams() -> dict[str, str | None]:
     """`{container name: the upstream it is dialled at}` for every container, from one
     Docker listing. None where it can't be derived (no port, or several, and no label).
     Raises the Docker client's errors — callers decide what "unreachable" means to them."""
-    caddy_host = urlparse(settings_store.value("caddy_admin_url") or "").hostname
-    host_ip = settings_store.value("host_ip")
-    rows = docker_client.list_containers(caddy_host=caddy_host, host_ip=host_ip)
+    rows = docker_client.list_containers(settings_store.caddy_host(), settings_store.value("host_ip"))
     return {row["name"]: row["suggested_upstream"] for row in rows}
 
 

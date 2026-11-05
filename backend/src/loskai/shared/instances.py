@@ -127,6 +127,17 @@ def on_address(host: str) -> list[Instance]:
     ]
 
 
+def fqdn(subdomain: str, base_domain: str) -> str:
+    """A route's full name — the one Caddy serves and AdGuard answers for."""
+    return f"{subdomain}.{base_domain}"
+
+
+def web_scheme(instance: Instance) -> str:
+    """The scheme a link to this route uses. An `http` route has no certificate by design,
+    so linking it as https would send every visitor into a failed TLS handshake."""
+    return "http" if instance.scheme == "http" else "https"
+
+
 def is_machine(instance: Instance) -> bool:
     """True if this instance is an *address* rather than a service — the thing routes sit
     on. Declared on the record now, not inferred from the upstream's shape."""

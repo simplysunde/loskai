@@ -71,6 +71,19 @@ SSH_UNLOCK_DEFAULT = "15"
 SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
 SESSION_IDLE_DEFAULT = "120"
 
+# The settings that are one of a few choices: the choices, the default, and what a value
+# outside them is told (`_validate`). The env layer isn't validated, so `choice` reads a
+# value outside them as the default.
+_CHOICES = {
+    "certificate_tab": (CERTIFICATE_TAB_MODES, CERTIFICATE_TAB_DEFAULT, "Certificate tab must be one of {}"),
+    "ssh_unlock_minutes": (
+        SSH_UNLOCK_CHOICES, SSH_UNLOCK_DEFAULT, "How long the SSH key stays unlocked must be one of {} minutes",
+    ),
+    "session_idle_minutes": (
+        SESSION_IDLE_CHOICES, SESSION_IDLE_DEFAULT, "How long a session lasts idle must be one of {} minutes",
+    ),
+}
+
 # Recipe sources are the one configurable value that is a list rather than a string: a
 # git repo per entry, each independently enabled. Capped only to keep one bad PUT from
 # turning "Refresh recipes" into an unbounded pile of git clones.
@@ -128,28 +141,27 @@ def value(key: str) -> Any:
     return resolve(key)[0]
 
 
-def certificate_tab() -> str:
-    """The Certificate page's nav visibility, normalised. Unset -> the default.
+def choice(key: str) -> str:
+    """A choice setting's value — the default when unset or not one of its choices (a typo
+    in `CERTIFICATE_TAB` falls back rather than hiding the page by accident)."""
+    choices, default, _ = _CHOICES[key]
+    val = str(value(key) or "")
+    return val if val in choices else default
 
-    A stored value can only be one of the modes (`_validate` rejects the rest), but the
-    env layer never passes through validation, so a typo in `CERTIFICATE_TAB` falls back
-    to the default rather than hiding the page by accident.
-    """
-    val = value("certificate_tab")
-    return val if val in CERTIFICATE_TAB_MODES else CERTIFICATE_TAB_DEFAULT
+
+def certificate_tab() -> str:
+    """The Certificate page's nav visibility."""
+    return choice("certificate_tab")
 
 
 def ssh_unlock_seconds() -> int:
-    """How long an unlock of the SSH key lasts. Unset, or an env value not among the choices
-    (the env layer isn't validated), means the default."""
-    val = str(value("ssh_unlock_minutes") or "")
-    return int(val if val in SSH_UNLOCK_CHOICES else SSH_UNLOCK_DEFAULT) * 60
+    """How long an unlock of the SSH key lasts."""
+    return int(choice("ssh_unlock_minutes")) * 60
 
 
 def session_idle_seconds() -> int:
-    """How long a session lives without a request. Unset or not a choice: the default."""
-    val = str(value("session_idle_minutes") or "")
-    return int(val if val in SESSION_IDLE_CHOICES else SESSION_IDLE_DEFAULT) * 60
+    """How long a session lives without a request."""
+    return int(choice("session_idle_minutes")) * 60
 
 
 def _source_view(entry: Any) -> dict[str, Any]:
@@ -215,35 +227,24 @@ def _validate(key: str, val: Any) -> None:
             raise ValueError(
                 "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
             )
-        # AdGuard hands this answer to every LAN client, so it has to name a host those
-        # clients can open a connection to. Two bare IPs pass the parse above and cannot:
-        # loopback points each client at itself, and the unspecified address is a bind
-        # wildcard rather than a destination. Both fail as a refused connection, never as
-        # a DNS error, which is why they are caught here. See derive_caddy_host_ip.
-        if parsed.is_loopback:
+        # AdGuard hands this answer to every LAN client (`_unreachable`). Both fail as a
+        # refused connection, never as a DNS error, which is why they are caught here.
+        reason = _unreachable(parsed)
+        if reason == "loopback":
             raise ValueError(
                 "Caddy LAN IP must be an address other machines can reach — a loopback "
                 "address (e.g. 127.0.0.1) makes every client resolve the service to "
                 "itself. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
-        if parsed.is_unspecified:
+        if reason == "unspecified":
             raise ValueError(
                 "Caddy LAN IP must be a specific address — 0.0.0.0 (and ::) means 'any "
                 "interface', which is something to listen on, not something to connect "
                 "to. Use the host's LAN IP (e.g. 192.168.10.100)"
             )
-    if key == "session_idle_minutes" and val not in SESSION_IDLE_CHOICES:
-        raise ValueError(
-            f"How long a session lasts idle must be one of {', '.join(SESSION_IDLE_CHOICES)} minutes"
-        )
-    if key == "ssh_unlock_minutes" and val not in SSH_UNLOCK_CHOICES:
-        raise ValueError(
-            f"How long the SSH key stays unlocked must be one of {', '.join(SSH_UNLOCK_CHOICES)} minutes"
-        )
-    if key == "certificate_tab" and val not in CERTIFICATE_TAB_MODES:
-        raise ValueError(
-            f"Certificate tab must be one of {', '.join(CERTIFICATE_TAB_MODES)}"
-        )
+    if key in _CHOICES and val not in _CHOICES[key][0]:
+        choices, _, refusal = _CHOICES[key]
+        raise ValueError(refusal.format(", ".join(choices)))
     if key == "recipes_repos":
         if not isinstance(val, list):
             raise ValueError("Recipe sources must be a list")
@@ -315,24 +316,24 @@ def drop_admin_password_hash() -> None:
 # --- Answer-IP derivation (used by the AdGuard rewrite / assign flow) ---
 
 
+def _unreachable(ip) -> str | None:
+    """Why no LAN client can connect to this IP, if none can: two parse as valid IPs but
+    are not destinations — loopback (every client resolves the service to itself) and the
+    unspecified address `0.0.0.0` / `::` (a bind wildcard, a thing to listen on)."""
+    return "loopback" if ip.is_loopback else "unspecified" if ip.is_unspecified else None
+
+
 def _usable_answer_ip(candidate: str, source: str) -> str | None:
     """Drop an answer IP no LAN client can connect to, else pass it through.
 
-    Two parse as valid IPs but are not destinations: loopback (every client resolves the
-    service to itself) and the unspecified address `0.0.0.0` / `::` (a bind wildcard —
-    "any interface" is a thing to listen on, not to reach). Whether the value is a
-    well-formed IP at all is `_validate`'s job; one that doesn't parse is passed through
-    so this stays a single-purpose guard.
+    Whether the value is a well-formed IP at all is `_validate`'s job; one that doesn't
+    parse is passed through so this stays a single-purpose guard.
     """
     try:
         parsed = ip_address(str(candidate).strip())
     except ValueError:
         return candidate
-    reason = (
-        "loopback" if parsed.is_loopback
-        else "unspecified" if parsed.is_unspecified
-        else None
-    )
+    reason = _unreachable(parsed)
     if reason:
         logger.warning(
             "ignoring %s answer IP %s from %s — set CADDY_HOST_IP to the host's LAN IP, "
@@ -343,6 +344,19 @@ def _usable_answer_ip(candidate: str, source: str) -> str | None:
         )
         return None
     return candidate
+
+
+def caddy_host() -> str | None:
+    """CADDY_ADMIN_URL's hostname — how Caddy's own container is found among Docker's, to
+    decide how it dials each container (`docker/logic.upstream_mode`). An IP host matches
+    no container, which is right: Caddy is then off-box."""
+    return urlparse(value("caddy_admin_url") or "").hostname
+
+
+def dns_context() -> tuple[str | None, str | None]:
+    """The base domain and the address every DNS rewrite answers with — read together by
+    everything that writes, checks or lists a route's rewrite."""
+    return value("base_domain"), derive_caddy_host_ip()
 
 
 def derive_caddy_host_ip() -> str | None:

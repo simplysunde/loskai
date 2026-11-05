@@ -14,6 +14,7 @@ from typing import Awaitable, Callable, Literal
 from fastapi import APIRouter
 
 from ..config import settings as env
+from .errors import describe_error
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ async def _probe(name: str) -> dict:
         logger.warning("%s health check raised: %s", name, exc, exc_info=True)
         # Same fallback message shape the module clients use (str() of an httpx
         # ConnectError is empty).
-        return {"status": "unreachable", "detail": str(exc) or exc.__class__.__name__}
+        return {"status": "unreachable", "detail": describe_error(exc)}
 
 
 async def _drift() -> list[dict]:

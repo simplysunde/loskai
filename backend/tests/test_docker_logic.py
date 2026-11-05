@@ -64,13 +64,20 @@ def test_compute_stack_status():
     assert logic.compute_stack_status({"a", "b"}, {"a"}) == "partial"
 
 
-def test_subdomain_for():
+def test_a_container_is_joined_to_its_instance():
+    """A recipe install links an instance before any route exists; its id is the recipe's,
+    a better prefix than the generated container name. Only a routed one has a subdomain
+    and a scheme."""
     instances = [
-        Instance(id="grafana", name="G", type="docker", container="grafana", subdomain="graf"),
-        Instance(id="x", name="X", type="docker", container="other"),
+        Instance(id="bambuddy", name="Bambuddy", type="docker", container="bambuddy-bambuddy-1"),
+        Instance(id="graf", name="G", type="docker", container="grafana", subdomain="graf", scheme="http"),
     ]
-    assert logic.subdomain_for("grafana", instances) == "graf"
-    assert logic.subdomain_for("missing", instances) is None
+    rows = [{"name": "grafana"}, {"name": "bambuddy-bambuddy-1"}, {"name": "stray"}]
+    assert logic.link_instances(rows, instances) == [
+        {"name": "grafana", "subdomain": "graf", "instance_id": "graf", "scheme": "http"},
+        {"name": "bambuddy-bambuddy-1", "subdomain": None, "instance_id": "bambuddy", "scheme": None},
+        {"name": "stray", "subdomain": None, "instance_id": None, "scheme": None},
+    ]
 
 
 def test_suggested_container_port_prefers_single_published():
@@ -207,18 +214,6 @@ def test_an_invalid_label_is_ignored_not_trusted():
         assert logic.suggested_upstream(
             "web", None, ports, "lan", "192.168.10.50", {"loskai.port": bad}
         ) == "192.168.10.50:8081"
-
-
-def test_linked_instance_id_finds_an_unrouted_link():
-    """A recipe install links an instance before any route exists; its id is the recipe's,
-    a better prefix than the generated container name."""
-    instances = [
-        Instance(id="bambuddy", name="Bambuddy", type="docker", container="bambuddy-bambuddy-1"),
-        Instance(id="graf", name="G", type="docker", container="grafana", subdomain="graf"),
-    ]
-    assert logic.linked_instance_id("bambuddy-bambuddy-1", instances) == "bambuddy"
-    assert logic.linked_instance_id("grafana", instances) == "graf"
-    assert logic.linked_instance_id("stray", instances) is None
 
 
 def test_published_host_binding():

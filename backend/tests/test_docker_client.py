@@ -7,6 +7,7 @@ from docker.errors import DockerException
 
 from loskai import config
 from loskai.modules.docker import client as client_mod
+from loskai.modules.docker import logic
 from loskai.modules.docker.client import DockerClient
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
@@ -75,17 +76,14 @@ def test_health_unreachable(monkeypatch):
     assert result["status"] == "unreachable"
 
 
-def test_list_containers_joins_instance(monkeypatch, data_dir):
-    instances_store.upsert_instance(
-        Instance(id="grafana", name="Grafana", type="docker", container="grafana", subdomain="graf")
-    )
+def test_list_containers(monkeypatch, data_dir):
     _use(monkeypatch, FakeDocker([FakeContainer("grafana")]))
 
     rows = DockerClient().list_containers()
     row = rows[0]
     assert row["name"] == "grafana"
     assert row["image"] == "grafana/img:latest"
-    assert row["subdomain"] == "graf"  # joined from the instance
+    assert "subdomain" not in row  # the router joins the instance (logic.link_instances)
     assert row["ports"] == ["8080->80/tcp"]
     # No caddy_host, so Caddy is not identifiable and the name form is never guessed. The
     # published port binds to no concrete IP and host_ip is unset, so there is nothing to
@@ -171,7 +169,8 @@ def test_a_host_networked_recipe_install_still_prefills_host_and_prefix(monkeypa
     bambuddy.attrs["NetworkSettings"]["Ports"] = {}
     _use(monkeypatch, FakeDocker([bambuddy]))
 
-    row = DockerClient().list_containers(host_ip="192.168.10.220")[0]
+    rows = DockerClient().list_containers(host_ip="192.168.10.220")
+    row = logic.link_instances(rows, instances_store.list_instances())[0]
     assert row["upstream_mode"] == "lan"
     assert row["suggested_upstream"] is None
     assert row["suggested_host"] == "192.168.10.220"

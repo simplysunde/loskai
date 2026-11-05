@@ -9,12 +9,9 @@ connection failure or timeout means unreachable.
 import httpx
 
 from ...shared import settings as settings_store
+from ...shared.errors import describe_error
 
 _TIMEOUT = 5.0
-
-
-def _describe(exc: Exception) -> str:
-    return str(exc) or exc.__class__.__name__
 
 
 class WireGuardClient:
@@ -37,7 +34,7 @@ class WireGuardClient:
                 "status": "unreachable",
                 "reachable": False,
                 "url": url,
-                "detail": _describe(exc),
+                "detail": describe_error(exc),
             }
         return {"status": "healthy", "reachable": True, "url": url}
 

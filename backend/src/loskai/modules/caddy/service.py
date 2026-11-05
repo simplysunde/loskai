@@ -20,10 +20,6 @@ from .client import CaddyClient, CaddyError, describe_error
 # --- Pure builders (no I/O — unit-tested directly) ---
 
 
-def assemble_fqdn(subdomain: str, base_domain: str) -> str:
-    return f"{subdomain}.{base_domain}"
-
-
 def caddy_mode(admin_url: str | None) -> str | None:
     """`lan` if the admin URL host is an IP, `docker` if a hostname, None if unset.
 
@@ -154,7 +150,7 @@ def build_route(
         raise ValueError(f"instance {instance.id} has no subdomain")
     if not instance.upstream:
         raise ValueError(f"instance {instance.id} has no upstream")
-    host = assemble_fqdn(instance.subdomain, base_domain)
+    host = instances_store.fqdn(instance.subdomain, base_domain)
     proxy: dict = {
         "handler": "reverse_proxy",
         "upstreams": [{"dial": instance.upstream}],
@@ -199,7 +195,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
     for inst in instances:
         routed = inst.subdomain is not None
         is_proxy = routed and inst.route_mode == "proxy"
-        fqdn = assemble_fqdn(inst.subdomain, base_domain) if routed and base_domain else None
+        fqdn = instances_store.fqdn(inst.subdomain, base_domain) if routed and base_domain else None
         if not is_proxy or live_ids is None:
             synced = None
         else:

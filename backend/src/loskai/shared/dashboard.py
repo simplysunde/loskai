@@ -20,13 +20,10 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 def _card(inst, base: str | None) -> dict:
     """One launcher entry. `id` is here because a desktop launcher builds shortcuts from
     these and needs a key that survives a rename; `name` does not."""
-    # An `http`-scheme route has no certificate by design, so linking it as https
-    # would send every visitor into a failed TLS handshake.
-    scheme = "http" if inst.scheme == "http" else "https"
     return {
         "id": inst.id,
         "name": inst.name,
-        "url": f"{scheme}://{inst.subdomain}.{base}" if base else None,
+        "url": f"{instances.web_scheme(inst)}://{instances.fqdn(inst.subdomain, base)}" if base else None,
         "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
     }
 

@@ -34,8 +34,7 @@ health_registry.register("adguard", _health_payload)
 
 async def _consistency() -> list[dict]:
     """DNS drift warnings for /api/health. Self-degrading: AdGuard unreachable -> []."""
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+    base, current_ip = settings_store.dns_context()
     try:
         rewrites = await adguard.list_rewrites()
     except _UNREACHABLE:
@@ -50,8 +49,7 @@ health_registry.register_consistency(_consistency)
 
 @router.get("/status")
 async def status() -> dict:
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+    base, current_ip = settings_store.dns_context()
     return await service.get_status(adguard, base, current_ip)
 
 
@@ -59,8 +57,7 @@ async def status() -> dict:
 async def rewrites() -> dict:
     """Every rewrite AdGuard holds, each flagged `managed` (Loskai would write it back).
     Read-only; it backs the clear dialog's list of what is about to be removed."""
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+    base, current_ip = settings_store.dns_context()
     try:
         return await service.list_rewrites(adguard, base, current_ip)
     except _UNREACHABLE as exc:
@@ -71,8 +68,7 @@ async def rewrites() -> dict:
 async def clear_rewrites() -> dict:
     """Wipe every rewrite AdGuard holds, then reconcile Loskai's back in. Destructive and
     user-initiated only — see `service.clear_and_restore`."""
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+    base, current_ip = settings_store.dns_context()
     try:
         return await service.clear_and_restore(adguard, base, current_ip)
     except ValueError as exc:
@@ -83,8 +79,7 @@ async def clear_rewrites() -> dict:
 
 @router.post("/reconcile")
 async def reconcile() -> dict:
-    base = settings_store.value("base_domain")
-    current_ip = settings_store.derive_caddy_host_ip()
+    base, current_ip = settings_store.dns_context()
     try:
         return await service.reconcile(adguard, base, current_ip)
     except ValueError as exc:

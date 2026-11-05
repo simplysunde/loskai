@@ -8,17 +8,13 @@ the hard I/O seam that keeps that logic testable without a network.
 import httpx
 
 from ...shared import settings as settings_store
+from ...shared.errors import describe_error
 
 _TIMEOUT = 5.0
 
 
 class CaddyError(Exception):
     """Caddy reachable but responded in a way we can't use (e.g. no HTTP server)."""
-
-
-def describe_error(exc: Exception) -> str:
-    """Human-readable message — some httpx errors (ConnectError) stringify empty."""
-    return str(exc) or exc.__class__.__name__
 
 
 class CaddyClient:

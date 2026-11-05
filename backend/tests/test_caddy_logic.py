@@ -16,8 +16,8 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
 
 
-def test_assemble_fqdn():
-    assert service.assemble_fqdn("grafana", "example.no") == "grafana.example.no"
+def test_fqdn():
+    assert instances_store.fqdn("grafana", "example.no") == "grafana.example.no"
 
 
 def test_caddy_mode():

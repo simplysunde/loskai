@@ -9,7 +9,6 @@ import asyncio
 import contextlib
 import logging
 import socket
-from urllib.parse import urlparse
 
 from docker.errors import APIError, NotFound
 from fastapi import APIRouter, Body, HTTPException, WebSocket
@@ -60,11 +59,9 @@ def _docker_call(fn, *args):
 @router.get("/containers")
 def containers() -> list[dict]:
     # The pre-filled upstream is decided per container, from the networks it and Caddy
-    # actually share (logic.upstream_mode). CADDY_ADMIN_URL's hostname is how Caddy's
-    # container is found; an IP host matches nothing, which is correct — Caddy is off-box.
-    caddy_host = urlparse(settings_store.value("caddy_admin_url") or "").hostname
-    host_ip = settings_store.value("host_ip")
-    return _docker_call(docker_client.list_containers, caddy_host, host_ip)
+    # actually share (logic.upstream_mode).
+    rows = _docker_call(docker_client.list_containers, settings_store.caddy_host(), settings_store.value("host_ip"))
+    return logic.link_instances(rows, instances_store.list_instances())
 
 
 @router.get("/containers/stats")

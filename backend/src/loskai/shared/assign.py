@@ -222,12 +222,12 @@ async def assign(
         )
 
     old_domain = (
-        caddy_service.assemble_fqdn(prev.subdomain, base_domain)
+        instances_store.fqdn(prev.subdomain, base_domain)
         if prev and prev.subdomain
         else None
     )
     old_answer = prev.dns_answer if prev else None
-    domain = caddy_service.assemble_fqdn(prefix, base_domain)
+    domain = instances_store.fqdn(prefix, base_domain)
 
     # Step 0 — persist intent.
     instances_store.upsert_instance(inst)
@@ -324,7 +324,7 @@ def _display_url(instance: Instance, domain: str) -> str:
     https would hand back a URL that cannot connect."""
     if instance.route_mode != "proxy":
         return domain
-    return f"http://{domain}" if instance.scheme == "http" else f"https://{domain}"
+    return f"{instances_store.web_scheme(instance)}://{domain}"
 
 
 async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) -> None:  # noqa: D401
@@ -414,7 +414,7 @@ async def unassign(
 
     prev = inst.model_copy(deep=True)
     old_domain = (
-        caddy_service.assemble_fqdn(inst.subdomain, base_domain) if base_domain else None
+        instances_store.fqdn(inst.subdomain, base_domain) if base_domain else None
     )
     old_answer = inst.dns_answer
 
@@ -565,14 +565,10 @@ async def _followed_upstream(body: "RouteCreate") -> str:
     return upstream
 
 
-def _context() -> tuple[str | None, str | None]:
-    return settings_store.value("base_domain"), settings_store.derive_caddy_host_ip()
-
-
 @router.post("/machines")
 async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
-    base, current_ip = _context()
+    base, current_ip = settings_store.dns_context()
     prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
     if prev is not None:  # before its SSH entry is read, below
         access.require_instance(auth.current_user(), prev.kind)
@@ -605,7 +601,7 @@ async def post_machine(body: MachineCreate) -> dict:
 @router.post("/routes")
 async def post_route(body: RouteCreate) -> dict:
     """Create or re-point a proxied service (`instance_id` to edit one)."""
-    base, current_ip = _context()
+    base, current_ip = settings_store.dns_context()
     if body.container:
         validate_container(body.container)
     upstream = await _followed_upstream(body) if body.follow_container else body.upstream

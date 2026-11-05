@@ -14,3 +14,8 @@ class LoskaiError(Exception):
         self.detail = detail
         if status_code is not None:
             self.status_code = status_code
+
+
+def describe_error(exc: BaseException) -> str:
+    """What went wrong, in words — some errors (httpx's ConnectError) stringify empty."""
+    return str(exc) or exc.__class__.__name__

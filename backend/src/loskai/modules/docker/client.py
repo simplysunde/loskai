@@ -1,7 +1,7 @@
 """Docker Engine client — docker-py I/O over the mounted socket.
 
-Thin wrapper: it fetches raw data and calls `logic` for all computation (stats math,
-joins). Requires the socket mounted at /var/run/docker.sock.
+Thin wrapper: it fetches raw data and calls `logic` for all computation (stats math);
+joining a container to its instance is the router's (`logic.link_instances`). Requires the socket mounted at /var/run/docker.sock.
 """
 
 import logging
@@ -13,7 +13,7 @@ import docker
 from docker.errors import DockerException
 from requests.exceptions import RequestException
 
-from ...shared import instances as instances_store
+from ...shared.errors import describe_error
 from . import logic
 
 # docker-py surfaces a down daemon as either a DockerException or a raw requests/OS error;
@@ -21,10 +21,6 @@ from . import logic
 DOCKER_ERRORS = (DockerException, RequestException, OSError)
 
 logger = logging.getLogger(__name__)
-
-
-def describe_error(exc: Exception) -> str:
-    return str(exc) or exc.__class__.__name__
 
 
 class DockerClient:
@@ -57,7 +53,6 @@ class DockerClient:
         """Every container, from one list call — no stats: those take ~2s from Docker, so
         they are their own request (`container_stats`) and nothing waits on them."""
         client = self._get()
-        instances = instances_store.list_instances()
         containers = client.containers.list(all=True)
         # Find Caddy in the list we already have — one API call for the whole request, not
         # a lookup per container. `caddy_host` is CADDY_ADMIN_URL's hostname; None when
@@ -90,9 +85,6 @@ class DockerClient:
                 "status": c.status,
                 "uptime": logic.uptime_seconds(state.get("StartedAt")) if running else None,
                 "ports": logic.format_ports(attrs),
-                "subdomain": logic.subdomain_for(c.name, instances),
-                "instance_id": logic.linked_instance_id(c.name, instances),
-                "scheme": logic.scheme_for(c.name, instances),
                 # How Caddy has to dial *this* container, decided from the networks the
                 # two actually share — not from a deployment-wide guess. See
                 # logic.upstream_mode; the frontend uses it for the upstream hint copy.

@@ -23,10 +23,6 @@ from .client import AdGuardClient, AdGuardError, describe_error
 logger = logging.getLogger(__name__)
 
 
-def rewrite_domain(instance: Instance, base_domain: str) -> str:
-    return f"{instance.subdomain}.{base_domain}"
-
-
 def target_answer(instance: Instance, current_ip: str | None) -> str | None:
     """The AdGuard answer this instance's rewrite should resolve to: its own bare upstream
     IP for `dns_only` (no Caddy involved — the upstream IS the answer), or the shared Caddy
@@ -96,7 +92,7 @@ def plan_reconcile(
     plan = ReconcilePlan()
     by_domain = _index_by_domain(rewrites)
     routed_domains = {
-        rewrite_domain(inst, base_domain) for inst in instances if inst.subdomain
+        instances_store.fqdn(inst.subdomain, base_domain) for inst in instances if inst.subdomain
     }
 
     for inst in instances:
@@ -105,7 +101,7 @@ def plan_reconcile(
         target = target_answer(inst, current_ip)
         if not target:
             continue
-        domain = rewrite_domain(inst, base_domain)
+        domain = instances_store.fqdn(inst.subdomain, base_domain)
         answers = by_domain.get(domain, set())
         stored = inst.dns_answer
 
@@ -146,7 +142,7 @@ def dns_status_rows(
     for inst in instances:
         if not inst.subdomain:
             continue
-        domain = rewrite_domain(inst, base_domain) if base_domain else inst.subdomain
+        domain = instances_store.fqdn(inst.subdomain, base_domain) if base_domain else inst.subdomain
         target = target_answer(inst, current_ip)
         if by_domain is None or target is None or not base_domain:
             rows.append(
@@ -219,14 +215,14 @@ def annotate_rewrites(
 
     The distinction is the whole point of showing the list before a clear — a managed entry
     is restored seconds later, an unmanaged one is gone for good. Pure, so the "would it
-    come back" question is answered by the same `rewrite_domain`/`target_answer` pair the
+    come back" question is answered by the same `instances.fqdn`/`target_answer` pair the
     restore itself uses, not by a second guess at the rule."""
     managed = set()
     if base_domain:
         for inst in routed:
             target = target_answer(inst, current_ip)
             if target:
-                managed.add((rewrite_domain(inst, base_domain), target))
+                managed.add((instances_store.fqdn(inst.subdomain, base_domain), target))
     return [
         {
             "domain": entry.get("domain", ""),
@@ -303,7 +299,7 @@ async def reconcile(
         target = target_answer(inst, current_ip)
         if not target:
             continue
-        domain = rewrite_domain(inst, base_domain)
+        domain = instances_store.fqdn(inst.subdomain, base_domain)
         if target in by_domain.get(domain, set()):
             ensured.add(domain)
     added: list[str] = []
@@ -344,7 +340,7 @@ async def reconcile(
 
     # Persist dns_answer for instances whose name now resolves to their target.
     for inst in routed:
-        domain = rewrite_domain(inst, base_domain)
+        domain = instances_store.fqdn(inst.subdomain, base_domain)
         target = target_answer(inst, current_ip)
         if domain in ensured and target and inst.dns_answer != target:
             instances_store.update_fields(inst.id, dns_answer=target)

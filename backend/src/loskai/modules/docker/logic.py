@@ -397,32 +397,28 @@ def primary_container(containers: list[dict], declared: str | None = None) -> st
     return min(pool, key=lambda c: c["service"])["name"]
 
 
-def linked_instance_id(container_name: str, instances: list) -> str | None:
-    """The id of the instance linked to this container, routed or not. A recipe install
-    creates one before any route exists, named for the recipe — a better route prefix than
-    the generated `<project>-<service>-1`."""
+def link_instances(rows: list[dict], instances: list) -> list[dict]:
+    """Each container row joined to the instance linked to it by `container` (one per
+    container): its `instance_id`, routed or not — a recipe install links one before any
+    route exists, named for the recipe, a better route prefix than the generated
+    `<project>-<service>-1` — and its route's `subdomain` and `scheme`, so the Docker tab
+    links it over the protocol it is served on (an `http` route has no certificate).
+    Joined at display time, never stored."""
+    linked: dict[str, object] = {}
     for inst in instances:
-        if inst.container == container_name:
-            return inst.id
-    return None
-
-
-def subdomain_for(container_name: str, instances: list) -> str | None:
-    """The assigned subdomain for a container, joined via the instance's `container`."""
-    for inst in instances:
-        if inst.container == container_name and inst.subdomain:
-            return inst.subdomain
-    return None
-
-
-def scheme_for(container_name: str, instances: list) -> str | None:
-    """The routed container's scheme, so the Docker tab links it over the protocol it is
-    actually served on — an `http` route has no certificate, and an https link to it cannot
-    connect. None when the container has no route."""
-    for inst in instances:
-        if inst.container == container_name and inst.subdomain:
-            return inst.scheme
-    return None
+        if inst.container:
+            linked.setdefault(inst.container, inst)
+    out = []
+    for row in rows:
+        inst = linked.get(row["name"])
+        routed = inst is not None and bool(inst.subdomain)
+        out.append({
+            **row,
+            "subdomain": inst.subdomain if routed else None,
+            "instance_id": inst.id if inst is not None else None,
+            "scheme": inst.scheme if routed else None,
+        })
+    return out
 
 
 def orphaned_instances(instances: list, live_container_names: set[str]) -> list:
