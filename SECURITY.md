@@ -93,8 +93,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **No HTTPS of its own.** Port `:8080` is plain HTTP. Reach Loskai through its routed name
   (`https://loskai.<your domain>`) — a login there gets a `Secure` cookie, never sent in
   the clear — and don't open `:8080` beyond the machines you manage it from.
-- **One login limit for everyone.** Someone on your network who keeps guessing keeps you
-  out too, until they stop or Loskai restarts.
+- **One login limit per account, for every client.** Someone on your network who keeps
+  guessing an account's password keeps that account out too, until they stop or Loskai
+  restarts.
 
 ## Reporting a vulnerability
 

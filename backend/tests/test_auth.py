@@ -325,8 +325,8 @@ def test_the_wait_doubles_and_is_capped(monkeypatch):
     backoff = auth._Backoff()
     waits = []
     for _ in range(auth.FREE_FAILURES + 8):
-        backoff.failed()
-        waits.append(round(backoff.wait_left()))
+        backoff.failed("admin")
+        waits.append(round(backoff.wait_left("admin")))
 
     assert waits[: auth.FREE_FAILURES] == [-1000] * auth.FREE_FAILURES  # never set
     assert waits[auth.FREE_FAILURES :] == [2, 4, 8, 16, 32, 60, 60, 60]
@@ -388,12 +388,26 @@ def test_failures_long_ago_are_forgotten(monkeypatch):
     monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
     backoff = auth._Backoff()
     for _ in range(auth.FREE_FAILURES + 15):  # a guesser, then silence
-        backoff.failed()
+        backoff.failed("admin")
     now[0] += auth.QUIET_RESET + 1
 
-    backoff.failed()  # the admin's typo
+    backoff.failed("admin")  # the admin's typo
 
-    assert backoff.wait_left() <= 0
+    assert backoff.wait_left("admin") <= 0
+
+
+def test_another_account_signing_in_doesn_t_clear_the_count_on_the_admin(client):
+    """Each wrong guess at the admin's password counts against the admin; an operator's own
+    right password once reset that, making every guess free."""
+    r = client.post("/api/users", json={"username": "ola", "password": "ola-password", "role": "operator", "tabs": ["docker"]})
+    assert r.status_code == 200, r.text
+    for _ in range(auth.FREE_FAILURES + 1):
+        assert _wrong(client).status_code == 401
+
+    with TestClient(app) as ola:
+        assert ola.post("/api/login", json={"username": "ola", "password": "ola-password"}).status_code == 200
+
+    assert _wrong(client).status_code == 429  # still waiting
 
 
 def _shell(path: str, stdin: str = ""):

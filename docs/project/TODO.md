@@ -28,9 +28,9 @@ visible without unpacking a phase back out. The checklists stay in
   must follow it to wherever it is published: `config.DEFAULT_RECIPES_REPO` (the seeded
   recipe source) and `REPO_URL` in `frontend/src/lib/docs.ts` (the Docker tab's link to
   `migration.md`)
-- **Decide: count wrong passwords per client.** The login backoff has one counter for
-  everyone (behind Caddy every request has Caddy's address), so a LAN script guessing the
-  moment each wait ends keeps the admin out until it stops or Loskai restarts. The proposed
+- **Decide: count wrong passwords per client.** The login backoff counts per account but
+  not per client (behind Caddy every request has Caddy's address), so a LAN script guessing
+  the moment each wait ends keeps that account out until it stops or Loskai restarts. The proposed
   fix: key the count by client, trusting Caddy's `X-Forwarded-For` only on requests from
   Caddy's own address. Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
 - **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd

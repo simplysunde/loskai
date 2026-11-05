@@ -232,31 +232,34 @@ QUIET_RESET = 15 * 60  # seconds
 
 
 class _Backoff:
-    """One counter for every client, not one per IP: behind Caddy every request comes from
-    Caddy's address. The price is that the guesser's waits are the admin's too — one who
-    keeps guessing keeps the admin out. In memory: a restart clears it."""
+    """Wrong passwords counted per username — not per IP: behind Caddy every request comes from
+    Caddy's address — so a right password clears only its own account's count: an operator
+    signing in can't wipe the count of someone guessing the admin's. The price is that a
+    guesser's waits are that account's too — one who keeps guessing keeps it out. One check
+    at a time, for everyone (`lock`). In memory: a restart clears it."""
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.failures = 0
-        self.until = 0.0
-        self.last_failure = 0.0
+        self.counts: dict[str, list[float]] = {}  # username → [failures, until, last failure]
 
-    def wait_left(self) -> float:
-        return self.until - time.monotonic()
+    def wait_left(self, username: str) -> float:
+        return self.counts.get(username, [0, 0.0, 0.0])[1] - time.monotonic()
 
-    def failed(self) -> None:
+    def failed(self, username: str) -> None:
         now = time.monotonic()
-        if now - self.last_failure > QUIET_RESET:
-            self.failures = 0
-        self.last_failure = now
-        self.failures += 1
-        if self.failures > FREE_FAILURES:
-            self.until = now + min(2 ** (self.failures - FREE_FAILURES), MAX_WAIT)
+        # Names nobody has guessed for a while go, so made-up ones can't pile up.
+        for name in [n for n, (_, until, last) in self.counts.items() if now - last > QUIET_RESET and until < now]:
+            del self.counts[name]
+        count = self.counts.setdefault(username, [0, 0.0, 0.0])
+        if now - count[2] > QUIET_RESET:
+            count[0] = 0
+        count[2] = now
+        count[0] += 1
+        if count[0] > FREE_FAILURES:
+            count[1] = now + min(2 ** (count[0] - FREE_FAILURES), MAX_WAIT)
 
-    def reset(self) -> None:
-        self.failures = 0
-        self.until = 0.0
+    def reset(self, username: str) -> None:
+        self.counts.pop(username, None)
 
 
 _backoff = _Backoff()
@@ -282,7 +285,7 @@ def check_password(password: str, wrong_status: int = 401, username: str | None 
             headers={"Retry-After": "1"},
         )
     try:
-        wait = _backoff.wait_left()
+        wait = _backoff.wait_left(username)
         if wait > 0:
             seconds = math.ceil(wait)
             raise HTTPException(
@@ -292,9 +295,9 @@ def check_password(password: str, wrong_status: int = 401, username: str | None 
             )
         user = users.verify(username, password)
         if user is None:
-            _backoff.failed()
+            _backoff.failed(username)
             raise HTTPException(status_code=wrong_status, detail="Wrong username or password" if wrong_status == 401 else "Wrong password")
-        _backoff.reset()
+        _backoff.reset(username)
         return user
     finally:
         _backoff.lock.release()
