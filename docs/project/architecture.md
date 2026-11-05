@@ -362,7 +362,8 @@ from**: connect to one in the browser, run prepared commands on it — update th
 check disks and services — find the Docker containers and services running on it, and
 administer it without opening a hypervisor's UI. A UI like Proxmox's does everything, but
 everyday upkeep there is slow; prepared commands make the common jobs one click, the same
-idea as the container terminal's quick commands. Not built; in the backlog.
+idea as the container terminal's quick commands. Built in Phase 34; the decisions below are
+why it is shaped as it is.
 
 Decided:
 
@@ -395,7 +396,7 @@ What that commits to — designed in from the start, not added after:
   `HostName` its address; the machine's form edits its user and port, and renaming, moving
   or deleting the machine edits that entry in place. Entries naming no machine are left alone.
 - **The browser terminal is a WebSocket like container exec** — outside the HTTP
-  middleware, so it checks the session and the `Origin` itself.
+  middleware, so it passes the same gate of its own (`shared/terminal.py`).
 - **Prepared commands are data, shipped with the code** — like `quick_commands.py`, keyed by
   what the machine runs — and run visibly in the terminal, never behind your back.
 - **Finding Docker on a machine over SSH** overlaps the backlog's multi-host idea: SSH may

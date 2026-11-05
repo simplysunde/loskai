@@ -3,14 +3,15 @@
 **Safe passage for your Docker deployments.**
 
 A single Docker container that acts as the control plane for your entire homelab —
-four independent modules (Docker, Caddy, AdGuard, WireGuard) behind one web UI. Each
+five independent modules (Docker, Caddy, AdGuard, WireGuard, SSH) behind one web UI. Each
 degrades gracefully; nothing depends on another module being healthy.
 
 ![The Routing tab](docs/images/routing.png)
 
 - **A name for every service** — `jellyfin.home.lan` instead of `192.168.10.20:8096`, over
   HTTPS. One step sets both the Caddy route and the AdGuard DNS entry.
-- **Machines by name** — routes on a machine follow it when its address changes.
+- **Machines by name** — routes on a machine follow it when its address changes, and over
+  SSH: what runs there, a terminal in the browser, its updates and tools.
 - **Docker, grouped by stack** — start, stop, update, edit, and install apps from recipes.
 - **A dashboard** — every service as a launcher card, usable without logging in.
 

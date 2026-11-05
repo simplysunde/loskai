@@ -1,7 +1,7 @@
 # Loskai documentation
 
-Loskai is the control plane for a homelab: one container, four independent modules
-(Docker, Caddy, AdGuard, WireGuard) behind one web UI. These pages are grouped by the
+Loskai is the control plane for a homelab: one container, five independent modules
+(Docker, Caddy, AdGuard, WireGuard, SSH) behind one web UI. These pages are grouped by the
 question they answer.
 
 - **[Guides](#guides)** — you want to run Loskai, or fix something that's misbehaving.

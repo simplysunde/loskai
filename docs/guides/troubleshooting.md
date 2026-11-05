@@ -53,8 +53,8 @@ curl -s http://<caddy>:2019/config/apps/http/servers/srv0/routes | jq '[.[] | {i
 Every route Loskai pushes must come **before** any `terminal` entry that matches its host.
 Loskai has inserted at the head since 2026-09-05 (`PUT …/routes/0`); builds before that
 appended, so **every route was shadowed** wherever Caddy ran with the real `BASE_DOMAIN` in
-that block — the co-located and split-DNS layouts, and split-LXC in `acme` mode. Update, then
-re-push from **Routing → Sync**.
+that block — the co-located and split-DNS layouts. Update, then re-push from
+**Routing → Sync**.
 
 A name under `BASE_DOMAIN` that you have *not* routed answers **`404` — "Nothing is routed at
 &lt;name&gt;"** — from that same block. That one is expected, and it is the quickest way to tell

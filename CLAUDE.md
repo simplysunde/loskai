@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A homelab control panel in one container. It gives any service an HTTPS name in one step —
 a Caddy route plus an AdGuard DNS rewrite — manages Docker stacks, and installs apps from
-recipe repos. Five modules (Docker, Caddy, AdGuard, WireGuard, SSH) — SSH, which manages the
-machines, is being built (Phase 34); the project is preparing its first public release, and
-runs day to day on a real homelab.
+recipe repos. Five modules (Docker, Caddy, AdGuard, WireGuard, SSH) — SSH manages the
+machines; the project is preparing its first public release, and runs day to day on a real
+homelab.
 
 - **What is being worked on:** `docs/project/TODO.md` — its open items, and the backlog at
   the end. Check it before assuming something is missing; a finished phase's write-up
@@ -115,8 +115,9 @@ bash scripts/check-docs.sh
   recurring failure**, not broken code. Its checks: broken links; dead heading anchors;
   pages unreachable from `docs/README.md`; `docs/` paths cited from source that no longer
   resolve; `docs/` paths written out in the current-state docs; this file's enumerations
-  against the code (modules, admin tabs, the HTTP route count, the public routes); and the
-  recipes repo's copy of `recipe-schema.md`. When something it checks changes, fix the doc
+  against the code (modules — and the READMEs' — admin tabs, the HTTP route count, the
+  public routes); every route against its row in `api.md`; and the recipes repo's copy of
+  `recipe-schema.md`. When something it checks changes, fix the doc
   **in the same commit as the behaviour**.
 - **The suite mocks Caddy, so it can't see a route placed wrong.** After changing route
   pushing, the Caddyfile, upstream detection or a compose file, run it live — the rig is
@@ -129,7 +130,7 @@ bash scripts/check-docs.sh
 
 ## Architecture — the load-bearing ideas
 
-**One image, four independent modules.** Each degrades gracefully and never blocks another;
+**One image, five independent modules.** Each degrades gracefully and never blocks another;
 a module going unreachable greys out only its own card.
 
 **The `instance` is the single domain object.** `instances.json` — a flat file; **there is

@@ -159,7 +159,7 @@ if problems:
 print("\nno broken links, anchors, orphans, stale source citations or unheaded pages")
 PY
 
-log "Checking CLAUDE.md's enumerations against the code"
+log "Checking the docs' enumerations against the code"
 
 python3 - <<'PY'
 import pathlib
@@ -188,16 +188,25 @@ def listed(pattern: str) -> list[str] | None:
     return [i.strip(" `*") for i in re.split(r",| and ", m.group(1)) if i.strip(" `*")]
 
 
-# 1. The four module names, against backend/src/loskai/modules/.
+# 1. The modules, against backend/src/loskai/modules/ — every "N modules" and every
+#    "modules (A, B, …)" in CLAUDE.md and the two READMEs a visitor starts from.
 mods = sorted(
     d.name for d in pathlib.Path("backend/src/loskai/modules").iterdir()
     if d.is_dir() and not d.name.startswith("__")
 )
-claimed = listed(r"modules \(([^)]*)\)")
-if claimed is None:
+if listed(r"modules \(([^)]*)\)") is None:
     problems.append("  CLAUDE.md: no 'modules (...)' list found — did the wording change?")
-elif sorted(c.lower() for c in claimed) != mods:
-    problems.append(f"  CLAUDE.md: modules {claimed} != {mods} on disk")
+NUMBERS = {w: n for n, w in enumerate("zero one two three four five six seven eight nine ten".split())}
+for doc in ("CLAUDE.md", "README.md", "docs/README.md"):
+    text = re.sub(r"\s+", " ", pathlib.Path(doc).read_text())
+    for word in re.findall(r"\b(\w+) (?:independent )?modules\b", text):
+        count = NUMBERS.get(word.lower(), int(word) if word.isdigit() else None)
+        if count is not None and count != len(mods):
+            problems.append(f"  {doc}: says {word} modules, there are {len(mods)}")
+    for items in re.findall(r"modules \(([^)]*)\)", text):
+        claimed = sorted(i.strip(" `*").lower() for i in re.split(r",| and ", items) if i.strip(" `*"))
+        if claimed != mods:
+            problems.append(f"  {doc}: modules ({items}) != {mods} on disk")
 
 # 2. The admin tab list, against NAV in the frontend layout. Tabs marked `public: true`
 #    are excluded — the Dashboard launcher and the Certificate page are things a
@@ -251,12 +260,41 @@ for verb, rx in re.findall(r'\("(\w+)",\s*re\.compile\(r"([^"]+)"\)\)', pat.grou
             f"  CLAUDE.md: public route pattern {verb} {readable} is not named in the security section"
         )
 
-print(f"modules: {len(mods)} · admin tabs: {len(admin_nav)} · HTTP routes: {routes}")
+# 5. Every route in the code has its row in api.md, and every row there is a route. A row
+#    is `METHOD /path`: a path starting /api is whole, any other is under its section's
+#    `/api/...` heading; `· /stop · /restart` lists siblings of the row's last segment.
+code_routes = set()
+for f in pathlib.Path("backend/src/loskai").rglob("*.py"):
+    text = f.read_text()
+    prefix = re.search(r'APIRouter\(prefix="([^"]*)"', text)
+    for verb, path in re.findall(r'@router\.(get|post|put|patch|delete|websocket)\(\s*"([^"]*)"', text):
+        full = (prefix.group(1) if prefix else "") + path
+        code_routes.add(("WS" if verb == "websocket" else verb.upper(), re.sub(r"\{[^}]+\}", "{}", full)))
+doc_routes, section = set(), ""
+for line in pathlib.Path("docs/reference/api.md").read_text().splitlines():
+    if line.startswith("#"):
+        heading = re.search(r"`(/api[^`]*)`", line)
+        if line.startswith("## "):
+            section = heading.group(1) if heading else ""
+        continue
+    row = re.match(r"\| `(GET|POST|PUT|PATCH|DELETE|WS) (/[^`]*)`((?: · `/[^`]*`)*) \|", line)
+    if not row:
+        continue
+    verb, path = row.group(1), row.group(2)
+    full = path if path.startswith("/api") else section + path
+    paths = [full] + [full.rsplit("/", 1)[0] + alt for alt in re.findall(r"`(/[^`]*)`", row.group(3))]
+    doc_routes |= {(verb, re.sub(r"\{[^}]+\}", "{}", p)) for p in paths}
+for verb, path in sorted(code_routes - doc_routes):
+    problems.append(f"  docs/reference/api.md: {verb} {path} is a route with no row")
+for verb, path in sorted(doc_routes - code_routes):
+    problems.append(f"  docs/reference/api.md: a row for {verb} {path}, which no route serves")
+
+print(f"modules: {len(mods)} · admin tabs: {len(admin_nav)} · HTTP routes: {routes} · api.md rows: {len(doc_routes)}")
 if problems:
     print(f"\n{len(problems)} problem(s):")
     print("\n".join(problems))
     sys.exit(1)
-print("\nCLAUDE.md's enumerations match the code")
+print("\nThe docs' enumerations match the code")
 PY
 
 log "Checking the recipes repo's copy of the schema"
