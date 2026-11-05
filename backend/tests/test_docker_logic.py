@@ -80,6 +80,16 @@ def test_a_container_is_joined_to_its_instance():
     ]
 
 
+def test_a_container_linked_twice_shows_the_route_of_the_routed_record():
+    """A recipe's unrouted record listed first, and a route made for the same container."""
+    instances = [
+        Instance(id="jellyfin", name="Jellyfin", type="docker", container="jellyfin-jellyfin-1"),
+        Instance(id="tv", name="TV", type="docker", container="jellyfin-jellyfin-1", subdomain="tv", scheme="both"),
+    ]
+    row = logic.link_instances([{"name": "jellyfin-jellyfin-1"}], instances)[0]
+    assert (row["subdomain"], row["scheme"], row["instance_id"]) == ("tv", "both", "jellyfin")
+
+
 def test_suggested_container_port_prefers_single_published():
     # AdGuard: many exposed, only 3000 published -> 3000.
     ports = {"3000/tcp": [{"HostPort": "3000"}], "53/tcp": None, "53/udp": None, "80/tcp": None}

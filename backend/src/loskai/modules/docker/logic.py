@@ -404,19 +404,23 @@ def link_instances(rows: list[dict], instances: list) -> list[dict]:
     `<project>-<service>-1` — and its route's `subdomain` and `scheme`, so the Docker tab
     links it over the protocol it is served on (an `http` route has no certificate).
     Joined at display time, never stored."""
+    # By the first record naming the container, and its route by the first routed one: a
+    # container linked twice (a recipe's record, and a route made elsewhere) still links out.
     linked: dict[str, object] = {}
+    routes: dict[str, object] = {}
     for inst in instances:
         if inst.container:
             linked.setdefault(inst.container, inst)
+            if inst.subdomain:
+                routes.setdefault(inst.container, inst)
     out = []
     for row in rows:
-        inst = linked.get(row["name"])
-        routed = inst is not None and bool(inst.subdomain)
+        inst, route = linked.get(row["name"]), routes.get(row["name"])
         out.append({
             **row,
-            "subdomain": inst.subdomain if routed else None,
-            "instance_id": inst.id if inst is not None else None,
-            "scheme": inst.scheme if routed else None,
+            "subdomain": route.subdomain if route else None,
+            "instance_id": inst.id if inst else None,
+            "scheme": route.scheme if route else None,
         })
     return out
 
