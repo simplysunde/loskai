@@ -1944,6 +1944,52 @@ review's eight faults and left one open: the last slot dropped, and the key with
       the SSH log
 - [ ] Sunde: New key in Settings › SSH, then set up each machine again
 
+## Phase 40 — The sweep: each decision in one place
+
+Asked 2026-11-05: how much could a sweep of the whole project simplify while keeping every
+function as it is. Three read-only reviews (backend, frontend, tests and docs) found the code
+already lean — about 5–7% could go — so the aim is not size but the dozen decisions made in
+two or more places, which is how this project's worst bugs happened. Four bugs they found
+are fixed first, each with a regression test.
+
+**Decisions (2026-11-05, Sunde: "go ahead with your recommendation")**
+
+- Bugs first, then the backend, the frontend, the tests and the docs — a commit each, every
+  check run, each area checked live before the next.
+- Not done: merging the two route forms outright (little saved, ~700 lines of tests
+  rewritten); pydantic for the recipe and tool validators (worse messages for authors);
+  merging the LXC scripts (each runs alone through curl, untestable off Proxmox).
+- Left for Sunde: dropping the pre-accounts password migration, the `/opt` move in
+  `deploy.sh`, and the unused `git_build`/`registry_pull` recipe modes; reading the old
+  encrypted SSH key (`logic.public_key_of`) goes once the live key is a New one.
+
+**Steps**
+
+- [x] 40a A stack is matched to its containers by folder — `My.App` showed as down
+- [x] 40b An icon upload, a rename and AdGuard's reconcile set only their own fields
+      (`instances.update_fields`), so a change made meanwhile is kept
+- [x] 40c Routing shows a failed row action; a confirm dialog shows its failure
+- [x] 40d The Docker tab shows a failed action — a compose run answering `ok: false` too
+- [ ] 40e Backend: one handler turns each domain error into its HTTP status
+- [ ] 40f Backend: the two terminal WebSockets share one gate and one pump
+- [ ] 40g Backend: `connect.py` — one way to run with the main key, one status-key ladder
+- [ ] 40h Backend: the compare-and-set writes on `update_fields`; one "get it or 404, then
+      its tab" helper
+- [ ] 40i Backend: `.env` and the override each in one module, shared names public
+- [ ] 40j Backend: small duplicates — the error descriptions, the FQDN, the loopback rule,
+      the choice settings, the Caddy host; leftovers and stale comments
+- [ ] 40k Backend: the Caddy client fetches its servers once; the container join leaves
+      `docker/client.py`
+- [ ] 40l Frontend: one hook and one type per query
+- [ ] 40m Frontend: shared buttons, error text, copy button and input class
+- [ ] 40n Frontend: one modal shell
+- [ ] 40o Frontend: the key unlock and the port, login and Caddy-host checks each in one place
+- [ ] 40p Frontend: the route forms share their lower half; one auto-saving field; tool
+      context once; dead code and `recharts`
+- [ ] 40q Tests: shared fixtures (backend) and render/fetch helpers (frontend)
+- [ ] 40r Docs: stale facts fixed; the docs check counts modules and checks `api.md`'s routes
+- [ ] 40s Docs: finished phases to the archive; each repeated fact in one place
+
 ---
 
 ## Backlog / Future ideas
