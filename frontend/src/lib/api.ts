@@ -10,6 +10,12 @@ export class ApiError extends Error {
   }
 }
 
+// What to show for a failed request: Loskai's own reason, or `fallback` when it never
+// answered (a network error's message means nothing to the reader).
+export function apiMessage(err: unknown, fallback = "Couldn't reach Loskai"): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",

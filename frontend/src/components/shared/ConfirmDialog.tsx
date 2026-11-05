@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 
 import { useEscape } from "../../lib/useEscape";
 import { useScrollLock } from "../../lib/useScrollLock";
@@ -9,6 +10,8 @@ export function ConfirmDialog({
   children,
   confirmLabel = "Confirm",
   destructive = false,
+  pending = false,
+  error = null,
   onConfirm,
   onCancel,
 }: {
@@ -17,6 +20,10 @@ export function ConfirmDialog({
   children?: ReactNode;
   confirmLabel?: string;
   destructive?: boolean;
+  // The confirmed request in flight (Confirm can't be pressed twice), and why it failed —
+  // the dialog stays open on a failure, so it is where the reason goes.
+  pending?: boolean;
+  error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -35,6 +42,7 @@ export function ConfirmDialog({
       >
         <h2 className="text-base font-semibold text-slate-100">{title}</h2>
         <div className="mt-2 text-sm text-slate-400">{children}</div>
+        {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
@@ -43,13 +51,15 @@ export function ConfirmDialog({
             Cancel
           </button>
           <button
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
               destructive
                 ? "bg-rose-600 text-white hover:bg-rose-500"
                 : "bg-teal-600 text-white hover:bg-teal-500"
             }`}
+            disabled={pending}
             onClick={onConfirm}
           >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
             {confirmLabel}
           </button>
         </div>

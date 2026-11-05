@@ -14,7 +14,7 @@ import {
   Unplug,
 } from "lucide-react";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { copyText } from "../lib/clipboard";
 import type { SettingsView } from "../lib/settings";
@@ -26,6 +26,7 @@ import { ICON_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusP
 import { NETWORK_SERVICES, urlToUpstream } from "../components/routing/networkServices";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
+import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
 interface DnsStatus {
@@ -62,6 +63,12 @@ export function Routing() {
   const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
   const [syncNote, setSyncNote] = useState<string | null>(null);
+  // A row action that failed (its dialogs say so themselves; these have none).
+  const [failed, setFailed] = useState<{ title: string; detail: string } | null>(null);
+  const reportsAs = (title: string) => ({
+    onMutate: () => setFailed(null),
+    onError: (err: unknown) => setFailed({ title, detail: apiMessage(err) }),
+  });
 
   const routes = useQuery({
     queryKey: ["caddy-routes"],
@@ -160,7 +167,7 @@ export function Routing() {
   const cleanupOrphan = useMutation({
     mutationFn: (o: Orphan) => api.del(`/api/docker/orphans/${o.id}`),
     onSuccess: invalidate,
-    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Cleanup failed"),
+    ...reportsAs("Couldn't delete the orphaned route"),
   });
 
   const assign = useMutation({
@@ -180,7 +187,7 @@ export function Routing() {
       setResult(data);
       invalidate();
     },
-    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Assign failed"),
+    onError: (err) => setAssignError(apiMessage(err)),
   });
 
   // Create a route from the "Add route" picker (container / network service / external).
@@ -192,7 +199,7 @@ export function Routing() {
       qc.invalidateQueries({ queryKey: ["docker-containers"] });
       invalidate();
     },
-    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Add route failed"),
+    onError: (err) => setAssignError(apiMessage(err)),
   });
 
   // AdGuard's pill routes it in one click — the same request the Add route picker's Network
@@ -203,19 +210,20 @@ export function Routing() {
       setResult(data);
       invalidate();
     },
+    ...reportsAs("Couldn't route AdGuard"),
   });
 
   const setIcon = useMutation({
     mutationFn: ({ row, file }: { row: RouteRow; file: File }) =>
       api.upload(`/api/instances/${row.id}/icon`, file),
     onSuccess: invalidate,
-    onError: (err) =>
-      setAssignError(err instanceof ApiError ? err.message : "Icon upload failed"),
+    ...reportsAs("Couldn't set the icon"),
   });
 
   const clearIcon = useMutation({
     mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}/icon`),
     onSuccess: invalidate,
+    ...reportsAs("Couldn't remove the icon"),
   });
 
   // Remove the route (Caddy + DNS), keep the instance.
@@ -234,12 +242,12 @@ export function Routing() {
       setConfirmDelete(null);
       invalidate();
     },
-    onError: (err) => setAssignError(err instanceof ApiError ? err.message : "Delete failed"),
   });
 
   const privateToggle = useMutation({
     mutationFn: (row: RouteRow) => api.patch(`/api/instances/${row.id}`, { private: !row.private }),
     onSuccess: invalidate,
+    ...reportsAs("Couldn't change who sees it"),
   });
 
   const push = useMutation({
@@ -431,12 +439,7 @@ export function Routing() {
             </ul>
           </div>
         )}
-        {routeAdguard.error && (
-          <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-            Couldn't route AdGuard:{" "}
-            {routeAdguard.error instanceof ApiError ? routeAdguard.error.message : "request failed"}
-          </div>
-        )}
+        {failed && <ActionError {...failed} onDismiss={() => setFailed(null)} />}
         {result && (
           <div
             className={`rounded-lg border px-3 py-2 text-sm ${
@@ -510,7 +513,12 @@ export function Routing() {
         title="Remove route"
         destructive
         confirmLabel="Remove route"
-        onCancel={() => setConfirmRemove(null)}
+        pending={removeRoute.isPending}
+        error={removeRoute.error && apiMessage(removeRoute.error)}
+        onCancel={() => {
+          setConfirmRemove(null);
+          removeRoute.reset();
+        }}
         onConfirm={() => confirmRemove && removeRoute.mutate(confirmRemove)}
       >
         This removes the Caddy route and AdGuard rewrite for{" "}
@@ -523,7 +531,12 @@ export function Routing() {
         title="Delete instance"
         destructive
         confirmLabel="Delete"
-        onCancel={() => setConfirmDelete(null)}
+        pending={deleteInstance.isPending}
+        error={deleteInstance.error && apiMessage(deleteInstance.error)}
+        onCancel={() => {
+          setConfirmDelete(null);
+          deleteInstance.reset();
+        }}
         onConfirm={() => confirmDelete && deleteInstance.mutate(confirmDelete)}
       >
         This deletes{" "}

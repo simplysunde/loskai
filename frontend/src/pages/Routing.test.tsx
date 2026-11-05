@@ -86,3 +86,36 @@ test("a routed AdGuard opens at its name, and offers no second route", async () 
   expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
   expect(screen.getByText("adguard.example.no", { selector: "span" })).toBeInTheDocument();
 });
+
+function failing(method: string, path: string, detail: string) {
+  const ok = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (p, init) =>
+    (init?.method ?? "GET") === method && String(p) === path
+      ? new Response(JSON.stringify({ detail }), { status: 502, headers: { "Content-Type": "application/json" } })
+      : ok(p, init),
+  );
+}
+
+test("a delete that fails says why in its dialog, which stays open", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  failing("DELETE", "/api/instances/adguard", "Caddy is unreachable");
+  renderPage();
+
+  fireEvent.click(await screen.findByTitle("Delete instance"));
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+  expect(await screen.findByText("Caddy is unreachable")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Delete instance" })).toBeInTheDocument();
+});
+
+test("a row action that fails says so above the table", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  failing("PATCH", "/api/instances/adguard", "instance 'adguard' not found");
+  renderPage();
+
+  fireEvent.click(await screen.findByTitle("Public on dashboard"));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Couldn't change who sees it");
+  expect(alert).toHaveTextContent("instance 'adguard' not found");
+});
