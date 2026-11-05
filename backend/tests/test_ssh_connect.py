@@ -848,6 +848,17 @@ def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
     assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
 
 
+def test_a_ticket_is_only_for_the_run_it_was_given_for(api, machine_net, shell):
+    """The password was typed for Update; a terminal opened for another action with that
+    ticket gets nothing — sudo's password goes only where the dialog said."""
+    _ready(api, machine_net)
+    ticket = _prepare(api, password="sudo-pw").json()["ticket"]
+
+    assert _closed_with(api, TERMINAL + f"&tool=system&action=reboot&ticket={ticket}") == (
+        4409, "That password is no longer held — run it again")
+    assert "first_line" not in shell
+
+
 # --- A tool's settings ---
 
 GIT_FACTS = APT_FACTS + "git\n"

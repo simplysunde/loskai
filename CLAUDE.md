@@ -235,7 +235,7 @@ command in `logic.STATUS_COMMAND` — it only reads, and never gets any other us
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password
 (Install it for me) is used for one connection and stored nowhere. So is a `sudo` password
 for an **automatic** action (`automatic: true` in its tool file): asked for in a dialog,
-checked with `sudo -S -v`, held in memory under a one-time ticket for a minute
+checked with `sudo -S -v`, held in memory under a one-time ticket for that run, for a minute
 (`connect.prepare`), and read by the run as its first line, never in a command line or the
 log (`tool.visible`). Updates without any password are a sudo rule on the machine
 (`logic.SUDO_RULE`, allowing only System's update steps and its own removal), taken off

@@ -259,13 +259,13 @@ async def machine_terminal(
     peer = _peer(websocket)
     command, details, password = None, None, None
     try:
-        if ticket:
-            if not (tool or sudo):
-                raise connect.SshError(422, "A password is only for a tool's action")
-            password = connect.take_password(ticket, machine_id)
+        if ticket and not (tool or sudo):
+            raise connect.SshError(422, "A password is only for a tool's action")
         if tool or sudo:
             asked = RunRequest(tool=tool, action=action, target=target, install=install, sudo=sudo)
-            command, details, _ = await _plan(machine_id, asked, password is not None)
+            command, details, _ = await _plan(machine_id, asked, bool(ticket))
+        if ticket:
+            password = connect.take_password(ticket, machine_id, details)
         t, conn, process = await connect.open_terminal(
             machine_id, max(1, min(cols, 1000)), max(1, min(rows, 1000)), command, password
         )

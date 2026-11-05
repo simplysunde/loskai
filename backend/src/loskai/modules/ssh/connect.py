@@ -451,8 +451,15 @@ async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tup
 
 PASSWORD_TTL = 60  # seconds a checked password waits for its terminal
 
-# ticket → (username, machine id, password, expiry). In memory only, taken once.
-_passwords: dict[str, tuple[str | None, str, str, float]] = {}
+# ticket → (username, machine id, the run it was given for, password, expiry). In memory only,
+# taken once.
+_passwords: dict[str, tuple[str | None, str, str, str, float]] = {}
+
+
+def _run_of(details: dict) -> str:
+    """The run a password was given for — what the log says of it, which names the tool,
+    action, target and command — so a ticket can't be spent on another."""
+    return repr(sorted((k, repr(v)) for k, v in details.items() if k != "covered"))
 
 
 async def prepare(machine_id: str, details: dict, automatic: bool, password: str | None) -> dict:
@@ -486,21 +493,26 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
         raise SshError(422, f"sudo didn't accept that password for {t.user}")
     me = auth.current_user()
     now = time.monotonic()
-    for stale in [k for k, v in _passwords.items() if v[3] < now]:
+    for stale in [k for k, v in _passwords.items() if v[4] < now]:
         del _passwords[stale]
     ticket = secrets.token_urlsafe(24)
-    _passwords[ticket] = (me.username if me else None, machine_id, password, now + PASSWORD_TTL)
+    _passwords[ticket] = (me.username if me else None, machine_id, _run_of(details), password, now + PASSWORD_TTL)
     return {**no, "needs_password": True, "user": t.user, "ticket": ticket}
 
 
-def take_password(ticket: str, machine_id: str) -> str:
-    """The password held under `ticket` — once, for the user who gave it, on that machine.
-    Raises SshError 409 when it is gone or isn't theirs."""
+def take_password(ticket: str, machine_id: str, details: dict) -> str:
+    """The password held under `ticket` — once, for the user who gave it, on that machine, for
+    the run it was given for (`details`, as `plan` describes it). Raises SshError 409 when it
+    is gone or isn't for this."""
     held = _passwords.pop(ticket, None)
     me = auth.current_user()
-    if held is None or held[3] < time.monotonic() or held[1] != machine_id or held[0] != (me.username if me else None):
+    if (
+        held is None
+        or held[4] < time.monotonic()
+        or held[:3] != (me.username if me else None, machine_id, _run_of(details))
+    ):
         raise SshError(409, "That password is no longer held — run it again")
-    return held[2]
+    return held[3]
 
 
 # --- A tool's settings ---
