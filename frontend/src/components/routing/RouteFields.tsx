@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 
 import { HostSelect } from "./HostSelect";
 import type { HostOption } from "./hostOptions";
 import type { RouteFieldsState } from "./useRouteFields";
 import { INPUT } from "../../lib/ui";
-
 
 // A container's route can follow it: the upstream is the container's live address, kept in
 // step by the backend when its port changes (shared/follow.py). Passed only for a
@@ -18,9 +18,9 @@ export interface FollowState {
 
 const LINK = "text-xs text-teal-400 hover:text-teal-300 hover:underline";
 
-// The two inputs themselves. Each modal keeps its own chrome, TLS checkbox and submit —
-// `preview` is the slot for the FQDN line AssignModal shows under the prefix (AddRouteModal
-// renders its own further down, next to the submit).
+// The prefix and the upstream — host, port, and whether it speaks HTTPS. Each modal keeps
+// its own chrome and submit; `preview` is the slot for the FQDN line AssignModal shows under
+// the prefix (AddRouteModal renders its own further down, next to the submit).
 export function RouteFields({
   fields,
   autoFocus = false,
@@ -120,6 +120,49 @@ export function RouteFields({
           <code className="text-slate-400">loskai.port</code> label to change that.
         </span>
       )}
+      <label
+        title="Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
+        className="mt-3 flex items-center gap-2 text-xs text-slate-400"
+      >
+        <input
+          type="checkbox"
+          checked={fields.tls}
+          onChange={(e) => fields.setTls(e.target.checked)}
+          className="accent-teal-500"
+        />
+        Backend speaks HTTPS
+      </label>
     </>
+  );
+}
+
+// Both route forms end the same way: Cancel, and the submit — spinning while it saves.
+export function RouteFormFooter({
+  label,
+  pending,
+  disabled,
+  onCancel,
+  onSubmit,
+}: {
+  label: string;
+  pending: boolean;
+  disabled: boolean;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="mt-4 flex justify-end gap-2">
+      <button onClick={onCancel} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
+        Cancel
+      </button>
+      <button
+        disabled={disabled}
+        onClick={onSubmit}
+        className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+      >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+        {label}
+      </button>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Container as ContainerIcon, Globe, Loader2, Network } from "lucide-react";
+import { Container as ContainerIcon, Globe, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useContainers, type Container } from "../../lib/containers";
@@ -10,7 +10,7 @@ import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
-import { RouteFields } from "./RouteFields";
+import { RouteFields, RouteFormFooter } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
 import { Overlay } from "../shared/Modal";
 
@@ -207,15 +207,6 @@ export function AddRouteModal({
       />
       <SchemeSelect value={scheme} onChange={setScheme} />
 
-      <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-        <input
-          type="checkbox"
-          checked={fields.tls}
-          onChange={(e) => fields.setTls(e.target.checked)}
-        />
-        Backend speaks HTTPS (skip cert verification)
-      </label>
-
       <p className="mt-4 text-xs text-slate-500">
         →{" "}
         <span className="font-mono text-slate-300">
@@ -224,26 +215,20 @@ export function AddRouteModal({
       </p>
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
-          Cancel
-        </button>
-        <button
-          disabled={!canSubmit}
-          onClick={() =>
-            onSubmit({
-              ...fields.payload(),
-              scheme,
-              ...link,
-              ...(source === "container" && picked ? { follow_container: follow } : {}),
-            })
-          }
-          className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-        >
-          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-          Add route
-        </button>
-      </div>
+      <RouteFormFooter
+        label="Add route"
+        pending={pending}
+        disabled={!canSubmit}
+        onCancel={onClose}
+        onSubmit={() =>
+          onSubmit({
+            ...fields.payload(),
+            scheme,
+            ...link,
+            ...(source === "container" && picked ? { follow_container: follow } : {}),
+          })
+        }
+      />
     </Overlay>
   );
 }

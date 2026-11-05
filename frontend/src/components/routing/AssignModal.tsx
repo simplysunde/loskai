@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { RouteFields } from "./RouteFields";
+import { RouteFields, RouteFormFooter } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
@@ -99,44 +99,15 @@ export function AssignModal({
 
       <SchemeSelect value={scheme} onChange={setScheme} />
 
-      <label className="mt-3 flex items-start gap-2 text-sm text-slate-300">
-        <input
-          type="checkbox"
-          checked={fields.tls}
-          onChange={(e) => fields.setTls(e.target.checked)}
-          className="mt-0.5 accent-teal-500"
-        />
-        <span>
-          Backend speaks HTTPS
-          <span className="block text-xs text-slate-500">
-            Dial the upstream over TLS, accepting a self-signed cert (e.g. Proxmox).
-          </span>
-        </span>
-      </label>
-
       {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
-          onClick={onClose}
-        >
-          Cancel
-        </button>
-        <button
-          disabled={!canSubmit}
-          onClick={() =>
-            onSubmit({
-              ...fields.payload(),
-              scheme,
-              ...(follow ? { follow_container: following } : {}),
-            })
-          }
-          className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-        >
-          Assign
-        </button>
-      </div>
+      <RouteFormFooter
+        label="Assign"
+        pending={pending}
+        disabled={!canSubmit}
+        onCancel={onClose}
+        onSubmit={() => onSubmit({ ...fields.payload(), scheme, ...(follow ? { follow_container: following } : {}) })}
+      />
     </Overlay>
   );
 }
