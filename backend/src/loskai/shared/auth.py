@@ -196,12 +196,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
             and not same_origin(request.headers)
         ):
             return JSONResponse({"detail": "Cross-origin request refused"}, status_code=403)
+        if not path.startswith("/api/"):
+            return await call_next(request)  # the page and its files: served to anyone, no session
         public = (request.method, path) in PUBLIC_ROUTES or any(
             request.method == verb and pattern.match(path)
             for verb, pattern in PUBLIC_PATTERNS
         )
         found = _read_session(request.cookies.get(SESSION_COOKIE))
-        if path.startswith("/api/") and not public:
+        if not public:
             if found is None:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
             # Signed in — but may this account call this? (access.py, one line per route)

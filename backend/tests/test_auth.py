@@ -466,6 +466,21 @@ def test_a_session_in_use_is_renewed_and_one_just_issued_is_not(client, monkeypa
     assert renewed.headers["set-cookie"].startswith(auth.SESSION_COOKIE + "=")
 
 
+def test_the_page_and_its_files_never_read_or_renew_the_session(client, monkeypatch):
+    """Only /api/ needs the session: a page load fetches dozens of files with the cookie
+    attached, and each would read three files and could carry a fresh Set-Cookie."""
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
+    monkeypatch.setattr(auth, "RENEW_AFTER", -1)
+    reads = []
+    read = auth._read_session
+    monkeypatch.setattr(auth, "_read_session", lambda token: reads.append(token) or read(token))
+
+    for path in ("/", "/machines/nas", "/assets/index.js"):
+        assert "set-cookie" not in client.get(path).headers
+    assert reads == []
+    assert client.get("/api/launcher").headers["set-cookie"].startswith(auth.SESSION_COOKIE + "=")
+
+
 def test_changing_your_password_ends_your_other_sessions_and_keeps_this_one(client):
     with TestClient(app) as phone:
         phone.post("/api/login", json={"username": "admin", "password": PASSWORD})
