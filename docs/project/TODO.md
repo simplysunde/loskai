@@ -1970,16 +1970,22 @@ are fixed first, each with a regression test.
       (`instances.update_fields`), so a change made meanwhile is kept
 - [x] 40c Routing shows a failed row action; a confirm dialog shows its failure
 - [x] 40d The Docker tab shows a failed action — a compose run answering `ok: false` too
-- [ ] 40e Backend: one handler turns each domain error into its HTTP status
-- [ ] 40f Backend: the two terminal WebSockets share one gate and one pump
-- [ ] 40g Backend: `connect.py` — one way to run with the main key, one status-key ladder
-- [ ] 40h Backend: the compare-and-set writes on `update_fields`; one "get it or 404, then
+- [x] 40e Backend: one handler turns each domain error into its HTTP status
+- [x] 40f Backend: the two terminal WebSockets share one gate and one pump
+- [x] 40g Backend: `connect.py` — one way to run with the main key, one status-key ladder
+- [x] 40h Backend: the compare-and-set writes on `update_fields`; one "get it or 404, then
       its tab" helper
-- [ ] 40i Backend: `.env` and the override each in one module, shared names public
-- [ ] 40j Backend: small duplicates — the error descriptions, the FQDN, the loopback rule,
+- [x] 40i Backend: `.env` and the override each in one module, shared names public
+- [x] 40j Backend: small duplicates — the error descriptions, the FQDN, the loopback rule,
       the choice settings, the Caddy host; leftovers and stale comments
-- [ ] 40k Backend: the Caddy client fetches its servers once; the container join leaves
+- [x] 40k Backend: the Caddy client fetches its servers once; the container join leaves
       `docker/client.py`
+- [x] Backend live: both terminals through the shared relay (resize reaches the shell, a
+      logout closes it); install, test, sudo's password, Git's settings, the 423 after a
+      logout and the uninstall against the Debian container; a recipe installed and edited
+      through the form (`.env` escaped, folders and option on and off, the override gone
+      when empty); and each scheme against a real Caddy — the container's body from the
+      right server, at its head
 - [ ] 40l Frontend: one hook and one type per query
 - [ ] 40m Frontend: shared buttons, error text, copy button and input class
 - [ ] 40n Frontend: one modal shell
