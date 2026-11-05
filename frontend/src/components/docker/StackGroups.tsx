@@ -344,8 +344,7 @@ function GroupHeader({
   onDelete,
 }: {
   group: Group;
-  // Set when the group's route links belong on its header; undefined leaves them on rows.
-  baseDomain: string | null | undefined;
+  baseDomain: string | null;
   open: boolean;
   onToggle: () => void;
   busy: boolean;

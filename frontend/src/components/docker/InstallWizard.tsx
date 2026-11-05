@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -111,11 +111,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     setResult(null);
   }
 
-  const title = useMemo(() => {
-    if (result) return "Installed";
-    if (selected) return `Install ${selected.name}`;
-    return "Install from a recipe";
-  }, [selected, result]);
+  const title = result ? "Installed" : selected ? `Install ${selected.name}` : "Install from a recipe";
 
   const step = result ? 3 : selected && reviewed ? 2 : selected ? 1 : 0;
   // Earlier steps stay reachable until the install has run; after it, there is no undo.
