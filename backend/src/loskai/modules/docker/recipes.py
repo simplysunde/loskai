@@ -83,7 +83,7 @@ def validate_manifest(data: object) -> list[str]:
         if not isinstance(entry, dict) or not entry.get("key") or not entry.get("label"):
             errors.append(f"env[{i}] needs 'key' and 'label'")
             continue
-        if not dotenv.KEY_RE.match(str(entry["key"])):
+        if not dotenv.KEY_RE.fullmatch(str(entry["key"])):
             errors.append(f"env[{i}] key '{entry['key']}' is not a valid variable name")
         etype = entry.get("type", "text")
         if etype not in ENV_TYPES:
@@ -125,7 +125,7 @@ def _options_problems(options: object) -> list[str]:
             errors.append(f"options[{i}] must be a mapping")
             continue
         oid = opt.get("id")
-        if not isinstance(oid, str) or not _OPTION_ID_RE.match(oid):
+        if not isinstance(oid, str) or not _OPTION_ID_RE.fullmatch(oid):
             errors.append(f"options[{i}] needs an 'id' of lowercase letters, digits, - and _")
         elif oid in seen:
             errors.append(f"options[{i}] id '{oid}' is used twice")

@@ -47,7 +47,7 @@ def stacks_dir_ok() -> bool:
 
 
 def _validate_name(name: str) -> None:
-    if not _NAME_RE.match(name) or "/" in name or ".." in name:
+    if not _NAME_RE.fullmatch(name) or "/" in name or ".." in name:
         raise StackError(f"invalid stack name: {name!r}")
 
 

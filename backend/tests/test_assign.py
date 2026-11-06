@@ -60,7 +60,7 @@ class FakeAdGuard:
 
 
 def test_validate_prefix_rejects_bad_labels():
-    for bad in ["", "Grafana", "has.dot", "-lead", "trail-", "under_score"]:
+    for bad in ["", "Grafana", "has.dot", "-lead", "trail-", "under_score", "grafana\n"]:
         with pytest.raises(AssignError):
             assign.validate_prefix(bad)
 
@@ -370,6 +370,8 @@ def test_validate_prefix_dns_only_allows_multi_label():
     assign.validate_prefix("vm1", route_mode="dns_only")
     with pytest.raises(AssignError):
         assign.validate_prefix("Has.Upper", route_mode="dns_only")
+    with pytest.raises(AssignError):
+        assign.validate_prefix("rack1.vm3\n", route_mode="dns_only")
 
 
 def test_validate_upstream_dns_only_requires_bare_ip():

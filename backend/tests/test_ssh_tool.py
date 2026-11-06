@@ -85,6 +85,8 @@ def test_adding_a_tool_installs_what_it_lacks_packages_in_one_command_then_scrip
     ("container", "jellyfin-jellyfin-1", True), ("container", "-rm", False),
     ("lxc", "101", True), ("vm", "abc", False), (None, None, True), (None, "nginx", False),
     ("service", None, False),
+    # `$` alone also matches before a trailing newline.
+    ("service", "nginx\n", False), ("project", "myproj\n", False), ("lxc", "101\n", False),
 ])
 def test_a_target_is_checked_against_its_kind(kind, target, ok):
     if ok:
@@ -307,3 +309,5 @@ def test_a_value_reaches_the_write_command_only_as_1():
     assert out == "<Ola; touch /tmp/pwned $(id)>"
     with pytest.raises(tool.ToolError, match="Not a valid git name"):
         tool.write_setting_script(t, "n", "line\nbreak")
+    with pytest.raises(tool.ToolError, match="Not a valid git name"):
+        tool.write_setting_script(t, "n", "Ola\n")

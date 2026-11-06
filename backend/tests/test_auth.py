@@ -520,3 +520,11 @@ def test_an_account_whose_hash_is_broken_is_a_wrong_password_and_counted(client)
         assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 401
 
     assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+
+
+def test_a_username_ending_in_a_newline_is_refused():
+    from loskai.shared import users
+
+    users.check_username("bob")
+    with pytest.raises(users.UserError):
+        users.check_username("bob\n")

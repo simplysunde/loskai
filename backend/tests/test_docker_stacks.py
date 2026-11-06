@@ -102,6 +102,12 @@ def test_create_stack_writes_files(stacks_dir, monkeypatch):
     assert (stacks_dir / "new" / ".env").stat().st_mode & 0o777 == 0o600  # it holds passwords
 
 
+def test_a_stack_name_ending_in_a_newline_is_refused(stacks_dir):
+    with pytest.raises(StackError, match="invalid stack name"):
+        stacks.create_stack("web\n", COMPOSE)
+    assert not (stacks.stacks_dir() / "web\n").exists()
+
+
 def test_create_refuses_when_dir_missing(stacks_dir, monkeypatch):
     monkeypatch.setattr(config.settings, "stacks_dir", str(stacks_dir / "unmounted"))
     with pytest.raises(StackError, match="stacks directory not found"):

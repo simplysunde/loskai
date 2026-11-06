@@ -120,7 +120,7 @@ class Tool:
 def parse(tool_id: str, doc: object) -> Tool:
     """A tool file's YAML → a Tool, or ToolError naming every problem at once."""
     problems: list[str] = []
-    if not _ID.match(tool_id):
+    if not _ID.fullmatch(tool_id):
         problems.append(f"the file name {tool_id!r} must be lowercase letters, digits and -")
     if not isinstance(doc, dict):
         raise ToolError(f"{tool_id}: not a YAML mapping")
@@ -150,7 +150,7 @@ def parse(tool_id: str, doc: object) -> Tool:
         raw_actions = {}
     for action_id, raw in raw_actions.items():
         where = f"actions.{action_id}"
-        if not isinstance(action_id, str) or not _ID.match(action_id):
+        if not isinstance(action_id, str) or not _ID.fullmatch(action_id):
             problems.append(f"`{where}`: an action id is lowercase letters, digits and -")
             continue
         if not isinstance(raw, dict):
@@ -177,7 +177,7 @@ def parse(tool_id: str, doc: object) -> Tool:
         if ask is not None and target is not None:
             problems.append(f"`{where}`: give `target` or `ask`, not both")
         session = raw.get("session")
-        if session is not None and session is not False and not (isinstance(session, str) and _ID.match(session)):
+        if session is not None and session is not False and not (isinstance(session, str) and _ID.fullmatch(session)):
             problems.append(f"`{where}.session` must be false, or a name of lowercase letters, digits and -")
         confirm = raw.get("confirm")
         if confirm is not None and (not isinstance(confirm, str) or not confirm.strip()):
@@ -208,7 +208,7 @@ def _settings(raw: object) -> tuple[dict[str, Setting], list[str]]:
     out: dict[str, Setting] = {}
     for setting_id, spec in raw.items():
         where = f"settings.{setting_id}"
-        if not isinstance(setting_id, str) or not _ID.match(setting_id):
+        if not isinstance(setting_id, str) or not _ID.fullmatch(setting_id):
             problems.append(f"`{where}`: a setting id is lowercase letters, digits and -")
             continue
         if not isinstance(spec, dict):
@@ -301,14 +301,14 @@ def write_setting_script(t: Tool, setting_id: str, value: str) -> str:
     s = t.settings.get(setting_id)
     if s is None:
         raise ToolError(f"{t.name} has no setting {setting_id!r}")
-    if not TARGETS[s.value].match(value):
+    if not TARGETS[s.value].fullmatch(value):
         raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
     return f"sh -c {shlex.quote(s.write)} loskai {shlex.quote(value)}"
 
 
 def parse_folder(text: str) -> str:
     """A projects folder as typed — `~`, `~/code` — to how it is stored: relative to home."""
-    if not _FOLDER.match(text.strip()):
+    if not _FOLDER.fullmatch(text.strip()):
         raise ToolError("A projects folder is ~ or one folder in it, such as ~/projects")
     return text.strip().removeprefix("~").strip("/")
 
@@ -442,7 +442,7 @@ def check_target(kind: str | None, target: str | None) -> None:
         if target:
             raise ToolError("This action is for the machine, not one thing on it")
         return
-    if not target or not TARGETS[kind].match(target):
+    if not target or not TARGETS[kind].fullmatch(target):
         raise ToolError(f"Not a {kind}: {target!r}")
 
 

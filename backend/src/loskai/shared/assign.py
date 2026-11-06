@@ -61,13 +61,13 @@ def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "pro
         raise AssignError(422, "prefix is required")
     if route_mode == "dns_only":
         labels = prefix.split(".")
-        if len(prefix) > 253 or not all(_LABEL.match(label) for label in labels):
+        if len(prefix) > 253 or not all(_LABEL.fullmatch(label) for label in labels):
             raise AssignError(
                 422,
                 "Each dot-separated label must be lowercase letters, digits, hyphens",
             )
         return
-    if len(prefix) > 63 or not _LABEL.match(prefix):
+    if len(prefix) > 63 or not _LABEL.fullmatch(prefix):
         raise AssignError(
             422,
             "Subdomain must be a single DNS label (lowercase letters, digits, hyphens)",

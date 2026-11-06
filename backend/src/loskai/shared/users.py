@@ -105,7 +105,7 @@ def _update(mutate) -> list[User]:
 
 
 def check_username(username: str) -> None:
-    if not USERNAME.match(username):
+    if not USERNAME.fullmatch(username):
         raise UserError(422, "A username: lowercase letters, digits, _ . - and starting with a letter")
 
 
@@ -242,7 +242,7 @@ def ensure_seeded() -> None:
         # Lowercased, as login lowercases what is typed. A name that still isn't one stops
         # startup, saying which variable: skipping it would open first-run setup to anyone.
         name = (env.loskai_username or "admin").strip().lower()
-        if not USERNAME.match(name):
+        if not USERNAME.fullmatch(name):
             raise RuntimeError(
                 f"LOSKAI_USERNAME={env.loskai_username!r} isn't a username: lowercase letters, "
                 "digits, _ . - and starting with a letter"

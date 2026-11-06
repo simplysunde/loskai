@@ -280,7 +280,7 @@ def save_form(
             raise StackError(f"compose.override.yml {logic.yaml_problem(new_override)}")
     new_env = env_text
     if settings:
-        bad = [k for k in settings if not dotenv.KEY_RE.match(str(k))]
+        bad = [k for k in settings if not dotenv.KEY_RE.fullmatch(str(k))]
         if bad:
             raise StackError(f"not a variable name: {', '.join(bad)}")
         questions = {str(q["key"]): q for q in ((recipe or {}).get("env") or [])}
