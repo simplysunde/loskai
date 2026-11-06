@@ -644,13 +644,16 @@ def install_recipe(
 
     # A reinstall keeps the earlier record — its route, icon, private flag, following —
     # and only re-points it at the container that now exists. Replacing it wholesale used
-    # to wipe the route fields while Caddy kept serving the route.
-    record = (
-        slot.model_copy(update={"container": container})
-        if slot
-        else Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
-    )
-    instances_store.upsert_instance(with_icon(record, recipe))
+    # to wipe the route fields while Caddy kept serving the route; writing back the copy
+    # read before `up`, to lose what changed during it (the follower, a hand edit).
+    record = instances_store.update_fields(recipe_id, container=container) if slot else None
+    if record is None:
+        record = Instance(id=recipe_id, name=recipe["name"], type="docker", container=container)
+        instances_store.upsert_instance(with_icon(record, recipe))
+    else:
+        iconed = with_icon(record, recipe)
+        if iconed.icon != record.icon:
+            instances_store.give_icon(recipe_id, iconed.icon)
     return {
         "ok": True, "output": result["output"], "instance_id": recipe_id, "container": container,
         "reused_data": reused,

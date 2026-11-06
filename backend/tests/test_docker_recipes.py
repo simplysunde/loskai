@@ -623,6 +623,40 @@ def test_reinstall_keeps_the_route_record(installable, monkeypatch):
     assert inst.private and inst.icon == "grafana.png" and inst.follow_container
 
 
+def test_a_change_made_during_a_reinstall_s_up_is_kept(installable, monkeypatch):
+    """`up` can take minutes; the follower re-points the route, or the user edits it."""
+    from loskai.shared.instances import Instance
+
+    instances_store.upsert_instance(Instance(
+        id="grafana", name="Grafana", type="docker", container="grafana-old-1",
+        subdomain="graf", upstream="192.168.10.220:3000", follow_container=True,
+    ))
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    def up(directory, build):
+        instances_store.update_fields("grafana", upstream="192.168.10.220:3001", private=True)
+        return {"ok": True, "output": "Started"}
+
+    monkeypatch.setattr(recipes, "_compose_up", up)
+    recipes.install_recipe("grafana", {})
+
+    inst = instances_store.get_instance("grafana")
+    assert inst.container == "grafana-app-1"
+    assert inst.upstream == "192.168.10.220:3001" and inst.private
+
+
+def test_a_reinstalled_record_with_no_icon_gets_the_recipe_s(installable, monkeypatch):
+    from loskai.shared.instances import Instance
+
+    instances_store.upsert_instance(Instance(id="grafana", name="Grafana", type="docker", container="grafana-old-1"))
+    (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
+    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+
+    recipes.install_recipe("grafana", {})
+
+    assert instances_store.get_instance("grafana").icon
+
+
 def test_an_id_that_names_an_external_route_is_refused(installable, monkeypatch):
     """A route's id is its prefix — a hand-made route at the recipe's name is not ours."""
     from loskai.shared.instances import Instance
