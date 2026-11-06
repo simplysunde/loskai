@@ -319,7 +319,7 @@ with the machine or its SSH connection.
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 74 HTTP routes plus the two
+  API subsets Loskai calls), `api.md` (Loskai's own: 75 HTTP routes plus the two
   terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

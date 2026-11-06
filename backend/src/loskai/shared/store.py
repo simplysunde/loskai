@@ -1,7 +1,7 @@
 """Atomic JSON file I/O — the single I/O seam for the flat-file store.
 
-There is no database: `settings.json` and `instances.json` are the only persistent
-state. Keeping read/write here (temp-file + rename) means the store can never be left
+There is no database: `settings.json` and `instances.json` are the persistent state, beside
+the accounts and two logs (`append_log`). Keeping read/write here (temp-file + rename) means the store can never be left
 half-written, and the pure logic in settings.py / instances.py stays testable against
 a `tmp_path` without touching real paths.
 """
@@ -109,3 +109,36 @@ def write_private(path: str | Path, text: str) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         os.fchmod(f.fileno(), 0o600)
         f.write(text)
+
+
+LOG_KEEP = 1000  # entries a log keeps when it is trimmed
+
+
+def append_log(path: str | Path, entry: dict) -> None:
+    """Add one entry to a log — one JSON line each, owner-only. Trimmed to the last
+    `LOG_KEEP` once it is twice that, so it never grows without bound."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(p, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    if p.stat().st_size > LOG_KEEP * 2 * 200:  # ~200 bytes a line
+        update_text(p, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
+
+
+def read_log(path: str | Path, limit: int, user: str | None = None) -> list[dict]:
+    """A log's last `limit` entries, newest first — only `user`'s, given one (an operator
+    reads its own; an admin, `None`, all). A line that doesn't parse is skipped."""
+    p = Path(path)
+    text = p.read_text(encoding="utf-8") if p.exists() else ""
+    out: list[dict] = []
+    for line in reversed(text.splitlines()):
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if user is None or entry.get("user") == user:
+            out.append(entry)
+            if len(out) == limit:
+                break
+    return out

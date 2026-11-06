@@ -80,7 +80,8 @@ Everything so far:
   sessions on every device, and an open terminal with them, as taking away its tab does. Your
   name in the sidebar opens a menu: your role and tabs, Change password and Log out. An operator's SSH log, in a machine's dialog, shows only what
   they did. Each account unlocks Loskai's SSH key with its own password.
-  An existing install's password becomes the account `admin`.
+  An existing install's password becomes the account `admin`. Settings › Users lists each
+  sign-in and wrong password: when, the username typed, from where.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of
   its data folder, not root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).

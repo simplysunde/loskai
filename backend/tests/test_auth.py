@@ -344,6 +344,39 @@ def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
         assert _wrong(client).status_code == 401  # free again
 
 
+# --- Sign-in log ---
+
+
+def test_sign_ins_and_wrong_passwords_are_logged_never_the_password(client, tmp_path):
+    _wrong(client)
+    client.post("/api/login", json={"username": "Nobody", "password": "guess-123"}, headers={"x-forwarded-for": "10.0.0.9, 10.0.0.1"})
+    client.post("/api/login", json={"username": "admin", "password": PASSWORD})
+
+    log = client.get("/api/auth/logins").json()
+
+    assert [(e["user"], e["ok"]) for e in log] == [("admin", True), ("nobody", False), ("admin", False)]
+    assert log[1]["from"] == "10.0.0.9"
+    text = (tmp_path / "logins.log").read_text()
+    assert "wrong password" not in text and "guess-123" not in text and PASSWORD not in text
+    assert (tmp_path / "logins.log").stat().st_mode & 0o777 == 0o600
+
+
+def test_a_login_turned_away_during_a_wait_is_not_logged(client, tmp_path):
+    for _ in range(auth.FREE_FAILURES + 1):
+        _wrong(client)
+
+    assert _wrong(client).status_code == 429
+    assert len((tmp_path / "logins.log").read_text().splitlines()) == auth.FREE_FAILURES + 1
+
+
+def test_only_an_admin_reads_the_sign_in_log(client):
+    users.create("ola", "ola-password", "operator", ["docker", "routing", "machines"])
+    with TestClient(app) as ola:
+        ola.post("/api/login", json={"username": "ola", "password": "ola-password"})
+
+        assert ola.get("/api/auth/logins").status_code == 403
+
+
 # --- The Secure flag ---
 
 

@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-06 — A sign-in log
+
+The login backoff slows a guesser but left no trace: a wrong password was counted in memory
+and forgotten. Sunde asked for a log. It is a file beside the SSH log, `data/logins.log`, in
+the same format and trim — the writing and reading moved to `store` so both logs share it —
+not Loskai's container output, which every deploy recreates, and not the SSH log, which is
+about machines and which operators read their own of. An admin reads it in Settings › Users.
+
+It records sign-ins as well as failures, so a run of wrong passwords followed by a sign-in
+shows. A login turned away during a wait is not logged: a script hammering the login would
+otherwise fill it in minutes. Only the login is logged — a wrong password at the SSH key's
+unlock shares the backoff but not this log.
+
 ## 2026-11-05 — The sweep: each decision in one place (Phase 40)
 
 Sunde asked how much a sweep of the whole project could simplify while keeping every function

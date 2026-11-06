@@ -20,19 +20,11 @@ from pydantic import BaseModel
 from ...shared import auth
 from ...shared import instances as instances_store
 from ...shared import settings as settings_store
+from ...shared import store
 from ...shared import terminal
 from . import client, connect, logic, tool, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
-
-
-def _peer(conn: Request | WebSocket) -> str | None:
-    """Who is asking, for the log: the first `X-Forwarded-For` hop behind Caddy, else the
-    socket's peer. Display only — nothing is decided by it."""
-    forwarded = conn.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return conn.client.host if conn.client else None
 
 
 def _key_view() -> dict | None:
@@ -142,9 +134,9 @@ async def install(machine_id: str, body: PasswordRequest, request: Request) -> d
     try:
         result = await connect.install(machine_id, body.password)
     except connect.SshError as exc:
-        connect.log("install", machine_id, _peer(request), ok=False, error=exc.detail)
+        connect.log("install", machine_id, auth.peer(request), ok=False, error=exc.detail)
         raise
-    connect.log("install", machine_id, _peer(request), ok=True)
+    connect.log("install", machine_id, auth.peer(request), ok=True)
     return result
 
 
@@ -223,7 +215,7 @@ class SettingRequest(BaseModel):
 @router.put("/machines/{machine_id}/tools/{tool_id}/settings/{setting_id}")
 async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body: SettingRequest, request: Request) -> dict:
     """Set one of a tool's settings on the machine; `{ values }` read back after."""
-    values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), _peer(request))
+    values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), auth.peer(request))
     return {"values": values}
 
 
@@ -234,7 +226,7 @@ def session_log(limit: int = 200) -> list[dict]:
     me = auth.current_user()
     if me is None:  # the middleware sets one; never the whole log without it
         raise HTTPException(401, "Authentication required")
-    return logic.log_entries(client.read_log(), max(1, min(limit, client.LOG_KEEP)), None if me.admin else me.username)
+    return client.read_log(max(1, min(limit, store.LOG_KEEP)), None if me.admin else me.username)
 
 
 @router.websocket("/machines/{machine_id}/terminal")
@@ -256,7 +248,7 @@ async def machine_terminal(
     cookie = await terminal.accept(websocket, "machines")
     if cookie is None:
         return
-    peer = _peer(websocket)
+    peer = auth.peer(websocket)
     command, details, password = None, None, None
     try:
         if ticket and not (tool or sudo):

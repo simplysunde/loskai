@@ -9,15 +9,17 @@ unauthenticated.
 
 import asyncio
 import contextvars
+import logging
 import math
 import re
 import secrets
 import threading
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -29,6 +31,8 @@ from . import settings as settings_store
 from . import store
 from . import users
 from .users import User
+
+logger = logging.getLogger(__name__)
 
 SESSION_COOKIE = "loskai_session"
 # v2: the cookie names an account and its generation (v1 said only "authed").
@@ -181,7 +185,13 @@ def same_origin(headers) -> bool:
     return urlsplit(origin).netloc.lower() in {h.strip().lower() for h in sent_to if h.strip()}
 
 
-# --- First-run seeding + state ---
+def peer(conn: Request | WebSocket) -> str | None:
+    """Who is asking, for the logs: the first `X-Forwarded-For` hop behind Caddy, else the
+    socket's peer. Display only — nothing is decided by it."""
+    forwarded = conn.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return conn.client.host if conn.client else None
 
 
 # --- Middleware ---
@@ -303,6 +313,25 @@ def check_password(password: str, wrong_status: int = 401, username: str | None 
         _backoff.lock.release()
 
 
+# --- Sign-in log ---
+
+
+def _login_log_path() -> Path:
+    return Path(env.data_dir) / "logins.log"
+
+
+def _log_login(username: str, request: Request, ok: bool) -> None:
+    """Record a sign-in or a wrong password, for Settings › Users. Never the password; not a
+    login turned away during a wait, or a script hammering the login would flood it.
+    Best-effort: a log that can't be written never stops a login."""
+    # A made-up name can be any length; no real one is over 32.
+    entry = {"at": datetime.now(UTC).isoformat(), "user": username[:64], "from": peer(request), "ok": ok}
+    try:
+        store.append_log(_login_log_path(), entry)
+    except OSError as exc:
+        logger.warning("Sign-in log not written: %s", exc)
+
+
 # --- Routes ---
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -347,7 +376,14 @@ def auth_status(request: Request) -> dict:
 
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response) -> dict:
-    user = check_password(body.password, username=body.username.strip().lower())
+    username = body.username.strip().lower()
+    try:
+        user = check_password(body.password, username=username)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            _log_login(username, request, ok=False)
+        raise
+    _log_login(username, request, ok=True)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 
@@ -362,6 +398,12 @@ def logout(request: Request, response: Response) -> dict[str, bool]:
         users.end_sessions(user.username)
     response.delete_cookie(SESSION_COOKIE)
     return {"authed": False}
+
+
+@router.get("/auth/logins")
+def login_log(limit: int = 200) -> list[dict]:
+    """The sign-in log, newest first: each sign-in and wrong password, by username tried."""
+    return store.read_log(_login_log_path(), max(1, min(limit, store.LOG_KEEP)))
 
 
 @router.post("/auth/setup")

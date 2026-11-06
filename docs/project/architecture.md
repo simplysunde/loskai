@@ -671,7 +671,10 @@ which login answers `429`; 15 quiet minutes start the count again. A wrong usern
 the same as a wrong password, and the answer doesn't say which. The count is one for all
 clients — behind Caddy every request comes from Caddy's address — so a guesser's waits are
 everyone's, and one who keeps guessing keeps everyone out; it lives in memory, and a
-restart clears it. Counting per client is open (TODO). The AdGuard password is the only
+restart clears it. Counting per client is open (TODO). **Each login is logged** —
+`data/logins.log`, shown in Settings › Users: when, the username typed, from where, and
+whether it signed in — never the password, and not a login turned away during a wait, which
+would let a script flood it. It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it, and only an admin reads it
 back. Files holding secrets are written owner-only.
 

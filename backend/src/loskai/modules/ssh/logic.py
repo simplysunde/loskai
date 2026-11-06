@@ -8,7 +8,6 @@ left exactly as it was. Nothing here touches a file; `client.py` reads and write
 
 import base64
 import hashlib
-import json
 import re
 import struct
 
@@ -601,19 +600,3 @@ def _tmux_session(line: str) -> dict | None:
         "attached": parts[2] not in ("", "0"),
         "windows": _number(parts[3]) or 0,
     }
-
-
-def log_entries(text: str, limit: int, user: str | None = None) -> list[dict]:
-    """The SSH log's last `limit` entries, newest first — only `user`'s, given one (an
-    operator reads its own; an admin, `None`, all). A line that doesn't parse is skipped."""
-    out: list[dict] = []
-    for line in reversed(text.splitlines()):
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if user is None or entry.get("user") == user:
-            out.append(entry)
-            if len(out) == limit:
-                break
-    return out

@@ -9,8 +9,6 @@ private key: only public halves leave this module. Editing the files is
 """
 
 import asyncio
-import json
-import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -91,25 +89,13 @@ def _log_path() -> Path:
     return ssh_dir() / "sessions.log"
 
 
-LOG_KEEP = 1000  # entries kept when the log is trimmed
-
-
 def append_log(entry: dict) -> None:
-    """One JSON line per event, owner-only. Trimmed to the last `LOG_KEEP` once it is twice
-    that, so it never grows without bound."""
-    path = _log_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-    with os.fdopen(fd, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
-    if path.stat().st_size > LOG_KEEP * 2 * 200:  # ~200 bytes a line
-        store.update_text(path, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
+    store.append_log(_log_path(), entry)
 
 
-def read_log() -> str:
-    """The SSH log as written, one JSON entry a line — "" before the first."""
-    path = _log_path()
-    return path.read_text(encoding="utf-8") if path.exists() else ""
+def read_log(limit: int, user: str | None = None) -> list[dict]:
+    """The SSH log, newest first (`store.read_log`)."""
+    return store.read_log(_log_path(), limit, user)
 
 
 def read_config() -> str:

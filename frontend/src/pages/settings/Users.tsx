@@ -4,6 +4,7 @@ import { KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
 import { useMe, type Tab } from "../../lib/useAuth";
+import { SignInLog } from "../../components/settings/SignInLog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { Modal } from "../../components/shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -105,6 +106,14 @@ export function Users() {
           </tbody>
         </table>
       </div>
+
+      <section className="border-t border-slate-800 pt-6">
+        <h2 className="text-sm font-medium text-slate-200">Sign-ins</h2>
+        <p className="mt-1 mb-3 text-xs text-slate-500">
+          Each sign-in and wrong password, by the username typed — never the password.
+        </p>
+        <SignInLog />
+      </section>
 
       {adding && <AccountForm onClose={() => setAdding(false)} onSaved={refresh} />}
       {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={refresh} />}
