@@ -23,6 +23,7 @@ services:
       - --port=8080
       - --reload
       - --reload-dir=/app/src
+      - --reload-include=*.yml # the tool files, which Loskai reads once
 
   web:
     image: node:20-alpine # the same Node as the Dockerfile's frontend stage

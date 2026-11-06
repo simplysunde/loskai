@@ -311,3 +311,15 @@ def test_a_value_reaches_the_write_command_only_as_1():
         tool.write_setting_script(t, "n", "line\nbreak")
     with pytest.raises(tool.ToolError, match="Not a valid git name"):
         tool.write_setting_script(t, "n", "Ola\n")
+
+
+def test_the_tool_files_are_read_once(monkeypatch):
+    reads = []
+    real = tool.yaml.safe_load
+    monkeypatch.setattr(tool.yaml, "safe_load", lambda text: reads.append(1) or real(text))
+    tool._read.cache_clear()
+
+    first = tool.load()
+    assert tool.load() is first
+    assert len(reads) == len(first)
+

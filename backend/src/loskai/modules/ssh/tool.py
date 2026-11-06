@@ -15,6 +15,7 @@ Everything here is pure; `connect.py` decides which machine and runs it.
 import re
 import shlex
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
 
 import yaml
@@ -245,9 +246,16 @@ def load(directory: Path | None = None) -> dict[str, Tool]:
     """Every tool file in `directory` (default `DIR`), by id (the file name). Raises
     ToolError for the first that isn't valid — they ship in the image, and the test suite
     loads them all."""
+    return _read(directory or DIR)
+
+
+# Once per folder: the files never change while Loskai runs, and every plan, settings read
+# and tool list asks for them (`make live` restarts on an edited one).
+@cache
+def _read(directory: Path) -> dict[str, Tool]:
     return {
         path.stem: parse(path.stem, yaml.safe_load(path.read_text(encoding="utf-8")))
-        for path in sorted((directory or DIR).glob("*.yml"))
+        for path in sorted(directory.glob("*.yml"))
     }
 
 
