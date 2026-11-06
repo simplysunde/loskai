@@ -85,36 +85,41 @@ export function XtermSession({
       return true;
     });
 
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const sep = url.includes("?") ? "&" : "?";
-    const ws = new WebSocket(
-      `${proto}://${location.host}${url}${sep}cols=${term.cols}&rows=${term.rows}`,
-    );
-    ws.binaryType = "arraybuffer";
-    wsRef.current = ws;
     const encoder = new TextEncoder();
-
+    let ws: WebSocket | null = null;
     const sendResize = () => {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }));
       }
     };
 
-    ws.onopen = () => {
-      sendResize();
-      term.focus();
-    };
-    ws.onmessage = (e) => {
-      term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
-    };
-    ws.onclose = (e) => {
-      const why = e.reason ? `: ${e.reason}` : "";
-      term.write(`\r\n\x1b[90m[session closed${why}]\x1b[0m\r\n`);
-      onClosedRef.current?.(e.code, e.reason);
-    };
+    // Opened a tick later, so a mount undone at once — StrictMode's, in the dev build — opens
+    // nothing. Opening is what starts the session on the server: a machine's action runs, and
+    // the ticket holding its sudo password is spent, by a socket closed straight away.
+    const connecting = setTimeout(() => {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const sep = url.includes("?") ? "&" : "?";
+      const socket = new WebSocket(
+        `${proto}://${location.host}${url}${sep}cols=${term.cols}&rows=${term.rows}`,
+      );
+      socket.binaryType = "arraybuffer";
+      socket.onopen = () => {
+        sendResize();
+        term.focus();
+      };
+      socket.onmessage = (e) => {
+        term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+      };
+      socket.onclose = (e) => {
+        const why = e.reason ? `: ${e.reason}` : "";
+        term.write(`\r\n\x1b[90m[session closed${why}]\x1b[0m\r\n`);
+        onClosedRef.current?.(e.code, e.reason);
+      };
+      ws = wsRef.current = socket;
+    });
 
     const dataSub = term.onData((d) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(encoder.encode(d));
+      if (ws?.readyState === WebSocket.OPEN) ws.send(encoder.encode(d));
     });
     const resizeSub = term.onResize(sendResize);
     const onWinResize = () => fit.fit();
@@ -126,8 +131,11 @@ export function XtermSession({
       resizeSub.dispose();
       oscSub.dispose();
       clearTimeout(clearCopied);
-      ws.onclose = null;
-      ws.close();
+      clearTimeout(connecting);
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
       term.dispose();
     };
   }, [url]);
