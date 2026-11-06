@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { useMe, type Tab } from "../../lib/useAuth";
+import { LEVELS, levelName, useMe, type Level } from "../../lib/useAuth";
 import { SignInLog } from "../../components/settings/SignInLog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { Modal } from "../../components/shared/Modal";
@@ -11,22 +11,15 @@ import { INPUT } from "../../lib/ui";
 
 interface Account {
   username: string;
-  role: "admin" | "operator";
-  tabs: Tab[];
+  level: Level;
   created: number;
 }
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "docker", label: "Docker" },
-  { id: "routing", label: "Routing" },
-  { id: "machines", label: "Machines" },
-];
 
 const BUTTON =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800";
 
-// The accounts (admin only — the API says so too). An admin does everything; an operator
-// only the tabs it is given, and routes need Routing even from Docker or Machines.
+// The accounts (admin only — the API says so too). Each has a level, which adds to the ones
+// below it; level 4 is an admin.
 export function Users() {
   const qc = useQueryClient();
   const { me } = useMe();
@@ -35,7 +28,7 @@ export function Users() {
   const [editing, setEditing] = useState<Account | null>(null);
   const [resetting, setResetting] = useState<Account | null>(null);
   const [removing, setRemoving] = useState<Account | null>(null);
-  // Your own role among them: the sidebar's, from auth-status, follows.
+  // Your own level among them: the sidebar's, from auth-status, follows.
   const refresh = () =>
     Promise.all([qc.invalidateQueries({ queryKey: ["users"] }), qc.invalidateQueries({ queryKey: ["auth-status"] })]);
   const remove = useMutation({
@@ -50,10 +43,10 @@ export function Users() {
     <div className="max-w-2xl space-y-4">
       <div className="flex items-start justify-between gap-4">
         <p className="text-xs text-slate-500">
-          An <span className="text-slate-300">admin</span> can do everything, Settings and users
-          included. An <span className="text-slate-300">operator</span> sees only the tabs it is
-          given, and can do everything in those. Each signs in with their own password, and types
-          it again to unlock Loskai's SSH key for a while.
+          Each level adds to the ones below it: <span className="text-slate-300">1 Routing</span>,{" "}
+          <span className="text-slate-300">2 Docker</span>, <span className="text-slate-300">3 Machines</span>,{" "}
+          <span className="text-slate-300">4 Settings</span> — an admin, who can do everything. Each
+          signs in with their own password, and types it again to unlock Loskai's SSH key for a while.
         </p>
         <button onClick={() => setAdding(true)} className={`${BUTTON} shrink-0 text-slate-200`}>
           <Plus className="h-3.5 w-3.5" /> Add user
@@ -65,15 +58,14 @@ export function Users() {
           <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-2.5 font-medium">User</th>
-              <th className="px-4 py-2.5 font-medium">Role</th>
-              <th className="px-4 py-2.5 font-medium">Tabs</th>
+              <th className="px-4 py-2.5 font-medium">Level</th>
               <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {accounts.isLoading && (
               <tr>
-                <td colSpan={4} className="px-4 py-3">
+                <td colSpan={3} className="px-4 py-3">
                   <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
                 </td>
               </tr>
@@ -84,13 +76,10 @@ export function Users() {
                   {a.username}
                   {a.username === me?.username && <span className="ml-1.5 text-xs text-slate-500">(you)</span>}
                 </td>
-                <td className="px-4 py-2 text-xs text-slate-400">{a.role}</td>
-                <td className="px-4 py-2 text-xs text-slate-400">
-                  {a.role === "admin" ? "all" : a.tabs.map((t) => TABS.find((x) => x.id === t)?.label).join(", ")}
-                </td>
+                <td className="px-4 py-2 text-xs text-slate-400">{levelName(a.level)}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1.5">
-                    <button title="Role and tabs" aria-label={`Edit ${a.username}`} onClick={() => setEditing(a)} className={BUTTON}>
+                    <button title="Level" aria-label={`Edit ${a.username}`} onClick={() => setEditing(a)} className={BUTTON}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button title="Set a new password" aria-label={`New password for ${a.username}`} onClick={() => setResetting(a)} className={BUTTON}>
@@ -140,26 +129,25 @@ export function Users() {
   );
 }
 
-// Adding an account (no `account`), or changing one's role and tabs.
+// Adding an account (no `account`), or changing its level.
 function AccountForm({ account, onClose, onSaved }: { account?: Account; onClose: () => void; onSaved: () => void }) {
   const [username, setUsername] = useState(account?.username ?? "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Account["role"]>(account?.role ?? "operator");
-  const [tabs, setTabs] = useState<Tab[]>(account?.role === "operator" ? account.tabs : []);
+  const [level, setLevel] = useState<Level>(account?.level ?? 1);
   const save = useMutation({
     mutationFn: () =>
       account
-        ? api.patch(`/api/users/${account.username}`, { role, tabs })
-        : api.post("/api/users", { username, password, role, tabs }),
+        ? api.patch(`/api/users/${account.username}`, { level })
+        : api.post("/api/users", { username, password, level }),
     onSuccess: () => {
       onSaved();
       onClose();
     },
   });
-  const ready = (account || (username && password)) && (role === "admin" || tabs.length > 0);
+  const ready = account || (username && password);
 
   return (
-    <Modal title={account ? `${account.username} — role and tabs` : "Add user"} onClose={onClose} narrow>
+    <Modal title={account ? `${account.username} — level` : "Add user"} onClose={onClose} narrow>
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -175,34 +163,19 @@ function AccountForm({ account, onClose, onSaved }: { account?: Account; onClose
               value={password} onChange={(e) => setPassword(e.target.value)} className={INPUT} />
           </>
         )}
-        <div className="flex gap-2">
-          {(["operator", "admin"] as const).map((r) => (
-            <label key={r} className={`flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-              role === r ? "border-teal-500/60 bg-teal-500/10 text-teal-200" : "border-slate-700 text-slate-300"}`}>
-              <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} className="accent-teal-500" />
-              {r === "admin" ? "Admin" : "Operator"}
+        <fieldset className="space-y-1.5">
+          <legend className="mb-1 text-xs text-slate-500">Level — each includes the ones before it</legend>
+          {LEVELS.map((l) => (
+            <label key={l.level} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+              level === l.level ? "border-teal-500/60 bg-teal-500/10 text-teal-200" : "border-slate-700 text-slate-300"}`}>
+              <input type="radio" name="level" checked={level === l.level} onChange={() => setLevel(l.level)} className="mt-0.5 accent-teal-500" />
+              <span>
+                {levelName(l.level)}
+                <span className="block text-xs text-slate-500">{l.adds}</span>
+              </span>
             </label>
           ))}
-        </div>
-        {role === "operator" ? (
-          <fieldset className="space-y-1.5">
-            <legend className="mb-1 text-xs text-slate-500">The tabs it may use — and everything in them</legend>
-            {TABS.map((t) => (
-              <label key={t.id} className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={tabs.includes(t.id)}
-                  onChange={(e) => setTabs(e.target.checked ? [...tabs, t.id] : tabs.filter((x) => x !== t.id))}
-                  className="accent-teal-500"
-                />
-                {t.label}
-              </label>
-            ))}
-            <p className="text-xs text-slate-500">Routes need Routing, even from Docker's installer or a machine's row.</p>
-          </fieldset>
-        ) : (
-          <p className="text-xs text-slate-500">Everything, Settings and users included.</p>
-        )}
+        </fieldset>
         {save.isError && (
           <p className="text-xs text-rose-400">{apiMessage(save.error, "Couldn't save it")}</p>
         )}

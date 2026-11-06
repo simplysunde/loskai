@@ -21,16 +21,15 @@ app is running — this document is the human-readable overview.
 - **Session.** `POST /api/login` (or first-run `POST /api/auth/setup`) sets a signed
   `HttpOnly` cookie, also `Secure` when the request came over HTTPS (Caddy's
   `X-Forwarded-Proto: https`). The frontend redirects to `/login` on any `401`.
-- **Who may call what.** An admin account may call everything. An operator may call the
-  routes of the tabs it was given (Docker, Routing, Machines) and the few every account
-  needs (`GET /api/health`, `GET /api/settings` — secrets left out unless admin —
-  `GET /api/launcher`, `POST /api/auth/password`); anything else is `403` with why, in
-  words ("Your account doesn't have the Routing tab", "Only an admin can do that").
-  `shared/access.py` holds one line per route, and a route with none is admin-only. Routes
-  are Routing's — a route made from the install wizard or a machine's row needs that tab
-  too — and a record changed is its own tab's, however it was found (by id, or by the
-  container or `origin` `POST /api/routes` names), its icon included: a machine Machines', a
-  route Routing's.
+- **Who may call what.** Each account has a level, and each adds to the ones below:
+  1 Routing, 2 Docker, 3 Machines, 4 Settings — an admin, who may call everything. Every
+  account may call the few the shell needs (`GET /api/health`, `GET /api/settings` — secrets
+  left out unless admin — `GET /api/launcher`, `POST /api/auth/password`); anything above its
+  level is `403` with why, in words ("That needs level 3, Machines", "Only an admin can do
+  that"). `shared/access.py` holds one line per route, and a route with none is admin-only.
+  A record changed needs its own level, however it was found (by id, or by the container or
+  `origin` `POST /api/routes` names), its icon included: a machine Machines', a route
+  Routing's.
   The terminal WebSockets need the Docker or Machines tab, and close `1008` without it.
 - **Errors.** Failures return `{"detail": "<message>"}` with a conventional status:
   `400` bad input, `401` no session, `403` another page's request or an account that may not, `404` not found, `409` conflict, `422` validation,
@@ -60,14 +59,15 @@ app is running — this document is the human-readable overview.
 ## Users — `/api/users` (admin only)
 
 The accounts (`shared/users.py`, `data/users.json`, owner-only). An account is
-`{ username, role, tabs, created }` — `role` `admin` or `operator`, `tabs` the ones an operator
-was given (an admin's lists them all); its password hash never leaves the server.
+`{ username, level, tabs, created }` — `level` 1 Routing, 2 Docker, 3 Machines or 4 Settings
+(an admin), each adding to the ones below; `tabs` the ones it reaches, for the pages. Its
+password hash never leaves the server. An account saved before levels gets its highest tab's.
 
 | Method & path | Purpose |
 |---|---|
 | `GET /api/users` | Every account. |
-| `POST /api/users` | Body `{ username, password, role, tabs }`. `422` for a username that isn't lowercase letters, digits and `_ . -` starting with a letter, a password under 8 characters, an unknown role or tab, or an operator with no tab; `409` when the name is taken. |
-| `PATCH /api/users/{username}` | Body `{ role?, tabs?, password? }`. A new role or tabs applies on that user's next request (taking Machines away ends their unlock of the key); a new password ends their sessions and their unlock — your own session goes on, with a fresh cookie. The password is checked first: `422` changes nothing. `409` when it would leave Loskai without an admin. |
+| `POST /api/users` | Body `{ username, password, level }`. `422` for a username that isn't lowercase letters, digits and `_ . -` starting with a letter, a password under 8 characters, or a level that isn't 1–4; `409` when the name is taken. |
+| `PATCH /api/users/{username}` | Body `{ level?, password? }`. A new level applies on that user's next request (one below Machines ends their unlock of the key); a new password ends their sessions and their unlock — your own session goes on, with a fresh cookie. The password is checked first: `422` changes nothing. `409` when it would leave Loskai without an admin. |
 | `DELETE /api/users/{username}` | Removes the account, and with it its sessions. `409` for the last admin. |
 
 ---

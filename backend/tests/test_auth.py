@@ -1,6 +1,7 @@
 """Password hash/verify, session sign/verify, first-run seeding, and the Origin check."""
 
 import asyncio
+import json
 import socket
 
 import pytest
@@ -23,7 +24,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
 
 
 def _admin(password="correct horse battery"):
-    return users.create("admin", password, "admin")
+    return users.create("admin", password, users.ADMIN)
 
 
 def test_an_account_s_password_is_checked_against_its_hash():
@@ -74,7 +75,7 @@ def test_ensure_seeded_makes_the_first_admin_from_env(monkeypatch):
     monkeypatch.setattr(config.settings, "loskai_username", "sunde")
     users.ensure_seeded()
 
-    assert users.verify("sunde", "seeded-password").role == "admin"
+    assert users.verify("sunde", "seeded-password").admin
 
 
 def test_the_seeded_username_is_lowercased_and_one_that_can_t_be_a_name_stops_startup(monkeypatch):
@@ -118,9 +119,29 @@ def test_an_install_from_before_accounts_keeps_its_password_as_the_admin(tmp_pat
     store.write_json(tmp_path / "settings.json", {"admin_password_hash": PasswordHasher().hash("old-password"), "base_domain": "x.no"})
     users.ensure_seeded()
 
-    assert users.verify("admin", "old-password").role == "admin"
+    assert users.verify("admin", "old-password").admin
     stored = store.read_json(tmp_path / "settings.json", {})
     assert "admin_password_hash" not in stored and stored["base_domain"] == "x.no"
+
+
+def test_accounts_saved_with_tabs_get_a_level_and_none_loses_access(tmp_path):
+    (tmp_path / "users.json").write_text(json.dumps({"users": [
+        {"username": "admin", "role": "admin", "tabs": [], "hash": "x"},
+        {"username": "ola", "role": "operator", "tabs": ["docker"], "hash": "x"},
+        {"username": "kari", "role": "operator", "tabs": ["routing", "machines"], "hash": "x"},
+    ]}))
+
+    assert [(u.username, u.level) for u in users.all_users()] == [("admin", 4), ("ola", 2), ("kari", 3)]
+    users.end_sessions("ola")  # any write saves the levels
+    saved = json.loads((tmp_path / "users.json").read_text())["users"]
+    assert [u["level"] for u in saved] == [4, 2, 3] and "tabs" not in saved[1] and "role" not in saved[1]
+
+
+def test_a_level_that_isn_t_one_stops_startup(tmp_path):
+    (tmp_path / "users.json").write_text(json.dumps({"users": [{"username": "admin", "level": 9, "hash": "x"}]}))
+
+    with pytest.raises(store.CorruptStoreError):
+        users.verify_readable()
 
 
 def test_an_unreadable_users_file_stops_startup(tmp_path):
@@ -219,7 +240,7 @@ def test_log_out_ends_the_session_not_just_the_cookie(client):
 
 
 def test_log_out_ends_your_sessions_on_every_device_and_no_one_else_s(client):
-    users.create("ola", "ola-password", "operator", ["docker"])
+    users.create("ola", "ola-password", users.DOCKER)
     with TestClient(app) as phone, TestClient(app) as colleague:
         phone.post("/api/login", json={"username": "admin", "password": PASSWORD})
         colleague.post("/api/login", json={"username": "ola", "password": "ola-password"})
@@ -287,14 +308,14 @@ def test_a_terminal_outlasts_its_cookie_s_idle_time(monkeypatch):
     assert not _ends_within(token, 2.5)
 
 
-def test_a_terminal_ends_when_its_tab_is_taken_away(monkeypatch):
+def test_a_terminal_ends_when_its_level_is_lowered(monkeypatch):
     monkeypatch.setattr(auth, "SESSION_RECHECK", 0.05)
     _admin()
-    ola = users.create("ola", "ola-password", "operator", ["docker", "machines"])
+    ola = users.create("ola", "ola-password", users.MACHINES)
     token = auth.make_session(ola)
 
     assert not _ends_within(token, 0.3)
-    users.set_role("ola", "operator", ["docker"])
+    users.set_level("ola", users.DOCKER)
 
     assert _ends_within(token, 0.3)
     assert not _ends_within(token, 0.3, tab="docker")
@@ -370,7 +391,7 @@ def test_a_login_turned_away_during_a_wait_is_not_logged(client, tmp_path):
 
 
 def test_only_an_admin_reads_the_sign_in_log(client):
-    users.create("ola", "ola-password", "operator", ["docker", "routing", "machines"])
+    users.create("ola", "ola-password", users.MACHINES)
     with TestClient(app) as ola:
         ola.post("/api/login", json={"username": "ola", "password": "ola-password"})
 
@@ -432,7 +453,7 @@ def test_failures_long_ago_are_forgotten(monkeypatch):
 def test_another_account_signing_in_doesn_t_clear_the_count_on_the_admin(client):
     """Each wrong guess at the admin's password counts against the admin; an operator's own
     right password once reset that, making every guess free."""
-    r = client.post("/api/users", json={"username": "ola", "password": "ola-password", "role": "operator", "tabs": ["docker"]})
+    r = client.post("/api/users", json={"username": "ola", "password": "ola-password", "level": 2})
     assert r.status_code == 200, r.text
     for _ in range(auth.FREE_FAILURES + 1):
         assert _wrong(client).status_code == 401
@@ -494,7 +515,7 @@ def test_first_run_setup_creates_the_admin_account_once(tmp_path):
         assert r.status_code == 200 and r.json()["user"]["username"] == "sunde"  # lowercased
         assert again.status_code == 409 and users.get("evil") is None
         status = c.get("/api/auth/status").json()
-        assert status["authed"] and status["user"]["role"] == "admin" and not status["needs_setup"]
+        assert status["authed"] and status["user"]["level"] == users.ADMIN and not status["needs_setup"]
 
 
 def test_a_wrong_username_is_refused_like_a_wrong_password(client):

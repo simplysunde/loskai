@@ -33,8 +33,8 @@ def _login(name: str, password: str) -> TestClient:
     return c
 
 
-def _add(admin, name: str, tabs: list[str], role: str = "operator") -> TestClient:
-    r = admin.post("/api/users", json={"username": name, "password": f"{name}-password", "role": role, "tabs": tabs})
+def _add(admin, name: str, level: int) -> TestClient:
+    r = admin.post("/api/users", json={"username": name, "password": f"{name}-password", "level": level})
     assert r.status_code == 200, r.text
     return _login(name, f"{name}-password")
 
@@ -52,7 +52,7 @@ def test_making_the_key_unlocks_it_for_whoever_made_it(admin):
 
 
 def test_an_unlock_is_the_user_s_own(admin):
-    ola = _add(admin, "ola", ["machines"])
+    ola = _add(admin, "ola", 3)
 
     assert _unlocked(admin) and not _unlocked(ola)  # like sudo: each types their own
     assert _unlock(ola, "ola-wrong").status_code == 403
@@ -65,18 +65,18 @@ def test_an_unlock_is_the_user_s_own(admin):
 
 def test_anyone_with_machines_unlocks_with_no_one_else_unlocked(admin):
     admin.post("/api/logout", headers=ORIGIN)
-    ola = _add(_login("admin", ADMIN), "ola", ["machines"])
+    ola = _add(_login("admin", ADMIN), "ola", 3)
 
     assert _unlock(ola, "ola-password").status_code == 200
 
 
 def test_a_new_password_or_losing_machines_ends_an_unlock(admin):
-    ola = _add(admin, "ola", ["docker", "machines"])
+    ola = _add(admin, "ola", 3)
     _unlock(ola, "ola-password")
 
-    admin.patch("/api/users/ola", json={"tabs": ["docker"]}, headers=ORIGIN)
-    admin.patch("/api/users/ola", json={"tabs": ["machines"]}, headers=ORIGIN)
-    assert unlock.unlocked_key("ola") is None  # given back, the tab doesn't bring it back
+    admin.patch("/api/users/ola", json={"level": 2}, headers=ORIGIN)
+    admin.patch("/api/users/ola", json={"level": 3}, headers=ORIGIN)
+    assert unlock.unlocked_key("ola") is None  # given back, the level doesn't bring it back
 
     _unlock(ola, "ola-password")
     admin.patch("/api/users/ola", json={"password": "reset-by-admin"}, headers=ORIGIN)
@@ -85,10 +85,10 @@ def test_a_new_password_or_losing_machines_ends_an_unlock(admin):
 
 
 def test_an_account_made_again_under_a_name_doesn_t_get_its_unlock(admin):
-    ola = _add(admin, "ola", ["machines"])
+    ola = _add(admin, "ola", 3)
     _unlock(ola, "ola-password")
     admin.delete("/api/users/ola", headers=ORIGIN)
-    _add(admin, "ola", ["machines"])
+    _add(admin, "ola", 3)
 
     assert unlock.unlocked_key("ola") is None
 
@@ -102,12 +102,12 @@ def test_an_admin_setting_their_own_password_in_users_stays_signed_in(admin):
 
 
 def test_a_refused_password_changes_nothing_else(admin):
-    _add(admin, "ola", ["machines"])
+    _add(admin, "ola", 3)
 
-    refused = admin.patch("/api/users/ola", json={"tabs": ["docker"], "password": "short"}, headers=ORIGIN)
+    refused = admin.patch("/api/users/ola", json={"level": 2, "password": "short"}, headers=ORIGIN)
 
     assert refused.status_code == 422
-    assert next(u for u in admin.get("/api/users").json() if u["username"] == "ola")["tabs"] == ["machines"]
+    assert next(u for u in admin.get("/api/users").json() if u["username"] == "ola")["level"] == 3
 
 
 def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):

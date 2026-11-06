@@ -411,7 +411,7 @@ def setup(body: LoginBody, request: Request, response: Response) -> dict:
     """First run: create the admin account and sign in as it. Refuses once any account exists."""
     if users.any_users():  # early, before hashing; `first` is the check that holds
         raise HTTPException(status_code=409, detail="Loskai is already set up")
-    user = users.create(body.username.strip().lower(), body.password, "admin", first=True)
+    user = users.create(body.username.strip().lower(), body.password, users.ADMIN, first=True)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 

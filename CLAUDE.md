@@ -192,11 +192,12 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
   too. Two forms once disagreed, which is how a container gets routed twice.
 
 **Security is enforced on the API, never the frontend.** Accounts (`shared/users.py`): an
-admin does everything; an operator only the tabs it is given. Passwords hashed, an `HttpOnly`
+each has a level, adding to the ones below — 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
+admin, who does everything). Passwords hashed, an `HttpOnly`
 session cookie naming the account, kept while a page is open (its health poll renews it,
 even in a background tab) and ended by its idle time after that, or its user's logout. Middleware
 gates **every `/api/*`** except the set in `PUBLIC_ROUTES` (`shared/auth.py`), and then asks
-`shared/access.py` — one line per route: any account, its tabs, or admin; a route with no
+`shared/access.py` — one line per route: any account, or the level it needs; a route with no
 line is admin-only, and a test fails until it has one. A new route gets its line in the
 same commit. The public set:
 

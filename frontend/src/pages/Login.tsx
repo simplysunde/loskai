@@ -4,7 +4,7 @@ import { Anchor, Loader2 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { api, apiMessage } from "../lib/api";
-import { homeFor, useAuthStatus, type Me } from "../lib/useAuth";
+import { HOME, useAuthStatus } from "../lib/useAuth";
 import { INPUT } from "../lib/ui";
 
 // The security screen: log in with a username and password, or — on first run, before any
@@ -21,7 +21,7 @@ export function Login() {
   const qc = useQueryClient();
 
   const from = (location.state as { from?: string } | null)?.from;
-  const redirectTo = from ?? homeFor(data?.user ?? null);
+  const redirectTo = from ?? HOME;
 
   if (isLoading) {
     return (
@@ -43,10 +43,10 @@ export function Login() {
     }
     setSubmitting(true);
     try {
-      const done = await api.post<{ user: Me }>(firstRun ? "/api/auth/setup" : "/api/login", { username, password });
+      await api.post(firstRun ? "/api/auth/setup" : "/api/login", { username, password });
       await qc.invalidateQueries({ queryKey: ["auth-status"] });
-      // Where they came from, else the first tab this account has.
-      navigate(from ?? homeFor(done.user), { replace: true });
+      // Where they came from, else Routing, which every level has.
+      navigate(from ?? HOME, { replace: true });
     } catch (err) {
       setError(apiMessage(err, "Something went wrong"));
     } finally {

@@ -2,13 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./api";
 
-// An account: an admin does everything; an operator only its tabs.
+// An account has a level, and each level adds to the ones below (shared/users.py); 4 is an
+// admin. `tabs` are the ones its level reaches, as the API works them out.
 export type Tab = "docker" | "routing" | "machines";
+export type Level = 1 | 2 | 3 | 4;
 export interface Me {
   username: string;
-  role: "admin" | "operator";
+  level: Level;
   tabs: Tab[];
 }
+
+// What each level is called, and what it adds to the one below.
+export const LEVELS: { level: Level; name: string; adds: string }[] = [
+  { level: 1, name: "Routing", adds: "Routes and DNS names" },
+  { level: 2, name: "Docker", adds: "Stacks, containers and recipe installs" },
+  { level: 3, name: "Machines", adds: "Machines over SSH: terminals and tools" },
+  { level: 4, name: "Settings", adds: "Settings, users and the logs — an admin" },
+];
+
+export const levelName = (level: Level) => `${level} — ${LEVELS[level - 1].name}`;
 
 export interface AuthStatus {
   authed: boolean;
@@ -34,14 +46,10 @@ export function useMe() {
   const me = data?.user ?? null;
   return {
     me,
-    admin: me?.role === "admin",
-    may: (tab: Tab | "admin") => Boolean(me && (me.role === "admin" || (tab !== "admin" && me.tabs.includes(tab)))),
+    admin: me?.level === 4,
+    may: (tab: Tab | "admin") => Boolean(me && (tab === "admin" ? me.level === 4 : me.tabs.includes(tab))),
   };
 }
 
-// Where a signed-in user starts: the first tab they have.
-export function homeFor(me: Me | null): string {
-  if (!me || me.role === "admin") return "/routing";
-  const first = (["routing", "docker", "machines"] as Tab[]).find((t) => me.tabs.includes(t));
-  return first ? `/${first}` : "/";
-}
+// Where a signed-in user starts: Routing, which every level has.
+export const HOME = "/routing";

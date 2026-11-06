@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 
-import { homeFor, useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
+import { HOME, useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
 
 // UX-only guard: redirects to /login when there's no session, and says so when the account
 // lacks the page's tab (`tab`) or isn't an admin. The real security boundary is the API
@@ -29,9 +29,9 @@ export function RequireAuth({ children, tab }: { children: ReactNode; tab?: Tab 
     return (
       <div className="mx-auto max-w-md px-6 py-24 text-center">
         <p className="text-sm text-slate-300">
-          {tab === "admin" ? "Only an admin can open this." : "Your account doesn't have this tab."}
+          {tab === "admin" ? "Only an admin can open this." : "Your account's level doesn't reach this tab."}
         </p>
-        <Link to={homeFor(me)} className="mt-3 inline-block text-sm text-teal-400 hover:underline">
+        <Link to={HOME} className="mt-3 inline-block text-sm text-teal-400 hover:underline">
           Go to your tabs
         </Link>
       </div>

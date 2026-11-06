@@ -64,10 +64,12 @@ your network. Read this before deciding where it runs and who can reach it.
 
 ## How access is controlled
 
-- **Accounts.** First-run setup creates an **admin**, who can add more. An admin can do
-  everything; an **operator** only what is in the tabs it is given (Docker, Routing,
-  Machines) — Settings and the accounts are an admin's. The API enforces it, one rule per
-  route (`shared/access.py`), and a route without one is admin-only. Passwords are stored
+- **Accounts.** First-run setup creates an **admin**, who can add more. Each account has a
+  **level**, and each adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings —
+  an admin, who can do everything, the accounts and the logs included. The API enforces it,
+  one rule per route (`shared/access.py`), and a route without one is admin-only. Levels are
+  for people you trust, not a wall: Docker (level 2) can start a container with root on the
+  Docker host, and so reach Loskai's `data/` folder. Passwords are stored
   only as Argon2 hashes, in `data/users.json` (owner-only).
 - **Sessions.** A login sets an `HttpOnly`, `SameSite=Lax` cookie naming the account. An open
   Loskai page keeps it, even in a background tab, as Proxmox's does; it ends 2 hours after

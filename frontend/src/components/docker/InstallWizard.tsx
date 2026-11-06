@@ -4,7 +4,6 @@ import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X
 import { Link } from "react-router-dom";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
-import { useMe } from "../../lib/useAuth";
 import { useContainers } from "../../lib/containers";
 import { useSettings } from "../../lib/settings";
 import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
@@ -476,7 +475,6 @@ interface RouteResult {
 // more particular — a scheme, a machine, a port Docker can't name — is the Routing tab's.
 function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: string }) {
   const qc = useQueryClient();
-  const { may } = useMe();
   const containers = useContainers();
   const settings = useSettings();
   const container = containers.data?.find((c) => c.name === containerName);
@@ -501,10 +499,6 @@ function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: st
   });
 
   const box = "rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm";
-  // Routes are the Routing tab's: an account without it installs, and someone with it routes.
-  if (!may("routing")) {
-    return <p className={`${box} text-slate-500`}>Giving it a URL is the Routing tab's, which your account doesn't have.</p>;
-  }
   if (containers.isLoading) {
     return (
       <div className={`${box} flex items-center gap-2 text-slate-500`}>

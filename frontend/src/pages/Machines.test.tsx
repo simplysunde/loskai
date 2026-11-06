@@ -63,7 +63,7 @@ const FACTS = {
 let facts: unknown = FACTS;
 let factsStatus = 200;
 let settingsReply: unknown = {};
-const ADMIN_STATUS = { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } };
+const ADMIN_STATUS = { authed: true, needs_setup: false, user: { username: "admin", level: 4, tabs: ["routing", "docker", "machines"] } };
 let authStatus: unknown = ADMIN_STATUS;
 let sshKey: unknown = null;
 let deleteReply: unknown = { deleted: true, instance_id: "nas", warning: null };
@@ -981,13 +981,4 @@ test("the unlock prompt says how long Settings › SSH keeps the key unlocked", 
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
   expect(await screen.findByText("Your password unlocks it for 3 hours.")).toBeInTheDocument();
-});
-
-test("an operator without Routing gets no Add route on a machine's row", async () => {
-  authStatus = { authed: true, needs_setup: false, user: { username: "ola", role: "operator", tabs: ["machines"] } };
-  renderPage();
-  await screen.findByText("Storage box");
-
-  expect(within(nasRow()).queryByTitle("Add a route on this machine")).toBeNull();
-  expect(within(nasRow()).getByTitle(/^Machine settings/)).toBeInTheDocument();
 });

@@ -17,10 +17,13 @@ Nothing else is stored.
 ## Accounts
 
 The first time you open Loskai it asks you to create the **admin** account — a username and a
-password. In **Settings › Users** an admin adds more: another **admin**, who can do
-everything, or an **operator**, given any of the Docker, Routing and Machines tabs and able
-to do everything in those — and nothing else, Settings included. A route belongs to Routing,
-so an operator without it can install an app but not give it a URL.
+password. In **Settings › Users** an admin adds more, each with a **level**; each level
+adds to the ones before it:
+
+1. **Routing** — routes and DNS names.
+2. **Docker** — stacks, containers and installing apps.
+3. **Machines** — the machines over SSH: terminals and tools.
+4. **Settings** — Settings, users and the logs: an admin, who can do everything.
 
 You stay signed in while a Loskai page is open, even in a background tab, and are signed
 out 2 hours after you close the last one (an admin changes that in Settings › Security).

@@ -7,7 +7,7 @@ import App from "./App";
 import { json } from "./test/render";
 
 const DEFAULTS: Record<string, unknown> = {
-  "/api/auth/status": { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } },
+  "/api/auth/status": { authed: true, needs_setup: false, user: { username: "admin", level: 4, tabs: ["routing", "docker", "machines"] } },
   "/api/dashboard": { services: [], certificate_tab: "public" },
   "/api/caddy/root-certificate": {
     pem: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n",
@@ -98,20 +98,21 @@ test("keeps /certificate reachable even when the tab is hidden", async () => {
   expect(screen.queryByRole("link", { name: "Certificate" })).not.toBeInTheDocument();
 });
 
-// An operator sees the tabs it was given, and Settings only an admin.
-test("an operator's sidebar has only its tabs, and Settings says it's an admin's", async () => {
-  RESPONSES["/api/auth/status"] = { authed: true, needs_setup: false, user: { username: "ola", role: "operator", tabs: ["docker"] } };
+// An account sees the tabs its level reaches, and Settings only an admin.
+test("a level 2 account's sidebar has Routing and Docker, and Settings says it's an admin's", async () => {
+  RESPONSES["/api/auth/status"] = { authed: true, needs_setup: false, user: { username: "ola", level: 2, tabs: ["routing", "docker"] } };
   renderAt("/settings");
 
   expect(await screen.findByText("Only an admin can open this.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Routing" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Docker" })).toBeInTheDocument();
-  for (const tab of ["Routing", "Machines", "Settings"]) {
+  for (const tab of ["Machines", "Settings"]) {
     expect(screen.queryByRole("link", { name: tab })).not.toBeInTheDocument();
   }
   expect(screen.getByText("ola")).toBeInTheDocument();
 
   fireEvent.click(screen.getByTitle("Your account"));
-  expect(screen.getByText("Operator — Docker")).toBeInTheDocument();
+  expect(screen.getByText("Level 2 — Docker")).toBeInTheDocument();
 });
 
 test("signed out, the sidebar offers Log in where your name would be", async () => {
@@ -161,7 +162,7 @@ test("your name in the sidebar opens a menu: change your password, or log out", 
   renderAt("/");
   fireEvent.click(await screen.findByTitle("Your account"));
 
-  expect(screen.getByText("Admin — every tab")).toBeInTheDocument();
+  expect(screen.getByText("Level 4 — Settings")).toBeInTheDocument();
   expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Change password", "Log out"]);
   fireEvent.click(screen.getByRole("menuitem", { name: "Change password" }));
 

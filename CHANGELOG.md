@@ -73,12 +73,13 @@ Everything so far:
   install or later under Edit.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
-- **Accounts** — first run creates the admin account; Settings › Users adds more: admins,
-  and operators limited to the tabs they're given (Docker, Routing, Machines). An open
+- **Accounts** — first run creates the admin account; Settings › Users adds more, each with
+  a level that adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
+  admin). An open
   Loskai page keeps you signed in, even in a background tab, as Proxmox's does; you are
   signed out 2 hours after the last one closes (Settings › Security). Logging out ends your
   sessions on every device, and an open terminal with them, as taking away its tab does. Your
-  name in the sidebar opens a menu: your role and tabs, Change password and Log out. An operator's SSH log, in a machine's dialog, shows only what
+  name in the sidebar opens a menu: your level, Change password and Log out. An operator's SSH log, in a machine's dialog, shows only what
   they did. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`. Settings › Users lists each
   sign-in and wrong password: when, the username typed, from where.

@@ -7,8 +7,8 @@ import { json } from "../../test/render";
 
 const calls: { path: string; method: string; body: unknown }[] = [];
 const ACCOUNTS = [
-  { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"], created: 0 },
-  { username: "ola", role: "operator", tabs: ["docker"], created: 0 },
+  { username: "admin", level: 4, tabs: ["routing", "docker", "machines"], created: 0 },
+  { username: "ola", level: 2, tabs: ["routing", "docker"], created: 0 },
 ];
 const SIGN_INS = [
   { at: "2026-11-06T10:01:00+00:00", user: "admin", from: "10.0.0.5", ok: true },
@@ -42,12 +42,11 @@ afterEach(() => {
   calls.length = 0;
 });
 
-test("lists the accounts, an operator with its tabs", async () => {
+test("lists the accounts with their levels", async () => {
   renderUsers();
 
   const ola = (await screen.findByText("ola")).closest("tr") as HTMLElement;
-  expect(within(ola).getByText("operator")).toBeInTheDocument();
-  expect(within(ola).getByText("Docker")).toBeInTheDocument();
+  expect(within(ola).getByText("2 — Docker")).toBeInTheDocument();
   expect(await screen.findByText("(you)")).toBeInTheDocument();
 });
 
@@ -60,27 +59,25 @@ test("lists the sign-ins, a wrong password by the name typed", async () => {
   expect(screen.getByText("Signed in")).toBeInTheDocument();
 });
 
-test("adding an operator needs a tab, and sends what was chosen", async () => {
+test("adding an account sends the level chosen, 1 unless another is picked", async () => {
   renderUsers();
   fireEvent.click(await screen.findByRole("button", { name: "Add user" }));
 
   fireEvent.change(screen.getByLabelText("Username"), { target: { value: "Kari" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "kari-password" } });
-  const add = screen.getAllByRole("button", { name: "Add user" }).at(-1)!;
-  expect(add).toBeDisabled(); // an operator with no tab
-  fireEvent.click(screen.getByLabelText("Routing"));
-  fireEvent.click(screen.getByLabelText("Machines"));
-  fireEvent.click(add);
+  expect(screen.getByLabelText(/^1 — Routing/)).toBeChecked();
+  fireEvent.click(screen.getByLabelText(/^3 — Machines/));
+  fireEvent.click(screen.getAllByRole("button", { name: "Add user" }).at(-1)!);
 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.method === "POST")).toEqual({
       path: "/api/users", method: "POST",
-      body: { username: "kari", password: "kari-password", role: "operator", tabs: ["routing", "machines"] },
+      body: { username: "kari", password: "kari-password", level: 3 },
     }),
   );
 });
 
-test("saving an account asks who you are again, so the sidebar follows your own role", async () => {
+test("saving an account asks who you are again, so the sidebar follows your own level", async () => {
   renderUsers();
   await screen.findByText("(you)");
   fireEvent.click(screen.getByRole("button", { name: "Edit admin" }));

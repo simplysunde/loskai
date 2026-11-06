@@ -619,7 +619,7 @@ designed in, not added on.
 
 **Two tiers.** The Dashboard and Certificate page are public; everything else — the Docker,
 Routing, Machines and Settings tabs and every action — is behind a login, and then behind
-what the account may do: an admin everything, an operator its tabs. The
+what the account's level allows: each level adds to the ones below. The
 gate is inside Loskai, not a Caddy `basicauth`, which would also lock the public pages.
 
 **The gate is the API, never the frontend.** Middleware rejects every `/api/*` request
@@ -627,7 +627,7 @@ without a session except the public set in `shared/auth.py` (the dashboard, the 
 certificate, the launcher icons, and the login flow itself). The React bundle is served to
 anyone — `RequireAuth` only decides what renders. The two terminal WebSockets — a root
 shell into a container, and a machine's — sit outside the HTTP middleware, so both pass one
-gate of their own (`shared/terminal.py`): the session, the `Origin` and the tab.
+gate of their own (`shared/terminal.py`): the session, the `Origin` and the level.
 
 **Only Loskai's own pages may act.** `SameSite=Lax` keeps the cookie from other *sites*, but
 every app under the base domain is the same site — `jellyfin.example.no` gets it attached to
@@ -640,17 +640,17 @@ can't forge that header — checked live, the browser either drops it or never s
 2026-10-28: before the check, a page on a sibling name ran a command as root in a container.
 
 **Accounts, and what each may do** (Phase 35, replacing "one password, no accounts").
-`data/users.json` (`shared/users.py`) holds the accounts: an **admin** does everything; an
-**operator** is given tabs — Docker, Routing, Machines — and may do everything in those and
-nothing else. There is always an admin. First-run setup creates it; `LOSKAI_PASSWORD`
+`data/users.json` (`shared/users.py`) holds the accounts, each with a **level**, and each
+level adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings — an **admin**,
+who does everything (2026-11-06, replacing operators given any set of tabs). There is always
+an admin. First-run setup creates it; `LOSKAI_PASSWORD`
 (with `LOSKAI_USERNAME`) seeds it instead, and an install from before accounts keeps its
 one password as the account `admin`. **Which account may call what is one table**,
-`shared/access.py`: a line per route — any account, its tabs, or admin — read by the
+`shared/access.py`: a line per route — any account, or the level it needs — read by the
 middleware; a route with no line is admin-only, and a test fails until every route has one.
-Routes are Routing's even from the installer or a machine's row; a record changed by id is
-its own tab's (a machine Machines', a route Routing's), the create endpoints,
-`DELETE /api/assign` and the icon included; the terminal WebSockets need Docker
-or Machines. The frontend shows only what the account may use, but the API is the gate.
+A record changed by id needs its own level (a machine Machines', a route Routing's), the
+create endpoints, `DELETE /api/assign` and the icon included; the terminal WebSockets need
+Docker or Machines. The frontend shows only what the account may use, but the API is the gate.
 
 `POST /api/login` issues a signed `HttpOnly` cookie naming the account and its
 *generation*, `Secure` when the login came over HTTPS — Caddy says so in

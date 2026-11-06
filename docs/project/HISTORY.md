@@ -4,6 +4,21 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-06 — Levels instead of tabs
+
+**This reverses Phase 35's operators** (2026-11-02, below), who were given any set of the
+Docker, Routing and Machines tabs. Sunde asked for levels, each adding to the ones below:
+1 Routing, 2 Docker, 3 Machines, 4 Settings — the admin. Loskai is mostly one person's tool,
+with perhaps a few people running a small network; for them trust is a ladder, and the sets
+the ladder can't express were never really usable: Docker without Routing couldn't finish an
+install (the wizard's last step makes a route), and a shell on the Docker host reaches Docker
+anyway. So "routes are Routing's, even from Docker" stopped being a special case, and the
+pages' "without Routing" branches went.
+
+An account stores one number. One saved with tabs gets its highest tab's level, so no one
+loses access; some gain. Levels keep people out of the wrong place, not out of the house:
+Docker can start a container with root on the host, which `SECURITY.md` now says.
+
 ## 2026-11-06 — A sign-in log
 
 The login backoff slows a guesser but left no trace: a wrong password was counted in memory

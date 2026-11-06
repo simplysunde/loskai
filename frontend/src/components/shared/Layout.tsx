@@ -18,7 +18,7 @@ import {
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { api, apiMessage } from "../../lib/api";
-import { useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
+import { levelName, useAuthStatus, useMe, type Tab } from "../../lib/useAuth";
 import { ChangePassword } from "./ChangePassword";
 import { RowMenu } from "./RowMenu";
 import { useDashboard } from "../../lib/useDashboard";
@@ -160,14 +160,14 @@ export function Layout() {
             <RowMenu
               label="Your account"
               up
-              heading={me.role === "admin" ? "Admin — every tab" : `Operator — ${NAV.filter((n) => "tab" in n && may(n.tab)).map((n) => n.label).join(", ")}`}
+              heading={`Level ${levelName(me.level)}`}
               triggerClass="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
               trigger={
                 <>
                   <CircleUser className="h-4 w-4 shrink-0" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate-300">{me.username}</span>
-                    <span className="block text-[10px] text-slate-500">{me.role === "admin" ? "admin" : "operator"}</span>
+                    <span className="block text-[10px] text-slate-500">level {me.level}</span>
                   </span>
                   <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                 </>

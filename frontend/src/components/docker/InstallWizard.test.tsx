@@ -55,7 +55,7 @@ function renderWizard({
           : path === "/api/routes"
             ? { url: "https://grafana.example.no", warning: null }
             : path === "/api/auth/status"
-              ? { authed: true, needs_setup: false, user: { username: "admin", role: "admin", tabs: ["docker", "routing", "machines"] } }
+              ? { authed: true, needs_setup: false, user: { username: "admin", level: 4, tabs: ["routing", "docker", "machines"] } }
             : { recipes, invalid, shadowed, sources, local_count };
     return json(body);
   });

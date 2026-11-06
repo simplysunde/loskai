@@ -8,7 +8,6 @@ import { useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { removalNeedsPassword, takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
-import { useMe } from "../lib/useAuth";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
@@ -32,7 +31,6 @@ export function Machines() {
   const qc = useQueryClient();
   const health = useHealth();
   const navigate = useNavigate();
-  const { may } = useMe();
   // The machine open in its dialog, from the cog on its row.
   const { id: openId, section } = useParams();
   // Naming a machine — the Docker host's address when named from its row; editing one is
@@ -174,15 +172,10 @@ export function Machines() {
             setDeletePassword("");
             setConfirmDelete(m);
           }}
-          // Routes are the Routing tab's, even on a machine's row.
-          onAddRoute={
-            may("routing")
-              ? (m) => {
-                  setError(null);
-                  setRouteOn(m);
-                }
-              : undefined
-          }
+          onAddRoute={(m) => {
+            setError(null);
+            setRouteOn(m);
+          }}
           busyId={remove.isPending ? remove.variables?.id : null}
         />
       )}
