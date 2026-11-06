@@ -10,6 +10,7 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   destructive = false,
   pending = false,
+  disabled = false,
   error = null,
   onConfirm,
   onCancel,
@@ -22,6 +23,8 @@ export function ConfirmDialog({
   // The confirmed request in flight (Confirm can't be pressed twice), and why it failed —
   // the dialog stays open on a failure, so it is where the reason goes.
   pending?: boolean;
+  // Not ready to confirm yet — a field it needs is empty.
+  disabled?: boolean;
   error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
@@ -45,7 +48,7 @@ export function ConfirmDialog({
               ? "bg-rose-600 text-white hover:bg-rose-500"
               : "bg-teal-600 text-white hover:bg-teal-500"
           }`}
-          disabled={pending}
+          disabled={pending || disabled}
           onClick={onConfirm}
         >
           {pending && <Loader2 className="h-4 w-4 animate-spin" />}

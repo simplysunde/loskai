@@ -192,6 +192,22 @@ beforeEach(() => {
 });
 
 
+// Holds the unlock's reply until `release`, so a second click lands while it is in flight.
+function holdUnlock() {
+  const answer = fetch;
+  let release = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      const reply = answer(path, init);
+      if (path === "/api/ssh/unlock") await held;
+      return reply;
+    }),
+  );
+  return () => release();
+}
+
 const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElement;
 // The machine's dialog: its side menu, and the category shown.
 const dialog = () => screen.getByRole("dialog", { name: "Storage box" });
@@ -281,13 +297,42 @@ test("deleting a set-up machine takes Loskai's key off it, unlocking the key fir
   fireEvent.click(within(nasRow()).getByTitle("More"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
+  // No password, no try: each unlock counts against your login limit.
+  expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "pw" } });
+  // A second click while it runs sends nothing more.
+  const release = holdUnlock();
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await vi.waitFor(() => expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled());
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  release();
 
   await vi.waitFor(() =>
     expect(calls.filter((c) => c.method !== "GET").map((c) => [c.method, c.path])).toEqual([
       ["POST", "/api/ssh/unlock"],
       ["DELETE", "/api/instances/nas"],
+    ]),
+  );
+});
+
+test("turning SSH off with the key locked asks for your password, and sends it once", async () => {
+  setUp();
+  sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
+  renderPage("/machines/nas/ssh");
+
+  fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
+  expect(screen.getByRole("button", { name: "Turn off" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "pw" } });
+  const release = holdUnlock();
+  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
+  await vi.waitFor(() => expect(screen.getByRole("button", { name: "Turn off" })).toBeDisabled());
+  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
+  release();
+
+  await vi.waitFor(() =>
+    expect(calls.filter((c) => c.method !== "GET").map((c) => [c.method, c.path])).toEqual([
+      ["POST", "/api/ssh/unlock"],
+      ["POST", "/api/machines"],
     ]),
   );
 });

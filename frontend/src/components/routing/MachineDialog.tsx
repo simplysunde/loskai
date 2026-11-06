@@ -451,6 +451,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         title={`Turn off SSH for ${machine.name}?`}
         confirmLabel="Turn off"
         destructive
+        pending={removeSsh.isPending}
+        disabled={removeNeedsPassword && !removePassword}
         onConfirm={() =>
           removeSsh.mutate({
             hostname, address: machine.upstream ?? "", instance_id: machine.id, ssh: null,

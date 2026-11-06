@@ -237,6 +237,8 @@ export function Machines() {
         title="Delete machine"
         destructive
         confirmLabel="Delete"
+        pending={remove.isPending}
+        disabled={confirmDelete !== null && removalNeedsPassword(ssh.data, confirmDelete.id) && !deletePassword}
         onCancel={() => {
           setConfirmDelete(null);
           setDeleteError(null);
