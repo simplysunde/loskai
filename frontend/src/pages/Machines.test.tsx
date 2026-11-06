@@ -337,6 +337,27 @@ test("turning SSH off with the key locked asks for your password, and sends it o
   );
 });
 
+test("turning SSH off when the key locked meanwhile asks for your password then", async () => {
+  setUp();
+  renderPage("/machines/nas/ssh");
+  fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
+  // Unlocked when the dialog opened: no field.
+  expect(screen.queryByLabelText("Your password")).not.toBeInTheDocument();
+
+  sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
+  const answer = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) =>
+      path === "/api/machines" ? json({ detail: "Loskai's key is locked — enter your password" }, 423) : answer(path, init),
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
+
+  expect(await screen.findByText(/Loskai's key is locked/)).toBeInTheDocument();
+  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
+});
+
 test("a machine deleted with Loskai's key still on it says so", async () => {
   setUp();
   deleteReply = { deleted: true, instance_id: "nas", warning: "Loskai's key is still on the machine: No route to host" };

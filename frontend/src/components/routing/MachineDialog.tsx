@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Boxes,
   HardDrive,
@@ -87,6 +87,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const opened = useRef(false);
 
   const routes = useRoutes();
+  const qc = useQueryClient();
   const settings = useSettings();
   const tools = useTools();
   const ssh = useSsh();
@@ -116,6 +117,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       setRemoving(false);
       setRemovePassword("");
     },
+    // The key may have locked meanwhile: ask again, with the password field.
+    onError: () => qc.invalidateQueries({ queryKey: ["ssh"] }),
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
