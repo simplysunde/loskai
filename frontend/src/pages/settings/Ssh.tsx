@@ -3,7 +3,6 @@ import { Download } from "lucide-react";
 import { SshKeySection } from "../../components/settings/SshKeySection";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 import { SSH_UNLOCK_CHOICES, type FieldDef } from "../../lib/settings";
-import { SshLog } from "../../components/settings/SshLog";
 
 const UNLOCK_FIELDS: FieldDef[] = [
   { key: "ssh_unlock_minutes", label: "Keep the key unlocked for", options: SSH_UNLOCK_CHOICES },
@@ -41,14 +40,6 @@ export function Ssh() {
           <Download className="h-4 w-4" />
           Download
         </a>
-      </section>
-
-      <section className="border-t border-slate-800 pt-6">
-        <h2 className="text-sm font-medium text-slate-200">Log</h2>
-        <p className="mt-1 mb-3 text-xs text-slate-500">
-          Terminals opened, closed or refused, and keys installed — not what was typed.
-        </p>
-        <SshLog />
       </section>
     </div>
   );

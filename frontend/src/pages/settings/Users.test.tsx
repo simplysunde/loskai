@@ -10,10 +10,6 @@ const ACCOUNTS = [
   { username: "admin", level: 4, tabs: ["routing", "docker", "machines"], created: 0 },
   { username: "ola", level: 2, tabs: ["routing", "docker"], created: 0 },
 ];
-const SIGN_INS = [
-  { at: "2026-11-06T10:01:00+00:00", user: "admin", from: "10.0.0.5", ok: true },
-  { at: "2026-11-06T10:00:00+00:00", user: "root", from: "10.0.0.9", ok: false },
-];
 
 function renderUsers() {
   vi.stubGlobal(
@@ -25,9 +21,7 @@ function renderUsers() {
           ? { authed: true, needs_setup: false, user: ACCOUNTS[0] }
           : path === "/api/users" && !init?.method
             ? ACCOUNTS
-            : path === "/api/auth/logins"
-              ? SIGN_INS
-              : {};
+            : {};
       return json(body);
     }),
   );
@@ -48,15 +42,6 @@ test("lists the accounts with their levels", async () => {
   const ola = (await screen.findByText("ola")).closest("tr") as HTMLElement;
   expect(within(ola).getByText("2 — Docker")).toBeInTheDocument();
   expect(await screen.findByText("(you)")).toBeInTheDocument();
-});
-
-test("lists the sign-ins, a wrong password by the name typed", async () => {
-  renderUsers();
-
-  const root = (await screen.findByText("root")).closest("tr") as HTMLElement;
-  expect(within(root).getByText("Wrong password")).toHaveClass("text-amber-300");
-  expect(within(root).getByText("10.0.0.9")).toBeInTheDocument();
-  expect(screen.getByText("Signed in")).toBeInTheDocument();
 });
 
 test("adding an account sends the level chosen, 1 unless another is picked", async () => {

@@ -79,7 +79,8 @@ your network. Read this before deciding where it runs and who can reach it.
   and an open terminal closes within seconds; so does a changed password, or the account
   removed. After 5 wrong passwords, each one costs a wait that doubles up to a minute: a
   guesser gets about one try a minute. Each sign-in and wrong password is logged (when, the
-  username typed, from where — never the password) in Settings › Users.
+  username typed, from where — never the password) in Settings › Logs, which only an admin
+  reads.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
   the dashboard, the login flow, the Caddy root certificate (public by design) and launcher
   icons. The two terminal WebSockets — a container's and a machine's — check the session

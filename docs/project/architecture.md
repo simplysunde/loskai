@@ -352,7 +352,8 @@ the main key, behind the session, `Origin` and unlocked-key checks; closing it h
 pty, so nothing is left running. Both terminals are one component (`XtermSession`): Tab goes
 to the remote shell, which completes; Ctrl+Shift+C copies (Ctrl+C too while text is
 selected); Ctrl+V and Ctrl+Shift+V paste through the browser, so it works over plain HTTP
-too. The **SSH log** (`data/ssh/sessions.log`, shown in Settings › SSH) records sessions and
+too. The **SSH log** (`data/ssh/sessions.log`, shown in Settings › Logs, and a machine's own in
+its dialog — an admin's, as every log is) records sessions and
 installs — never keystrokes, which can be a password typed at a `sudo` prompt.
 
 ### Direction — managing the machines over SSH
@@ -672,7 +673,7 @@ the same as a wrong password, and the answer doesn't say which. The count is one
 clients — behind Caddy every request comes from Caddy's address — so a guesser's waits are
 everyone's, and one who keeps guessing keeps everyone out; it lives in memory, and a
 restart clears it. Counting per client is open (TODO). **Each login is logged** —
-`data/logins.log`, shown in Settings › Users: when, the username typed, from where, and
+`data/logins.log`, shown in Settings › Logs: when, the username typed, from where, and
 whether it signed in — never the password, and not a login turned away during a wait, which
 would let a script flood it. It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it, and only an admin reads it

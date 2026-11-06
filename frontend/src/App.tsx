@@ -11,6 +11,7 @@ import { Machines } from "./pages/Machines";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
 import { General } from "./pages/settings/General";
+import { Logs } from "./pages/settings/Logs";
 import { Network } from "./pages/settings/Network";
 import { Security } from "./pages/settings/Security";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="ssh" element={<Ssh />} />
           <Route path="users" element={<Users />} />
           <Route path="security" element={<Security />} />
+          <Route path="logs" element={<Logs />} />
         </Route>
         {/* Unmatched paths keep the chrome — the pane says what went wrong. */}
         <Route path="*" element={<NotFound />} />

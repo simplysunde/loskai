@@ -1,9 +1,9 @@
-import { KeyRound, Network as NetworkIcon, SlidersHorizontal, Terminal, Users as UsersIcon } from "lucide-react";
+import { KeyRound, Network as NetworkIcon, ScrollText, SlidersHorizontal, Terminal, Users as UsersIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 // The Settings shell — an admin's: a nested category sidebar + the content pane. Each
 // category is a real route (/settings, /settings/network, /settings/ssh, /settings/users,
-// /settings/security) so it can be linked to
+// /settings/security, /settings/logs) so it can be linked to
 // directly — the Routing status pills deep-link to /settings/network, ModuleStatus to
 // /settings (its unconfigured case is stacks_dir, under General).
 const CATEGORIES = [
@@ -12,6 +12,7 @@ const CATEGORIES = [
   { to: "/settings/ssh", label: "SSH", icon: Terminal, end: false },
   { to: "/settings/users", label: "Users", icon: UsersIcon, end: false },
   { to: "/settings/security", label: "Security", icon: KeyRound, end: false },
+  { to: "/settings/logs", label: "Logs", icon: ScrollText, end: false },
 ] as const;
 
 export function SettingsLayout() {

@@ -28,13 +28,14 @@ RULES: list[tuple[str, re.Pattern, int]] = [
         ("GET", r"^/api/settings$", ANY),  # secrets left out unless admin (settings.get_view)
         ("GET", r"^/api/launcher$", ANY),
         ("POST", r"^/api/auth/password$", ANY),
-        # Admin: Settings, the accounts and their sign-ins, the backup, Loskai's own key, the AdGuard reset.
+        # Admin: Settings, the accounts, the logs, the backup, Loskai's own key, the AdGuard reset.
         ("*", r"^/api/settings$", ADMIN),
         ("*", r"^/api/users(/[^/]+)?$", ADMIN),
         ("GET", r"^/api/auth/logins$", ADMIN),
         ("GET", r"^/api/export$", ADMIN),
         ("POST", r"^/api/adguard/rewrites/clear$", ADMIN),
         ("POST", r"^/api/ssh/key$", ADMIN),
+        ("GET", r"^/api/ssh/log$", ADMIN),
         # Routing. Its page lists containers (a route's source) and clears orphaned routes.
         ("GET", r"^/api/docker/containers$", ROUTING),
         ("*", r"^/api/docker/orphans(/[^/]+)?$", ROUTING),

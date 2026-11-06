@@ -131,7 +131,7 @@ Its search finds a section by what is in it and shows only those.
 - **SSH** — a switch beside the heading turns it on or off, each in a dialog that says what
   happens. Then its user and port, side by side; whether it is set up (and the button to set
   it up); and the **updates without a password** switch.
-- **Tools**, **Running** and **Log** — below.
+- **Tools**, **Running** and, for an admin, **Log** — below.
 
 Each field saves when you press Enter or leave it, and Escape puts it back; a value that
 isn't valid says why and saves nothing. A machine set up before the overview existed says
@@ -218,11 +218,12 @@ still there. Adding it again later installs the same key again.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
 - **SSH** — Loskai's key (its fingerprint, New key), how long your password unlocks it
-  (15 minutes unless you pick 1, 3, 8 or 24 hours), the SSH config for your own computer,
-  and the log of terminals and installs.
-- **Users** — the accounts: add one, set its role and tabs, set its password, remove it.
+  (15 minutes unless you pick 1, 3, 8 or 24 hours), and the SSH config for your own computer.
+- **Users** — the accounts: add one, set its level, set its password, remove it.
 - **Security** — how long you stay signed in once no Loskai page is open (2 hours unless
   changed).
+- **Logs** — each sign-in and wrong password (when, the username typed, from where — never
+  the password), and the SSH log: terminals, runs and installs, never what was typed.
 
 Settings is an admin's.
 

@@ -133,7 +133,7 @@ def test_the_create_endpoints_change_only_a_record_at_the_caller_s_level(admin):
     assert instances_store.get_instance("web") == web
 
 
-def test_an_operator_reads_only_its_own_entries_in_the_ssh_log(admin):
+def test_the_logs_are_an_admin_s_even_an_account_s_own_entries(admin):
     from loskai.modules.ssh import client as ssh_client
 
     machines = _operator(admin, "ola", users.MACHINES)
@@ -145,7 +145,9 @@ def test_an_operator_reads_only_its_own_entries_in_the_ssh_log(admin):
     ))
 
     assert [e["user"] for e in admin.get("/api/ssh/log").json()] == ["admin", "ola", "admin"]
-    assert [e["user"] for e in machines.get("/api/ssh/log").json()] == ["ola"]
+    for log in ["/api/ssh/log", "/api/auth/logins"]:
+        r = machines.get(log)
+        assert r.status_code == 403 and r.json()["detail"] == "Only an admin can do that", log
 
 
 def test_a_terminal_needs_its_level(admin):

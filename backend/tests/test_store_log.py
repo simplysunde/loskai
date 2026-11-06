@@ -5,7 +5,7 @@ import json
 from loskai.shared import store
 
 
-def test_a_log_is_read_newest_first_and_an_operator_reads_only_its_own(tmp_path):
+def test_a_log_is_read_newest_first(tmp_path):
     path = tmp_path / "x.log"
     path.write_text("\n".join([
         '{"event": "open", "user": "ola"}',
@@ -15,8 +15,7 @@ def test_a_log_is_read_newest_first_and_an_operator_reads_only_its_own(tmp_path)
     ]))
 
     assert [e["event"] for e in store.read_log(path, 10)] == ["close", "install", "open"]
-    assert [e["event"] for e in store.read_log(path, 10, "ola")] == ["close", "open"]
-    assert [e["event"] for e in store.read_log(path, 1, "ola")] == ["close"]
+    assert [e["event"] for e in store.read_log(path, 2)] == ["close", "install"]
     assert store.read_log(tmp_path / "none.log", 10) == []
 
 

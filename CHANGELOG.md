@@ -20,8 +20,8 @@ Everything so far:
   Settings › SSH. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —
   containers, services, Proxmox guests — listed on hover — and opens a terminal in the
-  browser. Every terminal session is logged. Loskai's key, the config download and the log
-  are in Settings › SSH; the cog on a machine's row opens its dialog, laid out like a
+  browser. Every terminal session is logged, in Settings › Logs. Loskai's key and the config
+  download are in Settings › SSH; the cog on a machine's row opens its dialog, laid out like a
   settings window — one scroll, a side menu to jump around, a search — General (with its
   overview: system, memory, disks, updates waiting) and SSH, each field saving as you edit
   it, then its tools, what runs there, its log. **Tools** — found from what the machine has, nothing to
@@ -79,10 +79,10 @@ Everything so far:
   Loskai page keeps you signed in, even in a background tab, as Proxmox's does; you are
   signed out 2 hours after the last one closes (Settings › Security). Logging out ends your
   sessions on every device, and an open terminal with them, as taking away its tab does. Your
-  name in the sidebar opens a menu: your level, Change password and Log out. An operator's SSH log, in a machine's dialog, shows only what
-  they did. Each account unlocks Loskai's SSH key with its own password.
-  An existing install's password becomes the account `admin`. Settings › Users lists each
-  sign-in and wrong password: when, the username typed, from where.
+  name in the sidebar opens a menu: your level, Change password and Log out. Each account unlocks Loskai's SSH key with its own password.
+  An existing install's password becomes the account `admin`.
+- **Logs** — Settings › Logs, an admin's: each sign-in and wrong password (when, the
+  username typed, from where), and the SSH log. A machine's dialog shows its own to an admin.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of
   its data folder, not root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).

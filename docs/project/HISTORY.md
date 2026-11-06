@@ -4,6 +4,14 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-06 — The logs are an admin's, on one page
+
+Settings › Logs holds the sign-in log and the SSH log, which were on Users and SSH. Sunde
+asked for one place, since a log is an admin's record of what happened. **This reverses**
+an operator reading its own SSH entries in a machine's dialog (2026-11-04's review, below):
+`GET /api/ssh/log` is admin-only now, and the per-user filter went. A machine's dialog keeps
+its Log section for an admin — where you look when working on that machine.
+
 ## 2026-11-06 — Levels instead of tabs
 
 **This reverses Phase 35's operators** (2026-11-02, below), who were given any set of the

@@ -20,6 +20,7 @@ import { useSettings } from "../../lib/settings";
 import { removalNeedsPassword, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
+import { useMe } from "../../lib/useAuth";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, isValidSshLogin, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Modal, Overlay } from "../shared/Modal";
@@ -68,6 +69,7 @@ const BUTTON =
 // same for every machine is in Settings › SSH.
 export function MachineDialog({ id, section }: { id: string; section?: string }) {
   const navigate = useNavigate();
+  const { admin } = useMe();
   const handed = (useLocation().state ?? {}) as MachineState;
   const [result, setResult] = useState<SaveResult | null>(handed.result ?? null);
   const [setup, setSetup] = useState(Boolean(handed.setup));
@@ -188,7 +190,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       ...change,
     });
 
-  const available = SECTIONS.filter((s) => s.group === 0 || host?.user);
+  // The log is an admin's, as every log is.
+  const available = SECTIONS.filter((s) => (s.group === 0 || host?.user) && (s.id !== "log" || admin));
   // Searching narrows the menu and the sections shown to those it finds.
   const q = query.trim().toLowerCase();
   const toolNames = (tools.data ?? []).map((t) => t.name).join(" ");
