@@ -45,6 +45,15 @@ visible without unpacking a phase back out. The checklists stay in
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
   the tool schema that keeps its value out. From the 2026-11-05 review.
+- **An automatic run cut off before its password arrives leaves its session waiting.** The
+  run's first line reads the sudo password; when its connection ends before that, its tmux
+  session (`loskai-<tool>-<action>`) stays on the machine, blocked on the read, and the next
+  run of that action attaches to it — a blank terminal — instead of starting. Seen live
+  2026-11-06, left by the dev build's double-opened socket (fixed); any connection dropped at
+  that moment does the same. Needs a timeout on that read, or a run that starts fresh.
+- **The sudo ticket rides in the terminal's URL**, so uvicorn's access log has it. It is
+  one-time and lasts a minute, and the password itself is never there; sending it as the
+  socket's first message would keep it out of the log. From the 2026-11-06 review.
 - **Phase 28's last check — Sunde's Bambuddy reinstall**, then clearing the migration's
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
