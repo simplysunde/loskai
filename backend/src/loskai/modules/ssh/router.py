@@ -198,7 +198,7 @@ async def _plan(machine_id: str, r: RunRequest, password: bool = False) -> tuple
         return await connect.plan(machine_id, r.tool, r.action, r.target, r.install, password)
     if r.sudo:
         return await connect.plan_sudo(machine_id, r.sudo == "allow", password)
-    raise connect.SshError(422, "Name a tool's action, an install, or the sudo rule")
+    raise connect.SshError("Name a tool's action, an install, or the sudo rule", 422)
 
 
 @router.post("/machines/{machine_id}/run")
@@ -260,7 +260,7 @@ async def machine_terminal(
     command, details, password = None, None, None
     try:
         if ticket and not (tool or sudo):
-            raise connect.SshError(422, "A password is only for a tool's action")
+            raise connect.SshError("A password is only for a tool's action", 422)
         if tool or sudo:
             asked = RunRequest(tool=tool, action=action, target=target, install=install, sudo=sudo)
             command, details, _ = await _plan(machine_id, asked, bool(ticket))

@@ -41,9 +41,6 @@ _DUMMY_HASH = _ph.hash("loskai-no-such-user")
 class UserError(LoskaiError, ValueError):
     """A change the accounts can't take."""
 
-    def __init__(self, status_code: int, detail: str):
-        super().__init__(detail, status_code)
-
 
 @dataclass
 class User:
@@ -106,24 +103,24 @@ def _update(mutate) -> list[User]:
 
 def check_username(username: str) -> None:
     if not USERNAME.fullmatch(username):
-        raise UserError(422, "A username: lowercase letters, digits, _ . - and starting with a letter")
+        raise UserError("A username: lowercase letters, digits, _ . - and starting with a letter", 422)
 
 
 def check_password_rule(password: str) -> None:
     if len(password) < MIN_PASSWORD_LEN:
-        raise UserError(422, f"A password needs at least {MIN_PASSWORD_LEN} characters")
+        raise UserError(f"A password needs at least {MIN_PASSWORD_LEN} characters", 422)
 
 
 def _check_tabs(role: str, tabs: list[str]) -> list[str]:
     if role not in ROLES:
-        raise UserError(422, f"A role is one of {', '.join(ROLES)}")
+        raise UserError(f"A role is one of {', '.join(ROLES)}", 422)
     unknown = [t for t in tabs if t not in TABS]
     if unknown:
-        raise UserError(422, f"No tab {unknown[0]!r} — the tabs are {', '.join(TABS)}")
+        raise UserError(f"No tab {unknown[0]!r} — the tabs are {', '.join(TABS)}", 422)
     if role == "admin":
         return []
     if not tabs:
-        raise UserError(422, "An operator needs at least one tab")
+        raise UserError("An operator needs at least one tab", 422)
     return [t for t in TABS if t in tabs]
 
 
@@ -144,9 +141,9 @@ def create(username: str, password: str, role: str, tabs: list[str] | None = Non
 
     def add(users: list[User]) -> list[User]:
         if first and users:
-            raise UserError(409, "Loskai is already set up")
+            raise UserError("Loskai is already set up", 409)
         if any(u.username == username for u in users):
-            raise UserError(409, f"There is already a user {username!r}")
+            raise UserError(f"There is already a user {username!r}", 409)
         return [*users, user]
 
     _update(add)
@@ -162,7 +159,7 @@ def _change(username: str, change) -> User:
                 change(u, users)
                 found.append(u)
                 return users
-        raise UserError(404, f"No user {username!r}")
+        raise UserError(f"No user {username!r}", 404)
 
     _update(apply)
     return found[0]
@@ -178,7 +175,7 @@ def set_role(username: str, role: str, tabs: list[str]) -> User:
 
     def change(u: User, users: list[User]) -> None:
         if u.admin and role != "admin" and _admins_besides(users, username) == 0:
-            raise UserError(409, "Loskai needs an admin — make another one first")
+            raise UserError("Loskai needs an admin — make another one first", 409)
         u.role, u.tabs = role, clean
 
     return _change(username, change)
@@ -208,9 +205,9 @@ def delete(username: str) -> None:
     def remove(users: list[User]) -> list[User]:
         target = next((u for u in users if u.username == username), None)
         if target is None:
-            raise UserError(404, f"No user {username!r}")
+            raise UserError(f"No user {username!r}", 404)
         if target.admin and _admins_besides(users, username) == 0:
-            raise UserError(409, "Loskai needs an admin — this is the last one")
+            raise UserError("Loskai needs an admin — this is the last one", 409)
         return [u for u in users if u.username != username]
 
     _update(remove)
@@ -289,7 +286,7 @@ def change_user(username: str, body: UserChange, request: Request, response: Res
 
     user = get(username)
     if user is None:
-        raise UserError(404, f"No user {username!r}")
+        raise UserError(f"No user {username!r}", 404)
     if body.password is not None:
         check_password_rule(body.password)
     if body.role is not None or body.tabs is not None:

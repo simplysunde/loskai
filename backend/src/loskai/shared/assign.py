@@ -33,7 +33,6 @@ from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
 from ..modules.docker import recipes
 from ..modules.docker.client import docker_client
-from ..modules.ssh import connect as ssh_connect
 from ..modules.ssh import machines as ssh_machines
 from . import access, auth, follow
 from .errors import LoskaiError
@@ -49,8 +48,7 @@ _LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 
 
 class AssignError(LoskaiError):
-    def __init__(self, status_code: int, detail: str) -> None:
-        super().__init__(detail, status_code)
+    pass
 
 
 def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "proxy") -> None:
@@ -58,19 +56,19 @@ def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "pro
     wildcard cert). `dns_only` has no cert involved, so dot-separated multi-label names
     are allowed — each label still has to be a valid DNS label on its own."""
     if not prefix:
-        raise AssignError(422, "prefix is required")
+        raise AssignError("prefix is required", 422)
     if route_mode == "dns_only":
         labels = prefix.split(".")
         if len(prefix) > 253 or not all(_LABEL.fullmatch(label) for label in labels):
             raise AssignError(
-                422,
                 "Each dot-separated label must be lowercase letters, digits, hyphens",
+                422,
             )
         return
     if len(prefix) > 63 or not _LABEL.fullmatch(prefix):
         raise AssignError(
-            422,
             "Subdomain must be a single DNS label (lowercase letters, digits, hyphens)",
+            422,
         )
 
 
@@ -80,25 +78,25 @@ def validate_upstream(upstream: str, route_mode: Literal["proxy", "dns_only"] = 
     the upstream IS the AdGuard answer, so it must be a bare IPv4 address — no port, no
     scheme (IPv6 is out of scope for now, same as `settings.py`'s `caddy_host_ip`/`host_ip`)."""
     if not upstream:
-        raise AssignError(422, "upstream is required")
+        raise AssignError("upstream is required", 422)
     if route_mode == "dns_only":
         if ":" in upstream:
-            raise AssignError(422, "DNS-only target must be a bare IPv4 address — no port")
+            raise AssignError("DNS-only target must be a bare IPv4 address — no port", 422)
         try:
             ip_address(upstream)
         except ValueError:
-            raise AssignError(422, f"DNS-only target must be a valid IP address: {upstream!r}")
+            raise AssignError(f"DNS-only target must be a valid IP address: {upstream!r}", 422)
         return
     if "://" in upstream or "/" in upstream or any(c.isspace() for c in upstream):
         raise AssignError(
-            422,
             "upstream must be host:port — no scheme or path (e.g. 192.168.10.100:3000 or grafana:3000)",
+            422,
         )
     host, sep, port = upstream.rpartition(":")
     if not sep or not host:
-        raise AssignError(422, "upstream must include a port, e.g. grafana:3000")
+        raise AssignError("upstream must include a port, e.g. grafana:3000", 422)
     if not port.isdigit() or not (1 <= int(port) <= 65535):
-        raise AssignError(422, f"invalid port in upstream: {port!r}")
+        raise AssignError(f"invalid port in upstream: {port!r}", 422)
 
 
 def subdomain_taken(prefix: str, exclude_id: str) -> bool:
@@ -129,7 +127,7 @@ def validate_container(container: str) -> None:
         logger.warning("container '%s' not verified: %s", container, exc)
         return
     if container not in names:
-        raise AssignError(404, f"no container named '{container}'")
+        raise AssignError(f"no container named '{container}'", 404)
 
 
 def address_taken(address: str, exclude_id: str) -> Instance | None:
@@ -166,13 +164,13 @@ async def assign(
     on its tab — a machine the Machines tab's, a route Routing's — whichever way it was found."""
     validate_prefix(prefix, route_mode)
     if not base_domain:
-        raise AssignError(400, "base_domain is not set — configure it in Settings")
+        raise AssignError("base_domain is not set — configure it in Settings", 400)
     upstream = upstream.strip()
     validate_upstream(upstream, route_mode)
 
     existing = instances_store.get_instance(instance_id) if instance_id else None
     if instance_id and existing is None:
-        raise AssignError(404, f"instance '{instance_id}' not found")
+        raise AssignError(f"instance '{instance_id}' not found", 404)
 
     # No duplicates: assigning a container (or a built-in network service) targets its
     # existing instance — change its URL — rather than creating a second one. Keyed by the
@@ -186,10 +184,10 @@ async def assign(
 
     target_id = existing.id if existing else prefix
     if subdomain_taken(prefix, exclude_id=target_id):
-        raise AssignError(409, f"subdomain '{prefix}' is already assigned")
+        raise AssignError(f"subdomain '{prefix}' is already assigned", 409)
 
     if route_mode == "dns_only" and (other := address_taken(upstream, exclude_id=target_id)):
-        raise AssignError(409, f"{upstream} is already the machine '{other.name}'")
+        raise AssignError(f"{upstream} is already the machine '{other.name}'", 409)
 
     created_new = existing is None
     if existing:
@@ -207,7 +205,7 @@ async def assign(
         )
     else:
         if instances_store.get_instance(prefix) is not None:
-            raise AssignError(409, f"instance id '{prefix}' already exists")
+            raise AssignError(f"instance id '{prefix}' already exists", 409)
         prev = None
         # A container gets a `docker` instance linked by name; everything else is `external`
         # (a built-in network service carries its `origin` marker, a bare LAN target none).
@@ -243,7 +241,7 @@ async def assign(
             instances_store.delete_instance(inst.id)
         else:
             instances_store.upsert_instance(prev)  # type: ignore[arg-type]
-        raise AssignError(502, f"Caddy step failed: {describe_error(exc)}")
+        raise AssignError(f"Caddy step failed: {describe_error(exc)}", 502)
 
     # A new record for a recipe stack's container gets the recipe's icon, as an install
     # would have given it. Only a new one: an existing record keeps its icon, or none if
@@ -414,7 +412,7 @@ async def unassign(
 ) -> dict:
     inst = instances_store.get_instance(instance_id)
     if inst is None:
-        raise AssignError(404, f"instance '{instance_id}' not found")
+        raise AssignError(f"instance '{instance_id}' not found", 404)
     if not inst.subdomain:
         return {"caddy": "ok", "adguard": "skipped", "cleared": False}
 
@@ -435,7 +433,7 @@ async def unassign(
         await caddy_service.teardown_route(caddy_client, inst.id)  # ignores 404
     except (httpx.HTTPError, CaddyError) as exc:
         instances_store.upsert_instance(prev)
-        raise AssignError(502, f"Caddy route delete failed: {describe_error(exc)}")
+        raise AssignError(f"Caddy route delete failed: {describe_error(exc)}", 502)
 
     # Step 2 — AdGuard delete (best effort, exact pair).
     adguard_status = "skipped"
@@ -463,10 +461,7 @@ async def purge_instance(
     removal = None
     if machine:
         # Where its key is, read before its name goes; a locked key stops it here, unchanged.
-        try:
-            removal = ssh_machines.prepare_removal(inst)
-        except ssh_connect.SshError as exc:
-            raise AssignError(exc.status_code, exc.detail)
+        removal = ssh_machines.prepare_removal(inst)
     if inst.subdomain:
         await unassign(caddy_client, adguard_client, inst.id, base_domain=base_domain)
     # Only once nothing can stop the delete — Caddy's step is required, and can fail — does
@@ -488,7 +483,7 @@ async def delete_instance(
     Since containers no longer auto-create instances, a deleted docker record won't reappear."""
     inst = instances_store.get_instance(instance_id)
     if inst is None:
-        raise AssignError(404, f"instance '{instance_id}' not found")
+        raise AssignError(f"instance '{instance_id}' not found", 404)
     return await purge_instance(caddy_client, adguard_client, inst, base_domain=base_domain)
 
 
@@ -555,18 +550,18 @@ async def _followed_upstream(body: "RouteCreate") -> str:
         existing = instances_store.get_instance(body.instance_id)
         container = existing.container if existing else None
     if not container:
-        raise AssignError(400, "only a container's route can follow its container")
+        raise AssignError("only a container's route can follow its container", 400)
     try:
         upstream = await asyncio.to_thread(follow.derive_upstream, container)
     except Exception as exc:  # noqa: BLE001 — any docker/transport failure
         raise AssignError(
-            503, f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
-            "set it by hand, or retry"
+            f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
+            "set it by hand, or retry", 503
         )
     if not upstream:
         raise AssignError(
-            400, f"'{container}'s port can't be determined — set the address by hand, or "
-            "give the container a loskai.port label"
+            f"'{container}'s port can't be determined — set the address by hand, or "
+            "give the container a loskai.port label", 400
         )
     return upstream
 

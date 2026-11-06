@@ -39,8 +39,7 @@ def _drop_cached(machine_id: str) -> None:
 
 
 class SshError(LoskaiError):
-    def __init__(self, status_code: int, detail: str):
-        super().__init__(detail, status_code)
+    pass
 
 
 @dataclass
@@ -55,10 +54,10 @@ def target(machine_id: str) -> Target:
     """The machine and how its SSH config entry says to reach it."""
     inst = instances_store.get_instance(machine_id)
     if inst is None or not instances_store.is_machine(inst):
-        raise SshError(404, f"no machine '{machine_id}'")
+        raise SshError(f"no machine '{machine_id}'", 404)
     entry = logic.hosts(client.read_config()).get(inst.subdomain or "")
     if not entry or not entry.get("user"):
-        raise SshError(409, f"'{inst.name}' has no SSH user — set one in its form")
+        raise SshError(f"'{inst.name}' has no SSH user — set one in its form", 409)
     return Target(
         id=inst.id,
         host=str(entry.get("hostname") or inst.upstream),
@@ -70,7 +69,7 @@ def target(machine_id: str) -> Target:
 def _trusted(t: Target) -> str:
     key = logic.known_key(client.read_known_hosts(), t.id)
     if key is None:
-        raise SshError(409, "Trust the machine's host key first")
+        raise SshError("Trust the machine's host key first", 409)
     return key
 
 
@@ -80,7 +79,7 @@ def _main_key() -> asyncssh.SSHKey:
     if key is None:
         # 423, not 401 or 403: the page asks for the password and stays signed in. Each
         # user unlocks it for themselves, like sudo.
-        raise SshError(423, "Loskai's key is locked — enter your password")
+        raise SshError("Loskai's key is locked — enter your password", 423)
     return key
 
 
@@ -98,7 +97,7 @@ async def _run(
             t.host, t.port, t.user, host_key, command, client_key=key, password=password, stdin=stdin
         )
     except Exception as exc:  # noqa: BLE001 — any failure to get there is the same answer
-        raise SshError(502, _describe(exc, t, "password" if password else "key"))
+        raise SshError(_describe(exc, t, "password" if password else "key"), 502)
 
 
 def _describe(exc: BaseException, t: Target, credential: str) -> str:
@@ -128,7 +127,7 @@ async def scan(machine_id: str) -> dict:
     try:
         key = await client.scan_host_key(t.host, t.port)
     except Exception as exc:  # noqa: BLE001 — any failure to reach it is the same answer
-        raise SshError(502, _describe(exc, t, "connection"))
+        raise SshError(_describe(exc, t, "connection"), 502)
     offered = key.export_public_key("openssh").decode().split()
     known = logic.known_key(client.read_known_hosts(), t.id)
     state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
@@ -144,9 +143,9 @@ async def trust(machine_id: str, fingerprint: str) -> dict:
     try:
         key = await client.scan_host_key(t.host, t.port)
     except Exception as exc:  # noqa: BLE001
-        raise SshError(502, _describe(exc, t, "connection"))
+        raise SshError(_describe(exc, t, "connection"), 502)
     if key.get_fingerprint() != fingerprint:
-        raise SshError(409, "The machine answered with a different host key than the one shown")
+        raise SshError("The machine answered with a different host key than the one shown", 409)
     line = " ".join(key.export_public_key("openssh").decode().split()[:2])
     client.update_known_hosts(lambda text: logic.set_known(text, t.id, line))
     _drop_cached(t.id)
@@ -183,7 +182,7 @@ def lines(t: Target | None = None) -> list[str]:
     call it off the event loop then."""
     public = client.public_key()
     if public is None:
-        raise SshError(409, "Loskai has no key yet")
+        raise SshError("Loskai has no key yet", 409)
     from_ip = _from(t)
     return [
         logic.authorized_keys_line(public, from_ip),
@@ -203,7 +202,7 @@ async def install(machine_id: str, password: str) -> dict:
     )
     if result.exit_status != 0:
         detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
-        raise SshError(502, f"Adding Loskai's key on {t.host} failed: {detail[0]}")
+        raise SshError(f"Adding Loskai's key on {t.host} failed: {detail[0]}", 502)
     return await test(machine_id)
 
 
@@ -231,7 +230,7 @@ async def uninstall(t: Target, host_key: str) -> bool:
     result = await _run(t, logic.UNINSTALL_SCRIPT, host_key)
     if result.exit_status != 0:
         detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
-        raise SshError(502, f"Removing Loskai's key on {t.host} failed: {detail[0]}")
+        raise SshError(f"Removing Loskai's key on {t.host} failed: {detail[0]}", 502)
     return "!sudo-rule" in str(result.stdout or "").splitlines()
 
 
@@ -241,7 +240,7 @@ async def test(machine_id: str) -> dict:
     host_key = _trusted(t)
     result = await _run(t, "true", host_key)
     if result.exit_status != 0:
-        raise SshError(502, f"Logged in to {t.host}, but a command there failed")
+        raise SshError(f"Logged in to {t.host}, but a command there failed", 502)
     # A (re)install may have put a newer status line there: the overview is asked again.
     _facts.pop(t.id, None)
     return {"key": True, "running": await _read_running(t, host_key)}
@@ -266,7 +265,7 @@ async def open_terminal(
             client.open_shell(t.host, t.port, t.user, host_key, key, cols, rows, command, password), client.TIMEOUT
         )
     except Exception as exc:  # noqa: BLE001
-        raise SshError(502, _describe(exc, t, "key"))
+        raise SshError(_describe(exc, t, "key"), 502)
     return t, conn, process
 
 
@@ -364,14 +363,14 @@ async def _overview(machine_id: str) -> dict:
     """The machine's overview, which a tool's command is worked out from — or 409."""
     f = await facts(machine_id)
     if not f.get("ok"):
-        raise SshError(409, f"Its overview is needed first: {f.get('error')}")
+        raise SshError(f"Its overview is needed first: {f.get('error')}", 409)
     return f
 
 
 def _tool(tool_id: str) -> tool.Tool:
     found = tool.load().get(tool_id)
     if found is None:
-        raise SshError(404, f"No tool {tool_id!r}")
+        raise SshError(f"No tool {tool_id!r}", 404)
     return found
 
 
@@ -403,14 +402,14 @@ async def plan(
             }, True
         lacking = tool.missing(t, programs)
         if lacking:
-            raise SshError(409, f"{t.name} needs {', '.join(lacking)} — add it first")
+            raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
         action = t.actions.get(action_id or "")
         if action is None:
-            raise SshError(404, f"{t.name} has no action {action_id!r}")
+            raise SshError(f"{t.name} has no action {action_id!r}", 404)
         tool.check_target(action.target or action.ask, target_name)
         script = tool.action_script(t, action.id, manager)
     except tool.ToolError as exc:
-        raise SshError(409, str(exc))
+        raise SshError(str(exc), 409)
     session = tool.session_name(t, action, target_name) if "tmux" in programs else None
     command = tool.visible(
         script, target_name, session, inst.projects_folder if inst else None,
@@ -436,7 +435,7 @@ async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tup
         try:
             script = tool.allow_script((f.get("updates") or {}).get("manager"))
         except tool.ToolError as exc:
-            raise SshError(409, str(exc))
+            raise SshError(str(exc), 409)
     else:
         script = tool.REMOVE_RULE_SCRIPT
     command = tool.visible(script, None, None, automatic=True, password=password)
@@ -482,15 +481,15 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
     )
     said = str(result.stderr or "")
     if result.exit_status == 127:
-        raise SshError(409, "sudo isn't installed on it — log in as root, or install sudo")
+        raise SshError("sudo isn't installed on it — log in as root, or install sudo", 409)
     if "not in the sudoers" in said or "may not run sudo" in said:
-        raise SshError(409, f"{t.user} may not use sudo there")
+        raise SshError(f"{t.user} may not use sudo there", 409)
     if result.exit_status == 0 and password is None:
         return no
     if password is None:
         return {**no, "needs_password": True, "user": t.user}
     if result.exit_status != 0:
-        raise SshError(422, f"sudo didn't accept that password for {t.user}")
+        raise SshError(f"sudo didn't accept that password for {t.user}", 422)
     me = auth.current_user()
     now = time.monotonic()
     ticket = secrets.token_urlsafe(24)
@@ -512,7 +511,7 @@ def take_password(ticket: str, machine_id: str, details: dict) -> str:
         or held[4] < time.monotonic()
         or held[:3] != (me.username if me else None, machine_id, _run_of(details))
     ):
-        raise SshError(409, "That password is no longer held — run it again")
+        raise SshError("That password is no longer held — run it again", 409)
     return held[3]
 
 
@@ -525,7 +524,7 @@ async def _tool_here(machine_id: str, tool_id: str) -> tool.Tool:
     f = await _overview(machine_id)
     lacking = tool.missing(t, set(f.get("programs") or []))
     if lacking:
-        raise SshError(409, f"{t.name} needs {', '.join(lacking)} — add it first")
+        raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
     return t
 
 
@@ -549,12 +548,12 @@ async def write_setting(
     try:
         script = tool.write_setting_script(found, setting_id, value)
     except tool.ToolError as exc:
-        raise SshError(404 if setting_id not in found.settings else 422, str(exc))
+        raise SshError(str(exc), 404 if setting_id not in found.settings else 422)
     result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + script)}")
     log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
     if result.exit_status != 0:
         said = str(result.stderr or result.stdout or "").strip().splitlines()
-        raise SshError(502, f"The machine said: {said[0] if said else f'exit {result.exit_status}'}")
+        raise SshError(f"The machine said: {said[0] if said else f'exit {result.exit_status}'}", 502)
     return await read_settings(machine_id, tool_id)
 
 

@@ -325,7 +325,7 @@ def test_a_delete_that_fails_at_caddy_leaves_loskai_s_key_on_the_machine(api, ma
     _trust(api)
 
     async def caddy_down(*args, **kwargs):
-        raise assign.AssignError(502, "Caddy route delete failed")
+        raise assign.AssignError("Caddy route delete failed", 502)
 
     monkeypatch.setattr(assign, "unassign", caddy_down)
 
