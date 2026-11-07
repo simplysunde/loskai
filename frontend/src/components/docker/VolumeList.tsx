@@ -4,6 +4,7 @@ import { Loader2, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { CARD_TABLE } from "../../lib/ui";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export interface Volume {
@@ -72,8 +73,8 @@ export function VolumeList() {
         {unused > 0 && <span className="text-amber-300/80"> · {unused} unused</span>}
       </p>
       <div className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
+        <table className={`w-full text-left text-sm ${CARD_TABLE}`}>
+          <thead className="border-b border-slate-800 text-xs uppercase text-slate-500 max-sm:hidden">
             <tr>
               <th className="px-4 py-2.5 font-medium">Volume</th>
               <th className="px-4 py-2.5 font-medium">Stack</th>
@@ -84,8 +85,8 @@ export function VolumeList() {
           </thead>
           <tbody className="divide-y divide-slate-800/70">
             {rows.map((v) => (
-              <tr key={v.name} className="hover:bg-slate-900/40">
-                <td className="px-4 py-3">
+              <tr key={v.name} className="hover:bg-slate-900/40 max-sm:px-4 max-sm:py-3">
+                <td className="px-4 py-3 max-sm:basis-full">
                   <div className="flex items-center gap-2">
                     <span title={v.name} className="font-mono text-xs text-slate-200">
                       {v.anonymous ? `${v.name.slice(0, 12)}…` : v.name}
@@ -98,7 +99,7 @@ export function VolumeList() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-slate-400">{v.project ?? "—"}</td>
-                <td className="px-4 py-3 text-right text-slate-400">{formatBytes(v.size)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right text-slate-400">{formatBytes(v.size)}</td>
                 <td className="px-4 py-3">
                   {v.used_by.length ? (
                     <span className="text-xs text-slate-300">{v.used_by.join(", ")}</span>
@@ -111,7 +112,7 @@ export function VolumeList() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 max-sm:ml-auto">
                   <div className="flex justify-end">
                     {v.used_by.length === 0 && (
                       <button

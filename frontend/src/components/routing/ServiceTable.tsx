@@ -1,5 +1,6 @@
 import { Eye, EyeOff, HardDrive, ImagePlus, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
+import { CARD_TABLE } from "../../lib/ui";
 import { IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -74,8 +75,8 @@ export function ServiceTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-800">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
+      <table className={`w-full text-left text-sm ${CARD_TABLE}`}>
+        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500 max-sm:hidden">
           <tr>
             <th className="px-4 py-2.5 font-medium">Service</th>
             <th className="px-4 py-2.5 font-medium">Upstream</th>
@@ -88,8 +89,8 @@ export function ServiceTable({
           {rows.map((row) => {
             const machine = machineAt(row.upstream, machines);
             return (
-              <tr key={row.id} className="hover:bg-slate-900/40">
-                <td className="px-4 py-3">
+              <tr key={row.id} className="hover:bg-slate-900/40 max-sm:px-4 max-sm:py-3">
+                <td className="px-4 py-3 max-sm:basis-full">
                   <div className="flex items-center gap-2 font-medium text-slate-100">
                     {onIcon && !isMachine(row) && (
                       <IconPicker row={row} onPick={onIcon} onClear={onClearIcon} />
@@ -107,7 +108,7 @@ export function ServiceTable({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                <td className="px-4 py-3 font-mono text-xs text-slate-400 max-sm:basis-full">
                   {/* The address on top, always: a machine's name is not one (a dotted
                       name like `adguard.lxc` would read as a hostname that does not
                       resolve). The machine at that address sits beneath. */}
@@ -165,7 +166,7 @@ export function ServiceTable({
                   )}
                 </td>
                 {hasActions && (
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 max-sm:ml-auto">
                     <div className="flex items-center justify-end gap-1.5">
                       {row.routed && onTogglePrivate && (
                         <IconButton
@@ -219,8 +220,9 @@ export function ServiceTable({
 const ROUTE_HINT = "Is the route loaded in Caddy? \"not pushed\" = Loskai has it but Caddy doesn't; Sync fixes it.";
 export const DNS_HINT = "Does AdGuard answer this name with the right address? \"conflict\" = another answer exists for it too.";
 
+// Hidden on a phone, where no column heading says what it stands for.
 function Dash() {
-  return <span className="text-xs text-slate-600">—</span>;
+  return <span className="text-xs text-slate-600 max-sm:hidden">—</span>;
 }
 
 export function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {

@@ -24,6 +24,7 @@ import { api, ApiError, apiMessage } from "../../lib/api";
 import { useContainers, type Container } from "../../lib/containers";
 import { docUrl } from "../../lib/docs";
 import { formatPercent, formatUptime } from "../../lib/format";
+import { CARD_TABLE } from "../../lib/ui";
 import { useExpanded } from "../../lib/useExpanded";
 import { ActionError } from "../shared/ActionError";
 import { RouteLink } from "../shared/RouteLink";
@@ -170,7 +171,7 @@ export function StackGroups({
           }}
         />
         {open && group.containers.length === 0 && (
-          <tr>
+          <tr className="max-sm:pb-3 max-sm:pl-11">
             <td colSpan={COLS} className="px-4 pb-3 pl-11 text-xs text-slate-600">
               No containers — start the stack to create them.
             </td>
@@ -202,7 +203,7 @@ export function StackGroups({
         onToggleAll={managed.length ? () => toggleAll(managed) : undefined}
       >
         {managed.length === 0 ? (
-          <tr>
+          <tr className="max-sm:justify-center max-sm:py-10">
             <td colSpan={COLS} className="px-4 py-10 text-center text-sm text-slate-500">
               No stacks yet. Install a recipe, or create a stack.
             </td>
@@ -230,7 +231,8 @@ export function StackGroups({
 const COLS = 5;
 
 // Each section is its own table, titled in its header row. Both share fixed column
-// widths, so their columns line up across the gap.
+// widths, so their columns line up across the gap. On a phone, rows are cards without the
+// stats: a name and its buttons.
 function GroupTable({
   title,
   note,
@@ -252,7 +254,7 @@ function GroupTable({
   const AllIcon = anyOpen ? ChevronsDownUp : ChevronsUpDown;
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-800">
-      <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+      <table className={`w-full text-left text-sm sm:min-w-[760px] sm:table-fixed ${CARD_TABLE}`}>
         <colgroup>
           <col />
           <col className="w-28" />
@@ -260,8 +262,8 @@ function GroupTable({
           <col className="w-20" />
           <col className="w-56" />
         </colgroup>
-        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
-          <tr>
+        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500 max-sm:block">
+          <tr className="max-sm:px-4 max-sm:py-2.5">
             <th className="px-4 py-2.5 font-medium text-slate-300">
               <div className="flex items-center gap-1.5">
                 <span title={note} className={note ? "cursor-help" : ""}>
@@ -291,10 +293,10 @@ function GroupTable({
                 )}
               </div>
             </th>
-            <th className="px-4 py-2.5 font-medium">Uptime</th>
-            <th className="px-4 py-2.5 font-medium">CPU</th>
-            <th className="px-4 py-2.5 font-medium">Mem</th>
-            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">Uptime</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">CPU</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">Mem</th>
+            <th className="px-4 py-2.5 font-medium text-right max-sm:hidden">Actions</th>
           </tr>
         </thead>
         <tbody>{children}</tbody>
@@ -363,8 +365,8 @@ function GroupHeader({
   // Every container of a project carries the same label; the first that has it will do.
   const composeDir = group.containers.find((c) => c.compose_dir)?.compose_dir;
   return (
-    <tr className={`border-t border-slate-800 bg-slate-900/50 ${muted ? "opacity-80" : ""}`}>
-      <td className="px-4 py-2">
+    <tr className={`border-t border-slate-800 bg-slate-900/50 max-sm:px-4 max-sm:py-2 ${muted ? "opacity-80" : ""}`}>
+      <td className="px-4 py-2 max-sm:min-w-0 max-sm:flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onToggle}
@@ -386,10 +388,10 @@ function GroupHeader({
           ))}
         </div>
       </td>
-      <td className="px-4 py-2 text-slate-400">{totals && formatUptime(totals.uptime)}</td>
-      <td className="px-4 py-2 text-slate-400">{totals && formatPercent(totals.cpu)}</td>
-      <td className="px-4 py-2 text-slate-400">{totals && formatPercent(totals.mem)}</td>
-      <td className="px-4 py-2">
+      <td className="px-4 py-2 text-slate-400 max-sm:hidden">{totals && formatUptime(totals.uptime)}</td>
+      <td className="px-4 py-2 text-slate-400 max-sm:hidden">{totals && formatPercent(totals.cpu)}</td>
+      <td className="px-4 py-2 text-slate-400 max-sm:hidden">{totals && formatPercent(totals.mem)}</td>
+      <td className="px-4 py-2 max-sm:ml-auto">
         {/* The same toggle, in the same place, for a project started elsewhere or a lone
             container — plain docker start/stop, as there is no compose file here to run. */}
         {group.kind !== "stack" && (
@@ -476,8 +478,8 @@ function ContainerRow({
 }) {
   const running = c.status === "running";
   return (
-    <tr className="border-t border-slate-800/50 hover:bg-slate-900/40">
-      <td className="py-3 pl-11 pr-4">
+    <tr className="border-t border-slate-800/50 hover:bg-slate-900/40 max-sm:py-2.5 max-sm:pl-8 max-sm:pr-4">
+      <td className="py-3 pl-11 pr-4 max-sm:min-w-0 max-sm:flex-1">
         <div className="flex items-center gap-2 font-medium text-slate-100">
           <span
             title={c.status}
@@ -486,12 +488,12 @@ function ContainerRow({
           />
           {c.name}
         </div>
-        <div className="pl-4 font-mono text-xs text-slate-500">{c.image}</div>
+        <div className="pl-4 font-mono text-xs text-slate-500 max-sm:truncate">{c.image}</div>
       </td>
-      <td className="px-4 py-3 text-slate-400">{formatUptime(c.uptime)}</td>
-      <td className="px-4 py-3 text-slate-400">{formatPercent(c.cpu)}</td>
-      <td className="px-4 py-3 text-slate-400">{formatPercent(c.mem?.percent)}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatUptime(c.uptime)}</td>
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(c.cpu)}</td>
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(c.mem?.percent)}</td>
+      <td className="px-4 py-3 max-sm:ml-auto">
         <div className="flex items-center justify-end gap-1">
           {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
           <Act title="Logs" onClick={onLogs}>

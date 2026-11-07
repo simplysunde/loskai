@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { CARD_TABLE } from "../../lib/ui";
 import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
@@ -89,9 +90,10 @@ export function MachineTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-800">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500">
-          <tr>
+      <table className={`w-full text-left text-sm ${CARD_TABLE}`}>
+        {/* On a phone only its first cell, for Expand all. */}
+        <thead className="border-b border-slate-800 text-xs uppercase text-slate-500 max-sm:block">
+          <tr className="max-sm:px-4 max-sm:py-2.5">
             <th className="px-4 py-2.5 font-medium">
               <div className="flex items-center gap-1.5">
                 Machine
@@ -105,11 +107,11 @@ export function MachineTable({
                 </button>
               </div>
             </th>
-            <th className="px-4 py-2.5 font-medium">URL</th>
-            <th className="px-4 py-2.5 font-medium">Address</th>
-            <th className="px-4 py-2.5 font-medium">Running</th>
-            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
-            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">URL</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">Address</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">Running</th>
+            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium max-sm:hidden">DNS</th>
+            <th className="px-4 py-2.5 font-medium text-right max-sm:hidden">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -124,8 +126,8 @@ export function MachineTable({
               const Chevron = open ? ChevronDown : ChevronRight;
               return (
                 <Fragment key={m.id}>
-                  <tr className="border-t border-slate-800 bg-slate-900/50">
-                    <td className="px-4 py-2">
+                  <tr className="border-t border-slate-800 bg-slate-900/50 max-sm:px-4 max-sm:py-2.5">
+                    <td className="px-4 py-2 max-sm:basis-full">
                       <button
                         onClick={() => expanded.toggle(m.id)}
                         aria-expanded={open}
@@ -143,24 +145,25 @@ export function MachineTable({
                       </button>
                     </td>
                     {/* Plain text, not a link: a machine's name is DNS only, so nothing
-                        is promised to answer on it over https. */}
-                    <td className="px-4 py-2 text-xs text-slate-400">{m.fqdn ?? "—"}</td>
+                        is promised to answer on it over https. A phone, with no column
+                        headings, leaves out the empty cells. */}
+                    <td className={`px-4 py-2 text-xs text-slate-400 ${m.fqdn ? "" : "max-sm:hidden"}`}>{m.fqdn ?? "—"}</td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
                       {running[m.id] ? (
                         <RunningPill running={running[m.id]} user={host?.user} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${unnamed ? "max-sm:hidden" : ""}`}>
                       {unnamed ? (
                         <span className="text-xs text-slate-600">—</span>
                       ) : (
                         <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
                       )}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 max-sm:ml-auto">
                       <div className="flex items-center justify-end gap-1.5">
                         {sshReady && m.subdomain && host && trusted[m.id] && onTerminal && (
                           <IconButton title={`Terminal: ${sshTitle(m.subdomain, host)}`} onClick={() => onTerminal(m)}>
@@ -225,7 +228,7 @@ export function MachineTable({
                     </td>
                   </tr>
                   {open && deps.length === 0 && (
-                    <tr>
+                    <tr className="max-sm:pb-2 max-sm:pl-11">
                       <td colSpan={6} className="px-4 pb-2 pl-11 text-xs text-slate-600">
                         No routes on this machine.
                       </td>
@@ -233,7 +236,7 @@ export function MachineTable({
                   )}
                   {open &&
                     deps.map((d) => (
-                      <tr key={d.id} className="text-xs hover:bg-slate-900/40">
+                      <tr key={d.id} className="text-xs hover:bg-slate-900/40 max-sm:py-1 max-sm:pl-10 max-sm:pr-4">
                         <td className="py-1 pl-10 pr-4">
                           <div className="flex items-center gap-1.5 text-slate-300">
                             <CornerDownRight className="h-3.5 w-3.5 text-slate-600" />
@@ -252,7 +255,7 @@ export function MachineTable({
                         </td>
                         {/* No DNS state here: a route's own is the Routing tab's to show. These
                             rows say what the machine hosts; its DNS is the row above. */}
-                        <td colSpan={3} />
+                        <td colSpan={3} className="max-sm:hidden" />
                       </tr>
                     ))}
                 </Fragment>

@@ -75,7 +75,8 @@ Everything so far:
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **On a phone** — the sidebar is a drawer behind a Menu button, so each page gets the whole
   width; a page's buttons sit under its title, Settings' categories are a strip across the
-  top, and the larger dialogs fill the screen.
+  top, and the larger dialogs fill the screen. Tables become a list of cards — each row's
+  name, then its status and buttons — instead of columns too narrow to read.
 - **Accounts** — first run creates the admin account; Settings › Users adds more, each with
   a level that adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
   admin). An open

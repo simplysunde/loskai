@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api } from "../../lib/api";
+import { CARD_TABLE } from "../../lib/ui";
 
 interface LogEntry {
   at: string;
@@ -74,8 +75,8 @@ export function SshLog({ machine }: { machine?: string }) {
       ) : !entries.length ? (
         <p className="text-sm text-slate-500">Nothing yet.</p>
       ) : (
-        <table className="w-full text-left text-xs">
-          <thead className="text-slate-500">
+        <table className={`w-full text-left text-xs ${CARD_TABLE}`}>
+          <thead className="text-slate-500 max-sm:hidden">
             <tr>
               <th className="py-1 pr-3 font-medium">When</th>
               {!machine && <th className="py-1 pr-3 font-medium">Machine</th>}
@@ -86,7 +87,7 @@ export function SshLog({ machine }: { machine?: string }) {
           </thead>
           <tbody className="text-slate-300">
             {entries.map((e, i) => (
-              <tr key={`${e.at}-${i}`} className="border-t border-slate-800/70">
+              <tr key={`${e.at}-${i}`} className="border-t border-slate-800/70 max-sm:py-1.5">
                 <td className="whitespace-nowrap py-1 pr-3 text-slate-400">
                   {new Date(e.at).toLocaleString()}
                 </td>
@@ -95,7 +96,7 @@ export function SshLog({ machine }: { machine?: string }) {
                 <td className="py-1 pr-3 font-mono text-slate-400">{e.from ?? "—"}</td>
                 <td
                   title={e.command ? `$ ${e.command}` : undefined}
-                  className={`py-1 ${e.event === "refused" || e.ok === false ? "text-amber-300" : ""}`}
+                  className={`py-1 max-sm:basis-full ${e.event === "refused" || e.ok === false ? "text-amber-300" : ""}`}
                 >
                   {what(e)}
                 </td>
