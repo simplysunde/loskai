@@ -98,11 +98,19 @@ export function VolumeList() {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-400">{v.project ?? "—"}</td>
+                {/* A phone has no column headings: the empty cell goes, the others say
+                    what they are. */}
+                <td className={`px-4 py-3 text-slate-400 ${v.project ? "" : "max-sm:hidden"}`}>
+                  <span className="text-slate-500 sm:hidden">stack </span>
+                  {v.project ?? "—"}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right text-slate-400">{formatBytes(v.size)}</td>
                 <td className="px-4 py-3">
                   {v.used_by.length ? (
-                    <span className="text-xs text-slate-300">{v.used_by.join(", ")}</span>
+                    <span className="text-xs text-slate-300">
+                      <span className="text-slate-500 sm:hidden">used by </span>
+                      {v.used_by.join(", ")}
+                    </span>
                   ) : (
                     <span
                       title="No container mounts it, running or stopped"

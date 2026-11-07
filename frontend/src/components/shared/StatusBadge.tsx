@@ -15,7 +15,7 @@ export function StatusBadge({
   label,
 }: {
   status: ModuleState | string;
-  label?: string;
+  label?: React.ReactNode;
 }) {
   const cls = STYLES[status] ?? STYLES.unknown;
   return (

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { CARD_TABLE } from "../../lib/ui";
+import { dnsFine } from "../../lib/routes";
 import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
@@ -156,7 +157,7 @@ export function MachineTable({
                         <span className="text-xs text-slate-600">—</span>
                       )}
                     </td>
-                    <td className={`px-4 py-2 ${unnamed ? "max-sm:hidden" : ""}`}>
+                    <td className={`px-4 py-2 ${unnamed || dnsFine(m) ? "max-sm:hidden" : ""}`}>
                       {unnamed ? (
                         <span className="text-xs text-slate-600">—</span>
                       ) : (

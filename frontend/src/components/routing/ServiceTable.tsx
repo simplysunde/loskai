@@ -1,6 +1,7 @@
 import { Eye, EyeOff, HardDrive, ImagePlus, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { CARD_TABLE } from "../../lib/ui";
+import { dnsFine } from "../../lib/routes";
 import { IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -147,18 +148,20 @@ export function ServiceTable({
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                {/* A phone has no column headings: it shows these two only when something
+                    is wrong, and says which. */}
+                <td className={`px-4 py-3 ${routeFine(row) ? "max-sm:hidden" : ""}`}>
                   {!row.routed || row.route_mode === "dns_only" ? (
                     <Dash />
                   ) : row.synced === null ? (
-                    <StatusBadge status="unknown" label="unknown" />
+                    <StatusBadge status="unknown" label={<><OnPhone>route</OnPhone>unknown</>} />
                   ) : row.synced ? (
                     <StatusBadge status="synced" label="synced" />
                   ) : (
-                    <StatusBadge status="unsynced" label="not pushed" />
+                    <StatusBadge status="unsynced" label={<><OnPhone>route</OnPhone>not pushed</>} />
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className={`px-4 py-3 ${!row.routed || dnsFine(row) ? "max-sm:hidden" : ""}`}>
                   {row.routed ? (
                     <DnsCell present={row.dnsPresent} conflict={row.dnsConflict} />
                   ) : (
@@ -220,22 +223,28 @@ export function ServiceTable({
 const ROUTE_HINT = "Is the route loaded in Caddy? \"not pushed\" = Loskai has it but Caddy doesn't; Sync fixes it.";
 export const DNS_HINT = "Does AdGuard answer this name with the right address? \"conflict\" = another answer exists for it too.";
 
-// Hidden on a phone, where no column heading says what it stands for.
 function Dash() {
-  return <span className="text-xs text-slate-600 max-sm:hidden">—</span>;
+  return <span className="text-xs text-slate-600">—</span>;
+}
+
+function routeFine(row: RouteRow) {
+  return !row.routed || row.route_mode === "dns_only" || row.synced === true;
+}
+function OnPhone({ children }: { children: string }) {
+  return <span className="sm:hidden">{children} </span>;
 }
 
 export function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       {present === undefined || present === null ? (
-        <StatusBadge status="unknown" label="unknown" />
+        <StatusBadge status="unknown" label={<><OnPhone>DNS</OnPhone>unknown</>} />
       ) : present ? (
         <StatusBadge status="synced" label="set" />
       ) : (
-        <StatusBadge status="unsynced" label="missing" />
+        <StatusBadge status="unsynced" label={<><OnPhone>DNS</OnPhone>missing</>} />
       )}
-      {conflict && <StatusBadge status="degraded" label="conflict" />}
+      {conflict && <StatusBadge status="degraded" label={<><OnPhone>DNS</OnPhone>conflict</>} />}
     </div>
   );
 }

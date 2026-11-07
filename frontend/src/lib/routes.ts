@@ -37,3 +37,9 @@ export function useRouteRows() {
   const routedOrigins = new Set(rows.filter((r) => r.origin && r.routed).map((r) => r.origin as string));
   return { routes, rows, routedOrigins };
 }
+
+// AdGuard answers the name with the right address and nothing else — a phone shows the DNS
+// status only when this is false.
+export function dnsFine(row: { dnsPresent?: boolean | null; dnsConflict?: boolean }) {
+  return row.dnsPresent === true && !row.dnsConflict;
+}

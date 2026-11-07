@@ -26,7 +26,11 @@ break the phone, nor the other way round.
   - the buttons kept right (`max-sm:ml-auto`);
   - what a phone leaves out (`max-sm:hidden`): the header row, a column only a wide screen
     has room for (Docker's uptime, CPU and memory), and an empty cell's dash, which means
-    nothing without its column heading.
+    nothing without its column heading;
+  - what a value is, once no heading says it: a word before it that only a phone shows
+    (`<span className="sm:hidden">stack </span>`, a volume's "stack jellyfin"). A status
+    that is usually fine shows only when it isn't, and names its column — Routing's
+    "DNS missing", "route not pushed".
 
   A table whose header holds a control (Expand all) keeps that one cell: `max-sm:block` on
   the `thead`, `max-sm:hidden` on the other headings.
