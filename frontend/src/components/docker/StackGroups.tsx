@@ -366,16 +366,16 @@ function GroupHeader({
   const composeDir = group.containers.find((c) => c.compose_dir)?.compose_dir;
   return (
     <tr className={`border-t border-slate-800 bg-slate-900/50 max-sm:px-4 max-sm:py-2 ${muted ? "opacity-80" : ""}`}>
-      <td className="px-4 py-2 max-sm:min-w-0 max-sm:flex-1">
+      <td className="px-4 py-2 max-sm:min-w-32 max-sm:flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onToggle}
             aria-expanded={open}
             className="flex items-center gap-2 text-left text-slate-200"
           >
-            <Chevron className="h-4 w-4 text-slate-500" />
+            <Chevron className="h-4 w-4 shrink-0 text-slate-500" />
             {/* A box for a lone container, layers for a project of them. */}
-            <Icon className={`h-3.5 w-3.5 ${muted ? "text-slate-500" : "text-teal-300/70"}`} />
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${muted ? "text-slate-500" : "text-teal-300/70"}`} />
             <span className="font-medium">
               {group.kind === "stack" ? group.stack.name : group.name}
             </span>
@@ -479,7 +479,7 @@ function ContainerRow({
   const running = c.status === "running";
   return (
     <tr className="border-t border-slate-800/50 hover:bg-slate-900/40 max-sm:py-2.5 max-sm:pl-8 max-sm:pr-4">
-      <td className="py-3 pl-11 pr-4 max-sm:min-w-0 max-sm:flex-1">
+      <td className="py-3 pl-11 pr-4 max-sm:min-w-32 max-sm:flex-1">
         <div className="flex items-center gap-2 font-medium text-slate-100">
           <span
             title={c.status}
