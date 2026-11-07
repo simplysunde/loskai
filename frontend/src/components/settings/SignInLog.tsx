@@ -8,10 +8,11 @@ interface SignIn {
   user: string; // the username tried — it may be no account's
   from: string | null;
   ok: boolean;
+  for?: string; // a password asked again for an action (the SSH unlock), not at login
 }
 
-// Every sign-in and wrong password, newest first. Never the password; a login turned away
-// during a wait isn't one.
+// Every sign-in and wrong password — at login, or asked again for an action — newest first.
+// Never the password; a login turned away during a wait isn't one.
 export function SignInLog() {
   const log = useQuery({
     queryKey: ["sign-in-log"],
@@ -42,7 +43,7 @@ export function SignInLog() {
                 </td>
                 <td className="py-1 pr-3 text-slate-400">{e.user}</td>
                 <td className="py-1 pr-3 font-mono text-slate-400">{e.from ?? "—"}</td>
-                <td className={`py-1 ${e.ok ? "" : "text-amber-300"}`}>{e.ok ? "Signed in" : "Wrong password"}</td>
+                <td className={`py-1 ${e.ok ? "" : "text-amber-300"}`}>{e.ok ? "Signed in" : e.for ? `Wrong password (${e.for})` : "Wrong password"}</td>
               </tr>
             ))}
           </tbody>

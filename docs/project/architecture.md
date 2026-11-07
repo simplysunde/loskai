@@ -674,7 +674,8 @@ not per client — behind Caddy every request comes from Caddy's address — so 
 waits are that account's too, and one who keeps guessing keeps it out; it lives in memory,
 and a restart clears it. Counting per client is open (TODO). **Each login is logged** —
 `data/logins.log`, shown in Settings › Logs: when, the username typed, from where, and
-whether it signed in — never the password, and not a login turned away during a wait, nor
+whether it signed in, and each wrong password asked again for an action (the SSH unlock, a
+new SSH key, a password change: `check_password` logs every miss) — never the password, and not a login turned away during a wait, nor
 more than 5 wrong ones in 15 minutes for names that are no account's (made-up names never
 wait, so a script could otherwise push the real entries out). It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it, and only an admin reads it

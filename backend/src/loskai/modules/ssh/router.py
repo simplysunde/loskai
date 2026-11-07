@@ -74,12 +74,12 @@ class KeyRequest(BaseModel):
 
 
 @router.post("/key")
-def create_key(body: KeyRequest) -> dict | None:
+def create_key(body: KeyRequest, request: Request) -> dict | None:
     """Make Loskai's key, or replace it (`replace`). The admin's password is checked — with
     the login backoff — and, just typed, unlocks the new key for them, as Unlock does."""
     if client.public_key() is not None and not body.replace:
         raise HTTPException(status_code=409, detail="Loskai already has a key — use New key to replace it")
-    me = auth.check_password(body.password, wrong_status=403)
+    me = auth.check_password(body.password, request, wrong_status=403, asked_for="new SSH key")
     client.create_key()
     unlock.unlock(me.username)
     return _key_view()
@@ -90,12 +90,12 @@ class PasswordRequest(BaseModel):
 
 
 @router.post("/unlock")
-def unlock_key(body: PasswordRequest) -> dict | None:
+def unlock_key(body: PasswordRequest, request: Request) -> dict | None:
     """Unlock the key with your own password (checked with the login backoff), for as long
     as Settings › SSH says — for you; logging out locks it again."""
     if client.public_key() is None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
-    me = auth.check_password(body.password, wrong_status=403)
+    me = auth.check_password(body.password, request, wrong_status=403, asked_for="SSH unlock")
     try:
         client.load_key()
     except asyncssh.KeyImportError:

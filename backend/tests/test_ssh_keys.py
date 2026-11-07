@@ -63,6 +63,15 @@ def test_an_unlock_is_the_user_s_own(admin):
     assert _unlocked(admin)  # their logout locks only theirs
 
 
+def test_a_wrong_password_at_the_unlock_is_in_the_sign_in_log(admin):
+    ola = _add(admin, "ola", 3)
+    _unlock(ola, "ola-wrong")
+
+    newest = admin.get("/api/auth/logins").json()[0]
+
+    assert (newest["user"], newest["ok"], newest["for"]) == ("ola", False, "SSH unlock")
+
+
 def test_anyone_with_machines_unlocks_with_no_one_else_unlocked(admin):
     admin.post("/api/logout", headers=ORIGIN)
     ola = _add(_login("admin", ADMIN), "ola", 3)

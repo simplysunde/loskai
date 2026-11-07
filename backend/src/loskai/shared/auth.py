@@ -275,11 +275,14 @@ class _Backoff:
 _backoff = _Backoff()
 
 
-def check_password(password: str, wrong_status: int = 401, username: str | None = None) -> User:
+def check_password(
+    password: str, request: Request, wrong_status: int = 401, username: str | None = None, asked_for: str | None = None
+) -> User:
     """The one place a typed password is checked — at login (`username` given), and again
-    before an action that asks for it (Loskai's SSH key: the signed-in user's own) — so the
-    backoff covers both: a stolen cookie can't guess through the second. `wrong_status` is
-    403 there, since a 401 sends the page to /login. Returns the account."""
+    before an action that asks for it (`asked_for`: the signed-in user's own) — so the
+    backoff and the sign-in log cover both: a stolen cookie can't guess through the second
+    unseen. `wrong_status` is 403 there, since a 401 sends the page to /login. Returns the
+    account."""
     if username is None:
         me = current_user()
         if me is None:
@@ -306,6 +309,7 @@ def check_password(password: str, wrong_status: int = 401, username: str | None 
         user = users.verify(username, password)
         if user is None:
             _backoff.failed(username)
+            _log_login(username, request, ok=False, asked_for=asked_for)
             raise HTTPException(status_code=wrong_status, detail="Wrong username or password" if wrong_status == 401 else "Wrong password")
         _backoff.reset(username)
         return user
@@ -325,8 +329,9 @@ def _login_log_path() -> Path:
 _made_up: list[float] = []
 
 
-def _log_login(username: str, request: Request, ok: bool) -> None:
-    """Record a sign-in or a wrong password, for Settings › Logs. Never the password; not a
+def _log_login(username: str, request: Request, ok: bool, asked_for: str | None = None) -> None:
+    """Record a sign-in or a wrong password — at login, or `asked_for` an action — for
+    Settings › Logs. Never the password; not a
     login turned away during a wait, nor more than `FREE_FAILURES` made-up names in
     `QUIET_RESET` — or a script hammering the login would push the real entries out.
     Best-effort: a log that can't be written never stops a login."""
@@ -338,6 +343,8 @@ def _log_login(username: str, request: Request, ok: bool) -> None:
         _made_up.append(now)
     # A made-up name can be any length; no real one is over 32.
     entry = {"at": datetime.now(UTC).isoformat(), "user": username[:64], "from": peer(request), "ok": ok}
+    if asked_for:
+        entry["for"] = asked_for
     try:
         store.append_log(_login_log_path(), entry)
     except OSError as exc:
@@ -389,12 +396,7 @@ def auth_status(request: Request) -> dict:
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response) -> dict:
     username = body.username.strip().lower()
-    try:
-        user = check_password(body.password, username=username)
-    except HTTPException as exc:
-        if exc.status_code == 401:
-            _log_login(username, request, ok=False)
-        raise
+    user = check_password(body.password, request, username=username)
     _log_login(username, request, ok=True)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
@@ -432,7 +434,7 @@ def setup(body: LoginBody, request: Request, response: Response) -> dict:
 def change_password(body: NewPassword, request: Request, response: Response) -> dict:
     """Change your own password, given the current one. Your other sessions end; this one
     goes on with a fresh cookie."""
-    me = check_password(body.current, wrong_status=403)
+    me = check_password(body.current, request, wrong_status=403, asked_for="password change")
     user = users.set_password(me.username, body.new)
     set_cookie(request, response, user)
     return {"user": user.view()}

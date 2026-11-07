@@ -6,12 +6,13 @@ import { Logs } from "./Logs";
 import { json } from "../../test/render";
 
 const SIGN_INS = [
+  { at: "2026-11-06T10:02:00+00:00", user: "ola", from: "10.0.0.7", ok: false, for: "SSH unlock" },
   { at: "2026-11-06T10:01:00+00:00", user: "admin", from: "10.0.0.5", ok: true },
   { at: "2026-11-06T10:00:00+00:00", user: "root", from: "10.0.0.9", ok: false },
 ];
 const SSH_LOG = [{ at: "2026-11-06T09:00:00+00:00", event: "open", machine: "nas", from: "10.0.0.5", user: "admin", target: "loskai@nas" }];
 
-test("both logs, a wrong password by the name typed", async () => {
+test("both logs, a wrong password by the name typed, and what asked for it", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) => json(path === "/api/auth/logins" ? SIGN_INS : path === "/api/ssh/log" ? SSH_LOG : [])),
@@ -26,5 +27,6 @@ test("both logs, a wrong password by the name typed", async () => {
   expect(within(root).getByText("Wrong password")).toHaveClass("text-amber-300");
   expect(within(root).getByText("10.0.0.9")).toBeInTheDocument();
   expect(screen.getByText("Signed in")).toBeInTheDocument();
+  expect(screen.getByText("Wrong password (SSH unlock)")).toBeInTheDocument();
   expect(await screen.findByText("Terminal opened (loskai@nas)")).toBeInTheDocument();
 });

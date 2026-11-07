@@ -82,7 +82,8 @@ Everything so far:
   name in the sidebar opens a menu: your level, Change password and Log out. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`.
 - **Logs** — Settings › Logs, an admin's: each sign-in and wrong password (when, the
-  username typed, from where), and the SSH log. A machine's dialog shows its own to an admin.
+  username typed, from where — and which prompt, when it was asked again to unlock the SSH
+  key or change a password), and the SSH log. A machine's dialog shows its own to an admin.
 - **Security** — accounts with roles, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of
   its data folder, not root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).
