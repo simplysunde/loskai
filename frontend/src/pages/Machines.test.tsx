@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -594,14 +594,18 @@ test("a machine's dialog sets up its SSH from there", async () => {
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
 });
 
-test("below admin, a machine's dialog has no log, the logs being an admin's", async () => {
+test("below admin, a machine's dialog has no log, the logs being an admin's — a link to it opens General", async () => {
   authStatus = { authed: true, needs_setup: false, user: { username: "ola", level: 3, tabs: ["routing", "docker", "machines"] } };
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
-  renderPage("/machines/nas");
+  renderPage("/machines/nas/log");
 
   expect(await screen.findByRole("region", { name: "Running" })).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Log" })).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name: "General" }))
+      .toHaveAttribute("aria-current", "location"),
+  );
 });
 
 test("a set-up machine's dialog, one scroll: its overview under General, tools, what runs there, its log, a terminal", async () => {

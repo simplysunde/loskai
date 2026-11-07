@@ -127,13 +127,15 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const runner = useToolRunner(machine && { id: machine.id, name: machine.name }, ssh.data?.key ?? null);
   const close = () => navigate("/machines");
 
-  // Opened at a section (/machines/<id>/ssh): start there, once the sections are drawn.
+  // Opened at a section (/machines/<id>/ssh): start there, once the sections are drawn — or
+  // at General, when it isn't one this machine or account has.
   const ready = Boolean(machine && ssh.data);
   useEffect(() => {
     if (!ready || opened.current) return;
     opened.current = true;
     const at = anchors.current[section as SectionId];
     if (at && at !== anchors.current.general) pick(section as SectionId, "auto");
+    else if (section) pick("general", "auto");
   });
 
   function pick(s: SectionId, behavior: ScrollBehavior = "smooth") {
