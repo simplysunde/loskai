@@ -241,3 +241,6 @@ loskai-settings/
 
 # Claude Code makes its worktrees here (`claude --worktree`) — each is a full checkout.
 .claude/worktrees/
+
+# scripts/check-phone.sh's screenshots and contact sheets.
+.phone-shots/

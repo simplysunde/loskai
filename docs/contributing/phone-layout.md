@@ -54,3 +54,31 @@ break the phone, nor the other way round.
 
 A new column, row button or header control decides its phone place in the same commit: a line
 of its own, inline, or hidden. Left alone it still works, but wraps wherever it falls.
+
+## Checking it
+
+```bash
+LOSKAI_USER=admin LOSKAI_PASSWORD=… make check-phone                       # :8080, make live
+LOSKAI_USER=admin LOSKAI_PASSWORD=… make check-phone URL=http://127.0.0.1:8000
+```
+
+`scripts/check-phone.sh` opens each page and the main dialogs of a running Loskai at 412px
+and 360px, in Playwright's Docker image — nothing is installed on the host. For each it saves
+a screenshot and reports text that overlaps other text, sticks out past the screen, is cut
+off without an ellipsis, or is squeezed into a sliver — a word a line, or an ellipsis left
+a few letters ("jell…"). It exits non-zero when it finds any. Everything lands in
+`.phone-shots/`, with contact sheets to look over.
+
+- **Look at the sheets too.** The detector can't see a table wider than its box — that
+  scrolls instead of spilling, so its last columns are only a swipe away.
+- **It changes nothing** but the sign-in log, where each width's login shows. It opens
+  dialogs and closes them with Escape, never confirms or saves, and leaves out the openers of
+  destructive ones — so it is safe against a deployed Loskai.
+- **It brings its own crowded data:** a machine's overview and what runs on it, and Check
+  for updates, are answered with long made-up names. `BUSY=0` shows only what is there.
+  A machine's Tools and Running sections still need one machine with SSH set up.
+- **Narrow it** with `ONLY=machine-` (a regex on the step names), and add `WIDTHS="412 1280"`
+  to see the desktop beside a phone.
+- **A step it couldn't open is listed, not failed** — nothing to edit on an empty Routing
+  tab. A step that stops opening after a change usually means a button was renamed: the
+  steps find them by name, in `scripts/check-phone.mjs`.

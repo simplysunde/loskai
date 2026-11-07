@@ -1,4 +1,4 @@
-.PHONY: help live backend frontend install-backend install-frontend test-backend test-frontend check-docs
+.PHONY: help live backend frontend install-backend install-frontend test-backend test-frontend check-docs check-phone
 
 help:
 	@echo "make live              - run the working tree in the loskai container, live-reloading on :8080"
@@ -9,6 +9,7 @@ help:
 	@echo "make test-backend      - uv run pytest"
 	@echo "make test-frontend     - npm test"
 	@echo "make check-docs        - validate doc links, anchors and orphans"
+	@echo "make check-phone       - screenshot a running Loskai at phone widths (LOSKAI_USER, LOSKAI_PASSWORD; URL=…)"
 
 live:
 	docker compose -f compose.yml -f compose.live.yml up -d --build
@@ -33,3 +34,6 @@ test-frontend:
 
 check-docs:
 	bash scripts/check-docs.sh
+
+check-phone:
+	bash scripts/check-phone.sh $(URL)
