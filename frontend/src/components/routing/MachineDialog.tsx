@@ -379,15 +379,16 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           <span className="flex min-w-0 items-center gap-2">
             <HardDrive className="h-4 w-4 shrink-0 text-teal-300/70" />
             <span className="truncate">{machine.name}</span>
-            <span className="truncate font-mono text-xs font-normal text-slate-500">
+            {/* Not on a phone: General has both, and the name needs the room. */}
+            <span className="hidden truncate font-mono text-xs font-normal text-slate-500 sm:inline">
               {machine.fqdn ?? "—"} · {machine.upstream ?? "—"}
             </span>
           </span>
         }
         action={
           trusted && host?.user ? (
-            <button onClick={runner.openShell} className={`${BUTTON} text-slate-200`}>
-              <Terminal className="h-3.5 w-3.5" /> Terminal
+            <button onClick={runner.openShell} title="Terminal" className={`${BUTTON} text-slate-200`}>
+              <Terminal className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Terminal</span>
             </button>
           ) : null
         }
