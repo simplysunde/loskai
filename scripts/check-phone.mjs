@@ -4,7 +4,8 @@
 // into a sliver — a word a line, or an ellipsis left a few letters.
 //
 // It changes nothing but the sign-in log: it opens pages and dialogs and closes them with
-// Escape — it never confirms, saves or deletes, and leaves out destructive dialogs' openers. With BUSY
+// Escape — it never confirms, saves or deletes, and leaves out destructive dialogs' openers.
+// Check for updates syncs the recipe sources as it opens; that sync is answered here. With BUSY
 // (the default), a machine's overview and what runs on it, and Check for updates, are
 // answered with crowded made-up data, so long names are tried whatever the homelab holds.
 import fs from "node:fs";
@@ -210,6 +211,7 @@ for (const width of WIDTHS) {
     ...devices["Pixel 7"], viewport: { width, height: HEIGHT }, isMobile: width < 768, hasTouch: width < 768,
   });
   ctx.setDefaultTimeout(5000);
+  await ctx.route("**/api/docker/recipes/refresh", (r) => r.fulfill({ json: { ok: true, output: "" } }));
   if (BUSY) await busy(ctx);
   const p = await ctx.newPage();
   const shots = [];

@@ -77,7 +77,9 @@ a few letters ("jell…"). It exits non-zero when it finds any. Everything lands
   scrolls instead of spilling, so its last columns are only a swipe away.
 - **It changes nothing** but the sign-in log, where each width's login shows. It opens
   dialogs and closes them with Escape, never confirms or saves, and leaves out the openers of
-  destructive ones — so it is safe against a deployed Loskai.
+  destructive ones — so it is safe against a deployed Loskai. The one dialog that changes
+  something as it opens, Check for updates (it syncs the recipe sources), has that request
+  answered by the script. A new dialog like it needs the same.
 - **It brings its own crowded data:** a machine's overview and what runs on it, and Check
   for updates, are answered with long made-up names. `BUSY=0` shows only what is there.
   A machine's Tools and Running sections still need one machine with SSH set up.
