@@ -13,6 +13,7 @@ import logging
 import math
 import re
 import secrets
+import socket
 import threading
 import time
 from datetime import UTC, datetime
@@ -186,12 +187,28 @@ def same_origin(headers) -> bool:
 
 
 def peer(conn: Request | WebSocket) -> str | None:
-    """Who is asking, for the logs: the first `X-Forwarded-For` hop behind Caddy, else the
-    socket's peer. Display only — nothing is decided by it."""
+    """Who is asking, for the logs: the socket's peer — or, when that is Caddy, the client it
+    forwarded for (the first `X-Forwarded-For` hop; Caddy drops one a client sent). Anyone
+    else's header is their own word, and `:8080` takes requests from the LAN, so it is
+    ignored. Display only — nothing is decided by it."""
+    host = conn.client.host if conn.client else None
     forwarded = conn.headers.get("x-forwarded-for")
-    if forwarded:
+    if forwarded and host in _caddy_addresses():
         return forwarded.split(",")[0].strip()
-    return conn.client.host if conn.client else None
+    return host
+
+
+def _caddy_addresses() -> set[str]:
+    """The addresses Caddy's requests come from: CADDY_ADMIN_URL's host, resolved (`caddy`
+    is a container's name), and the answer IP."""
+    names = {settings_store.caddy_host(), settings_store.derive_caddy_host_ip()} - {None}
+    found: set[str] = set()
+    for name in names:
+        try:
+            found |= {str(info[4][0]) for info in socket.getaddrinfo(name, None)}
+        except OSError:
+            pass
+    return found
 
 
 # --- Middleware ---

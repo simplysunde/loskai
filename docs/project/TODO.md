@@ -31,8 +31,8 @@ visible without unpacking a phase back out. The checklists stay in
 - **Decide: count wrong passwords per client.** The login backoff counts per account but
   not per client (behind Caddy every request has Caddy's address), so a LAN script guessing
   the moment each wait ends keeps that account out until it stops or Loskai restarts. The proposed
-  fix: key the count by client, trusting Caddy's `X-Forwarded-For` only on requests from
-  Caddy's own address. Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
+  fix: key the count by client. `auth.peer` already tells the client, trusting
+  `X-Forwarded-For` only on requests from Caddy's own address (2026-11-07). Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
 - **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd
   process alive after its connection closes (live, 2026-10-30: four closed terminals, four
   `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which

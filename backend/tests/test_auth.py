@@ -370,13 +370,13 @@ def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
 
 def test_sign_ins_and_wrong_passwords_are_logged_never_the_password(client, tmp_path):
     _wrong(client)
-    client.post("/api/login", json={"username": "Nobody", "password": "guess-123"}, headers={"x-forwarded-for": "10.0.0.9, 10.0.0.1"})
+    client.post("/api/login", json={"username": "Nobody", "password": "guess-123"})
     client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     log = client.get("/api/auth/logins").json()
 
     assert [(e["user"], e["ok"]) for e in log] == [("admin", True), ("nobody", False), ("admin", False)]
-    assert log[1]["from"] == "10.0.0.9"
+    assert log[1]["from"] == "testclient"
     text = (tmp_path / "logins.log").read_text()
     assert "wrong password" not in text and "guess-123" not in text and PASSWORD not in text
     assert (tmp_path / "logins.log").stat().st_mode & 0o777 == 0o600
@@ -388,6 +388,15 @@ def test_a_login_turned_away_during_a_wait_is_not_logged(client, tmp_path):
 
     assert _wrong(client).status_code == 429
     assert len((tmp_path / "logins.log").read_text().splitlines()) == auth.FREE_FAILURES + 1
+
+
+def test_the_client_caddy_forwarded_for_is_logged_and_no_one_else_s_claim(client, monkeypatch):
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://10.0.0.1:2019")
+    with TestClient(app, client=("10.0.0.1", 50000)) as caddy, TestClient(app, client=("10.0.0.66", 50000)) as lan:
+        caddy.post("/api/login", json={"username": "admin", "password": "wrong"}, headers={"x-forwarded-for": "10.0.0.9"})
+        lan.post("/api/login", json={"username": "admin", "password": "wrong"}, headers={"x-forwarded-for": "10.0.0.5"})
+
+    assert [e["from"] for e in client.get("/api/auth/logins").json()] == ["10.0.0.66", "10.0.0.9"]
 
 
 def test_made_up_names_can_t_push_the_real_entries_out(client, tmp_path):
