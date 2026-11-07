@@ -433,6 +433,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           </nav>
           <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-5 pb-5">
             {result && <div className="pt-4"><SaveBanner result={result} /></div>}
+            {/* The last section is at least the pane's height, so a pick can scroll any
+                section to the top — even while the ones below are still loading. */}
             {shown.map((s) => (
               <section
                 key={s.id}
@@ -440,7 +442,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 ref={(el) => {
                   anchors.current[s.id] = el;
                 }}
-                className="border-b border-slate-800 py-4 last-of-type:border-b-0"
+                className="border-b border-slate-800 py-4 last-of-type:min-h-full last-of-type:border-b-0"
               >
                 <div className="mb-2 flex items-center justify-between gap-4">
                   <h2 className="text-sm font-semibold text-slate-100">{s.label}</h2>
@@ -449,9 +451,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 {content[s.id]}
               </section>
             ))}
-            {/* Room for any section to scroll to the top when picked — the pane's height,
-                as the ones below may still be loading. */}
-            <div className="h-full" aria-hidden="true" />
           </div>
         </div>
       </Shell>
