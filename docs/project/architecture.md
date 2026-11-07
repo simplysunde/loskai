@@ -669,13 +669,14 @@ terminal lives in an open page, which keeps the session, while the terminal's ow
 the cookie is never renewed.
 **Wrong passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during
 which login answers `429`; 15 quiet minutes start the count again. A wrong username costs
-the same as a wrong password, and the answer doesn't say which. The count is one for all
-clients — behind Caddy every request comes from Caddy's address — so a guesser's waits are
-everyone's, and one who keeps guessing keeps everyone out; it lives in memory, and a
-restart clears it. Counting per client is open (TODO). **Each login is logged** —
+the same as a wrong password, and the answer doesn't say which. The count is per username,
+not per client — behind Caddy every request comes from Caddy's address — so a guesser's
+waits are that account's too, and one who keeps guessing keeps it out; it lives in memory,
+and a restart clears it. Counting per client is open (TODO). **Each login is logged** —
 `data/logins.log`, shown in Settings › Logs: when, the username typed, from where, and
-whether it signed in — never the password, and not a login turned away during a wait, which
-would let a script flood it. It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
+whether it signed in — never the password, and not a login turned away during a wait, nor
+more than 5 wrong ones in 15 minutes for names that are no account's (made-up names never
+wait, so a script could otherwise push the real entries out). It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
 third-party secret Loskai stores, because it must replay it, and only an admin reads it
 back. Files holding secrets are written owner-only.
 

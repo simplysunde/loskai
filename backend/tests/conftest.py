@@ -70,3 +70,4 @@ def _fresh_login_backoff(monkeypatch):
     """The wrong-password count lives in the process, so one test's failed logins would
     make a later test's login wait."""
     monkeypatch.setattr(auth, "_backoff", auth._Backoff())
+    monkeypatch.setattr(auth, "_made_up", [])

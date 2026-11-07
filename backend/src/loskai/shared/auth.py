@@ -320,10 +320,22 @@ def _login_log_path() -> Path:
     return Path(env.data_dir) / "logins.log"
 
 
+# When the last wrong passwords for names that are no account's were logged. The wait is
+# per account, so made-up names never wait: past the free ones, they go unlogged.
+_made_up: list[float] = []
+
+
 def _log_login(username: str, request: Request, ok: bool) -> None:
-    """Record a sign-in or a wrong password, for Settings › Users. Never the password; not a
-    login turned away during a wait, or a script hammering the login would flood it.
+    """Record a sign-in or a wrong password, for Settings › Logs. Never the password; not a
+    login turned away during a wait, nor more than `FREE_FAILURES` made-up names in
+    `QUIET_RESET` — or a script hammering the login would push the real entries out.
     Best-effort: a log that can't be written never stops a login."""
+    if not ok and users.get(username) is None:
+        now = time.monotonic()
+        _made_up[:] = [t for t in _made_up if now - t < QUIET_RESET]
+        if len(_made_up) >= FREE_FAILURES:
+            return
+        _made_up.append(now)
     # A made-up name can be any length; no real one is over 32.
     entry = {"at": datetime.now(UTC).isoformat(), "user": username[:64], "from": peer(request), "ok": ok}
     try:

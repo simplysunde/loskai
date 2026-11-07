@@ -390,6 +390,17 @@ def test_a_login_turned_away_during_a_wait_is_not_logged(client, tmp_path):
     assert len((tmp_path / "logins.log").read_text().splitlines()) == auth.FREE_FAILURES + 1
 
 
+def test_made_up_names_can_t_push_the_real_entries_out(client, tmp_path):
+    _wrong(client)
+    for i in range(50):  # each a new name, so none ever waits
+        assert client.post("/api/login", json={"username": f"x{i}", "password": "guess-123"}).status_code == 401
+
+    log = client.get("/api/auth/logins").json()
+
+    assert [e["user"] for e in log][-1] == "admin"
+    assert len(log) == 1 + auth.FREE_FAILURES
+
+
 def test_only_an_admin_reads_the_sign_in_log(client):
     users.create("ola", "ola-password", users.MACHINES)
     with TestClient(app) as ola:
