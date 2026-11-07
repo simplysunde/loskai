@@ -488,7 +488,7 @@ function ContainerRow({
           />
           {c.name}
         </div>
-        <div className="pl-4 font-mono text-xs text-slate-500 max-sm:truncate">{c.image}</div>
+        <div className="pl-4 font-mono text-xs text-slate-500 max-sm:break-all">{c.image}</div>
       </td>
       <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatUptime(c.uptime)}</td>
       <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(c.cpu)}</td>
