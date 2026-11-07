@@ -23,7 +23,7 @@ export function Overlay({
   useScrollLock(true);
   useEscape(true, onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={label} className={className} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
@@ -32,7 +32,7 @@ export function Overlay({
 }
 
 // The larger dialogs (logs, terminal, stack editor, wizard): a title bar, and a body that
-// scrolls.
+// scrolls. On a phone they take the whole screen.
 export function Modal({
   title,
   onClose,
@@ -50,7 +50,7 @@ export function Modal({
     <Overlay
       onClose={onClose}
       label={typeof title === "string" ? title : undefined}
-      className={`flex max-h-[85vh] w-full flex-col rounded-xl border border-slate-700 bg-slate-900 shadow-2xl ${
+      className={`flex max-h-full w-full flex-col sm:max-h-[85vh] rounded-xl border border-slate-700 bg-slate-900 shadow-2xl ${
         wide ? "max-w-4xl" : narrow ? "max-w-md" : "max-w-2xl"
       }`}
     >

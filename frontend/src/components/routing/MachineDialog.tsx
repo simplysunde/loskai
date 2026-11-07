@@ -527,7 +527,7 @@ function Shell({
     <Overlay
       onClose={onClose}
       label={label}
-      className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
+      className="flex h-full w-full max-w-4xl flex-col overflow-hidden sm:h-[85vh] rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
     >
       <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-3">
         <div className="min-w-0 text-sm font-semibold text-slate-100">{title}</div>

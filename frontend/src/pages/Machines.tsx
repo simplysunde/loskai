@@ -116,7 +116,7 @@ export function Machines() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <header className="mb-6 flex items-start justify-between gap-4">
+      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Machines</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -128,7 +128,7 @@ export function Machines() {
             setError(null);
             setNaming({});
           }}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+          className="flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
         >
           <HardDrive className="h-4 w-4" /> Name a machine
         </button>
