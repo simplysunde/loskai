@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Menu,
   Moon,
   Route as RouteIcon,
   Server,
@@ -49,7 +50,8 @@ const DOT: Record<ModuleState, string> = {
 
 // The persistent left-sidebar shell (Lutris-inspired): brand, nav, and a main content
 // area rendered via <Outlet/>. Always visible — the API is the real gate, so showing
-// admin links to a logged-out visitor just prompts login on click.
+// admin links to a logged-out visitor just prompts login on click. On a phone it is a
+// drawer, opened from a bar at the top, so the page gets the whole width.
 export function Layout() {
   const { data: auth } = useAuthStatus();
   const authed = !!auth?.authed;
@@ -58,6 +60,7 @@ export function Layout() {
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [changingPassword, setChangingPassword] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
   const { me, may } = useMe();
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
@@ -97,9 +100,25 @@ export function Layout() {
   }
 
   return (
-    // Exactly the window's height: the sidebar stays put and only <main> scrolls.
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-200">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
+    // Exactly the window's height (the visible one, under a phone's browser bar): the
+    // sidebar stays put and only <main> scrolls.
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-950 text-slate-200 md:flex-row">
+      <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900/40 px-2 py-1.5 md:hidden">
+        <button
+          onClick={() => setDrawer(true)}
+          aria-label="Menu"
+          className="rounded-lg p-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Anchor className="h-4 w-4 text-teal-300" />
+        <span className="text-sm font-semibold text-slate-100">Loskai</span>
+      </header>
+
+      {drawer && <div onClick={() => setDrawer(false)} className="fixed inset-0 z-40 bg-black/60 md:hidden" />}
+      <aside
+        className={`${drawer ? "fixed inset-y-0 left-0 z-50 flex w-64 bg-slate-900" : "hidden"} shrink-0 flex-col border-r border-slate-800 md:static md:z-auto md:flex md:w-56 md:bg-slate-900/40`}
+      >
         <div className="flex items-center gap-2 px-5 py-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
             <Anchor className="h-5 w-5" />
@@ -110,7 +129,8 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5 px-3">
+        {/* A pick closes the drawer; on a wide screen there is none to close. */}
+        <nav onClick={() => setDrawer(false)} className="flex-1 space-y-0.5 overflow-y-auto px-3">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -148,6 +168,7 @@ export function Layout() {
         {auth && !authed && (
           <Link
             to="/login"
+            onClick={() => setDrawer(false)}
             className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
           >
             <LogIn className="h-4 w-4" /> Log in
@@ -184,7 +205,7 @@ export function Layout() {
       </aside>
 
       {/* The one scrolling region — useScrollLock freezes it by this attribute. */}
-      <main data-scroll-root className="flex-1 overflow-y-auto">
+      <main data-scroll-root className="min-h-0 flex-1 overflow-y-auto">
         <Outlet />
       </main>
     </div>

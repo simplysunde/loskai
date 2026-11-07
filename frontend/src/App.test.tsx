@@ -115,6 +115,20 @@ test("a level 2 account's sidebar has Routing and Docker, and Settings says it's
   expect(screen.getByText("Level 2 — Docker")).toBeInTheDocument();
 });
 
+// jsdom has no screen width, so this checks the classes: the sidebar hidden until the menu
+// opens it, and closed again by a pick.
+test("on a phone, the menu opens the sidebar as a drawer, and a pick closes it", async () => {
+  renderAt("/");
+  const sidebar = (await screen.findByRole("link", { name: "Routing" })).closest("aside")!;
+  expect(sidebar).toHaveClass("hidden");
+
+  fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+  expect(sidebar).not.toHaveClass("hidden");
+
+  fireEvent.click(screen.getByRole("link", { name: "Routing" }));
+  expect(sidebar).toHaveClass("hidden");
+});
+
 test("signed out, the sidebar offers Log in where your name would be", async () => {
   RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
   renderAt("/");
