@@ -26,15 +26,16 @@ export function SettingsLayout() {
         </p>
       </header>
 
-      <div className="flex flex-col gap-8 sm:flex-row">
-        <nav className="shrink-0 space-y-0.5 sm:w-44">
+      <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+        {/* A strip across the top on a phone, as a machine's dialog has; a column wider up. */}
+        <nav className="-mx-1 flex shrink-0 gap-1 overflow-x-auto px-1 sm:mx-0 sm:block sm:w-44 sm:space-y-0.5 sm:px-0">
           {CATEGORIES.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                `flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition sm:gap-3 ${
                   isActive
                     ? "bg-teal-500/10 text-teal-200"
                     : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
