@@ -82,11 +82,17 @@ export function RunningList({
   const columns = actions ? 3 : 2;
   const row = (key: string, name: string, status: React.ReactNode, buttons: React.ReactNode, title?: string) => (
     <tr key={key} title={title} className="border-t border-slate-800 hover:bg-slate-900/40">
-      <td className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">{name}</td>
-      <td className="whitespace-nowrap px-4 py-2 text-slate-500">{status}</td>
+      <td className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">
+        {name}
+        {/* On a phone the status goes under the name, leaving the name the room. */}
+        {status && <span className="block truncate text-xs text-slate-500 sm:hidden">{status}</span>}
+      </td>
+      <td className="whitespace-nowrap py-2 text-slate-500 sm:px-4">
+        <span className="hidden sm:inline">{status}</span>
+      </td>
       {actions && (
-        <td className="px-4 py-2">
-          <span className="flex justify-end gap-1.5">{buttons}</span>
+        <td className="py-2 pr-3 sm:px-4">
+          <span className="flex flex-wrap justify-end gap-1.5">{buttons}</span>
         </td>
       )}
     </tr>
@@ -97,8 +103,8 @@ export function RunningList({
         <table className="w-full table-fixed text-left text-xs">
           <colgroup>
             <col />
-            <col className="w-36" />
-            {actions && <col className="w-44" />}
+            <col className="w-0 sm:w-36" />
+            {actions && <col className="w-36 sm:w-44" />}
           </colgroup>
           {containers.length > 0 && (
             <Group title={`Containers (${containers.length})`} columns={columns}>

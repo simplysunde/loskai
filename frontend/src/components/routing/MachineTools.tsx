@@ -96,13 +96,13 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           <ul className="space-y-1.5 text-xs text-slate-300">
             {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
             {rows.map((r) => (
-              <li key={r.name} title={r.title} className="flex items-center justify-between gap-2">
+              <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <span className="min-w-0">
-                  <span className="font-mono">{r.name}</span>
+                  <span className="break-all font-mono">{r.name}</span>
                   {isLive(t, kind, r.name, sessions) && <span className="ml-2 text-emerald-300">running</span>}
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1"><RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} /></span>
+                <span className="flex shrink-0 flex-wrap items-center gap-1"><RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} /></span>
               </li>
             ))}
           </ul>
