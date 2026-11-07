@@ -137,7 +137,7 @@ const RUNNING = {
   services: ["nginx", "postgresql@15-main", "smbd"],
   guests: [
     { id: "101", name: "adguard", kind: "lxc", status: "running" },
-    { id: "102", name: "home-assistant-vm", kind: "qemu", status: "stopped" },
+    { id: "102", name: "home-assistant-vm", kind: "vm", status: "stopped" },
   ],
 };
 const UPDATES = [
@@ -228,14 +228,23 @@ for (const width of WIDTHS) {
     for (const f of found.slice(0, 10)) console.log(`    ${f}`);
     if (found.length) findings.push(`${width} ${name}`);
   }
+  const why = (e) => (process.env.DEBUG ? e.message : String(e.message).split("\n")[0]);
+  // Not opening is listed; opened but not checked is a finding.
   async function step(name, fn) {
     if (ONLY && !ONLY.test(name)) return;
+    let opened = false;
     try {
       await fn();
+      opened = true;
       await shot(name);
     } catch (e) {
-      console.log(`- ${width} ${name}: couldn't open it (${process.env.DEBUG ? e.message : String(e.message).split("\n")[0]})`);
-      missed.push(`${width} ${name}`);
+      if (opened) {
+        console.log(`✗ ${width} ${name}: couldn't check it (${why(e)})`);
+        findings.push(`${width} ${name}`);
+      } else {
+        console.log(`- ${width} ${name}: couldn't open it (${why(e)})`);
+        missed.push(`${width} ${name}`);
+      }
     }
     for (let i = 0; i < 3; i++) await p.keyboard.press("Escape").catch(() => {});
   }
@@ -268,6 +277,12 @@ for (const width of WIDTHS) {
       await p.getByTitle(/^Machine settings/).nth(i).click();
       await p.waitForTimeout(1200);
       if (await dialog(p).getByRole("button", { name: "Running", exact: true }).count()) { pick = i; break; }
+    }
+    // None had it: the sections are the first machine's, as the steps open that one.
+    if (cogs && !pick && !(await dialog(p).getByRole("button", { name: "Running", exact: true }).count())) {
+      await go(p, "/machines");
+      await p.getByTitle(/^Machine settings/).first().click();
+      await p.waitForTimeout(1200);
     }
     const sections = cogs ? await dialog(p).getByRole("navigation", { name: "Categories" }).getByRole("button").allTextContents() : [];
     for (const section of sections) {
