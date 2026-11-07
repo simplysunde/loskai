@@ -20,7 +20,8 @@ const STATUS_LABEL: Record<ModuleState, string> = {
 // thin companion, not a replacement. Persistent rather than problem-only so the link-out is
 // always reachable; when the service has no URL yet the link becomes "Configure", pointing at
 // the settings category that fixes it. Narrow enough for two to share a row, so the links
-// are icon buttons — their label is the tooltip and the accessible name.
+// are icon buttons — their label is the tooltip and the accessible name. On a phone, where
+// a cut-off detail can't be hovered, the address and detail take a line of their own.
 export function InfraStatusPill({
   icon,
   name,
@@ -44,16 +45,18 @@ export function InfraStatusPill({
   const status = health?.status ?? "unconfigured";
 
   return (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-1.5">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-1.5 sm:flex-nowrap">
       <span className="shrink-0 text-slate-400">{icon}</span>
       <span className="shrink-0 text-sm font-medium text-slate-200">{name}</span>
       <StatusBadge status={status} label={STATUS_LABEL[status]} />
-      {children}
-      {status !== "healthy" && health?.detail && (
-        <span title={health.detail} className="min-w-0 truncate text-xs text-slate-500">
-          {health.detail}
-        </span>
-      )}
+      <span className="flex min-w-0 items-center gap-2.5 empty:hidden max-sm:order-last max-sm:basis-full">
+        {children}
+        {status !== "healthy" && health?.detail && (
+          <span title={health.detail} className="min-w-0 text-xs text-slate-500 sm:truncate">
+            {health.detail}
+          </span>
+        )}
+      </span>
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         {action}
