@@ -25,6 +25,8 @@ make check-docs                       # links, page headers, and the docs agains
 - **Update the docs in the same commit as the behaviour.** Drifting docs are this project's
   most common bug, which is what `check-docs` is for. Where each kind of information goes is
   in [docs/README.md](docs/README.md#conventions).
+- **Changed a page, a table or a dialog?** It has to work on a phone too —
+  [phone-layout.md](docs/contributing/phone-layout.md) has the patterns.
 - **Read [`HISTORY.md`](docs/project/HISTORY.md) before reversing a decision.** Several
   current ones are walk-backs of earlier attempts, with the reason recorded.
 - **Keep I/O out of the logic.** Each module's `client.py` only talks to the network; all

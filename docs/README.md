@@ -67,6 +67,7 @@ are not obvious from the code.
 | Page | When to read it |
 |---|---|
 | [dev-testing.md](contributing/dev-testing.md) | Running Loskai locally — backend on `:8000`, Vite on `:5173`, throwaway Caddy + AdGuard containers. Includes a dev-rig-specific troubleshooting table. |
+| [phone-layout.md](contributing/phone-layout.md) | Adding or changing a page, a table or a dialog. The one layout's phone variants — the drawer, tables as cards, full-screen dialogs — and the traps in them. |
 | [lxc-script-authoring.md](contributing/lxc-script-authoring.md) | Adding a new `create-<service>-lxc.sh`. The safety invariants, the shared library to copy verbatim, and an authoring checklist. |
 
 ## Project

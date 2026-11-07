@@ -37,6 +37,7 @@ homelab.
 - **UI:** minimal visible text, details in a short `title` tooltip; one layout, reusing the
   existing pattern rather than a variant; never show something that looks like an address
   but isn't (show the real address or the full FQDN); show a status only on the tab that owns it.
+  The same layout works on a phone — its patterns and traps: `docs/contributing/phone-layout.md`.
 
 ## Code map
 

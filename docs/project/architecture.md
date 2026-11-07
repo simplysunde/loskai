@@ -701,7 +701,9 @@ The backend is FastAPI with httpx (Caddy, AdGuard), docker-py (the socket), pyda
 (env vars) and sse-starlette (log streaming), managed with `uv`. The frontend is React,
 TypeScript, Vite, Tailwind and TanStack Query, with xterm.js for the terminal. A persistent
 sidebar — Dashboard, Certificate, then the admin tabs — over a content area: cards where
-things are launched, dense tables where live state must be scanned.
+things are launched, dense tables where live state must be scanned. On a phone the same
+pages narrow: the sidebar is a drawer and each table row a card
+([phone-layout.md](../contributing/phone-layout.md)) — one layout, not a mobile version.
 
 - **Each decision lives once.** One helper pre-fills every route form (`containerPrefill`);
   one hook saves and re-ups both stack editor views (`useSaveAndUp`); one validation module
