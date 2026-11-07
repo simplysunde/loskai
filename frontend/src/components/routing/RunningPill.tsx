@@ -36,7 +36,8 @@ export function RunningPill({ running, user }: { running: Running; user?: string
   const show = (el: HTMLElement) => {
     keep();
     const r = el.getBoundingClientRect();
-    setAt({ left: Math.min(r.left, window.innerWidth - 400), top: r.bottom + 4 });
+    // On a screen too narrow for the card (a phone), it shrinks to 8px from each side.
+    setAt({ left: Math.max(8, Math.min(r.left, window.innerWidth - 400)), top: r.bottom + 4 });
   };
   return (
     <span
@@ -55,7 +56,7 @@ export function RunningPill({ running, user }: { running: Running; user?: string
             onMouseEnter={keep}
             onMouseLeave={close}
             style={{ left: at.left, top: at.top }}
-            className="fixed z-50 max-h-80 w-96 overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
+            className="fixed z-50 max-h-80 w-96 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
           >
             <RunningList running={running} user={user} />
           </div>,
