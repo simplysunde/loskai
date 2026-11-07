@@ -93,9 +93,9 @@ def append_log(entry: dict) -> None:
     store.append_log(_log_path(), entry)
 
 
-def read_log(limit: int) -> list[dict]:
-    """The SSH log, newest first (`store.read_log`)."""
-    return store.read_log(_log_path(), limit)
+def read_log(limit: int, machine: str | None = None) -> list[dict]:
+    """The SSH log, newest first (`store.read_log`) — one machine's, given one."""
+    return store.read_log(_log_path(), limit, {"machine": machine} if machine else None)
 
 
 def read_config() -> str:

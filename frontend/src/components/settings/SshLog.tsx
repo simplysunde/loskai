@@ -61,11 +61,11 @@ function duration(s: number): string {
 // page), only that machine's.
 export function SshLog({ machine }: { machine?: string }) {
   const log = useQuery({
-    queryKey: ["ssh-log"],
-    queryFn: () => api.get<LogEntry[]>("/api/ssh/log"),
+    queryKey: ["ssh-log", machine],
+    queryFn: () => api.get<LogEntry[]>(machine ? `/api/ssh/log?machine=${encodeURIComponent(machine)}` : "/api/ssh/log"),
   });
 
-  const entries = (log.data ?? []).filter((e) => !machine || e.machine === machine);
+  const entries = log.data ?? [];
 
   return (
     <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800 px-3 py-2">

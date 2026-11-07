@@ -220,10 +220,10 @@ async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body:
 
 
 @router.get("/log")
-def session_log(limit: int = 200) -> list[dict]:
+def session_log(limit: int = 200, machine: str | None = None) -> list[dict]:
     """The SSH log, newest first: terminals opened, closed and refused, runs and installs —
-    an admin's, as every log is (access.py)."""
-    return client.read_log(max(1, min(limit, store.LOG_KEEP)))
+    one machine's, given one (its dialog) — an admin's, as every log is (access.py)."""
+    return client.read_log(max(1, min(limit, store.LOG_KEEP)), machine)
 
 
 @router.websocket("/machines/{machine_id}/terminal")

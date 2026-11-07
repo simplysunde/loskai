@@ -126,8 +126,9 @@ def append_log(path: str | Path, entry: dict) -> None:
         update_text(p, lambda text: "\n".join(text.splitlines()[-LOG_KEEP:]) + "\n")
 
 
-def read_log(path: str | Path, limit: int) -> list[dict]:
-    """A log's last `limit` entries, newest first. A line that doesn't parse is skipped."""
+def read_log(path: str | Path, limit: int, match: dict | None = None) -> list[dict]:
+    """A log's last `limit` entries, newest first — only those with each of `match`'s
+    values, when given. A line that doesn't parse is skipped."""
     p = Path(path)
     text = p.read_text(encoding="utf-8") if p.exists() else ""
     out: list[dict] = []
@@ -135,6 +136,8 @@ def read_log(path: str | Path, limit: int) -> list[dict]:
         try:
             entry = json.loads(line)
         except json.JSONDecodeError:
+            continue
+        if match and any(entry.get(k) != v for k, v in match.items()):
             continue
         out.append(entry)
         if len(out) == limit:

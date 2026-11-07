@@ -166,13 +166,13 @@ beforeEach(() => {
               ? authStatus
             : path === "/api/settings"
               ? settingsReply
-            : path === "/api/ssh/log"
+            : path.startsWith("/api/ssh/log")
               ? [
                   { at: "2026-11-01T11:00:00Z", event: "setting", machine: "nas", from: "192.168.10.5", user: "admin",
                     tool: "git", setting: "email", value: "ola@example.no", ok: true },
                   { at: "2026-11-01T10:00:00Z", event: "open", machine: "nas", from: "192.168.10.5", target: "loskai@192.168.10.50" },
                   { at: "2026-11-01T09:00:00Z", event: "open", machine: "pve", from: "192.168.10.5", target: "root@192.168.10.10" },
-                ]
+                ].filter((e) => e.machine === (new URLSearchParams(path.split("?")[1]).get("machine") ?? e.machine))
             : path === "/api/ssh/running"
               ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days" }], services: [], guests: [] } }
             : path.endsWith("/tools/git/settings")
@@ -625,8 +625,9 @@ test("a set-up machine's dialog, one scroll: its overview under General, tools, 
   expect(within(tools).getByText("1 session")).toBeInTheDocument();
   expect(within(tools).getByText("1 project, 1 running")).toBeInTheDocument();
   expect(await within(category("Running")).findByText("plex-1")).toBeInTheDocument();
-  // Only this machine's entries.
+  // Only this machine's entries, asked of the server: the newest of every machine's may not hold one.
   expect(await within(category("Log")).findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/ssh/log?machine=nas")).toBe(true);
   // The side menu marks the section picked.
   open("Running");
   expect(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name: "Running" }))

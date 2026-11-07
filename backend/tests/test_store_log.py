@@ -19,6 +19,14 @@ def test_a_log_is_read_newest_first(tmp_path):
     assert store.read_log(tmp_path / "none.log", 10) == []
 
 
+def test_a_log_read_for_a_match_finds_it_past_the_limit_of_others(tmp_path):
+    path = tmp_path / "x.log"
+    for n, machine in enumerate(["nas"] + ["pve"] * 5):
+        store.append_log(path, {"n": n, "machine": machine})
+
+    assert [e["n"] for e in store.read_log(path, 2, {"machine": "nas"})] == [0]
+
+
 def test_a_log_is_owner_only_and_trimmed_to_its_last_entries(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "LOG_KEEP", 3)
     path = tmp_path / "x.log"
