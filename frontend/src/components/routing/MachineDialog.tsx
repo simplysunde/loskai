@@ -449,8 +449,9 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                 {content[s.id]}
               </section>
             ))}
-            {/* Room for the last section to scroll to the top when picked. */}
-            <div className="h-[40vh]" aria-hidden="true" />
+            {/* Room for any section to scroll to the top when picked — the pane's height,
+                as the ones below may still be loading. */}
+            <div className="h-full" aria-hidden="true" />
           </div>
         </div>
       </Shell>
