@@ -91,7 +91,10 @@ volumes are in [`deployment.md`](../guides/deployment.md).
 ## The instance — the shared record
 
 Every component reads and writes one list, `data/instances.json`. There is **no database**:
-Loskai's state is that file, `data/settings.json`, and the launcher icons.
+Loskai's state is files in `data/` — that one, `settings.json`, the accounts (`users.json`)
+and the cookie-signing `session_secret`, the launcher icons, `ssh/` (the keys, the SSH config,
+`known_hosts`, `sessions.log`), `logins.log`, local recipes in `recipes/` and the sources'
+clones in `recipes-cache/`.
 
 An **instance** is anything Loskai knows by name:
 
@@ -108,10 +111,11 @@ An **instance** is anything Loskai knows by name:
   "scheme":    "https",              // "https" | "both" | "http" — which Caddy server(s)
   "container": "grafana-grafana-1",  // links a docker instance to its live container
   "origin":    null,                 // "adguard" | "gateway" | "caddy" — a built-in service
-  "follow_container": true,          // the upstream follows the container (docker only)
+  "follow_container": true,          // the upstream follows the container (docker only; false unless set)
   "dns_answer": "192.168.10.101",     // the answer last written to AdGuard
   "icon":      "grafana.png",        // launcher icon in data/icons
-  "private":   false                 // hidden from the public dashboard
+  "private":   false,                // hidden from the public dashboard
+  "projects_folder": null            // a machine's projects folder; null = ~/projects
 }
 ```
 
@@ -160,8 +164,8 @@ keyed by `@id` = the instance id, as a flat sibling matching one host:
   which issues the certificates, compiles to a handler-less terminal route matching every
   name; behind it a route is dead and Caddy answers an empty `200`.
 - **Editing is delete-then-add**, never `PATCH` — one path that always converges.
-- **Both servers are discovered** at startup, by their `:443` and `:80` listeners — never a
-  hardcoded `srv0`. `scheme` picks the server: `https` (default), `http` (kept out of `:443`
+- **Both servers are discovered** on first use, and again by each health poll, by their
+  `:443` and `:80` listeners — never a hardcoded `srv0`. `scheme` picks the server: `https` (default), `http` (kept out of `:443`
   so no certificate is ever issued for it), or `both` — two routes, `<id>` and `<id>-http`.
 - **Caddy persists itself**: it autosaves after every change and runs with `--resume`, so a
   reboot needs nothing from Loskai. **Sync** re-pushes every route from the list — the
@@ -273,20 +277,27 @@ machine, worked out each time (`instances.on_address`). Hence:
 - two machines can't share an address (`409`), or a route's machine would be ambiguous.
 
 The Machines tab lists each machine with the routes on its address beneath, and adds a route
-on a machine through the same Add route picker, starting on its address. The cog on a row
+on a machine through the same Add route picker, starting on its address. The Docker host is
+listed before anyone names it — "not named", its address read from Settings' Docker host IP
+each time and nothing stored (`machine.ts`) — offering only Name it and Add route. A named
+machine's row has Add route and its settings cog — amber while it has an SSH user but isn't
+set up — with Delete under ⋮; once SSH is set up, Terminal, Tools and Update too. The cog
 opens the machine's dialog over the list (`/machines/<id>/<category>`,
 `components/routing/MachineDialog.tsx`) — what belongs to that machine alone, its sections
-in one scroll with a menu down the side that jumps to them, like a settings window: General
+in one scroll with a menu down the side that jumps to them and a search that narrows them,
+like a settings window: General
 (machine name, address, then the overview) and SSH (on or off, the login, setup, updates
 without a password), each field saving on its own (`SettingRow`'s `InlineText`) and posting only its
-change; then Tools, Running and Log. The `<category>` is where it opens. Naming a
+change; then Tools, Running and Log. Turning SSH off takes Loskai's key and sudo rule off
+the machine, then its config entry, and forgets its host key. Once SSH is set up, the
+dialog's header opens a terminal. The `<category>` is where it opens. Naming a
 machine lands on it. What is the same for every machine is in Settings › SSH. Machines never appear on the
 Dashboard: an address has no port to link to — give its web UI a route under a second name.
 
-**SSH, so far (Phase 34a–d).** Loskai's key is made by an admin and kept owner-only
+**SSH — the key, the config and the setup.** Loskai's key is made by an admin and kept owner-only
 (`data/ssh/id_ed25519`, `0600`; Phase 38); "New key" in Settings › SSH replaces it. The public key is read from
 the private key file — the OpenSSH format keeps it in the clear — so there is one file, and
-the shown key can't belong to another. A machine's form has an SSH user and port, written to
+the shown key can't belong to another; Settings › SSH shows its fingerprint. A machine's form has an SSH user and port, written to
 `data/ssh/config` as `Host <hostname>` with `HostName <address>`; Settings › SSH
 downloads that file.
 
@@ -333,8 +344,10 @@ differ, on the machine or on a row of the Running list (a service, container, LX
 **Nothing is enabled or stored**: a tool applies where the machine has its programs — the
 standard ones (System, Services, Proxmox) wherever they fit — and one lacking only programs
 Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) is offered
-to add, which installs them. The machine's dialog has a card for each tool that applies, under Tools; each
-added tool is also in the Tools menu on the machine's row, which opens it in a dialog. The one thing stored is a machine's **projects folder**
+to add, which installs them. The machine's dialog has a card for each tool that applies, under Tools; every
+tool but the standard ones is also in the Tools menu on the machine's row, with how it stands
+there — what it shows, `not added`, or what it needs — and opens in a dialog
+(`MachineTools.tsx`). The one thing stored is a machine's **projects folder**
 (`projects_folder`, `~/projects` unless changed, set on the Git tool's card), where the
 Claude Code tool's projects are. A tool's **settings** are the machine's own values, never
 stored: its card reads them with the main key (`connect.read_settings`, every `read` in one
@@ -352,7 +365,8 @@ the main key, behind the session, `Origin` and unlocked-key checks; closing it h
 pty, so nothing is left running. Both terminals are one component (`XtermSession`): Tab goes
 to the remote shell, which completes; Ctrl+Shift+C copies (Ctrl+C too while text is
 selected); Ctrl+V and Ctrl+Shift+V paste through the browser, so it works over plain HTTP
-too. The **SSH log** (`data/ssh/sessions.log`, shown in Settings › Logs, and a machine's own in
+too; and what a program in it copies — tmux, Claude Code, through OSC 52 — reaches the
+browser's clipboard. The **SSH log** (`data/ssh/sessions.log`, shown in Settings › Logs, and a machine's own in
 its dialog — an admin's, as every log is) records sessions and
 installs — never keystrokes, which can be a password typed at a `sudo` prompt.
 
@@ -385,7 +399,8 @@ What that commits to — designed in from the start, not added after:
   the gate on the API — and `SECURITY.md` and the "no third-party secret but AdGuard's"
   rule change in the same commit that adds the key.
 - **Loskai's own key, never yours.** Loskai generates its own key pair; you add its public
-  key to each machine (shown on the Machines tab, ready to copy). Its access can then be
+  key to each machine (its two lines shown in the machine's SSH setup, ready to copy), or
+  Loskai adds them with the machine's password. Its access can then be
   revoked on one machine without touching your own key, and no export ever carries a
   private key. The key is written owner-only, like every secret in `data/`.
 - **Host keys are checked.** Loskai keeps its own `known_hosts` in `data/`: the first
@@ -419,15 +434,16 @@ and limits what the next one loses:
   login. Your logout, a new password or losing the Machines tab locks it. A stolen session
   cookie then reaches the Docker tab, not the machines, and after a restart nothing reaches
   them until someone types it.
-- **The key only works from the Docker host.** The `authorized_keys` line the Machines tab
-  offers to copy starts with `from="<Docker host IP>"`, so a copied key is useless
+- **The key only works from the Docker host.** Each `authorized_keys` line a machine's SSH
+  setup installs or offers to copy carries `from="<Docker host IP>"`, so a copied key is useless
   anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.
   The Docker host's own line also names the subnets of Loskai's container networks: Docker
   doesn't translate a container's connection to its own host, so sshd there sees the
   container's address (found 2026-10-31, `docker_client.own_subnets`).
-- **A dedicated `loskai` user, not root login.** The setup steps create it; how much `sudo`
-  it gets is the owner's choice per machine — everything, or only the prepared commands (a
-  sudoers allowlist, which the prepared commands make possible because they are fixed).
+- **The login is the owner's choice.** Loskai logs in as the user it is given and creates
+  none: a `loskai` user with `sudo` is suggested, and root works. How much `sudo` that user
+  gets is the owner's to set on the machine; the one sudoers rule Loskai writes is the
+  update rule (`logic.SUDO_RULE`, above), possible because the prepared commands are fixed.
 - **Set up when a machine is named** (decided 2026-10-31). Saving a machine with an SSH user
   opens its setup: the host key is shown and trusted *before* any password is sent; then
   Loskai installs its lines with the machine's password, used once and never stored, or
@@ -436,8 +452,8 @@ and limits what the next one loses:
   each machine's running list works without a password, and
   the machine limits it to one read-only command (`restrict`, `from=`, a forced `command=`)
   — a copy lists what runs and does nothing else.
-- **Rotating is one button.** A new key pair replaces the old, and the Machines tab shows
-  which machines still accept the old one.
+- **Rotating is one button, then each machine.** New key in Settings › SSH replaces the
+  pair; each machine is then set up again, which replaces Loskai's lines there.
 - **Every session and command is logged** — when, from which address, on which machine —
   and readable in the app. It doesn't stop anything; it shows what happened.
 
@@ -446,8 +462,11 @@ Later, optional: a second login factor (TOTP), once Loskai holds keys.
 Open: running one command on several machines at once.
 
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
-(`on_address`); frontend `pages/Machines.tsx`, `components/routing/MachineTable.tsx`,
-`AddMachineModal.tsx`.
+(`on_address`), `modules/ssh/` — `client.py`, `logic.py`, `connect.py`, `unlock.py`,
+`machines.py`, `tool.py`, `tools/`; frontend `pages/Machines.tsx`, `pages/settings/Ssh.tsx`,
+`components/routing/` — `MachineTable.tsx`, `AddMachineModal.tsx`, `MachineDialog.tsx`,
+`MachineTools.tsx`, `ToolDialog.tsx`, `SshSetupModal.tsx`, `MachineTerminal.tsx`,
+`RunningPill.tsx`, `machine.ts`.
 
 ---
 
@@ -473,14 +492,15 @@ and users, and one nothing uses can be deleted.
 
 **A stack is a folder in `STACKS_DIR` with a compose file.** The filesystem is the only
 record: editing a file in the browser and over SSH touch the same file, and Loskai never
-locks a stack. Compose names the project after the folder (lowercased, dots dropped), which
-is how containers are matched to stacks — and why a container's folder is read from its
-`working_dir` label, never rebuilt from the project name. `STACKS_DIR` is bind-mounted **at
+locks a stack. Compose names the project after the folder (lowercased, dots dropped), so
+the name can't lead back to it: a container is matched to its stack by its `working_dir`
+label — the folder compose ran in — never by project name. `STACKS_DIR` is bind-mounted **at
 the same path** inside and out, because the compose CLI hands bind paths to the host
 daemon; it defaults to `./stacks` beside Loskai's compose file, so compose must be run from
-that directory (`deploy.sh` does). At startup Loskai checks the folder is really mounted: if
-not, health says so and stack writes are refused rather than written where the host can't
-see them — the container list still works.
+that directory (`deploy.sh` does). Each health poll checks the folder is really mounted, and
+so does creating or installing a stack before it writes: if not, health says so and the
+write is refused rather than made where the host can't see it — the container list still
+works.
 
 - **Actions:** up, down, restart, and update (`pull` + `up`).
 - **Create** from a pasted compose file (the raw path), or **install** from a recipe.
@@ -493,6 +513,9 @@ see them — the container list still works.
 - **Delete keeps the data** unless asked: only the compose file, the override and `.env` go.
   A folder left with data and no compose file is **taken over** by the next stack or install
   of that name — how a reinstall, or someone bringing their own data, gets it picked up.
+  Deleting the data too removes the folder; when the app wrote files as its own user, which
+  Loskai's can't remove, a throwaway root container from Loskai's own image empties it
+  (`client.clear_folder`).
 
 ### Recipes and the install wizard
 
@@ -526,11 +549,13 @@ Docker tab creates a route.
 | `compose.override.yml` | the user | never touches it — and is refused unless the new compose file loads with it |
 | `.loskai-recipe.json` | the install record | is rewritten: recipe, source, commit, compose fingerprint |
 
-**Check for updates** compares each stack's `compose.yml` with its recipe's, using the
-fingerprint to tell the recipe moving on (**update available**) from a hand edit
-(**edited**); a stack the record doesn't cover — installed before records, or brought in by
-hand under a recipe's name — **differs from the recipe**. It shows the image changes, the
-diff and the source's commit messages before anything is replaced.
+**Check for updates** syncs the sources first — opening it is the explicit sync — then
+compares each stack's `compose.yml` with its recipe's, using the fingerprint to tell the
+recipe moving on (**update available**) from a hand edit (also shown as update available,
+with a warning that updating replaces the edit); a stack the record doesn't cover — installed
+before records, or brought in by hand under a recipe's name — **differs from the recipe**,
+and one whose recipe no enabled source has any more is **no longer in any source**. It shows
+the image changes, the diff and the source's commit messages before anything is replaced.
 
 **Options** are a recipe's optional features — Jellyfin's GPU transcoding — as checkboxes at
 install and in the form. On adds exactly the option's lines to the override, off removes
@@ -586,29 +611,33 @@ mount), and recipe sources have no env var at all (`STORED_ONLY_KEYS` — nothin
 is needed before the UI is up, and a list is better edited there). The page is split into
 **General** (app-wide, recipe sources, backup), **Network** (how Loskai reaches AdGuard,
 Caddy and WireGuard — fields only; their status lives on Routing, next to what they gate)
-**SSH** (what is the same for every machine: Loskai's key, the SSH config to download, the
-log — one machine's own SSH is behind the cog on its row), **Users** (the accounts) and
-**Security** (how long a session lasts once no page is open). Settings is an admin's.
+**SSH** (what is the same for every machine: Loskai's key, how long an unlock lasts, the SSH
+config to download — one machine's own SSH is behind the cog on its row), **Users** (the
+accounts), **Security** (how long a session lasts once no page is open) and **Logs** (the
+sign-in log and the SSH log). Settings is an admin's.
 
 ### WireGuard
 
 Not a component: **a link and a hint.** Settings › Network holds the dashboard URL (wg-easy
-or similar) with a link out and a reachability check — any HTTP answer counts, since a
-login page is still up — plus a reminder of the DNS server peers should use (AdGuard's IP,
-then `1.1.1.1`), the most common WireGuard mistake. WireGuard's dashboard can also be routed
+or similar) with an Open link, plus a reminder of the DNS server peers should use
+(AdGuard's IP, then `1.1.1.1`), the most common WireGuard mistake. `/api/health` probes the
+dashboard — any HTTP answer counts, since a login page is still up — but no page shows it. WireGuard's dashboard can also be routed
 as a Network service. No API, no credentials, no peer management.
 
 ### Health and graceful degradation
 
-`GET /api/health` reports each module as `healthy`, `degraded`, `unreachable` or
-`unconfigured`, polled every 30 seconds. A module going down greys out only its own
+`GET /api/health` reports Caddy, AdGuard, WireGuard and Docker each as `healthy`,
+`degraded`, `unreachable` or `unconfigured`, polled every 30 seconds — SSH has no check of
+its own — plus whether the stacks folder is mounted (`docker.stacks_dir_ok`) and a
+`consistency` list of DNS drift. A module going down greys out only its own
 banner: with AdGuard down, routes are still created (without DNS) and Docker is
 unaffected; with the Docker socket gone, routes still work from their stored addresses.
 
 ### Backup
 
-`GET /api/export` downloads settings and instances as one JSON file. Stacks are folders on
-the host and are backed up as such.
+`GET /api/export` (an admin's) downloads the instances, the base domain and AdGuard's
+rewrites as one JSON file — not the settings. Stacks are folders on the host and are backed
+up as such.
 
 ---
 
@@ -664,7 +693,7 @@ goes on in a background tab (`useHealth`), so idle means no Loskai page open.
 naming the old one stops working, and no one else's; a new password or the account removed
 does the same. An account starts at a generation of its creation time, so one made again
 under a removed one's name doesn't take up its sessions. An open terminal re-checks every 5 s and closes when its session is over:
-the account's generation moved on (a logout) or its tab taken away. Not the idle time: a
+the account's generation moved on (a logout) or its level was lowered below the tab. Not the idle time: a
 terminal lives in an open page, which keeps the session, while the terminal's own copy of
 the cookie is never renewed.
 **Wrong passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during
@@ -673,8 +702,9 @@ the same as a wrong password, and the answer doesn't say which. The count is per
 not per client — behind Caddy every request comes from Caddy's address — so a guesser's
 waits are that account's too, and one who keeps guessing keeps it out; it lives in memory,
 and a restart clears it. Counting per client is open (TODO). **Each login is logged** —
-`data/logins.log`, shown in Settings › Logs: when, the username typed, from where, and
-whether it signed in, and each wrong password asked again for an action (the SSH unlock, a
+`data/logins.log`, shown in Settings › Logs: when, the username typed, from where (as in
+the SSH log, `X-Forwarded-For` is believed only from Caddy's own addresses — `auth.peer`),
+and whether it signed in, and each wrong password asked again for an action (the SSH unlock, a
 new SSH key, a password change: `check_password` logs every miss) — never the password, and not a login turned away during a wait, nor
 more than 5 wrong ones in 15 minutes for names that are no account's (made-up names never
 wait, so a script could otherwise push the real entries out). It is the SSH log's format and trim (`store.append_log`). The AdGuard password is the only
@@ -697,8 +727,9 @@ Details: [`api.md`](../reference/api.md#public-no-auth), [`SECURITY.md`](../../S
 
 ## Stack and frontend
 
-The backend is FastAPI with httpx (Caddy, AdGuard), docker-py (the socket), pydantic-settings
-(env vars) and sse-starlette (log streaming), managed with `uv`. The frontend is React,
+The backend is FastAPI with httpx (Caddy, AdGuard), docker-py (the socket), asyncssh (the
+machines), pydantic-settings (env vars), sse-starlette (log streaming), argon2-cffi (password
+hashes) and itsdangerous (the signed session cookie), managed with `uv`. The frontend is React,
 TypeScript, Vite, Tailwind and TanStack Query, with xterm.js for the terminal. A persistent
 sidebar — Dashboard, Certificate, then the admin tabs — over a content area: cards where
 things are launched, dense tables where live state must be scanned. On a phone the same
@@ -727,7 +758,9 @@ effects for real.**
   `docs/reference/`, asserting the request Loskai builds and how it reads the answer.
 - **Frontend tests** (Vitest, Testing Library) cover components with logic in them.
 - **Live checks** for what a mock can't see: routing against a real Caddy holding a real
-  Caddyfile, installs against a real daemon, and the UI in a real browser. The suite mocks
+  Caddyfile, installs against a real daemon, and the UI in a real browser — at phone widths,
+  `make check-phone` (`scripts/check-phone.sh`, [phone-layout.md](../contributing/phone-layout.md)).
+  The suite mocks
   Caddy, so a correctly built route placed at the wrong index passes it — the first live run
   found exactly that, as an empty `200`. The rig is in `todo-archive.md`, Phase 16.
 
@@ -752,7 +785,8 @@ Forgejo Actions is in the backlog). Every check runs by hand before a change is 
 
 In the backlog (`TODO.md`), not built:
 
-- **Machines managed over SSH** — [above](#direction--managing-the-machines-over-ssh).
+- **One command on several machines at once**, and **a second login factor** (TOTP) —
+  what is left of [managing the machines over SSH](#direction--managing-the-machines-over-ssh).
 - **"There's a recipe for this"** — a hint on an unmanaged container whose image a recipe uses.
 - **Certificate status** — expiry and issuer per name, as a TLS probe of the served
   certificate (it would cover any CA, not only the internal one).

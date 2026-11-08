@@ -4,9 +4,12 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 40** (below) — the sweep: each decision in one place. **Phases 34–38** —
-machines managed over SSH, accounts, automatic runs, Git as a tool, the key kept simply — are
-built; what is left in them is live checks on Sunde's machines. Phases 1–33 and 37 are in
+**Now:** no phase is in flight. **Phase 40** (below), the sweep, is done. Since it: account
+levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
+page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
+each in `HISTORY.md` or `CHANGELOG.md`. **Phases 34–38** — machines managed over SSH,
+accounts, automatic runs, Git as a tool, the key kept simply — are built; what is left in
+them is live checks on Sunde's machines. Phases 1–33 and 37 are in
 [`todo-archive.md`](todo-archive.md); `HISTORY.md` carries why each thing is the way it is —
 read it before reversing anything, since several current decisions are walk-backs of earlier
 ones.
@@ -249,7 +252,7 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
       line, asked with the real status key: `facts` gave Debian 13, memory, `apt 1`, tmux
       and its session `work`; `running` parsed; `cat /etc/shadow; id` got the status answer;
       a pty was refused
-- [ ] Codebox: Install again from its page, then look at the overview
+- [ ] Codebox: look at the overview, once set up again (Phase 38)
 
 **34f — plugins, and the first ones**
 - [x] The plugin format (`plugin.py`, [tool-schema.md](../reference/tool-schema.md), then plugin-schema.md),
@@ -273,7 +276,8 @@ and its tmux sessions. On the machine page; an older status line says "reinstall
       it again attached to it, showing `[done, exit 0]`, and Enter ended it. A target
       `a;id` was refused `4409 Not a service` before anything ran; the log had the action,
       its tmux session, and the refusal
-- [ ] On codebox and the Proxmox host: install again, enable, try Update and a row action
+- [ ] On codebox and the Proxmox host: try Update and a row action (nothing to enable since
+      34f′ — the tools are detected)
 
 _Reworked (2026-11-01, Sunde): System, Services and Proxmox "are standard features that
 are autodetected"; what was meant by plugins is "tools that help with my workflow, like
@@ -362,7 +366,7 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
       status key), and each project says how many commits aren't pushed (as of its last
       fetch); a test gives a project an upstream and a commit not on it. 704 backend, 264
       frontend; `pytest`, `npm test`, `npm run build`, `oxlint`, `check-docs.sh`
-- [ ] Codebox: Install again (v4), then look at Tailscale's card once it is logged in
+- [ ] Codebox: look at Tailscale's card once it is logged in
 - [x] Deleting a set-up machine takes Loskai's two lines off it first (`logic.UNINSTALL_SCRIPT`,
       `connect.uninstall`); a locked key asks for the admin password in the dialog (`423`,
       nothing deleted); an unreachable machine is deleted with a warning. A failed delete
@@ -401,16 +405,18 @@ submenu or dropdown"; "separate regular tmux sessions… and claude code usage";
 - [x] **How long the key stays unlocked is a setting** (Settings › SSH, `ssh_unlock_minutes`,
       `SSH_UNLOCK_MINUTES`): 15 min, 1, 3, 8, 24 h; default 15. Live: set to 3 hours in the
       page, a new key's unlock ran 3.00 h
-- [ ] Sunde: on each machine, Install again (status line v5), then Allow updates without a
-      password where wanted
-- [ ] For Sunde, on codebox: Install again (v3), Add Claude Code if needed, set the projects
+- [ ] Sunde: on each machine, once set up again (Phase 38), Allow updates without a password
+      where wanted
+- [ ] For Sunde, on codebox: Add Claude Code if needed, set the projects
       folder (`~` there — `~/loskai`), and open a project from the phone app
 
 ---
 
 ## Phase 35 — Accounts: an admin, and operators limited to tabs
 
-_Its key slots were walked back by Phase 38 (below); what it says about them is history._
+_Its key slots were walked back by Phase 38 (below), and its admin and operators limited to
+tabs were replaced by levels 1–4, each adding to the ones below (2026-11-06,
+`shared/users.py`, `shared/access.py`); what it says about them is history._
 
 Replaces "one admin password, no accounts" (architecture.md › Access). Asked 2026-11-02, after
 comparing Loskai's security with Proxmox's.
@@ -455,9 +461,6 @@ comparing Loskai's security with Proxmox's.
       the hash gone from settings.json); in Chromium, first-run setup made the admin, who
       added an operator with Docker; the operator saw only Docker, `/routing` said the tab is
       missing, the API answered 403 with the reason. 759 backend, 285 frontend
-- [ ] Sunde: after deploying, log in as `admin` with the old password (rename it in
-      Settings › Users if wanted — by adding a new admin and removing `admin`); unlock the SSH
-      key once, which moves it to key slots
 
 ## Phase 36 — Automatic runs: sudo's password in a dialog, and they close themselves
 
@@ -542,7 +545,8 @@ review's eight faults and left one open: the last slot dropped, and the key with
       refused `4423`, which first showed the unlock surviving and was fixed. An old
       encrypted key gave the 409 to make a New key. No private key in the backend's or
       the SSH log
-- [ ] Sunde: New key in Settings › SSH, then set up each machine again
+- [ ] Sunde: New key in Settings › SSH, then set up each machine again — which installs the
+      current status line (v5), so the earlier phases' "Install again" steps are this one
 
 ## Phase 40 — The sweep: each decision in one place
 
@@ -639,10 +643,10 @@ are fixed first, each with a regression test.
   either is configuration rather than a patch
 - **Store read amplification** (twin of Phase 15's deferred F12, noted 2026-08-29): every
   `get_instance` / `get_by_container` / `get_by_origin` / `list_routed` re-reads and re-parses
-  the whole `instances.json`, so one assign reads the file several times over — ten call sites
-  app-wide, six inside `instances.py` itself. Same shape as F12's per-key `settings.json`
-  reads. A request-scoped read is the fix; changing the *storage format* is not (JSON is the
+  the whole `instances.json`, so one assign reads the file several times over — 25 call sites
+  app-wide (39 counting `list_instances` itself), seven of them inside `instances.py`. Same
+  shape as F12's per-key `settings.json` reads. A request-scoped read is the fix; changing the *storage format* is not (JSON is the
   right choice while the app is the writer and the file stays a human-readable recovery record)
 - Tier-3 integration rig + Forgejo CI (Phase 8b) — deferred by choice
-- `CertStatus.tsx` cert expiry (Phase 3) — under the internal CA this is readable from
+- Certificate status, expiry per name (Phase 3) — under the internal CA this is readable from
   Caddy's PKI endpoints; TLS probe stays the method-independent approach
