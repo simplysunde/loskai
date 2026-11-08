@@ -75,8 +75,8 @@ curl -fsSL $BASE/scripts/create-caddy-lxc.sh | REPO_RAW_BASE=$BASE bash
 This installs Caddy with **internal-CA TLS** (its own CA — no public domain or ACME
 token). It carries no routes; Loskai pushes them at runtime.
 
-> **You don't set your domain here.** Caddy signs each name on demand with its own CA and
-> never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3).
+> **You don't set your domain here.** Caddy gives each name its own certificate from its own CA
+> as Loskai pushes the route, and never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3).
 
 Then:
 

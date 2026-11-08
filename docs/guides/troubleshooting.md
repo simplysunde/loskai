@@ -33,7 +33,7 @@ and no `Via` header. Nothing is broken downstream: **your route never ran.** Som
 of it in Caddy's `routes` array matched first and terminated.
 
 The usual something is the Caddyfile's own `*.{$BASE_DOMAIN}` block. It exists so Caddy
-issues each name under the domain its own internal cert (`tls internal`), and it adapts to a
+issues the internal wildcard cert every routed name uses (`tls internal`), and it adapts to a
 **`"terminal": true` route** — which the Caddyfile adapter places first. In a Caddyfile from
 before 2026-09-24 that block had no handlers, so what it caught got an empty `200`; today's
 answers the "Nothing is routed" `404` page below. Either way, any route sitting behind it

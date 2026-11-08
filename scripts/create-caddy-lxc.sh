@@ -239,8 +239,8 @@ AUTOUPGRADES
 # onboarding page from the repo (single source of truth, no inline duplicate). The Caddyfile
 # expects Caddy's data at /data/caddy and the page at /srv/setup — both satisfied by
 # XDG_DATA_HOME=/data in the systemd unit below and this mkdir. It uses *.{$BASE_DOMAIN}, fed
-# the fixed 'localhost' placeholder (see the unit's BASE_DOMAIN); local_certs signs every real name
-# Loskai pushes on demand regardless.
+# the fixed 'localhost' placeholder (see the unit's BASE_DOMAIN); local_certs gives every real name
+# Loskai pushes its own cert as the route lands, regardless.
 log "Fetching Caddyfile + onboarding page from $REPO_RAW_BASE"
 pct exec "$CTID" -- mkdir -p /srv/setup
 pct exec "$CTID" -- bash -euo pipefail -c "
@@ -269,7 +269,7 @@ WantedBy=multi-user.target
 UNIT
 
 # Caddy is fed a fixed *.localhost placeholder — the domain is Loskai's setting, not Caddy's,
-# and local_certs signs each real name on demand.
+# and local_certs gives each real name its own cert as its route lands.
 pct exec "$CTID" -- sed -i "s/__BASE_DOMAIN__/localhost/" /etc/systemd/system/caddy.service
 pct exec "$CTID" -- systemctl daemon-reload
 pct exec "$CTID" -- systemctl enable --now caddy

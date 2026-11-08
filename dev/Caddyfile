@@ -3,7 +3,7 @@
 # apps.http.servers, so Loskai has no server to append routes to.
 #
 # The hostname below is an arbitrary placeholder. In dev, `local_certs` makes Caddy issue
-# an internal cert per routed name on demand, so this does NOT need to match Loskai's
+# an internal cert for each routed name as its route lands, so this does NOT need to match Loskai's
 # BASE_DOMAIN — set that wherever you like (Loskai's UI or the backend env); Caddy doesn't
 # need it here.
 #

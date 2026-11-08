@@ -102,7 +102,7 @@ docker compose -f compose.dev.yml down -v     # wipe them too
 ## Notes
 
 - **`BASE_DOMAIN` is a Loskai-only setting in dev** — set it via the env above *or* on the
-  Settings page in the UI. Caddy's internal CA (a per-name cert on demand) doesn't need the
+  Settings page in the UI. Caddy's internal CA (a cert per routed name, as its route lands) doesn't need the
   domain — the same as production, where the internal CA is the only TLS mode.
 - **`CADDY_HOST_IP` isn't needed** here: `CADDY_ADMIN_URL` uses an IP (`127.0.0.1`), so the
   DNS-rewrite answer IP derives from it automatically.

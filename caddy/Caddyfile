@@ -10,11 +10,11 @@
 {
 	# Internal to the Docker network — Loskai reaches this as caddy:2019. Not published.
 	admin 0.0.0.0:2019
-	local_certs # Caddy is its own CA — issues an internal cert per name on demand
+	local_certs # Caddy is its own CA — every certificate is internal
 }
 
-# Issue an internal cert for each *.{$BASE_DOMAIN} name on demand, and answer names that
-# aren't routed. Loskai inserts every real route at index 0 of this server, ahead of what
+# One internal wildcard cert for *.{$BASE_DOMAIN}, which every name Loskai routes uses, and an
+# answer for names that aren't routed. Loskai inserts every real route at index 0 of this server, ahead of what
 # this block compiles to, so this only ever replies when nothing is routed at the name —
 # which used to be an empty 200 that looked like a blank page rather than a mistake.
 *.{$BASE_DOMAIN} {

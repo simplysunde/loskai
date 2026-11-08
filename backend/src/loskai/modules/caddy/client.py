@@ -78,11 +78,12 @@ class CaddyClient:
         """Insert a route object (built by service.build_route) at the **head** of the
         routing server's routes array — or, `http`, the `:80` server's.
 
-        Not an append. The bootstrap Caddyfile's `*.{$BASE_DOMAIN}` block — which exists
-        only to make Caddy issue the wildcard cert — compiles to a handler-less route with
+        Not an append. The bootstrap Caddyfile's `*.{$BASE_DOMAIN}` block — which issues the
+        wildcard cert and answers names nothing is routed at — compiles to a route with
         `"terminal": true`, and the Caddyfile adapter puts it first. It matches every name
-        Loskai routes, so an appended route is never reached: Caddy answers the wildcard's
-        empty 200 instead of proxying. That fails as a *success*, which is why unit and
+        Loskai routes, so an appended route is never reached: Caddy answers the block's
+        "Nothing is routed" page instead of proxying (an empty 200, when the block had no
+        handlers). That fails as a *success*, which is why unit and
         contract tests never saw it and the 2026-09-05 live smoke did. The `:80` server
         needs the head for one more reason: its cert-setup site ends in a catch-all
         `handle`, and Caddy's automatic HTTP→HTTPS redirect routes live there too and
