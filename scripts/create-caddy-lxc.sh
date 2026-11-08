@@ -13,10 +13,8 @@
 # across restarts from Caddy's autosaved config.
 #
 # The container ID is auto-picked (next free VMID) and the IP comes from DHCP; assign a static
-# lease/IP afterwards. Override anything via env, e.g. (point at a private forge for the
-# Caddyfile fetch — see REPO_RAW_BASE below):
-#   CTID=111 REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main \
-#     bash create-caddy-lxc.sh
+# lease/IP afterwards. Override anything via env, e.g.:
+#   CTID=111 bash create-caddy-lxc.sh
 #
 # TLS is Caddy's internal CA (local_certs): each name Loskai routes gets its own cert, and
 # Caddy never needs the domain — that is Loskai's setting alone. LAN devices
@@ -72,7 +70,7 @@ TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
 TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
 # Raw base URL of the Loskai repo. The script fetches caddy/Caddyfile + the onboarding page
 # from here, so this LXC and the Caddy container share ONE config (no drift). Override for
-# a private forge, e.g. REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main
+# a fork or a mirror: the raw URL of its branch, e.g. https://raw.githubusercontent.com/<you>/loskai/main
 REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/simplysunde/loskai/main}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }

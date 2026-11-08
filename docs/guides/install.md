@@ -33,7 +33,7 @@ From the **Proxmox shell**. The scripts are self-contained, so piping one into `
 it takes. Set the repo's raw base URL **once** (reused below), then pipe:
 
 ```bash
-BASE=http://<your-forge>/sunde/Loskai/raw/branch/main   # once published: https://raw.githubusercontent.com/simplysunde/loskai/main
+BASE=https://raw.githubusercontent.com/simplysunde/loskai/main
 curl -fsSL $BASE/scripts/create-adguard-lxc.sh | bash
 ```
 
@@ -61,16 +61,15 @@ Keep the AdGuard IP, user, and password — Loskai needs all three in Step 3.
 ## Step 2 — Caddy LXC (TLS reverse proxy)
 
 From the **Proxmox shell**, reusing `$BASE`. This script also **fetches** the shared
-`caddy/Caddyfile` + onboarding page from the repo (so the LXC and the Caddy container
-never drift), so pass that base URL as `REPO_RAW_BASE` too:
+`caddy/Caddyfile` + onboarding page from the repo, so the LXC and the Caddy container
+never drift:
 
 ```bash
-curl -fsSL $BASE/scripts/create-caddy-lxc.sh | REPO_RAW_BASE=$BASE bash
+curl -fsSL $BASE/scripts/create-caddy-lxc.sh | bash
 ```
 
-> `REPO_RAW_BASE` defaults to the GitHub raw URL — **once the repo is public you drop it**
-> (`curl -fsSL $BASE/scripts/create-caddy-lxc.sh | bash`). You only
-> pass it now because that default doesn't exist yet while the repo lives on your forge.
+> Installing from a fork or a mirror? Pass its raw URL as `REPO_RAW_BASE` too
+> (`… | REPO_RAW_BASE=$BASE bash`), or the script fetches the Caddyfile from GitHub.
 
 This installs Caddy with **internal-CA TLS** (its own CA — no public domain or ACME
 token). It carries no routes; Loskai pushes them at runtime.

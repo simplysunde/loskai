@@ -19,15 +19,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _REPO_ROOT_ENV = _REPO_ROOT / ".env"
 
 # The built-in default recipe source, seeded into the sources list when nothing is stored
-# (see shared/settings.recipe_sources). Interim internal location: loskai-recipes lives
-# beside loskai on the development Forgejo while both are private, and moves to
-# https://github.com/simplysunde/loskai-recipes when loskai itself is published — one
-# constant, so that is a one-line change.
+# (see shared/settings.recipe_sources). A stored list is kept as it is, so moving this
+# constant changes only installs that never saved one.
 #
 # There is deliberately no env var for recipe sources: they are managed as a list of rows
 # in Settings > General, and nothing about them is needed before the UI is reachable. See
 # STORED_ONLY_KEYS in shared/settings.py.
-DEFAULT_RECIPES_REPO = "http://192.168.10.216:3000/sunde/loskai-recipes.git"
+DEFAULT_RECIPES_REPO = "https://github.com/simplysunde/loskai-recipes.git"
 
 
 class Settings(BaseSettings):

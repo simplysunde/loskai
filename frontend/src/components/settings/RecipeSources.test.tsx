@@ -8,7 +8,7 @@ const SETTINGS = "/api/settings";
 const RECIPES = "/api/docker/recipes";
 const REFRESH = "/api/docker/recipes/refresh";
 
-const BUILTIN = "http://192.168.10.216:3000/sunde/loskai-recipes.git";
+const BUILTIN = "https://github.com/simplysunde/loskai-recipes.git";
 const EXTRA = "https://github.com/someone/extras.git";
 
 // The panel is the only place the sources list can be changed from the UI, and every
