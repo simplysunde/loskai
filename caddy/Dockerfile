@@ -12,3 +12,9 @@
 FROM caddy:2
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY setup/ /srv/setup/
+# The image's own command plus --resume, as the Caddy LXC runs: Caddy saves its config after
+# every change Loskai makes (in /config, a volume), and on start reloads that save — so the
+# routes survive a restart. Only when there is no save yet does it start from the Caddyfile;
+# a changed Caddyfile or BASE_DOMAIN takes effect once the save is removed
+# (docs/guides/deployment.md).
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile", "--resume"]

@@ -61,22 +61,24 @@ Keep the AdGuard IP, user, and password — Loskai needs all three in Step 3.
 ## Step 2 — Caddy LXC (TLS reverse proxy)
 
 From the **Proxmox shell**, reusing `$BASE`. This script also **fetches** the shared
-`caddy/Caddyfile` + onboarding page from the repo (so the LXC and the co-located container
-never drift), so pass that base URL as `REPO_RAW_BASE` too:
+`caddy/Caddyfile` + onboarding page from the repo (so the LXC and the Caddy container
+never drift), so pass that base URL as `REPO_RAW_BASE` too — and your domain as
+`BASE_DOMAIN`:
 
 ```bash
-curl -fsSL $BASE/scripts/create-caddy-lxc.sh | REPO_RAW_BASE=$BASE bash
+curl -fsSL $BASE/scripts/create-caddy-lxc.sh | BASE_DOMAIN=home.example REPO_RAW_BASE=$BASE bash
 ```
 
 > `REPO_RAW_BASE` defaults to the GitHub raw URL — **once the repo is public you drop it**
-> (`curl -fsSL $BASE/scripts/create-caddy-lxc.sh | bash`). You only pass it now because that
-> default doesn't exist yet while the repo lives on your forge.
+> (`curl -fsSL $BASE/scripts/create-caddy-lxc.sh | BASE_DOMAIN=home.example bash`). You only
+> pass it now because that default doesn't exist yet while the repo lives on your forge.
 
 This installs Caddy with **internal-CA TLS** (its own CA — no public domain or ACME
 token). It carries no routes; Loskai pushes them at runtime.
 
-> **You don't set your domain here.** Caddy gives each name its own certificate from its own CA
-> as Loskai pushes the route, and never needs the domain — that's a Loskai setting (`BASE_DOMAIN`, Step 3).
+> **The domain is the one Loskai gets in Step 3.** Caddy needs it for its `*.BASE_DOMAIN`
+> certificate, the page a name with no route gets, and the redirect from `http://` — the same
+> as when Caddy runs in Docker beside Loskai.
 
 Then:
 

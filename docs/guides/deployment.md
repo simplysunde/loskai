@@ -227,6 +227,22 @@ whole point: the value and the mount's right side have to agree, and nothing che
 for you. If they drift, Loskai writes to an unmounted path inside the container and that
 state is discarded on the next recreate.
 
+## Caddy's saved config
+
+Caddy keeps every route Loskai pushes: it saves its config after each change and starts
+from that save (`--resume`) — in the Caddy LXC and the Caddy container alike, where the save
+is in the `caddy-config` volume. So a restart, a reboot or a rebuilt image needs nothing
+from Loskai.
+
+The flip side: while a save exists, Caddy doesn't read the Caddyfile. A changed Caddyfile
+(an update to `caddy/`) or a new `BASE_DOMAIN` takes effect once the save is removed, then
+**Sync** puts Loskai's routes back:
+
+```bash
+docker compose exec caddy rm /config/caddy/autosave.json && docker compose restart caddy   # Docker
+rm /config/caddy/autosave.json && systemctl restart caddy                                    # Caddy LXC
+```
+
 ## Cold start
 
 On a brand-new Caddy no routes exist yet, so `loskai.<domain>` won't resolve. Reach

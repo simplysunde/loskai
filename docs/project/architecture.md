@@ -167,8 +167,10 @@ keyed by `@id` = the instance id, as a flat sibling matching one host:
 - **Both servers are discovered** on first use, and again by each health poll, by their
   `:443` and `:80` listeners — never a hardcoded `srv0`. `scheme` picks the server: `https` (default), `http` (kept out of `:443`
   so no certificate is ever issued for it), or `both` — two routes, `<id>` and `<id>-http`.
-- **Caddy persists itself**: it autosaves after every change and runs with `--resume`, so a
-  reboot needs nothing from Loskai. **Sync** re-pushes every route from the list — the
+- **Caddy persists itself**: it autosaves after every change and runs with `--resume` — the
+  LXC's unit and the Caddy image alike — so a restart or reboot needs nothing from Loskai.
+  While that save exists the Caddyfile isn't read: a changed one takes effect once the save
+  is removed ([deployment.md](../guides/deployment.md#caddys-saved-config)). **Sync** re-pushes every route from the list — the
   backstop for a fresh or wiped Caddy, and the cold start (reach Loskai by IP, press Sync).
 - **Routes Loskai didn't make are left alone**: it only ever touches an `@id` that is one of
   its instances.

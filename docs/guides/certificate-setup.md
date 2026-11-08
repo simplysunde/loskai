@@ -15,8 +15,8 @@ a NAS admin UI — is the mirror image of this page and lives in
 [backend-certificates.md](backend-certificates.md).
 Browsers don't trust that root, so LAN devices get a cert warning until they install it
 **once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
-including ones you add later: one internal root signs them all (the `*.BASE_DOMAIN` wildcard
-with Caddy in Docker, a cert per name on the Caddy LXC).
+including ones you add later: one internal root signs the `*.BASE_DOMAIN` wildcard they all
+use.
 
 There are **two ways to get the root**, and they exist for different reasons:
 

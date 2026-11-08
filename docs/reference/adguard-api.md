@@ -79,7 +79,7 @@ would shadow the entire subdomain space locally and could hijack a real public n
 `mail.example.no`) that happens to share the base domain. Explicit per-name rewrites are
 surgical and mirror the Caddy module, which already routes every instance as a specific
 host. (Separately, Caddy's internal CA issues the *TLS certificates* for HTTPS on local-only
-names — a `*.BASE_DOMAIN` wildcard, or one per name on the Caddy LXC — a cert concern in Caddy's own config, unrelated to DNS
+names — one `*.BASE_DOMAIN` wildcard — a cert concern in Caddy's own config, unrelated to DNS
 rewrites, and Loskai does not touch it.)
 
 Consequently each per-name rewrite is **load-bearing**, not cosmetic: without it the name

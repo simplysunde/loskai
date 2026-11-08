@@ -4,6 +4,31 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-08 — Caddy behaves the same in the LXC and in Docker
+
+Sunde's rule: Caddy works the same whether it runs in its LXC or in Docker beside Loskai,
+and stays simple to run. Two differences had crept in, found by checking the docs against
+a real Caddy (2.11.4, this Caddyfile):
+
+- **A restart lost every route in Docker.** The LXC's unit runs `caddy run --resume`; the
+  Caddy image kept the stock command, so a restarted container came up from the Caddyfile
+  alone — every name the "Nothing is routed" page until someone pressed Sync — while the
+  docs said routes come back by themselves. The image's command now has `--resume` too.
+  Considered instead: Loskai re-pushing routes when it sees them missing (no Caddy flag, the
+  Caddyfile always read) — rejected, since Caddy and AdGuard never being written on their
+  own is a rule here, and a write nobody asked for would hide a Caddy that lost its config.
+  The cost, the same as the LXC's always was: while the save exists the Caddyfile isn't
+  read, so a changed one takes effect once the save is removed (deployment.md says how).
+- **The LXC gave Caddy a placeholder domain** (`localhost`), so it had no `*.BASE_DOMAIN`
+  site: each name got its own cert as its route landed, an unrouted name got nothing, and
+  `http://name` without a route wasn't redirected. **This reverses** that placeholder,
+  whose only effect in the end (2026-09-05, below) was to hide the route-order bug — fixed
+  since by inserting at index 0. The script now takes `BASE_DOMAIN`, as the compose files
+  do, and puts Caddy's saved config at `/config` as the image does.
+
+A Caddy LXC made before this keeps its placeholder, and its save wherever Caddy put it, until
+it is made again, or its unit given `BASE_DOMAIN` and `XDG_CONFIG_HOME=/config`.
+
 ## 2026-11-06 — The logs are an admin's, on one page
 
 Settings › Logs holds the sign-in log and the SSH log, which were on Users and SSH. Sunde

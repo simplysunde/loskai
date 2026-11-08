@@ -14,8 +14,8 @@ services:
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
     volumes:
-      - caddy-data:/data # certs + the autosaved config (survives restarts)
-      - caddy-config:/config
+      - caddy-data:/data # the internal CA and its certificates
+      - caddy-config:/config # the saved config, routes included — Caddy starts from it (--resume)
     restart: unless-stopped
 
   adguard:

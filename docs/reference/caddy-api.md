@@ -210,10 +210,11 @@ too ("no root certificate yet"); any other failure is `502`.
 
 ## Persistence — how routes survive a restart
 
-Caddy **autosaves the full config to disk after every API change** (unless disabled). The
-service runs with `caddy run --resume`, which reloads that autosave on start. So the
-normal recovery path — LXC reboot, Proxmox restart, Caddy crash + systemd restart — needs
-**no action from Loskai**: the routes come back from Caddy's own autosave.
+Caddy **autosaves the full config to disk after every API change** (unless disabled). It
+runs with `caddy run --resume` — the LXC's systemd unit and the Caddy image's command
+(`caddy/Dockerfile`) — which reloads that autosave on start. So the normal recovery path —
+LXC reboot, container restart or rebuild, Caddy crash — needs **no action from Loskai**:
+the routes come back from Caddy's own autosave. While it exists the Caddyfile isn't read.
 
 "Sync" (endpoint #5, plus the AdGuard reconcile) is the **rare-case** backstop, only for
 when the autosave itself is gone or stale: a freshly provisioned Caddy, a wiped data dir, a
