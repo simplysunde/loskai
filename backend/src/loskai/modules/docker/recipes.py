@@ -63,6 +63,9 @@ def validate_manifest(data: object) -> list[str]:
     errors: list[str] = []
     if not data.get("name"):
         errors.append("missing 'name'")
+    elif not isinstance(data["name"], str):
+        # YAML reads `name: 2048` as a number; quoted, it is text.
+        errors.append("'name' must be text — quote it")
     rtype = data.get("type")
     if rtype not in VALID_TYPES:
         errors.append(f"'type' must be one of {sorted(VALID_TYPES)}")

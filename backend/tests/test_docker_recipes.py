@@ -18,6 +18,10 @@ def test_valid_pull_manifest():
     assert recipes.validate_manifest({"name": "Grafana", "type": "pull"}) == []
 
 
+def test_name_must_be_text():
+    assert any("name" in e for e in recipes.validate_manifest({"name": 2048, "type": "pull"}))
+
+
 def test_missing_name_and_bad_type():
     errors = recipes.validate_manifest({"type": "nope"})
     assert any("name" in e for e in errors)
@@ -256,6 +260,17 @@ def test_local_dir_is_scanned_last_and_cannot_be_disabled(data_dir):
     result = recipes.list_recipes()
     assert [r["source"] for r in result["recipes"]] == ["local"]
     assert result["local_count"] == 1
+
+
+def test_a_name_that_isnt_text_is_refused_not_a_broken_list(data_dir):
+    """YAML reads `name: 2048` as a number. Let through, it reached the list's sort by
+    name and took every recipe with it."""
+    settings_store.update({"recipes_repos": []})
+    _make_recipe(data_dir / "recipes", "game", "2048")
+    _make_recipe(data_dir / "recipes", "jelly", "Jellyfin")
+    result = recipes.list_recipes()
+    assert [r["id"] for r in result["recipes"]] == ["jelly"]
+    assert any(i["id"] == "game" and "name" in i["error"] for i in result["invalid"])
 
 
 def test_disabled_source_is_not_scanned(data_dir):

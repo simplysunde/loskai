@@ -110,7 +110,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 
 | Field | Required | Applies to | Meaning |
 |---|---|---|---|
-| `name` | ✅ | all | Display name in the wizard. |
+| `name` | ✅ | all | Display name in the wizard. Text — quote one YAML would read as a number (`name: "2048"`). |
 | `type` | ✅ | all | Install pattern — see below. |
 | `description` | — | all | One-line summary for the recipe list. |
 | `env` | — | all | List of values the wizard asks for; each generates one `.env` line. Omit if the compose needs no variables. |
@@ -413,7 +413,7 @@ recipe isn't offered — it updates by reinstalling.
 Loskai rejects a recipe (skips it, surfaces why) when:
 
 - `recipe.yml` is missing, not valid YAML, or not a mapping.
-- `name` or `type` is missing, or `type` is not one of the three values.
+- `name` or `type` is missing, `name` isn't text, or `type` is not one of the three values.
 - `type: git_build` with no `git_repo`.
 - an `env` entry is missing `key` or `label`.
 - `service` is present but is not a string.
