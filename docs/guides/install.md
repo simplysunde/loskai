@@ -33,7 +33,7 @@ From the **Proxmox shell**. The scripts are self-contained, so piping one into `
 it takes. Set the repo's raw base URL **once** (reused below), then pipe:
 
 ```bash
-BASE=http://<your-forge>/sunde/Loskai/raw/branch/main   # swap to the GitHub raw URL once published
+BASE=http://<your-forge>/sunde/Loskai/raw/branch/main   # once published: https://raw.githubusercontent.com/simplysunde/loskai/main
 curl -fsSL $BASE/scripts/create-adguard-lxc.sh | bash
 ```
 

@@ -27,10 +27,11 @@ visible without unpacking a phase back out. The checklists stay in
 [`todo-archive.md`](todo-archive.md)._
 
 - Phase 8b's Tier-3 integration rig + Forgejo CI are unchecked **by choice** — see the backlog
-- **Before publishing: the forge addresses.** Two places name this repo's LAN Forgejo and
-  must follow it to wherever it is published: `config.DEFAULT_RECIPES_REPO` (the seeded
-  recipe source) and `REPO_URL` in `frontend/src/lib/docs.ts` (the Docker tab's link to
-  `migration.md`)
+- **Before publishing: the forge addresses.** The repos go to <https://github.com/simplysunde>
+  (`loskai`, `loskai-recipes`). Two places name the LAN Forgejo and must follow:
+  `config.DEFAULT_RECIPES_REPO` (the seeded recipe source) and `REPO_URL` in
+  `frontend/src/lib/docs.ts` (the Docker tab's link to `migration.md`). The Caddy LXC
+  script's `REPO_RAW_BASE` already defaults to the GitHub raw URL.
 - **Decide: count wrong passwords per client.** The login backoff counts per account but
   not per client (behind Caddy every request has Caddy's address), so a LAN script guessing
   the moment each wait ends keeps that account out until it stops or Loskai restarts. The proposed

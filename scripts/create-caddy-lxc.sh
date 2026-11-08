@@ -70,9 +70,9 @@ CT_STORAGE="${CT_STORAGE:-$(detect_storage rootdir local-lvm)}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
 TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
 # Raw base URL of the Loskai repo. The script fetches caddy/Caddyfile + the onboarding page
-# from here, so this LXC and the co-located container share ONE config (no drift). Override for
+# from here, so this LXC and the Caddy container share ONE config (no drift). Override for
 # a private forge, e.g. REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main
-REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/sunde/Loskai/main}"
+REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/simplysunde/loskai/main}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
