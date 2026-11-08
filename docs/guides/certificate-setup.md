@@ -15,8 +15,7 @@ a NAS admin UI — is the mirror image of this page and lives in
 [backend-certificates.md](backend-certificates.md).
 Browsers don't trust that root, so LAN devices get a cert warning until they install it
 **once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
-including ones you add later: one internal root signs the `*.BASE_DOMAIN` wildcard they all
-use.
+including ones you add later: one internal root signs each name's certificate.
 
 There are **two ways to get the root**, and they exist for different reasons:
 
@@ -68,11 +67,10 @@ is to fix the untrusted-cert warning, so it can't sit behind that same untrusted
 Reach it **by IP** (no DNS or trust needed first).
 
 > **It listens on the whole of `:80`, but no longer swallows your names.** The block starts
-> with a matcher on `*.{$BASE_DOMAIN}` that redirects those to HTTPS, so typing
-> `grafana.home.lan` with no scheme redirects as you would expect; the page itself answers
-> everything else, which in practice means browsing to Caddy **by IP**. Keyed on the domain
-> rather than this host's IP deliberately: Caddy is already given `BASE_DOMAIN`, and a
-> bridged container cannot detect its own host IP.
+> by redirecting every host that isn't an IP address to HTTPS, so typing `grafana.home.lan`
+> with no scheme redirects as you would expect; the page answers only Caddy reached **by
+> IP**. Matched on the shape of the host rather than on a name or this host's IP: Caddy
+> isn't given the domain, and a bridged container cannot detect its own host IP.
 >
 > **This does not override a `scheme: "http"` route.** Loskai pushes those into this same
 > `:80` server at index 0, ahead of everything in the Caddyfile, so they proxy normally
@@ -82,9 +80,9 @@ Reach it **by IP** (no DNS or trust needed first).
 
 ```caddyfile
 :80 {
-	# Names under BASE_DOMAIN belong to HTTPS (an http-scheme route Loskai pushes wins first)
-	@internal host *.{$BASE_DOMAIN:example.invalid}
-	handle @internal {
+	# A name belongs to HTTPS (an http-scheme route Loskai pushes wins first); the page is by IP
+	@name not header_regexp Host ^(\d{1,3}(\.\d{1,3}){3}|\[[0-9A-Fa-f:.]+\])(:\d+)?$
+	handle @name {
 		redir https://{host}{uri}
 	}
 
@@ -117,7 +115,7 @@ it (it has no `@id`).
 
 ## Reaching it
 
-- **Dev:** <http://localhost:8081/> (compose maps `8081:80`).
+- **Dev:** <http://127.0.0.1:8081/> (compose maps `8081:80`).
 - **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/`.
 
   The shipped file already keeps your real names redirecting to HTTPS (see the note

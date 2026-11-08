@@ -32,12 +32,12 @@ The name resolves, the cert is trusted, and Caddy answers **`200` with `content-
 and no `Via` header. Nothing is broken downstream: **your route never ran.** Something ahead
 of it in Caddy's `routes` array matched first and terminated.
 
-The usual something is the Caddyfile's own `*.{$BASE_DOMAIN}` block. It exists so Caddy
-issues the internal wildcard cert every routed name uses (`tls internal`), and it adapts to a
-**`"terminal": true` route** — which the Caddyfile adapter places first. In a Caddyfile from
-before 2026-09-24 that block had no handlers, so what it caught got an empty `200`; today's
-answers the "Nothing is routed" `404` page below. Either way, any route sitting behind it
-that it also matches is dead.
+The usual something is a site block in the Caddyfile that matches the name — a wildcard
+like `*.home.example` added by hand, or the `*.{$BASE_DOMAIN}` block Loskai's own Caddyfile
+had until 2026-11-08. A site block adapts to a **`"terminal": true` route**, which the
+Caddyfile adapter places first; one with no handlers answers an empty `200`. Any route
+sitting behind it that it also matches is dead. Loskai's Caddyfile now has no site that
+matches a routed name — its `localhost` site only gives Caddy the `:443` server.
 
 **Three responses from the same Caddy tell the three cases apart:**
 
@@ -61,11 +61,8 @@ appended, so **every route was shadowed** wherever Caddy ran with the real `BASE
 that block — the co-located and split-DNS layouts. Update, then re-push from
 **Routing → Sync**.
 
-A name under `BASE_DOMAIN` that you have *not* routed answers **`404` — "Nothing is routed at
-&lt;name&gt;"** — from that same block. That one is expected, and it is the quickest way to tell
-the two apart: a blank page means the shadowing bug above, a 404 page means the name simply
-has no route (check Routing, or the spelling). Builds from before 2026-09-24 answered an empty
-`200` here too, which is why the symptoms used to look identical.
+A name you have *not* routed has no certificate, so the browser stops at the TLS handshake
+(`curl` exit 35, the last row above) — check Routing, or the spelling.
 
 ---
 

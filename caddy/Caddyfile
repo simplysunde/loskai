@@ -4,7 +4,7 @@
 # certificate-onboarding page — no routes. Loskai pushes every specific-host route at runtime
 # via the Admin API (in a container, reached as caddy:2019 on the internal Docker network).
 #
-# TLS is Caddy's internal CA (local_certs) — no real domain or ACME/DNS token needed. The
+# TLS is Caddy's internal CA (local_certs) — no domain or ACME/DNS token needed. The
 # onboarding page (served on :80) lets LAN devices trust the internal root once. Public ACME
 # certs were removed deliberately — see caddy/Dockerfile.
 {
@@ -13,47 +13,25 @@
 	local_certs # Caddy is its own CA — every certificate is internal
 }
 
-# One internal wildcard cert for *.{$BASE_DOMAIN}, which every name Loskai routes uses, and an
-# answer for names that aren't routed. Loskai inserts every real route at index 0 of this server, ahead of what
-# this block compiles to, so this only ever replies when nothing is routed at the name —
-# which used to be an empty 200 that looked like a blank page rather than a mistake.
-*.{$BASE_DOMAIN} {
-	tls internal
-	header Content-Type "text/html; charset=utf-8"
-	respond <<HTML
-		<!doctype html>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Not routed — {host}</title>
-		<style>
-			body { background:#0f172a; color:#e2e8f0; font:16px/1.6 system-ui, sans-serif;
-			       display:grid; place-items:center; min-height:100vh; margin:0; padding:2rem }
-			div { max-width:32rem; text-align:center }
-			h1 { font-size:1.25rem; margin:0 0 .5rem }
-			code { background:#1e293b; padding:.15rem .4rem; border-radius:.25rem }
-			p { color:#94a3b8; margin:.5rem 0 0 }
-		</style>
-		<div>
-			<h1>Nothing is routed at <code>{host}</code></h1>
-			<p>The name resolves and this server answered, but no service is assigned to it.</p>
-			<p>Add a route for it in Loskai, or check the name for a typo.</p>
-		</div>
-		HTML 404
+# Gives Caddy the :443 server Loskai adds every route to — Loskai finds that server by its
+# listener and never creates one. It matches only `localhost`, never a name Loskai routes, so
+# it can't shadow a route. Caddy needs no domain: each routed name gets its own internal cert
+# as its route lands. A name nothing is routed at has no cert, so a browser stops at that.
+localhost {
+	respond "Loskai's Caddy — nothing is routed here." 404
 }
 
 # Certificate-onboarding page on :80 — plain HTTP so a LAN device can install the internal
 # root before it's trusted. The static page is baked into the image at /srv/setup by
 # caddy/Dockerfile; /data is the caddy-data volume.
 :80 {
-	# Names under BASE_DOMAIN belong to HTTPS — or to a plain-HTTP route Loskai pushes at
-	# index 0 of this server, which is matched before anything in this file. Without this
-	# first handle the catch-all below swallowed them, so typing `grafana.example.no` with
-	# no scheme landed on the onboarding page instead of redirecting. Keyed on BASE_DOMAIN
-	# rather than this host's IP because Caddy is already given the domain, and a bridged
-	# container cannot detect its own host IP (see backend config.py `host_ip`).
-	# The `:example.invalid` default makes the matcher inert when BASE_DOMAIN is unset.
-	@internal host *.{$BASE_DOMAIN:example.invalid}
-	handle @internal {
+	# A name belongs to HTTPS — or to a plain-HTTP route Loskai pushes at index 0 of this
+	# server, which is matched before anything in this file. Without this first handle the
+	# catch-all below swallowed names, so typing `grafana.example.no` with no scheme landed on
+	# the onboarding page instead of redirecting. The page is for a device reaching Caddy by
+	# its IP, so every other host is sent to HTTPS.
+	@name not header_regexp Host ^(\d{1,3}(\.\d{1,3}){3}|\[[0-9A-Fa-f:.]+\])(:\d+)?$
+	handle @name {
 		redir https://{host}{uri}
 	}
 

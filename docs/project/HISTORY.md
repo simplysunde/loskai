@@ -4,30 +4,37 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
-## 2026-11-08 — Caddy behaves the same in the LXC and in Docker
+## 2026-11-08 — Caddy behaves the same in the LXC and in Docker, and needs no domain
 
 Sunde's rule: Caddy works the same whether it runs in its LXC or in Docker beside Loskai,
-and stays simple to run. Two differences had crept in, found by checking the docs against
-a real Caddy (2.11.4, this Caddyfile):
+and stays simple to set up and run. Two differences had crept in, found by checking the
+docs against a real Caddy (2.11.4):
 
 - **A restart lost every route in Docker.** The LXC's unit runs `caddy run --resume`; the
   Caddy image kept the stock command, so a restarted container came up from the Caddyfile
-  alone — every name the "Nothing is routed" page until someone pressed Sync — while the
-  docs said routes come back by themselves. The image's command now has `--resume` too.
-  Considered instead: Loskai re-pushing routes when it sees them missing (no Caddy flag, the
-  Caddyfile always read) — rejected, since Caddy and AdGuard never being written on their
-  own is a rule here, and a write nobody asked for would hide a Caddy that lost its config.
-  The cost, the same as the LXC's always was: while the save exists the Caddyfile isn't
-  read, so a changed one takes effect once the save is removed (deployment.md says how).
-- **The LXC gave Caddy a placeholder domain** (`localhost`), so it had no `*.BASE_DOMAIN`
-  site: each name got its own cert as its route landed, an unrouted name got nothing, and
-  `http://name` without a route wasn't redirected. **This reverses** that placeholder,
-  whose only effect in the end (2026-09-05, below) was to hide the route-order bug — fixed
-  since by inserting at index 0. The script now takes `BASE_DOMAIN`, as the compose files
-  do, and puts Caddy's saved config at `/config` as the image does.
+  alone — no routes until someone pressed Sync — while the docs said routes come back by
+  themselves. The image's command now has `--resume` too. Considered instead: Loskai
+  re-pushing routes when it sees them missing (no Caddy flag, the Caddyfile always read) —
+  rejected, since Caddy and AdGuard never being written on their own is a rule here, and a
+  write nobody asked for would hide a Caddy that lost its config. The cost, the same as the
+  LXC's always was: while the save exists the Caddyfile isn't read, so a changed one takes
+  effect once the save is removed (deployment.md says how).
+- **Only Docker gave Caddy the domain.** The compose files passed `BASE_DOMAIN` to Caddy for
+  a `*.{$BASE_DOMAIN}` site — one wildcard cert, a "Nothing is routed" page, and the
+  `http://` redirect keyed on it — while the LXC fed it a `localhost` placeholder, so there
+  each name got its own cert. Making the LXC take the domain too was the first fix; Sunde
+  asked why Caddy needs it when Loskai's settings hold it, and the answer was that it
+  doesn't. **This reverses** the `*.{$BASE_DOMAIN}` site (and the 2026-09-24 "Nothing is
+  routed" page it answered with): the Caddyfile's `:443` site is now `localhost`, there only
+  so Caddy has the server Loskai adds routes to; every routed name gets its own cert as its
+  route lands; the `:80` redirect sends any host that isn't an IP address to HTTPS. The
+  domain lives in one place, a new one needs nothing from Caddy, and no Caddyfile site can
+  shadow a route again. Lost: the friendly page for a name with no route — a browser now
+  stops at the TLS handshake. Dev runs the same Caddyfile; `dev/Caddyfile` went.
 
-A Caddy LXC made before this keeps its placeholder, and its save wherever Caddy put it, until
-it is made again, or its unit given `BASE_DOMAIN` and `XDG_CONFIG_HOME=/config`.
+Proxied prefixes stay one label for now, though the wildcard cert that was the reason is
+gone (TODO's backlog). A Caddy LXC made before this keeps its old Caddyfile and save until
+it is made again; it works as before.
 
 ## 2026-11-06 — The logs are an admin's, on one page
 

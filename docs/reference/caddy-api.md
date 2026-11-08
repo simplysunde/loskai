@@ -80,14 +80,14 @@ upstream over TLS, certificate unverified. The `dial` stays a bare `host:port`.
 
 **Order matters, and this is why it is `PUT …/0` and not `POST …/routes` (which appends).**
 Loskai's own routes really are order-independent — each matches one specific host, so they
-are disjoint from each other. But they are not the only entries in the array: the bootstrap
-Caddyfile's `*.{$BASE_DOMAIN}` block — `tls internal`, and a "Nothing is routed" page
-answered `404` — compiles to a **route with `"terminal": true`** and the Caddyfile adapter
-puts it first. It matches every name Loskai routes. An appended route therefore never runs —
-Caddy answers that page instead of proxying. While the block was handler-less it answered an
-**empty `200`**, so the failure looked like a success, not a `502`. That is what shipped
-until the 2026-09-05 live smoke; inserting at the head is the fix. Any future route Loskai
-pushes must go ahead of that block too.
+are disjoint from each other. But they are not the only entries in the array: a Caddyfile site block compiles to a
+**route with `"terminal": true`** and the Caddyfile adapter puts it first. The bootstrap
+Caddyfile had a `*.{$BASE_DOMAIN}` block until 2026-11-08, matching every name Loskai
+routes, so an appended route never ran — Caddy answered the block's **empty `200`**
+instead of proxying, a failure that looked like a success, not a `502`. That is what shipped
+until the 2026-09-05 live smoke; inserting at the head is the fix. Today's Caddyfile has
+only a `localhost` site on `:443`, but a hand-added wildcard site would do the same, so
+every route Loskai pushes still goes ahead of everything.
 
 ### 2b. The plain-HTTP twin (`scheme: "both"` / `"http"`)
 
@@ -229,7 +229,8 @@ own UI and AdGuard, since both are ordinary instances (Loskai is a discovered co
 AdGuard an `external` instance routed from the Network service source, `origin:
 "adguard"`) rather than hand-written Caddyfile routes. The bootstrap Caddyfile defines **no
 service routes** — only the admin endpoint, the internal CA (`local_certs`), the
-`*.{$BASE_DOMAIN}` block's "Nothing is routed" `404`, and the `:80` onboarding site.
+`localhost` site that gives Caddy its `:443` server, and the `:80` onboarding site. Caddy
+isn't given the domain: each routed name gets its own internal cert as its route lands.
 
 The only thing Loskai leaves alone is a route a human adds directly to Caddy with an
 `@id` that matches no instance. The per-route push loop preserves such a route; a
@@ -245,7 +246,7 @@ For clarity, endpoints Loskai deliberately does **not** call:
 - `PATCH /id/<id>` — editing is done as delete-then-add (endpoint #4), so PATCH is unused.
 - `POST /config/apps/http/servers/<server>/routes` (append) — **deliberately not used.**
   It is the obvious call for adding a route and it is the wrong one: an appended route
-  lands behind the terminal wildcard block and is never reached (endpoint #2).
+  lands behind any terminal site block that matches its name (endpoint #2).
 - `POST /adapt` — unused; Loskai manages routes as JSON via the config endpoints and no
   longer renders a Caddyfile at all (that export was removed — the bootstrap Caddyfile ships
   in the repo instead).
@@ -253,6 +254,6 @@ For clarity, endpoints Loskai deliberately does **not** call:
   wants the root alone (endpoint #8), so it reads the structured object instead.
 - PKI endpoints **for certificate expiry** — still a dead end, and unrelated to endpoint
   #8. They cover only the internal `local` CA and return PEM blobs with no structured
-  expiry, and the public wildcard cert is never exposed at `/config` or `/pki`. The
+  expiry, and a served cert is never exposed at `/config` or `/pki`. The
   Certificate Status feature is **deferred**; when revisited it will use a TLS probe to a
   routed name (read the served cert's `notAfter`), not the Admin API. See [architecture.md → Future](../project/architecture.md#future).

@@ -1,4 +1,4 @@
-"""Tier-1: Caddy pure logic — FQDN, route JSON, mode, Caddyfile render."""
+"""Tier-1: Caddy pure logic — FQDN, route JSON, mode."""
 
 import pytest
 

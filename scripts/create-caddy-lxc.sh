@@ -13,13 +13,13 @@
 # across restarts from Caddy's autosaved config.
 #
 # The container ID is auto-picked (next free VMID) and the IP comes from DHCP; assign a static
-# lease/IP afterwards. BASE_DOMAIN is required — the same domain Loskai uses. Override
-# anything else via env, e.g. (point at a private forge for the Caddyfile fetch — see
-# REPO_RAW_BASE below):
-#   BASE_DOMAIN=home.example CTID=111 \
-#     REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main bash create-caddy-lxc.sh
+# lease/IP afterwards. Override anything via env, e.g. (point at a private forge for the
+# Caddyfile fetch — see REPO_RAW_BASE below):
+#   CTID=111 REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main \
+#     bash create-caddy-lxc.sh
 #
-# TLS is Caddy's internal CA (local_certs): one wildcard cert for *.BASE_DOMAIN, and LAN devices
+# TLS is Caddy's internal CA (local_certs): each name Loskai routes gets its own cert, and
+# Caddy never needs the domain — that is Loskai's setting alone. LAN devices
 # install its root once via the onboarding page at http://<lxc-ip>/ — or Loskai's own
 # /certificate page. Public ACME certs were supported here until 2026-09-27 and removed
 # deliberately (see docs/project/HISTORY.md): Loskai only inserts routes by @id and never writes this
@@ -61,14 +61,6 @@ detect_template() {
 }
 
 # --- Configuration (override via environment) ---
-# The domain Loskai names services under — Caddy needs it too, as in the Docker layouts: for
-# the *.BASE_DOMAIN wildcard cert, the page that answers an unrouted name, and the redirect
-# from http:// to https://.
-BASE_DOMAIN="${BASE_DOMAIN:?set BASE_DOMAIN to the domain Loskai uses, e.g. BASE_DOMAIN=home.example bash create-caddy-lxc.sh}"
-[[ "$BASE_DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || {
-	echo "BASE_DOMAIN '$BASE_DOMAIN' isn't a domain name" >&2
-	exit 1
-}
 CTID="${CTID:-$(pvesh get /cluster/nextid)}" # next free VMID unless overridden
 CT_HOSTNAME="${CT_HOSTNAME:-caddy}"
 CT_BRIDGE="${CT_BRIDGE:-$(detect_bridge)}"
@@ -247,8 +239,7 @@ AUTOUPGRADES
 # Reuses the SAME config as the co-located container: fetch caddy/Caddyfile and the
 # onboarding page from the repo (single source of truth, no inline duplicate). The Caddyfile
 # expects Caddy's data at /data/caddy and the page at /srv/setup — both satisfied by
-# XDG_DATA_HOME=/data in the systemd unit below and this mkdir. Its *.{$BASE_DOMAIN} is the
-# unit's BASE_DOMAIN.
+# XDG_DATA_HOME=/data in the systemd unit below and this mkdir.
 log "Fetching Caddyfile + onboarding page from $REPO_RAW_BASE"
 pct exec "$CTID" -- mkdir -p /srv/setup
 pct exec "$CTID" -- bash -euo pipefail -c "
@@ -270,7 +261,6 @@ After=network.target
 [Service]
 Environment=XDG_DATA_HOME=/data
 Environment=XDG_CONFIG_HOME=/config
-Environment=BASE_DOMAIN=__BASE_DOMAIN__
 ExecStart=/usr/bin/caddy run --environ --resume --config /etc/caddy/Caddyfile
 ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile
 Restart=on-failure
@@ -279,7 +269,6 @@ Restart=on-failure
 WantedBy=multi-user.target
 UNIT
 
-pct exec "$CTID" -- sed -i "s/__BASE_DOMAIN__/$BASE_DOMAIN/" /etc/systemd/system/caddy.service
 pct exec "$CTID" -- systemctl daemon-reload
 pct exec "$CTID" -- systemctl enable --now caddy
 
@@ -296,6 +285,5 @@ Next steps (Caddy is its own CA):
      the root certificate (or fetch it directly at http://${CT_IP_ADDR}/caddy-root.crt).
      One-time, per device — after that every name under your domain is trusted.
   2. Firewall Caddy's admin API: allow :2019 only from the Docker host (where Loskai runs).
-  3. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019, with
-     BASE_DOMAIN=${BASE_DOMAIN} — the same domain as this Caddy's.
+  3. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019.
 NEXT

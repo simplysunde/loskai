@@ -40,10 +40,10 @@ async def test_push_route_puts_to_discovered_server_with_id(httpx_mock):
 
 
 async def test_push_route_inserts_at_head_not_appends(httpx_mock):
-    """The bootstrap Caddyfile's wildcard `*.{$BASE_DOMAIN}` block is a terminal,
-    handler-less route sitting first in the array, so an appended route is shadowed and
-    Caddy answers its empty 200 instead of proxying (found by the 2026-09-05 live smoke).
-    Index 0 is the whole fix — pin the path, not just the verb."""
+    """A Caddyfile site block is a terminal route sitting first in the array — the
+    bootstrap Caddyfile's `*.{$BASE_DOMAIN}` block was one, until 2026-11-08 — so an
+    appended route is shadowed and Caddy answers the block instead of proxying (found by
+    the 2026-09-05 live smoke). Index 0 is the whole fix — pin the path, not just the verb."""
     client = _client()
     client._server_name = "srv0"
     httpx_mock.add_response(

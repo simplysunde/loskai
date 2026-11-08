@@ -22,7 +22,7 @@ const hostname = () => screen.getByPlaceholderText("rack1.vm3");
 const address = () => screen.getByPlaceholderText("192.168.10.50");
 
 test("a machine hostname may be dotted, and is still lowercased", () => {
-  // No wildcard cert has to cover it, which is why dots are allowed here and not on a route.
+  // A machine has no certificate, which is why dots are allowed here and not on a route.
   renderModal();
 
   fireEvent.change(hostname(), { target: { value: "rack1.VM3" } });

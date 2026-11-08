@@ -55,7 +55,7 @@ def test_a_machine_rejects_a_port_in_its_address(client):
 
 
 def test_a_machine_accepts_a_dotted_hostname(client):
-    # No wildcard cert has to cover it, so the single-label rule does not apply. And this
+    # It has no certificate, so the single-label rule does not apply. And this
     # runs with no `caddy_admin_url` configured at all: naming a machine involves no route,
     # so it must not depend on Caddy being reachable (it answered 502 until Phase 21e).
     r = client.post("/api/machines", json={"hostname": "rack1.vm3", "address": "192.168.10.55"})
@@ -66,7 +66,7 @@ def test_a_machine_accepts_a_dotted_hostname(client):
     assert body["url"] == "rack1.vm3.example.no"  # no scheme — nothing proxies it
 
 def test_a_route_rejects_a_dotted_prefix(client):
-    # Every proxied name has to sit under the one *.BASE_DOMAIN certificate.
+    # A proxied name stays one label (architecture.md, Decisions).
     r = client.post("/api/routes", json={"prefix": "rack1.vm3", "upstream": "192.168.10.55:80"})
 
     assert r.status_code == 422, r.text

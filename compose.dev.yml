@@ -16,12 +16,8 @@ services:
       - "2019:2019" # admin API — the dev backend reaches Caddy here (required)
       - "8081:80" # http  (optional — only to browse routed services)
       - "8443:443" # https (optional — Caddy serves an internal cert)
-    environment:
-      # Only feeds the :80 block's redirect matcher (the placeholder site below stays
-      # *.localhost on purpose — see dev/Caddyfile). Unset is safe: the matcher goes inert.
-      - BASE_DOMAIN=${BASE_DOMAIN:-}
     volumes:
-      - ./dev/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # the same Caddyfile as production
       - ./caddy/setup:/srv/setup:ro # cert-onboarding page served on :80 (Phase 10a)
       - caddy-data:/data # the internal CA and its certificates — routes don't survive a restart
         # here (no --resume, unlike caddy/Dockerfile): Sync puts them back

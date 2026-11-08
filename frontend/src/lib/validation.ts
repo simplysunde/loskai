@@ -1,7 +1,7 @@
 // A subdomain is a single DNS label: lowercase letters, digits, hyphens; not starting
-// or ending with a hyphen. Single-label only keeps every name under the one
-// *.BASE_DOMAIN wildcard cert (see docs/project/architecture.md, Routing). Only applies to `proxy` routes —
-// `dns_only` has no cert involved, see isValidDnsOnlyPrefix below (mirrors assign.py's
+// or ending with a hyphen. Single-label, from when every name shared one *.BASE_DOMAIN
+// wildcard cert (see docs/project/architecture.md, Routing). Only applies to `proxy` routes —
+// `dns_only` never had one, see isValidDnsOnlyPrefix below (mirrors assign.py's
 // validate_prefix split).
 const LABEL = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -9,8 +9,8 @@ export function isValidPrefix(prefix: string): boolean {
   return prefix.length > 0 && prefix.length <= 63 && LABEL.test(prefix);
 }
 
-// dns_only prefixes may be dot-separated (e.g. "rack1.vm3") since no wildcard cert is
-// involved — each label still has to be a valid DNS label on its own.
+// dns_only prefixes may be dot-separated (e.g. "rack1.vm3") since no cert is involved —
+// each label still has to be a valid DNS label on its own.
 export function isValidDnsOnlyPrefix(prefix: string): boolean {
   return (
     prefix.length > 0 &&

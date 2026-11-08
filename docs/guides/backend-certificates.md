@@ -80,7 +80,7 @@ your root automatically trusts what it issues:
 	}
 }
 
-acme.{$BASE_DOMAIN} {
+acme.home.example {   # your domain — Caddy isn't given BASE_DOMAIN
 	acme_server {
 		ca local
 		# 12h is the default and it does not survive a daily renewal timer — see below.

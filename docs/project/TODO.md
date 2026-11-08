@@ -649,5 +649,9 @@ are fixed first, each with a regression test.
   shape as F12's per-key `settings.json` reads. A request-scoped read is the fix; changing the *storage format* is not (JSON is the
   right choice while the app is the writer and the file stays a human-readable recovery record)
 - Tier-3 integration rig + Forgejo CI (Phase 8b) — deferred by choice
+- **Dotted names for routes** — a route's prefix is one label because every name once
+  shared one `*.BASE_DOMAIN` wildcard cert. Caddy now gives each name its own (2026-11-08),
+  so `rack1.grafana` could be a route as it can be a machine: relax `validate_prefix` and
+  `isValidPrefix` together.
 - Certificate status, expiry per name (Phase 3) — under the internal CA this is readable from
   Caddy's PKI endpoints; TLS probe stays the method-independent approach

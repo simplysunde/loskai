@@ -160,9 +160,12 @@ modules never write on their own — they are read + push only.
 **Caddy is a projection of the list.** Every proxied instance with a subdomain is a route,
 keyed by `@id` = the instance id, as a flat sibling matching one host:
 
-- **Inserted at index 0** of the server's routes. The bootstrap Caddyfile's wildcard site,
-  which issues the certificates, compiles to a handler-less terminal route matching every
-  name; behind it a route is dead and Caddy answers an empty `200`.
+- **Inserted at index 0** of the server's routes. A Caddyfile site block compiles to a
+  terminal route; one matching a routed name (the `*.BASE_DOMAIN` block the Caddyfile had
+  until 2026-11-08, or a hand-added wildcard) would leave a route behind it dead, with Caddy
+  answering an empty `200`. The bootstrap Caddyfile's only `:443` site is `localhost`: it
+  gives Caddy the server, and Caddy needs no domain — each routed name gets its own internal
+  cert as its route lands.
 - **Editing is delete-then-add**, never `PATCH` — one path that always converges.
 - **Both servers are discovered** on first use, and again by each health poll, by their
   `:443` and `:80` listeners — never a hardcoded `srv0`. `scheme` picks the server: `https` (default), `http` (kept out of `:443`
@@ -226,8 +229,9 @@ same request and the same pre-fill. A container linked to a route but since remo
 
 ### Decisions
 
-- **Prefixes are single DNS labels** for proxied routes, so every name sits under the one
-  `*.BASE_DOMAIN` certificate.
+- **Prefixes are single DNS labels** for proxied routes. The reason was the one
+  `*.BASE_DOMAIN` wildcard certificate, which covers one label only; since Caddy gives each
+  name its own certificate (2026-11-08) the rule could be relaxed, as it is for machines.
 - **The internal CA is the only TLS mode Loskai's configs ship.** Public ACME support was
   built and then deleted: Loskai never needed its token, and a second mode was the source of
   every bug in it. A backend that wants a trusted certificate of its own can get one from

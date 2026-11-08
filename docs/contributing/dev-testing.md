@@ -102,9 +102,8 @@ docker compose -f compose.dev.yml down -v     # wipe them too
 ## Notes
 
 - **`BASE_DOMAIN` is a Loskai-only setting in dev** — set it via the env above *or* on the
-  Settings page in the UI. The dev Caddy issues a cert per routed name as its route lands,
-  so it doesn't need the domain. Production differs: every Caddy there — container or LXC —
-  is given the domain, for one `*.BASE_DOMAIN` wildcard cert.
+  Settings page in the UI. Caddy never needs it — here or in production, which run the same
+  `caddy/Caddyfile`: each routed name gets its own cert as its route lands.
 - **`CADDY_HOST_IP` isn't needed** here: `CADDY_ADMIN_URL` uses an IP (`127.0.0.1`), so the
   DNS-rewrite answer IP derives from it automatically.
 - **Full name resolution** (actually browsing `https://test.lvh.me`) would need AdGuard's
@@ -123,7 +122,7 @@ assign must be reachable **from inside the Caddy container**:
 - A LAN target → by **IP**, e.g. `192.168.10.50:5000`.
 
 Caddy serves an internal cert, so the browser will warn it's untrusted (expected). To make
-it trusted, open the **certificate onboarding page** at <http://localhost:8081/> — it
+it trusted, open the **certificate onboarding page** at <http://127.0.0.1:8081/> — it
 detects your OS and walks you through installing Caddy's root CA. See
 [certificate-setup.md](../guides/certificate-setup.md).
 
@@ -139,7 +138,7 @@ docker exec loskai-dev-caddy cat /data/caddy/pki/authorities/local/root.crt > ca
 |---|---|
 | Backend startup `PermissionError: '/data'` | A stale `LOSKAI_DATA_DIR=/data` in your `.env` (or exported in your shell) — that's the in-container path, which you can't write to from the host. Unset it and let it default to the repo's `data/`. |
 | Backend startup `PermissionError` on the repo's own `data/` or `stacks/` | An older, root-run Loskai left them root-owned (the container now runs as the owner of `./data`, and hands such files back when it starts). `sudo chown -R "$USER" data stacks`. |
-| `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The dev Caddyfile's `*.localhost` placeholder creates one — recreate Caddy (`up -d`). |
+| `curl …/config/apps/http/servers` → "invalid traversal path" | Caddy has no HTTP server yet. The Caddyfile's `localhost` site creates one — recreate Caddy (`up -d`). |
 | Browser "can't establish a connection" | Wrong port — use `:8443` (https) / `:8081` (http), not the defaults. |
 | **502 Bad Gateway** | Caddy matched the route but can't reach the upstream. Use the container **service name** (`adguard:3000`) or a **LAN IP**, never `localhost`. Re-assign (delete + assign). |
 | AdGuard wizard sent you to a dead port | You picked a web port the rig doesn't publish. Reset (`down -v`) and use **3000**, or republish the port you chose. |

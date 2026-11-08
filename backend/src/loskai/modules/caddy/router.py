@@ -43,7 +43,7 @@ async def root_certificate() -> dict:
     `shared/auth.PUBLIC_ROUTES`.
 
     Unauthenticated on purpose: this is a public certificate, handed to every device that
-    wants to trust `*.BASE_DOMAIN`, and the page offering it has to be reachable by
+    wants to trust the names Loskai routes, and the page offering it has to be reachable by
     someone who is not a Loskai admin. It contains no key material, and the settings key
     `certificate_tab` governs where the page is *advertised*, not who may fetch this.
     """

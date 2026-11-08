@@ -278,7 +278,7 @@ with the machine or its SSH connection.
   that protects hand-added ones. The one exception is `POST /api/adguard/rewrites/clear`
   (Settings › Network): destructive, confirmed in a dialog, never a side effect, and it puts
   Loskai's own back in the same call. **No wildcard DNS rewrite** — one per routed instance.
-  (Caddy's TLS certificate for `*.BASE_DOMAIN` is unrelated.)
+  (Caddy's TLS certificates are unrelated.)
 
 **Stacks and recipes**
 

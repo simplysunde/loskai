@@ -53,9 +53,10 @@ class AssignError(LoskaiError):
 
 
 def validate_prefix(prefix: str, route_mode: Literal["proxy", "dns_only"] = "proxy") -> None:
-    """`proxy` stays a single DNS label (keeps every name under the one `*.BASE_DOMAIN`
-    wildcard cert). `dns_only` has no cert involved, so dot-separated multi-label names
-    are allowed — each label still has to be a valid DNS label on its own."""
+    """`proxy` stays a single DNS label — a rule from when every name shared one
+    `*.BASE_DOMAIN` wildcard cert, which covers one label (architecture.md, Decisions).
+    `dns_only` never had one, so dot-separated multi-label names are allowed — each label
+    still has to be a valid DNS label on its own."""
     if not prefix:
         raise AssignError("prefix is required", 422)
     if route_mode == "dns_only":
@@ -511,8 +512,8 @@ class MachineSsh(BaseModel):
 
 
 class MachineCreate(BaseModel):
-    """Name a LAN machine. `hostname` is its name too, and may be dotted (`rack1.vm3`) — no
-    wildcard cert has to cover it — and `address` is a bare IP, since DNS resolves names to addresses, not ports.
+    """Name a LAN machine. `hostname` is its name too, and may be dotted (`rack1.vm3`) —
+    it has no certificate — and `address` is a bare IP, since DNS resolves names to addresses, not ports.
     `ssh` sets (an object) or removes (null) its SSH config entry; left out, the entry only
     follows a rename or a move."""
 

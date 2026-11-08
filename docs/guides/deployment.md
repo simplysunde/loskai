@@ -235,8 +235,9 @@ is in the `caddy-config` volume. So a restart, a reboot or a rebuilt image needs
 from Loskai.
 
 The flip side: while a save exists, Caddy doesn't read the Caddyfile. A changed Caddyfile
-(an update to `caddy/`) or a new `BASE_DOMAIN` takes effect once the save is removed, then
-**Sync** puts Loskai's routes back:
+(an update to `caddy/`) takes effect once the save is removed, then **Sync** puts Loskai's
+routes back. (A new `BASE_DOMAIN` needs none of this — Caddy isn't given the domain; Sync
+pushes the routes under the new one.)
 
 ```bash
 docker compose exec caddy rm /config/caddy/autosave.json && docker compose restart caddy   # Docker

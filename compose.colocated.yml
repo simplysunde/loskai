@@ -11,8 +11,6 @@ services:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
       - "443:443"
       # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
-    environment:
-      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
     volumes:
       - caddy-data:/data # the internal CA and its certificates
       - caddy-config:/config # the saved config, routes included — Caddy starts from it (--resume)
@@ -59,7 +57,7 @@ services:
       - ADGUARD_USER=${ADGUARD_USER:-}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
       - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
-      - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
+      - BASE_DOMAIN=${BASE_DOMAIN:-}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
       - LOSKAI_USERNAME=${LOSKAI_USERNAME:-}
       # Optional; each is also in Settings, and set here it wins (docs/guides/deployment.md).
