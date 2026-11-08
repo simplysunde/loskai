@@ -81,6 +81,12 @@ Reach it **by IP** (no DNS or trust needed first).
 
 ```caddyfile
 :80 {
+	# Names under BASE_DOMAIN belong to HTTPS (an http-scheme route Loskai pushes wins first)
+	@internal host *.{$BASE_DOMAIN:example.invalid}
+	handle @internal {
+		redir https://{host}{uri}
+	}
+
 	# Caddy's internal root CA, streamed live from its PKI (unique per install — never committed)
 	handle /caddy-root.crt {
 		root * /data/caddy/pki/authorities/local
@@ -96,8 +102,9 @@ Reach it **by IP** (no DNS or trust needed first).
 }
 ```
 
-The setup dir is mounted read-only (`./caddy/setup:/srv/setup:ro`); the PKI path is already
-inside Caddy's `/data` volume. The `/caddy-root.crt` file appears once Caddy has initialised
+The page is at `/srv/setup`: baked into the co-located Caddy image, fetched into the LXC by
+`create-caddy-lxc.sh`, and mounted read-only from `./caddy/setup` in dev. The PKI path is
+already inside Caddy's `/data` volume. The `/caddy-root.crt` file appears once Caddy has initialised
 its `local` CA (on first internal-cert issuance — hit any HTTPS name once if it 404s).
 
 ### Separate server — why it's safe
@@ -146,6 +153,7 @@ rebuild it. A Caddy LXC fetched it once at creation (`create-caddy-lxc.sh`); re-
 fetch inside the LXC — `file_server` reads the file fresh, so no restart is needed:
 
 ```bash
+REPO_RAW_BASE=<the base URL you gave create-caddy-lxc.sh>   # not set inside the LXC
 curl -fsSL "$REPO_RAW_BASE/caddy/setup/index.html" -o /srv/setup/index.html
 ```
 

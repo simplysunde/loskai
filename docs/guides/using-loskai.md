@@ -12,7 +12,8 @@ domain and `192.168.10.20` as the Docker host.
 Every service gets a name like `jellyfin.home.lan`. **Caddy** answers that name and
 forwards to the service (the *route*); **AdGuard** tells your devices where the name lives
 (the *DNS rewrite*). Loskai does both in one step and remembers it in `data/instances.json`.
-Nothing else is stored.
+The rest of `data/` is its settings, accounts, SSH keys, logs and launcher icons — no
+database.
 
 ## Accounts
 
@@ -27,9 +28,10 @@ adds to the ones before it:
 
 You stay signed in while a Loskai page is open, even in a background tab, and are signed
 out 2 hours after you close the last one (an admin changes that in Settings › Security).
-Your name at the bottom of the sidebar opens a menu: your role and tabs, **Change
+Your name at the bottom of the sidebar opens a menu: your level, **Change
 password**, and **Log out**, which signs you out on every device and back to the
-Dashboard; **Log in** is in its place then.
+Dashboard; **Log in** is in its place then. **Light mode** / **Dark mode** above it switches
+the theme. On a phone the sidebar is a drawer, opened with the menu button at the top.
 
 ## Dashboard
 
@@ -64,8 +66,11 @@ Your containers, grouped by compose project.
   > `/media/books` → Save.
 - **Other containers** were started elsewhere (another compose folder, `docker run`).
   Start, stop and remove work; editing doesn't — the files aren't Loskai's.
-- **Volumes** lists Docker volumes and which containers use them. An unused one can be
-  deleted.
+- Each container has **Logs** and, while it runs, a **Terminal** — a shell in it, with
+  one-click commands above it (processes, env vars, disk usage; `psql` on Postgres, say).
+- **New stack** makes one from a `compose.yml` you paste or write.
+- **Volumes** (the switch beside **Containers**) lists Docker volumes and which containers
+  use them. An unused one can be deleted.
 
 **Install recipe** opens the catalog. A recipe is a ready-made `compose.yml` plus the
 questions it needs answered. **Check for updates** lists what you installed from recipes and
@@ -91,7 +96,7 @@ Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has
 | Source | For | Example |
 |---|---|---|
 | Container | a container on this host | `whoami` → `whoami.home.lan` → `192.168.10.20:8081` |
-| Network service | AdGuard, your router, Caddy itself | `adguard.home.lan` → AdGuard's web UI |
+| Network | AdGuard, the WireGuard dashboard, Caddy's Certificate page | `adguard.home.lan` → AdGuard's web UI |
 | External | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
 
 A container route can **follow its container** (on by default when Loskai can work out its
@@ -101,6 +106,13 @@ pick **HTTPS** (the default), **HTTP** for a device that can't trust the certifi
 
 The two pills at the top: **AdGuard** shows whether DNS is reachable, and has a one-click
 button to route AdGuard's own UI; **Caddy** shows the address every name answers with.
+**Sync** re-pushes every Caddy route and adds any missing or stale AdGuard rewrite. Below
+the pills, a banner lists any DNS warnings, and another any route whose container was
+removed, with **Delete** beside each.
+
+On a row, **Remove route** takes its route and DNS rewrite away but keeps the entry, to
+assign a URL again later; **Delete instance** removes the entry too. Neither touches the
+service itself.
 
 ## Machines
 
@@ -135,7 +147,7 @@ Its search finds a section by what is in it and shows only those.
 
 Each field saves when you press Enter or leave it, and Escape puts it back; a value that
 isn't valid says why and saves nothing. A machine set up before the overview existed says
-"install again" there — one click.
+**Install again** there — one click.
 
 **Tools** add buttons to a machine's dialog — the ones that fit what the machine has, with
 nothing to switch on, each as a card under its **Tools**. **System** updates it (with its own package manager), reboots it or shuts it down;
@@ -151,7 +163,7 @@ back up.
 
 A tool the machine doesn't have yet is under **Add tool**, on the right of the Tools
 heading — each says what it installs, and picking one installs it, in the terminal. The **Tools** button (the wrench) on the machine's row in the
-Machines tab lists the added tools — tmux, Claude Code, Tailscale — with how each stands
+Machines tab lists the added tools — tmux, Git, Claude Code, Tailscale — with how each stands
 there, and opens one in a dialog: the tool itself, or, if it isn't added yet, what it needs
 and Add.
 
@@ -160,7 +172,8 @@ and Add.
   **Attach** opens one in the terminal (detach with Ctrl+B, then D, and it keeps running),
   **End** ends it, and **New session** starts one with the name you type.
 - **Tailscale** is installed with Tailscale's own installer. **Connect** brings it up — the
-  first time, the terminal shows a link to log the machine in. The overview then shows
+  first time, the terminal shows a link to log the machine in; **Status** shows the tailnet
+  in the terminal. The overview then shows
   its Tailscale address, and Tailscale's card lists your tailnet — each device, its
   address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
 
@@ -182,13 +195,14 @@ and Add.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.
 
-A machine set up before a tool's facts existed asks you to **install again** in its dialog —
+A machine set up before a tool's facts existed asks you to **Install again** in its dialog —
 one click, and its overview comes back with them.
 
 Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
 host key it shows against the machine's, then type that user's password once and Loskai
-installs its key (or copy its two lines over yourself). Its dialog does this again, under
-SSH. Once it's set up, a terminal button sits on its row and in its dialog, and the row
+installs its key (**Install it for me**), or copy its two lines over yourself (**I'll add it
+myself**). The first time, it says "Loskai has no SSH key yet." — an admin's password makes
+it. Its dialog does this again, under SSH. Once it's set up, a terminal button sits on its row and in its dialog, and the row
 gets **Update** (the download arrow) — System's update, run in that terminal. In it, what a program copies —
 tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
 wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
@@ -217,6 +231,9 @@ still there. Adding it again later installs the same key again.
 - **General** — base domain, the Docker host's IP, recipe sources, export a backup.
 - **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
   Each service is optional: one that is unset or down greys out only its own part of the UI.
+  **Clear rewrites** (under Reset rewrites) deletes every rewrite in AdGuard, hand-added ones
+  too, then writes Loskai's back — for an AdGuard that had rewrites before Loskai. Under
+  WireGuard, a reminder of the DNS to give each peer: AdGuard's IP.
 - **SSH** — Loskai's key (its fingerprint, New key), how long your password unlocks it
   (15 minutes unless you pick 1, 3, 8 or 24 hours), and the SSH config for your own computer.
 - **Users** — the accounts: add one, set its level, set its password, remove it.

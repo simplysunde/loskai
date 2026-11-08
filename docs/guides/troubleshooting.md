@@ -3,7 +3,7 @@
 # Troubleshooting
 
 **Read this when** something is broken: a 502, a redirect loop, a name that won't resolve, a
-greyed-out card, a stack that won't start.
+module shown unreachable, a stack that won't start, SSH to a machine.
 
 Common failures once Loskai is routing traffic, and how to tell them apart. The recurring
 theme: **DNS, TLS, and the route can all be fine while the *upstream* (the backend Caddy
@@ -20,8 +20,9 @@ Quickest triage — a name that's routed but failing almost always falls into on
 | Name doesn't resolve at all | DNS | [Won't resolve](#a-name-doesnt-resolve) |
 | Cert warning / "not secure" | TLS trust | [Cert warning](#certificate-warning) |
 | VPN clients ignore AdGuard | routing | [VPN DNS](#vpn-clients-arent-using-adguard) |
-| A dashboard card is greyed out | reachability | [Greyed card](#a-module-card-is-greyed-out) |
+| Caddy, AdGuard or Docker shows unreachable | reachability | [Unreachable](#a-module-shows-unreachable) |
 | A stack fails after Save or install | the Docker host | [Stack won't start](#a-stack-wont-start-after-save) |
+| A machine's SSH, terminal or tool fails | SSH | [Machines](#a-machine-over-ssh) |
 
 ---
 
@@ -31,10 +32,12 @@ The name resolves, the cert is trusted, and Caddy answers **`200` with `content-
 and no `Via` header. Nothing is broken downstream: **your route never ran.** Something ahead
 of it in Caddy's `routes` array matched first and terminated.
 
-The usual something is the Caddyfile's own `*.{$BASE_DOMAIN}` block. It exists only so Caddy
-issues the wildcard cert, and a site block with no handlers adapts to a **`"terminal": true`
-route with nothing to handle the request** — which the Caddyfile adapter places first. Any
-route sitting behind it that it also matches is dead.
+The usual something is the Caddyfile's own `*.{$BASE_DOMAIN}` block. It exists so Caddy
+issues each name under the domain its own internal cert (`tls internal`), and it adapts to a
+**`"terminal": true` route** — which the Caddyfile adapter places first. In a Caddyfile from
+before 2026-09-24 that block had no handlers, so what it caught got an empty `200`; today's
+answers the "Nothing is routed" `404` page below. Either way, any route sitting behind it
+that it also matches is dead.
 
 **Three responses from the same Caddy tell the three cases apart:**
 
@@ -50,7 +53,9 @@ route sitting behind it that it also matches is dead.
 curl -s http://<caddy>:2019/config/apps/http/servers/srv0/routes | jq '[.[] | {id: ."@id", host: .match[0].host, terminal}]'
 ```
 
-Every route Loskai pushes must come **before** any `terminal` entry that matches its host.
+The `:443` server may not be called `srv0` — Loskai finds it by its listener;
+`curl -s http://<caddy>:2019/config/apps/http/servers | jq keys` lists the names. Every
+route Loskai pushes must come **before** any `terminal` entry that matches its host.
 Loskai has inserted at the head since 2026-09-05 (`PUT …/routes/0`); builds before that
 appended, so **every route was shadowed** wherever Caddy ran with the real `BASE_DOMAIN` in
 that block — the co-located and split-DNS layouts. Update, then re-push from
@@ -150,9 +155,11 @@ pct exec <caddy-ctid> -- curl -skv https://<target-ip>:8006/
   but the default resolver doesn't, your device isn't pointed at AdGuard (see
   [VPN DNS](#vpn-clients-arent-using-adguard) or set the router's DHCP DNS to the AdGuard IP).
 - **Cold start:** a brand-new Caddy/AdGuard has no routes or rewrites yet. Reach Loskai directly
-  at `http://<docker-host>:8080` and click **"Push all"** to seed every route + DNS rewrite.
-- **Rewrite missing:** the AdGuard rewrite is best-effort on assign. In Loskai's Routing view,
-  the row should show the rewrite; re-push if it's absent.
+  at `http://<docker-host>:8080` and click **Sync** on the Routing tab to seed every route +
+  DNS rewrite.
+- **Rewrite missing:** the AdGuard rewrite is best-effort on assign. On the Routing tab the
+  row's DNS column then says **missing** (or **conflict**, when AdGuard has another answer for
+  the name too); **Sync** adds it.
 
 ---
 
@@ -160,7 +167,8 @@ pct exec <caddy-ctid> -- curl -skv https://<target-ip>:8006/
 
 Browser warns the cert isn't trusted on `https://<name>.<domain>`. Expected in the default
 **internal-CA** mode — Caddy signs with its own root, which devices don't trust until you
-install it **once**. Open `http://<caddy-ip>/` on the device and follow the onboarding page.
+install it **once**. Open Loskai's Certificate page (`http://<docker-host>:8080/certificate`)
+on the device and follow it — or `http://<caddy-ip>/`, which works with Loskai stopped.
 Full walkthrough: [certificate-setup.md](certificate-setup.md).
 
 ---
@@ -180,10 +188,11 @@ Names resolve on the LAN but not over WireGuard (or vice-versa).
 
 ---
 
-## A module card is greyed out
+## A module shows unreachable
 
-The dashboard greys out a card (Caddy / AdGuard / VPN) when Loskai can't reach that service's
-API. Each module degrades independently — a greyed card never blocks the others.
+When Loskai can't reach a service's API, the Routing tab's **Caddy** or **AdGuard** row says
+so, the Docker tab shows a banner for Docker, and the sidebar puts a dot by the tab. Each
+module degrades independently — one down never blocks the others.
 
 - Re-check the service's URL in **Settings** (or the env var) and that the IP/port is right.
 - The API must be reachable **from the Docker host** (where Loskai runs). If you firewalled the
@@ -196,7 +205,8 @@ API. Each module degrades independently — a greyed card never blocks the other
 ## A stack won't start after Save
 
 Save (or the install wizard) writes the files, then runs `docker compose up -d`; when that
-fails, the editor shows Compose's output under the button and the files stay saved. The
+fails, the editor shows Compose's output above **Cancel** and **Save**, and the files stay
+saved. The
 usual causes are on the Docker host, not in Loskai:
 
 - **`bind source path does not exist`** — a folder under Folders isn't there, or is
@@ -209,3 +219,19 @@ usual causes are on the Docker host, not in Loskai:
 
 Either way, untick the option (or fix the folder) under Edit and Save again. An option is
 never required: unticked, Jellyfin still runs and transcodes on the CPU.
+
+---
+
+## A machine over SSH
+
+- **"Loskai's key is locked"** — your password unlocks it for you, for 15 minutes unless
+  Settings › SSH says longer. The dialog asks for it.
+- **"This machine's host key has changed."** — the machine was reinstalled, or something
+  else answers at its address. **Trust the new key** only if you know why.
+- **"Its status line is older than this Loskai — install again"** — press **Install again**
+  beside it.
+- **"sudo didn't accept that password for …"** — an automatic run checks sudo's password on
+  the machine before it starts; type it again. "may not use sudo there" means the user has
+  no sudo at all.
+- **"… may not list containers — give it the rights, or sudo."** — add the user to the
+  `docker` group, or give it `sudo` for `docker ps` (`pct list` and `qm list` on Proxmox).

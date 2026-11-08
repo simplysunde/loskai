@@ -7,7 +7,7 @@ files, or a cold start.
 
 Loskai ships as a single image: one FastAPI process serves the API **and** the built
 React UI on **:8080**. This doc is the reference for deploying it — the environment
-variables it reads, the volumes it needs, and the two supported layouts. For a local dev
+variables it reads, the volumes it needs, and the three supported layouts. For a local dev
 setup (Loskai on the host via `uv` + Vite, throwaway Caddy/AdGuard containers), see
 [dev-testing.md](../contributing/dev-testing.md) instead.
 
@@ -85,7 +85,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 | `CERTIFICATE_TAB` | Where the [Certificate page](certificate-setup.md) is linked in the sidebar: `public` (default — everyone, including logged-out visitors), `admin` (only once logged in), `hidden`. Set it to `hidden` when Caddy serves publicly trusted certs and there is nothing to install. Visibility only: the page and its download stay public in every mode. |
 | `SSH_UNLOCK_MINUTES` | How long typing your password unlocks Loskai's SSH key for you: `15` (default), `60`, `180`, `480` or `1440` minutes. Logging out locks it sooner. Also in Settings › SSH. |
 | `CADDY_HOST_IP` | The IP DNS rewrites resolve to (where Caddy listens on `:443`). Only needed when `CADDY_ADMIN_URL` is a hostname or loopback; otherwise derived from it. **Must be an address other machines can reach** — a loopback (`127.0.0.1`, `::1`) or unspecified (`0.0.0.0`, `::`) value is rejected from the UI and ignored from the environment, since AdGuard hands the answer to every client. |
-| `HOST_IP` | This Docker host's LAN IP. Auto-fills a container's route upstream as `<host_ip>:<published-port>` whenever Caddy can't reach that container by name — always in split-LXC, and per container in the other two (see [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable)). Optional; the upstream is left blank without it. In split DNS and all-in-Docker this is the same address as `CADDY_HOST_IP`. |
+| `HOST_IP` | This Docker host's LAN IP. Auto-fills a container's route upstream as `<host_ip>:<published-port>` whenever Caddy can't reach that container by name — always in split-LXC, and per container in the other two (see [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable)). Optional; the upstream is left blank without it. In split DNS and all-in-Docker this is the same address as `CADDY_HOST_IP`. Also the `from=` that limits Loskai's SSH keys on each machine to this host. |
 
 Two things Loskai deliberately **never** takes: any TLS credential (certificates live
 with Caddy) and private-registry credentials (`docker login` is a host precondition).
@@ -98,7 +98,7 @@ changing one in isolation will break things (see below).
 
 | Variable | Default | What it is |
 |---|---|---|
-| `LOSKAI_DATA_DIR` | the repo's `data/` | Path for `settings.json`, `instances.json`, the session secret, `recipes/`, and `icons/` (uploaded launcher images — the only binary state Loskai keeps, so a backup of this volume carries them). The Dockerfile and every compose file set `/data` explicitly to match the state mount, so the default only applies when you run the backend directly. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
+| `LOSKAI_DATA_DIR` | the repo's `data/` | Path for `settings.json`, `instances.json`, `users.json`, `logins.log`, the session secret, `ssh/` (Loskai's SSH private keys, its SSH config and known_hosts — treat a backup as secret), `recipes/`, `recipes-cache/`, and `icons/` (uploaded launcher images — the only binary state Loskai keeps, so a backup of this volume carries them). The Dockerfile and every compose file set `/data` explicitly to match the state mount, so the default only applies when you run the backend directly. Was `/opt/loskai` before 2026-09-05 — see [the coupling](#state-volume--the-loskai_data_dir-coupling). |
 | `LOSKAI_STATIC_DIR` | `static` | Image path where the built React bundle is served from (populated by the Dockerfile `COPY`, not a volume). |
 
 ## Volumes
@@ -132,7 +132,8 @@ changing it could stop that app starting. A stack's **Delete with data** still r
 files: what Loskai's user can't, a throwaway container from Loskai's own image removes as
 root.
 
-- A `.env` and the session secret are written `0600`, readable by their owner only.
+- A stack's `.env` and Loskai's own state — settings, instances, accounts, logs, the session
+  secret, the SSH keys — are written `0600`, readable by their owner only.
 - `./data` owned by root (a clone made with `sudo`), or `user:` set on the service: Loskai
   runs as that, exactly as before.
 - `STACKS_DIR` set to a folder the same user can't write (`/srv/stacks` owned by root):
@@ -168,7 +169,7 @@ Run from the project directory and it resolves as intended; `scripts/deploy.sh` 
 there first, so the scripted path is safe. Invoke it from somewhere else —
 `docker compose -f ~/loskai/compose.yml up -d` from your home directory, or a systemd unit
 with no `WorkingDirectory=` — and stacks point at `<that directory>/stacks` instead. The
-Stack Manager then shows an empty list rather than an error, because the directory does
+Docker tab then shows no **Stacks** rather than an error, because the directory does
 exist; Docker created it.
 
 Set `STACKS_DIR` to an absolute path in `.env` to pin it and stop caring where compose is
@@ -229,5 +230,5 @@ state is discarded on the next recreate.
 ## Cold start
 
 On a brand-new Caddy no routes exist yet, so `loskai.<domain>` won't resolve. Reach
-Loskai directly at `http://<docker-host>:8080` and click **"Push all"** to seed the
-routes and DNS rewrites.
+Loskai directly at `http://<docker-host>:8080` and click **Sync** on the Routing tab to seed
+the routes and DNS rewrites.

@@ -162,7 +162,7 @@ bind-mount paths (for Immich, `UPLOAD_LOCATION` and `DB_DATA_LOCATION` in `.env`
 That decision is the only real work here. Any of `compose.yml`, `compose.yaml`,
 `docker-compose.yml` or `docker-compose.yaml` is found; there's no need to rename it.
 
-**4. Start it from Loskai.** The stack now appears on the Docker tab — hit **up**.
+**4. Start it from Loskai.** The stack now appears on the Docker tab — hit **Compose up**.
 
 ---
 
@@ -236,8 +236,8 @@ Bind-mount paths are the only part of a compose project that cares *where the fo
 
 Different question from the one above: not adopting a project, but relocating the whole
 install. All of Loskai's own state lives in two directories beside the compose file —
-`data/` (settings, instances, session secret, hand-added recipes) and `stacks/` (the
-managed stacks). There is no database and nothing in `/opt`.
+`data/` (settings, instances, accounts, logs, session secret, Loskai's SSH keys, recipes
+and their cache) and `stacks/` (the managed stacks). There is no database and nothing in `/opt`.
 
 ### To a new path on the same machine — safe
 
@@ -287,15 +287,20 @@ moves with everything else.
 **2. Stored upstreams pin the old host IP.** Each instance records its upstream verbatim
 in `data/instances.json`, e.g. `192.168.10.220:8081`, and `host_ip` / `caddy_host_ip` sit
 in `data/settings.json`. On a machine with a different LAN IP all of them are wrong and
-every route returns a `502`. Fix `host_ip` and `caddy_host_ip` in **Settings → Network**
-first, then repoint each route with **Change URL** on the Routing tab — there is no bulk
-re-derive. Containers reachable by name (split DNS, on `loskai-edge`) are unaffected;
-they were never pinned to an address.
+every route returns a `502`. Fix `host_ip` (**Docker Host LAN IP**, Settings → General)
+and `caddy_host_ip` (**LAN IP** under Caddy, Settings → Network) first, then repoint each
+route with **Change URL** on the Routing tab — there is no bulk re-derive. Containers
+reachable by name (split DNS, on `loskai-edge`) are unaffected; they were never pinned to an
+address.
+
+Machines accept Loskai's SSH keys only `from=` the old host's IP, so after fixing the Docker
+Host LAN IP, run **SSH setup** again in each machine's dialog, under SSH.
 
 **3. `.env` is in neither directory.** It sits beside the compose file, not inside `data/`
-or `stacks/`. Most settings live in `settings.json` and travel with `data/`, but the
-env-only ones — `STACKS_DIR` and `LOSKAI_PASSWORD` — do not. Copy `.env` across too, or
-re-enter what you need. (`LOSKAI_DATA_DIR` needs no copying: it is set in the compose file
+or `stacks/`. Settings made in the UI live in `settings.json` and travel with `data/`, but
+the env-only ones — `STACKS_DIR`, `LOSKAI_USERNAME` and `LOSKAI_PASSWORD` — do not, nor does
+any value set in `.env`: it is read from there, never written to `settings.json`. Copy
+`.env` across too, or re-enter what you need. (`LOSKAI_DATA_DIR` needs no copying: it is set in the compose file
 beside the mount it has to match, so it travels with that.)
 
 ---

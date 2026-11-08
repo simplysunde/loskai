@@ -69,7 +69,8 @@ parses as an IP, so it would otherwise derive `127.0.0.1` as the DNS-rewrite ans
 client would resolve the routed service to *its own* loopback; `0.0.0.0` is a bind wildcard and
 names no host at all. Loskai refuses both from either source, so wherever Caddy is addressed
 that way you must set `CADDY_HOST_IP` to the host's LAN IP — until you do, routed services get
-no DNS rewrite and the Routing tab reports the answer IP as unconfigured.
+no DNS rewrite: the Routing tab's Caddy row shows no address, and a new route warns that its
+DNS rewrite was skipped.
 
 ## The comparison
 
@@ -273,8 +274,8 @@ Four things to know:
 - **`external: true` means "already exists".** The network is created by the Loskai stack, so
   bring that up first; a stack declaring it external fails to start if it doesn't exist yet.
   `docker network create loskai-edge` also works if you'd rather create it by hand.
-- **The port still has to be discoverable.** Loskai pre-fills the container port from a single
-  published binding, falling back to a single exposed one. A container that exposes several
+- **The port still has to be discoverable.** Loskai pre-fills the container port from its
+  `loskai.port` label first, then a single published binding, then a single exposed one. A container that exposes several
   and publishes none leaves the upstream blank — type `name:port` yourself.
 - **Nothing here is exclusive to layout B** — the mechanism is a shared Docker network, so it
   works in all-in-Docker too if you add the network to `compose.colocated.yml` and attach

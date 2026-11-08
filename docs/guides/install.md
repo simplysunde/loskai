@@ -127,10 +127,10 @@ docker compose up -d --build
 1. Open `http://<docker-host>:8080` and **create the admin account** — a username and a
    password (unless `LOSKAI_PASSWORD` is in `.env`, which makes it as `admin`, or
    `LOSKAI_USERNAME`). More accounts are added in Settings › Users.
-2. Check the dashboard — the **Caddy** and **AdGuard** cards should show connected. Greyed out
-   = Loskai can't reach that service; re-check its IP and firewall rule.
+2. Check the **Routing** tab — its **Caddy** and **AdGuard** rows should say online. Anything
+   else = Loskai can't reach that service; re-check its IP and firewall rule.
 3. **Cold start:** a brand-new Caddy has no routes, so `loskai.example.no` won't resolve yet —
-   that's why you reached the UI by IP. Click **"Push all"** to seed routes and DNS rewrites.
+   that's why you reached the UI by IP. Click **Sync** (Routing tab) to seed routes and DNS rewrites.
 4. **Routing** tab → **Add route** to assign your first `https://service.example.no`.
 
 To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../../README.md#updating)).
@@ -212,7 +212,7 @@ device; see [certificate-setup.md](certificate-setup.md).
 
 ### B3 — First run
 
-Identical to [Step 4](#step-4--first-run) — the dashboard cards, the "Push all" cold start,
+Identical to [Step 4](#step-4--first-run) — the Caddy and AdGuard rows, the **Sync** cold start,
 and the first route all behave the same. To update later:
 
 ```bash
@@ -230,7 +230,8 @@ containers on the Docker host. Supported, and the honest answer when a second ma
 option — but it is the only layout that needs the host reconfigured before it will start:
 **clear `:53` first**, since most Linux hosts run `systemd-resolved` on it. Then use B2 above
 with `compose.colocated.yml`, dropping `ADGUARD_URL` (that file points at the AdGuard
-container). [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
+container). Once it is up, finish AdGuard's setup at `http://<docker-host>:3000` with the
+user and password from `.env`. [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
 ownership and states C's costs at the point of choice.
 
 ---
