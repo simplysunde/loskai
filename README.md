@@ -2,18 +2,38 @@
 
 **Safe passage for your Docker deployments.**
 
-A single Docker container that acts as the control plane for your entire homelab —
-five independent modules (Docker, Caddy, AdGuard, WireGuard, SSH) behind one web UI. Each
-degrades gracefully; nothing depends on another module being healthy.
+A control panel for your homelab, in one Docker container: give any service an HTTPS
+name in one step, run your Docker stacks, install apps from recipes, and manage the
+machines on your network over SSH. Five independent modules (Docker, Caddy, AdGuard,
+WireGuard, SSH) behind one web UI — each degrades gracefully; nothing depends on another
+module being healthy.
 
-![The Routing tab](docs/images/routing.png)
+### A name for every service
 
-- **A name for every service** — `jellyfin.home.lan` instead of `192.168.10.20:8096`, over
-  HTTPS. One step sets both the Caddy route and the AdGuard DNS entry.
-- **Machines by name** — routes on a machine follow it when its address changes, and over
-  SSH: what runs there, a terminal in the browser, its updates and tools.
-- **Docker, grouped by stack** — start, stop, update, edit, and install apps from recipes.
-- **A dashboard** — every service as a launcher card, usable without logging in.
+`jellyfin.home.lan` instead of `192.168.10.20:8096`, over HTTPS. One step sets both the
+Caddy route and the AdGuard DNS entry.
+
+![Routing: a container gets its HTTPS name in one step](docs/images/routing.png)
+
+### Apps from recipes
+
+Docker, grouped by stack — start, stop, update, edit, and install apps from recipes, routed
+from the same dialog.
+
+![Docker: an app installed from its recipe](docs/images/docker.png)
+
+### Your machines by name
+
+Routes on a machine follow it when its address changes. Over SSH: what runs there, its
+updates and tools, and a terminal in the browser.
+
+![Machines: a machine's overview and a terminal on it](docs/images/machines.png)
+
+### A dashboard for everyone
+
+Every service as a launcher card, usable without logging in — on a computer or a phone.
+
+![The dashboard](docs/images/dashboard.png)
 
 What each tab does: [Using Loskai](docs/guides/using-loskai.md).
 
@@ -31,6 +51,19 @@ Routing tab to assign clean HTTPS names to your services. One image
 optional and set in the UI; a `.env` beside the compose file can set them instead
 ([`.env.example`](.env.example)).
 
+### Where Caddy and AdGuard run
+
+- **With Proxmox — recommended** (`compose.yml`): Caddy and AdGuard each in their own LXC,
+  made by [`create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
+  [`create-adguard-lxc.sh`](scripts/create-adguard-lxc.sh) from the Proxmox shell.
+- **Without Proxmox — recommended** (`compose.caddy-loskai.yml`): AdGuard on any small
+  always-on box, Caddy and Loskai together in Docker.
+- **All in Docker** (`compose.colocated.yml`): all three on one host — supported, but the
+  host's `:53` has to be freed first.
+
+The [install guide](docs/guides/install.md) walks each one; [topologies.md](docs/guides/topologies.md)
+compares them.
+
 ### Updating
 
 ```bash
@@ -42,23 +75,6 @@ in a `compose.override.yml`, which Compose merges in, so a newer `compose.yml` c
 downloaded over the old one. From a checkout of this repo — to run what's on `main`, or your
 own changes — `bash scripts/deploy.sh` pulls the source and builds it instead
 ([deployment.md](docs/guides/deployment.md#images-and-releases)).
-
-- **With Proxmox — recommended** (`compose.yml`): Loskai on the Docker host; Caddy and
-  AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS
-  down). Provision them with [`scripts/create-caddy-lxc.sh`](scripts/create-caddy-lxc.sh) and
-  [`scripts/create-adguard-lxc.sh`](scripts/create-adguard-lxc.sh) (run from the Proxmox shell).
-- **Without Proxmox — recommended** (`compose.caddy-loskai.yml`): **split DNS** — AdGuard on
-  any small always-on box (a Raspberry Pi is ideal), Caddy and Loskai together in Docker on
-  your main host. The DNS box is set up once and left alone; everything else is one compose
-  stack. Set `CADDY_HOST_IP` to the host's LAN IP. It is also the only layout where a routed
-  container needn't publish a host port — join it to the shared `loskai-edge` network instead.
-- **All-in-Docker** (`compose.colocated.yml`): Loskai + Caddy + AdGuard as containers on one
-  host, with no second machine. Supported, and the only layout that needs the host
-  reconfigured before it starts — AdGuard's `:53` fights `systemd-resolved`, so free that port
-  first. Set `CADDY_HOST_IP` to the host's LAN IP.
-
-The three supported layouts, and the port trade-offs behind these recommendations, are
-compared in [topologies.md](docs/guides/topologies.md).
 
 The Docker socket is mounted read-write (root-equivalent) — Loskai should be the only
 container with it. `STACKS_DIR` is bind-mounted at the **same path** in and out. See

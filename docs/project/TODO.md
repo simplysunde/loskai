@@ -679,7 +679,10 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
       version. Into `docs/images/`.
 - [x] 41g Docs: how to run it, rerun it, and add or change a flow (a contributing page);
       the docs index; CLAUDE.md's commands and code map; `make help`.
-- [ ] 41h The README's top, as decided; `using-loskai.md` on the new stills.
+- [ ] 41h The README's top, as decided — written: a section per feature, each on its tab's
+      screenshot until 41i puts its animation there; the layouts cut to three lines each,
+      the rest in the guides. Left for 41i: the animations, and `using-loskai.md` on the
+      new stills.
 - [ ] 41i Live, once the VM has the RAM: `make demo` with Immich — so far run whole only
       without it (`DEMO_APPS="jellyfin bambuddy" DEMO_RECIPES=../loskai-recipes`), every flow
       recorded and converted; look over every animation, then commit them with the README
