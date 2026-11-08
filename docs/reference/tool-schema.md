@@ -13,8 +13,8 @@ the image, so a new tool or a change to one comes with a new version of Loskai.
 it `requires`, as the machine's overview found them:
 
 - **Standard tools** need nothing Loskai installs. System applies everywhere, Services puts
-  its buttons on every row of the Running list, and Proxmox applies where `pct` and `qm`
-  are.
+  its buttons on every service and container in the Running list, and Proxmox, which
+  applies where `pct` and `qm` are, on each running LXC and VM.
 - **Added tools** need a program the machine may not have yet, such as tmux. One whose
   missing programs Loskai can all install is offered under **Add tool**, on the Tools
   heading of the machine's dialog. Adding it installs them, and from then on it applies.
@@ -38,14 +38,15 @@ is `modules/ssh/tool.py`.
 
 ## A file
 
-The file name is the tool's id (`system.yml` → `system`): lowercase letters, digits and
-`-`.
+The file name is the tool's id (`system.yml` → `system`): a lowercase letter or digit, then
+at most 40 more of those or `-` (`^[a-z0-9][a-z0-9-]{0,40}$`). An action's id, a setting's
+id and a shared `session` name follow the same rule.
 
 ```yaml
 name: System                      # required
 description: Update the system, reboot, shut down.   # required — one line, its tooltip
 requires: [tmux]                  # optional — programs the machine must have
-actions:                          # required — at least one
+actions:                          # required — at least one, unless it has `settings`
   update:                         # the action's id
     label: Update                 # required — the button
     description: Refresh the package lists, then install every update.   # required — its tooltip
@@ -97,9 +98,11 @@ A command for POSIX `sh`, run as the machine's SSH user:
 - **One per package manager** (`apt`, `dnf`, `apk`, `pacman`) when it differs. The machine's
   manager is the one its overview found. An action without one for it can't run there,
   and says so.
-- **`sudo`** for what needs root. The user answers its password prompt in the terminal, and
-  Loskai holds no machine password. When the login *is* root, as on Proxmox, `sudo` becomes
-  a plain call, so the same file works with or without sudo installed.
+- **`sudo`** for what needs root. The user answers its password prompt in the terminal — or,
+  for an `automatic` action, in a dialog first, and Loskai holds that password in memory
+  under a one-time ticket for that run, for at most 60 s; it stores none. When the login
+  *is* root, as on Proxmox, `sudo` becomes a plain call, so the same file works with or
+  without sudo installed.
 - **`$1`** is the target, for an action with `target` or `ask`. Always quote it: `"$1"`.
 - `~/.local/bin` is on the `PATH`, as it is for the overview: per-user installs go there.
 - **System's `update` must stay plain `sudo <program> <args>` steps joined by `&&`**: the
@@ -122,8 +125,9 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 
-Every kind starts with a letter, a digit or (a session) `_`, never `-`, so `$1` can't reach a
-command as one of its options.
+Every target kind starts with a letter, a digit or (a session) `_`, never `-`, so `$1` can't
+reach a command as one of its options. A setting's kinds (`git-name`, `email`, below) are
+not held to that: their value can start with `-`.
 
 The key is `target`, not `on`: YAML reads `on:` as `true`. The rows a tool's card lists
 come from the overview (`rowsOf` in `lib/toolRows.ts`); the Running list's kinds stay on
@@ -137,7 +141,8 @@ as `$1`, exactly like a target. An action has one or the other.
 ### `settings`
 
 A tool can also have **settings**: values on the machine its card shows and sets, such as
-Git's commit name and email. A tool needs at least one action or one setting.
+Git's commit name and email. A tool needs at least one action or one setting; one with only
+settings leaves `actions` out (`actions: {}` is refused).
 
 ```yaml
 settings:
@@ -153,7 +158,12 @@ The card reads them all when it opens, in one command over SSH with Loskai's mai
 they show while the key is unlocked; a `read` that prints nothing, or fails, is "not set".
 Editing one runs its `write` with the new value as `$1`, checked against its kind first
 (`git-name` and `email`, beside the target kinds), then reads them all back. Each change is
-in the SSH log as `setting`, with the value — so a setting is never a secret.
+in the SSH log as `setting`, with the value — so a setting is never a secret. Both `read` and
+`write` run under `sh -c` with `~/.local/bin` on the `PATH` (`logic.USER_PATH`).
+
+Refused: `404` no such tool or setting, `409` the tool doesn't apply on the machine (or its
+overview can't be read), `422` a value its kind refuses, `423` while the key is locked, and
+`502` when the `write` fails, with the first line the machine said.
 
 ### `session`
 
@@ -164,6 +174,9 @@ Which tmux session the action runs in, where the machine has tmux:
   Running any of them while it is there attaches to it instead of starting another, and a
   card's row says `running` while it is there.
 - **`false`**: none — for an action that is tmux itself, such as attaching to a session.
+
+Any character but letters, digits, `_` and `-` in the name (a target's `.` or `@`) becomes
+`_`.
 
 ### `automatic`
 
@@ -193,7 +206,9 @@ It opens in the machine's terminal, so it needs Loskai's key unlocked like any t
 With sudo's password from the dialog, the terminal's first line is that password, which
 the command reads with echo off and hands to `sudo -S -v`; in tmux, through a FIFO.
 The SSH log records it as `action` (with the tool, the action, the target, the command and
-the tmux session) or `add-tool` (with the tool, the programs and the command).
+the tmux session), `add-tool` (with the tool, the programs and the command) or `sudo-rule`
+(`allow` — put on or taken off — and the command), each with `sudo_password: true` when the
+dialog's password came with it — never the password.
 
 ## Adding a tool
 

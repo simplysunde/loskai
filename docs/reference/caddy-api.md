@@ -15,12 +15,13 @@ and what it sends. Anything not listed here, Loskai does not touch.
 
 ## Data model recap
 
-Every route Loskai manages is a **flat, top-level route** in one HTTP server's `routes`
-array, keyed by `@id` = the instance's `id`. There is no nesting under a wildcard site
+Every route Loskai manages is a **flat, top-level route** in the `:443` server's `routes`
+array, the `:80` server's, or both — as the instance's `scheme` says (endpoint 2b) — keyed
+by `@id` = the instance's `id`. There is no nesting under a wildcard site
 block; each route is an independent sibling matching a single host. This is what makes the
 `@id` endpoints below idempotent — one `@id`, one route, add/replace/delete by that key.
 
-The server name (`srv0` in a stock Caddyfile adaptation) is **discovered at startup**, not
+The server name (`srv0` in a stock Caddyfile adaptation) is **discovered**, not
 hardcoded — see [Discover the server name](#1-discover-the-server-name).
 
 ---
@@ -33,9 +34,11 @@ hardcoded — see [Discover the server name](#1-discover-the-server-name).
 GET /config/apps/http/servers
 ```
 
-Returns the servers object. Loskai picks the **routing** server by its `:443` listener and
-caches it as `<server>` for the paths below — never `next(iter(...))`, which broke as soon as
-a second server existed. Done once, so nothing hardcodes `srv0`.
+Returns the servers object. Loskai picks the **routing** server — the one with a `:443`
+listener, else one that already has routes, else the first — and caches it as `<server>` for
+the paths below — never a bare `next(iter(...))`, which broke as soon as a second server
+existed. The cache is filled on first use and refreshed on every health check, so nothing
+hardcodes `srv0`.
 
 **A second server is discovered the same way**: the plain-HTTP one, by its `:80` listener
 (`<http-server>` below). It is deliberately a *separate* selector rather than a loosening of
@@ -78,12 +81,13 @@ upstream over TLS, certificate unverified. The `dial` stays a bare `host:port`.
 **Order matters, and this is why it is `PUT …/0` and not `POST …/routes` (which appends).**
 Loskai's own routes really are order-independent — each matches one specific host, so they
 are disjoint from each other. But they are not the only entries in the array: the bootstrap
-Caddyfile's `*.{$BASE_DOMAIN}` block, which exists only so Caddy issues the wildcard cert,
-compiles to a **handler-less route with `"terminal": true`** and the Caddyfile adapter puts
-it first. It matches every name Loskai routes. An appended route therefore never runs —
-Caddy answers the wildcard's **empty `200`**, so the failure looks like a success, not a
-`502`. That is what shipped until the 2026-09-05 live smoke; inserting at the head is the
-fix. Any future route Loskai pushes must go ahead of that block too.
+Caddyfile's `*.{$BASE_DOMAIN}` block — `tls internal`, and a "Nothing is routed" page
+answered `404` — compiles to a **route with `"terminal": true`** and the Caddyfile adapter
+puts it first. It matches every name Loskai routes. An appended route therefore never runs —
+Caddy answers that page instead of proxying. While the block was handler-less it answered an
+**empty `200`**, so the failure looked like a success, not a `502`. That is what shipped
+until the 2026-09-05 live smoke; inserting at the head is the fix. Any future route Loskai
+pushes must go ahead of that block too.
 
 ### 2b. The plain-HTTP twin (`scheme: "both"` / `"http"`)
 
@@ -123,7 +127,7 @@ Editing is **delete-then-add**, not an in-place update:
 
 ```
 DELETE /id/grafana            # ignore 404 — the route may not be pushed yet
-POST   …/servers/<server>/routes   # re-add with the new upstream/host
+PUT    …/servers/<server>/routes/0   # re-add with the new upstream/host
 ```
 
 Caddy does have `PATCH /id/<id>`, but it *strictly replaces and errors if the target
@@ -137,28 +141,30 @@ absent, which is irrelevant for a config change the user just initiated.
 
 The `POST …/push` operation behind the UI's **Sync** button (which also runs the AdGuard
 reconcile). Backstop for when Caddy has lost its config (fresh instance, wiped autosave).
-Rebuilds the full route set from Loskai's instance list. Two equivalent strategies:
+Rebuilds the full route set from Loskai's instance list, **one route at a time**: for each
+instance that has a subdomain **and** `route_mode: "proxy"`, the same delete-then-`PUT
+…/routes/0` as an edit (endpoint #4), into each server its `scheme` asks for. Idempotent by
+`@id` — the delete first is what makes re-pushing an existing route replace it rather than
+duplicate it. Each instance reports `ok` or `error` on its own. A `dns_only` instance has a
+subdomain but is skipped entirely — it never has a Caddy route to begin with (see the
+architecture's ["Machines"](../project/architecture.md#machines)), which is also why it
+never appears in `GET .../routes` below.
 
-- **Per route:** `POST …/routes` for each instance that has a subdomain **and**
-  `route_mode: "proxy"`. Idempotent by `@id` — re-pushing an existing route replaces it
-  rather than duplicating. A `dns_only` instance has a subdomain but is skipped entirely —
-  it never has a Caddy route to begin with (see the architecture's
-  ["Machines"](../project/architecture.md#machines)), which
-  is also why it never appears in `GET .../routes` / the raw config below.
-- **Whole config:** `POST /load` with a complete config document. Heavier hammer; replaces
-  everything at once. Prefer the per-route loop so any human-added route with a non-instance
-  `@id` is left untouched (see [Ownership](#ownership--what-loskai-manages)).
+`POST /load` (a complete config document) is never called: it would replace everything at
+once, wiping any human-added route with a non-instance `@id` (see
+[Ownership](#ownership--what-loskai-manages)).
 
-### 6. Read current routes / raw config
+### 6. Read current routes
 
 ```
-GET /config/apps/http/servers/<server>/routes    # the live route list
-GET /config/                                      # full config (Raw Config View, debug)
+GET /config/apps/http/servers/<server>/routes        # the live route list
+GET /config/apps/http/servers/<http-server>/routes   # and the :80 server's
 ```
 
-Used to render the read-only Raw Config View, and to compute each route's **synced**
-status: Loskai pulls the live route list and checks whether each instance's `@id` is
-present. Present = synced; missing = not pushed. This is a **display-only comparison** —
+Used to compute each route's **synced** status: Loskai pulls both servers' route lists and
+checks whether each instance's `@id`s are present — `<id>`, `<id>-http`, or for
+`scheme: "both"` both of them, which counts as synced only when both are there. Present =
+synced; missing = not pushed. This is a **display-only comparison** —
 Loskai never auto-corrects a mismatch (that would be the drift/reconcile loop we
 deliberately dropped); it just surfaces the "Sync" action when something is missing.
 
@@ -191,7 +197,8 @@ handing it out separately would just be a second file to install in the wrong pl
 
 A **404 means this Caddy has no internal CA** — a public-ACME deployment. That is a normal
 configuration, not a failure, so Loskai reports it as `409` ("nothing to install") rather
-than an unreachable upstream.
+than an unreachable upstream. A CA that answers without a well-formed root PEM is `409`
+too ("no root certificate yet"); any other failure is `502`.
 
 > Reading the PEM off disk (`/data/caddy/pki/authorities/local/root.crt`) is the other way
 > to get this, and is what the Caddyfile's `:80` onboarding site does. Loskai uses the API
@@ -218,12 +225,14 @@ hand-reset config. In that case `instances.json` is the durable record we rebuil
 
 Loskai manages every route whose `@id` matches an instance `id`. That now includes its
 own UI and AdGuard, since both are ordinary instances (Loskai is a discovered container;
-AdGuard is a seeded `external` instance) rather than hand-written Caddyfile routes. The
-bootstrap Caddyfile defines **no routes** — only the admin endpoint and the wildcard cert.
+AdGuard an `external` instance routed from the Network service source, `origin:
+"adguard"`) rather than hand-written Caddyfile routes. The bootstrap Caddyfile defines **no
+service routes** — only the admin endpoint, the internal CA (`local_certs`), the
+`*.{$BASE_DOMAIN}` block's "Nothing is routed" `404`, and the `:80` onboarding site.
 
 The only thing Loskai leaves alone is a route a human adds directly to Caddy with an
 `@id` that matches no instance. The per-route push loop preserves such a route; a
-blunt `POST /load` would wipe it, which is one reason the loop is preferred.
+blunt `POST /load` would wipe it, which is one reason Loskai never calls it.
 
 ---
 

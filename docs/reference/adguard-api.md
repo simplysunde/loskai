@@ -19,11 +19,11 @@ which Loskai links out to. This document is the contract: the subset we call, an
 
 ## Authentication
 
-The API's security scheme is HTTP **Basic Auth** (`basicAuth`, applied globally). Every
-request carries `Authorization: Basic <base64(user:password)>` from `ADGUARD_USER` /
-`ADGUARD_PASSWORD`. There is a cookie-based `POST /control/login` flow as well, but Basic
-Auth is per-request and stateless — no session to establish or refresh — so that is what
-Loskai uses.
+The API's security scheme is HTTP **Basic Auth** (`basicAuth`, applied globally). When
+`ADGUARD_USER` is set, every request carries `Authorization: Basic <base64(user:password)>`
+from `ADGUARD_USER` / `ADGUARD_PASSWORD`; without it, none is sent. There is a
+cookie-based `POST /control/login` flow as well, but Basic Auth is per-request and
+stateless — no session to establish or refresh — so that is what Loskai uses.
 
 ---
 
@@ -63,13 +63,14 @@ no reverse proxy to point at: `answer` is that instance's own `upstream`, which 
 bare IP (not `host:port`). Each `dns_only` instance can have a *different* answer — the
 "one shared value" rule above only ever applied to proxy instances.
 
-**Where the proxy answer IP comes from:** it is derived from the host of `CADDY_ADMIN_URL`
-(`http://192.168.10.101:2019` → `192.168.10.101`) — the Caddy admin host *is* the Caddy
-host, so no separate setting is needed for the normal (LAN) deployment. The one exception
-is the Docker co-located mode where `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`):
-a hostname yields no client-usable LAN IP, so that case falls back to an explicit setting.
-None of this applies to `dns_only` instances, which need no `CADDY_HOST_IP` at all — a LAN
-made entirely of `dns_only` names can leave it unset.
+**Where the proxy answer IP comes from:** `CADDY_HOST_IP` when it is set; otherwise the
+host of `CADDY_ADMIN_URL`, when that host is an IP (`http://192.168.10.101:2019` →
+`192.168.10.101`) — the Caddy admin host *is* the Caddy host, so no separate setting is
+needed for the normal (LAN) deployment. A hostname (`http://caddy:2019`, the Docker
+co-located mode) yields no client-usable LAN IP, so there `CADDY_HOST_IP` must be set. A
+loopback or `0.0.0.0` address, from either source, counts as unset. None of this applies
+to `dns_only` instances, which need no `CADDY_HOST_IP` at all — a LAN made entirely of
+`dns_only` names can leave it unset.
 
 **There is no wildcard DNS rewrite.** Loskai creates **one explicit rewrite per routed
 instance** and nothing catch-all. A name you have not assigned simply does not resolve
@@ -77,8 +78,8 @@ locally — it falls through to public DNS. This is deliberate: a `*.example.no`
 would shadow the entire subdomain space locally and could hijack a real public name (say
 `mail.example.no`) that happens to share the base domain. Explicit per-name rewrites are
 surgical and mirror the Caddy module, which already routes every instance as a specific
-host. (Separately, Caddy still uses a wildcard *TLS certificate* to get valid HTTPS for
-local-only names — that is a cert concern in Caddy's own config, unrelated to DNS
+host. (Separately, Caddy's internal CA issues the *TLS certificates* for HTTPS on local-only
+names — a `*.BASE_DOMAIN` wildcard, or one per name on the Caddy LXC — a cert concern in Caddy's own config, unrelated to DNS
 rewrites, and Loskai does not touch it.)
 
 Consequently each per-name rewrite is **load-bearing**, not cosmetic: without it the name
@@ -98,7 +99,8 @@ GET /control/status
 ```
 
 Returns `{ running, version, protection_enabled, dns_addresses, dns_port, http_port, … }`.
-A 200 with `running: true` is Loskai's "AdGuard reachable" signal. No rewrite data here —
+A 200 is Loskai's "AdGuard reachable" signal: `healthy`, or `degraded` when it says
+`running: false` (a missing `running` counts as true). No rewrite data here —
 the rewrite list (below) is a separate call.
 
 ### 2. List rewrites
@@ -133,8 +135,9 @@ Content-Type: application/json
 
 Note the verb: AdGuard deletes via **POST** to `/rewrite/delete`, and the body is the
 whole `(domain, answer)` entry — there is no delete-by-domain. Loskai sends the **exact
-pair** it created: the instance's domain plus the current Caddy IP. Used when a subdomain
-is cleared or an instance is deleted.
+pair** it wrote: the instance's domain plus the answer on record in its `dns_answer`
+(below), not the current Caddy IP. Used when a subdomain is cleared or an instance is
+deleted.
 
 Deleting the *exact pair* (not just the domain) is a deliberate safety choice: if a
 rewrite exists for the same domain but points somewhere else — e.g. one you added by
@@ -174,17 +177,18 @@ name being edited.
 ### 6. Sync / reconcile with the instance list
 
 **Read-only status** (the default view): Loskai pulls `GET /control/rewrite/list` and,
-for each instance that has a subdomain, checks whether a matching `(domain, currentIP)`
-rewrite is present. Present = in sync; missing = the name does not resolve locally until
-the rewrite is added. This is a **display-only comparison** — it never auto-corrects,
-matching the Caddy module's synced-status behavior.
+for each instance that has a subdomain, checks whether a matching `(domain, target)`
+rewrite is present — `target` being the shared Caddy IP (`currentIP`) for `proxy`, the
+instance's own address for `dns_only` (`target_answer`). Present = in sync; missing = the
+name does not resolve locally until the rewrite is added. This is a **display-only
+comparison** — it never auto-corrects, matching the Caddy module's synced-status behavior.
 
-**Reconcile** (the explicit **Sync** action, or when a Caddy-IP change is detected on
-startup): for each routed instance Loskai ensures `(domain, currentIP)` exists and, if the
-instance's stored `dns_answer` differs from `currentIP`, deletes the stale
-`(domain, dns_answer)` pair — migrating the entry onto the current IP — then updates
+**Reconcile** (the explicit **Sync** action — nothing runs it on its own, not even at
+startup): for each routed instance Loskai ensures `(domain, target)` exists and, if the
+instance's stored `dns_answer` differs from `target`, deletes the stale
+`(domain, dns_answer)` pair — migrating the entry onto the current answer — then updates
 `dns_answer`. It writes `dns_answer` whenever it adds a rewrite. A same-domain entry whose
-answer matches **neither** `currentIP` **nor** the instance's stored `dns_answer` is a
+answer matches **neither** `target` **nor** the instance's stored `dns_answer` is a
 manual rewrite: reconcile leaves it and reports a conflict, never overwrites it.
 
 **Orphan sweep** (part of reconcile): a rewrite that sits in the `{BASE_DOMAIN}` namespace
@@ -209,14 +213,14 @@ Reconcile is best-effort and only ever touches answers Loskai itself wrote.
 
 ## Ownership — what Loskai manages
 
-Loskai manages only the exact `(subdomain.{BASE_DOMAIN}, caddy-ip)` entries that
-correspond to its instances — one per routed instance. It **never** touches anything else
-in AdGuard's rewrite list, because every write is a single add or an exact-pair delete
-(the API has no bulk/replace):
+Loskai manages only the exact `(subdomain.{BASE_DOMAIN}, target)` entries — the Caddy IP,
+or a `dns_only` instance's own address — that correspond to its instances, one per routed
+instance. It **never** touches anything else in AdGuard's rewrite list, because every
+write is a single add or an exact-pair delete (the API has no bulk/replace):
 
 - A **hand-added** rewrite for a different domain is invisible to Loskai.
 - A **hand-added** rewrite for the *same* domain as an instance, whose answer matches
-  neither the current Caddy IP nor the instance's stored `dns_answer`, is treated as manual:
+  neither its target nor the instance's stored `dns_answer`, is treated as manual:
   reconcile leaves it in place and **surfaces a conflict warning** (AdGuard would otherwise
   hold two answers for that name and resolve ambiguously), rather than overwriting or
   deleting it. Only answers Loskai has itself written are ever removed.

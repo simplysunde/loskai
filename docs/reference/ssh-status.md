@@ -15,8 +15,10 @@ restrict,from="<Docker host>",command="<STATUS_COMMAND>" ssh-ed25519 AAAA… los
 ```
 
 `restrict` takes away the shell, the pty and every kind of forwarding; `from=` the
-addresses it works from; and `command=` makes sshd run Loskai's command **whatever the
-client asks for**. The text is `logic.STATUS_COMMAND`, in
+addresses it works from — the Docker host's (`host_ip`), plus, on the Docker host itself,
+the subnets of Loskai's container's networks, since Docker doesn't translate those
+connections; left out when `host_ip` is unset; and `command=` makes sshd run Loskai's
+command **whatever the client asks for**. The text is `logic.STATUS_COMMAND`, in
 `backend/src/loskai/modules/ssh/logic.py`, and this page is its contract.
 
 ## Requests
@@ -26,11 +28,16 @@ command only compares it in a `case` to pick one of two fixed answers:
 
 | Request | Answer | Parsed by | Asked by |
 |---|---|---|---|
-| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine |
-| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s |
+| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
+| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._overview`) |
 
 Two requests rather than one answer, because the overview costs more (counting updates
 runs the package manager's simulation, ~0.5 s) and only one page shows it.
+
+Each is served as `{ ok: true, …parsed }`, or `{ ok: false, error }` when it can't be read
+(with `old: true` for a status line older than this Loskai), stamped `checked` (seconds
+since the epoch). A running list is reused for 30 s and an overview for 60 s (`RUNNING_TTL`,
+`FACTS_TTL` in `connect.py`), so however many tabs ask, a machine is asked at most that often.
 
 ## The output
 
@@ -45,18 +52,24 @@ marker line followed by its rows.
 | `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`) |
 | `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept |
 
-A row of `!denied` means the SSH user may not read that list: each tries the plain command,
-then `sudo -n` (which never prompts), then says `!denied`.
+A row of `!denied` means the SSH user may not read that list: `docker`, `pct` and `qm` each
+try the plain command, then `sudo -n` (which never prompts), then say `!denied`.
+`systemctl` runs once, with no fallback.
+
+Parsed to `{ containers, services, hidden, guests, denied }`: `containers` `{name, image,
+status}`; `services` the unit names without `.service`; `hidden` how many base services were
+left out; `guests` the running ones, `{id, name, kind}` with `kind` `lxc` or `vm`; `denied`
+the sections that said `!denied`.
 
 **`facts`** — markers start `#=`, because an `/etc/os-release` comment can start with `#`:
 
 | Section | Rows | Becomes |
 |---|---|---|
-| `#=os` | `/etc/os-release` | `os` (PRETTY_NAME), `os_id`, `os_like` |
+| `#=os` | `/etc/os-release` | `os` (PRETTY_NAME, else NAME), `os_id`, `os_like` |
 | `#=kernel` | `uname -sr` | `kernel` |
 | `#=uptime` | `/proc/uptime` | `uptime`, seconds |
 | `#=memory` | `MemTotal`, `MemAvailable` from `/proc/meminfo` | `memory`, bytes |
-| `#=disks` | `df -P -k` | `disks` — block devices and `/` only, each device once, no loop devices |
+| `#=disks` | `df -P -k` | `disks` — block devices and `/` only, each device once, no loop devices and no pseudo filesystem (`tmpfs`, `overlay`, … — `_PSEUDO_FS`) |
 | `#=updates` | `<manager> <count>` | `updates` — from the machine's package lists as last refreshed; nothing is fetched |
 | `#=tools` | one name per line, from `PROGRAMS` | `programs` — what tools require |
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
@@ -76,10 +89,13 @@ through the shell, and is last so a `|` in it stays. `branch` is `-` when it isn
 command never fetches — or `-` without an upstream; `claude` is when the newest
 conversation Claude Code keeps for the folder was written
 (`~/.claude/projects/<the path, every other character a ->/*.jsonl`), `committed` the last
-commit's time — both seconds, `0` for never.
+commit's time — both seconds, `0` for never. Each row becomes `{path, folder, name, branch,
+dirty, claude, ahead, committed, subject}` — `folder` the path's parent (`""` for one
+directly in the home folder), `branch` and `ahead` `null` where the row says `-`, `dirty` a
+boolean.
 
-`PATH` gets `$HOME/.local/bin` first: a forced command has sshd's `PATH`, not the login
-shell's, and per-user installs (Claude Code) live there.
+For `facts`, `PATH` gets `$HOME/.local/bin` appended (`logic.USER_PATH`): a forced command
+has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) live there.
 
 ## Rules for the command
 
