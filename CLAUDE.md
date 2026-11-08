@@ -80,7 +80,8 @@ Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocat
 top of any of them: build Loskai from the checkout instead of pulling it), `compose.live.yml`
 (on top of those: the working tree, live-reloading — `make live`), `caddy/` (the
 Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`,
-`sync-recipe-schema.sh`, `check-phone.sh`, the LXC scripts, `container-entrypoint.sh`). `data/` and
+`sync-recipe-schema.sh`, `check-phone.sh`, `record-demo.sh`, the LXC scripts,
+`container-entrypoint.sh`), `demo/` (`make demo`'s machine image, setup, flows and conversion). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
 recurring work is done here — `sweep`, a whole-project simplification pass.
 
@@ -96,6 +97,8 @@ commit messages are user-facing — Check for updates shows them as "What change
 - Docs: `bash scripts/check-docs.sh` (or `make check-docs`).
 - Phone layout: `LOSKAI_USER=… LOSKAI_PASSWORD=… make check-phone [URL=…]` — screenshots a
   running Loskai at phone widths (Docker); `docs/contributing/phone-layout.md`.
+- The README's animations: `make demo [ONLY=…]` — records them, and the guide's screenshots, in a
+  made-up homelab set up through Loskai (Docker; ~6 GB free); `docs/contributing/demo.md`.
 - Recipes: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`) —
   the wizard's own validator over a recipe folder or a whole recipes repo.
 - A compose file: `docker compose -f <file> config` — renders it without a daemon.

@@ -638,13 +638,13 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
 
 **Steps** — 41a–41b in loskai-recipes, the rest here; a commit each.
 
-- [ ] 41a Recipe: **Forgejo** — upstream's rootful image, pinned (17.x); `./data:/data`
+- [x] 41a Recipe: **Forgejo** — upstream's rootful image, pinned (17.x); `./data:/data`
       (its own state, SQLite — no database service); `USER_UID`/`USER_GID` so the files
       are the host user's; web on `${PORT:-3000}`, Git over SSH on `${SSH_PORT:-2222}` with
       a `loskai.port` label (two published ports); `FORGEJO__server__SSH_PORT` so the
       clone URLs it shows name that port. Run once through Loskai: install, open, route,
       first-run page, Delete.
-- [ ] 41b Recipe: **Immich** — upstream's release compose (v3), pinned image tags (the
+- [x] 41b Recipe: **Immich** — upstream's release compose (v3), pinned image tags (the
       database and Valkey keep upstream's digests), with: no `container_name:`, no
       top-level `name:`, `unless-stopped`; explicit `environment:` instead of
       `env_file: .env` (the wizard's `.env` holds every answer, quoted); `service:
@@ -652,33 +652,39 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
       said in `instructions.md`; the photo library a `type: path` with `./library` as
       default; the database fixed at `./postgres`; the model cache a named volume;
       hardware transcoding as two options (`/dev/dri`; NVIDIA with `gpu, compute,
-      video`), off. Run once — the full stack needs the RAM; before it, the server,
-      database and Valkey without machine learning.
-- [ ] 41c The demo homelab, `demo/` — a privileged `docker:dind` container at
-      `192.168.50.20` on a Docker network of its own (the "Docker host"), its image cache
-      in a named volume so only the first run downloads. Inside it: Loskai built from the
-      checkout, the Loskai Caddy image, AdGuard with a pre-written config (no setup
-      screen). Beside it on the same network, two Debian machines with sshd (`nas` at
-      `.50`, `pve` at `.10`). Refuses to start when the subnet overlaps a route on the host
-      (`DEMO_SUBNET` changes it).
-- [ ] 41d Setting it up through Loskai's own API, off camera: the admin account, the SSH
-      key, both machines named and set up, the recipes installed (Forgejo, Immich,
-      Jellyfin, whoami — from the default source, or `DEMO_RECIPES=<folder>` for recipes
-      not pushed yet), routes for all but one container, which the Routing GIF routes.
-- [ ] 41e Recording — Playwright in its Docker image, as `check-phone` runs it; 1280×720,
-      a drawn cursor (Playwright draws none) and a one-line caption per step, the browser
-      resolving `*.home.lan` to the demo's Caddy. Flows: **Routing** (Add route →
-      container → name → synced → the app over HTTPS), **Docker** (the install wizard to
-      the app running, with its route), **Machines** (a machine's dialog: overview, the
-      terminal, a tool), **Dashboard** (desktop, then a phone). Stills of each tab for
-      `using-loskai.md` from the same run.
-- [ ] 41f Converting — ffmpeg (on the host; the script says so when it is missing); GIF
-      against animated WebP on the first one, the smaller that GitHub and Forgejo both
-      play wins; about 2 MB each, since git keeps every version. Into `docs/images/`.
-- [ ] 41g Docs: how to run it, rerun it, and add or change a flow (a contributing page);
+      video`), off. Run once through Loskai, all four containers healthy — idle it needs
+      about 1.7 GB, so it fit before the RAM was added; installed, opened, Delete kept
+      the library and the database.
+- [x] 41c The demo homelab — a privileged `docker:dind` container at `192.168.50.20` on
+      a Docker network of its own (the "Docker host"), its image cache in a named volume so
+      only the first run downloads. Inside it: Loskai and its Caddy, built from the checkout,
+      from `compose.caddy-loskai.yml` (layout B) unchanged. Beside it on the same network:
+      AdGuard at `.2`, set up through its install API; a Debian machine with sshd, `nas` at
+      `.50` (`demo/machine/`); `homeassistant` at `.30`, a name only. Refuses to start when
+      the subnet overlaps a route on the host (`DEMO_SUBNET` changes it).
+- [x] 41d Setting it up through Loskai's own API, off camera (`demo/setup.mjs`): the
+      recipes installed (Immich, Jellyfin, Bambuddy — from the default source, or
+      `DEMO_RECIPES=<folder>` for recipes not pushed yet), routes for all but Jellyfin,
+      which the Routing GIF routes; AdGuard routed; the SSH key; `nas` named and set up.
+- [x] 41e Recording (`demo/record.mjs`) — Playwright in its Docker image, as `check-phone`
+      runs it; 1280×720, a drawn cursor (Playwright draws none) and a caption per step, the
+      browser resolving `*.home.lan` to the demo's Caddy. Flows: **Routing** (Add route →
+      a container → its name → the app over HTTPS), **Docker** (the install wizard, Forgejo,
+      to its route), **Machines** (a machine's dialog: its overview, then a terminal),
+      **Dashboard** (logged out, as anyone sees it — on a computer, then a phone). Stills
+      of each tab for `using-loskai.md` from the same run.
+- [x] 41f Converting (`demo/convert.sh`) — ffmpeg in its own image, so the host needs only
+      Docker. **Animated WebP**, not GIF: compared on the first full run, the same frames
+      were 1.2–1.8 MB as GIF and 160–260 KB as WebP, equally readable — and git keeps every
+      version. Into `docs/images/`.
+- [x] 41g Docs: how to run it, rerun it, and add or change a flow (a contributing page);
       the docs index; CLAUDE.md's commands and code map; `make help`.
 - [ ] 41h The README's top, as decided; `using-loskai.md` on the new stills.
-- [ ] 41i Live, once the VM has the RAM: `make demo`, look over every GIF, commit them.
+- [ ] 41i Live, once the VM has the RAM: `make demo` with Immich — so far run whole only
+      without it (`DEMO_APPS="jellyfin bambuddy" DEMO_RECIPES=../loskai-recipes`), every flow
+      recorded and converted; look over every animation, then commit them with the README
+      and `using-loskai.md` pointing at them. The recipes must be on GitHub first (the
+      default source), or pass `DEMO_RECIPES`.
 
 ---
 

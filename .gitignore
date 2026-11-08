@@ -244,3 +244,6 @@ loskai-settings/
 
 # scripts/check-phone.sh's screenshots and contact sheets.
 .phone-shots/
+
+# scripts/record-demo.sh's homelab and recordings, while it runs (KEEP=1 leaves it).
+.demo/

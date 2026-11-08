@@ -1,4 +1,4 @@
-.PHONY: help live release backend frontend install-backend install-frontend test-backend test-frontend check-docs check-phone
+.PHONY: help live release demo backend frontend install-backend install-frontend test-backend test-frontend check-docs check-phone
 
 help:
 	@echo "make live              - run the working tree in the loskai container, live-reloading on :8080"
@@ -11,12 +11,16 @@ help:
 	@echo "make check-docs        - validate doc links, anchors and orphans, and the docs against the code"
 	@echo "make check-phone       - screenshot a running Loskai at phone widths (LOSKAI_USER, LOSKAI_PASSWORD; URL=…)"
 	@echo "make release VERSION=x.y.z - build both images (amd64 + arm64) and push them (LOSKAI_REGISTRY=…)"
+	@echo "make demo              - record the README's animations in a made-up homelab (ONLY=…, KEEP=1, DEMO_RECIPES=…)"
 
 live:
 	docker compose -f compose.yml -f compose.build.yml -f compose.live.yml up -d --build
 
 release:
 	bash scripts/release.sh $(VERSION)
+
+demo:
+	bash scripts/record-demo.sh
 
 backend:
 	cd backend && uv run uvicorn loskai.main:app --reload --port 8000
