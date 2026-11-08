@@ -76,9 +76,10 @@ Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (o
 hooks, `docs.ts` — the repo's address, for links to the docs).
 
 Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
-(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `compose.live.yml` (on top
-of `compose.yml`: the working tree, live-reloading — `make live`), `caddy/` (the
-Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `check-docs.sh`,
+(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `compose.build.yml` (on
+top of any of them: build Loskai from the checkout instead of pulling it), `compose.live.yml`
+(on top of those: the working tree, live-reloading — `make live`), `caddy/` (the
+Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`,
 `sync-recipe-schema.sh`, `check-phone.sh`, the LXC scripts, `container-entrypoint.sh`). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
 recurring work is done here — `sweep`, a whole-project simplification pass.
@@ -101,8 +102,10 @@ commit messages are user-facing — Check for updates shows them as "What change
 - `make live` swaps the `loskai` container for the working tree, reloading on save, on the
   same `:8080` (`bash scripts/deploy.sh` swaps back).
 - Production serves on `:8080`: one FastAPI process serves the API *and* the built React
-  bundle. Dev is two servers; prod is one. Deploy is `bash scripts/deploy.sh` on the host
-  (always `--build`: a plain `up -d` keeps the old image).
+  bundle. Dev is two servers; prod is one. An install runs the published images
+  (`ghcr.io/simplysunde/loskai`, `loskai-caddy`); `make release VERSION=x.y.z` builds and
+  pushes them. A checkout deploys its own code with `bash scripts/deploy.sh`, which builds
+  through `compose.build.yml` (always `--build`: a plain `up -d` keeps the old image).
 
 ### Before you finish
 

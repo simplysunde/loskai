@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-08 — Installs run published images
+
+Sunde asked for setup to be simpler still. Until now every install cloned the repo and
+built both images on the server (`deploy.sh`: "the easy deploy path, no registry, no CI").
+**This reverses the no-registry part:** the compose files run `ghcr.io/simplysunde/loskai`
+and `loskai-caddy`, so an install is a folder, one downloaded compose file and
+`docker compose up -d`, an update `docker compose pull`, and a Raspberry Pi gets an `arm64`
+image instead of building one. **No CI still holds:** `make release` builds both images for
+both platforms on Sunde's machine and pushes them — the smallest step, and moving it into
+GitHub Actions later changes nothing for an install. Building from the source stays for
+working on Loskai and for running unreleased code: `compose.build.yml` on top of any layout
+(`make live`, `deploy.sh`), tagging the build like the release.
+
+What it asked for besides: `data/` and `stacks/` made before the first start, since no
+clone makes them any more and a folder Docker creates is root's (Loskai would run as root);
+a `.env` that is optional (`deploy.sh` no longer insists on one); a health check, so
+`docker compose ps` says when the app answers. A layout other than A is downloaded as
+`compose.yml`, so the plain commands and a `compose.override.yml` work the same for all.
+
 ## 2026-11-08 — Caddy behaves the same in the LXC and in Docker, and needs no domain
 
 Sunde's rule: Caddy works the same whether it runs in its LXC or in Docker beside Loskai,

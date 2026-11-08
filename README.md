@@ -20,26 +20,28 @@ What each tab does: [Using Loskai](docs/guides/using-loskai.md).
 ## Run it (Docker)
 
 ```bash
-cp .env.example .env        # all values optional — or configure in the UI on first run
-docker compose build
+mkdir loskai && cd loskai && mkdir data stacks   # yours, so Loskai runs as you, not root
+curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
 docker compose up -d
 ```
 
 Open `http://<docker-host>:8080`, create the admin account on first run, then use the
-Routing tab to assign clean HTTPS names to your services. One image serves the API and
-the built UI on **:8080**.
+Routing tab to assign clean HTTPS names to your services. One image
+(`ghcr.io/simplysunde/loskai`) serves the API and the built UI on **:8080**. Every setting is
+optional and set in the UI; a `.env` beside the compose file can set them instead
+([`.env.example`](.env.example)).
 
 ### Updating
 
-Pull the latest source and rebuild in one step:
-
 ```bash
-bash scripts/deploy.sh        # git pull --ff-only && docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
 
-`docker compose up -d` on its own reuses the existing `loskai:latest` image and would
-skip your new code — always `--build` after a pull. The script does that for you (and
-honours `COMPOSE_FILE=` for the other two layouts below).
+`LOSKAI_VERSION=0.1.0` in `.env` pins a release (`latest` unless set). Changes of your own go
+in a `compose.override.yml`, which Compose merges in, so a newer `compose.yml` can be
+downloaded over the old one. From a checkout of this repo — to run what's on `main`, or your
+own changes — `bash scripts/deploy.sh` pulls the source and builds it instead
+([deployment.md](docs/guides/deployment.md#images-and-releases)).
 
 - **With Proxmox — recommended** (`compose.yml`): Loskai on the Docker host; Caddy and
   AdGuard run natively on two separate LXCs (split so rebuilding Caddy never takes LAN DNS

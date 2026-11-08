@@ -3,11 +3,11 @@
 # the backend restarts when a .py file is saved, and Vite serves the frontend on the same
 # :8080, updating the open page as you edit — no rebuild, no reload.
 #
-#   make live          (docker compose -f compose.yml -f compose.live.yml up -d --build)
+#   make live          (docker compose -f compose.yml -f compose.build.yml -f compose.live.yml up -d --build)
 #
 # Back to the built image: bash scripts/deploy.sh. A changed pyproject.toml needs `make live`
 # again (it rebuilds the image); a changed package.json, a restart of `web`, whose start runs
-# `npm ci` (docker compose -f compose.yml -f compose.live.yml restart web).
+# `npm ci` (docker compose -f compose.yml -f compose.build.yml -f compose.live.yml restart web).
 
 services:
   loskai:

@@ -11,7 +11,7 @@ point it at. No domain, ACME token, or Proxmox needed — Caddy uses its interna
 
 > **Already running Loskai from this checkout?** `make live` runs the working tree in its
 > container instead of the built image — the same `compose.yml`, `.env` and `./data`, with
-> `compose.live.yml` on top. The backend restarts when a `.py` file is saved and the page
+> `compose.build.yml` (build from this checkout) and `compose.live.yml` on top. The backend restarts when a `.py` file is saved and the page
 > on `:8080` updates as the frontend is edited, with no rebuild. A backend restart closes
 > open terminals and locks the SSH key again. `bash scripts/deploy.sh` goes back to the
 > built image. The rest of this page is for a Loskai of its own, beside test containers.

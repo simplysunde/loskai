@@ -96,13 +96,12 @@ Keep the Caddy IP — it becomes `CADDY_ADMIN_URL` next.
 On the **Docker host**:
 
 ```bash
-git clone http://<your-forge>/sunde/Loskai.git
-cd Loskai
-cp .env.example .env
+mkdir loskai && cd loskai && mkdir data stacks   # yours, so Loskai runs as you, not root
+curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
 ```
 
-Edit `.env` with what you set up above (all values are also settable in the UI, but env vars
-take priority). **This is where your domain is decided** — `BASE_DOMAIN` lives with Loskai,
+Put what you set up above in a `.env` beside it (all values are also settable in the UI, but
+env vars take priority). **This is where your domain is decided** — `BASE_DOMAIN` lives with Loskai,
 which appends service prefixes and pushes the routes to Caddy:
 
 ```ini
@@ -118,7 +117,7 @@ ADGUARD_PASSWORD=<the-adguard-password>
 needed here. Full reference: [deployment.md](deployment.md#environment-variables). Then:
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 ---
@@ -134,7 +133,8 @@ docker compose up -d --build
    that's why you reached the UI by IP. Click **Sync** (Routing tab) to seed routes and DNS rewrites.
 4. **Routing** tab → **Add route** to assign your first `https://service.example.no`.
 
-To update later, `bash scripts/deploy.sh` pulls and rebuilds ([README](../../README.md#updating)).
+To update later: `docker compose pull && docker compose up -d`
+([Images and releases](deployment.md#images-and-releases)).
 
 ---
 
@@ -180,12 +180,12 @@ Keep the IP, user and password — Loskai needs all three next.
 ### B2 — Caddy + Loskai on the Docker host
 
 ```bash
-git clone http://<your-forge>/sunde/Loskai.git
-cd Loskai
-cp .env.example .env
+mkdir loskai && cd loskai && mkdir data stacks
+curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.caddy-loskai.yml -o compose.yml
 ```
 
-Edit `.env`. There is **no `CADDY_ADMIN_URL`** here — the compose file pins it to
+Saved as `compose.yml`, so the plain `docker compose` commands use it. Put the settings in a
+`.env` beside it. There is **no `CADDY_ADMIN_URL`** here — the compose file pins it to
 `http://caddy:2019`, which never leaves the Docker network:
 
 ```ini
@@ -204,7 +204,7 @@ DNS-rewrite answer IP can't be derived from it — it is this host's LAN IP, whe
 containers Caddy can't reach by name. Then:
 
 ```bash
-docker compose -f compose.caddy-loskai.yml up -d --build
+docker compose up -d
 ```
 
 **Trust the root cert** — on each device open `http://<docker-host>/` and follow the page
@@ -217,7 +217,7 @@ Identical to [Step 4](#step-4--first-run) — the Caddy and AdGuard rows, the **
 and the first route all behave the same. To update later:
 
 ```bash
-COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh
+docker compose pull && docker compose up -d
 ```
 
 One capability this layout adds: a container **joined to the shared `loskai-edge` network**
@@ -230,7 +230,7 @@ is routable without publishing a host port at all — see
 containers on the Docker host. Supported, and the honest answer when a second machine isn't an
 option — but it is the only layout that needs the host reconfigured before it will start:
 **clear `:53` first**, since most Linux hosts run `systemd-resolved` on it. Then use B2 above
-with `compose.colocated.yml`, dropping `ADGUARD_URL` (that file points at the AdGuard
+with `compose.colocated.yml` saved as `compose.yml`, dropping `ADGUARD_URL` (that file points at the AdGuard
 container). Once it is up, finish AdGuard's setup at `http://<docker-host>:3000` with the
 user and password from `.env`. [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
 ownership and states C's costs at the point of choice.

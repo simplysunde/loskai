@@ -1,11 +1,16 @@
 # Preferred setup: Loskai on the Docker host; Caddy and AdGuard native on two separate LXCs over the LAN.
 # See docs/guides/deployment.md for env vars, the STACKS_DIR same-path mount, the settings-volume
-# coupling, and cold start. Copy .env.example to .env first.
+# coupling, and cold start. A .env is optional — .env.example lists what it can set.
+#
+#   mkdir -p data stacks && docker compose up -d       # first run: data/ and stacks/ yours
+#   docker compose pull && docker compose up -d        # update
+#
+# The image is the released one (`make release`); to run this checkout's code instead, add
+# compose.build.yml (scripts/deploy.sh does).
 
 services:
   loskai:
-    build: .
-    image: loskai:latest # `docker compose build` tags it here
+    image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai:${LOSKAI_VERSION:-latest}
     container_name: loskai
     ports:
       - "8080:8080"
@@ -46,4 +51,10 @@ services:
       # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
       # the path the app writes to can't drift apart; the code default is the repo's data/.
       - LOSKAI_DATA_DIR=/data
+    healthcheck:
+      # The login page's own question: public, cheap, and answered once the app is up.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/api/auth/status"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
     restart: unless-stopped

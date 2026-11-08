@@ -1,11 +1,15 @@
 # All-in-Docker alternative (no Proxmox/LXC): Loskai + Caddy + AdGuard as containers on one
 # host. Also the basis for the Tier-3 test rig. See docs/guides/deployment.md for env vars, the
 # co-located port notes (AdGuard :53 vs the host resolver), and why CADDY_HOST_IP is
-# required here. Copy .env.example to .env first.
+# required here — set it in a .env.
+#
+#   mkdir -p data stacks && docker compose -f compose.colocated.yml up -d      # first run
+#   docker compose -f compose.colocated.yml pull && \
+#     docker compose -f compose.colocated.yml up -d                            # update
 
 services:
   caddy:
-    build: ./caddy # stock Caddy + its internal CA; see caddy/Dockerfile
+    image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai-caddy:${LOSKAI_VERSION:-latest} # caddy/Dockerfile
     container_name: caddy
     ports:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
@@ -29,8 +33,7 @@ services:
     restart: unless-stopped
 
   loskai:
-    build: .
-    image: loskai:latest
+    image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai:${LOSKAI_VERSION:-latest}
     container_name: loskai
     depends_on:
       - caddy
@@ -73,6 +76,12 @@ services:
       # The same address here — Caddy runs on this host. It fills the upstream for a container
       # Caddy can't reach by name, as <host_ip>:<published-port>.
       - HOST_IP=${HOST_IP:-}
+    healthcheck:
+      # The login page's own question: public, cheap, and answered once the app is up.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/api/auth/status"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
     restart: unless-stopped
 
 volumes:

@@ -10,6 +10,7 @@
 # matching caddy-dns plugin is entirely a Caddy concern that Loskai will not notice.
 
 FROM caddy:2
+LABEL org.opencontainers.image.source=https://github.com/simplysunde/loskai
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY setup/ /srv/setup/
 # The image's own command plus --resume, as the Caddy LXC runs: Caddy saves its config after

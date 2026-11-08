@@ -90,6 +90,9 @@ Everything so far:
 - **Logs** — Settings › Logs, an admin's: each sign-in and wrong password (when, the
   username typed, from where — and which prompt, when it was asked again to unlock the SSH
   key or change a password), and the SSH log. A machine's dialog shows its own to an admin.
+- **Installs from published images** — download one compose file and `docker compose up -d`;
+  nothing is built on your server. `docker compose pull` updates, `LOSKAI_VERSION` pins a
+  release. Images for `amd64` and `arm64` (a Raspberry Pi). A `.env` is optional.
 - **Security** — accounts with levels, enforced by the API; only Loskai's own pages can act
   with its session, not your other apps under the same domain; the app runs as the owner of
   its data folder, not root; secrets on disk are owner-only ([SECURITY.md](SECURITY.md)).

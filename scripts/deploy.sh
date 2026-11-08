@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — pull the latest source and (re)build + deploy Loskai on the Docker host.
+# deploy.sh — pull the latest source and (re)build + deploy this checkout on the Docker host.
 # Run FROM the repo root on the Docker host:  bash scripts/deploy.sh
 #
-# The easy deploy path (no registry, no CI): the working tree IS the build context.
-# `docker compose up -d` reuses the existing `loskai:latest` image and would silently
-# skip your new code, so this script always passes `--build` — that's the whole point.
+# For running a checkout's code — what is on main, released or not. An install from the
+# released images needs none of this: `docker compose pull && docker compose up -d`. Here the
+# working tree is the build context (compose.build.yml), and the images are tagged like the
+# released ones, so `docker compose pull` would put those back; `--build` makes sure the new
+# code is what runs.
 #
 # Defaults to compose.yml (split LXC). Override for either other layout via env:
 #   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh   # split DNS
@@ -19,11 +21,6 @@ cd "$(dirname "$0")/.."
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
-
-if [ ! -f .env ]; then
-	echo ".env not found — copy .env.example to .env and fill it in first." >&2
-	exit 1
-fi
 
 log "Pulling latest source"
 git pull --ff-only
@@ -50,9 +47,19 @@ if [ -f loskai-settings/settings.json ] && [ ! -f data/settings.json ]; then
 	exit 1
 fi
 
+compose=(docker compose -f "$COMPOSE_FILE" -f compose.build.yml)
+
+# The layouts that run Caddy here run the image caddy/Dockerfile builds; build it under the
+# name the layout pulls, as compose.build.yml does for Loskai's.
+caddy_image="$("${compose[@]}" config --images | grep '/loskai-caddy:' || true)"
+if [ -n "$caddy_image" ]; then
+	log "Building $caddy_image"
+	docker build -t "$caddy_image" caddy
+fi
+
 log "Building + deploying ($COMPOSE_FILE)"
 # --remove-orphans: after `make live`, its Vite container still holds :8080.
-docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
+"${compose[@]}" up -d --build --remove-orphans
 
 log "Done — Loskai is up on :8080"
-docker compose -f "$COMPOSE_FILE" ps
+"${compose[@]}" ps

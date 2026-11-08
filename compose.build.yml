@@ -1,0 +1,13 @@
+# Build Loskai from this checkout instead of pulling the released image — for working on it
+# (`make live`) and for running code that isn't released yet (scripts/deploy.sh):
+#
+#   docker compose -f compose.yml -f compose.build.yml up -d --build
+#
+# On top of any layout's file. The image is tagged like the released one, so the layout
+# runs it; `docker compose pull` puts the released one back. The Caddy image needs nothing
+# here: dev runs stock Caddy with caddy/Caddyfile mounted (compose.dev.yml), deploy.sh builds
+# it for the layouts that have it, and `make release` publishes it.
+
+services:
+  loskai:
+    build: .

@@ -144,7 +144,7 @@ the Docker host.
 This is the most user-friendly arrangement in practice, and the reason is operational rather
 than architectural: the DNS box does exactly one job, gets configured once, and never needs to
 be touched again — while everything you *do* iterate on lives behind a single
-`docker compose up -d --build` on the main host. It keeps the property the two-LXC split was
+`docker compose pull && docker compose up -d` on the main host. It keeps the property the two-LXC split was
 protecting (DNS in its own fault domain) without asking for a hypervisor.
 
 - **Win:** the `53` vs `systemd-resolved` fight leaves the Docker host entirely, because

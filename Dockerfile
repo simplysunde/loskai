@@ -12,6 +12,8 @@ RUN npm run build            # -> /app/dist
 # Pinned to bookworm so the Docker apt repo line below (…/debian bookworm stable) always
 # matches the base OS — a floating slim tag could move to a newer Debian and break it.
 FROM python:3.12-slim-bookworm
+# Links the published image to its repository.
+LABEL org.opencontainers.image.source=https://github.com/simplysunde/loskai
 WORKDIR /app
 
 # uv; installs are reproducible from uv.lock (--frozen below).

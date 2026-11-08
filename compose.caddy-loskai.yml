@@ -1,16 +1,17 @@
 # Split-DNS layout (B): Caddy + Loskai here on the Docker host, AdGuard on its own small
 # always-on box over the LAN. The recommended layout without Proxmox — see
 # docs/guides/topologies.md for why, and docs/guides/deployment.md for env vars and volumes.
-# Set AdGuard up on the other box first, then copy .env.example to .env and fill in
-# ADGUARD_URL (its LAN IP) and CADDY_HOST_IP (this host's LAN IP). Walkthrough:
+# Set AdGuard up on the other box first, then put ADGUARD_URL (its LAN IP) and CADDY_HOST_IP
+# (this host's LAN IP) in a .env. Walkthrough:
 # docs/guides/install.md#no-proxmox-install-layout-b--split-dns
 #
-#   docker compose -f compose.caddy-loskai.yml up -d --build     # first run
-#   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh # pull + rebuild later
+#   mkdir -p data stacks && docker compose -f compose.caddy-loskai.yml up -d   # first run
+#   docker compose -f compose.caddy-loskai.yml pull && \
+#     docker compose -f compose.caddy-loskai.yml up -d                         # update
 
 services:
   caddy:
-    build: ./caddy # stock Caddy + its internal CA; see caddy/Dockerfile
+    image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai-caddy:${LOSKAI_VERSION:-latest} # caddy/Dockerfile
     container_name: caddy
     ports:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
@@ -25,8 +26,7 @@ services:
     restart: unless-stopped
 
   loskai:
-    build: .
-    image: loskai:latest
+    image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai:${LOSKAI_VERSION:-latest}
     container_name: loskai
     depends_on:
       - caddy
@@ -71,6 +71,12 @@ services:
       # The same address in this layout — Caddy runs here. It fills the upstream for a
       # container that is *not* on loskai-edge, as <host_ip>:<published-port>.
       - HOST_IP=${HOST_IP:-}
+    healthcheck:
+      # The login page's own question: public, cheap, and answered once the app is up.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/api/auth/status"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
     restart: unless-stopped
 
 networks:

@@ -40,5 +40,12 @@ make check-docs                       # links, page headers, and the docs agains
 - **Recipes live in their own repo** — the format is
   [recipe-schema.md](docs/reference/recipe-schema.md).
 
+## Releasing
+
+`make release VERSION=x.y.z` from a clean `main`: both images, for `amd64` and `arm64`, pushed
+to `ghcr.io/simplysunde` (or `LOSKAI_REGISTRY`), and the commit tagged `v<version>` — push the
+tag yourself. Move `CHANGELOG.md`'s Unreleased section under the version first.
+[deployment.md](docs/guides/deployment.md#images-and-releases) has what it needs.
+
 The architecture and the reasons behind it are in [`architecture.md`](docs/project/architecture.md); what
 is being worked on is in [`TODO.md`](docs/project/TODO.md).

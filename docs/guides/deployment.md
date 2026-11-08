@@ -14,13 +14,36 @@ setup (Loskai on the host via `uv` + Vite, throwaway Caddy/AdGuard containers), 
 ## Quick start
 
 ```bash
-cp .env.example .env        # every value is optional — or configure in the UI on first run
-docker compose build
+mkdir loskai && cd loskai && mkdir data stacks   # yours, so Loskai runs as you, not root
+curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
 docker compose up -d
 ```
 
 Open `http://<docker-host>:8080`, create the admin account on first run, then use the
-Routing tab to assign HTTPS names to your services.
+Routing tab to assign HTTPS names to your services. A `.env` beside the compose file is
+optional — every value can be set in the UI ([`.env.example`](../../.env.example) lists them).
+
+## Images and releases
+
+The compose files run published images: `ghcr.io/simplysunde/loskai`, and for the layouts
+that run Caddy in Docker, `ghcr.io/simplysunde/loskai-caddy` (stock Caddy with Loskai's
+Caddyfile). Both are built for `amd64` and `arm64`, tagged with the version and `latest`.
+
+- **Update:** `docker compose pull && docker compose up -d`.
+- **Pin a version:** `LOSKAI_VERSION=0.1.0` in `.env`; back to `latest` by removing it.
+- **Keep your changes** in `compose.override.yml`, which Compose merges into `compose.yml`.
+  For another layout, download its file *as* `compose.yml` (`curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.caddy-loskai.yml -o compose.yml`)
+  so the plain commands and the override work the same.
+- **`data/` and `stacks/` before the first start.** Loskai runs as the owner of `./data`;
+  a folder Docker creates for a missing mount is root's, and Loskai would then run as root.
+- **From a checkout** — `main`, or your own changes — `bash scripts/deploy.sh` pulls the
+  source and builds the images from it (`compose.build.yml`), tagged like the released ones;
+  `docker compose pull` puts the released ones back. `make live` builds the same way.
+- **Releasing** is `make release VERSION=x.y.z` from a clean checkout: it builds both images
+  for both platforms, pushes them to `LOSKAI_REGISTRY` (`ghcr.io/simplysunde` unless set —
+  your forge's registry works too), and tags the commit `v<version>`. It needs
+  `docker login` to the registry, and QEMU for the other platform — the script says how
+  when it is missing.
 
 ## Layouts
 
@@ -89,6 +112,13 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 
 Two things Loskai deliberately **never** takes: any TLS credential (certificates live
 with Caddy) and private-registry credentials (`docker login` is a host precondition).
+
+### For Compose (in `.env`, never seen by Loskai)
+
+| Variable | Default | What it is |
+|---|---|---|
+| `LOSKAI_VERSION` | `latest` | The release the compose file runs — [Images and releases](#images-and-releases). |
+| `LOSKAI_REGISTRY` | `ghcr.io/simplysunde` | Where the images come from, and where `make release` pushes them. |
 
 ### Internal (set in the compose file, not in `.env`)
 
