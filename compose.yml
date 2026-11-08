@@ -33,7 +33,15 @@ services:
       # This Docker host's LAN IP — auto-fills container route upstreams as <host_ip>:<port>
       # (Caddy on its own LXC can't resolve container names). Optional; blank = fill in per route.
       - HOST_IP=${HOST_IP:-}
+      # The DNS answer — where Caddy's :443 is. Derived from CADDY_ADMIN_URL's host unless
+      # that is a name or loopback; then set it here or in Settings › Network.
+      - CADDY_HOST_IP=${CADDY_HOST_IP:-}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      - LOSKAI_USERNAME=${LOSKAI_USERNAME:-}
+      # Optional; each is also in Settings, and set here it wins (docs/guides/deployment.md).
+      - SESSION_IDLE_MINUTES=${SESSION_IDLE_MINUTES:-}
+      - SSH_UNLOCK_MINUTES=${SSH_UNLOCK_MINUTES:-}
+      - CERTIFICATE_TAB=${CERTIFICATE_TAB:-}
       - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
       # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
       # the path the app writes to can't drift apart; the code default is the repo's data/.

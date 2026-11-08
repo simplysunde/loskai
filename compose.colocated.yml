@@ -61,12 +61,20 @@ services:
       - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}
       - BASE_DOMAIN=${BASE_DOMAIN:?set BASE_DOMAIN}
       - LOSKAI_PASSWORD=${LOSKAI_PASSWORD:-}
+      - LOSKAI_USERNAME=${LOSKAI_USERNAME:-}
+      # Optional; each is also in Settings, and set here it wins (docs/guides/deployment.md).
+      - SESSION_IDLE_MINUTES=${SESSION_IDLE_MINUTES:-}
+      - SSH_UNLOCK_MINUTES=${SSH_UNLOCK_MINUTES:-}
+      - CERTIFICATE_TAB=${CERTIFICATE_TAB:-}
       - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
       # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
       # the path the app writes to can't drift apart; the code default is the repo's data/.
       - LOSKAI_DATA_DIR=/data
       # Required in this mode: the host LAN IP where Caddy's :443 is published.
       - CADDY_HOST_IP=${CADDY_HOST_IP:?set CADDY_HOST_IP to the host's LAN IP}
+      # The same address here — Caddy runs on this host. It fills the upstream for a container
+      # Caddy can't reach by name, as <host_ip>:<published-port>.
+      - HOST_IP=${HOST_IP:-}
     restart: unless-stopped
 
 volumes:
