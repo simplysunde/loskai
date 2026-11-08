@@ -1,12 +1,12 @@
-# Caddyfile for the co-located Caddy container. Same shape as the native Caddy LXC reference: admin
-# endpoint, TLS setup, and the certificate-onboarding page — no routes. Loskai pushes every
-# specific-host route at runtime via the Admin API (reached as caddy:2019 on the internal
-# Docker network).
+# Caddyfile for every Caddy Loskai ships: the Caddy container built from caddy/Dockerfile
+# (compose.caddy-loskai.yml, compose.colocated.yml) and the Caddy LXC, which fetches this
+# file (scripts/create-caddy-lxc.sh). Admin endpoint, TLS setup, and the
+# certificate-onboarding page — no routes. Loskai pushes every specific-host route at runtime
+# via the Admin API (in a container, reached as caddy:2019 on the internal Docker network).
 #
-# Default TLS is Caddy's internal CA (local_certs) — no real domain or ACME/DNS token needed.
-# The onboarding page (served on :80, published by compose.colocated.yml) lets LAN devices
-# trust the internal root once. For the public-ACME alternative, see the bottom of this file
-# (and swap caddy/Dockerfile to the xcaddy build).
+# TLS is Caddy's internal CA (local_certs) — no real domain or ACME/DNS token needed. The
+# onboarding page (served on :80) lets LAN devices trust the internal root once. Public ACME
+# certs were removed deliberately — see caddy/Dockerfile.
 {
 	# Internal to the Docker network — Loskai reaches this as caddy:2019. Not published.
 	admin 0.0.0.0:2019

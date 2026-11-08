@@ -69,10 +69,7 @@ CT_DISK="${CT_DISK:-4}"
 CT_STORAGE="${CT_STORAGE:-$(detect_storage rootdir local-lvm)}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
 TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
-# Caddy is fed a fixed *.localhost placeholder — the domain is a Loskai setting, never
-# Caddy's, and local_certs signs each real name on demand regardless.
-BASE_DOMAIN="${BASE_DOMAIN:-example.no}"
-# Raw base URL of the Loskai repo. Internal mode fetches caddy/Caddyfile + the onboarding page
+# Raw base URL of the Loskai repo. The script fetches caddy/Caddyfile + the onboarding page
 # from here, so this LXC and the co-located container share ONE config (no drift). Override for
 # a private forge, e.g. REPO_RAW_BASE=http://192.168.10.216:3000/sunde/Loskai/raw/branch/main
 REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/sunde/Loskai/main}"
@@ -212,7 +209,7 @@ AUTOLOGIN
 pct exec "$CTID" -- systemctl daemon-reload
 pct exec "$CTID" -- systemctl restart getty@tty1 container-getty@1 2>/dev/null || true
 
-# --- Install Caddy from the official Cloudsmith apt repo (stock; plugins added below) ---
+# --- Install Caddy from the official Cloudsmith apt repo (stock, no plugins) ---
 log "Installing Caddy inside the container"
 pct exec "$CTID" -- bash -euo pipefail -c "
 	export DEBIAN_FRONTEND=noninteractive
@@ -242,7 +239,7 @@ AUTOUPGRADES
 # onboarding page from the repo (single source of truth, no inline duplicate). The Caddyfile
 # expects Caddy's data at /data/caddy and the page at /srv/setup — both satisfied by
 # XDG_DATA_HOME=/data in the systemd unit below and this mkdir. It uses *.{$BASE_DOMAIN}, fed
-# the fixed 'localhost' placeholder (see UNIT_BASE_DOMAIN); local_certs signs every real name
+# the fixed 'localhost' placeholder (see the unit's BASE_DOMAIN); local_certs signs every real name
 # Loskai pushes on demand regardless.
 log "Fetching Caddyfile + onboarding page from $REPO_RAW_BASE"
 pct exec "$CTID" -- mkdir -p /srv/setup

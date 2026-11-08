@@ -24,7 +24,8 @@ must preserve all of them:
 
 1. **Read-and-validate first, create last.** All the `pvesh`/`pvesm`/`pveam list`/`ip`/`pct
    status` calls are read-only. The preflight checks abort *before* anything is created. The
-   first mutating host op is `pveam download`, then `pct create` — both near the end.
+   host writes come after them: the `/etc/subuid`+`/etc/subgid` guard (invariant 4), then —
+   only if the template is missing — `pveam update` and `pveam download`, then `pct create`.
 2. **Everything app-specific runs inside `pct exec "$CTID" -- …`** — i.e. inside the
    container. `apt`, `curl`, `systemctl`, installers: all in the CT, never on the host.
 3. **No host-level `apt`/upgrade, `systemctl`, `reboot`/`shutdown`, or networking changes.**
@@ -55,8 +56,9 @@ per service.
 | `log()` + `container_ip()` | Teal logger; DHCP IP waiter | fixed |
 | Hardening helpers | `require_*`, `ensure_subid_maps`, `download_template`, `create_container`, `wait_for_ready` | fixed |
 | Preflight | exists-check → `require_bridge` → `require_storage_content` → `ensure_subid_maps` | fixed |
-| Template ensure | download if missing (with retry) | fixed |
+| Template ensure | `pveam update` + download if missing (with retry) | fixed |
 | Create + start | `create_container` → `pct start` → `wait_for_ready` | fixed |
+| Console autologin | root autologin on `getty@tty1` and `container-getty@1`, so `pct console` opens a shell | fixed |
 | **Install** | `pct exec` block that installs + configures the service | ✎ **write this** |
 | Post-config | systemd unit, config files, unattended-upgrades | ✎ edit |
 | `container_ip` + "Next steps" | Report the DHCP IP and manual follow-ups | ✎ edit |

@@ -1,9 +1,10 @@
 """Aggregate health — GET /api/health.
 
-Each module's router registers its own async health check at import; a module with no
-registered checker reports `unconfigured`. A single module going unreachable never
-affects the others. Docker additionally carries `stacks_dir_ok` so the UI can tell a
-broken compose mount apart from a genuinely empty Stack Manager.
+Each module in `MODULES` (all but SSH, which has no health check) registers its own async
+check from its router at import; one with no registered checker reports `unconfigured`.
+A single module going unreachable never affects the others. Docker additionally carries
+`stacks_dir_ok` so the UI can tell a broken compose mount apart from a genuinely empty
+list of stacks.
 """
 
 import asyncio

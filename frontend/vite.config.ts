@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     proxy: {
       // Dev: the backend runs on :8000 (prod container serves API + bundle on :8080).
-      // ws: true so the container-exec WebSocket (Phase 8) proxies through too.
+      // ws: true so the terminal WebSockets (a container's, a machine's) proxy through too.
       '/api': {
         // compose.live.yml points it at the loskai container.
         target: process.env.LOSKAI_API ?? 'http://localhost:8000',

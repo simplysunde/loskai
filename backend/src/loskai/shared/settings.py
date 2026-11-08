@@ -2,8 +2,9 @@
 
 `config.settings` supplies the env layer; `settings.json` (in the data volume) is the
 stored layer. Each value is resolved and tagged with its source so the UI can show
-env-set values read-only. The admin password is stored only as a hash and is never
-returned by the settings API.
+env-set values read-only. Passwords are not settings: accounts live in `users.json`
+(`users.py`). A pre-accounts `admin_password_hash` stays here only until
+`users.ensure_seeded` moves it, and is never returned by the settings API.
 """
 
 import logging

@@ -1,7 +1,7 @@
 """Caddy Admin API client — thin HTTP I/O only.
 
 Every method does nothing but talk to the API in `docs/reference/caddy-api.md`; all decision
-logic (route JSON, mode, Caddyfile render, sync join) lives in `service.py`. This is
+logic (route JSON, mode, sync join) lives in `service.py`. This is
 the hard I/O seam that keeps that logic testable without a network.
 """
 

@@ -8,7 +8,7 @@ help:
 	@echo "make install-frontend  - npm install"
 	@echo "make test-backend      - uv run pytest"
 	@echo "make test-frontend     - npm test"
-	@echo "make check-docs        - validate doc links, anchors and orphans"
+	@echo "make check-docs        - validate doc links, anchors and orphans, and the docs against the code"
 	@echo "make check-phone       - screenshot a running Loskai at phone widths (LOSKAI_USER, LOSKAI_PASSWORD; URL=…)"
 
 live:

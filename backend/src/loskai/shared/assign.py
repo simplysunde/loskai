@@ -2,7 +2,8 @@
 
 Assigning or clearing a subdomain spans the instance store, Caddy, and AdGuard. The
 Caddy and AdGuard modules themselves are read + push only; this is the only cross-module
-writer.
+writer. It also keeps a machine's SSH config entry and keys in step when the machine is
+renamed, moved or deleted (`modules/ssh/machines.py`).
 
 Order (see docs/project/architecture.md, Routing):
   Step 0 — persist intent on the instance (durable record).

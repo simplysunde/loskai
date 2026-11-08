@@ -32,7 +32,7 @@ export function Overlay({
 }
 
 // The larger dialogs (logs, terminal, stack editor, wizard): a title bar, and a body that
-// scrolls. On a phone they take the whole screen.
+// scrolls. On a phone they grow to the whole screen when their content is long.
 export function Modal({
   title,
   onClose,

@@ -3,7 +3,7 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Seven checks:
+# Eight checks:
 #   1. Relative links (inline or reference-style) that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
@@ -18,6 +18,9 @@
 #      beside this one (scripts/sync-recipe-schema.sh). Skipped, not failed, without it.
 #   7. Every page under docs/ opens the same way: a breadcrumb linking back to the index,
 #      the title, then a `**Read this when**` line (docs/README.md, Conventions).
+#   8. The docs' enumerations against the code: the modules (CLAUDE.md and the READMEs),
+#      the admin tabs, the HTTP route count and the public routes named in CLAUDE.md, and
+#      every route against its row in docs/reference/api.md.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -230,8 +233,8 @@ elif tabs is None:
 elif tabs != admin_nav:
     problems.append(f"  CLAUDE.md: admin tabs {tabs} != NAV {admin_nav} (public tabs excluded)")
 
-# 3. The HTTP route count. Drifts the moment a route is added — the WebSocket is counted
-#    separately because CLAUDE.md names it separately.
+# 3. The HTTP route count. Drifts the moment a route is added — the two terminal
+#    WebSockets are not counted, because CLAUDE.md names them separately.
 routes = 0
 for f in pathlib.Path("backend/src/loskai").rglob("*.py"):
     routes += len(re.findall(r"@router\.(?:get|post|put|patch|delete)\(", f.read_text()))

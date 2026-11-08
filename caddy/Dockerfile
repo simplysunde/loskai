@@ -1,4 +1,4 @@
-# Caddy for the co-located (all-in-Docker) setup.
+# Caddy as a container — layouts B and C (compose.caddy-loskai.yml, compose.colocated.yml).
 #
 # Stock Caddy with its internal CA (local_certs in the Caddyfile) — no plugin, no build
 # arguments, nothing to configure. The onboarding page is baked in at /srv/setup so Caddy can

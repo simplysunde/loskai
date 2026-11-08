@@ -1,8 +1,8 @@
 """Per-instance launcher icons — the one place Loskai stores binary state.
 
-Everything else in the store is two JSON files; these are images in the same mounted
-volume (`<data_dir>/icons/<instance-id>.<ext>`), so they survive a restart and a move the
-same way `instances.json` does, and a backup of the volume carries them.
+Everything else Loskai keeps is text (JSON stores, logs, keys); these are images in the
+same mounted volume (`<data_dir>/icons/<instance-id>.<ext>`), so they survive a restart and
+a move the same way `instances.json` does, and a backup of the volume carries them.
 
 They are served **publicly**, because the Dashboard is: a launcher card has to render its
 icon before anyone logs in. That is why the accepted formats are a short allow-list checked

@@ -15,8 +15,8 @@
 # the co-located Caddyfile, where BASE_DOMAIN really is substituted here. See
 # docs/guides/troubleshooting.md#a-blank-page-or-an-empty-200.
 #
-# (Production differs: the real wildcard `*.BASE_DOMAIN` cert is obtained via DNS challenge,
-# so there Caddy DOES need BASE_DOMAIN in its own env — see the root Caddyfile + docs/project/PLAN.md.)
+# (Production uses the same internal CA — see caddy/Caddyfile. There BASE_DOMAIN is in
+# Caddy's env, but only to answer unrouted names and redirect HTTP to HTTPS.)
 
 {
 	admin 0.0.0.0:2019

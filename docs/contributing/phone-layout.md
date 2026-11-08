@@ -17,7 +17,8 @@ break the phone, nor the other way round.
 - **A page's title sits above its buttons:** `flex flex-col gap-4 sm:flex-row sm:items-start
   sm:justify-between`, the buttons `flex-wrap`. Settings' categories and a machine's
   dialog's sections are a strip across the top.
-- **A big dialog takes the screen:** `Modal` and a machine's dialog are full height below `sm`.
+- **A big dialog takes the screen:** below `sm`, a machine's dialog is full height and `Modal`
+  grows to the full height when its content is long (`max-h-full`).
 - **A table is a list of cards** — `CARD_TABLE` in `lib/ui.ts`. Each row's cells flow and
   wrap like words, so none is squeezed into a narrow column or pushed off the side. The table
   says the rest on its own elements:

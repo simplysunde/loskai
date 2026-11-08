@@ -14,7 +14,7 @@ RUN npm run build            # -> /app/dist
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 
-# uv (pinned copy) for reproducible installs.
+# uv; installs are reproducible from uv.lock (--frozen below).
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \

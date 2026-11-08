@@ -1,10 +1,11 @@
 """Accounts and sessions — the real security boundary.
 
 The gate is server-side: middleware rejects every unauthenticated `/api/*` request except
-the login flow and the public dashboard, and `access.py` decides what a signed-in user may
-call. The React `RequireAuth` wrapper is UX only. An account (`users.py`) logs in with its
-username and password into a signed HttpOnly cookie naming it; the static bundle is served
-unauthenticated.
+`PUBLIC_ROUTES` and `PUBLIC_PATTERNS` (the login flow and auth status, the public
+dashboard and its icons, Caddy's root certificate), and `access.py` decides what a
+signed-in user may call. The React `RequireAuth` wrapper is UX only. An account
+(`users.py`) logs in with its username and password into a signed HttpOnly cookie naming
+it; the static bundle is served unauthenticated.
 """
 
 import asyncio

@@ -1,9 +1,10 @@
 """FastAPI application entry point.
 
 One process serves the API and (in production) the built React bundle. The auth
-middleware gates every `/api/*` except the login flow + public dashboard; the static
-SPA is served unauthenticated. All five module routers (caddy, adguard, wireguard,
-docker, ssh) are registered here.
+middleware gates every `/api/*` except the public set in `auth.py` (the login flow, the
+dashboard and its icons, the root certificate); the static SPA is served
+unauthenticated. All five module routers (caddy, adguard, wireguard, docker, ssh) are
+registered here.
 """
 
 import asyncio
