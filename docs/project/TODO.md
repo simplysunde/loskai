@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** no phase is in flight. **Phase 40** (below), the sweep, is done. Since it: account
+**Now:** **Phase 41** (below) — recipes for Forgejo and Immich, `make demo` recording the
+README's GIFs, and the README for the first public release. **Phase 40**, the sweep, is done. Since it: account
 levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
 page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
 each in `HISTORY.md` or `CHANGELOG.md`. **Phases 34–38** — machines managed over SSH,
@@ -610,6 +611,74 @@ are fixed first, each with a regression test.
       on each HISTORY entry a later one overturned. Not done: folding CLAUDE.md's rules and
       architecture.md's narrative into one — each is written for its reader, and the
       enumerations that drift are what check-docs now pins
+
+---
+
+## Phase 41 — Showing what Loskai does: new recipes, `make demo`, the README
+
+Asked 2026-11-08, before the first public release: the README's four screenshots are from
+2026-10-09 — before SSH machines, accounts, tools and the phone layout — and Sunde wants
+"gifs playing for each tab or main function to showcase what the app does".
+
+**Decisions (2026-11-08, Sunde)**
+
+- **Generated, never hand-recorded** — "automatic generation is definetly the best and most
+  time efficient". `make demo` builds a made-up homelab, records each flow, and writes the
+  images; when the UI changes, it is run again.
+- **Every app in the demo comes from loskai-recipes**, installed through Loskai — "real apps
+  needs to come from loskai recipes". So the catalogue grows first: **Forgejo and Immich**
+  now; which others is open ("I dont know yet").
+- **Nothing real in a public image.** The demo runs its own Docker daemon (Docker-in-Docker),
+  so the host's containers never show; its LAN is made up (`192.168.50.0/24`, names under
+  `home.lan`) — not this VM's `192.168.10.0/24`, which it would also collide with.
+- **Memory:** Immich wants 4 GB or more, and this VM has 3. Sunde adds RAM before the
+  recording; until then everything is built and checked short of the full run.
+- The README's top becomes what Loskai is, the GIFs, and the three install commands; the
+  layout comparison moves below or into the guides it already links to.
+
+**Steps** — 41a–41b in loskai-recipes, the rest here; a commit each.
+
+- [ ] 41a Recipe: **Forgejo** — upstream's rootful image, pinned (17.x); `./data:/data`
+      (its own state, SQLite — no database service); `USER_UID`/`USER_GID` so the files
+      are the host user's; web on `${PORT:-3000}`, Git over SSH on `${SSH_PORT:-2222}` with
+      a `loskai.port` label (two published ports); `FORGEJO__server__SSH_PORT` so the
+      clone URLs it shows name that port. Run once through Loskai: install, open, route,
+      first-run page, Delete.
+- [ ] 41b Recipe: **Immich** — upstream's release compose (v3), pinned image tags (the
+      database and Valkey keep upstream's digests), with: no `container_name:`, no
+      top-level `name:`, `unless-stopped`; explicit `environment:` instead of
+      `env_file: .env` (the wizard's `.env` holds every answer, quoted); `service:
+      immich-server`; `DB_PASSWORD` a secret with no default — letters and digits only,
+      said in `instructions.md`; the photo library a `type: path` with `./library` as
+      default; the database fixed at `./postgres`; the model cache a named volume;
+      hardware transcoding as two options (`/dev/dri`; NVIDIA with `gpu, compute,
+      video`), off. Run once — the full stack needs the RAM; before it, the server,
+      database and Valkey without machine learning.
+- [ ] 41c The demo homelab, `demo/` — a privileged `docker:dind` container at
+      `192.168.50.20` on a Docker network of its own (the "Docker host"), its image cache
+      in a named volume so only the first run downloads. Inside it: Loskai built from the
+      checkout, the Loskai Caddy image, AdGuard with a pre-written config (no setup
+      screen). Beside it on the same network, two Debian machines with sshd (`nas` at
+      `.50`, `pve` at `.10`). Refuses to start when the subnet overlaps a route on the host
+      (`DEMO_SUBNET` changes it).
+- [ ] 41d Setting it up through Loskai's own API, off camera: the admin account, the SSH
+      key, both machines named and set up, the recipes installed (Forgejo, Immich,
+      Jellyfin, whoami — from the default source, or `DEMO_RECIPES=<folder>` for recipes
+      not pushed yet), routes for all but one container, which the Routing GIF routes.
+- [ ] 41e Recording — Playwright in its Docker image, as `check-phone` runs it; 1280×720,
+      a drawn cursor (Playwright draws none) and a one-line caption per step, the browser
+      resolving `*.home.lan` to the demo's Caddy. Flows: **Routing** (Add route →
+      container → name → synced → the app over HTTPS), **Docker** (the install wizard to
+      the app running, with its route), **Machines** (a machine's dialog: overview, the
+      terminal, a tool), **Dashboard** (desktop, then a phone). Stills of each tab for
+      `using-loskai.md` from the same run.
+- [ ] 41f Converting — ffmpeg (on the host; the script says so when it is missing); GIF
+      against animated WebP on the first one, the smaller that GitHub and Forgejo both
+      play wins; about 2 MB each, since git keeps every version. Into `docs/images/`.
+- [ ] 41g Docs: how to run it, rerun it, and add or change a flow (a contributing page);
+      the docs index; CLAUDE.md's commands and code map; `make help`.
+- [ ] 41h The README's top, as decided; `using-loskai.md` on the new stills.
+- [ ] 41i Live, once the VM has the RAM: `make demo`, look over every GIF, commit them.
 
 ---
 
