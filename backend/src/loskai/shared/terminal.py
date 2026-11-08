@@ -3,7 +3,7 @@
 WebSockets never pass the HTTP middleware, so `accept` is their gate: the session cookie,
 the `Origin` (a browser opens a WebSocket from any page, cookie attached) and the account's
 tab, or the socket is closed `1008`. `relay` then carries the terminal both ways until
-either side ends or the session does — a logout, or the tab taken away. A new terminal
+either side ends or the session does — a logout, or the account's level lowered below the tab. A new terminal
 route uses both, never its own copy.
 """
 

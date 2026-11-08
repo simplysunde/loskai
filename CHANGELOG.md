@@ -82,7 +82,7 @@ Everything so far:
   admin). An open
   Loskai page keeps you signed in, even in a background tab, as Proxmox's does; you are
   signed out 2 hours after the last one closes (Settings › Security). Logging out ends your
-  sessions on every device, and an open terminal with them, as taking away its tab does. Your
+  sessions on every device, and an open terminal with them, as lowering an account's level below a terminal's tab does. Your
   name in the sidebar opens a menu: your level, Change password and Log out. Each account unlocks Loskai's SSH key with its own password.
   An existing install's password becomes the account `admin`. An account saved with tabs,
   before levels, gets the level of its highest tab — and with it the lower tabs it may not

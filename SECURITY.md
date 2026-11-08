@@ -9,7 +9,8 @@ your network. Read this before deciding where it runs and who can reach it.
   controls the socket can start a privileged container. Loskai must be the only container
   with it mounted. The app itself runs as the owner of `./data`, not as root
   ([deployment.md](docs/guides/deployment.md#who-owns-the-files-loskai-writes)).
-- **The Docker tab opens a root shell in any container**, from the browser.
+- **The Docker tab opens a shell in any container**, from the browser — as its image's user,
+  usually root.
 - **It writes your Caddy routes and AdGuard DNS rewrites.** It deletes only the rewrites it
   made, matched by name *and* answer — except Settings › Network's confirmed "clear all".
 - **It holds an SSH key to the machines you give it** (once its public key is on them).
@@ -24,7 +25,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **A second, status-only key** is used without unlocking, so each machine's running list
   and overview work without your password. The machine itself limits it to one command that
   only reads — what runs, and the system, memory, disks, updates waiting, tools, tmux
-  session names and whether Loskai's sudo rule is there — with no shell, no forwarding, only from the Docker host. A copy reveals
+  session names, its Tailscale address and the tailnet's devices, the git projects in its
+  home folder (name, branch, last commit and its message) and whether Loskai's sudo rule is
+  there — with no shell, no forwarding, only from the Docker host. A copy reveals
   that and nothing else.
 - **A program in a terminal can put text on your clipboard** (OSC 52 — how tmux and Claude
   Code copy), as in any terminal: up to 1 MiB, and never read it — a request to read the
@@ -37,7 +40,9 @@ your network. Read this before deciding where it runs and who can reach it.
 - **Tools run fixed commands** that ship in the image — the browser only names one, and
   a value from the page (a service's name) reaches the command as an argument, never as
   code. They run as the SSH user in a terminal you see; anything needing root asks for
-  `sudo` there. Each run is logged with its command.
+  `sudo` there — or, for an automatic one, in a dialog first (below). Each run is logged
+  with its command. A tool's setting (Git's name and email) is written on the machine
+  without a terminal, and logged with its value.
 - **Install it for me** sends a machine's password to that machine once, to add Loskai's
   keys, and keeps it nowhere. It is sent only after you have accepted the machine's host
   key, and a machine whose host key changes is refused.
@@ -75,7 +80,7 @@ your network. Read this before deciding where it runs and who can reach it.
   Loskai page keeps it, even in a background tab, as Proxmox's does; it ends 2 hours after
   the last page closes (Settings › Security: 30 minutes to 7 days). An unlocked computer
   with Loskai open stays signed in — the SSH key still asks for your password again after
-  15 minutes. **Log out ends your sessions on every device** — a copied cookie stops working too,
+  15 minutes, or what Settings › SSH says. **Log out ends your sessions on every device** — a copied cookie stops working too,
   and an open terminal closes within seconds; so does a changed password, or the account
   removed. After 5 wrong passwords, each one costs a wait that doubles up to a minute: a
   guesser gets about one try a minute. Each sign-in and wrong password — at login, or asked

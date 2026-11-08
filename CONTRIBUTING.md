@@ -19,6 +19,7 @@ There is no CI, so run the checks yourself:
 make test-backend                     # pytest
 make test-frontend                    # vitest
 cd frontend && npm run build          # also type-checks the tests
+cd frontend && npx oxlint src         # lint
 make check-docs                       # links, page headers, and the docs against the code
 ```
 

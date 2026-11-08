@@ -49,7 +49,7 @@ Exact contracts. Two kinds, and the difference matters:
 | Page | When to read it |
 |---|---|
 | [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 75 routes; the live `/docs` (Swagger) is authoritative. |
-| [ssh-status.md](reference/ssh-status.md) | Reading something new from a machine without the admin password — the status key's forced command, its requests, output and versions. |
+| [ssh-status.md](reference/ssh-status.md) | Reading something new from a machine without anyone unlocking the SSH key — the status key's forced command, its requests, output and versions. |
 | [tool-schema.md](reference/tool-schema.md) | Adding a tool or an action to one — what a machine's dialog can run over SSH. Tools are data, validated, ship in the image, and apply where the machine has what they need. |
 | [recipe-schema.md](reference/recipe-schema.md) | Authoring a `recipe.yml`, or changing the install wizard's validation. Recipes are declarative data — validated, never executed. |
 
@@ -80,7 +80,7 @@ Loskai next. Nobody needs them to run it.
 | [architecture.md](project/architecture.md) | You want how Loskai is put together — its three components (Routing, Docker, Machines), what each does and doesn't, and why. |
 | [HISTORY.md](project/HISTORY.md) | Before reversing a decision: what landed, when, and what it walked back. |
 | [TODO.md](project/TODO.md) | What is being built now, and the backlog. |
-| [todo-archive.md](project/todo-archive.md) | How a finished phase (1–17) was built. |
+| [todo-archive.md](project/todo-archive.md) | How a finished phase (1–33, 37) was built. |
 
 ## Conventions
 

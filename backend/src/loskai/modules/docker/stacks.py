@@ -243,7 +243,7 @@ def delete_stack(name: str, delete_data: bool = False) -> dict:
 
     Recipes keep their data beside the compose file (`./data`), so removing the folder
     would take a service's database with it. By default only the compose file, any
-    override and `.env` go: the stack leaves the list, the data stays, and installing it again picks the
+    override, `.env` and the install record go: the stack leaves the list, the data stays, and installing it again picks the
     folder back up (claim_dir). A folder left with nothing in it is removed.
     `down` never takes `-v`, so named volumes survive either way."""
     directory = stack_path(name)

@@ -23,8 +23,9 @@ There are two stages, and the first changes nothing.
    `docs/`.
 2. **Three reviewers in parallel**, read-only, launched together: backend
    (`backend/src/loskai/`), frontend (`frontend/src/`), and tests + docs + tooling
-   (`backend/tests/`, the frontend tests, `docs/`, `CLAUDE.md`, `SECURITY.md`,
-   `scripts/check-docs.sh`, the compose files). Use the prompt at the end. Each reads
+   (`backend/tests/`, the frontend tests, `docs/`, `CLAUDE.md`, `SECURITY.md`, `README.md`,
+   `CHANGELOG.md`, `CONTRIBUTING.md`, `.env.example`, `scripts/check-docs.sh`, the compose
+   files). Use the prompt at the end. Each reads
    CLAUDE.md first and skims HISTORY.md's headings.
 3. **Verify every headline claim yourself** — a grep or a read — and mark which you
    checked. Reviewers overstate: in Phase 40 the "duplicate tests" each asserted something
@@ -106,7 +107,9 @@ asserting the effect, not the response. Never against the repo's `data/` (live s
   (`https`, `both`, `http`) and a delete. `down -v` afterwards.
 - **The browser:** Playwright in the `mcr.microsoft.com/playwright` image with
   `--network host`. Every tab renders with no page errors; then the flows the area touched
-  — dialogs and Escape, forms that submit, a failing action that says why.
+  — dialogs and Escape, forms that submit, a failing action that says why. `make
+  check-phone` covers every page and the main dialogs at phone widths
+  (`docs/contributing/phone-layout.md`).
 - **Sunde's `:8080`** runs `make live` from the working tree, so it reloads with every
   change: check it still renders at the end. A white page there is Vite holding an empty
   module after a rewrite — touch the file.

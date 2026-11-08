@@ -64,8 +64,10 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   writes with the main key (Git's commit name and email) (`docs/reference/tool-schema.md`).
 - `shared/` — `instances.py` (the one domain object), `assign.py` (route/machine creation —
   the one place modules coordinate), `follow.py` (the only background task), `auth.py`,
+  `users.py` (the accounts and their levels), `access.py` (the level each route needs),
   `settings.py`, `store.py` (atomic JSON I/O, the store lock), `errors.py` (`LoskaiError`: a
-  refusal and its HTTP status, decided where it is raised — routers catch nothing to translate),
+  refusal and its HTTP status, decided where it is raised — a router translates only a
+  third party's errors: httpx, Docker's, a settings `ValueError`),
   `terminal.py` (the terminal WebSockets' gate and relay), `icons.py`, `dashboard.py`,
   `health.py`, `export.py`.
 
@@ -135,10 +137,12 @@ bash scripts/check-docs.sh
 ## Architecture — the load-bearing ideas
 
 **One image, five independent modules.** Each degrades gracefully and never blocks another;
-a module going unreachable greys out only its own card.
+a module going unreachable greys out only its own status (its dot in the sidebar, its row on
+Routing).
 
 **The `instance` is the single domain object.** `instances.json` — a flat file; **there is
-no database**, only it and `settings.json` in `data/` — is the spine every module reads. A
+no database**, only it, `settings.json` and `users.json` in `data/` (beside the logs and
+Loskai's SSH files) — is the spine every module reads. A
 Docker container and an external LAN service (NAS, Proxmox, any `IP:port`) are the same
 struct with a different `type`. **A route is not stored separately: it is an instance with
 a `subdomain`.** Runtime container state (status, CPU, RAM) is never persisted; it is read
@@ -168,14 +172,14 @@ Routing lists services; Machines lists each machine with the routes on it beneat
 store, two tabs.
 
 **`client.py` (I/O) vs pure logic is a hard seam — keep it.** Clients only make the HTTP or
-socket call; every decision (reconcile, the route and Caddyfile builders, the answer IP) is a
+socket call; every decision (reconcile, the route builders, the answer IP) is a
 pure function. Unit tests mock nothing; contract tests mock the client.
 
 **Creation is two endpoints over one action** (`shared/assign.py`): **`POST /api/routes`**
 publishes a service, **`POST /api/machines`** names a LAN address (no port, no TLS, may be
 dotted). Both run `assign()`: set the subdomain, push the Caddy route (**required** — abort
-and roll back on failure), then write the AdGuard rewrite (**best-effort** — warn, never
-fail). Anything after the Caddy push is best-effort too, such as a new container route
+and roll back on failure; a machine gets none, its rewrite answering its own address), then
+write the AdGuard rewrite (**best-effort** — warn, never fail). Anything after the Caddy push is best-effort too, such as a new container route
 getting its recipe's icon. The Caddy and AdGuard modules never write on their own.
 
 **Where routes are made in the UI:**
@@ -194,8 +198,8 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
 - Every route form pre-fills a container through **`containerPrefill`** — a new one must
   too. Two forms once disagreed, which is how a container gets routed twice.
 
-**Security is enforced on the API, never the frontend.** Accounts (`shared/users.py`): an
-each has a level, adding to the ones below — 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
+**Security is enforced on the API, never the frontend.** Accounts (`shared/users.py`): each
+has a level, adding to the ones below — 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
 admin, who does everything). Passwords hashed, an `HttpOnly`
 session cookie naming the account, kept while a page is open (its health poll renews it,
 even in a background tab) and ended by its idle time after that, or its user's logout. Middleware
@@ -217,7 +221,7 @@ same commit. The public set:
 machine's (`WS /api/ssh/machines/{id}/terminal`) — sit outside the middleware**: WebSockets
 never traverse it, so each passes `shared/terminal.py` — `accept` checks the cookie, the
 `Origin` (`auth.same_origin`) and the tab, closing with 1008, and `relay` closes it when the
-session ends (a logout or its tab taken away). Each opens a shell — the machine's also needs
+session ends (a logout, or its account's level lowered below the tab). Each opens a shell — the machine's also needs
 the SSH key unlocked; a new WS route uses both, never its own copy. **Every request that changes something is
 Origin-checked** (`403`): apps on sibling subdomains are the same *site*, so `SameSite=Lax`
 sends them the cookie, and only the `Origin` tells their requests from Loskai's own. The
@@ -256,7 +260,8 @@ with the machine or its SSH connection.
   Both folders are tracked with a `.gitkeep` so Docker can't create them root-owned.
 - **The app runs as the owner of `./data`, not root** (`scripts/container-entrypoint.sh`
   drops to it, plus the socket's group). Anything written on the host must work owned by
-  that user; anything holding a secret goes through `store.write_private` (`0600`). Never
+  that user; anything holding a secret goes through `store.write_private` or `store.replace_private`
+  (`0600`). Never
   `chown` below a stack's own files — `stacks/<name>/data/` is the app's.
 - **Loskai never handles an ACME/DNS token or registry credentials** — those live with Caddy
   and the Docker host. The internal CA is the only TLS mode Loskai's configs ship.
@@ -282,7 +287,7 @@ with the machine or its SSH connection.
   stripped — so read a container's folder from its `working_dir` label, never by turning the
   project name back into a path.
 - **Delete keeps a stack's data unless asked** (`delete_data`): only the compose file, the
-  override and `.env` go, because recipes keep data beside them. Don't turn it into a plain
+  override, `.env` and the install record go, because recipes keep data beside them. Don't turn it into a plain
   `rmtree`. A folder with data and no compose file is taken over by the next stack or
   install of that name (`claim_dir`) — that is how a reinstall, or someone bringing their
   own data, gets it picked up.
