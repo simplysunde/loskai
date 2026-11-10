@@ -5,7 +5,7 @@
 **Read this when** you want what is being built now, or the backlog.
 
 **Now:** **Phase 41** (below) — recipes for Forgejo and Immich, `make demo` recording the
-README's GIFs, and the README for the first public release. **Phase 40**, the sweep, is done. Since it: account
+README's animations, and the README for the first public release. **Phase 40**, the sweep, is done. Since it: account
 levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
 page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
 each in `HISTORY.md` or `CHANGELOG.md`. **Phases 34–38** — machines managed over SSH,
@@ -679,15 +679,14 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
       version. Into `docs/images/`.
 - [x] 41g Docs: how to run it, rerun it, and add or change a flow (a contributing page);
       the docs index; CLAUDE.md's commands and code map; `make help`.
-- [ ] 41h The README's top, as decided — written: a section per feature, each on its tab's
-      screenshot until 41i puts its animation there; the layouts cut to three lines each,
-      the rest in the guides. Left for 41i: the animations, and `using-loskai.md` on the
-      new stills.
-- [ ] 41i Live, once the VM has the RAM: `make demo` with Immich — so far run whole only
-      without it (`DEMO_APPS="jellyfin bambuddy" DEMO_RECIPES=../loskai-recipes`), every flow
-      recorded and converted; look over every animation, then commit them with the README
-      and `using-loskai.md` pointing at them. The recipes must be on GitHub first (the
-      default source), or pass `DEMO_RECIPES`.
+- [x] 41h The README's top, as decided: a section per feature, each on its animation; the
+      layouts cut to three lines each, the rest in the guides.
+- [x] 41i Live, 2026-11-10 on 8 GB: `make demo` with Immich (`DEMO_RECIPES=../loskai-recipes`
+      — GitHub's mirror wasn't synced yet), every flow recorded and looked over; the
+      animations in the README, the new stills in `using-loskai.md` at the same paths. The
+      first run with Immich found the demo's Docker host had no `/etc/localtime`, which
+      Immich and Forgejo mount — given it. Still to see: the WebPs playing on GitHub's
+      README once pushed.
 
 ---
 

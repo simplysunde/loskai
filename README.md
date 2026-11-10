@@ -13,27 +13,28 @@ module being healthy.
 `jellyfin.home.lan` instead of `192.168.10.20:8096`, over HTTPS. One step sets both the
 Caddy route and the AdGuard DNS entry.
 
-![Routing: a container gets its HTTPS name in one step](docs/images/routing.png)
+![Routing: a container gets its HTTPS name in one step](docs/images/demo-routing.webp)
 
 ### Apps from recipes
 
 Docker, grouped by stack — start, stop, update, edit, and install apps from recipes, routed
 from the same dialog.
 
-![Docker: an app installed from its recipe](docs/images/docker.png)
+![Docker: an app installed from its recipe](docs/images/demo-docker.webp)
 
 ### Your machines by name
 
 Routes on a machine follow it when its address changes. Over SSH: what runs there, its
 updates and tools, and a terminal in the browser.
 
-![Machines: a machine's overview and a terminal on it](docs/images/machines.png)
+![Machines: a machine's overview and a terminal on it](docs/images/demo-machines.webp)
 
 ### A dashboard for everyone
 
 Every service as a launcher card, usable without logging in — on a computer or a phone.
 
-![The dashboard](docs/images/dashboard.png)
+![The dashboard on a computer](docs/images/demo-dashboard.webp)
+![The dashboard on a phone](docs/images/demo-dashboard-phone.webp)
 
 What each tab does: [Using Loskai](docs/guides/using-loskai.md).
 
