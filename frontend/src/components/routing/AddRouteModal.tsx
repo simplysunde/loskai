@@ -145,40 +145,41 @@ export function AddRouteModal({
         </SourceTab>
       </div>
 
-      {source === "container" && (
-        <PickList empty="No unrouted containers.">
-          {unroutedContainers.map((c) => (
-            <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
-          ))}
-        </PickList>
-      )}
-      {source === "machines" && (
-        <PickList
-          empty={
-            <>
-              No machine with SSH set up — set one up on the{" "}
-              <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
-                Machines
-              </Link>{" "}
-              tab, or use External.
-            </>
-          }
-        >
-          {groups.map((g) => (
-            <div key={g.machine.id} className="space-y-1">
-              <p className="px-1 pt-1 text-[11px] font-medium uppercase text-slate-500">{machineLabel(g.machine)}</p>
-              {g.services.map((s) => (
-                <PickItem key={s.key} active={picked === s.key} onClick={() => pickService(s)} title={s.name} sub={`${s.upstream} · ${s.kind}`} />
-              ))}
-              {g.services.length === 0 && !g.note && <p className="px-1 text-xs text-slate-600">Nothing more to route here.</p>}
-              {g.note && <p className="px-1 text-xs text-amber-300/80">{g.note}</p>}
-            </div>
-          ))}
-        </PickList>
-      )}
-      {source === "external" && (
-        <>
-          <p className="mt-1 text-xs text-slate-500">
+      {/* One height on every source, so switching doesn't move the fields and buttons. */}
+      <div className="mt-3 h-40 overflow-y-auto">
+        {source === "container" && (
+          <PickList empty="No unrouted containers.">
+            {unroutedContainers.map((c) => (
+              <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
+            ))}
+          </PickList>
+        )}
+        {source === "machines" && (
+          <PickList
+            empty={
+              <>
+                No machine with SSH set up — set one up on the{" "}
+                <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
+                  Machines
+                </Link>{" "}
+                tab, or use External.
+              </>
+            }
+          >
+            {groups.map((g) => (
+              <div key={g.machine.id} className="space-y-1">
+                <p className="px-1 pt-1 text-[11px] font-medium uppercase text-slate-500">{machineLabel(g.machine)}</p>
+                {g.services.map((s) => (
+                  <PickItem key={s.key} active={picked === s.key} onClick={() => pickService(s)} title={s.name} sub={`${s.upstream} · ${s.kind}`} />
+                ))}
+                {g.services.length === 0 && !g.note && <p className="px-1 text-xs text-slate-600">Nothing more to route here.</p>}
+                {g.note && <p className="px-1 text-xs text-amber-300/80">{g.note}</p>}
+              </div>
+            ))}
+          </PickList>
+        )}
+        {source === "external" && (
+          <p className="px-1 text-xs text-slate-500">
             Any address. A route on a named machine's address is listed under it, and moves
             with it. Machines are named on the{" "}
             <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
@@ -186,8 +187,8 @@ export function AddRouteModal({
             </Link>{" "}
             tab.
           </p>
-        </>
-      )}
+        )}
+      </div>
 
       <RouteFields
         fields={fields}
@@ -251,7 +252,7 @@ function PickList({ empty, children }: { empty: React.ReactNode; children: React
   const items = Array.isArray(children) ? children : [children];
   const isEmpty = items.length === 0 || items.every((c) => !c);
   return (
-    <div className="mt-3 max-h-40 space-y-1 overflow-y-auto">
+    <div className="space-y-1">
       {isEmpty ? <p className="py-3 text-center text-xs text-slate-600">{empty}</p> : children}
     </div>
   );
