@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 41** (below) — recipes for Forgejo and Immich, `make demo` recording the
-README's animations, and the README for the first public release. **Phase 40**, the sweep, is done. Since it: account
+**Now:** **Phase 42** (below) — Add route from what runs on a machine. **Phase 41** — recipes for
+Forgejo and Immich, `make demo` recording the README's animations, the README — is done. **Phase 40**, the sweep, is done. Since it: account
 levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
 page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
 each in `HISTORY.md` or `CHANGELOG.md`. **Phases 34–38** — machines managed over SSH,
@@ -690,6 +690,56 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
       README once pushed.
 
 ---
+
+## Phase 42 — Add route from what runs on a machine
+
+Asked 2026-11-10: "the network selector should be changed to machines and allow selections
+based on the recognized services running there (not proxmox items)".
+
+**Decisions (2026-11-10, Sunde)**
+
+- The picker's **Network** source becomes **Machines**: a named machine's services, each
+  with the port it listens on; picking one fills the host (the machine's address), the
+  port, a prefix and a name. No new link on the record — a route on a machine's address is
+  already on that machine.
+- **AdGuard, WireGuard and the Certificate page leave the picker.** The AdGuard pill on the
+  Routing tab keeps routing AdGuard (with `origin`); the other two are routed as External.
+  The backend keeps accepting all three origins, so routes made earlier stay as they are.
+- **Proxmox guests (VMs, LXCs) are never offered.** Proxmox's own web UI is: `pveproxy`
+  (:8006) is offered though the running list counts it as base system.
+- **A service with no port Loskai can read is not offered.** When the SSH user can't read
+  other users' sockets (no root, no `sudo -n`), the source says so and how to give it.
+
+**What is known before building**
+
+- The running list has no ports today (`ssh-status.md`): containers are `name|image|status`,
+  services are unit names. Ports need the status command's v6, and a machine on an older
+  line reinstalls it from its dialog (the existing "install again").
+- `GET /api/ssh/running` is level 3 (Machines); Routing is level 1. The source shows only
+  to accounts that may read it; the others keep Container and External.
+- Only TCP listeners on an address Caddy can reach count: not `127.0.0.1`/`::1`. Loskai
+  can't tell HTTP from anything else (a database's port), so it offers what listens and
+  the person picks.
+- The Docker host's own containers are already the Container source (with following);
+  under the Docker host the Machines source lists its services, not its containers again.
+
+**Steps** — a commit each.
+
+- [ ] 42a Status command v6: `#docker` rows gain the published ports (`{{.Ports}}`); a new
+      `#listen` section — `ss -Htlnp` (then `sudo -n`, then `!denied`), and each listening
+      pid's systemd unit from `/proc/<pid>/cgroup`. `parse_running` adds `ports` to each
+      container and `listening` (`{service, port}`, loopback left out, base services left
+      out except `pveproxy`); older lines parse as before, with no ports. Tests: samples in
+      `test_ssh_logic.py`; the real-command test picks up the section. `ssh-status.md`:
+      the section, the version row.
+- [ ] 42b The picker: the Machines source — grouped by machine, one row per service and
+      port, those already routed on that address and port left out; opened from a
+      machine's row, on that machine. Network source and `networkServices.ts` go, except
+      what the AdGuard pill needs. Tests in `AddRouteModal.test.tsx`.
+- [ ] 42c Docs: `architecture.md` and CLAUDE.md (where routes are made), `using-loskai.md`,
+      `api.md` if the running response's row changes; HISTORY (why the built-ins left).
+- [ ] 42d Live: on a real machine with SSH set up — reinstall the status line, see its
+      services and ports, route one, open it. Then `make demo` again (the Routing flow).
 
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
