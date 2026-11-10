@@ -2,9 +2,9 @@
 #
 # convert.sh <recordings> <images> <ffmpeg image> — run by scripts/record-demo.sh. Cuts each
 # recording to where its flow starts (marks.txt) and writes it into <images> as an animated
-# WebP, demo-<flow>.webp; copies the stills of each tab beside them. WebP, not GIF: it plays
-# the same everywhere a README is read, at a sixth of the size (2026-11-08: 1.8 MB against
-# 250 KB for the Docker flow), and git keeps every version of every image.
+# WebP, demo-<flow>.webp. WebP, not GIF: it plays the same everywhere a README is read, at a
+# sixth of the size (2026-11-08: 1.8 MB against 250 KB for the Docker flow), and git keeps
+# every version of every image.
 # ffmpeg runs in its own image, so the host needs nothing but Docker.
 
 set -euo pipefail
@@ -29,6 +29,3 @@ while read -r name start; do
   printf '  %-16s %5s KB\n' "$name" "$(( $(stat -c %s "$dst/demo-$name.webp") / 1024 ))"
 done < "$src/marks.txt"
 
-for still in dashboard docker routing machines; do
-  [ -f "$src/$still.png" ] && cp "$src/$still.png" "$dst/$still.png"
-done

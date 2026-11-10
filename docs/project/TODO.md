@@ -683,7 +683,8 @@ Asked 2026-11-08, before the first public release: the README's four screenshots
       layouts cut to three lines each, the rest in the guides.
 - [x] 41i Live, 2026-11-10 on 8 GB: `make demo` with Immich (`DEMO_RECIPES=../loskai-recipes`
       — GitHub's mirror wasn't synced yet), every flow recorded and looked over; the
-      animations in the README, the new stills in `using-loskai.md` at the same paths. The
+      animations in the README and `using-loskai.md` (its four stills dropped — nothing
+      else showed them, so `make demo` no longer takes them). The
       first run with Immich found the demo's Docker host had no `/etc/localtime`, which
       Immich and Forgejo mount — given it. Still to see: the WebPs playing on GitHub's
       README once pushed.

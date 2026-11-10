@@ -1,6 +1,6 @@
 // record.mjs — run by scripts/record-demo.sh, in Playwright's image, after setup.mjs. Records
 // each flow as a video in /out (name.webm, and the second its action starts in marks.txt,
-// so the loading before it is cut), and saves a still of each tab for using-loskai.md.
+// so the loading before it is cut).
 //
 // Playwright draws no cursor, so one is drawn here, and every click first glides to its
 // target; a caption at the top says what each step is. A flow is a list of steps a
@@ -202,17 +202,4 @@ const earlier = fs.existsSync(`${OUT}/marks.txt`) ? fs.readFileSync(`${OUT}/mark
 const fresh = new Set(marks.map((m) => m.split(" ")[0]));
 fs.writeFileSync(`${OUT}/marks.txt`, `${[...earlier.filter((m) => m && !fresh.has(m.split(" ")[0])), ...marks].join("\n")}\n`);
 
-// Stills of each tab, for using-loskai.md.
-if (!ONLY) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: "dark", extraHTTPHeaders: { Origin: BASE } });
-  await ctx.request.post(`${BASE}/api/login`, { data: { username: "admin", password: process.env.LOSKAI_PASSWORD } });
-  const p = await ctx.newPage();
-  for (const [name, path] of [["dashboard", "/"], ["docker", "/docker"], ["routing", "/routing"], ["machines", "/machines"]]) {
-    await go(p, path);
-    await pause(p, 1500);
-    await p.screenshot({ path: `${OUT}/${name}.png` });
-  }
-  await ctx.close();
-  console.log("✓ stills");
-}
 await browser.close();

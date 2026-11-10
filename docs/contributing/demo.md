@@ -1,9 +1,9 @@
 [Docs](../README.md) › [Contributing](../README.md#contributing)
 
-# The README's animations
+# The animations
 
-**Read this when** the UI changed and the README's animations or the guide's screenshots no longer
-match it, or you want to add or change one.
+**Read this when** the UI changed and the animations in the README and
+[Using Loskai](../guides/using-loskai.md) no longer match it, or you want to add or change one.
 
 They are never recorded by hand. `make demo` builds a made-up homelab, sets it up through
 Loskai, records each flow, and writes the images to `docs/images/`:
@@ -14,7 +14,6 @@ Loskai, records each flow, and writes the images to `docs/images/`:
 | `demo-docker.webp` | The install wizard: a recipe installed and routed from its last step |
 | `demo-machines.webp` | A machine's dialog — its overview over SSH — and a terminal on it |
 | `demo-dashboard.webp`, `demo-dashboard-phone.webp` | The public dashboard on a computer and a phone |
-| `dashboard.png`, `docker.png`, `routing.png`, `machines.png` | Each tab, for [Using Loskai](../guides/using-loskai.md) |
 
 Rerun it after a change to what any of them shows, and commit the images with that change
 or right after it.
@@ -57,7 +56,7 @@ Nothing in it is real, so nothing real can end up in a public image:
 |---|---|
 | `scripts/record-demo.sh` | Builds the images, starts the LAN, installs Loskai, runs the two scripts below, converts, clears it all away |
 | `demo/setup.mjs` | The setup, through Loskai's API, as a user would: the apps installed, routes for all but Jellyfin (routed on camera), the NAS named and its SSH set up, Home Assistant named |
-| `demo/record.mjs` | One function per flow, a step at a time; the drawn cursor and the caption; the stills |
+| `demo/record.mjs` | One function per flow, a step at a time; the drawn cursor and the caption |
 | `demo/convert.sh` | Each recording cut to where its flow starts, scaled to 960 px wide, written as an animated WebP — a sixth of a GIF's size, and it plays wherever a GIF does |
 
 ## Changing a flow, or adding one
@@ -81,8 +80,8 @@ await record("routing", async (p, start) => {
 - Keep a flow under about 20 seconds: an animation has no pause button, and git keeps every
   version of it, so its size counts — `convert.sh` prints each one's.
 - Something the flow needs set up first goes in `setup.mjs`, through the API.
-- A new flow: add its row to the table above, and its image to the README or the guide
-  that shows it.
+- A new flow: add its row to the table above, and its image to the README and the guide
+  where it belongs.
 
 When a flow fails, the run stops with the step that failed, a screenshot of the page in
 `.demo/out/<flow>-failed.png`, and the homelab left up to try the step by hand at

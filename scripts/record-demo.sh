@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # record-demo.sh — build a made-up homelab, set it up through Loskai, record what Loskai
-# does in it, and write the README's animations and the guide's stills to docs/images/.
+# does in it, and write the animations the README and the guide show to docs/images/.
 #
 #   bash scripts/record-demo.sh        (make demo)
 #
