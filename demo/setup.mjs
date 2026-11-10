@@ -38,7 +38,8 @@ for (const id of APPS) {
   // A secret has no default; anything else asked keeps its own.
   const answers = Object.fromEntries((recipe.env || []).filter((e) => e.secret).map((e) => [e.key, secret()]));
   const done = await post(`/api/docker/recipes/${id}/install`, { answers, mounts: [], options: [] });
-  if (!done.container) throw new Error(`${id} installed, but no container was found: ${done.warning || ""}`);
+  if (!done.ok) throw new Error(`${id} didn't install:\n${done.output.split("\n").slice(-8).join("\n")}`);
+  if (!done.container) throw new Error(`${id} installed, but no container was found: ${done.warning}`);
   console.log(`✓ installed ${id} (${done.container})`);
   if (id === ON_CAMERA) continue;
   await post("/api/routes", {
