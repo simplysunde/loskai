@@ -88,8 +88,11 @@ docker build -q -t loskai-demo-machine demo/machine >/dev/null
 log "Starting the LAN: the Docker host, AdGuard, the NAS"
 docker network create --subnet "$SUB.0/24" --gateway "$SUB.1" "$NET" >/dev/null
 mkdir -p "$W"
+# Its image has no /etc/localtime, which a real host has and recipes mount (Immich, Forgejo):
+# missing, the daemon makes it a folder and the container won't start.
 docker run -d -q --name "$DIND" --hostname docker --privileged --network "$NET" --ip "$SUB.20" \
-  -e DOCKER_TLS_CERTDIR= -v loskai-demo-docker:/var/lib/docker -v "$W:$W" docker:29.9.3-dind >/dev/null
+  -e DOCKER_TLS_CERTDIR= -v loskai-demo-docker:/var/lib/docker -v "$W:$W" \
+  -v /etc/localtime:/etc/localtime:ro docker:29.9.3-dind >/dev/null
 docker run -d -q --name loskai-demo-adguard --network "$NET" --ip "$SUB.2" adguard/adguardhome:v0.107.80 >/dev/null
 docker run -d -q --name loskai-demo-nas --hostname nas --network "$NET" --ip "$SUB.50" \
   --cap-add SYS_ADMIN -v /srv/storage -e MACHINE_PASSWORD="$MACHINE_PASSWORD" loskai-demo-machine >/dev/null
