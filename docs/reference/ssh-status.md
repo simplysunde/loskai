@@ -28,7 +28,7 @@ command only compares it in a `case` to pick one of two fixed answers:
 
 | Request | Answer | Parsed by | Asked by |
 |---|---|---|---|
-| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
+| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests, and the ports the containers and services take | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
 | `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._overview`) |
 
 Two requests rather than one answer, because the overview costs more (counting updates
@@ -44,22 +44,35 @@ since the epoch). A running list is reused for 30 s and an overview for 60 s (`R
 The first line is always the version, `#loskai-status <n>`. The rest are sections, each a
 marker line followed by its rows.
 
-**`running`** — markers `#docker`, `#systemd`, `#pct`, `#qm`:
+**`running`** — markers `#docker`, `#systemd`, `#listen`, `#pct`, `#qm`:
 
 | Section | Rows | Notes |
 |---|---|---|
-| `#docker` | `name\|image\|status` (`docker ps --format`) | only where `docker` exists |
+| `#docker` | `name\|image\|status\|ports` (`docker ps --format`) | only where `docker` exists; `ports` since v6 |
 | `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`) |
+| `#listen` | each `ss -Htlnp` line, then `@<pid> <unit>` for each process behind it (the unit from `/proc/<pid>/cgroup`, empty for none) | since v6; only where `ss` exists |
 | `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept |
 
 A row of `!denied` means the SSH user may not read that list: `docker`, `pct` and `qm` each
 try the plain command, then `sudo -n` (which never prompts), then say `!denied`.
-`systemctl` runs once, with no fallback.
+`systemctl` runs once, with no fallback. `#listen` runs as root when the user is root or has
+`sudo -n`; otherwise it says `!partial` and runs as the user, who sees only its own
+processes' sockets — the others' ports come without a pid, so without a service.
 
-Parsed to `{ containers, services, hidden, guests, denied }`: `containers` `{name, image,
-status}`; `services` the unit names without `.service`; `hidden` how many base services were
-left out; `guests` the running ones, `{id, name, kind}` with `kind` `lxc` or `vm`; `denied`
-the sections that said `!denied`.
+Parsed to `{ containers, services, hidden, guests, listening, denied }`:
+
+- `containers` `{name, image, status, ports}` — `ports` the TCP ports published off
+  loopback (`[]` from a line before v6);
+- `services` the unit names without `.service`; `hidden` how many base services were left out;
+- `guests` the running ones, `{id, name, kind}` with `kind` `lxc` or `vm`;
+- `listening` the ports services listen on, `{service, port, host}` — `host` "" when on
+  every address, else the one it is on. Left out: loopback, a process with no unit, the
+  base services except `LISTEN_ALSO` (Proxmox's `pveproxy`), and a port a container
+  publishes (Docker's proxy holds it; the container lists it). `null` from a line before v6;
+- `denied` the sections that said `!denied`, and `listen` for `!partial`.
+
+The Add route picker's Machines source offers these ports
+([architecture.md](../project/architecture.md)).
 
 **`facts`** — markers start `#=`, because an `/etc/os-release` comment can start with `#`:
 
@@ -115,8 +128,9 @@ the new line, so:
 
 1. Bump `STATUS_VERSION`, and add the old one to `OLD_STATUS_VERSIONS`.
 2. Keep every parser accepting the versions whose output it can still read.
-   `parse_running` reads them all: the running part hasn't changed since v1.
-   `parse_facts` reads only the current one — a page on an older line says so.
+   `parse_running` reads them all — from a line before v6, without ports.
+   `parse_facts` reads `FACTS_VERSIONS` (v5 and v6, whose `facts` part is the same) — a
+   page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
 
@@ -127,6 +141,7 @@ the new line, so:
 | 3 | `facts` adds `tailscale` and `curl` to the programs, the Tailscale address, and the projects (Phase 34g) |
 | 4 | `facts` adds the tailnet (`tailscale status`), and each project's commits not pushed |
 | 5 | `facts` adds `sudo`: whether Loskai's sudo rule (updates without a password) is there |
+| 6 | `running` adds each container's ports and `#listen`, the ports services listen on (Phase 42a) |
 
 ## Adding a fact
 

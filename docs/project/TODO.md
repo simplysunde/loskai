@@ -725,13 +725,15 @@ based on the recognized services running there (not proxmox items)".
 
 **Steps** — a commit each.
 
-- [ ] 42a Status command v6: `#docker` rows gain the published ports (`{{.Ports}}`); a new
+- [x] 42a Status command v6: `#docker` rows gain the published ports (`{{.Ports}}`); a new
       `#listen` section — `ss -Htlnp` (then `sudo -n`, then `!denied`), and each listening
       pid's systemd unit from `/proc/<pid>/cgroup`. `parse_running` adds `ports` to each
       container and `listening` (`{service, port}`, loopback left out, base services left
       out except `pveproxy`); older lines parse as before, with no ports. Tests: samples in
       `test_ssh_logic.py`; the real-command test picks up the section. `ssh-status.md`:
-      the section, the version row.
+      the section, the version row. Built: `facts` still reads v5 (`FACTS_VERSIONS`), so a
+      machine's overview keeps working until its line is reinstalled; only the ports wait.
+      Run here as root (privileged container): units and pids as expected.
 - [ ] 42b The picker: the Machines source — grouped by machine, one row per service and
       port, those already routed on that address and port left out; opened from a
       machine's row, on that machine. Network source and `networkServices.ts` go, except

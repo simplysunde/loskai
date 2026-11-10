@@ -218,9 +218,11 @@ def public_key_of(private_key: str, comment: str) -> str:
 # it sits inside `command="…"`. docs/reference/ssh-status.md is the contract.
 #
 # The version line changes when what is installed must change. A machine with an older
-# line still answers `running` (that part is the same); `facts` asks for a reinstall.
-STATUS_VERSION = "#loskai-status 5"
-OLD_STATUS_VERSIONS = ("#loskai-status 1", "#loskai-status 2", "#loskai-status 3", "#loskai-status 4")
+# line still answers `running`, without the ports; `facts` before v5 asks for a reinstall.
+STATUS_VERSION = "#loskai-status 6"
+OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 6))
+# The lines whose `facts` answer this Loskai reads — v6 changed only `running`.
+FACTS_VERSIONS = ("#loskai-status 5", STATUS_VERSION)
 
 # Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
 # letting its user run exactly System's update commands — and this file's removal — with no
@@ -238,13 +240,30 @@ def remove_sudo_rule(on_fail: str) -> str:
         f"elif ! sudo -n rm -f {SUDO_RULE} 2>/dev/null && [ -e {SUDO_RULE} ]; then {on_fail}; fi"
     )
 
+_DOCKER_PS = "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}'"
+# Each TCP listener (`ss -Htlnp`), and after it the systemd unit of each process behind it,
+# `@<pid> <unit>` from its cgroup. Only root sees every process's sockets, so a user without
+# `sudo -n` gets `!partial` first and only its own processes' pids. One script, run as root,
+# through sudo, or as the user — no quotes inside, so `sh -c '…'` carries it; `set -f`, so a
+# listener's `*:80` doesn't glob.
+_LISTEN_LOOP = (
+    "set -f; ss -Htlnp 2>/dev/null | while read -r l; do echo $l; "
+    "for p in $(echo $l | grep -o pid=[0-9]* | cut -d= -f2); do "
+    "echo @$p $(grep -o [^/]*[.]service /proc/$p/cgroup 2>/dev/null | tail -n1); done; done"
+)
+_LISTEN = (
+    "if command -v ss >/dev/null; then echo '#listen'; "
+    f"if [ $(id -u) = 0 ]; then sh -c '{_LISTEN_LOOP}'; "
+    f"elif sudo -n true 2>/dev/null; then sudo -n sh -c '{_LISTEN_LOOP}'; "
+    f"else echo '!partial'; sh -c '{_LISTEN_LOOP}'; fi; fi; "
+)
 _RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
-    "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
-    "sudo -n docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || "
+    f"{_DOCKER_PS} 2>/dev/null || sudo -n {_DOCKER_PS} 2>/dev/null || "
     "echo '!denied'; fi; "
     "echo '#systemd'; "
     "systemctl list-units --type=service --state=running --no-legend --plain --no-pager 2>/dev/null; "
+    + _LISTEN +
     "if command -v pct >/dev/null; then echo '#pct'; "
     "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
     "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
@@ -382,18 +401,28 @@ def _base_service(name: str) -> bool:
     return name in BASE_SERVICES or name.startswith(BASE_PREFIXES)
 
 
-def parse_running(output: str) -> dict:
-    """The forced command's output → `{containers, services, hidden, guests, denied}`.
+# Base services whose port is still worth a route: Proxmox's web UI.
+LISTEN_ALSO = {"pveproxy"}
 
-    `containers` are `{name, image, status}`; `services` the running systemd units that
-    aren't the base system's (`hidden` counts those); `guests` the running Proxmox LXCs and
-    VMs, `{id, name, kind}`; `denied` the lists the user may not read (`docker`, `pct`, `qm`).
-    Raises ValueError for output that isn't the status command's — a key line from another
-    version, or a shell where the forced command should be."""
+
+def parse_running(output: str) -> dict:
+    """The forced command's output → `{containers, services, hidden, guests, listening,
+    denied}`.
+
+    `containers` are `{name, image, status, ports}`, `ports` the TCP ports published on
+    the machine's addresses; `services` the running systemd units that aren't the base
+    system's (`hidden` counts those); `guests` the running Proxmox LXCs and VMs, `{id, name,
+    kind}`; `listening` the services' TCP ports, `{service, port, host}` (`host` "" for
+    every address — see `_listeners`), None from a line older than v6; `denied` the lists
+    the user may not read (`docker`, `pct`, `qm`, and `listen` when only root may say which
+    service holds a port). Raises ValueError for output that isn't the status command's — a
+    key line from another version, or a shell where the forced command should be."""
     lines = output.splitlines()
-    if not lines or lines[0].strip() not in (STATUS_VERSION, *OLD_STATUS_VERSIONS):
+    head = lines[0].strip() if lines else ""
+    if head not in (STATUS_VERSION, *OLD_STATUS_VERSIONS):
         raise ValueError("not Loskai's status output")
     out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
+    listen: list[str] = []
     section = None
     for raw in lines[1:]:
         line = raw.strip()
@@ -402,13 +431,16 @@ def parse_running(output: str) -> dict:
         if line.startswith("#"):
             section = line[1:]
             continue
-        if line == "!denied":
+        if line == "!denied" or (line == "!partial" and section == "listen"):
             out["denied"].append(section)
             continue
         if section == "docker":
-            name, _, rest = line.partition("|")
-            image, _, status = rest.partition("|")
-            out["containers"].append({"name": name, "image": image, "status": status})
+            name, image, status, ports = (line.split("|", 3) + ["", "", ""])[:4]
+            out["containers"].append(
+                {"name": name, "image": image, "status": status, "ports": _published(ports)}
+            )
+        elif section == "listen":
+            listen.append(line)
         elif section == "systemd":
             unit = line.split()[0]
             if not unit.endswith(".service"):
@@ -425,7 +457,52 @@ def parse_running(output: str) -> dict:
     out["containers"].sort(key=lambda c: c["name"])
     out["services"].sort()
     out["guests"].sort(key=lambda g: int(g["id"]))
+    published = {p for c in out["containers"] for p in c["ports"]}
+    out["listening"] = _listeners(listen, published) if head == STATUS_VERSION else None
     return out
+
+
+_PUBLISHED = re.compile(r"(?:(\[[^\]]*\]|[0-9.]+|::)?:)?(\d+)(?:-\d+)?->[\d-]+/tcp")
+
+
+def _loopback(host: str) -> bool:
+    return host.startswith("127.") or host in ("::1", "[::1]") or host.endswith("%lo")
+
+
+def _published(ports: str) -> list[int]:
+    """The host ports in `docker ps`'s Ports (`0.0.0.0:8096->8096/tcp, [::]:8096->…`) — TCP,
+    and not on loopback, where nothing else on the network reaches them."""
+    found = {
+        int(m.group(2)) for m in _PUBLISHED.finditer(ports) if not _loopback(m.group(1) or "")
+    }
+    return sorted(found)
+
+
+def _listeners(lines: list[str], published: set[int]) -> list[dict]:
+    """`ss -Htlnp` lines, each followed by `@<pid> <unit>` lines, → the ports a service listens
+    on, `{service, port, host}`: `host` the one address it listens on, or "" for all of them
+    (`0.0.0.0`, `[::]`, `*`). Left out: loopback, a listener with no unit (a process run by
+    hand, or one only root may see), the base system's services but `LISTEN_ALSO`, and a
+    port a container publishes — listed with the container (Docker's proxy holds it)."""
+    found: dict[tuple[str, int, str], dict] = {}
+    current: tuple[int, str] | None = None
+    for line in lines:
+        if line.startswith("@"):
+            parts = line.split()
+            unit = parts[1].removesuffix(".service") if len(parts) > 1 else ""
+            if current is None or not unit or (_base_service(unit) and unit not in LISTEN_ALSO):
+                continue
+            port, host = current
+            if port not in published:
+                found.setdefault((unit, port, host), {"service": unit, "port": port, "host": host})
+            continue
+        fields = line.split()
+        address, _, port = fields[3].rpartition(":") if len(fields) > 3 else ("", "", "")
+        current = None
+        if port.isdigit() and not _loopback(address):
+            host = "" if address in ("0.0.0.0", "[::]", "*", "") else address.strip("[]").split("%")[0]
+            current = (int(port), host)
+    return sorted(found.values(), key=lambda s: (s["service"], s["port"], s["host"]))
 
 
 def _guest(line: str, section: str) -> dict | None:
@@ -474,9 +551,9 @@ def parse_facts(output: str) -> dict:
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
-    if head in OLD_STATUS_VERSIONS:
+    if head in OLD_STATUS_VERSIONS and head not in FACTS_VERSIONS:
         raise OldStatusLine(head)
-    if head != STATUS_VERSION:
+    if head not in FACTS_VERSIONS:
         raise ValueError("not Loskai's status output")
     sections: dict[str, list[str]] = {}
     current: list[str] | None = None

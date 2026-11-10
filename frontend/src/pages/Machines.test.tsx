@@ -174,7 +174,7 @@ beforeEach(() => {
                   { at: "2026-11-01T09:00:00Z", event: "open", machine: "pve", from: "192.168.10.5", target: "root@192.168.10.10" },
                 ].filter((e) => e.machine === (new URLSearchParams(path.split("?")[1]).get("machine") ?? e.machine))
             : path === "/api/ssh/running"
-              ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days" }], services: [], guests: [] } }
+              ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days", ports: [] }], services: [], guests: [] } }
             : path.endsWith("/tools/git/settings")
               ? gitStatus === 423
                 ? { detail: "Loskai's key is locked — enter your password" }

@@ -175,7 +175,7 @@ def test_install_adds_both_lines_with_the_password_then_proves_both_keys(api, ma
 
     assert r.status_code == 200, r.text
     assert r.json()["key"] is True
-    assert r.json()["running"]["containers"] == [{"name": "web", "image": "nginx", "status": "Up 1 hour"}]
+    assert r.json()["running"]["containers"] == [{"name": "web", "image": "nginx", "status": "Up 1 hour", "ports": []}]
     first, second, third = machine_net["logins"]
     assert first["password"] == "machine-pw" and first["command"] == logic.INSTALL_SCRIPT
     assert first["user"] == "loskai" and first["port"] == 2222

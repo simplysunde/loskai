@@ -6,11 +6,11 @@ import { RunningPill } from "./RunningPill";
 const RUNNING = {
   ok: true,
   checked: 0,
-  containers: [{ name: "jellyfin", image: "jellyfin/jellyfin:12.2", status: "Up 2 days" }],
+  containers: [{ name: "jellyfin", image: "jellyfin/jellyfin:12.2", status: "Up 2 days", ports: [8096] }],
   services: ["nginx"],
   hidden: 14,
   guests: [{ id: "101", name: "adguard", kind: "lxc" as const }],
-  denied: ["qm"],
+  denied: ["qm", "listen"],
 };
 
 test("the pill counts what runs, and hovering lists all of it", () => {
@@ -31,6 +31,8 @@ test("the pill counts what runs, and hovering lists all of it", () => {
   // The base system is counted, not listed; a list the user can't read is named.
   expect(card).toHaveTextContent("+ 14 system services");
   expect(card).toHaveTextContent("loskai may not list VMs");
+  // Which service holds a port is the Add route picker's to say, not this list's.
+  expect(card).not.toHaveTextContent("listen");
 });
 
 test("keyboard focus opens it too", () => {

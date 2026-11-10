@@ -48,11 +48,16 @@ export interface Running {
   ok: boolean;
   error?: string;
   checked: number; // epoch seconds
-  containers?: { name: string; image: string; status: string }[];
+  // `ports`: the TCP ports published off loopback ([] from a status line before v6).
+  containers?: { name: string; image: string; status: string; ports: number[] }[];
   services?: string[];
   hidden?: number; // base-system services, counted not listed
   guests?: { id: string; name: string; kind: "lxc" | "vm" }[];
-  denied?: string[]; // lists the SSH user may not read: docker, pct, qm
+  // The ports services listen on — `host` "" for every address; null before status line v6.
+  listening?: { service: string; port: number; host: string }[] | null;
+  // Lists the SSH user may not read: docker, pct, qm — and listen, when only its own
+  // processes' sockets could be read (the Add route picker says so; the running list doesn't).
+  denied?: string[];
 }
 
 // By machine id. The backend asks each machine at most every 30 s, whoever is looking.

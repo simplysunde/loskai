@@ -16,7 +16,7 @@ const UNLOCKED: SshKey = {
 const LOCKED: SshKey = { ...UNLOCKED, unlocked_until: null };
 const TESTED = {
   key: true,
-  running: { ok: true, checked: 0, containers: [{ name: "web", image: "nginx", status: "Up" }], services: ["nginx"], guests: [] },
+  running: { ok: true, checked: 0, containers: [{ name: "web", image: "nginx", status: "Up", ports: [] }], services: ["nginx"], guests: [] },
 };
 
 type Answer = { status?: number; body: unknown };

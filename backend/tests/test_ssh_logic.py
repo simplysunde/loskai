@@ -261,7 +261,7 @@ def test_running_lists_containers_your_services_and_running_guests():
 
     assert [c["name"] for c in out["containers"]] == ["bambuddy", "jellyfin"]
     assert out["containers"][1] == {
-        "name": "jellyfin", "image": "jellyfin/jellyfin:12.2", "status": "Up 2 days (healthy)",
+        "name": "jellyfin", "image": "jellyfin/jellyfin:12.2", "status": "Up 2 days (healthy)", "ports": [],
     }
     # The base system's services are counted, not listed: cron, getty, ssh, journald, pveproxy.
     assert out["services"] == ["docker", "nginx"]
@@ -271,6 +271,64 @@ def test_running_lists_containers_your_services_and_running_guests():
         {"id": "200", "name": "haos", "kind": "vm"},
     ]
     assert out["denied"] == []
+    # A line older than v6 says nothing about ports.
+    assert out["listening"] is None
+
+
+LISTEN_OUTPUT = """\
+#loskai-status 6
+#docker
+jellyfin|jellyfin/jellyfin:12.2|Up 2 days|0.0.0.0:8096->8096/tcp, [::]:8096->8096/tcp
+postgres|postgres:17|Up 2 days|127.0.0.1:5432->5432/tcp, 0.0.0.0:53->53/udp, 8080/tcp
+#systemd
+nginx.service loaded active running A high performance web server
+#listen
+LISTEN 0 4096 0.0.0.0:8096 0.0.0.0:* users:((docker-proxy,pid=1539,fd=8))
+@1539 docker.service
+LISTEN 0 2048 0.0.0.0:8000 0.0.0.0:* users:((uvicorn,pid=1415,fd=24))
+@1415
+LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:((nginx,pid=10,fd=6),(nginx,pid=11,fd=6))
+@10 nginx.service
+@11 nginx.service
+LISTEN 0 511 [::]:80 [::]:* users:((nginx,pid=10,fd=7))
+@10 nginx.service
+LISTEN 0 511 192.168.10.5:8443 0.0.0.0:* users:((nginx,pid=10,fd=8))
+@10 nginx.service
+LISTEN 0 4096 127.0.0.53%lo:53 0.0.0.0:* users:((systemd-resolve,pid=689,fd=15))
+@689 systemd-resolved.service
+LISTEN 0 511 [::1]:6379 [::]:* users:((redis,pid=70,fd=6))
+@70 redis.service
+LISTEN 0 4096 0.0.0.0:22 0.0.0.0:* users:((sshd,pid=1916,fd=3),(systemd,pid=1,fd=93))
+@1916 ssh.service
+@1
+LISTEN 0 4096 *:8006 *:* users:((pveproxy worker,pid=50,fd=6))
+@50 pveproxy.service
+"""
+
+
+def test_the_ports_a_container_publishes_are_its_tcp_ones_off_loopback():
+    out = logic.parse_running(LISTEN_OUTPUT)
+
+    assert {c["name"]: c["ports"] for c in out["containers"]} == {"jellyfin": [8096], "postgres": []}
+
+
+def test_a_service_s_ports_are_those_off_loopback_with_a_unit_not_the_base_system_s():
+    out = logic.parse_running(LISTEN_OUTPUT)
+
+    # Left out: Docker's proxy (jellyfin lists 8096), a process with no unit, loopback (DNS,
+    # redis), ssh — base. Proxmox's web UI stays, though base.
+    assert out["listening"] == [
+        {"service": "nginx", "port": 80, "host": ""},
+        {"service": "nginx", "port": 8443, "host": "192.168.10.5"},
+        {"service": "pveproxy", "port": 8006, "host": ""},
+    ]
+    assert out["denied"] == []
+
+
+def test_a_user_who_sees_only_its_own_sockets_says_so():
+    out = logic.parse_running("#loskai-status 6\n#systemd\n#listen\n!partial\nLISTEN 0 1 0.0.0.0:80 0.0.0.0:*\n")
+
+    assert out["denied"] == ["listen"] and out["listening"] == []
 
 
 def test_a_list_the_user_may_not_read_says_so():
@@ -390,7 +448,9 @@ def test_the_forced_command_runs_in_sh_and_answers_each_request(request_):
         assert facts["kernel"] and facts["uptime"] and facts["memory"]["total"] > 0
         assert set(facts["programs"]) <= set(logic.PROGRAMS)
     else:
-        assert set(logic.parse_running(out)) == {"containers", "services", "hidden", "guests", "denied"}
+        running = logic.parse_running(out)
+        assert set(running) == {"containers", "services", "hidden", "guests", "listening", "denied"}
+        assert running["listening"] is not None
 
 
 def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shell(tmp_path):

@@ -130,9 +130,9 @@ export function RunningList({
       {(running.hidden ?? 0) > 0 && (
         <p className="border-t border-slate-800 px-4 py-2.5 text-slate-500">+ {running.hidden} system services</p>
       )}
-      {(running.denied ?? []).map((d) => (
+      {(running.denied ?? []).filter((d) => d in DENIED).map((d) => (
         <p key={d} className="border-t border-slate-800 px-4 py-2.5 text-amber-300">
-          {user ?? "The SSH user"} may not list {DENIED[d] ?? d} — give it the rights, or sudo.
+          {user ?? "The SSH user"} may not list {DENIED[d]} — give it the rights, or sudo.
         </p>
       ))}
     </>
