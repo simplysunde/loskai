@@ -92,20 +92,22 @@ Recipes come from git repos listed in **Settings › General**, plus any you dro
 Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has it) and
 **DNS** (AdGuard has it).
 
-**Add route** offers three sources:
+**Add route** has two lists to pick from, and fields that take any address:
 
-| Source | For | Example |
+| Pick from | For | Example |
 |---|---|---|
 | Container | a container on this host | `whoami` → `whoami.home.lan` → `192.168.10.20:8081` |
 | Machines | a service or container on a machine with SSH set up, by the port it listens on | `proxmox.home.lan` → `192.168.10.10:8006` |
-| External | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
+| (type it) | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
+
+Picking fills in the fields; **Clear** empties them again for an address of your own.
 
 Machines lists each machine's services by port, and only those Loskai can reach by the
 machine's address (not one only on its Tailscale address, not Proxmox's VMs and LXCs — they
 are machines of their own). Which service holds a port is something only root can read, so
 the machine's SSH user needs `sudo` without a password, or to be root, to see all of them.
 Its containers on this Docker host are the Container source instead. The WireGuard
-dashboard and the Certificate page are External routes; AdGuard has its own button (below).
+dashboard and the Certificate page are typed in by hand; AdGuard has its own button (below).
 
 A container route can **follow its container** (on by default when Loskai can work out its
 address): if it comes back on another port, the route is updated. Per route you can also

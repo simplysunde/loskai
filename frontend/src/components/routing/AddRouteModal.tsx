@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Container as ContainerIcon, Globe, Server } from "lucide-react";
+import { Container as ContainerIcon, Server } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useContainers, type Container } from "../../lib/containers";
@@ -28,12 +28,13 @@ export interface NewRoute {
   follow_container?: boolean;
 }
 
-export type Source = "container" | "machines" | "external";
+export type Source = "container" | "machines";
 
-// "Add route" picker: choose a source (an unrouted Container, something running on a
-// Machine, or a fresh External target), which pre-fills the prefix + upstream; the fields
-// stay editable. What already has a route is left out (it's managed as a row). This is the
-// single route-creation surface — the Docker tab no longer assigns.
+// "Add route" picker: pick an unrouted Container or something running on a Machine, which
+// pre-fills the prefix + upstream, or type any address into the fields — they stay
+// editable, and Clear drops a pick. The tabs only choose which list shows. What already has
+// a route is left out (it's managed as a row). This is the single route-creation surface —
+// the Docker tab no longer assigns.
 export function AddRouteModal({
   open,
   baseDomain,
@@ -47,8 +48,8 @@ export function AddRouteModal({
   open: boolean;
   baseDomain: string | null;
   mode: "docker" | "lan" | null;
-  // Opened from a machine's row on the Machines tab: what runs there, or — when that
-  // can't be read — External, on its address. The address is what puts the route on it.
+  // Opened from a machine's row on the Machines tab: what runs there, with its address in
+  // the host field. The address is what puts the route on it.
   initialMachine?: { id: string; address: string };
   pending?: boolean;
   error?: string | null;
@@ -58,9 +59,8 @@ export function AddRouteModal({
   // Only an account that may use the Machines tab may read what runs on them.
   const mayMachines = useMe().may("machines");
   const running = useRunning(open && mayMachines);
-  const [source, setSource] = useState<Source>(() =>
-    initialMachine ? (running.data?.[initialMachine.id]?.ok ? "machines" : "external") : "container",
-  );
+  // A machine's row is on the Machines tab, so whoever opened it from there may read it.
+  const [source, setSource] = useState<Source>(initialMachine ? "machines" : "container");
   const [link, setLink] = useState<{ container?: string; name?: string }>({});
   const [picked, setPicked] = useState<string | null>(null);
   // A picked container's route follows it by default whenever its address can be derived.
@@ -68,15 +68,11 @@ export function AddRouteModal({
   const [derived, setDerived] = useState<string | null>(null);
   const [scheme, setScheme] = useState<Scheme>("https");
   // A picked container answers the hint for itself; `mode` is the deployment-wide
-  // fallback, used by the Network-service and External sources, which have no container.
+  // fallback, for a machine's service or a typed address, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
-  // External on a machine starts on its address; only the port is left to type.
+  // Opened from a machine, an address typed by hand starts on it; only the port is left.
   const machineUpstream = initialMachine ? `${initialMachine.address}:` : "";
-  const fields = useRouteFields({
-    mode: pickedMode ?? mode,
-    baseDomain,
-    initialUpstream: source === "external" ? machineUpstream : "",
-  });
+  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain, initialUpstream: machineUpstream });
 
   const containers = useContainers({ enabled: open });
   // The rows the Routing page already fetched — no extra endpoint — for the host dropdown's
@@ -90,8 +86,7 @@ export function AddRouteModal({
   if (!open) return null;
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
-  const pickedContainer =
-    source === "container" ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
+  const pickedContainer = link.container ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
   const hosts = hostOptions({
     rows: rows.data,
     dockerHost: settings.data?.host_ip?.value,
@@ -101,9 +96,8 @@ export function AddRouteModal({
     (g) => !initialMachine || g.machine.id === initialMachine.id,
   );
 
-  const reset = (next: Source) => {
-    setSource(next);
-    fields.set({ prefix: "", upstream: next === "external" ? machineUpstream : "", tls: false });
+  const clear = () => {
+    fields.set({ prefix: "", upstream: machineUpstream, tls: false });
     setLink({});
     setPicked(null);
     setPickedMode(null);
@@ -132,20 +126,17 @@ export function AddRouteModal({
       <h2 className="text-base font-semibold text-slate-100">Add route</h2>
 
       <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
-        <SourceTab active={source === "container"} onClick={() => reset("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
+        <SourceTab active={source === "container"} onClick={() => setSource("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
           Container
         </SourceTab>
         {mayMachines && (
-          <SourceTab active={source === "machines"} onClick={() => reset("machines")} icon={<Server className="h-3.5 w-3.5" />}>
+          <SourceTab active={source === "machines"} onClick={() => setSource("machines")} icon={<Server className="h-3.5 w-3.5" />}>
             Machines
           </SourceTab>
         )}
-        <SourceTab active={source === "external"} onClick={() => reset("external")} icon={<Globe className="h-3.5 w-3.5" />}>
-          External
-        </SourceTab>
       </div>
 
-      {/* One height on every source, so switching doesn't move the fields and buttons. */}
+      {/* One height on both lists, so switching doesn't move the fields and buttons. */}
       <div className="mt-3 h-40 overflow-y-auto">
         {source === "container" && (
           <PickList empty="No unrouted containers.">
@@ -178,15 +169,15 @@ export function AddRouteModal({
             ))}
           </PickList>
         )}
-        {source === "external" && (
-          <p className="px-1 text-xs text-slate-500">
-            Any address. A route on a named machine's address is listed under it, and moves
-            with it. Machines are named on the{" "}
-            <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
-              Machines
-            </Link>{" "}
-            tab.
-          </p>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 px-1 text-xs text-slate-500">
+        <span title="A route on a named machine's address is listed under it, and moves with it">
+          Pick one, or type any address below.
+        </span>
+        {picked && (
+          <button type="button" onClick={clear} className="text-teal-400 hover:text-teal-300 hover:underline">
+            Clear
+          </button>
         )}
       </div>
 
@@ -194,7 +185,7 @@ export function AddRouteModal({
         fields={fields}
         hosts={hosts}
         follow={
-          source === "container" && picked
+          pickedContainer
             ? {
                 on: follow,
                 derived,
@@ -226,7 +217,7 @@ export function AddRouteModal({
             ...fields.payload(),
             scheme,
             ...link,
-            ...(source === "container" && picked ? { follow_container: follow } : {}),
+            ...(link.container ? { follow_container: follow } : {}),
           })
         }
       />

@@ -87,7 +87,7 @@ export function Routing() {
   // deliberately by-IP and not behind the route, since its whole job is fixing the untrusted
   // -cert warning. AdGuard's answer IP *is* the Caddy host, so it's the one source for both.
   // Per-container where the row is a container, else the deployment-wide summary — the
-  // Network-service and External rows have no container to ask.
+  // other rows have no container to ask.
   const assignContainer = assignTarget?.container
     ? containers.data?.find((c) => c.name === assignTarget.container)
     : undefined;
@@ -154,7 +154,7 @@ export function Routing() {
     onError: (err) => setAssignError(apiMessage(err)),
   });
 
-  // Create a route from the "Add route" picker (container / network service / external).
+  // Create a route from the "Add route" picker (a container, a machine's service, or any address).
   const addRoute = useMutation({
     mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/routes", r),
     onSuccess: (data) => {

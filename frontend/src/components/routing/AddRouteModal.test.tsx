@@ -64,8 +64,6 @@ function renderModal(overrides = {}) {
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  // Every field test uses the External source — it's the one that starts empty.
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   return { onSubmit };
 }
 
@@ -307,15 +305,33 @@ test("a container whose port Docker can't name starts unlocked, half-filled", as
   expect(screen.getByText(/can't name this container's port/)).toBeInTheDocument();
 });
 
-test("switching source clears the container's mode", async () => {
+test("Clear drops a picked container: its mode, its fields and its link", async () => {
   RESPONSES["/api/docker/containers"] = CONTAINERS;
-  renderPicker();
+  const { onSubmit } = renderPicker();
 
   fireEvent.click(await screen.findByText("sonarr")); // lan
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
   // Back to the deployment-wide "docker" hint — a stale lan hint would misdescribe it.
   expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
+  expect(prefixInput()).toHaveValue("");
+  expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+  fireEvent.change(prefixInput(), { target: { value: "tv" } });
+  typeUpstream("192.168.10.77", "8080");
+  fireEvent.click(addButton());
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("container");
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("follow_container");
+});
+
+test("switching lists keeps what was typed", async () => {
+  renderPicker();
+
+  fireEvent.change(prefixInput(), { target: { value: "tv" } });
+  typeUpstream("192.168.10.77", "8080");
+  fireEvent.click(await screen.findByRole("button", { name: /Machines/ }));
+
+  expect(prefixInput()).toHaveValue("tv");
+  expect(hostInput()).toHaveValue("192.168.10.77");
 });
 
 // --- Machines in the host list: a route on one's address is on it ---
@@ -359,7 +375,6 @@ test("the host list offers named machines beside the Docker host — not service
   };
   renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   fireEvent.mouseDown(await screen.findByRole("button", { name: "Show hosts" }));
 
   // grafana is a service on a machine, not an address to point at.
@@ -373,7 +388,6 @@ test("picking a machine types its address, keeps the port, and sends no link", a
   RESPONSES["/api/caddy/routes"] = MACHINES;
   const { onSubmit } = renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   fireEvent.change(portInput(), { target: { value: "32400" } });
   await pickHost(/nas/);
 
@@ -389,7 +403,7 @@ test("picking a machine types its address, keeps the port, and sends no link", a
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("machine");
 });
 
-test("opened from a machine whose running list can't be read, it starts on External, on its address", async () => {
+test("opened from a machine, an address typed by hand starts on it", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
   const { onSubmit } = renderPicker({ initialMachine: { id: "nas", address: "192.168.10.50" } });
 
@@ -411,7 +425,6 @@ test("the host list filters as you type, by name or address", async () => {
   };
   renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   await screen.findByRole("button", { name: "Show hosts" });
   fireEvent.change(hostInput(), { target: { value: "dock" } });
   expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
@@ -429,7 +442,6 @@ test("the keyboard picks from the list — but Enter never swaps a typed address
   };
   renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   await screen.findByRole("button", { name: "Show hosts" });
 
   // "192.168.10.2" is a prefix of the Docker host's address; Enter must leave what was typed.
@@ -446,7 +458,6 @@ test("the keyboard picks from the list — but Enter never swaps a typed address
 test("with no hosts to offer, the host field is a plain text field", async () => {
   const { onSubmit } = renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.77", "8080");
@@ -502,9 +513,7 @@ test("opened from a machine that answers, it starts on what runs there", async (
   );
 
   expect(await screen.findByText("nginx")).toBeInTheDocument();
-  expect(hostInput()).toHaveValue("");
-  // External, from here, starts on the machine's address.
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  // Typing an address of its own, the host is already the machine's.
   expect(hostInput()).toHaveValue("192.168.10.50");
 });
 
@@ -512,7 +521,7 @@ test("an account that may not use the Machines tab isn't offered the source", as
   RESPONSES["/api/auth/status"] = { ...admin, user: { username: "kid", level: 1, tabs: ["routing"] } };
   renderPicker();
 
-  await screen.findByRole("button", { name: /External/ });
+  await screen.findByRole("button", { name: /Container/ });
   expect(screen.queryByRole("button", { name: /Machines/ })).not.toBeInTheDocument();
 });
 
@@ -521,7 +530,6 @@ test("an account that may not use the Machines tab isn't offered the source", as
 test("the scheme defaults to https and rides along with the route", () => {
   const { onSubmit } = renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.50", "8080");
   fireEvent.click(screen.getByRole("button", { name: "HTTP" }));
@@ -533,7 +541,6 @@ test("the scheme defaults to https and rides along with the route", () => {
 test("the preview drops to http:// when the scheme does", () => {
   renderPicker();
 
-  fireEvent.click(screen.getByRole("button", { name: /External/ }));
   fireEvent.change(screen.getByPlaceholderText("grafana"), { target: { value: "tv" } });
   expect(screen.getByText("https://tv.example.no")).toBeInTheDocument();
 

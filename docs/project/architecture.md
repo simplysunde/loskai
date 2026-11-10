@@ -211,7 +211,8 @@ hand" in the form turns it off for one route.
 
 The Routing tab is **one row per service**, Caddy and AdGuard merged: the name, upstream,
 route and DNS status, and actions. The two backends stay independent modules; only the view
-is merged. Routes are created in one place — the **Add route** picker, with three sources:
+is merged. Routes are created in one place — the **Add route** picker: pick from one of two lists, or
+type any address into the fields (Clear drops a pick):
 
 - **Container** — an unrouted container, pre-filled as above.
 - **Machines** — a service or container on a machine with SSH set up, at the port it listens
@@ -220,16 +221,17 @@ is merged. Routes are created in one place — the **Add route** picker, with th
   machine. Left out: Proxmox guests, a port only on another of its addresses, and the Docker
   host's own containers (they are the Container source, which can follow). Shown only to an
   account with the Machines tab, which `GET /api/ssh/running` needs.
-- **External** — any `host:port`: a NAS, Proxmox (tick "backend speaks HTTPS"), a machine.
+- **Typed by hand** — any `host:port`: a NAS, Proxmox (tick "backend speaks HTTPS"), a
+  machine. The lists are views: switching keeps what was typed.
 
 The AdGuard health pill routes AdGuard in one click, carrying `origin: "adguard"`, so routing
 it again edits the same record. WireGuard's dashboard and Caddy's certificate page were once
-picker items with origins of their own (`gateway`, `caddy`); since Phase 42 they are
-External routes, and records made before keep working.
+picker items with origins of their own (`gateway`, `caddy`); since Phase 42 they are typed
+by hand, and records made before keep working.
 
 A routed container or service drops out of the picker — it is a row now — so routing it
 again is an edit, never a duplicate; a second name for the same service is a separate
-External route. Loskai's own UI and AdGuard are ordinary instances with no reserved status.
+typed route. Loskai's own UI and AdGuard are ordinary instances with no reserved status.
 
 **Change URL** on a row edits that route; on an unrouted row it reads **Assign a URL**. The
 Docker tab creates a route in one place only — the install wizard's last step — through the
@@ -637,7 +639,7 @@ Not a component: **a link and a hint.** Settings › Network holds the dashboard
 or similar) with an Open link, plus a reminder of the DNS server peers should use
 (AdGuard's IP, then `1.1.1.1`), the most common WireGuard mistake. `/api/health` probes the
 dashboard — any HTTP answer counts, since a login page is still up — but no page shows it. WireGuard's dashboard can also be routed,
-as an External route. No API, no credentials, no peer management.
+by typing its address into Add route. No API, no credentials, no peer management.
 
 ### Health and graceful degradation
 

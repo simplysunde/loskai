@@ -25,6 +25,11 @@ not on which port. So the status line went to v6 (each container's published por
   user's socket, so a machine whose SSH user has no `sudo -n` says so instead of listing
   ports it can't name. `facts` still reads v5, so no machine's overview asks for a
   reinstall over this; only its ports wait for one.
+- **The External tab went too** (Sunde: "drop the external … add a clear button … to wipe
+  the selection"). Its form was the same fields every tab has, and a list of a different
+  height on each tab moved the fields and buttons under the pointer. Now there are two
+  lists, the fields take any address, and **Clear** drops a pick. A second dialog for
+  picking was considered and rejected: a dialog on a dialog, and unclear what Esc closes.
 
 ## 2026-11-08 — Installs run published images
 

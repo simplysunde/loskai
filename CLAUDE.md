@@ -192,15 +192,15 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
 **Where routes are made in the UI:**
 
 - The **Add route** picker (`AddRouteModal`) is the main surface — from the Routing tab, or a
-  machine's row (preset to it). Three sources — Container (posts `container`), Machines
-  (what runs on a machine with SSH set up, by port: its address and the port, no link) and
-  External (neither). Machines shows only to an account with the Machines tab, since it
-  reads `GET /api/ssh/running`. The Routing tab's AdGuard pill posts `origin: "adguard"`.
+  machine's row (preset to it). Two lists to pick from — Container (posts `container`) and
+  Machines (what runs on a machine with SSH set up, by port: its address and the port, no
+  link) — or any address typed into the fields (neither); Clear drops a pick. Machines
+  shows only to an account with the Machines tab, since it reads `GET /api/ssh/running`.
+  The Routing tab's AdGuard pill posts `origin: "adguard"`.
 - The upstream is **host and port** (`RouteFields`, shared by both route forms). The host
   (`HostSelect`) takes any address, and lists the Docker host, the picked container's host
   and the named machines — picking one only types its address in. Opened from a machine's
-  row, the picker starts on what runs there, or on External at its address when that can't
-  be read.
+  row, the picker starts on what runs there, with its address in the host field.
 - **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
   the same button reads **Assign a URL**.
 - The **Docker tab creates a route in one place only**: the install wizard's last step.
