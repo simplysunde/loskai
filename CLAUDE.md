@@ -157,7 +157,8 @@ live and joined at display time on the `container` field, so the store can't dri
 The links on a record:
 
 - `container` (docker instance ↔ its container) and `origin` (external instance ↔ a
-  built-in network service: `adguard`/`gateway`/`caddy`) are **idempotency keys** —
+  built-in network service: `adguard`, from the Routing tab's pill; `gateway`/`caddy` on
+  records made before Phase 42) are **idempotency keys** —
   routing either again edits the existing record (`get_by_container`/`get_by_origin`).
 - **A route is on a machine by its address, never by a stored link.** A machine's only
   identity on the network is its IP, so a service whose upstream host is a machine's
@@ -191,13 +192,15 @@ getting its recipe's icon. The Caddy and AdGuard modules never write on their ow
 **Where routes are made in the UI:**
 
 - The **Add route** picker (`AddRouteModal`) is the main surface — from the Routing tab, or a
-  machine's row (preset to it). Three sources — Container, Network service, External — post
-  `/api/routes` with `container`, `origin` or neither. The Routing tab's AdGuard pill posts
-  exactly what the Network source would.
+  machine's row (preset to it). Three sources — Container (posts `container`), Machines
+  (what runs on a machine with SSH set up, by port: its address and the port, no link) and
+  External (neither). Machines shows only to an account with the Machines tab, since it
+  reads `GET /api/ssh/running`. The Routing tab's AdGuard pill posts `origin: "adguard"`.
 - The upstream is **host and port** (`RouteFields`, shared by both route forms). The host
   (`HostSelect`) takes any address, and lists the Docker host, the picked container's host
   and the named machines — picking one only types its address in. Opened from a machine's
-  row, the picker starts on that machine's address.
+  row, the picker starts on what runs there, or on External at its address when that can't
+  be read.
 - **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
   the same button reads **Assign a URL**.
 - The **Docker tab creates a route in one place only**: the install wizard's last step.

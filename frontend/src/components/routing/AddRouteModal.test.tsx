@@ -6,9 +6,12 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AddRouteModal } from "./AddRouteModal";
 import { json } from "../../test/render";
 
-// The modal reads three queries; none of them matter to the field validation under test,
+// The modal reads these queries; none of them matter to the field validation under test,
 // so they answer with the smallest shape each consumer needs.
+const admin = { authed: true, needs_setup: false, user: { username: "sunde", level: 4, tabs: ["docker", "routing", "machines"] } };
 const RESPONSES: Record<string, unknown> = {
+  "/api/auth/status": admin,
+  "/api/ssh/running": {},
   "/api/docker/containers": [],
   "/api/caddy/routes": [],
   "/api/settings": {
@@ -35,6 +38,8 @@ beforeEach(() => {
 const DEFAULT_SETTINGS = RESPONSES["/api/settings"];
 
 afterEach(() => {
+  RESPONSES["/api/auth/status"] = admin;
+  RESPONSES["/api/ssh/running"] = {};
   RESPONSES["/api/docker/containers"] = [];
   RESPONSES["/api/caddy/routes"] = [];
   RESPONSES["/api/settings"] = DEFAULT_SETTINGS;
@@ -52,7 +57,6 @@ function renderModal(overrides = {}) {
           open
           baseDomain="example.no"
           mode="lan"
-          routedOrigins={new Set()}
           onSubmit={onSubmit}
           onClose={() => {}}
           {...overrides}
@@ -166,7 +170,6 @@ function renderPicker(overrides = {}) {
           // Deployment-wide mode says "docker" — a hostname admin URL. Before Stage A this
           // alone decided the hint, so every container was told to use name:port.
           mode="docker"
-          routedOrigins={new Set()}
           onSubmit={onSubmit}
           onClose={() => {}}
           {...overrides}
@@ -386,9 +389,9 @@ test("picking a machine types its address, keeps the port, and sends no link", a
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("machine");
 });
 
-test("opened from a machine's row, it starts on External, on that machine's address", async () => {
+test("opened from a machine whose running list can't be read, it starts on External, on its address", async () => {
   RESPONSES["/api/caddy/routes"] = MACHINES;
-  const { onSubmit } = renderPicker({ initialMachine: { address: "192.168.10.50" } });
+  const { onSubmit } = renderPicker({ initialMachine: { id: "nas", address: "192.168.10.50" } });
 
   expect(hostInput()).toHaveValue("192.168.10.50");
   fireEvent.change(prefixInput(), { target: { value: "plex" } });
@@ -450,6 +453,67 @@ test("with no hosts to offer, the host field is a plain text field", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Add route" }));
 
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ upstream: "192.168.10.77:8080" }));
+});
+
+// --- What runs on a machine (Phase 42) ---
+
+const RUNNING = {
+  nas: {
+    ok: true, checked: 0,
+    containers: [{ name: "plex", image: "plex", status: "Up", ports: [32400] }],
+    services: ["nginx"], guests: [{ id: "101", name: "adguard", kind: "lxc" }],
+    listening: [{ service: "nginx", port: 80, host: "" }], denied: [],
+  },
+};
+
+test("the Machines source lists what runs on each machine, by port", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  RESPONSES["/api/ssh/running"] = RUNNING;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(await screen.findByRole("button", { name: /Machines/ }));
+  expect(await screen.findByText("nas.example.no")).toBeInTheDocument();
+  // A Proxmox guest is a machine of its own, never a service to pick.
+  expect(screen.queryByText("adguard")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("plex"));
+
+  expect(prefixInput()).toHaveValue("plex");
+  expect(hostInput()).toHaveValue("192.168.10.50");
+  expect(portInput()).toHaveValue("32400");
+  fireEvent.click(screen.getByRole("button", { name: "Add route" }));
+  // No link: the address is what puts it on the machine.
+  expect(onSubmit).toHaveBeenCalledWith({
+    prefix: "plex", upstream: "192.168.10.50:32400", upstream_tls: false, scheme: "https", name: "plex",
+  });
+});
+
+test("opened from a machine that answers, it starts on what runs there", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  RESPONSES["/api/ssh/running"] = RUNNING;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+  // The Machines tab has the running list already, as it does when its row opens the picker.
+  client.setQueryData(["ssh-running"], RUNNING);
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <AddRouteModal open baseDomain="example.no" mode="lan" initialMachine={{ id: "nas", address: "192.168.10.50" }} onSubmit={vi.fn()} onClose={() => {}} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText("nginx")).toBeInTheDocument();
+  expect(hostInput()).toHaveValue("");
+  // External, from here, starts on the machine's address.
+  fireEvent.click(screen.getByRole("button", { name: /External/ }));
+  expect(hostInput()).toHaveValue("192.168.10.50");
+});
+
+test("an account that may not use the Machines tab isn't offered the source", async () => {
+  RESPONSES["/api/auth/status"] = { ...admin, user: { username: "kid", level: 1, tabs: ["routing"] } };
+  renderPicker();
+
+  await screen.findByRole("button", { name: /External/ });
+  expect(screen.queryByRole("button", { name: /Machines/ })).not.toBeInTheDocument();
 });
 
 // --- Per-route scheme (Phase 12b) ---

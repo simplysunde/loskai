@@ -97,8 +97,15 @@ Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has
 | Source | For | Example |
 |---|---|---|
 | Container | a container on this host | `whoami` → `whoami.home.lan` → `192.168.10.20:8081` |
-| Network | AdGuard, the WireGuard dashboard, Caddy's Certificate page | `adguard.home.lan` → AdGuard's web UI |
+| Machines | a service or container on a machine with SSH set up, by the port it listens on | `proxmox.home.lan` → `192.168.10.10:8006` |
 | External | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
+
+Machines lists each machine's services by port, and only those Loskai can reach by the
+machine's address (not one only on its Tailscale address, not Proxmox's VMs and LXCs — they
+are machines of their own). Which service holds a port is something only root can read, so
+the machine's SSH user needs `sudo` without a password, or to be root, to see all of them.
+Its containers on this Docker host are the Container source instead. The WireGuard
+dashboard and the Certificate page are External routes; AdGuard has its own button (below).
 
 A container route can **follow its container** (on by default when Loskai can work out its
 address): if it comes back on another port, the route is updated. Per route you can also

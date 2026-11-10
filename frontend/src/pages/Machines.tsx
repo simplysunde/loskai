@@ -52,7 +52,7 @@ export function Machines() {
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
 
-  const { routes, rows, routedOrigins } = useRouteRows();
+  const { routes, rows } = useRouteRows();
   const settings = useSettings();
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const ssh = useSsh();
@@ -196,10 +196,9 @@ export function Machines() {
         open={routeOn !== null}
         baseDomain={baseDomain}
         mode={health.data?.caddy?.mode ?? null}
-        initialMachine={routeOn ? { address: routeOn.upstream ?? "" } : undefined}
+        initialMachine={routeOn ? { id: routeOn.id, address: routeOn.upstream ?? "" } : undefined}
         pending={addRoute.isPending}
         error={error}
-        routedOrigins={routedOrigins}
         onSubmit={(r) => addRoute.mutate(r)}
         onClose={() => setRouteOn(null)}
       />

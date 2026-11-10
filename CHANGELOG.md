@@ -8,8 +8,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 Everything so far:
 
 - **Routing** — give any service an HTTPS name in one step: Caddy route and AdGuard DNS
-  entry together. Sources: a container, a network service (AdGuard, router, Caddy) or any
-  IP and port. Per route: HTTPS, HTTP or both, and whether the backend speaks HTTPS.
+  entry together. Sources: a container, a service running on one of your machines (listed
+  over SSH, by the port it listens on) or any IP and port; AdGuard in one click. Per route: HTTPS, HTTP or both, and whether the backend speaks HTTPS.
 - **Machines** — name the computers on your network; every route on a machine's address is
   listed under it (its row opens like a stack's) and moves with it when the address changes.
   The machine Loskai runs on is listed before it is named, ready to name. A machine's name

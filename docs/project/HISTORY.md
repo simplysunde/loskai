@@ -4,6 +4,28 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-10 — Add route's Network source becomes Machines
+
+Sunde: "the network selector should be changed to machines and allow selections based on the
+recognized services running there (not proxmox items)". The Network source offered three
+fixed things — AdGuard, WireGuard's dashboard, Caddy's certificate page — while a machine's
+running list, read over SSH since Phase 34, already knew what runs on each machine, only
+not on which port. So the status line went to v6 (each container's published ports, and
+`ss -Htlnp` with each listener's systemd unit), and the source lists those ports.
+
+- **The built-ins left the picker** (Sunde's choice over keeping them as a group). AdGuard
+  keeps its one-click pill and `origin`; the other two are External routes. Lost: re-routing
+  WireGuard or the certificate page from the picker edits the old record instead of adding
+  a second — rarely done, and the old records keep their origin.
+- **No new link on the record.** A route made from it is a plain external route on the
+  machine's address, which is what puts it on the machine already.
+- **Proxmox's guests are never offered; Proxmox's own UI is.** `pveproxy` is a base service,
+  hidden from the running list, but :8006 is the commonest thing to route on such a host.
+- **A port without a service is not offered.** Only root sees which process holds another
+  user's socket, so a machine whose SSH user has no `sudo -n` says so instead of listing
+  ports it can't name. `facts` still reads v5, so no machine's overview asks for a
+  reinstall over this; only its ports wait for one.
+
 ## 2026-11-08 — Installs run published images
 
 Sunde asked for setup to be simpler still. Until now every install cloned the repo and

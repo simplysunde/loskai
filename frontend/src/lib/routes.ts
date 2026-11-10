@@ -21,7 +21,7 @@ export function useRoutes(enabled = true) {
 }
 
 // The routes with each row's DNS status merged in, and the built-in network services
-// already routed (the Add route picker's Network source leaves those out).
+// already routed (the Routing tab offers to route AdGuard while it isn't).
 export function useRouteRows() {
   const routes = useRoutes();
   const dns = useQuery({

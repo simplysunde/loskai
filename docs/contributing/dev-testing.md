@@ -81,7 +81,7 @@ Open <http://localhost:5173> and log in as `admin` (or `LOSKAI_USERNAME`) with `
 
 - **Routing tab** — Caddy and AdGuard should both show healthy. Click **Add route** → the
   **External** source, e.g. prefix `test`, upstream `adguard:3000`. (The **Container** and
-  **Network service** sources pre-fill from a live container / a configured service.) Loskai
+  **Machines** sources pre-fill from a live container / what runs on a machine.) Loskai
   pushes the Caddy route and adds the AdGuard rewrite.
 - **Verify it landed:**
   ```bash

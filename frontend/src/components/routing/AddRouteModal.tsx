@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Container as ContainerIcon, Globe, Network } from "lucide-react";
+import { Container as ContainerIcon, Globe, Server } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useContainers, type Container } from "../../lib/containers";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { answerHost, useHealth } from "../../lib/useHealth";
+import { useRunning } from "../../lib/ssh";
+import { useMe } from "../../lib/useAuth";
 import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
-import { NETWORK_SERVICES, urlToUpstream } from "./networkServices";
+import { machineLabel } from "./machine";
+import { machineServices, type MachineService } from "./machineServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { RouteFields, RouteFormFooter } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
@@ -26,44 +28,40 @@ export interface NewRoute {
   follow_container?: boolean;
 }
 
-export type Source = "container" | "network" | "external";
+export type Source = "container" | "machines" | "external";
 
-// "Add route" picker: choose a source (an unrouted Container, a built-in Network service,
-// or a fresh External target), which pre-fills the prefix + upstream; the fields stay
-// editable. Routed containers/services are filtered out (they're managed as rows). This is
-// the single route-creation surface — the Docker tab no longer assigns.
+// "Add route" picker: choose a source (an unrouted Container, something running on a
+// Machine, or a fresh External target), which pre-fills the prefix + upstream; the fields
+// stay editable. What already has a route is left out (it's managed as a row). This is the
+// single route-creation surface — the Docker tab no longer assigns.
 export function AddRouteModal({
   open,
   baseDomain,
   mode,
-  initialSource = "container",
   initialMachine,
   pending = false,
   error,
-  routedOrigins,
   onSubmit,
   onClose,
 }: {
   open: boolean;
   baseDomain: string | null;
   mode: "docker" | "lan" | null;
-  // Which source the picker opens on. Machines have their own modal — see AddMachineModal.
-  initialSource?: Source;
-  // Opened from a machine's row on the Machines tab: External, on its address — which is
-  // what puts the route on that machine.
-  initialMachine?: { address: string };
+  // Opened from a machine's row on the Machines tab: what runs there, or — when that
+  // can't be read — External, on its address. The address is what puts the route on it.
+  initialMachine?: { id: string; address: string };
   pending?: boolean;
   error?: string | null;
-  routedOrigins: Set<string>;
   onSubmit: (route: NewRoute) => void;
   onClose: () => void;
 }) {
-  const [source, setSource] = useState<Source>(initialMachine ? "external" : initialSource);
-  const [link, setLink] = useState<{
-    container?: string;
-    origin?: string;
-    name?: string;
-  }>({});
+  // Only an account that may use the Machines tab may read what runs on them.
+  const mayMachines = useMe().may("machines");
+  const running = useRunning(open && mayMachines);
+  const [source, setSource] = useState<Source>(() =>
+    initialMachine ? (running.data?.[initialMachine.id]?.ok ? "machines" : "external") : "container",
+  );
+  const [link, setLink] = useState<{ container?: string; name?: string }>({});
   const [picked, setPicked] = useState<string | null>(null);
   // A picked container's route follows it by default whenever its address can be derived.
   const [follow, setFollow] = useState(false);
@@ -72,25 +70,24 @@ export function AddRouteModal({
   // A picked container answers the hint for itself; `mode` is the deployment-wide
   // fallback, used by the Network-service and External sources, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
+  // External on a machine starts on its address; only the port is left to type.
+  const machineUpstream = initialMachine ? `${initialMachine.address}:` : "";
   const fields = useRouteFields({
     mode: pickedMode ?? mode,
     baseDomain,
-    initialUpstream: initialMachine ? `${initialMachine.address}:` : "",
+    initialUpstream: source === "external" ? machineUpstream : "",
   });
 
   const containers = useContainers({ enabled: open });
   // The rows the Routing page already fetched — no extra endpoint — for the host dropdown's
-  // machines. Unlike the Container and Network sources these are NOT filtered by whether
+  // machines. Unlike the Container and Machines sources these are NOT filtered by whether
   // they are routed: you are borrowing the address, not routing the thing, so a NAS that
   // already answers to its own name is still a valid upstream for a new route.
   const rows = useRoutes(open);
   const settings = useSettings(open);
-  const health = useHealth();
 
 
   if (!open) return null;
-
-  const caddyHost = answerHost(health.data?.adguard?.answer_ip);
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
   const pickedContainer =
@@ -100,18 +97,13 @@ export function AddRouteModal({
     dockerHost: settings.data?.host_ip?.value,
     containerHost: pickedContainer?.suggested_host,
   });
-  const networkItems = NETWORK_SERVICES.filter((s) => !routedOrigins.has(s.origin)).map((s) => ({
-    ...s,
-    upstream: s.urlKey
-      ? urlToUpstream(settings.data?.[s.urlKey]?.value)
-      : caddyHost
-        ? `${caddyHost}:80`
-        : "",
-  }));
+  const groups = machineServices(rows.data ?? [], running.data, settings.data?.host_ip?.value).filter(
+    (g) => !initialMachine || g.machine.id === initialMachine.id,
+  );
 
   const reset = (next: Source) => {
     setSource(next);
-    fields.set({ prefix: "", upstream: "", tls: false });
+    fields.set({ prefix: "", upstream: next === "external" ? machineUpstream : "", tls: false });
     setLink({});
     setPicked(null);
     setPickedMode(null);
@@ -127,10 +119,10 @@ export function AddRouteModal({
     setLink({ container: c.name, name: containerLabel(c, containers.data ?? []) });
     setPicked(c.id);
   };
-  const pickNetwork = (s: (typeof networkItems)[number]) => {
+  const pickService = (s: MachineService) => {
     fields.set({ prefix: s.prefix, upstream: s.upstream });
-    setLink({ origin: s.origin, name: s.name });
-    setPicked(s.origin);
+    setLink({ name: s.name });
+    setPicked(s.key);
   };
 
   const canSubmit = fields.valid && !pending;
@@ -143,9 +135,11 @@ export function AddRouteModal({
         <SourceTab active={source === "container"} onClick={() => reset("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
           Container
         </SourceTab>
-        <SourceTab active={source === "network"} onClick={() => reset("network")} icon={<Network className="h-3.5 w-3.5" />}>
-          Network
-        </SourceTab>
+        {mayMachines && (
+          <SourceTab active={source === "machines"} onClick={() => reset("machines")} icon={<Server className="h-3.5 w-3.5" />}>
+            Machines
+          </SourceTab>
+        )}
         <SourceTab active={source === "external"} onClick={() => reset("external")} icon={<Globe className="h-3.5 w-3.5" />}>
           External
         </SourceTab>
@@ -158,23 +152,29 @@ export function AddRouteModal({
           ))}
         </PickList>
       )}
-      {source === "network" && (
-        <>
-          <PickList empty="All services are routed.">
-            {networkItems.map((s) => (
-              <PickItem key={s.origin} active={picked === s.origin} onClick={() => pickNetwork(s)} title={s.name} sub={s.upstream || "no URL set — see below"} />
-            ))}
-          </PickList>
-          {networkItems.some((s) => !s.upstream) && (
-            <p className="mt-2 text-xs text-slate-500">
-              A service with no URL set gets one in{" "}
-              <Link to="/settings/network" className="underline underline-offset-2 hover:text-slate-300">
-                Settings &rsaquo; Network
-              </Link>
-              .
-            </p>
-          )}
-        </>
+      {source === "machines" && (
+        <PickList
+          empty={
+            <>
+              No machine with SSH set up — set one up on the{" "}
+              <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
+                Machines
+              </Link>{" "}
+              tab, or use External.
+            </>
+          }
+        >
+          {groups.map((g) => (
+            <div key={g.machine.id} className="space-y-1">
+              <p className="px-1 pt-1 text-[11px] font-medium uppercase text-slate-500">{machineLabel(g.machine)}</p>
+              {g.services.map((s) => (
+                <PickItem key={s.key} active={picked === s.key} onClick={() => pickService(s)} title={s.name} sub={`${s.upstream} · ${s.kind}`} />
+              ))}
+              {g.services.length === 0 && !g.note && <p className="px-1 text-xs text-slate-600">Nothing more to route here.</p>}
+              {g.note && <p className="px-1 text-xs text-amber-300/80">{g.note}</p>}
+            </div>
+          ))}
+        </PickList>
       )}
       {source === "external" && (
         <>
@@ -247,9 +247,9 @@ function SourceTab({ active, onClick, icon, children }: { active: boolean; onCli
   );
 }
 
-function PickList({ empty, children }: { empty: string; children: React.ReactNode }) {
+function PickList({ empty, children }: { empty: React.ReactNode; children: React.ReactNode }) {
   const items = Array.isArray(children) ? children : [children];
-  const isEmpty = items.every((c) => !c);
+  const isEmpty = items.length === 0 || items.every((c) => !c);
   return (
     <div className="mt-3 max-h-40 space-y-1 overflow-y-auto">
       {isEmpty ? <p className="py-3 text-center text-xs text-slate-600">{empty}</p> : children}

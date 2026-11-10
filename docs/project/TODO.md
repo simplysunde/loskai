@@ -734,11 +734,11 @@ based on the recognized services running there (not proxmox items)".
       the section, the version row. Built: `facts` still reads v5 (`FACTS_VERSIONS`), so a
       machine's overview keeps working until its line is reinstalled; only the ports wait.
       Run here as root (privileged container): units and pids as expected.
-- [ ] 42b The picker: the Machines source — grouped by machine, one row per service and
+- [x] 42b The picker: the Machines source — grouped by machine, one row per service and
       port, those already routed on that address and port left out; opened from a
       machine's row, on that machine. Network source and `networkServices.ts` go, except
       what the AdGuard pill needs. Tests in `AddRouteModal.test.tsx`.
-- [ ] 42c Docs: `architecture.md` and CLAUDE.md (where routes are made), `using-loskai.md`,
+- [x] 42c Docs (with 42b — a doc changes with its behaviour): `architecture.md` and CLAUDE.md (where routes are made), `using-loskai.md`,
       `api.md` if the running response's row changes; HISTORY (why the built-ins left).
 - [ ] 42d Live: on a real machine with SSH set up — reinstall the status line, see its
       services and ports, route one, open it. Then `make demo` again (the Routing flow).

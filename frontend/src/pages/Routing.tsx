@@ -22,7 +22,7 @@ import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModa
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
 import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
-import { NETWORK_SERVICES, urlToUpstream } from "../components/routing/networkServices";
+import { ADGUARD_SERVICE, urlToUpstream } from "../components/routing/networkServices";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
@@ -105,7 +105,7 @@ export function Routing() {
   const caddyHost = answerHost(h?.adguard?.answer_ip);
   const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
-  // Once AdGuard is routed (from its pill or the picker — both set `origin`), its link-out
+  // Once AdGuard is routed (from its pill, which sets `origin`), its link-out
   // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
   const adguardRoute = (routes.data ?? []).find((r) => r.origin === "adguard" && r.fqdn);
   const adguardUrl = adguardRoute
@@ -113,7 +113,6 @@ export function Routing() {
     : h?.adguard?.url;
   // What the pill shows beside its name: where its link goes, minus the scheme.
   const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
-  const adguardService = NETWORK_SERVICES.find((s) => s.origin === "adguard")!;
   const adguardUpstream = urlToUpstream(h?.adguard?.url);
   const canRouteAdguard =
     routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
@@ -167,8 +166,8 @@ export function Routing() {
     onError: (err) => setAssignError(apiMessage(err)),
   });
 
-  // AdGuard's pill routes it in one click — the same request the Add route picker's Network
-  // source sends, so the instance carries `origin: "adguard"` either way.
+  // AdGuard's pill routes it in one click, with `origin: "adguard"`, so routing it again
+  // edits the same record.
   const routeAdguard = useMutation({
     mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/routes", r),
     onSuccess: (data) => {
@@ -300,16 +299,16 @@ export function Routing() {
                 <button
                   onClick={() =>
                     routeAdguard.mutate({
-                      prefix: adguardService.prefix,
+                      prefix: ADGUARD_SERVICE.prefix,
                       upstream: adguardUpstream,
                       upstream_tls: false,
                       scheme: "https",
-                      origin: adguardService.origin,
-                      name: adguardService.name,
+                      origin: ADGUARD_SERVICE.origin,
+                      name: ADGUARD_SERVICE.name,
                     })
                   }
                   disabled={routeAdguard.isPending}
-                  title={`Route AdGuard at ${adguardService.prefix}.${baseDomain}`}
+                  title={`Route AdGuard at ${ADGUARD_SERVICE.prefix}.${baseDomain}`}
                   aria-label="Route AdGuard"
                   className={`${PILL_BUTTON} disabled:opacity-50`}
                 >
@@ -468,7 +467,6 @@ export function Routing() {
         mode={mode}
         pending={addRoute.isPending}
         error={assignError}
-        routedOrigins={routedOrigins}
         onSubmit={(r) => addRoute.mutate(r)}
         onClose={() => setAddOpen(false)}
       />

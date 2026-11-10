@@ -214,9 +214,18 @@ route and DNS status, and actions. The two backends stay independent modules; on
 is merged. Routes are created in one place — the **Add route** picker, with three sources:
 
 - **Container** — an unrouted container, pre-filled as above.
-- **Network service** — AdGuard, WireGuard or Caddy's certificate page, carrying an `origin`.
-  The AdGuard health pill routes AdGuard in one click, posting the same request.
+- **Machines** — a service or container on a machine with SSH set up, at the port it listens
+  on (the status key's running list, v6: `docs/reference/ssh-status.md`). It posts the
+  machine's address and the port, with no link — a route on a machine's address is on that
+  machine. Left out: Proxmox guests, a port only on another of its addresses, and the Docker
+  host's own containers (they are the Container source, which can follow). Shown only to an
+  account with the Machines tab, which `GET /api/ssh/running` needs.
 - **External** — any `host:port`: a NAS, Proxmox (tick "backend speaks HTTPS"), a machine.
+
+The AdGuard health pill routes AdGuard in one click, carrying `origin: "adguard"`, so routing
+it again edits the same record. WireGuard's dashboard and Caddy's certificate page were once
+picker items with origins of their own (`gateway`, `caddy`); since Phase 42 they are
+External routes, and records made before keep working.
 
 A routed container or service drops out of the picker — it is a row now — so routing it
 again is an edit, never a duplicate; a second name for the same service is a separate
@@ -627,8 +636,8 @@ sign-in log and the SSH log). Settings is an admin's.
 Not a component: **a link and a hint.** Settings › Network holds the dashboard URL (wg-easy
 or similar) with an Open link, plus a reminder of the DNS server peers should use
 (AdGuard's IP, then `1.1.1.1`), the most common WireGuard mistake. `/api/health` probes the
-dashboard — any HTTP answer counts, since a login page is still up — but no page shows it. WireGuard's dashboard can also be routed
-as a Network service. No API, no credentials, no peer management.
+dashboard — any HTTP answer counts, since a login page is still up — but no page shows it. WireGuard's dashboard can also be routed,
+as an External route. No API, no credentials, no peer management.
 
 ### Health and graceful degradation
 

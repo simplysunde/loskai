@@ -1,9 +1,7 @@
-// Built-in network services, in picker order. Caddy's cert page proxies to Caddy's own :80.
-export const NETWORK_SERVICES = [
-  { origin: "adguard", name: "AdGuard", prefix: "adguard", urlKey: "adguard_url" },
-  { origin: "gateway", name: "WireGuard", prefix: "wg", urlKey: "wireguard_dashboard_url" },
-  { origin: "caddy", name: "Certificate page", prefix: "setup", urlKey: null },
-] as const;
+// AdGuard as the Routing tab's pill routes it: linked by `origin`, so routing it again edits
+// the same record. (WireGuard and the Certificate page, once routed the same way from the
+// picker, are External routes now — the backend still knows their origins.)
+export const ADGUARD_SERVICE = { origin: "adguard", name: "AdGuard", prefix: "adguard" } as const;
 
 export function urlToUpstream(url?: string | null): string {
   if (!url) return "";

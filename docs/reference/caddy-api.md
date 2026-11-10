@@ -226,7 +226,7 @@ hand-reset config. In that case `instances.json` is the durable record we rebuil
 
 Loskai manages every route whose `@id` matches an instance `id`. That now includes its
 own UI and AdGuard, since both are ordinary instances (Loskai is a discovered container;
-AdGuard an `external` instance routed from the Network service source, `origin:
+AdGuard an `external` instance routed from the Routing tab's AdGuard pill, `origin:
 "adguard"`) rather than hand-written Caddyfile routes. The bootstrap Caddyfile defines **no
 service routes** — only the admin endpoint, the internal CA (`local_certs`), the
 `localhost` site that gives Caddy its `:443` server, and the `:80` onboarding site. Caddy
