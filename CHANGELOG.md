@@ -74,6 +74,9 @@ Everything so far:
   install or later under Edit.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
+- **From outside, with Tailscale** — a subnet router shares your LAN with your tailnet, so
+  your routed names work away from home: the Tailscale recipe on the Docker host, or
+  `scripts/tailscale-subnet-router.sh` on a VM, LXC or Raspberry Pi. See the Tailscale guide.
 - **On a phone** — the sidebar is a drawer behind a Menu button, so each page gets the whole
   width; a page's buttons sit under its title, Settings' categories are a strip across the
   top, and the larger dialogs fill the screen. Tables become a list of cards — each row's

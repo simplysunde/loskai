@@ -81,6 +81,7 @@ top of any of them: build Loskai from the checkout instead of pulling it), `comp
 (on top of those: the working tree, live-reloading — `make live`), `caddy/` (the
 Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`,
 `sync-recipe-schema.sh`, `check-phone.sh`, `record-demo.sh`, the LXC scripts,
+`tailscale-subnet-router.sh` (run on a box, not by Loskai),
 `container-entrypoint.sh`), `demo/` (`make demo`'s machine image, setup, flows and conversion). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
 recurring work is done here — `sweep`, a whole-project simplification pass.

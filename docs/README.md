@@ -21,6 +21,7 @@ question they answer.
 | Stop my browser **warning about the certificate** | [Certificate onboarding](guides/certificate-setup.md) |
 | Reach Proxmox or a NAS **directly** on its own port, without a warning | [Backend certificates](guides/backend-certificates.md) |
 | **Bring the containers you already run** into Loskai | [Migration](guides/migration.md) |
+| **Reach it from outside**, on a phone or laptop away from home | [Tailscale](guides/tailscale.md) |
 | **Run the code locally** and change it | [Dev & testing](contributing/dev-testing.md) |
 | Know **what an endpoint returns** | [Loskai API](reference/api.md) |
 | **Write a recipe** for the install wizard | [Recipe schema](reference/recipe-schema.md) |
@@ -38,6 +39,7 @@ Operating Loskai. Read in roughly this order the first time.
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
 | [backend-certificates.md](guides/backend-certificates.md) | Only if you open a backend on its own port — Proxmox `:8006`, a NAS UI. Runs Caddy as an ACME server for its own CA so the backend serves a certificate your devices already trust. Loskai is not involved; this is Caddy and the backend. |
 | [migration.md](guides/migration.md) | Bringing containers you already run into Loskai — installing the recipe over your data, moving a compose folder, or writing a `docker run` container a compose file — and when not to bother. Also covers relocating Loskai itself. |
+| [tailscale.md](guides/tailscale.md) | Reaching your routed names away from home. A Tailscale subnet router — the recipe on the Docker host, or a script for a VM, LXC or Raspberry Pi — and the two settings in Tailscale's admin console. |
 | [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Symptom-indexed: 502s, redirect loops, DNS, certs, VPN, greyed-out module cards, a stack that won't start. |
 
 ## Reference

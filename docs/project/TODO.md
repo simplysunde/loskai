@@ -820,12 +820,16 @@ standalone install script too, "which can be used for a VM, an LXC or a Raspberr
 
 **Steps** — a commit each.
 
-- [ ] 44a The recipe `tailscale` in `loskai-recipes`: the auth key (optional, secret), the
-      network to share, the device's name. State in `./state`.
-- [ ] 44b `scripts/tailscale-subnet-router.sh`, run on the box: installs Tailscale, finds
+- [x] 44a The recipe `tailscale` in `loskai-recipes`: the auth key (optional, secret), the
+      network to share, the device's name. State in `./state`. Built: run from a scratch
+      copy, it advertised the route and logged the login link, in userspace networking
+      with nothing changed on the host.
+- [x] 44b `scripts/tailscale-subnet-router.sh`, run on the box: installs Tailscale, finds
       the LAN, shares it; userspace networking where there's no TUN device; safe to run
       again. With a guide, `docs/guides/tailscale.md`: both ways in, then the admin
-      console's two settings.
+      console's two settings. Built: run in a Debian 12 container with systemd — kernel
+      mode with a TUN device, userspace without, and back again on the next run. A box
+      already logged in (`tailscale set`) is 44c's to see.
 - [ ] 44c Live: a real tailnet — share the LAN from each, open a routed name from a phone.
 
 ## Backlog / Future ideas
