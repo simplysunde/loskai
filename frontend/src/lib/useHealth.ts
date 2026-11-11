@@ -58,3 +58,10 @@ export function useHealth(enabled = true) {
     enabled,
   });
 }
+
+// Whether Caddy is set up. Loskai runs without it — Docker, Machines, and links on the
+// Dashboard — and then nothing offers a route it can't make; links are offered instead.
+// Unknown (the health poll not back yet) counts as set up, which is what most installs are.
+export function useCaddySetUp(): boolean {
+  return useHealth().data?.caddy?.status !== "unconfigured";
+}

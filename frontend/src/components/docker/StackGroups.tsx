@@ -46,7 +46,6 @@ import {
 const SAID: Record<string, string> = { up: "start", down: "stop", pull: "update" };
 
 export function StackGroups({
-  baseDomain,
   onLogs,
   onTerminal,
   onRemove,
@@ -54,7 +53,6 @@ export function StackGroups({
   onDeleteStack,
   onRemoveProject,
 }: {
-  baseDomain: string | null;
   onLogs: (c: Container) => void;
   onTerminal: (c: Container) => void;
   onRemove: (c: Container) => void;
@@ -149,7 +147,6 @@ export function StackGroups({
       <Fragment key={group.key}>
         <GroupHeader
           group={group}
-          baseDomain={baseDomain}
           open={open}
           onToggle={() => expanded.toggle(group.key)}
           busy={
@@ -196,7 +193,7 @@ export function StackGroups({
   return (
     <div className="space-y-3">
       {failed && <ActionError {...failed} onDismiss={() => setFailed(null)} />}
-      {self && <SelfStrip c={self} baseDomain={baseDomain} onLogs={() => onLogs(self)} />}
+      {self && <SelfStrip c={self} onLogs={() => onLogs(self)} />}
       <GroupTable
         title="Stacks"
         anyOpen={anyOpen(managed)}
@@ -309,11 +306,9 @@ function GroupTable({
 // down the page doing it, so all it offers is its logs.
 function SelfStrip({
   c,
-  baseDomain,
   onLogs,
 }: {
   c: Container;
-  baseDomain: string | null;
   onLogs: () => void;
 }) {
   return (
@@ -321,9 +316,7 @@ function SelfStrip({
       <Anchor className="h-4 w-4 text-teal-300" />
       <span className="font-medium text-slate-100">Loskai</span>
       <span className="text-xs text-slate-500">this app</span>
-      {c.subdomain && baseDomain && (
-        <RouteLink host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
-      )}
+      {c.url && <RouteLink url={c.url} />}
       <span className="ml-auto text-xs text-slate-500">
         {formatUptime(c.uptime)} · {formatPercent(c.cpu)} CPU · {formatPercent(c.mem?.percent)} mem ·{" "}
         <span className="font-mono">{c.image}</span>
@@ -337,7 +330,6 @@ function SelfStrip({
 
 function GroupHeader({
   group,
-  baseDomain,
   open,
   onToggle,
   busy,
@@ -346,7 +338,6 @@ function GroupHeader({
   onDelete,
 }: {
   group: Group;
-  baseDomain: string | null;
   open: boolean;
   onToggle: () => void;
   busy: boolean;
@@ -359,7 +350,7 @@ function GroupHeader({
   const muted = group.kind !== "stack";
   const Icon = group.kind === "standalone" ? Box : Layers;
   const single = group.kind === "standalone";
-  const links = baseDomain ? group.containers.filter((c) => c.subdomain) : [];
+  const links = group.containers.filter((c) => c.url);
   // Collapsed, the header stands in for its rows, so it carries their stats in their columns.
   const totals = open ? null : groupTotals(group);
   // Every container of a project carries the same label; the first that has it will do.
@@ -384,7 +375,7 @@ function GroupHeader({
             <StatusBadge status={status.tone} label={status.label} />
           ) : null}
           {links.map((c) => (
-            <RouteLink key={c.id} host={`${c.subdomain}.${baseDomain}`} scheme={c.scheme} />
+            <RouteLink key={c.id} url={c.url!} />
           ))}
         </div>
       </td>

@@ -1,0 +1,108 @@
+import { useState } from "react";
+
+import { INPUT } from "../../lib/ui";
+import { Overlay } from "../shared/Modal";
+import { hostOptions } from "./hostOptions";
+import { RouteFields, RouteFormFooter } from "./RouteFields";
+import type { RouteRow } from "./ServiceTable";
+import { useRouteFields } from "./useRouteFields";
+
+export interface LinkPayload {
+  name: string;
+  upstream: string;
+  upstream_tls: boolean;
+  follow_container?: boolean;
+}
+
+// A link's form (Phase 45): its name and the address the Dashboard opens — editing a link,
+// or making one of a record with no route (a recipe install's, while Caddy isn't set up).
+// The address is the browser's, so a container's pre-fill is its published port.
+// Presentational: the parent posts to /api/links with the row's id.
+export function LinkModal({
+  row,
+  published = null,
+  dockerHost = null,
+  rows = [],
+  pending = false,
+  error,
+  onSubmit,
+  onClose,
+}: {
+  row: RouteRow;
+  // The row's container's published address now — what a following link uses — or null.
+  published?: string | null;
+  dockerHost?: string | null;
+  rows?: RouteRow[];
+  pending?: boolean;
+  error?: string | null;
+  onSubmit: (link: LinkPayload) => void;
+  onClose: () => void;
+}) {
+  const editing = row.route_mode === "direct";
+  const [name, setName] = useState(row.name);
+  const [following, setFollowing] = useState(
+    editing ? Boolean(row.follow_container) : Boolean(row.container && published),
+  );
+  const fields = useRouteFields({
+    mode: "lan",
+    baseDomain: null,
+    initialUpstream: (following ? published : null) ?? row.upstream ?? (dockerHost ? `${dockerHost}:` : ""),
+    initialTls: row.upstream_tls ?? false,
+  });
+
+  const canSubmit = Boolean(name.trim()) && fields.upstreamOk && !pending;
+  return (
+    <Overlay onClose={onClose}>
+      <h2 className="text-base font-semibold text-slate-100">{editing ? "Edit link" : "Make a link"}</h2>
+      <label className="mt-4 block">
+        <span className="mb-1 block text-xs font-medium text-slate-400">Name</span>
+        <input
+          aria-label="Name"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          className={INPUT}
+        />
+      </label>
+      <RouteFields
+        fields={fields}
+        link
+        hosts={hostOptions({ rows, dockerHost })}
+        follow={
+          row.container
+            ? {
+                on: following,
+                derived: published,
+                set: (on) => {
+                  setFollowing(on);
+                  if (on && published) fields.set({ upstream: published });
+                },
+              }
+            : undefined
+        }
+      />
+      <p className="mt-4 text-xs text-slate-500">
+        →{" "}
+        <span className="font-mono text-slate-300">
+          {fields.tls ? "https" : "http"}://{fields.upstream}
+        </span>
+      </p>
+      {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
+      <RouteFormFooter
+        label="Save link"
+        pending={pending}
+        disabled={!canSubmit}
+        onCancel={onClose}
+        onSubmit={() =>
+          onSubmit({
+            name: name.trim(),
+            upstream: fields.upstream,
+            upstream_tls: fields.tls,
+            ...(row.container ? { follow_container: following } : {}),
+          })
+        }
+      />
+    </Overlay>
+  );
+}

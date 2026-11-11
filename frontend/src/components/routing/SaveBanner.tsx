@@ -11,7 +11,12 @@ export function SaveBanner({ result }: { result: SaveResult }) {
       }`}
     >
       <span className="font-medium">{result.url}</span> —{" "}
-      {result.warning ?? (result.caddy === "skipped" ? "DNS rewrite saved." : "route + DNS rewrite created.")}
+      {result.warning ??
+        (result.link
+          ? "link saved — on the Dashboard."
+          : result.caddy === "skipped"
+            ? "DNS rewrite saved."
+            : "route + DNS rewrite created.")}
       {result.moved && result.moved.length > 0 && <> Moved {result.moved.join(", ")} with it.</>}
     </div>
   );

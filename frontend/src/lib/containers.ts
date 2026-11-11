@@ -22,7 +22,12 @@ export interface Container {
   ports: string[];
   subdomain: string | null;
   scheme?: "https" | "both" | "http" | null;
+  // Where its route or link opens (the server's instances.open_url), or null.
+  url?: string | null;
   suggested_upstream: string | null;
+  // Where a browser reaches it: the Docker host's IP and the published port, never a
+  // service name — what a link to it uses and follows.
+  published_upstream?: string | null;
   // The host half, known even when the port is not (host networking, several published
   // ports): the Docker host's IP, or the service name when Caddy shares the network.
   suggested_host?: string | null;

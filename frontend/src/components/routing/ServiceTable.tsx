@@ -16,8 +16,11 @@ export interface RouteRow {
   type: "docker" | "external";
   kind?: "service" | "machine";
   subdomain: string | null;
-  route_mode?: "proxy" | "dns_only";
+  // `direct`: a link — no subdomain, opened at its upstream (Phase 45).
+  route_mode?: "proxy" | "dns_only" | "direct";
   fqdn: string | null;
+  // Where it opens — a route's name, a link's address (the server's instances.open_url).
+  url?: string | null;
   upstream: string | null;
   upstream_tls?: boolean;
   scheme?: "https" | "both" | "http";
@@ -38,6 +41,10 @@ export interface RouteRow {
 // "remove route". Unrouted rows offer "Change URL". Any instance can be deleted (docker
 // included — the route + record go, the container is untouched and re-routable via Add
 // route). Missing or stale DNS rewrites are fixed globally via the Sync button, not per row.
+//
+// A link (Phase 45) is a row with no route: it opens at its address, is edited as a link,
+// and can be given an HTTPS name. Without Caddy (`caddy` false) nothing offers a route, and
+// an unrouted row offers a link instead.
 export function ServiceTable({
   rows,
   machines = rows,
@@ -49,6 +56,8 @@ export function ServiceTable({
   privateBusyId,
   onIcon,
   onClearIcon,
+  onLink,
+  caddy = true,
 }: {
   rows: RouteRow[];
   // Where a row's machine is looked up. Routing shows services only, so the machines its
@@ -63,6 +72,10 @@ export function ServiceTable({
   // Launcher icon: picking a file uploads it, and a row with one offers to clear it.
   onIcon?: (row: RouteRow, file: File) => void;
   onClearIcon?: (row: RouteRow) => void;
+  // Edit a link, or make one of an unrouted row.
+  onLink?: (row: RouteRow) => void;
+  // Caddy is set up: routes can be made.
+  caddy?: boolean;
 }) {
   const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onTogglePrivate);
 
@@ -89,6 +102,7 @@ export function ServiceTable({
         <tbody className="divide-y divide-slate-800/70">
           {rows.map((row) => {
             const machine = machineAt(row.upstream, machines);
+            const link = row.route_mode === "direct";
             return (
               <tr key={row.id} className="hover:bg-slate-900/40 max-sm:px-4 max-sm:py-3">
                 <td className="px-4 py-3 max-sm:basis-full">
@@ -102,8 +116,8 @@ export function ServiceTable({
                     </span>
                   </div>
                   <div className="mt-1 text-xs">
-                    {row.fqdn ? (
-                      <RouteLink host={row.fqdn} scheme={row.scheme} />
+                    {row.url ? (
+                      <RouteLink url={row.url} />
                     ) : (
                       <span className="text-slate-600">not routed</span>
                     )}
@@ -136,6 +150,14 @@ export function ServiceTable({
                   {row.route_mode === "dns_only" && (
                     <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
                       dns-only
+                    </span>
+                  )}
+                  {link && (
+                    <span
+                      title="A link: the Dashboard opens this address directly — no name, no Caddy route"
+                      className="ml-1.5 cursor-help rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400"
+                    >
+                      link
                     </span>
                   )}
                   {machine && (
@@ -171,7 +193,7 @@ export function ServiceTable({
                 {hasActions && (
                   <td className="px-4 py-3 max-sm:ml-auto">
                     <div className="flex items-center justify-end gap-1.5">
-                      {row.routed && onTogglePrivate && (
+                      {(row.routed || link) && onTogglePrivate && (
                         <IconButton
                           busy={privateBusyId === row.id}
                           title={row.private ? "Private — hidden from dashboard" : "Public on dashboard"}
@@ -180,12 +202,22 @@ export function ServiceTable({
                           {row.private ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </IconButton>
                       )}
-                      {onAssign && (
+                      {link && onLink && (
+                        <IconButton title="Edit link" onClick={() => onLink(row)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </IconButton>
+                      )}
+                      {onAssign && caddy && (
                         <IconButton
-                          title={row.routed ? "Change URL" : "Assign a URL"}
+                          title={row.routed ? "Change URL" : link ? "Give it an HTTPS name" : "Assign a URL"}
                           onClick={() => onAssign(row)}
                         >
                           {row.routed ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                        </IconButton>
+                      )}
+                      {!caddy && !row.routed && !link && onLink && (
+                        <IconButton title="Make a link" onClick={() => onLink(row)}>
+                          <Plus className="h-3.5 w-3.5" />
                         </IconButton>
                       )}
                       {row.routed && onRemoveRoute && (

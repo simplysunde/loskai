@@ -15,14 +15,16 @@ import {
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
-import { useRouteRows } from "../lib/routes";
+import { saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { answerHost, useHealth } from "../lib/useHealth";
-import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
+import { answerHost, useCaddySetUp, useHealth } from "../lib/useHealth";
+import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
 import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
 import { ADGUARD_SERVICE, urlToUpstream } from "../components/routing/networkServices";
+import { LinkModal, type LinkPayload } from "../components/routing/LinkModal";
+import type { SaveResult } from "../components/routing/useSaveMachine";
 import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
@@ -35,22 +37,21 @@ interface Orphan {
   container: string | null;
   subdomain: string | null;
 }
-interface AssignResult {
-  caddy: string;
-  adguard: string;
-  url: string;
-  warning: string | null;
-}
+// What saving a route or a link answers — the Machines tab's type, which a link's fits too.
+type AssignResult = SaveResult;
 
 // Unified routing view. Lists every service (routed or not) — machines have their own tab.
 // Routed rows manage the Caddy route + DNS rewrite; per-row "Change URL" edits an existing
 // route. Any service can be removed (route only) or deleted (route + record) — deleting a
 // docker instance leaves its container alone. New routes are created via the "Add route"
-// picker.
+// picker, which makes links too — the only thing it makes while Caddy isn't set up.
 export function Routing() {
   const qc = useQueryClient();
   const { admin } = useMe();
   const health = useHealth();
+  const caddy = useCaddySetUp();
+  // The row a link is being edited, or made, for.
+  const [linkTarget, setLinkTarget] = useState<RouteRow | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // for editing an existing route
   const [addOpen, setAddOpen] = useState(false);
@@ -154,9 +155,10 @@ export function Routing() {
     onError: (err) => setAssignError(apiMessage(err)),
   });
 
-  // Create a route from the "Add route" picker (a container, a machine's service, or any address).
+  // Create a route or a link from the "Add route" picker (a container, a machine's service,
+  // or any address).
   const addRoute = useMutation({
-    mutationFn: (r: NewRoute) => api.post<AssignResult>("/api/routes", r),
+    mutationFn: (r: NewRoute | NewLink) => saveNew(r),
     onSuccess: (data) => {
       setAddOpen(false);
       setResult(data);
@@ -175,6 +177,19 @@ export function Routing() {
       invalidate();
     },
     ...reportsAs("Couldn't route AdGuard"),
+  });
+
+  // Edit a link, or make one of a row with no route.
+  const saveLink = useMutation({
+    mutationFn: (p: LinkPayload) =>
+      api.post<AssignResult>("/api/links", { ...p, instance_id: linkTarget?.id }),
+    onSuccess: (data) => {
+      setLinkTarget(null);
+      setResult(data);
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+      invalidate();
+    },
+    onError: (err) => setAssignError(apiMessage(err)),
   });
 
   const setIcon = useMutation({
@@ -271,17 +286,19 @@ export function Routing() {
             }}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
-            <Plus className="h-4 w-4" /> Add route
+            <Plus className="h-4 w-4" /> {caddy ? "Add route" : "Add link"}
           </button>
-          <button
-            onClick={() => push.mutate()}
-            disabled={push.isPending}
-            title="Re-push every Caddy route and add any missing or stale AdGuard rewrites"
-            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-          >
-            {push.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Sync
-          </button>
+          {caddy && (
+            <button
+              onClick={() => push.mutate()}
+              disabled={push.isPending}
+              title="Re-push every Caddy route and add any missing or stale AdGuard rewrites"
+              className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+            >
+              {push.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Sync
+            </button>
+          )}
         </div>
       </header>
 
@@ -413,7 +430,7 @@ export function Routing() {
             }`}
           >
             <span className="font-medium">{result.url}</span> —{" "}
-            {result.warning ?? "route + DNS rewrite created."}
+            {result.warning ?? (result.link ? "link saved — on the Dashboard." : "route + DNS rewrite created.")}
           </div>
         )}
       </div>
@@ -433,6 +450,11 @@ export function Routing() {
           onTogglePrivate={(row) => privateToggle.mutate(row)}
           onIcon={(row, file) => setIcon.mutate({ row, file })}
           onClearIcon={(row) => clearIcon.mutate(row)}
+          onLink={(row) => {
+            setAssignError(null);
+            setLinkTarget(row);
+          }}
+          caddy={caddy}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />
       )}
@@ -470,6 +492,22 @@ export function Routing() {
         onSubmit={(r) => addRoute.mutate(r)}
         onClose={() => setAddOpen(false)}
       />
+
+      {linkTarget && (
+        <LinkModal
+          key={linkTarget.id}
+          row={linkTarget}
+          published={
+            containers.data?.find((c) => c.name === linkTarget.container)?.published_upstream ?? null
+          }
+          dockerHost={settings.data?.host_ip?.value ?? null}
+          rows={machines}
+          pending={saveLink.isPending}
+          error={assignError}
+          onSubmit={(p) => saveLink.mutate(p)}
+          onClose={() => setLinkTarget(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmRemove !== null}

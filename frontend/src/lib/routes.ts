@@ -1,7 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./api";
+import type { NewLink, NewRoute } from "../components/routing/AddRouteModal";
 import type { RouteRow } from "../components/routing/ServiceTable";
+import type { SaveResult } from "../components/routing/useSaveMachine";
+
+// Add route's submit, to the endpoint for what it made: a route goes through Caddy and
+// AdGuard (/api/routes), a link is only saved (/api/links).
+export function saveNew(r: NewRoute | NewLink) {
+  if ("kind" in r) {
+    const { kind: _kind, ...link } = r;
+    return api.post<SaveResult>("/api/links", link);
+  }
+  return api.post<SaveResult>("/api/routes", r);
+}
 
 // GET /api/adguard/status: whether each routed name's rewrite is there, by instance id.
 export interface DnsStatus {

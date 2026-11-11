@@ -36,8 +36,10 @@ beforeEach(() => {
 });
 
 const DEFAULT_SETTINGS = RESPONSES["/api/settings"];
+const DEFAULT_HEALTH = RESPONSES["/api/health"];
 
 afterEach(() => {
+  RESPONSES["/api/health"] = DEFAULT_HEALTH;
   RESPONSES["/api/auth/status"] = admin;
   RESPONSES["/api/ssh/running"] = {};
   RESPONSES["/api/docker/containers"] = [];
@@ -573,4 +575,65 @@ test("the preview drops to http:// when the scheme does", () => {
   fireEvent.click(screen.getByRole("button", { name: "HTTP" }));
 
   expect(screen.getByText("http://tv.example.no")).toBeInTheDocument();
+});
+
+
+// --- Links (Phase 45) ---
+
+// Caddy dials it by its service name; a browser reaches it at the Docker host's port.
+const JELLYFIN = {
+  id: "abc123", name: "jellyfin-jellyfin-1", image: "jellyfin/jellyfin", project: "jellyfin",
+  status: "running", uptime: 1, ports: [], subdomain: null, upstream_mode: "docker",
+  suggested_upstream: "jellyfin:8096", published_upstream: "192.168.10.220:8096",
+};
+
+test("without Caddy it makes a link: a name and where the browser reaches it, no prefix", async () => {
+  RESPONSES["/api/health"] = { ...(DEFAULT_HEALTH as object), caddy: { status: "unconfigured" } };
+  RESPONSES["/api/docker/containers"] = [JELLYFIN];
+  const { onSubmit } = renderModal({ mode: "docker" });
+
+  expect(await screen.findByRole("heading", { name: "Add link" })).toBeInTheDocument();
+  expect(screen.queryByPlaceholderText("grafana")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Route" })).not.toBeInTheDocument();
+  fireEvent.click(await screen.findByText("jellyfin-jellyfin-1"));
+
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("jellyfin");
+  expect(hostInput().value).toBe("192.168.10.220"); // never Caddy's `jellyfin`
+  expect(portInput().value).toBe("8096");
+  expect(screen.getByText("http://192.168.10.220:8096")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Add link" }));
+
+  expect(onSubmit).toHaveBeenCalledWith({
+    kind: "link", name: "jellyfin", upstream: "192.168.10.220:8096", upstream_tls: false,
+    container: "jellyfin-jellyfin-1", follow_container: true,
+  });
+});
+
+test("with Caddy, Route or Link is a choice, and a picked container is filled again for it", async () => {
+  RESPONSES["/api/docker/containers"] = [JELLYFIN];
+  const { onSubmit } = renderModal({ mode: "docker" });
+  fireEvent.click(await screen.findByText("jellyfin-jellyfin-1"));
+  expect(hostInput().value).toBe("jellyfin");
+
+  fireEvent.click(screen.getByRole("button", { name: "Link" }));
+
+  expect(screen.getByRole("heading", { name: "Add link" })).toBeInTheDocument();
+  expect(screen.queryByPlaceholderText("grafana")).not.toBeInTheDocument();
+  expect(hostInput().value).toBe("192.168.10.220");
+  fireEvent.click(screen.getByRole("button", { name: "Route" }));
+  expect(hostInput().value).toBe("jellyfin");
+  expect(prefixInput()).toHaveValue("jellyfin");
+  fireEvent.click(addButton());
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("kind");
+});
+
+test("a link needs a name", async () => {
+  RESPONSES["/api/health"] = { ...(DEFAULT_HEALTH as object), caddy: { status: "unconfigured" } };
+  renderModal();
+  await screen.findByRole("heading", { name: "Add link" });
+  typeUpstream("192.168.10.50", "5000");
+
+  expect(screen.getByRole("button", { name: "Add link" })).toBeDisabled();
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "NAS" } });
+  expect(screen.getByRole("button", { name: "Add link" })).toBeEnabled();
 });

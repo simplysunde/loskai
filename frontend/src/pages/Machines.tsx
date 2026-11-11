@@ -4,13 +4,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
-import { useRouteRows } from "../lib/routes";
+import { saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { removalNeedsPassword, takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
-import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
+import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
 import type { MachineService } from "../components/routing/machineServices";
 import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
@@ -86,7 +86,7 @@ export function Machines() {
   });
 
   const addRoute = useMutation({
-    mutationFn: (r: NewRoute) => api.post<SaveResult>("/api/routes", r),
+    mutationFn: (r: NewRoute | NewLink) => saveNew(r),
     onSuccess: (data) => {
       setRouteOn(null);
       setResult(data);

@@ -4,7 +4,6 @@ import { ArrowUpCircle, FilePlus2, PackagePlus } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
 import type { Container } from "../lib/containers";
-import { useSettings } from "../lib/settings";
 import { useHealth } from "../lib/useHealth";
 import type { Stack } from "../components/docker/groupByStack";
 import { InstallWizard } from "../components/docker/InstallWizard";
@@ -40,8 +39,6 @@ export function Docker() {
   const [deleteData, setDeleteData] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  const settings = useSettings();
-  const baseDomain = settings.data?.base_domain?.value ?? null;
 
   const removeMut = useMutation({
     mutationFn: (c: Container) => api.del(`/api/docker/containers/${c.id}`),
@@ -117,7 +114,6 @@ export function Docker() {
 
       {tab === "containers" ? (
         <StackGroups
-          baseDomain={baseDomain}
           onLogs={setLogsFor}
           onTerminal={setTerminalFor}
           onRemove={setRemoveContainer}

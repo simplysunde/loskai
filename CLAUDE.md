@@ -202,14 +202,20 @@ record); route → link is refused until the route is removed.
   Machines (what runs on a machine with SSH set up, by port: its address and the port, no
   link) — or any address typed into the fields (neither); Clear drops a pick. Machines
   shows only to an account with the Machines tab, since it reads `GET /api/ssh/running`.
-  The Routing tab's AdGuard pill posts `origin: "adguard"`.
+  The Routing tab's AdGuard pill posts `origin: "adguard"`. It makes **links** too: Route
+  or Link while Caddy is set up, Link only while it isn't (`useCaddySetUp`); a link's
+  address is the browser's — a container's `published_upstream`, never Caddy's form.
 - The upstream is **host and port** (`RouteFields`, shared by both route forms). The host
   (`HostSelect`) takes any address, and lists the Docker host, the picked container's host
   and the named machines — picking one only types its address in. Opened from a machine's
   row, the picker starts on what runs there, with its address in the host field.
 - **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
-  the same button reads **Assign a URL**.
-- The **Docker tab creates a route in one place only**: the install wizard's last step.
+  the same button reads **Assign a URL**, and on a link **Give it an HTTPS name**. A link
+  is edited in `LinkModal`, which also makes one of an unrouted row while Caddy isn't set up.
+- Every row, route or link, opens at the server's **`url`** (`RouteLink`) — no form or table
+  builds a URL of its own.
+- The **Docker tab creates a route in one place only**: the install wizard's last step — a
+  link there instead while Caddy isn't set up.
 - Every route form pre-fills a container through **`containerPrefill`** — a new one must
   too. Two forms once disagreed, which is how a container gets routed twice.
 

@@ -200,12 +200,12 @@ test("an uploaded icon is shown, with a control to remove it", () => {
   expect(screen.getByTitle("Remove the launcher icon")).toBeInTheDocument();
 });
 
-test("a routed name opens the site — over http when that is all it serves", () => {
+test("a routed name opens the site at the server's url — over http when that is all it serves", () => {
   render(
     <ServiceTable
       rows={[
-        row({ id: "grafana", name: "grafana", fqdn: "grafana.example.no" }),
-        row({ id: "tv", name: "tv", fqdn: "tv.example.no", scheme: "http" }),
+        row({ id: "grafana", name: "grafana", fqdn: "grafana.example.no", url: "https://grafana.example.no" }),
+        row({ id: "tv", name: "tv", fqdn: "tv.example.no", scheme: "http", url: "http://tv.example.no" }),
         row({ id: "off", name: "off", routed: false, subdomain: null, fqdn: null }),
       ]}
     />,
@@ -228,4 +228,38 @@ test("each status header explains itself on hover", () => {
   for (const name of ["Route", "DNS"]) {
     expect(screen.getByRole("columnheader", { name })).toHaveAttribute("title");
   }
+});
+
+
+// --- Links (Phase 45) ---
+
+const LINK = row({
+  id: "jellyfin", name: "Jellyfin", subdomain: null, fqdn: null, routed: false, synced: null,
+  route_mode: "direct", upstream: "192.168.10.220:8096", url: "http://192.168.10.220:8096",
+});
+
+test("a link opens at its address, is tagged, and is edited as a link or given a name", () => {
+  const onLink = vi.fn();
+  const onAssign = vi.fn();
+  const onTogglePrivate = vi.fn();
+  render(<ServiceTable rows={[LINK]} onLink={onLink} onAssign={onAssign} onTogglePrivate={onTogglePrivate} />);
+
+  expect(screen.getByRole("link", { name: "192.168.10.220:8096" })).toHaveAttribute("href", "http://192.168.10.220:8096");
+  expect(screen.getByText("link")).toBeInTheDocument();
+  expect(screen.getByTitle("Public on dashboard")).toBeInTheDocument(); // on the Dashboard, so hideable
+  fireEvent.click(screen.getByTitle("Edit link"));
+  fireEvent.click(screen.getByTitle("Give it an HTTPS name"));
+  expect(onLink).toHaveBeenCalledWith(LINK);
+  expect(onAssign).toHaveBeenCalledWith(LINK);
+});
+
+test("without Caddy nothing offers a route; an unrouted row offers a link", () => {
+  const onLink = vi.fn();
+  const unrouted = row({ id: "immich", name: "immich", subdomain: null, fqdn: null, routed: false, synced: null });
+  render(<ServiceTable rows={[LINK, unrouted]} caddy={false} onLink={onLink} onAssign={() => {}} />);
+
+  expect(screen.queryByTitle("Give it an HTTPS name")).not.toBeInTheDocument();
+  expect(screen.queryByTitle("Assign a URL")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTitle("Make a link"));
+  expect(onLink).toHaveBeenCalledWith(unrouted);
 });

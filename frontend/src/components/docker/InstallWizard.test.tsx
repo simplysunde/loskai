@@ -57,6 +57,8 @@ function renderWizard({
           ? { base_domain: { value: "example.no", source: "stored", secret: false } }
           : path === "/api/routes"
             ? { url: "https://grafana.example.no", warning: null }
+          : path === "/api/links"
+            ? { url: "http://192.168.10.220:3000", warning: null, link: true }
             : path === "/api/auth/status"
               ? { authed: true, needs_setup: false, user: { username: "admin", level: 4, tabs: ["routing", "docker", "machines"] } }
             : { recipes, invalid, shadowed, sources, local_count };
@@ -447,11 +449,26 @@ test("a recipe without a log_link opens no log stream", async () => {
   expect(screen.queryByText("Waiting for its link…")).not.toBeInTheDocument();
 });
 
-test("without Caddy set up, the last step offers no route", async () => {
-  renderWizard({ health: { caddy: { status: "unconfigured" } } });
+test("without Caddy set up, the last step offers a link to the Dashboard, not a route", async () => {
+  const fetchMock = renderWizard({
+    health: { caddy: { status: "unconfigured" } },
+    containers: [
+      {
+        name: "grafana-app-1", instance_id: "grafana", subdomain: null,
+        suggested_upstream: "grafana:3000", published_upstream: "192.168.10.220:3000",
+      },
+    ],
+  });
   await deployGrafana();
 
-  expect(await screen.findByText("Deployed.")).toBeInTheDocument();
-  await waitFor(() => expect(screen.queryByText("Route it")).not.toBeInTheDocument());
+  expect(await screen.findByText("Put it on the Dashboard")).toBeInTheDocument();
+  expect(screen.queryByText("Route it")).not.toBeInTheDocument();
   expect(screen.queryByRole("textbox", { name: "Subdomain prefix" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Add link" }));
+
+  await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => path === "/api/links")).toBe(true));
+  const post = fetchMock.mock.calls.find(([path]) => path === "/api/links");
+  expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+    name: "Grafana", upstream: "192.168.10.220:3000", container: "grafana-app-1", follow_container: true,
+  });
 });

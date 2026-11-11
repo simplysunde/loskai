@@ -38,8 +38,9 @@ the theme. On a phone the sidebar is a drawer, opened with the menu button at th
 ![The dashboard on a computer](../images/demo-dashboard.webp)
 ![The dashboard on a phone](../images/demo-dashboard-phone.webp)
 
-A launcher: one card per routed service, public so the whole household can use it. Hide a
-card with the eye on its Routing row; give it an icon with the image button on the same row.
+A launcher: one card per routed service or link, public so the whole household can use it.
+Hide a card with the eye on its Routing row; give it an icon with the image button on the
+same row. A desktop app can build shortcuts from the same list (`GET /api/launcher`).
 
 ## Certificate
 
@@ -123,6 +124,18 @@ removed, with **Delete** beside each.
 On a row, **Remove route** takes its route and DNS rewrite away but keeps the entry, to
 assign a URL again later; **Delete instance** removes the entry too. Neither touches the
 service itself.
+
+### Links
+
+A **link** is a name and an address — `Jellyfin` at `http://192.168.10.20:8096` — that the
+Dashboard opens directly: no HTTPS name, no Caddy route, no DNS rewrite. Add route offers
+**Route** or **Link**; without Caddy set up (Loskai alone) it makes links only, and the install
+wizard's last step offers one. A link to a container uses the Docker host's address and the
+port it's published on — the one a browser can open — and follows the container like a route.
+
+A link's row shows its address, tagged **link**: edit it with the pencil, hide it with the
+eye, or give it an HTTPS name with **+** once Caddy is set up — it becomes a route, the same
+entry. A route doesn't turn back into a link: remove the route, then add the link.
 
 ## Machines
 

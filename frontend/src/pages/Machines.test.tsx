@@ -23,17 +23,17 @@ const ROUTES = [
   },
   {
     id: "plex", name: "plex", type: "external", kind: "service", subdomain: "plex",
-    fqdn: "plex.example.no", upstream: "192.168.10.50:32400",
+    fqdn: "plex.example.no", url: "https://plex.example.no", upstream: "192.168.10.50:32400",
     private: false, routed: true, synced: true,
   },
   {
     id: "jellyfin", name: "jellyfin", type: "external", kind: "service", subdomain: "tv",
-    fqdn: "tv.example.no", upstream: "192.168.10.50:8096",
+    fqdn: "tv.example.no", url: "https://tv.example.no", upstream: "192.168.10.50:8096",
     private: false, routed: true, synced: true,
   },
   {
     id: "grafana", name: "grafana", type: "docker", kind: "service", subdomain: "grafana",
-    fqdn: "grafana.example.no", upstream: "grafana:3000",
+    fqdn: "grafana.example.no", url: "https://grafana.example.no", upstream: "grafana:3000",
     private: false, routed: true, synced: true,
   },
 ];
@@ -522,7 +522,7 @@ test("the Docker host is listed before it is named, with the routes on its addre
   settingsReply = { host_ip: { value: "192.168.10.220", source: "env" } };
   ROUTES.push({
     id: "whoami", name: "whoami", type: "docker", kind: "service", subdomain: "whoami",
-    fqdn: "whoami.example.no", upstream: "192.168.10.220:8081", private: false, routed: true, synced: true,
+    fqdn: "whoami.example.no", url: "https://whoami.example.no", upstream: "192.168.10.220:8081", private: false, routed: true, synced: true,
   });
   sessionStorage.setItem("loskai.machines.expanded", JSON.stringify([":docker-host"]));
   try {

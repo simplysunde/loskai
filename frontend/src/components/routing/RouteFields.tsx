@@ -21,12 +21,16 @@ const LINK = "text-xs text-teal-400 hover:text-teal-300 hover:underline";
 // The prefix and the upstream — host, port, and whether it speaks HTTPS. Each modal keeps
 // its own chrome and submit; `preview` is the slot for the FQDN line AssignModal shows under
 // the prefix (AddRouteModal renders its own further down, next to the submit).
+//
+// `link`: the same address for a link (Phase 45) — no prefix (the form asks for a name
+// instead), and an address the browser opens rather than one Caddy dials.
 export function RouteFields({
   fields,
   autoFocus = false,
   preview,
   follow,
   hosts = [],
+  link = false,
 }: {
   fields: RouteFieldsState;
   autoFocus?: boolean;
@@ -34,29 +38,32 @@ export function RouteFields({
   follow?: FollowState;
   // The host dropdown's options: the Docker host, this container, the named machines.
   hosts?: HostOption[];
+  link?: boolean;
 }) {
   const following = Boolean(follow?.on);
   const typedPort = fields.port !== "";
   return (
     <>
-      <label className="mt-4 block">
-        <span className="mb-1 block text-xs font-medium text-slate-400">
-          Subdomain prefix
-        </span>
-        <input
-          autoFocus={autoFocus}
-          value={fields.prefix}
-          onChange={(e) => fields.setPrefix(e.target.value)}
-          placeholder="grafana"
-          className={INPUT}
-        />
-        {preview}
-        {fields.prefix && !fields.prefixOk && (
-          <span className="mt-1 block text-xs text-rose-400">
-            Single DNS label only: lowercase letters, digits, hyphens.
+      {!link && (
+        <label className="mt-4 block">
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            Subdomain prefix
           </span>
-        )}
-      </label>
+          <input
+            autoFocus={autoFocus}
+            value={fields.prefix}
+            onChange={(e) => fields.setPrefix(e.target.value)}
+            placeholder="grafana"
+            className={INPUT}
+          />
+          {preview}
+          {fields.prefix && !fields.prefixOk && (
+            <span className="mt-1 block text-xs text-rose-400">
+              Single DNS label only: lowercase letters, digits, hyphens.
+            </span>
+          )}
+        </label>
+      )}
 
       {/* Host and port on one row: the host is the half usually picked from a list, the
           port the half usually typed. */}
@@ -89,7 +96,9 @@ export function RouteFields({
       <span className="mt-1 block text-xs text-slate-500">
         {following
           ? "Follows the container — Loskai rewrites this when its port changes."
-          : fields.upstreamHelp}
+          : link
+            ? "Opened from the browser — a LAN IP and port, never a container's name."
+            : fields.upstreamHelp}
       </span>
       {!following && fields.host && !fields.hostOk && (
         <span className="mt-1 block text-xs text-rose-400">
@@ -121,7 +130,11 @@ export function RouteFields({
         </span>
       )}
       <label
-        title="Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
+        title={
+          link
+            ? "Open it with https:// — the browser shows its certificate warning if it is self-signed"
+            : "Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
+        }
         className="mt-3 flex items-center gap-2 text-xs text-slate-400"
       >
         <input

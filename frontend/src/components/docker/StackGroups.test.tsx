@@ -14,13 +14,13 @@ const container = (name: string, project: string | null, status = "running") => 
 
 const RESPONSES: Record<string, unknown> = {
   "/api/docker/containers": [
-    { ...container("immich-server", "immich"), subdomain: "photos" },
+    { ...container("immich-server", "immich"), subdomain: "photos", url: "https://photos.example.no" },
     container("immich-db", "immich", "exited"),
-    { ...container("whoami-whoami-1", "whoami"), subdomain: "whoami" },
+    { ...container("whoami-whoami-1", "whoami"), subdomain: "whoami", url: "https://whoami.example.no" },
     { ...container("other-app", "other"), compose_dir: "/home/someone/other" },
     { ...container("other-worker", "other", "exited"), compose_dir: "/home/someone/other" },
-    { ...container("portainer", null), subdomain: "portainer" },
-    { ...container("loskai", "loskai"), self: true, subdomain: "loskai" },
+    { ...container("portainer", null), subdomain: "portainer", url: "https://portainer.example.no" },
+    { ...container("loskai", "loskai"), self: true, subdomain: "loskai", url: "https://loskai.example.no" },
   ],
   "/api/docker/stacks": [
     { name: "immich", services: ["server", "db"], status: "partial" },
@@ -57,7 +57,6 @@ const noop = () => {};
 const groups = () =>
   renderWith(
     <StackGroups
-      baseDomain="example.no"
       onLogs={noop}
       onTerminal={noop}
       onRemove={noop}
@@ -151,7 +150,6 @@ test("a project from elsewhere says where it was started, and removes its contai
   const onRemoveProject = vi.fn();
   renderWith(
     <StackGroups
-      baseDomain="example.no"
       onLogs={noop}
       onTerminal={noop}
       onRemove={noop}
@@ -173,7 +171,6 @@ test("a lone container is a group of one, laid out like every other group", asyn
   const onRemove = vi.fn();
   renderWith(
     <StackGroups
-      baseDomain="example.no"
       onLogs={noop}
       onTerminal={noop}
       onRemove={onRemove}
@@ -210,7 +207,6 @@ test("a container shows logs and terminal; the rest is behind its menu", async (
   const onRemove = vi.fn();
   renderWith(
     <StackGroups
-      baseDomain="example.no"
       onLogs={noop}
       onTerminal={noop}
       onRemove={onRemove}
@@ -235,7 +231,6 @@ test("Loskai's own container sits apart, offering only its logs", async () => {
   const onLogs = vi.fn();
   renderWith(
     <StackGroups
-      baseDomain="example.no"
       onLogs={onLogs}
       onTerminal={noop}
       onRemove={noop}

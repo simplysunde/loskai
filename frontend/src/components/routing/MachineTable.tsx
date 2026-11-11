@@ -25,6 +25,7 @@ import { RowMenu } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
 import type { Tool, ToolTarget } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
+import { useCaddySetUp } from "../../lib/useHealth";
 import { splitUpstream } from "../../lib/validation";
 import { DOCKER_HOST_ID, routesOn } from "./machine";
 import { ToolsMenu } from "./MachineTools";
@@ -86,6 +87,7 @@ export function MachineTable({
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
+  const caddy = useCaddySetUp();
 
   if (machines.length === 0) {
     return (
@@ -96,8 +98,9 @@ export function MachineTable({
     );
   }
 
-  // The buttons on each row of a machine's running list: a route per port (or the one it
-  // has), and naming a guest (or the machine it already is).
+  // The buttons on each row of a machine's running list: a route per port (or the route or
+  // link it has) — a link while Caddy isn't set up — and naming a guest (or the machine it
+  // already is).
   const runningActions = (m: RouteRow) => {
     const r = running[m.id];
     const services = servicesOn(m, r, rows, dockerHost);
@@ -123,10 +126,10 @@ export function MachineTable({
       return services
         .filter((s) => s.kind === target && s.name === id)
         .map((s) =>
-          s.route?.fqdn ? (
-            <RouteLink key={s.key} host={s.route.fqdn} scheme={s.route.scheme} />
+          s.route?.url ? (
+            <RouteLink key={s.key} url={s.route.url} />
           ) : (
-            <button key={s.key} title={`Add a route to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
+            <button key={s.key} title={`${caddy ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
               <Plus className="h-3 w-3" />:{s.upstream.split(":").pop()}
             </button>
           ),
@@ -294,8 +297,8 @@ export function MachineTable({
                           </div>
                         </td>
                         <td className="px-4 py-1">
-                          {d.fqdn ? (
-                            <RouteLink host={d.fqdn} scheme={d.scheme} />
+                          {d.url ? (
+                            <RouteLink url={d.url} />
                           ) : (
                             <span className="text-slate-600">not routed</span>
                           )}

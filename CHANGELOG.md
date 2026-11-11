@@ -72,8 +72,13 @@ Everything so far:
   changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
   Optional features a recipe offers — Jellyfin's hardware transcoding — are checkboxes, at
   install or later under Edit. An app that logs a link to open after install — Tailscale's
-  login — shows it on the wizard's last step. Without Caddy set up, the last step offers no
-  route — Loskai can run alone, for Docker and Machines (install guide, "Loskai alone").
+  login — shows it on the wizard's last step. Without Caddy set up, the last step offers a
+  link instead of a route — Loskai can run alone, for Docker and Machines (install guide,
+  "Loskai alone").
+- **Links** — a name and an address (`http://<ip>:<port>`) the Dashboard opens directly, with
+  no Caddy or AdGuard: Add route offers Route or Link, and only Link while Caddy isn't set
+  up. A container's link uses the port it's published on and follows it. A link becomes a
+  route with Assign a URL. The desktop launcher list (`GET /api/launcher`) includes them.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **From outside, with Tailscale** — a subnet router shares your LAN with your tailnet, so

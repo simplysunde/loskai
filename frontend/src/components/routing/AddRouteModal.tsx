@@ -7,6 +7,7 @@ import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { useRunning } from "../../lib/ssh";
 import { useMe } from "../../lib/useAuth";
+import { useCaddySetUp } from "../../lib/useHealth";
 import { containerLabel, containerPrefill } from "./containerPrefill";
 import { hostOptions } from "./hostOptions";
 import { machineLabel } from "./machine";
@@ -15,6 +16,7 @@ import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { RouteFields, RouteFormFooter } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
 import { Overlay } from "../shared/Modal";
+import { INPUT } from "../../lib/ui";
 
 // The route payload the parent posts to /api/routes.
 export interface NewRoute {
@@ -28,6 +30,16 @@ export interface NewRoute {
   follow_container?: boolean;
 }
 
+// A link's payload, for /api/links: a name and an address the Dashboard opens directly.
+export interface NewLink {
+  kind: "link";
+  name: string;
+  upstream: string;
+  upstream_tls: boolean;
+  container?: string;
+  follow_container?: boolean;
+}
+
 export type Source = "container" | "machines";
 
 // "Add route" picker: pick an unrouted Container or something running on a Machine, which
@@ -35,6 +47,9 @@ export type Source = "container" | "machines";
 // editable, and Clear drops a pick. The tabs only choose which list shows. What already has
 // a route is left out (it's managed as a row). This is the single route-creation surface —
 // the Docker tab no longer assigns.
+//
+// It makes links too (Phase 45): a name and an address the Dashboard opens directly. With
+// Caddy set up, Route or Link is a choice; without it, a link is all it makes.
 export function AddRouteModal({
   open,
   baseDomain,
@@ -56,15 +71,20 @@ export function AddRouteModal({
   initialService?: MachineService;
   pending?: boolean;
   error?: string | null;
-  onSubmit: (route: NewRoute) => void;
+  onSubmit: (route: NewRoute | NewLink) => void;
   onClose: () => void;
 }) {
+  const caddy = useCaddySetUp();
+  const [asLink, setAsLink] = useState(false);
+  const link = asLink || !caddy;
+  const [name, setName] = useState(initialService?.name ?? "");
   // Only an account that may use the Machines tab may read what runs on them.
   const mayMachines = useMe().may("machines");
   const running = useRunning(open && mayMachines);
   // A machine's row is on the Machines tab, so whoever opened it from there may read it.
   const [source, setSource] = useState<Source>(initialMachine ? "machines" : "container");
-  const [link, setLink] = useState<{ container?: string; name?: string }>(
+  // What the pick names: the container a route or link is linked to, and its label.
+  const [chosen, setChosen] = useState<{ container?: string; name?: string }>(
     initialService ? { name: initialService.name } : {},
   );
   const [picked, setPicked] = useState<string | null>(initialService?.key ?? null);
@@ -96,11 +116,12 @@ export function AddRouteModal({
   if (!open) return null;
 
   const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
-  const pickedContainer = link.container ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
+  const pickedContainer = chosen.container ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
   const hosts = hostOptions({
     rows: rows.data,
     dockerHost: settings.data?.host_ip?.value,
-    containerHost: pickedContainer?.suggested_host,
+    // A link's address is the browser's: Caddy's form of the container's host may be a name.
+    containerHost: link ? undefined : pickedContainer?.suggested_host,
   });
   const groups = machineServices(rows.data ?? [], running.data, settings.data?.host_ip?.value).filter(
     (g) => !initialMachine || g.machine.id === initialMachine.id,
@@ -108,7 +129,7 @@ export function AddRouteModal({
 
   // Forget a pick, keeping the fields.
   const drop = () => {
-    setLink({});
+    setChosen({});
     setPicked(null);
     setPickedMode(null);
     setFollow(false);
@@ -116,6 +137,7 @@ export function AddRouteModal({
   };
   const clear = () => {
     fields.set({ prefix: "", upstream: machineUpstream, tls: false });
+    setName("");
     drop();
   };
   // A pick belongs to its list: showing the other one clears it, so a container's link
@@ -126,26 +148,56 @@ export function AddRouteModal({
     setSource(next);
   };
 
-  const pickContainer = (c: Container) => {
+  // A container is pre-filled for what is being made: a route with the address Caddy dials
+  // it at, a link with where the browser reaches it — the Docker host's published port.
+  const pickContainer = (c: Container, asLinkNow = link) => {
+    const label = containerLabel(c, containers.data ?? []);
     setPickedMode(c.upstream_mode ?? null);
-    fields.set(containerPrefill(c, containers.data));
-    setDerived(c.suggested_upstream ?? null);
-    setFollow(Boolean(c.suggested_upstream));
-    setLink({ container: c.name, name: containerLabel(c, containers.data ?? []) });
+    if (asLinkNow) {
+      const dockerHost = settings.data?.host_ip?.value;
+      fields.set({ upstream: c.published_upstream ?? (dockerHost ? `${dockerHost}:` : "") });
+      setDerived(c.published_upstream ?? null);
+      setFollow(Boolean(c.published_upstream));
+    } else {
+      fields.set(containerPrefill(c, containers.data));
+      setDerived(c.suggested_upstream ?? null);
+      setFollow(Boolean(c.suggested_upstream));
+    }
+    setChosen({ container: c.name, name: label });
+    setName(label);
     setPicked(c.id);
   };
   const pickService = (s: MachineService) => {
     drop();
     fields.set({ prefix: s.prefix, upstream: s.upstream });
-    setLink({ name: s.name });
+    setChosen({ name: s.name });
+    setName(s.name);
     setPicked(s.key);
   };
+  // Route or Link: a picked container is pre-filled again for the other; a machine's
+  // service and a typed address are the same address either way.
+  const makeLink = (next: boolean) => {
+    if (next === asLink) return;
+    setAsLink(next);
+    if (pickedContainer) pickContainer(pickedContainer, next);
+  };
 
-  const canSubmit = fields.valid && !pending;
+  const canSubmit = (link ? Boolean(name.trim()) && fields.upstreamOk : fields.valid) && !pending;
+  const linkUrl = `${fields.tls ? "https" : "http"}://${fields.upstream}`;
 
   return (
     <Overlay onClose={onClose}>
-      <h2 className="text-base font-semibold text-slate-100">Add route</h2>
+      <h2 className="text-base font-semibold text-slate-100">{link ? "Add link" : "Add route"}</h2>
+      {caddy && (
+        <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
+          <SourceTab active={!asLink} onClick={() => makeLink(false)} title="An HTTPS name, through Caddy and AdGuard">
+            Route
+          </SourceTab>
+          <SourceTab active={asLink} onClick={() => makeLink(true)} title="Its address on the Dashboard, opened directly — no name, no HTTPS">
+            Link
+          </SourceTab>
+        </div>
+      )}
 
       <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
         <SourceTab active={source === "container"} onClick={() => showList("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
@@ -209,9 +261,23 @@ export function AddRouteModal({
         )}
       </div>
 
+      {link && (
+        <label className="mt-4 block">
+          <span className="mb-1 block text-xs font-medium text-slate-400">Name</span>
+          <input
+            aria-label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Jellyfin"
+            maxLength={80}
+            className={INPUT}
+          />
+        </label>
+      )}
       <RouteFields
         fields={fields}
         hosts={hosts}
+        link={link}
         follow={
           pickedContainer
             ? {
@@ -225,38 +291,62 @@ export function AddRouteModal({
             : undefined
         }
       />
-      <SchemeSelect value={scheme} onChange={setScheme} />
+      {!link && <SchemeSelect value={scheme} onChange={setScheme} />}
 
       <p className="mt-4 text-xs text-slate-500">
         →{" "}
         <span className="font-mono text-slate-300">
-          {scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
+          {link ? linkUrl : scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
         </span>
       </p>
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
       <RouteFormFooter
-        label="Add route"
+        label={link ? "Add link" : "Add route"}
         pending={pending}
         disabled={!canSubmit}
         onCancel={onClose}
         onSubmit={() =>
-          onSubmit({
-            ...fields.payload(),
-            scheme,
-            ...link,
-            ...(link.container ? { follow_container: follow } : {}),
-          })
+          onSubmit(
+            link
+              ? {
+                  kind: "link",
+                  name: name.trim(),
+                  upstream: fields.upstream,
+                  upstream_tls: fields.tls,
+                  ...(chosen.container ? { container: chosen.container, follow_container: follow } : {}),
+                }
+              : {
+                  ...fields.payload(),
+                  scheme,
+                  ...chosen,
+                  ...(chosen.container ? { follow_container: follow } : {}),
+                },
+          )
         }
       />
     </Overlay>
   );
 }
 
-function SourceTab({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+function SourceTab({
+  active,
+  onClick,
+  icon,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  title?: string;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
+      title={title}
+      aria-pressed={active}
       className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium ${
         active ? "bg-teal-500/15 text-teal-200" : "text-slate-400 hover:text-slate-200"
       }`}

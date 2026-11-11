@@ -259,8 +259,10 @@ Then `docker compose up -d`, open `http://<docker-host>:8080` and create the adm
 - **What works:** the Docker tab — stacks, the install wizard, updates, logs, terminals — and
   the Machines tab — SSH setup, terminals, tools, the overview, what runs on each. Machines on
   your tailnet too ([Tailscale](tailscale.md#managing-a-machine-on-your-tailnet)).
-- **What stays empty:** the Routing tab and the Dashboard. The install wizard offers no
-  route, and naming a machine says its DNS rewrite was skipped.
+- **The Dashboard, with links:** a link is a name and an address — `http://<ip>:<port>` —
+  that the Dashboard opens directly. Add them from the Routing tab (**Add link**), or the
+  install wizard's last step; see [Links](using-loskai.md#links). Naming a machine says its
+  DNS rewrite was skipped.
 - **What you give up:** names — services and machines are reached by address and port — and
   **HTTPS for Loskai itself**. Your password, the SSH unlock password and terminal sessions
   cross the LAN unencrypted. Fine on a network you trust; otherwise reach Loskai over
@@ -269,7 +271,7 @@ Then `docker compose up -d`, open `http://<docker-host>:8080` and create the adm
 
 **Adding routing later** reinstalls nothing: build AdGuard and Caddy (Steps 1–2), then give
 Loskai their addresses in Settings › Network — or in `.env` as in Step 3, then
-`docker compose up -d`.
+`docker compose up -d`. Each link can then be given an HTTPS name from its row.
 
 ---
 

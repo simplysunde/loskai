@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { useContainers } from "../../lib/containers";
-import { useHealth } from "../../lib/useHealth";
+import { useCaddySetUp } from "../../lib/useHealth";
 import { useSettings } from "../../lib/settings";
 import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
@@ -434,9 +434,8 @@ function ResultStep({
   recipe: Recipe | null;
   onClose: () => void;
 }) {
-  // A Loskai run without Caddy (Docker and Machines only) offers no route it can't make.
-  const health = useHealth();
-  const routing = health.data?.caddy?.status !== "unconfigured";
+  // A Loskai run without Caddy offers no route it can't make — a link to the Dashboard instead.
+  const routing = useCaddySetUp();
   return (
     <div className="space-y-3">
       <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
@@ -458,6 +457,9 @@ function ResultStep({
       )}
       {result.ok && result.container && recipe && routing && (
         <RouteNow recipe={recipe} containerName={result.container} />
+      )}
+      {result.ok && result.container && recipe && !routing && (
+        <LinkNow recipe={recipe} containerName={result.container} />
       )}
       <details className="text-xs text-slate-500" open={!result.ok}>
         <summary className="cursor-pointer select-none hover:text-slate-300">Output</summary>
@@ -513,6 +515,87 @@ function LogLink({ prefix, container }: { prefix: string; container: string }) {
 interface RouteResult {
   url: string;
   warning: string | null;
+}
+
+// Without Caddy, the install's last step puts it on the Dashboard: a link to where a browser
+// reaches it — the Docker host and its published port — following the container, so a new
+// port moves the link. A container Docker can't name a published port for is linked from
+// the Routing tab, where the address can be typed.
+function LinkNow({ recipe, containerName }: { recipe: Recipe; containerName: string }) {
+  const qc = useQueryClient();
+  const containers = useContainers();
+  const container = containers.data?.find((c) => c.name === containerName);
+  const [name, setName] = useState(recipe.name);
+
+  const link = useMutation({
+    mutationFn: () =>
+      api.post<RouteResult>("/api/links", {
+        name: name.trim(),
+        upstream: container?.published_upstream ?? "",
+        container: containerName,
+        follow_container: true,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["docker-containers"] });
+      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const box = "rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm";
+  if (containers.isLoading) {
+    return (
+      <div className={`${box} flex items-center gap-2 text-slate-500`}>
+        <Loader2 className="h-4 w-4 animate-spin" /> Looking up its container…
+      </div>
+    );
+  }
+  const url = link.data?.url ?? container?.url;
+  if (url) {
+    return (
+      <div className={`${box} text-emerald-300`}>
+        On the Dashboard at{" "}
+        <a href={url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+          {url}
+        </a>
+      </div>
+    );
+  }
+  if (!container?.published_upstream) {
+    return (
+      <div className={`${box} text-slate-400`}>
+        Docker can't name the port it's published on, so link it from the{" "}
+        <Link to="/routing" className="text-teal-300 underline underline-offset-2">
+          Routing tab
+        </Link>{" "}
+        — Add link, where you can type it.
+      </div>
+    );
+  }
+  return (
+    <div className={box}>
+      <p className="mb-2 font-medium text-slate-200">Put it on the Dashboard</p>
+      <div className="flex items-center gap-2">
+        <input
+          aria-label="Name"
+          value={name}
+          maxLength={80}
+          onChange={(e) => setName(e.target.value)}
+          className="w-40 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+        />
+        <span className="min-w-0 truncate font-mono text-xs text-slate-500">http://{container.published_upstream}</span>
+        <button
+          onClick={() => link.mutate()}
+          disabled={!name.trim() || link.isPending}
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+        >
+          {link.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Add link
+        </button>
+      </div>
+      {link.isError && <p className="mt-2 text-xs text-rose-400">{apiMessage(link.error, "Couldn't add the link")}</p>}
+    </div>
+  );
 }
 
 // The install's last step routes it: the recipe's suggested name, and an upstream that

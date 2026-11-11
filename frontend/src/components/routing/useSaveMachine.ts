@@ -4,12 +4,15 @@ import { api, ApiError } from "../../lib/api";
 import type { NewMachine } from "./AddMachineModal";
 
 export interface SaveResult {
-  // "skipped" for a machine — it has no route.
+  // "skipped" for a machine — it has no route — and for a link.
   caddy: string;
+  adguard?: string;
   instance_id: string;
   url: string;
   warning: string | null;
   moved?: string[];
+  // A link (Phase 45): saved, with no route and no rewrite.
+  link?: boolean;
 }
 
 // Naming a machine (the Machines tab) and editing one (its page) are the same post.

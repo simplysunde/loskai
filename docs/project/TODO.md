@@ -872,9 +872,11 @@ work", without "a dumb shortcut now" that costs later.
       never touched by a link; link → route; route → link refused; a machine's move takes
       its links along. Built: `tests/test_links.py` (22), and the follower's write also
       checks the record's mode, so a link turned route mid-lookup gets no browser address.
-- [ ] 45b The UI: Route or Link in Add route, a link row on Routing (edit, private, icon,
+- [x] 45b The UI: Route or Link in Add route, a link row on Routing (edit, private, icon,
       make it a route, delete), links under a machine, the Docker tab's link, the wizard's
-      last step without Caddy. Every place shows the server's `url`.
+      last step without Caddy. Every place shows the server's `url`. Built: `RouteLink`
+      takes only `url` now, so the Docker tab and Machines build no URL of their own;
+      `LinkModal`; `useCaddySetUp`; `saveNew` picks the endpoint for Add route.
 - [ ] 45c Live: a scratch Loskai without Caddy — add links, the Dashboard and launcher list
       them; with Caddy (the smoke rig) — a link made a route is pushed, and Sync leaves
       links alone.
