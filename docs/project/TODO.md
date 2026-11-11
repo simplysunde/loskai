@@ -877,9 +877,17 @@ work", without "a dumb shortcut now" that costs later.
       last step without Caddy. Every place shows the server's `url`. Built: `RouteLink`
       takes only `url` now, so the Docker tab and Machines build no URL of their own;
       `LinkModal`; `useCaddySetUp`; `saveNew` picks the endpoint for Add route.
-- [ ] 45c Live: a scratch Loskai without Caddy — add links, the Dashboard and launcher list
+- [x] 45c Live: a scratch Loskai without Caddy — add links, the Dashboard and launcher list
       them; with Caddy (the smoke rig) — a link made a route is pushed, and Sync leaves
-      links alone.
+      links alone. Run 2026-11-11 on `:8010`, the same data both ways. Without Caddy: links
+      by API and in Chromium (Add link, a container pre-filled with its published port);
+      the Dashboard, logged out, opened `http://192.168.10.220:8081` and whoami answered; a
+      throwaway container re-run on another port moved its link by Docker's events; a route
+      attempt failed and left the link as it was. With a throwaway Caddy: Sync pushed
+      nothing for links, Assign a URL made one a route Caddy served (`Via: Caddy`, whoami's
+      body), Sync then pushed only it, route → link was refused, and a new link left Caddy's
+      ids alone. Found: the picker said "No unrouted containers" while still loading —
+      fixed.
 
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second

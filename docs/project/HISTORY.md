@@ -4,6 +4,29 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-11 — Links: a Dashboard entry without Caddy
+
+Sunde asked to keep the Dashboard with Loskai running alone — an entry opening
+`http://<ip>:<port>`, "an easy and accessible place for shortcuts", and for a desktop app
+building shortcuts — and that both modes "simply just work", without "a dumb shortcut now".
+
+- **A link is a record with no subdomain** (`route_mode: "direct"`), not a route with a fake
+  one. Every Caddy and AdGuard path reads only records with a subdomain, so none of them
+  needed a case for links — the alternative, a subdomain nothing serves, would have put one
+  in each, and shown an address that isn't one.
+- **Its own verb, `POST /api/links`**, beside `assign()` rather than inside it: `assign()` is
+  the Caddy-then-AdGuard orchestration, and a link has neither step.
+- **One place decides where a record opens**, `instances.open_url`. The Docker tab and the
+  route tables each built a URL from the subdomain; now they show the server's, so a link
+  needed no third copy.
+- **A link's address is the browser's**: a container's is the Docker host's published port,
+  `published_upstream` — Caddy's form can be a Docker service name a browser can't open.
+  The follower writes only to a record still of the mode it derived for.
+- **Link → route is Assign a URL; route → link is refused** until the route is removed,
+  since tearing a route down is `unassign`'s required Caddy step.
+- **A downgrade loses links**: an older Loskai can't read `route_mode: "direct"`, skips those
+  records, and its next write drops them.
+
 ## 2026-11-11 — Machines on the tailnet: both host addresses in every `from=`
 
 Sunde asked whether the Machines tab could manage a machine that is on the tailnet but not

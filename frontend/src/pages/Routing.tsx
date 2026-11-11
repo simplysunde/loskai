@@ -275,7 +275,9 @@ export function Routing() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Routing</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Web addresses for your services — Caddy serves them, AdGuard points the names there.
+            {caddy
+              ? "Web addresses for your services — Caddy serves them, AdGuard points the names there."
+              : "Your services' addresses, as links on the Dashboard — names and HTTPS come with Caddy."}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">

@@ -143,7 +143,7 @@ export function RouteFields({
           onChange={(e) => fields.setTls(e.target.checked)}
           className="accent-teal-500"
         />
-        Backend speaks HTTPS
+        {link ? "Opens over HTTPS" : "Backend speaks HTTPS"}
       </label>
     </>
   );

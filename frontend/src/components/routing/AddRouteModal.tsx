@@ -213,7 +213,7 @@ export function AddRouteModal({
       {/* One height on both lists, so switching doesn't move the fields and buttons. */}
       <div className="mt-3 h-40 overflow-y-auto">
         {source === "container" && (
-          <PickList empty="No unrouted containers.">
+          <PickList empty={containers.isLoading ? "Reading the containers…" : "No unrouted containers."}>
             {unroutedContainers.map((c) => (
               <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
             ))}
