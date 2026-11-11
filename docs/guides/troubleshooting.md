@@ -3,7 +3,8 @@
 # Troubleshooting
 
 **Read this when** something is broken: a 502, a redirect loop, a name that won't resolve, a
-module shown unreachable, a stack that won't start, SSH to a machine.
+module shown unreachable, a stack that won't start, a Dashboard link, SSH to a machine, or
+reaching it all from outside with Tailscale.
 
 Common failures once Loskai is routing traffic, and how to tell them apart. The recurring
 theme: **DNS, TLS, and the route can all be fine while the *upstream* (the backend Caddy
@@ -23,6 +24,8 @@ Quickest triage — a name that's routed but failing almost always falls into on
 | Caddy, AdGuard or Docker shows unreachable | reachability | [Unreachable](#a-module-shows-unreachable) |
 | A stack fails after Save or install | the Docker host | [Stack won't start](#a-stack-wont-start-after-save) |
 | A machine's SSH, terminal or tool fails | SSH | [Machines](#a-machine-over-ssh) |
+| A Dashboard link doesn't open, or can't be added | the link's address | [Links](#a-link-doesnt-open-or-cant-be-made) |
+| Names don't work away from home | Tailscale | [The Tailscale guide](tailscale.md#when-it-doesnt-work) |
 
 ---
 
@@ -232,3 +235,45 @@ never required: unticked, Jellyfin still runs and transcodes on the CPU.
   no sudo at all.
 - **"… may not list containers — give it the rights, or sudo."** — add the user to the
   `docker` group, or give it `sudo` for `docker ps` (`pct list` and `qm list` on Proxmox).
+
+**A machine on your tailnet** (added by its `100.x` address):
+
+- **The keys install, then the test right after fails** — the machine sees Loskai's
+  connection come from the Docker host's Tailscale address, and its keys only allow the LAN
+  one. Set **Docker Host Tailscale IP** in Settings › General (beside **Docker Host LAN IP**,
+  which it needs), then run its SSH setup again. A machine set up before the field was
+  filled keeps its old lines until then.
+- **It can't be reached at all** — the Docker host isn't on the tailnet (`tailscale status`
+  there), or your tailnet's access rules don't let it reach the machine's port 22. Tailscale
+  in the recipe doesn't count: it leaves the host itself off the tailnet.
+- **Loskai's limits don't seem to apply** — Tailscale SSH is on there (`tailscale up
+  --ssh`): it answers SSH on the Tailscale address itself and ignores `authorized_keys`,
+  Loskai's lines included. `tailscale set --ssh=false` on the machine turns it off.
+
+More in [Managing a machine on your tailnet](tailscale.md#managing-a-machine-on-your-tailnet).
+
+---
+
+## A link doesn't open, or can't be made
+
+A link is opened by your browser, straight at its address — Caddy, AdGuard and Loskai are
+not in the way. So first open the address itself, or `curl -sI http://<ip>:<port>` from the
+same device: if that fails, so will the card.
+
+- **It opens on some devices only** — a `100.x` (Tailscale) address opens only on devices
+  running Tailscale; a LAN address from outside only through a
+  [subnet router](tailscale.md). Link the LAN address for the household.
+- **A certificate warning, or an error page from the app** — **Opens over HTTPS** may not
+  match it: ticked for one that speaks plain HTTP, or unticked for one that only speaks
+  HTTPS (Proxmox, `:8006`). Edit the link and flip it. A self-signed app warns once per device.
+- **"Docker can't name the port it's published on"** — the container publishes no port, or
+  several, or **Docker Host LAN IP** isn't set (Settings › General), so Loskai can't say
+  where a browser reaches it. Publish one port, or give it a `loskai.port` label, or type the
+  address.
+- **"… is routed at … — remove its route first"** — it has an HTTPS name already. A route
+  doesn't turn into a link: **Remove route** on its row, then add the link.
+- **"… is the link … — give it this name with Assign a URL"** — a new route was given a
+  link's name. Use **+** on the link's row instead: it becomes the route, the same entry.
+- **Only Add link, no Add route, no Sync** — Caddy isn't set up, so Loskai makes only links
+  ([Loskai alone](install.md#loskai-alone--docker-and-machines-no-routing)). Give it Caddy's
+  address in Settings › Network to route.

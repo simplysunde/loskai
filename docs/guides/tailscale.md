@@ -150,7 +150,18 @@ tailnet. Without Tailscale on Caddy's box the route is made, but every visit fai
   AdGuard's **Query Log** shows the lookups that reach it; one from the router's address
   means DNS works and the problem is the route.
 - **It resolves but doesn't load** — the route isn't approved (step 2.1), or the box's
-  network isn't the one the service is on.
+  network isn't the one the service is on. On a Linux laptop, also `sudo tailscale set
+  --accept-routes`: Linux ignores a subnet router until told to use one.
+- **The router shows in the admin console, then goes offline, and asks to log in again** —
+  the login was finished after its window closed: the container started over as a new
+  device, with a new link. A recipe installed before that was fixed waited only a minute;
+  **Check for updates** gives it an hour. Delete the stale device in the console, then log in with
+  the newest link at the end of the container's logs.
+- **It worked for months, then stopped** — the router's key expired (180 days by default).
+  Log it in again, and **Disable key expiry** on its ⋯ menu (step 2.1).
+- **A link to a `100.x` address doesn't open** — that device isn't running Tailscale. A
+  Tailscale address opens only on the tailnet; for everyone at home, link the LAN address,
+  or route it ([Routing to a machine on your tailnet](#routing-to-a-machine-on-your-tailnet)).
 - **It works on mobile data but not on someone else's Wi-Fi** — their network uses the
   same range as yours (`192.168.10.x` is common), and their own devices win. Moving your
   home network to a less common range avoids it.
