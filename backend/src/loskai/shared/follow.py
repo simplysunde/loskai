@@ -25,7 +25,6 @@ from ..modules.caddy.client import CaddyError, describe_error
 from ..modules.docker.client import docker_client
 from . import instances as instances_store
 from . import settings as settings_store
-from .instances import Instance
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +45,16 @@ def derive_upstream(container: str) -> str | None:
     return derived_upstreams().get(container)
 
 
-def _follows(inst: Instance | None) -> bool:
-    return bool(
-        inst
-        and inst.follow_container
-        and inst.container
-        and inst.subdomain
-        and inst.route_mode == "proxy"
-    )
+def published_upstreams() -> dict[str, str | None]:
+    """`{container name: where a browser reaches it}` — the Docker host and the published
+    port, what a link follows. Not Caddy's form: that may be a Docker service name."""
+    rows = docker_client.list_containers(settings_store.caddy_host(), settings_store.value("host_ip"))
+    return {row["name"]: row["published_upstream"] for row in rows}
+
+
+def derive_published(container: str) -> str | None:
+    """Where a browser reaches one container right now, or None."""
+    return published_upstreams().get(container)
 
 
 async def reconcile(
@@ -62,10 +63,11 @@ async def reconcile(
     """Re-point the route following `container` at its live upstream. Returns the new
     upstream when it moved, else None. `derived` lets reconcile_all share one listing."""
     inst = instances_store.get_by_container(container)
-    if not _follows(inst):
+    if inst is None or not instances_store.follows_container(inst):
         return None
+    link = instances_store.is_link(inst)
     if derived is None:
-        derived = await asyncio.to_thread(derived_upstreams)
+        derived = await asyncio.to_thread(published_upstreams if link else derived_upstreams)
     upstream = derived.get(container)
     if not upstream:
         # Not derivable any more — say a label was removed and the ports are ambiguous now.
@@ -78,10 +80,12 @@ async def reconcile(
         return None
     if upstream == inst.upstream:
         return None
-    moved = instances_store.follow_upstream(inst.id, inst.upstream, upstream)
+    moved = instances_store.follow_upstream(inst.id, inst.upstream, upstream, inst.route_mode)
     if moved is None:
         return None  # edited while Docker was being asked — the edit wins
     logger.info("route %s follows %s: %s -> %s", inst.id, container, inst.upstream, upstream)
+    if link:
+        return upstream  # a link is only its record: nothing to push
     try:
         await caddy_service.upsert_route(caddy_client, moved, settings_store.value("base_domain"))
     except (httpx.HTTPError, CaddyError, ValueError) as exc:
@@ -95,16 +99,19 @@ async def reconcile(
 async def reconcile_all(caddy_client) -> list[str]:
     """Bring every following route up to date — at startup and after each reconnect, since
     a change made while Loskai or the daemon was down produced no event to react to."""
-    containers = [
-        i.container for i in instances_store.list_instances() if _follows(i) and i.container
-    ]
-    if not containers:
-        return []
-    derived = await asyncio.to_thread(derived_upstreams)
+    following = [i for i in instances_store.list_instances() if instances_store.follows_container(i)]
+    # One listing per kind of address, and only for a kind something follows: a route's is
+    # how Caddy dials the container, a link's where a browser reaches it.
+    routes = [i.container for i in following if not instances_store.is_link(i)]
+    links = [i.container for i in following if instances_store.is_link(i)]
     moved: list[str] = []
-    for container in containers:
-        if await reconcile(caddy_client, container, derived):
-            moved.append(container)
+    for containers, derive in ((routes, derived_upstreams), (links, published_upstreams)):
+        if not containers:
+            continue
+        derived = await asyncio.to_thread(derive)
+        for container in containers:
+            if await reconcile(caddy_client, container, derived):
+                moved.append(container)
     return moved
 
 

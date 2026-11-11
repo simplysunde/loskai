@@ -41,7 +41,7 @@ RULES: list[tuple[str, re.Pattern, int]] = [
         ("*", r"^/api/docker/orphans(/[^/]+)?$", ROUTING),
         ("GET", r"^/api/caddy/routes$", ROUTING),
         ("GET", r"^/api/adguard/(status|rewrites)$", ROUTING),
-        ("POST", r"^/api/(caddy/push|adguard/reconcile|routes)$", ROUTING),
+        ("POST", r"^/api/(caddy/push|adguard/reconcile|routes|links)$", ROUTING),
         ("DELETE", r"^/api/assign/[^/]+$", ROUTING),
         ("*", r"^/api/instances/[^/]+/icon$", ROUTING),  # and require_instance
         ("*", r"^/api/instances/[^/]+$", ROUTING),  # and require_instance

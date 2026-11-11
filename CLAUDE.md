@@ -152,7 +152,9 @@ no database**, only it, `settings.json` and `users.json` in `data/` (beside the 
 Loskai's SSH files) — is the spine every module reads. A
 Docker container and an external LAN service (NAS, Proxmox, any `IP:port`) are the same
 struct with a different `type`. **A route is not stored separately: it is an instance with
-a `subdomain`.** Runtime container state (status, CPU, RAM) is never persisted; it is read
+a `subdomain`.** A **link** is one with `route_mode: "direct"` and *no* subdomain — a name and
+an address the Dashboard opens directly — so nothing that reads routes (Caddy, AdGuard) ever
+sees it. Where any record opens is `instances.open_url`, the one place a URL is built. Runtime container state (status, CPU, RAM) is never persisted; it is read
 live and joined at display time on the `container` field, so the store can't drift.
 
 The links on a record:
@@ -189,6 +191,9 @@ dotted). Both run `assign()`: set the subdomain, push the Caddy route (**require
 and roll back on failure; a machine gets none, its rewrite answering its own address), then
 write the AdGuard rewrite (**best-effort** — warn, never fail). Anything after the Caddy push is best-effort too, such as a new container route
 getting its recipe's icon. The Caddy and AdGuard modules never write on their own.
+**`POST /api/links`** (`make_link`, beside them) is the third verb, deliberately outside
+`assign()`: a link has neither step. Link → route is Assign a URL (`assign()` re-points the
+record); route → link is refused until the route is removed.
 
 **Where routes are made in the UI:**
 
@@ -338,7 +343,7 @@ with the machine or its SSH connection.
 ## Docs
 
 - **`docs/reference/`** holds the contracts — `caddy-api.md`, `adguard-api.md` (the external
-  API subsets Loskai calls), `api.md` (Loskai's own: 75 HTTP routes plus the two
+  API subsets Loskai calls), `api.md` (Loskai's own: 76 HTTP routes plus the two
   terminal WebSockets) and `recipe-schema.md`. Read the relevant one **before** touching that
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run

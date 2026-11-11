@@ -29,9 +29,10 @@ class Instance(BaseModel):
     # an address other routes point at. Set from `route_mode` on assign; back-filled below
     # for records written before the field existed.
     subdomain: str | None = None  # null = tracked, no route assigned
-    route_mode: Literal["proxy", "dns_only"] = "proxy"  # proxy = Caddy+AdGuard (default);
-    # dns_only = AdGuard rewrite straight to `upstream`, no Caddy route, no TLS
-    upstream: str | None = None  # host:port (proxy) or a bare IP (dns_only) — chosen at assign time
+    route_mode: Literal["proxy", "dns_only", "direct"] = "proxy"  # proxy = Caddy+AdGuard
+    # (default); dns_only = AdGuard rewrite straight to `upstream`, no Caddy route, no TLS;
+    # direct = a link: no subdomain, no Caddy, no AdGuard — opened at its upstream (is_link)
+    upstream: str | None = None  # host:port (proxy, direct) or a bare IP (dns_only)
     upstream_tls: bool = False  # dial the upstream over HTTPS, cert unverified (e.g. Proxmox)
     scheme: Literal["https", "both", "http"] = "https"  # which port(s) Caddy serves this on.
     # Exists for clients that cannot hold a custom root CA — dumb devices, other containers
@@ -138,6 +139,39 @@ def web_scheme(instance: Instance) -> str:
     return "http" if instance.scheme == "http" else "https"
 
 
+def is_link(instance: Instance) -> bool:
+    """True for a link: a name and an address the Dashboard opens directly, with no
+    subdomain — so nothing that reads routes (Caddy, AdGuard) ever sees it."""
+    return instance.route_mode == "direct"
+
+
+def open_url(instance: Instance, base_domain: str | None) -> str | None:
+    """Where a person opens this record — the one place it is decided, for the Dashboard,
+    the launcher and the route and container rows. A route at its name; a link at its
+    address, over https when its upstream speaks it; a machine, an unrouted record, or a
+    route while no base domain is set: nowhere."""
+    if is_machine(instance):
+        return None
+    if is_link(instance):
+        if not instance.upstream:
+            return None
+        return f"{'https' if instance.upstream_tls else 'http'}://{instance.upstream}"
+    if instance.subdomain and base_domain:
+        return f"{web_scheme(instance)}://{fqdn(instance.subdomain, base_domain)}"
+    return None
+
+
+def follows_container(instance: Instance) -> bool:
+    """A record whose upstream the follower keeps in step with its container: a proxied
+    route, or a link, that declared it. Unassigning a route keeps `follow_container`, so
+    the route itself is checked too."""
+    return bool(
+        instance.follow_container
+        and instance.container
+        and (is_link(instance) or (instance.subdomain and instance.route_mode == "proxy"))
+    )
+
+
 def is_machine(instance: Instance) -> bool:
     """True if this instance is an *address* rather than a service — the thing routes sit
     on. Declared on the record now, not inferred from the upstream's shape."""
@@ -179,18 +213,21 @@ def update_fields(
     return updated[0] if updated else None
 
 
-def follow_upstream(instance_id: str, expected: str | None, upstream: str) -> Instance | None:
+def follow_upstream(
+    instance_id: str, expected: str | None, upstream: str, route_mode: str = "proxy"
+) -> Instance | None:
     """Re-point a following route's upstream — compare-and-set under the store lock.
 
-    Writes only while the record is still a following proxied route *and* still holds
-    `expected`. The follower reads, asks Docker (slow), then writes; an edit made in
+    Writes only while the record still follows its container (`follows_container`), is
+    still the `route_mode` the upstream was derived for — a link's address is the
+    browser's, a route's may be Caddy's — *and* still holds `expected`. The follower reads, asks Docker (slow), then writes; an edit made in
     between — someone setting the address by hand, or unassigning the route — must win
     over a value derived from the state before it. Unassigning leaves `upstream` and
     `follow_container` as they were, so the route itself has to be checked too.
     Returns the updated record, or None when it no longer qualified."""
     return update_fields(
         instance_id,
-        lambda i: bool(i.follow_container and i.subdomain and i.route_mode == "proxy" and i.upstream == expected),
+        lambda i: follows_container(i) and i.route_mode == route_mode and i.upstream == expected,
         upstream=upstream,
     )
 

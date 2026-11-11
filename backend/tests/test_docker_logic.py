@@ -74,10 +74,28 @@ def test_a_container_is_joined_to_its_instance():
     ]
     rows = [{"name": "grafana"}, {"name": "bambuddy-bambuddy-1"}, {"name": "stray"}]
     assert logic.link_instances(rows, instances) == [
-        {"name": "grafana", "subdomain": "graf", "instance_id": "graf", "scheme": "http"},
-        {"name": "bambuddy-bambuddy-1", "subdomain": None, "instance_id": "bambuddy", "scheme": None},
-        {"name": "stray", "subdomain": None, "instance_id": None, "scheme": None},
+        {"name": "grafana", "subdomain": "graf", "instance_id": "graf", "scheme": "http", "url": None},
+        {"name": "bambuddy-bambuddy-1", "subdomain": None, "instance_id": "bambuddy", "scheme": None, "url": None},
+        {"name": "stray", "subdomain": None, "instance_id": None, "scheme": None, "url": None},
     ]
+
+
+def test_a_container_s_url_is_its_route_s_or_its_link_s():
+    """Where the Docker tab's row opens it: from instances.open_url, the one place it is
+    decided — a route at its name, a link at its address."""
+    from loskai.shared.instances import open_url
+
+    instances = [
+        Instance(id="graf", name="G", type="docker", container="grafana", subdomain="graf", scheme="http"),
+        Instance(id="jf", name="Jellyfin", type="docker", container="jellyfin", route_mode="direct",
+                 upstream="192.168.10.220:8096"),
+        Instance(id="bambuddy", name="Bambuddy", type="docker", container="bambuddy-bambuddy-1"),
+    ]
+    rows = [{"name": "grafana"}, {"name": "jellyfin"}, {"name": "bambuddy-bambuddy-1"}]
+    joined = logic.link_instances(rows, instances, lambda i: open_url(i, "home.lan"))
+    assert [r["url"] for r in joined] == ["http://graf.home.lan", "http://192.168.10.220:8096", None]
+    # A link is not a route: no subdomain, so the forms still offer to route it.
+    assert joined[1]["subdomain"] is None and joined[1]["instance_id"] == "jf"
 
 
 def test_a_container_linked_twice_shows_the_route_of_the_routed_record():

@@ -397,22 +397,27 @@ def primary_container(containers: list[dict], declared: str | None = None) -> st
     return min(pool, key=lambda c: c["service"])["name"]
 
 
-def link_instances(rows: list[dict], instances: list) -> list[dict]:
+def link_instances(rows: list[dict], instances: list, url_of=lambda inst: None) -> list[dict]:
     """Each container row joined to the instance linked to it by `container` (one per
     container): its `instance_id`, routed or not — a recipe install links one before any
     route exists, named for the recipe, a better route prefix than the generated
     `<project>-<service>-1` — and its route's `subdomain` and `scheme`, so the Docker tab
-    links it over the protocol it is served on (an `http` route has no certificate).
+    links it over the protocol it is served on (an `http` route has no certificate). And
+    `url`, where the first record of it that opens anywhere does — a route or a link —
+    from `url_of` (instances.open_url, which this pure module doesn't import).
     Joined at display time, never stored."""
     # By the first record naming the container, and its route by the first routed one: a
     # container linked twice (a recipe's record, and a route made elsewhere) still links out.
     linked: dict[str, object] = {}
     routes: dict[str, object] = {}
+    urls: dict[str, str] = {}
     for inst in instances:
         if inst.container:
             linked.setdefault(inst.container, inst)
             if inst.subdomain:
                 routes.setdefault(inst.container, inst)
+            if url := url_of(inst):
+                urls.setdefault(inst.container, url)
     out = []
     for row in rows:
         inst, route = linked.get(row["name"]), routes.get(row["name"])
@@ -421,6 +426,7 @@ def link_instances(rows: list[dict], instances: list) -> list[dict]:
             "subdomain": route.subdomain if route else None,
             "instance_id": inst.id if inst else None,
             "scheme": route.scheme if route else None,
+            "url": urls.get(row["name"]),
         })
     return out
 

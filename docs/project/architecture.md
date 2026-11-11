@@ -157,6 +157,18 @@ created with `POST /api/routes` (and a machine named with `POST /api/machines` �
 Clearing a route (`DELETE /api/assign/{id}`) is the mirror image. The Caddy and AdGuard
 modules never write on their own — they are read + push only.
 
+**A link** (`POST /api/links`, `assign.make_link`) is a name and an address the Dashboard
+opens directly: `route_mode: "direct"` and no subdomain, so neither step runs and nothing
+that reads routes — Caddy's push and sync, AdGuard's rewrites and checks — ever sees it. It is
+what a Loskai without Caddy puts on the Dashboard, and works beside routes too. Its own verb,
+not a mode of `assign()`: bending the Caddy-then-AdGuard orchestration around a record with
+neither step would branch the one function where two paths drift. A link's address must open
+in a browser, so a container's is the Docker host's published port (`published_upstream`),
+which the follower also uses for a link that follows its container. **Assign a URL** turns a
+link into a route (`assign()` re-points the record); a route is never turned into a link —
+remove it first. Where any record opens — a route's name, a link's address — is decided once,
+`instances.open_url`, for the Dashboard, the launcher and the rows.
+
 **Caddy is a projection of the list.** Every proxied instance with a subdomain is a route,
 keyed by `@id` = the instance id, as a flat sibling matching one host:
 
@@ -614,8 +626,8 @@ a `git_build` recipe). Without the socket, nothing.
 
 ### Dashboard and Certificate page
 
-The two public pages. The **Dashboard** is a launcher: a card per non-private routed service,
-with its icon, served by `GET /api/dashboard`, which exposes nothing else. `GET /api/launcher`
+The two public pages. The **Dashboard** is a launcher: a card per non-private routed service
+or link, with its icon, served by `GET /api/dashboard`, which exposes nothing else. `GET /api/launcher`
 is the same list including private services, behind the login, for a desktop launcher —
 `private` means "not on the public wall", not "secret". The **Certificate** page hands out
 Caddy's internal root CA so a device can trust every `*.BASE_DOMAIN` name; it is public

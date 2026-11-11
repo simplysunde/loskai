@@ -211,6 +211,9 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
         rows.append({
             **inst.model_dump(include=_ROW_FIELDS),
             "fqdn": fqdn,
+            # Where a person opens it (instances.open_url) — a route's name, a link's
+            # address; the rows show this, and build no URL of their own.
+            "url": instances_store.open_url(inst, base_domain),
             # The URL, not the stored filename: the table renders this directly, exactly
             # as the dashboard card does.
             "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,

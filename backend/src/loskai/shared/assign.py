@@ -206,7 +206,12 @@ async def assign(
             }
         )
     else:
-        if instances_store.get_instance(prefix) is not None:
+        if (clash := instances_store.get_instance(prefix)) is not None:
+            if instances_store.is_link(clash):
+                raise AssignError(
+                    f"'{prefix}' is the link '{clash.name}' — give it this name with "
+                    "Assign a URL on its row", 409
+                )
             raise AssignError(f"instance id '{prefix}' already exists", 409)
         prev = None
         # A container gets a `docker` instance linked by name; everything else is `external`
@@ -245,18 +250,8 @@ async def assign(
             instances_store.upsert_instance(prev)  # type: ignore[arg-type]
         raise AssignError(f"Caddy step failed: {describe_error(exc)}", 502)
 
-    # A new record for a recipe stack's container gets the recipe's icon, as an install
-    # would have given it. Only a new one: an existing record keeps its icon, or none if
-    # it was removed by hand. Best-effort: the route is already live, so nothing here may
-    # fail it.
-    if created_new and inst.container:
-        try:
-            iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
-        except Exception:
-            logger.exception("recipe icon for '%s' not applied", inst.container)
-            iconed = inst
-        if iconed.icon:
-            inst = instances_store.give_icon(inst.id, iconed.icon) or inst
+    if created_new:
+        inst = await _recipe_icon(inst)
 
     # Step 2 — AdGuard rewrite (best effort). Answer is the shared Caddy IP for proxy,
     # or the instance's own upstream IP for dns_only.
@@ -317,6 +312,23 @@ async def assign(
         "moved": moved,
         "warning": warning,
     }
+
+
+async def _recipe_icon(inst: Instance) -> Instance:
+    """A new record for a recipe stack's container gets the recipe's icon, as an install
+    would have given it. Only a new one: an existing record keeps its icon, or none if it
+    was removed by hand. Best-effort: the record is already saved, so nothing here may fail
+    it."""
+    if not inst.container:
+        return inst
+    try:
+        iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
+    except Exception:
+        logger.exception("recipe icon for '%s' not applied", inst.container)
+        return inst
+    if iconed.icon:
+        return instances_store.give_icon(inst.id, iconed.icon) or inst
+    return inst
 
 
 def _display_url(instance: Instance, domain: str) -> str:
@@ -407,6 +419,90 @@ async def name_machine(caddy_client, adguard_client, **kwargs) -> dict:
     """Give a LAN machine a name: a DNS rewrite straight to its own address, no Caddy, no
     TLS. Routes on its address are listed under it, and move with it."""
     return await assign(caddy_client, adguard_client, route_mode="dns_only", **kwargs)
+
+
+# --- Links ---
+#
+# A link is a name and an address the Dashboard opens directly: `route_mode: "direct"` and no
+# subdomain, so no Caddy route, no DNS rewrite — and nothing that reads routes ever sees it.
+# Its own verb rather than a mode of `assign()`, which is the Caddy-then-AdGuard
+# orchestration: a link has neither step, and branches there would be where two paths drift.
+
+_LINK_ID = re.compile(r"[^a-z0-9]+")
+LINK_NAME_MAX = 80
+
+
+def link_id(name: str) -> str:
+    """A new link's id: its name as a slug, numbered past any id already taken. The id is
+    also what an `Assign a URL` later offers as the prefix, so it reads like one."""
+    base = _LINK_ID.sub("-", name.lower()).strip("-")[:60].strip("-") or "link"
+    taken = {i.id for i in instances_store.list_instances()}
+    candidate, n = base, 2
+    while candidate in taken:
+        candidate, n = f"{base}-{n}", n + 1
+    return candidate
+
+
+async def make_link(
+    *,
+    name: str,
+    upstream: str,
+    upstream_tls: bool = False,
+    container: str | None = None,
+    instance_id: str | None = None,
+    follow_container: bool = False,
+    acting: User | None = None,
+) -> dict:
+    """Create or edit a link. An existing record — by id, or the one linked to the container
+    — becomes the link: a recipe install's unrouted record, or a link being edited. A routed
+    one is refused, not torn down: that is `unassign`'s job, with its required Caddy step."""
+    name = name.strip()
+    if not name:
+        raise AssignError("a link needs a name", 422)
+    if len(name) > LINK_NAME_MAX:
+        raise AssignError(f"a link's name is at most {LINK_NAME_MAX} characters", 422)
+    upstream = upstream.strip()
+    validate_upstream(upstream)
+
+    existing = instances_store.get_instance(instance_id) if instance_id else None
+    if instance_id and existing is None:
+        raise AssignError(f"instance '{instance_id}' not found", 404)
+    if existing is None and container:
+        existing = instances_store.get_by_container(container)
+    if existing is not None:
+        if acting is not None:
+            access.require_instance(acting, existing.kind)
+        if instances_store.is_machine(existing):
+            raise AssignError(f"'{existing.name}' is a machine — a link is to a service on one", 409)
+        if existing.subdomain:
+            raise AssignError(
+                f"'{existing.name}' is routed at {existing.subdomain} — remove its route first",
+                409,
+            )
+        inst = existing.model_copy(update={
+            "name": name, "upstream": upstream, "upstream_tls": upstream_tls,
+            "route_mode": "direct", "kind": "service", "follow_container": follow_container,
+            "dns_answer": None,
+        })
+    else:
+        inst = Instance(
+            id=link_id(name), name=name,
+            type="docker" if container else "external", container=container,
+            upstream=upstream, upstream_tls=upstream_tls, route_mode="direct",
+            kind="service", follow_container=follow_container,
+        )
+    instances_store.upsert_instance(inst)
+    if existing is None:
+        inst = await _recipe_icon(inst)
+    return {
+        "caddy": "skipped",
+        "adguard": "skipped",
+        "url": instances_store.open_url(inst, None),
+        "instance_id": inst.id,
+        "moved": [],
+        "warning": None,
+        "link": True,
+    }
 
 
 async def unassign(
@@ -568,6 +664,43 @@ async def _followed_upstream(body: "RouteCreate") -> str:
     return upstream
 
 
+class LinkCreate(BaseModel):
+    """A link: a name and an address the Dashboard opens directly — no Caddy, no AdGuard."""
+
+    name: str
+    upstream: str
+    upstream_tls: bool = False
+    container: str | None = None
+    instance_id: str | None = None
+    # As for a route, but the address followed is where a browser reaches the container: the
+    # Docker host and its published port (follow.published_upstreams).
+    follow_container: bool = False
+
+
+async def _followed_link_upstream(body: "LinkCreate") -> str:
+    """A following link's upstream: where a browser reaches the container, asked of Docker
+    now — as `_followed_upstream` is for a route, and refused the same ways."""
+    container = body.container
+    if not container and body.instance_id:
+        existing = instances_store.get_instance(body.instance_id)
+        container = existing.container if existing else None
+    if not container:
+        raise AssignError("only a container's link can follow its container", 400)
+    try:
+        upstream = await asyncio.to_thread(follow.derive_published, container)
+    except Exception as exc:  # noqa: BLE001 — any docker/transport failure
+        raise AssignError(
+            f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
+            "set it by hand, or retry", 503
+        )
+    if not upstream:
+        raise AssignError(
+            f"'{container}' has no single published port on a known address — set it by "
+            "hand, or set the Docker host's LAN IP in Settings", 400
+        )
+    return upstream
+
+
 @router.post("/machines")
 async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
@@ -614,6 +747,19 @@ async def post_route(body: RouteCreate) -> dict:
         instance_id=body.instance_id, name=body.name, container=body.container,
         origin=body.origin, upstream_tls=body.upstream_tls,
         scheme=body.scheme, base_domain=base, current_ip=current_ip,
+        follow_container=body.follow_container, acting=auth.current_user(),
+    )
+
+
+@router.post("/links")
+async def post_link(body: LinkCreate) -> dict:
+    """Create or edit a link (`instance_id` to edit one). No Caddy route, no DNS rewrite."""
+    if body.container:
+        validate_container(body.container)
+    upstream = await _followed_link_upstream(body) if body.follow_container else body.upstream
+    return await make_link(
+        name=body.name, upstream=upstream, upstream_tls=body.upstream_tls,
+        container=body.container, instance_id=body.instance_id,
         follow_container=body.follow_container, acting=auth.current_user(),
     )
 

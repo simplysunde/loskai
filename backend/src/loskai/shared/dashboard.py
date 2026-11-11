@@ -23,14 +23,28 @@ def _card(inst, base: str | None) -> dict:
     return {
         "id": inst.id,
         "name": inst.name,
-        "url": f"{instances.web_scheme(inst)}://{instances.fqdn(inst.subdomain, base)}" if base else None,
+        "url": instances.open_url(inst, base),
         "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
     }
 
 
+def _entries() -> list:
+    """What the Dashboard and the launcher list: every routed service and every link.
+
+    Machines never appear. A machine is an *address*, not a service: the port (or path) its
+    web UI lives on — `:8006` for Proxmox, `:5000` for a NAS, none at all for a box you only
+    SSH to — is not derivable from anything the record holds, so a card for one either
+    links nowhere useful or has to be told separately. A launcher entry that lands on a dead
+    port is worse than no entry. A service on a machine is a route or a link of its own."""
+    return [
+        inst for inst in instances.list_instances()
+        if not instances.is_machine(inst) and (inst.subdomain or instances.is_link(inst))
+    ]
+
+
 @router.get("/launcher")
 def launcher() -> dict:
-    """Every routed service, **including private ones** — for a desktop launcher that builds
+    """Every routed service and link, **including private ones** — for a desktop launcher that builds
     shortcuts. Authenticated (it is not in `PUBLIC_ROUTES`), which is the whole difference
     from `/api/dashboard`: `private` means "not on the public wall", not "secret", so a
     client that can prove it holds the admin password may list them.
@@ -41,8 +55,7 @@ def launcher() -> dict:
     return {
         "services": [
             _card(inst, base) | {"private": inst.private}
-            for inst in instances.list_routed()
-            if not instances.is_machine(inst)
+            for inst in _entries()
         ]
     }
 
@@ -51,16 +64,8 @@ def launcher() -> dict:
 def dashboard() -> dict:
     base = settings_store.value("base_domain")
     cards: list[dict] = []
-    for inst in instances.list_routed():
+    for inst in _entries():
         if inst.private:
-            continue
-        # Machines never appear. A machine is an *address*, not a service: the port (or
-        # path) its web UI lives on — `:8006` for Proxmox, `:5000` for a NAS, none at all
-        # for a box you only SSH to — is not derivable from anything the record holds, so
-        # a card for one either links nowhere useful or has to be told separately. A
-        # launcher entry that lands on a dead port is worse than no entry. Services on odd
-        # ports are unaffected: Caddy fronts those at :443.
-        if instances.is_machine(inst):
             continue
         cards.append(_card(inst, base))
     return {

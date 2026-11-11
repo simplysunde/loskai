@@ -866,11 +866,12 @@ work", without "a dumb shortcut now" that costs later.
 
 **Steps** — a commit each.
 
-- [ ] 45a The record and the verb: `route_mode: "direct"`, `instances.open_url`,
+- [x] 45a The record and the verb: `route_mode: "direct"`, `instances.open_url`,
       `POST /api/links` (create and edit, by id or container), the follower for links, the
       Dashboard and launcher, `url` on route and container rows. Tests: Caddy and AdGuard
       never touched by a link; link → route; route → link refused; a machine's move takes
-      its links along.
+      its links along. Built: `tests/test_links.py` (22), and the follower's write also
+      checks the record's mode, so a link turned route mid-lookup gets no browser address.
 - [ ] 45b The UI: Route or Link in Add route, a link row on Routing (edit, private, icon,
       make it a route, delete), links under a machine, the Docker tab's link, the wizard's
       last step without Caddy. Every place shows the server's `url`.

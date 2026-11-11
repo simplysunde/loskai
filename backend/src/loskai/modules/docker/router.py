@@ -62,7 +62,10 @@ def containers() -> list[dict]:
     # actually share (logic.upstream_mode).
     rows = _docker_call(docker_client.list_containers, settings_store.caddy_host(), settings_store.value("host_ip"))
     rows = [{**row, "stack": stacks_mod.stack_of(row.get("compose_dir"))} for row in rows]
-    return logic.link_instances(rows, instances_store.list_instances())
+    base = settings_store.value("base_domain")
+    return logic.link_instances(
+        rows, instances_store.list_instances(), lambda inst: instances_store.open_url(inst, base)
+    )
 
 
 @router.get("/containers/stats")
