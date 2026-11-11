@@ -557,7 +557,8 @@ value double-quoted and escaped, because Compose interpolates `$` and cuts at ` 
 instance linked to the **container name the daemon created** — read back from the compose
 labels, never guessed from the recipe id; a multi-service recipe names its primary service.
 No container identified, no record. The wizard's last step routes it — the one place the
-Docker tab creates a route.
+Docker tab creates a route — and, for a recipe with a `log_link`, shows the newest link under
+it from the container's logs (a login the app waits for).
 
 **Each installed file has one owner**, and that is what makes updates safe:
 

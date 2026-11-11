@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -28,6 +28,8 @@ interface Recipe {
   env: RecipeEnv[];
   suggested_subdomain?: string;
   service?: string | null;
+  // Where a link the app logs after install points (a login): the last step shows it.
+  log_link?: string | null;
   // Folders the user adds at install, however many they have: each lands at
   // `target/<its name>`. Written to compose.override.yml, never into the recipe's file.
   mounts?: { label: string; target: string; read_only: boolean } | null;
@@ -447,6 +449,9 @@ function ResultStep({
           {result.warning}
         </p>
       )}
+      {result.ok && result.container && recipe?.log_link && (
+        <LogLink prefix={recipe.log_link} container={result.container} />
+      )}
       {result.ok && result.container && recipe && (
         <RouteNow recipe={recipe} containerName={result.container} />
       )}
@@ -461,6 +466,42 @@ function ResultStep({
           Done
         </button>
       </div>
+    </div>
+  );
+}
+
+// The newest link under the recipe's `log_link` in the container's logs — a login, say,
+// that the app prints once it starts and replaces when it restarts. Only links under that
+// prefix: the container decides the rest of the address, never which site it is on.
+function LogLink({ prefix, container }: { prefix: string; container: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`${escaped}\\S*`, "g");
+    const es = new EventSource(`/api/docker/containers/${encodeURIComponent(container)}/logs`);
+    es.onmessage = (e) => {
+      const found = String(e.data).match(pattern);
+      if (found) setUrl(found[found.length - 1]);
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [prefix, container]);
+
+  const box = "rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm";
+  if (!url) {
+    return (
+      <div className={`${box} flex items-center gap-2 text-slate-500`}>
+        <Loader2 className="h-4 w-4 animate-spin" /> Waiting for its link…
+      </div>
+    );
+  }
+  return (
+    <div className={box} title="From the container's logs — the instructions say what it is for">
+      <p className="mb-1 font-medium text-slate-200">Open its link</p>
+      <a href={url} target="_blank" rel="noreferrer" className="block truncate text-teal-300 underline underline-offset-2">
+        {url}
+      </a>
     </div>
   );
 }

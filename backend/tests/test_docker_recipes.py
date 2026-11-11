@@ -36,6 +36,18 @@ def test_git_build_requires_repo():
     ) == []
 
 
+@pytest.mark.parametrize("value", ["https://login.example.com/", "https://login.example.com:8443/a/"])
+def test_a_log_link_is_a_host_and_a_path(value):
+    assert recipes.validate_manifest({"name": "X", "type": "pull", "log_link": value}) == []
+
+
+@pytest.mark.parametrize("value", ["https://login.example.com", "http://login.example.com/", "login", 3])
+def test_a_log_link_without_https_or_a_path_is_refused(value):
+    # Without the path, the prefix would also match login.example.com.elsewhere.net.
+    errors = recipes.validate_manifest({"name": "X", "type": "pull", "log_link": value})
+    assert any("log_link" in e for e in errors)
+
+
 def test_env_entry_needs_key_and_label():
     errors = recipes.validate_manifest(
         {"name": "X", "type": "pull", "env": [{"key": "PORT"}]}
@@ -355,6 +367,13 @@ def test_instructions_are_loaded_for_the_wizard(data_dir):
     (folder / "instructions.md").write_text("# Grafana\nLog in with admin/admin.\n")
     recipe = recipes.get_recipe("grafana")
     assert "Log in with admin/admin." in recipe["instructions"]
+
+
+def test_the_log_link_reaches_the_wizard(data_dir):
+    _make_recipe(data_dir / "recipes", "tailscale", "Tailscale", "log_link: https://login.tailscale.com/\n")
+    assert recipes.get_recipe("tailscale")["log_link"] == "https://login.tailscale.com/"
+    _make_recipe(data_dir / "recipes", "grafana", "Grafana")
+    assert recipes.get_recipe("grafana")["log_link"] is None
 
 
 # --- Source validation (the one list-shaped setting) ---

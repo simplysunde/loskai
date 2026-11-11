@@ -38,6 +38,9 @@ ENV_TYPES = {"text", "path"}
 # A .env key Compose can read back as one: shell-identifier shape. Anything else (`=`, a
 # space, a newline) would split or merge lines in the generated file.
 _OPTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+# A host and a path: `https://login.example.com` alone would also match
+# `https://login.example.com.elsewhere.net`.
+_LOG_LINK_RE = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]+)?/\S*")
 # What an option may add to a service: lists that extend it, and `deploy` for a GPU
 # reservation — never anything that replaces what the recipe set up.
 OPTION_KEYS = ("devices", "group_add", "environment", "cap_add", "ports", "deploy")
@@ -73,6 +76,10 @@ def validate_manifest(data: object) -> list[str]:
         errors.append("type 'git_build' requires 'git_repo'")
     if "service" in data and not isinstance(data.get("service"), str):
         errors.append("'service' must be a compose service name")
+    if "log_link" in data and not (
+        isinstance(data["log_link"], str) and _LOG_LINK_RE.fullmatch(data["log_link"])
+    ):
+        errors.append("'log_link' must be an https:// address with a path, like https://login.example.com/")
     if "directories" in data:
         # Removed 2026-10-04: Loskai made them *inside its own container*, so any path
         # outside the stacks folder became a folder no one would ever see. Docker creates a
@@ -373,6 +380,9 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         # Which compose service is the published one, when the recipe runs several
         # (logic.primary_container). Optional — one service needs no declaration.
         "service": data.get("service"),
+        # Where a link the app logs after install points (a login): the wizard's last step
+        # shows the newest one under it from the container's logs.
+        "log_link": data.get("log_link"),
         "mounts": mounts,
         "options": options,
         "icon": icon.is_file(),

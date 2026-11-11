@@ -71,7 +71,8 @@ Everything so far:
   **Check for updates** shows which installed recipes have a newer version and what
   changes; Update replaces the recipe's `compose.yml` and keeps your settings and folders.
   Optional features a recipe offers — Jellyfin's hardware transcoding — are checkboxes, at
-  install or later under Edit.
+  install or later under Edit. An app that logs a link to open after install — Tailscale's
+  login — shows it on the wizard's last step.
 - **Dashboard** — every service as a launcher card, usable without logging in.
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **From outside, with Tailscale** — a subnet router shares your LAN with your tailnet, so

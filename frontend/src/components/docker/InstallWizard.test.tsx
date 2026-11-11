@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { expect, test, vi } from "vitest";
 
@@ -399,4 +399,47 @@ test("an option is off until ticked, and only the ticked ones are sent", async (
     RequestInit,
   ];
   expect(JSON.parse(String(init.body)).options).toEqual(["hwaccel"]);
+});
+
+// A log stream the test feeds by hand: the wizard opens it on the new container.
+class FakeEventSource {
+  static last: FakeEventSource | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  url: string;
+  constructor(url: string) {
+    this.url = url;
+    FakeEventSource.last = this;
+  }
+  close() {}
+}
+
+test("the last step shows the newest link the container logs under the recipe's log_link", async () => {
+  vi.stubGlobal("EventSource", FakeEventSource);
+  renderWizard({ recipes: [{ ...GRAFANA, log_link: "https://login.example.com/" }] });
+  await deployGrafana();
+
+  expect(await screen.findByText("Waiting for its link…")).toBeInTheDocument();
+  const logs = FakeEventSource.last!;
+  expect(logs.url).toBe("/api/docker/containers/grafana-app-1/logs");
+  act(() => logs.onmessage!({ data: "\thttps://login.example.com/a/first" }));
+  act(() => logs.onmessage!({ data: "visit https://login.example.com.elsewhere.net/a/x or https://elsewhere.net/" }));
+  act(() => logs.onmessage!({ data: "To authenticate, visit: https://login.example.com/a/second" }));
+
+  expect(screen.getByRole("link", { name: "https://login.example.com/a/second" })).toHaveAttribute(
+    "href",
+    "https://login.example.com/a/second",
+  );
+  expect(screen.queryByText(/elsewhere/)).not.toBeInTheDocument();
+});
+
+test("a recipe without a log_link opens no log stream", async () => {
+  FakeEventSource.last = null;
+  vi.stubGlobal("EventSource", FakeEventSource);
+  renderWizard();
+  await deployGrafana();
+
+  expect(await screen.findByRole("textbox", { name: "Subdomain prefix" })).toBeInTheDocument();
+  expect(FakeEventSource.last).toBeNull();
+  expect(screen.queryByText("Waiting for its link…")).not.toBeInTheDocument();
 });

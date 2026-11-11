@@ -33,10 +33,10 @@ the device stays logged in after.
 
 ### The recipe
 
-Install **Tailscale** from the Docker tab like any recipe. With no auth key, open the
-container's logs on its row: the link is on the line after `To authenticate, visit:`.
-It waits an hour; after that the container starts over, with a new link at the end of
-its logs.
+Install **Tailscale** from the Docker tab like any recipe. With no auth key, the wizard's
+last step shows the login link once Tailscale prints it — open it and log in. It waits an
+hour; after that the container starts over with a new link, at the end of its logs on the
+Docker tab (the line after `To authenticate, visit:`).
 
 It runs in *userspace networking*: no TUN device, no extra rights, nothing changed on the
 Docker host. Its login is kept in `state/` beside its compose file.

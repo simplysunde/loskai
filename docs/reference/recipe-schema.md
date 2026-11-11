@@ -101,6 +101,7 @@ mounts:                          # optional — folders the user adds at install
 
 suggested_subdomain: grafana     # optional — pre-fills the Assign-URL step
 service: web                     # optional — which compose service is the published one
+log_link: https://login.example.com/   # optional — a link the app logs after install, shown on the last step
 
 # Type-specific fields:
 git_repo: https://github.com/you/app   # required for type: git_build only
@@ -131,6 +132,7 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `options[].set` | ✅ | — | The lines it adds: `devices`, `group_add`, `environment`, `cap_add` or `ports`, each a list — or `deploy`, a mapping, for a GPU reservation. |
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
+| `log_link` | — | all | Where a link the app writes to its log points — a login it waits for, like Tailscale's. The wizard's last step follows the installed container's logs and shows the newest link starting with it, so the user needn't open the logs. An `https://` address with a host and a path (`https://login.example.com/`): a link on any other site is never shown. Say what it is for in `instructions.md`. |
 | `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
 
 ### `type` — the three install patterns
