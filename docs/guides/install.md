@@ -15,6 +15,9 @@ Do the steps in order — Loskai needs both LXCs reachable, so build them first.
 > No Proxmox? Skip to [layout B — split DNS](#no-proxmox-install-layout-b--split-dns) at the
 > bottom: AdGuard on any small always-on box, Caddy and Loskai together in one compose stack.
 > It is the recommendation without a hypervisor, and it is a complete walkthrough of its own.
+>
+> Only want Docker stacks and machines over SSH, no names? [Loskai alone](#loskai-alone--docker-and-machines-no-routing)
+> skips AdGuard and Caddy.
 
 ---
 
@@ -233,6 +236,40 @@ with `compose.colocated.yml` saved as `compose.yml`, dropping `ADGUARD_URL` (tha
 container). Once it is up, finish AdGuard's setup at `http://<docker-host>:3000` with the
 user and password from `.env`. [topologies.md](topologies.md#which-one-should-i-run) compares all three on port
 ownership and states C's costs at the point of choice.
+
+---
+
+## Loskai alone — Docker and Machines, no routing
+
+To run stacks and manage machines over SSH without giving anything a name, skip AdGuard and
+Caddy: only Step 3, with a shorter `.env`.
+
+```bash
+mkdir loskai && cd loskai && mkdir data stacks
+curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
+```
+
+```ini
+BASE_DOMAIN=home.lan        # still needed — a machine's name is <name>.<domain>, resolved or not
+HOST_IP=<docker-host-lan-ip>   # locks Loskai's SSH keys on your machines to this host
+```
+
+Then `docker compose up -d`, open `http://<docker-host>:8080` and create the admin account.
+
+- **What works:** the Docker tab — stacks, the install wizard, updates, logs, terminals — and
+  the Machines tab — SSH setup, terminals, tools, the overview, what runs on each. Machines on
+  your tailnet too ([Tailscale](tailscale.md#managing-a-machine-on-your-tailnet)).
+- **What stays empty:** the Routing tab and the Dashboard. The install wizard offers no
+  route, and naming a machine says its DNS rewrite was skipped.
+- **What you give up:** names — services and machines are reached by address and port — and
+  **HTTPS for Loskai itself**. Your password, the SSH unlock password and terminal sessions
+  cross the LAN unencrypted. Fine on a network you trust; otherwise reach Loskai over
+  [Tailscale](tailscale.md), which encrypts the connection, or behind a reverse proxy you
+  already run.
+
+**Adding routing later** reinstalls nothing: build AdGuard and Caddy (Steps 1–2), then give
+Loskai their addresses in Settings › Network — or in `.env` as in Step 3, then
+`docker compose up -d`.
 
 ---
 

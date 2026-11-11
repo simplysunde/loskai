@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { useContainers } from "../../lib/containers";
+import { useHealth } from "../../lib/useHealth";
 import { useSettings } from "../../lib/settings";
 import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
@@ -433,6 +434,9 @@ function ResultStep({
   recipe: Recipe | null;
   onClose: () => void;
 }) {
+  // A Loskai run without Caddy (Docker and Machines only) offers no route it can't make.
+  const health = useHealth();
+  const routing = health.data?.caddy?.status !== "unconfigured";
   return (
     <div className="space-y-3">
       <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
@@ -452,7 +456,7 @@ function ResultStep({
       {result.ok && result.container && recipe?.log_link && (
         <LogLink prefix={recipe.log_link} container={result.container} />
       )}
-      {result.ok && result.container && recipe && (
+      {result.ok && result.container && recipe && routing && (
         <RouteNow recipe={recipe} containerName={result.container} />
       )}
       <details className="text-xs text-slate-500" open={!result.ok}>

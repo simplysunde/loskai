@@ -41,6 +41,7 @@ function renderWizard({
   sources = SOURCES as unknown[],
   local_count = 0,
   install = { ok: true, output: "Started", container: "grafana-app-1" } as unknown,
+  health = {} as unknown,
   containers = [
     { name: "grafana-app-1", instance_id: "grafana", subdomain: null, suggested_upstream: "grafana:3000" },
   ] as unknown[],
@@ -48,6 +49,8 @@ function renderWizard({
   const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
     const body = path.endsWith("/install")
       ? install
+      : path === "/api/health"
+        ? health
       : path === "/api/docker/containers"
         ? containers
         : path === "/api/settings"
@@ -442,4 +445,13 @@ test("a recipe without a log_link opens no log stream", async () => {
   expect(await screen.findByRole("textbox", { name: "Subdomain prefix" })).toBeInTheDocument();
   expect(FakeEventSource.last).toBeNull();
   expect(screen.queryByText("Waiting for its link…")).not.toBeInTheDocument();
+});
+
+test("without Caddy set up, the last step offers no route", async () => {
+  renderWizard({ health: { caddy: { status: "unconfigured" } } });
+  await deployGrafana();
+
+  expect(await screen.findByText("Deployed.")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText("Route it")).not.toBeInTheDocument());
+  expect(screen.queryByRole("textbox", { name: "Subdomain prefix" })).not.toBeInTheDocument();
 });
