@@ -832,6 +832,52 @@ standalone install script too, "which can be used for a VM, an LXC or a Raspberr
       already logged in (`tailscale set`) is 44c's to see.
 - [ ] 44c Live: a real tailnet — share the LAN from each, open a routed name from a phone.
 
+## Phase 45 — Links: a Dashboard entry without Caddy
+
+Asked 2026-11-11: with Loskai running alone (no Caddy, no AdGuard), keep the Dashboard — an
+entry that opens `http://<ip>:<port>` — as "an easy and accessible place for shortcuts", and
+for a desktop app that builds shortcuts from the routes. Sunde: both modes must "simply just
+work", without "a dumb shortcut now" that costs later.
+
+**Decisions (2026-11-11)**
+
+- **A link is a record with `route_mode: "direct"` and no subdomain.** "A route is an
+  instance with a subdomain" stays true, and every Caddy and AdGuard path — push, sync,
+  rewrites, the DNS checks — reads only records with one, so none of them changes or needs a
+  case for links. A link has a name, an icon, `private`, an upstream and `upstream_tls`
+  (which opens it over https); `scheme` means nothing for it.
+- **Where a person opens a record is decided once**, `instances.open_url`: a route at
+  `<scheme>://<name>`, a link at `http(s)://<upstream>`, a machine nowhere. The Dashboard, the
+  launcher, the route rows and the container rows all carry it; the frontend shows it and
+  builds no URL of its own.
+- **A third verb, `POST /api/links`, not a third mode of `assign()`.** `assign()` is the
+  Caddy-then-AdGuard orchestration; a link has neither step, and bending it through would
+  add branches to the one function where divergence hurts most.
+- **Link → route is Assign a URL**, the existing path: `assign()` already re-points an
+  existing record, by id or container. **Route → link is refused** (`409`, remove the route
+  first): tearing a route down is `unassign`'s job, with its required Caddy step.
+- **A link's address must open in a browser.** For a container that is the Docker host's
+  address and the published port — a new `published_upstream` on each container row, which
+  the follower uses for a link following its container. Caddy's own form (a Docker service
+  name) is never a link's.
+- **Both modes everywhere routes are made.** Add route offers Route or Link while Caddy is
+  set up, and Link only while it isn't; the install wizard's last step offers a link without
+  Caddy. Unrouted rows offer a link then too.
+
+**Steps** — a commit each.
+
+- [ ] 45a The record and the verb: `route_mode: "direct"`, `instances.open_url`,
+      `POST /api/links` (create and edit, by id or container), the follower for links, the
+      Dashboard and launcher, `url` on route and container rows. Tests: Caddy and AdGuard
+      never touched by a link; link → route; route → link refused; a machine's move takes
+      its links along.
+- [ ] 45b The UI: Route or Link in Add route, a link row on Routing (edit, private, icon,
+      make it a route, delete), links under a machine, the Docker tab's link, the wizard's
+      last step without Caddy. Every place shows the server's `url`.
+- [ ] 45c Live: a scratch Loskai without Caddy — add links, the Dashboard and launcher list
+      them; with Caddy (the smoke rig) — a link made a route is pushed, and Sync leaves
+      links alone.
+
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
   login factor (TOTP) once Loskai holds keys.
