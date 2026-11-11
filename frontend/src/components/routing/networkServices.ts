@@ -1,6 +1,6 @@
 // AdGuard as the Routing tab's pill routes it: linked by `origin`, so routing it again edits
 // the same record. (WireGuard and the Certificate page, once routed the same way from the
-// picker, are External routes now — the backend still knows their origins.)
+// picker, are typed in by hand now — the backend still knows their origins.)
 export const ADGUARD_SERVICE = { origin: "adguard", name: "AdGuard", prefix: "adguard" } as const;
 
 export function urlToUpstream(url?: string | null): string {

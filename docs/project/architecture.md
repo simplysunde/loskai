@@ -222,7 +222,7 @@ type any address into the fields (Clear drops a pick):
   host's own containers (they are the Container source, which can follow). Shown only to an
   account with the Machines tab, which `GET /api/ssh/running` needs.
 - **Typed by hand** — any `host:port`: a NAS, Proxmox (tick "backend speaks HTTPS"), a
-  machine. The lists are views: switching keeps what was typed.
+  machine. Switching lists keeps what was typed, and drops a pick from the other list.
 
 The AdGuard health pill routes AdGuard in one click, carrying `origin: "adguard"`, so routing
 it again edits the same record. WireGuard's dashboard and Caddy's certificate page were once

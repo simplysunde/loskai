@@ -33,7 +33,7 @@ buttons — it stays listed, and its route works the same.
 - It's managed by something else you mean to keep (a git repo you `git pull`, Ansible,
   Portainer). Two tools fighting over one container is how you lose an evening.
 - It isn't a container (a package or a systemd service) — route it as an external service
-  instead (Add route › External).
+  instead (Add route: pick it from the Machines list, or type its address and port).
 - It runs on a different host than the Docker daemon Loskai talks to — Loskai is
   single-host.
 

@@ -323,6 +323,23 @@ test("Clear drops a picked container: its mode, its fields and its link", async 
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("follow_container");
 });
 
+test("a pick belongs to its list: showing the other one clears it", async () => {
+  RESPONSES["/api/docker/containers"] = CONTAINERS;
+  const { onSubmit } = renderPicker();
+
+  fireEvent.click(await screen.findByText("sonarr")); // lan
+  fireEvent.click(screen.getByRole("button", { name: /Machines/ }));
+
+  // Its mode and fields go with it, and an address typed now is not the container's.
+  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
+  expect(prefixInput()).toHaveValue("");
+  fireEvent.change(prefixInput(), { target: { value: "tv" } });
+  typeUpstream("192.168.10.77", "8080");
+  fireEvent.click(addButton());
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("container");
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("follow_container");
+});
+
 test("switching lists keeps what was typed", async () => {
   renderPicker();
 
@@ -514,6 +531,15 @@ test("opened from a machine that answers, it starts on what runs there", async (
 
   expect(await screen.findByText("nginx")).toBeInTheDocument();
   // Typing an address of its own, the host is already the machine's.
+  expect(hostInput()).toHaveValue("192.168.10.50");
+});
+
+test("opened from a machine without SSH, the list says so, not that no machine has it", async () => {
+  RESPONSES["/api/caddy/routes"] = MACHINES;
+  RESPONSES["/api/ssh/running"] = {};
+  renderPicker({ initialMachine: { id: "nas", address: "192.168.10.50" } });
+
+  expect(await screen.findByText(/This machine has no SSH set up/)).toBeInTheDocument();
   expect(hostInput()).toHaveValue("192.168.10.50");
 });
 

@@ -96,13 +96,24 @@ export function AddRouteModal({
     (g) => !initialMachine || g.machine.id === initialMachine.id,
   );
 
-  const clear = () => {
-    fields.set({ prefix: "", upstream: machineUpstream, tls: false });
+  // Forget a pick, keeping the fields.
+  const drop = () => {
     setLink({});
     setPicked(null);
     setPickedMode(null);
     setFollow(false);
     setDerived(null);
+  };
+  const clear = () => {
+    fields.set({ prefix: "", upstream: machineUpstream, tls: false });
+    drop();
+  };
+  // A pick belongs to its list: showing the other one clears it, so a container's link
+  // can't ride along with an address typed there. What was typed by hand stays.
+  const showList = (next: Source) => {
+    if (next === source) return;
+    if (picked) clear();
+    setSource(next);
   };
 
   const pickContainer = (c: Container) => {
@@ -114,6 +125,7 @@ export function AddRouteModal({
     setPicked(c.id);
   };
   const pickService = (s: MachineService) => {
+    drop();
     fields.set({ prefix: s.prefix, upstream: s.upstream });
     setLink({ name: s.name });
     setPicked(s.key);
@@ -126,11 +138,11 @@ export function AddRouteModal({
       <h2 className="text-base font-semibold text-slate-100">Add route</h2>
 
       <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
-        <SourceTab active={source === "container"} onClick={() => setSource("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
+        <SourceTab active={source === "container"} onClick={() => showList("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
           Container
         </SourceTab>
         {mayMachines && (
-          <SourceTab active={source === "machines"} onClick={() => setSource("machines")} icon={<Server className="h-3.5 w-3.5" />}>
+          <SourceTab active={source === "machines"} onClick={() => showList("machines")} icon={<Server className="h-3.5 w-3.5" />}>
             Machines
           </SourceTab>
         )}
@@ -148,13 +160,19 @@ export function AddRouteModal({
         {source === "machines" && (
           <PickList
             empty={
-              <>
-                No machine with SSH set up — set one up on the{" "}
-                <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
-                  Machines
-                </Link>{" "}
-                tab, or use External.
-              </>
+              running.isLoading ? (
+                "Reading what runs there…"
+              ) : initialMachine ? (
+                "This machine has no SSH set up — its address is in the fields below; add the port."
+              ) : (
+                <>
+                  No machine with SSH set up — set one up on the{" "}
+                  <Link to="/machines" className="underline underline-offset-2 hover:text-slate-300">
+                    Machines
+                  </Link>{" "}
+                  tab, or type an address below.
+                </>
+              )
             }
           >
             {groups.map((g) => (

@@ -57,9 +57,10 @@ it a route under a second name and that route is the card:
 | direct, certified | `proxmox.{BASE_DOMAIN}` | a **machine** → `192.168.10.177`. Not on the dashboard. |
 | launcher entry | `pve.{BASE_DOMAIN}` | a **route** → `192.168.10.177:8006`, **Backend speaks HTTPS** ticked. Appears as a card. |
 
-Build the second one with Add route → **External** → pick the machine as the **Host**, and
-type `8006` as the **Port**. A route on the machine's address is on that machine, so if the
-host ever moves, the route moves with it.
+Build the second one with Add route: pick `pveproxy` from the **Machines** list when the
+machine has SSH set up, or pick the machine as the **Host** and type `8006` as the **Port**.
+A route on the machine's address is on that machine, so if the host ever moves, the route
+moves with it.
 
 ---
 
