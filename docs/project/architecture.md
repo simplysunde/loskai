@@ -309,7 +309,7 @@ The Machines tab lists each machine with the routes on its address beneath, and 
 on a machine through the same Add route picker, starting on its address. The Docker host is
 listed before anyone names it — "not named", its address read from Settings' Docker host IP
 each time and nothing stored (`machine.ts`) — offering only Name it and Add route. Named or
-not, the machine at that address is the first row, tinted (a tag says **Docker host** once
+not, the machine at that address is the first row, tinted (a tag says **Host** once
 it is named); Settings › General links to it from the Tailscale IP field, since Loskai
 installs Tailscale there like on any machine. A named
 machine's row has Add route and its settings cog — amber while it has an SSH user but isn't

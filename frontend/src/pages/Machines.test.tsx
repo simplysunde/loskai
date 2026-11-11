@@ -560,8 +560,8 @@ test("a Docker host already named is listed once, as itself — first, and tagge
   // "pve" sorts before "Storage box"; the Docker host goes first anyway.
   const machineRows = screen.getAllByRole("row").filter((r) => within(r).queryByTitle("Machine settings"));
   expect(within(machineRows[0]).getByText("Storage box")).toBeInTheDocument();
-  expect(within(machineRows[0]).getByText("Docker host")).toBeInTheDocument();
-  expect(screen.getAllByText("Docker host")).toHaveLength(1);
+  expect(within(machineRows[0]).getByText("Host")).toBeInTheDocument();
+  expect(screen.queryByText("Docker host")).not.toBeInTheDocument();
 });
 
 test("naming a machine with an SSH user opens its page, starting its SSH setup", async () => {

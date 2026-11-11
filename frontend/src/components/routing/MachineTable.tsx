@@ -199,7 +199,7 @@ export function MachineTable({
                             title="Where Loskai runs — the Docker Host LAN IP in Settings › General"
                             className="rounded bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-medium text-teal-300"
                           >
-                            Docker host
+                            Host
                           </span>
                         )}
                         {/* Collapsed, the row still says how many it holds. */}

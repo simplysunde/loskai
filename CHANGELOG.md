@@ -13,7 +13,7 @@ Everything so far:
 - **Machines** — name the computers on your network; every route on a machine's address is
   listed under it (its row opens like a stack's) and moves with it when the address changes.
   The machine Loskai runs on is listed before it is named, ready to name, and always first,
-  tinted and tagged **Docker host**. A machine's name
+  tinted and tagged **Host**. A machine's name
   is its hostname. A Docker route can follow its
   container the same way. Loskai makes
   its own SSH key, used only after you type your password again, and keeps an SSH config of your
