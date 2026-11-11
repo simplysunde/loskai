@@ -17,6 +17,11 @@ const APP_FIELDS: FieldDef[] = [
     label: "Docker Host LAN IP",
     hint: "auto-fills container upstreams in split-LXC mode, e.g. 192.168.10.50",
   },
+  {
+    key: "host_tailscale_ip",
+    label: "Docker Host Tailscale IP",
+    hint: "optional — lets Loskai's SSH reach machines over Tailscale, e.g. 100.101.102.103",
+  },
   { key: "stacks_dir", label: "Stacks Directory", hint: "set in the compose file" },
 ];
 

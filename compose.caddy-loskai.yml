@@ -71,6 +71,7 @@ services:
       # The same address in this layout — Caddy runs here. It fills the upstream for a
       # container that is *not* on loskai-edge, as <host_ip>:<published-port>.
       - HOST_IP=${HOST_IP:-}
+      - HOST_TAILSCALE_IP=${HOST_TAILSCALE_IP:-}
     healthcheck:
       # The login page's own question: public, cheap, and answered once the app is up.
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/api/auth/status"]

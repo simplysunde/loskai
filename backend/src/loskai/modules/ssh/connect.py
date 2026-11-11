@@ -161,19 +161,26 @@ def forget(machine_id: str) -> None:
 # --- Installing and testing Loskai's keys ---
 
 
-def _from(t: Target | None) -> str | None:
+def from_addresses(t: Target | None = None) -> str | None:
     """Where Loskai's connections to `t` come from, for the lines' `from=`: the Docker host's
-    address — except to the Docker host itself, which Docker doesn't translate, so those
-    arrive from Loskai's container on its own networks, and their subnets are added."""
+    address, and its Tailscale address when set — a machine reached over Tailscale sees that
+    one. Both on every machine, so a machine needs no telling which way it is reached. To the
+    Docker host itself, which Docker doesn't translate, connections arrive from Loskai's
+    container on its own networks, so their subnets are added. None without `host_ip`: the
+    lines then have no `from=` (the Tailscale address alone would lock out every LAN machine)."""
     host_ip = settings_store.value("host_ip")
-    if not host_ip or t is None or t.host != host_ip:
-        return host_ip
+    if not host_ip:
+        return None
+    tailnet_ip = settings_store.value("host_tailscale_ip")
+    addresses = [host_ip, *([tailnet_ip] if tailnet_ip else [])]
+    if t is None or t.host not in addresses:
+        return ",".join(addresses)
     try:
         subnets = docker_client.own_subnets()
     except Exception as exc:  # noqa: BLE001 — Docker unreachable: the plain line, as before
         logger.warning("Loskai's own networks not read for %s's from=: %s", t.host, exc)
         subnets = []
-    return ",".join([host_ip, *subnets])
+    return ",".join([*addresses, *subnets])
 
 
 def lines(t: Target | None = None) -> list[str]:
@@ -183,7 +190,7 @@ def lines(t: Target | None = None) -> list[str]:
     public = client.public_key()
     if public is None:
         raise SshError("Loskai has no key yet", 409)
-    from_ip = _from(t)
+    from_ip = from_addresses(t)
     return [
         logic.authorized_keys_line(public, from_ip),
         logic.status_line(client.status_public_key(), from_ip),

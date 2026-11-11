@@ -17,6 +17,25 @@ phone (Tailscale on) ──tailnet──▶ subnet router at home ──LAN─�
         └── "jellyfin.home.lan?" ──split DNS──▶ AdGuard ──▶ Caddy's address
 ```
 
+## Where Tailscale runs
+
+Not on everything. Routes keep using LAN addresses; Tailscale only adds the ways in.
+
+| Device | Tailscale | How | Why |
+|---|---|---|---|
+| Your phone, your laptop | **Yes** | Tailscale's app, logged in to your tailnet | How you get in from outside |
+| One box at home — the **subnet router** | **Yes** | The recipe or the script ([step 1](#1-run-the-subnet-router)) | Shares your LAN with the tailnet |
+| A machine away from home — a VPS, a box elsewhere | **Yes** | Tailscale's own install | The only way to reach it |
+| The Docker host Loskai runs on | Only to manage machines on the tailnet | Tailscale's own install, then its address in Settings | Loskai's SSH connects from here — [below](#managing-a-machine-on-your-tailnet) |
+| Caddy's box | Only to route to machines on the tailnet | Tailscale's own install | Caddy connects from here — [below](#routing-to-a-machine-on-your-tailnet) |
+| Everything else — servers, the NAS, AdGuard, PCs at home | **No** | — | Reached on the LAN, and through the subnet router from outside |
+
+One box can be several of these: a Docker host with Tailscale installed can be the subnet
+router too — run the script on it instead of installing the recipe.
+
+A device without Tailscale still uses all of Loskai — its page opens on the LAN, and Loskai
+makes the connections from the Docker host. It can't open a tailnet address itself.
+
 ## 1. Run the subnet router
 
 One is enough — pick the box:
@@ -74,7 +93,8 @@ then restart the LXC and run the script again; it switches back by itself.
 At [login.tailscale.com/admin](https://login.tailscale.com/admin):
 
 1. **Machines** → the router's **⋯** menu → **Edit route settings** → approve the network
-   it shares. Until then, nothing goes through it.
+   it shares. Until then, nothing goes through it. On the same menu, **Disable key expiry** —
+   otherwise the router logs itself out after 180 days, and the way in closes unannounced.
 2. **DNS** → **Nameservers** → **Add nameserver** → **Custom**: your AdGuard's address.
    Turn on **Restrict to domain** and give your base domain (`home.lan`). This is split DNS:
    only your Loskai names go to AdGuard, everything else as before.
@@ -85,6 +105,44 @@ On your phone, off your home Wi-Fi, with Tailscale on: open `https://loskai.<you
 It loads as it does at home. A device that warns about the certificate is one that hasn't
 installed Loskai's root yet — [Certificate onboarding](certificate-setup.md), once, as on
 the LAN.
+
+A Linux laptop also needs `sudo tailscale set --accept-routes` once — Linux ignores a
+subnet router until told to use one; phones, Windows and macOS don't.
+
+## Managing a machine on your tailnet
+
+A machine that is on your tailnet but not your LAN — a VPS, a box at a friend's — can be on
+the Machines tab like any other: its terminal, its tools, what runs there.
+
+1. **Tailscale on the Docker host** Loskai runs on, with Tailscale's own install (not the
+   recipe, which leaves the host itself off the tailnet). `tailscale ip -4` there prints its
+   address.
+2. **Settings › General › Docker Host Tailscale IP**: that address (or `HOST_TAILSCALE_IP`).
+   **Docker Host LAN IP** must be set too.
+3. **Add the machine** on the Machines tab by its Tailscale address (`100.x.y.z`), and set up
+   SSH as for any machine.
+
+Loskai's keys are allowed from the Docker host's LAN address and from its Tailscale address,
+on every machine — a machine reached either way needs nothing else. A machine set up before
+the field was filled keeps its old lines: run its SSH setup again only if you reach it over
+Tailscale. The browser you use needn't run Tailscale; the Docker host makes the connection.
+
+- **Add each machine once.** One with a LAN address is added by it; the same box added twice
+  is two machines.
+- **Leave Tailscale SSH off** (`tailscale up --ssh`) on a machine Loskai manages: it answers
+  SSH on the Tailscale address itself and ignores `authorized_keys` — Loskai's limits
+  included, such as the status key only reading.
+- **Its name answers its Tailscale address** — it opens on devices running Tailscale only.
+- A device keeps its Tailscale address unless it is removed from the tailnet. If the Docker
+  host's changes, update the field and run SSH setup again on the tailnet machines.
+
+## Routing to a machine on your tailnet
+
+A service on such a machine gets a name like any other — `app.home.lan` for everyone at
+home, no Tailscale needed — once **Caddy's box runs Tailscale** (Tailscale's own install).
+Then route it with its Tailscale address and port as the upstream; Caddy connects over the
+tailnet. Without Tailscale on Caddy's box the route is made, but every visit fails with
+`502`.
 
 ## When it doesn't work
 

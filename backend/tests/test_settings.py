@@ -164,6 +164,15 @@ def test_host_ip_accepts_bare_ip():
     assert s.value("host_ip") == "192.168.10.50"
 
 
+def test_host_tailscale_ip_is_a_bare_ip():
+    # It goes into every machine's from=, where anything else breaks the line.
+    for bad in ("100.1.2.3,10.0.0.1", "100.1.2.3:22", "codebox"):
+        with pytest.raises(ValueError):
+            s.update({"host_tailscale_ip": bad})
+    s.update({"host_tailscale_ip": "100.100.10.20"})
+    assert s.value("host_tailscale_ip") == "100.100.10.20"
+
+
 # Keys the Settings model deliberately keeps out of CONFIGURABLE_KEYS: they drive the
 # compose file or the process itself, so the UI must never write them (see config.py).
 ENV_ONLY_KEYS = {"stacks_dir", "loskai_password", "loskai_username", "data_dir", "static_dir"}

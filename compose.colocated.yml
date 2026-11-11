@@ -76,6 +76,7 @@ services:
       # The same address here — Caddy runs on this host. It fills the upstream for a container
       # Caddy can't reach by name, as <host_ip>:<published-port>.
       - HOST_IP=${HOST_IP:-}
+      - HOST_TAILSCALE_IP=${HOST_TAILSCALE_IP:-}
     healthcheck:
       # The login page's own question: public, cheap, and answered once the app is up.
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/api/auth/status"]

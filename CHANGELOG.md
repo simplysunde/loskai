@@ -77,7 +77,9 @@ Everything so far:
 - **Certificate page** — installs Caddy's root certificate on each device, once.
 - **From outside, with Tailscale** — a subnet router shares your LAN with your tailnet, so
   your routed names work away from home: the Tailscale recipe on the Docker host, or
-  `scripts/tailscale-subnet-router.sh` on a VM, LXC or Raspberry Pi. See the Tailscale guide.
+  `scripts/tailscale-subnet-router.sh` on a VM, LXC or Raspberry Pi. With the Docker host's
+  Tailscale address in Settings › General (`HOST_TAILSCALE_IP`), the Machines tab manages
+  machines on your tailnet too — from any browser, Tailscale or not. See the Tailscale guide.
 - **On a phone** — the sidebar is a drawer behind a Menu button, so each page gets the whole
   width; a page's buttons sit under its title, Settings' categories are a strip across the
   top, and the larger dialogs fill the screen. Tables become a list of cards — each row's

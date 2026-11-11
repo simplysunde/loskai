@@ -583,6 +583,47 @@ def test_the_docker_host_s_lines_also_allow_loskai_s_own_networks(api, machine_n
     assert installed.startswith('from="192.168.10.216,172.18.0.0/16" ')
 
 
+# --- from= with the Docker host's Tailscale address ---
+
+
+def test_with_a_tailscale_address_every_machine_allows_both(api, machine_net, monkeypatch):
+    # A machine reached over Tailscale sees the host's Tailscale address, one on the LAN its
+    # LAN IP — both go on every machine, so none has to be told which way it is reached.
+    monkeypatch.setattr(config.settings, "host_tailscale_ip", "100.100.10.20")
+    _with_key(api)
+
+    lines = api.post("/api/ssh/machines/nas/scan").json()["lines"]
+    assert lines[0].startswith('from="192.168.10.216,100.100.10.20" ssh-ed25519 ')
+    assert lines[1].startswith('restrict,from="192.168.10.216,100.100.10.20",command=')
+    assert api.get("/api/ssh").json()["key"]["from"] == "192.168.10.216,100.100.10.20"
+
+
+def test_a_tailscale_address_alone_adds_no_from(api, machine_net, monkeypatch):
+    # Without the LAN IP the lines have no from= at all; the Tailscale address alone would
+    # lock Loskai out of every machine on the LAN.
+    monkeypatch.setattr(config.settings, "host_ip", None)
+    monkeypatch.setattr(config.settings, "host_tailscale_ip", "100.100.10.20")
+    _with_key(api)
+
+    assert api.post("/api/ssh/machines/nas/scan").json()["lines"][0].startswith("ssh-ed25519 ")
+    assert api.get("/api/ssh").json()["key"]["from"] is None
+
+
+def test_the_docker_host_by_its_tailscale_address_also_allows_loskai_s_networks(api, machine_net, monkeypatch):
+    from loskai.modules.docker.client import docker_client
+
+    monkeypatch.setattr(config.settings, "host_tailscale_ip", "100.100.10.20")
+    monkeypatch.setattr(docker_client, "own_subnets", lambda: ["172.18.0.0/16"])
+    api.post("/api/machines", json={
+        "hostname": "codebox", "address": "100.100.10.20", "ssh": {"user": "vm", "port": 22},
+    })
+    _with_key(api)
+
+    assert api.post("/api/ssh/machines/codebox/scan").json()["lines"][0].startswith(
+        'from="192.168.10.216,100.100.10.20,172.18.0.0/16" ssh-ed25519 '
+    )
+
+
 def test_without_docker_the_docker_host_gets_the_plain_line(api, machine_net, monkeypatch):
     from loskai.modules.docker.client import docker_client
 

@@ -38,6 +38,7 @@ services:
       # This Docker host's LAN IP — auto-fills container route upstreams as <host_ip>:<port>
       # (Caddy on its own LXC can't resolve container names). Optional; blank = fill in per route.
       - HOST_IP=${HOST_IP:-}
+      - HOST_TAILSCALE_IP=${HOST_TAILSCALE_IP:-}
       # The DNS answer — where Caddy's :443 is. Derived from CADDY_ADMIN_URL's host unless
       # that is a name or loopback; then set it here or in Settings › Network.
       - CADDY_HOST_IP=${CADDY_HOST_IP:-}

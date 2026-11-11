@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # <host_ip>:<published-port>; a bridged container can't detect its own host IP, so it's
     # set here once and used to auto-fill those upstreams.
     host_ip: str | None = None
+    # This Docker host's Tailscale address, when it runs Tailscale: a machine reached over
+    # Tailscale sees Loskai's connections come from it, so Loskai's SSH keys are allowed
+    # from it too (beside host_ip). Ignored without host_ip.
+    host_tailscale_ip: str | None = None
     # Where the Certificate page appears in the nav: "public" (everyone, like the
     # dashboard), "admin" (only once logged in), "hidden". Unset means public — the
     # internal CA is the only TLS mode, so the page is useful out of the box.

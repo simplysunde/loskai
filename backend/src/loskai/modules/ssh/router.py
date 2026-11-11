@@ -19,7 +19,6 @@ from pydantic import BaseModel
 
 from ...shared import auth
 from ...shared import instances as instances_store
-from ...shared import settings as settings_store
 from ...shared import store
 from ...shared import terminal
 from . import client, connect, logic, tool, unlock
@@ -31,9 +30,9 @@ def _key_view() -> dict | None:
     public = client.public_key()
     if public is None:
         return None
-    # The Docker host's address is where Loskai's connections come from, so it is what the
-    # key is limited to. Unset, the line has no `from=` and the Machines tab says so.
-    from_ip = settings_store.value("host_ip")
+    # The Docker host's addresses are where Loskai's connections come from, so they are what
+    # the key is limited to. Unset, the line has no `from=` and the Machines tab says so.
+    from_ip = connect.from_addresses()
     me = auth.current_user()
     until = unlock.unlocked_until(me.username if me else None)
     return {

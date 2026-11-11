@@ -34,6 +34,7 @@ CONFIGURABLE_KEYS = [
     "base_domain",
     "caddy_host_ip",
     "host_ip",
+    "host_tailscale_ip",
     "recipes_repos",
     "certificate_tab",
     "ssh_unlock_minutes",
@@ -275,6 +276,14 @@ def _validate(key: str, val: Any) -> None:
         except ValueError:
             raise ValueError(
                 "Host IP must be a bare IP address (e.g. 192.168.10.50) — no scheme or port"
+            )
+    if key == "host_tailscale_ip":
+        # Written into each machine's `from=`, where anything but an address breaks the line.
+        try:
+            ip_address(str(val).strip())
+        except ValueError:
+            raise ValueError(
+                "Tailscale IP must be a bare IP address (e.g. 100.101.102.103) — no scheme or port"
             )
 
 
