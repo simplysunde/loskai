@@ -331,6 +331,38 @@ def test_a_user_who_sees_only_its_own_sockets_says_so():
     assert out["denied"] == ["listen"] and out["listening"] == []
 
 
+def test_a_machine_without_ss_says_so_instead_of_listing_nothing():
+    # v6 prints `#listen` only where `ss` exists; an empty list must not read as "nothing listens".
+    out = logic.parse_running("#loskai-status 6\n#docker\n#systemd\n")
+
+    assert out["denied"] == ["ss"] and out["listening"] == []
+
+
+def test_a_listener_bound_to_an_interface_is_on_its_addresses():
+    out = logic.parse_running(
+        "#loskai-status 6\n#listen\n"
+        "LISTEN 0 511 0.0.0.0%eth0:80 0.0.0.0:* users:((nginx,pid=10,fd=6))\n@10 nginx.service\n"
+        "LISTEN 0 511 [fe80::1]%eth0:8443 [::]:* users:((nginx,pid=10,fd=7))\n@10 nginx.service\n"
+    )
+
+    assert out["listening"] == [
+        {"service": "nginx", "port": 80, "host": ""},
+        {"service": "nginx", "port": 8443, "host": "fe80::1"},
+    ]
+
+
+def test_a_published_range_is_each_of_its_ports_unless_it_is_wide():
+    out = logic.parse_running(
+        "#loskai-status 6\n#docker\n"
+        "web|nginx|Up|0.0.0.0:8000-8002->8000-8002/tcp\n"
+        "media|jellyfin|Up|0.0.0.0:10000-11000->10000-11000/tcp\n#listen\n"
+    )
+
+    assert {c["name"]: c["ports"] for c in out["containers"]} == {
+        "web": [8000, 8001, 8002], "media": [10000],
+    }
+
+
 def test_a_list_the_user_may_not_read_says_so():
     out = logic.parse_running("#loskai-status 1\n#docker\n!denied\n#systemd\n")
 

@@ -62,14 +62,17 @@ processes' sockets — the others' ports come without a pid, so without a servic
 Parsed to `{ containers, services, hidden, guests, listening, denied }`:
 
 - `containers` `{name, image, status, ports}` — `ports` the TCP ports published off
-  loopback (`[]` from a line before v6);
+  loopback, a range as each of its ports unless wider than 16 (then its first) (`[]` from a
+  line before v6);
 - `services` the unit names without `.service`; `hidden` how many base services were left out;
 - `guests` the running ones, `{id, name, kind}` with `kind` `lxc` or `vm`;
 - `listening` the ports services listen on, `{service, port, host}` — `host` "" when on
-  every address, else the one it is on. Left out: loopback, a process with no unit, the
+  every address (also when bound to an interface, `0.0.0.0%eth0`), else the one it is on.
+  Left out: loopback, a process with no unit, the
   base services except `LISTEN_ALSO` (Proxmox's `pveproxy`), and a port a container
   publishes (Docker's proxy holds it; the container lists it). `null` from a line before v6;
-- `denied` the sections that said `!denied`, and `listen` for `!partial`.
+- `denied` the sections that said `!denied`, `listen` for `!partial`, and `ss` for a v6 line
+  with no `#listen` section — the machine has no `ss`, so its ports can't be listed.
 
 The Add route picker's Machines source offers these ports
 ([architecture.md](../project/architecture.md)).

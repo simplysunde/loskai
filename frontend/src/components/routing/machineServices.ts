@@ -56,6 +56,7 @@ export function machineServices(
 
     let note: string | null = null;
     if (r.listening === null) note = "Its status line is older than its ports — install again in its dialog's SSH setup.";
+    else if (r.denied?.includes("ss")) note = "It has no ss (iproute2), which lists the ports its services listen on.";
     else if (r.denied?.includes("listen")) note = "Its SSH user sees only its own services' ports — root, or sudo, sees the rest.";
     groups.push({ machine, services, note });
   }

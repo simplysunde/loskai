@@ -47,14 +47,18 @@ test("the Docker host's containers stay the Container source's; its services are
 });
 
 test("a machine says why its services' ports are missing", () => {
-  const groups = machineServices([nas, dockerHost], {
+  const other = row({ id: "ha", name: "ha", kind: "machine", upstream: "192.168.10.30" });
+  const groups = machineServices([nas, dockerHost, other], {
     nas: ok({ listening: null }),
     dh: ok({ denied: ["listen"] }),
+    // No ss to list them with: an empty list must not read as "nothing listens".
+    ha: ok({ denied: ["ss"] }),
   }, null);
 
   expect(groups.map((g) => g.note)).toEqual([
     expect.stringContaining("install again"),
     expect.stringContaining("root, or sudo"),
+    expect.stringContaining("no ss"),
   ]);
 });
 

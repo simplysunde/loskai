@@ -415,7 +415,7 @@ def parse_running(output: str) -> dict:
     kind}`; `listening` the services' TCP ports, `{service, port, host}` (`host` "" for
     every address — see `_listeners`), None from a line older than v6; `denied` the lists
     the user may not read (`docker`, `pct`, `qm`, and `listen` when only root may say which
-    service holds a port). Raises ValueError for output that isn't the status command's — a
+    service holds a port), and `ss` when the machine has no `ss` to list ports with. Raises ValueError for output that isn't the status command's — a
     key line from another version, or a shell where the forced command should be."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
@@ -424,12 +424,14 @@ def parse_running(output: str) -> dict:
     out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
     listen: list[str] = []
     section = None
+    seen = set()
     for raw in lines[1:]:
         line = raw.strip()
         if not line:
             continue
         if line.startswith("#"):
             section = line[1:]
+            seen.add(section)
             continue
         if line == "!denied" or (line == "!partial" and section == "listen"):
             out["denied"].append(section)
@@ -459,10 +461,17 @@ def parse_running(output: str) -> dict:
     out["guests"].sort(key=lambda g: int(g["id"]))
     published = {p for c in out["containers"] for p in c["ports"]}
     out["listening"] = _listeners(listen, published) if head == STATUS_VERSION else None
+    # v6 prints its `#listen` section only where `ss` exists: without it, an empty list
+    # would read as "nothing listens".
+    if head == STATUS_VERSION and "listen" not in seen:
+        out["denied"].append("ss")
     return out
 
 
-_PUBLISHED = re.compile(r"(?:(\[[^\]]*\]|[0-9.]+|::)?:)?(\d+)(?:-\d+)?->[\d-]+/tcp")
+_PUBLISHED = re.compile(r"(?:(\[[^\]]*\]|[0-9.]+|::)?:)?(\d+)(?:-(\d+))?->[\d-]+/tcp")
+# A published range wider than this (a media server's RTP ports) is listed by its first
+# port only: nobody routes each of a thousand ports.
+_RANGE_LISTED = 16
 
 
 def _loopback(host: str) -> bool:
@@ -471,17 +480,22 @@ def _loopback(host: str) -> bool:
 
 def _published(ports: str) -> list[int]:
     """The host ports in `docker ps`'s Ports (`0.0.0.0:8096->8096/tcp, [::]:8096->…`) — TCP,
-    and not on loopback, where nothing else on the network reaches them."""
-    found = {
-        int(m.group(2)) for m in _PUBLISHED.finditer(ports) if not _loopback(m.group(1) or "")
-    }
+    and not on loopback, where nothing else on the network reaches them. A range is each of
+    its ports, up to `_RANGE_LISTED`."""
+    found: set[int] = set()
+    for m in _PUBLISHED.finditer(ports):
+        if _loopback(m.group(1) or ""):
+            continue
+        first = int(m.group(2))
+        last = int(m.group(3) or first)
+        found.update(range(first, last + 1) if last - first < _RANGE_LISTED else [first])
     return sorted(found)
 
 
 def _listeners(lines: list[str], published: set[int]) -> list[dict]:
     """`ss -Htlnp` lines, each followed by `@<pid> <unit>` lines, → the ports a service listens
     on, `{service, port, host}`: `host` the one address it listens on, or "" for all of them
-    (`0.0.0.0`, `[::]`, `*`). Left out: loopback, a listener with no unit (a process run by
+    (`0.0.0.0`, `[::]`, `*`, also bound to an interface: `0.0.0.0%eth0`). Left out: loopback, a listener with no unit (a process run by
     hand, or one only root may see), the base system's services but `LISTEN_ALSO`, and a
     port a container publishes — listed with the container (Docker's proxy holds it)."""
     found: dict[tuple[str, int, str], dict] = {}
@@ -500,8 +514,9 @@ def _listeners(lines: list[str], published: set[int]) -> list[dict]:
         address, _, port = fields[3].rpartition(":") if len(fields) > 3 else ("", "", "")
         current = None
         if port.isdigit() and not _loopback(address):
-            host = "" if address in ("0.0.0.0", "[::]", "*", "") else address.strip("[]").split("%")[0]
-            current = (int(port), host)
+            # `%eth0` binds to an interface, not an address: `0.0.0.0%eth0` is every address on it.
+            host = address.split("%")[0].strip("[]")
+            current = (int(port), "" if host in ("0.0.0.0", "::", "*", "") else host)
     return sorted(found.values(), key=lambda s: (s["service"], s["port"], s["host"]))
 
 
