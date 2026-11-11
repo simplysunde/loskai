@@ -35,6 +35,8 @@ the device stays logged in after.
 
 Install **Tailscale** from the Docker tab like any recipe. With no auth key, open the
 container's logs on its row: the link is on the line after `To authenticate, visit:`.
+It waits an hour; after that the container starts over, with a new link at the end of
+its logs.
 
 It runs in *userspace networking*: no TUN device, no extra rights, nothing changed on the
 Docker host. Its login is kept in `state/` beside its compose file.
