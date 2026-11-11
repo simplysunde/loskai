@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./api";
@@ -39,6 +40,8 @@ export interface FieldDef {
   label: string;
   hint?: string;
   options?: { value: string; label: string }[];
+  // Shown under the field — where to find its value, say.
+  below?: ReactNode;
 }
 
 // How long a session lasts once no Loskai page is open — `session_idle_minutes`, the choices

@@ -35,7 +35,8 @@ import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
 // Each machine, with the routes on its address beneath it — the reason a machine is named
 // at all. Like a stack on the Docker tab, a machine's row opens to show them. A route lists
-// only its port here: the host half is the machine above it.
+// only its port here: the host half is the machine above it. The Docker host — named or not —
+// comes first, tinted, since Loskai itself runs there.
 export function MachineTable({
   machines,
   rows,
@@ -137,6 +138,7 @@ export function MachineTable({
     };
   };
 
+  const isHost = (m: RouteRow) => Boolean(dockerHost) && m.upstream === dockerHost;
   const ids = machines.map((m) => m.id);
   const anyOpen = expanded.anyOpen(ids);
   const AllIcon = anyOpen ? ChevronsDownUp : ChevronsUpDown;
@@ -169,17 +171,18 @@ export function MachineTable({
         </thead>
         <tbody>
           {[...machines]
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .sort((a, b) => Number(isHost(b)) - Number(isHost(a)) || a.name.localeCompare(b.name))
             .map((m) => {
               const deps = routesOn(m, rows);
               const unnamed = m.id === DOCKER_HOST_ID;
+              const atHost = isHost(m);
               const host = m.subdomain ? ssh[m.subdomain] : undefined;
               const sshReady = Boolean(host?.user);
               const open = expanded.isOpen(m.id);
               const Chevron = open ? ChevronDown : ChevronRight;
               return (
                 <Fragment key={m.id}>
-                  <tr className="border-t border-slate-800 bg-slate-900/50 max-sm:px-4 max-sm:py-2.5">
+                  <tr className={`border-t border-slate-800 max-sm:px-4 max-sm:py-2.5 ${atHost ? "bg-teal-500/5" : "bg-slate-900/50"}`}>
                     <td className="px-4 py-2 max-sm:basis-full">
                       <button
                         onClick={() => expanded.toggle(m.id)}
@@ -188,9 +191,17 @@ export function MachineTable({
                         className="flex items-center gap-2 text-left"
                       >
                         <Chevron className="h-4 w-4 text-slate-500" />
-                        <HardDrive className="h-3.5 w-3.5 text-teal-300/70" />
+                        <HardDrive className={`h-3.5 w-3.5 ${atHost ? "text-teal-300" : "text-teal-300/70"}`} />
                         <span className="font-medium text-slate-100">{m.name}</span>
                         {unnamed && <span className="text-xs text-slate-500">not named</span>}
+                        {atHost && !unnamed && (
+                          <span
+                            title="Where Loskai runs — the Docker Host LAN IP in Settings › General"
+                            className="rounded bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-medium text-teal-300"
+                          >
+                            Docker host
+                          </span>
+                        )}
                         {/* Collapsed, the row still says how many it holds. */}
                         {!open && deps.length > 0 && (
                           <span className="text-xs text-slate-500">{deps.length}</span>

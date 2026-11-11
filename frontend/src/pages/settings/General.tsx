@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Download, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import type { FieldDef } from "../../lib/settings";
+import { useRoutes } from "../../lib/routes";
+import { useSettings, type FieldDef } from "../../lib/settings";
+import { useSsh } from "../../lib/ssh";
+import { machineAt } from "../../components/routing/machine";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 import { RecipeSources } from "../../components/settings/RecipeSources";
 
@@ -21,9 +25,33 @@ const APP_FIELDS: FieldDef[] = [
     key: "host_tailscale_ip",
     label: "Docker Host Tailscale IP",
     hint: "optional — lets Loskai's SSH reach machines over Tailscale, e.g. 100.101.102.103",
+    below: <DockerHostLink />,
   },
   { key: "stacks_dir", label: "Stacks Directory", hint: "set in the compose file" },
 ];
+
+// Where the Tailscale address comes from: Tailscale on the Docker host, which Loskai installs
+// like on any machine — its Tailscale tool. So this goes to that machine on the Machines tab,
+// as far along as it is: to name it, to set up its SSH, or to its tools.
+function DockerHostLink() {
+  const settings = useSettings();
+  const routes = useRoutes();
+  const ssh = useSsh();
+  const hostIp = settings.data?.host_ip?.value;
+  if (!hostIp) return null;
+  const host = machineAt(hostIp, routes.data ?? []);
+  const ready = host && ssh.data?.trusted?.[host.id];
+  const [to, title] = !host
+    ? ["/machines", "Name the Docker host on the Machines tab and set up its SSH, then add its Tailscale tool"]
+    : ready
+      ? [`/machines/${host.id}/tools`, "Add its Tailscale tool and Connect — its overview then shows this address"]
+      : [`/machines/${host.id}/ssh`, "Set up its SSH, then add its Tailscale tool"];
+  return (
+    <Link to={to} title={title} className="mt-1 inline-block text-xs text-teal-400 hover:text-teal-300 hover:underline">
+      Tailscale on the Docker host →
+    </Link>
+  );
+}
 
 export function General() {
   const [error, setError] = useState<string | null>(null);

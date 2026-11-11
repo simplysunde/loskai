@@ -155,7 +155,8 @@ container.
 The machine Loskai runs on is listed before you name it, as **Docker host**, from the
 Docker host IP in Settings › General, with the routes on that address under it. **Name it**
 (the tag on its row) opens Name a machine with its address filled in. Once it has a name
-it is a machine like the others, with SSH, tools and its dialog.
+it is a machine like the others, with SSH, tools and its dialog. Named or not, it is always
+the first row, tinted, and once named it carries a **Docker host** tag.
 
 The **cog** on a machine's row opens its dialog, laid out like a settings window: every
 section in one scroll, and a menu down the side that jumps to one and marks where you are.

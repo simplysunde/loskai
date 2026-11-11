@@ -530,6 +530,8 @@ test("the Docker host is listed before it is named, with the routes on its addre
     const row = (await screen.findByText("Docker host")).closest("tr") as HTMLElement;
 
     expect(within(row).getByText("not named")).toBeInTheDocument();
+    // First, as it is once named.
+    expect(screen.getAllByRole("row")[1]).toBe(row);
     expect(screen.getByText(":8081")).toBeInTheDocument();
     // Nothing to set up until it has a name: no settings, no delete.
     expect(within(row).queryByTitle("Machine settings")).not.toBeInTheDocument();
@@ -550,12 +552,16 @@ test("the Docker host is listed before it is named, with the routes on its addre
   }
 });
 
-test("a Docker host already named is listed once, as itself", async () => {
+test("a Docker host already named is listed once, as itself — first, and tagged", async () => {
   settingsReply = { host_ip: { value: "192.168.10.50", source: "env" } };
   renderPage();
 
   await screen.findByText("Storage box");
-  expect(screen.queryByText("Docker host")).not.toBeInTheDocument();
+  // "pve" sorts before "Storage box"; the Docker host goes first anyway.
+  const machineRows = screen.getAllByRole("row").filter((r) => within(r).queryByTitle("Machine settings"));
+  expect(within(machineRows[0]).getByText("Storage box")).toBeInTheDocument();
+  expect(within(machineRows[0]).getByText("Docker host")).toBeInTheDocument();
+  expect(screen.getAllByText("Docker host")).toHaveLength(1);
 });
 
 test("naming a machine with an SSH user opens its page, starting its SSH setup", async () => {

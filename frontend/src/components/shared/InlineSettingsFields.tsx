@@ -48,41 +48,45 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
   };
 
   return (
-    <label className="block">
-      <span className="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
-        {def.label}
-        {isEnv && (
-          <span className="inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-            <Lock className="h-3 w-3" /> env
-          </span>
+    <div>
+      <label className="block">
+        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
+          {def.label}
+          {isEnv && (
+            <span className="inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+              <Lock className="h-3 w-3" /> env
+            </span>
+          )}
+          {state === "saving" && <Loader2 className="h-3 w-3 animate-spin text-slate-500" />}
+          {state === "saved" && <Check className="h-3 w-3 text-emerald-400" />}
+        </span>
+        {def.options ? (
+          <select
+            disabled={isEnv}
+            value={isEnv ? current : inputProps.value}
+            onChange={(e) => choose(e.target.value)}
+            className={FIELD_CLASS}
+          >
+            {def.options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type={field?.secret ? "password" : "text"}
+            disabled={isEnv}
+            {...inputProps}
+            value={isEnv ? current : inputProps.value}
+            placeholder={def.hint}
+            className={FIELD_CLASS}
+          />
         )}
-        {state === "saving" && <Loader2 className="h-3 w-3 animate-spin text-slate-500" />}
-        {state === "saved" && <Check className="h-3 w-3 text-emerald-400" />}
-      </span>
-      {def.options ? (
-        <select
-          disabled={isEnv}
-          value={isEnv ? current : inputProps.value}
-          onChange={(e) => choose(e.target.value)}
-          className={FIELD_CLASS}
-        >
-          {def.options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={field?.secret ? "password" : "text"}
-          disabled={isEnv}
-          {...inputProps}
-          value={isEnv ? current : inputProps.value}
-          placeholder={def.hint}
-          className={FIELD_CLASS}
-        />
-      )}
-      {error && <p className="mt-1 text-xs text-rose-400">{error}</p>}
-    </label>
+        {error && <p className="mt-1 text-xs text-rose-400">{error}</p>}
+      </label>
+      {/* Outside the label: a link inside one would also focus its input. */}
+      {def.below}
+    </div>
   );
 }

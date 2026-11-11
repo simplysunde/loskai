@@ -26,7 +26,7 @@ Not on everything. Routes keep using LAN addresses; Tailscale only adds the ways
 | Your phone, your laptop | **Yes** | Tailscale's app, logged in to your tailnet | How you get in from outside |
 | One box at home — the **subnet router** | **Yes** | The recipe or the script ([step 1](#1-run-the-subnet-router)) | Shares your LAN with the tailnet |
 | A machine away from home — a VPS, a box elsewhere | **Yes** | Tailscale's own install | The only way to reach it |
-| The Docker host Loskai runs on | Only to manage machines on the tailnet | Tailscale's own install, then its address in Settings | Loskai's SSH connects from here — [below](#managing-a-machine-on-your-tailnet) |
+| The Docker host Loskai runs on | Only to manage machines on the tailnet | Tailscale's own install — from Loskai, its Tailscale tool — then its address in Settings | Loskai's SSH connects from here — [below](#managing-a-machine-on-your-tailnet) |
 | Caddy's box | Only to route to machines on the tailnet | Tailscale's own install | Caddy connects from here — [below](#routing-to-a-machine-on-your-tailnet) |
 | Everything else — servers, the NAS, AdGuard, PCs at home | **No** | — | Reached on the LAN, and through the subnet router from outside |
 
@@ -115,8 +115,11 @@ A machine that is on your tailnet but not your LAN — a VPS, a box at a friend'
 the Machines tab like any other: its terminal, its tools, what runs there.
 
 1. **Tailscale on the Docker host** Loskai runs on, with Tailscale's own install (not the
-   recipe, which leaves the host itself off the tailnet). `tailscale ip -4` there prints its
-   address.
+   recipe, which leaves the host itself off the tailnet). Loskai can do it: name the Docker
+   host on the Machines tab (its row is first), set up its SSH, then **Add tool** →
+   **Tailscale** in its dialog and **Connect**. Its overview then shows the address — or
+   `tailscale ip -4` there prints it. **Tailscale on the Docker host**, under the field in
+   step 2, goes to that machine, as far as it has got.
 2. **Settings › General › Docker Host Tailscale IP**: that address (or `HOST_TAILSCALE_IP`).
    **Docker Host LAN IP** must be set too.
 3. **Add the machine** on the Machines tab by its Tailscale address (`100.x.y.z`), and set up
