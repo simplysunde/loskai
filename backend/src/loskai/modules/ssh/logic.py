@@ -423,7 +423,8 @@ def _base_service(name: str) -> bool:
     return name in BASE_SERVICES or name.startswith(BASE_PREFIXES)
 
 
-# Base services whose port is still worth a route: Proxmox's web UI.
+# Base services whose port is still worth a route: Proxmox's web UI. Listed, not hidden —
+# the running list offers a route only on what it lists — and their ports kept.
 LISTEN_ALSO = {"pveproxy"}
 
 
@@ -475,7 +476,7 @@ def parse_running(output: str) -> dict:
             if not unit.endswith(".service"):
                 continue
             name = unit.removesuffix(".service")
-            if _base_service(name):
+            if _base_service(name) and name not in LISTEN_ALSO:
                 out["hidden"] += 1
             else:
                 out["services"].append(name)

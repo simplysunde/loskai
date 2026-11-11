@@ -263,9 +263,10 @@ def test_running_lists_containers_your_services_and_running_guests():
     assert out["containers"][1] == {
         "name": "jellyfin", "image": "jellyfin/jellyfin:12.2", "status": "Up 2 days (healthy)", "ports": [],
     }
-    # The base system's services are counted, not listed: cron, getty, ssh, journald, pveproxy.
-    assert out["services"] == ["docker", "nginx"]
-    assert out["hidden"] == 5
+    # The base system's services are counted, not listed: cron, getty, ssh, journald. Proxmox's
+    # web UI is listed, though base: it is worth a route, and only what is listed offers one.
+    assert out["services"] == ["docker", "nginx", "pveproxy"]
+    assert out["hidden"] == 4
     assert out["guests"] == [
         {"id": "101", "name": "adguard", "kind": "lxc", "addresses": []},
         {"id": "200", "name": "haos", "kind": "vm", "addresses": []},
@@ -397,7 +398,7 @@ def test_output_that_is_not_the_status_command_s_is_refused():
 
 def test_the_running_list_reads_the_older_status_line_too():
     # A machine not yet reinstalled keeps its running list; only the overview needs v2.
-    assert logic.parse_running(OUTPUT.replace("status 1", "status 2"))["services"] == ["docker", "nginx"]
+    assert logic.parse_running(OUTPUT.replace("status 1", "status 2"))["services"] == ["docker", "nginx", "pveproxy"]
 
 
 # --- A machine's overview ---

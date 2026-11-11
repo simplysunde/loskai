@@ -49,7 +49,7 @@ marker line followed by its rows.
 | Section | Rows | Notes |
 |---|---|---|
 | `#docker` | `name\|image\|status\|ports` (`docker ps --format`) | only where `docker` exists; `ports` since v6 |
-| `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`) |
+| `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`), but `LISTEN_ALSO` (Proxmox's `pveproxy`), listed so its port can be routed |
 | `#listen` | each `ss -Htlnp` line, then `@<pid> <unit>` for each process behind it (the unit from `/proc/<pid>/cgroup`, empty for none) | since v6; only where `ss` exists |
 | `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept |
 | `#addr` | `<id> <address>…` per running guest: an LXC's from `lxc-info -iH`, a VM's from its QEMU guest agent (`qm guest cmd <id> network-get-interfaces`, at most 3 s each, side by side) | since v7; only on Proxmox, as root or `sudo -n`, else empty; a VM without the agent gets no address |
@@ -65,7 +65,7 @@ Parsed to `{ containers, services, hidden, guests, listening, denied }`:
 - `containers` `{name, image, status, ports}` — `ports` the TCP ports published off
   loopback, a range as each of its ports unless wider than 16 (then its first) (`[]` from a
   line before v6);
-- `services` the unit names without `.service`; `hidden` how many base services were left out;
+- `services` the unit names without `.service` (with `LISTEN_ALSO`'s, though base); `hidden` how many base services were left out;
 - `guests` the running ones, `{id, name, kind, addresses}` with `kind` `lxc` or `vm`, and
   `addresses` its IPv4 ones off loopback and link-local (`[]` where unknown);
 - `listening` the ports services listen on, `{service, port, host}` — `host` "" when on
