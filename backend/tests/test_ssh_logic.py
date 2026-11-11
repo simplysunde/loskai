@@ -267,8 +267,8 @@ def test_running_lists_containers_your_services_and_running_guests():
     assert out["services"] == ["docker", "nginx"]
     assert out["hidden"] == 5
     assert out["guests"] == [
-        {"id": "101", "name": "adguard", "kind": "lxc"},
-        {"id": "200", "name": "haos", "kind": "vm"},
+        {"id": "101", "name": "adguard", "kind": "lxc", "addresses": []},
+        {"id": "200", "name": "haos", "kind": "vm", "addresses": []},
     ]
     assert out["denied"] == []
     # A line older than v6 says nothing about ports.
@@ -361,6 +361,27 @@ def test_a_published_range_is_each_of_its_ports_unless_it_is_wide():
     assert {c["name"]: c["ports"] for c in out["containers"]} == {
         "web": [8000, 8001, 8002], "media": [10000],
     }
+
+
+def test_each_guest_has_its_addresses_from_v7_those_it_may_be_named_by():
+    out = logic.parse_running(
+        "#loskai-status 7\n#listen\n#pct\n"
+        "VMID       Status     Lock         Name\n"
+        "100        running                 wireguard\n"
+        "#qm\n"
+        "      VMID NAME                 STATUS     MEM(MB)    BOOTDISK(GB) PID\n"
+        "       101 NAS                  running    4096              32.00 1234\n"
+        "       303 noagent              running    2048              32.00 3456\n"
+        # As the command prints them: an LXC's Docker bridge and IPv6 too, a VM's loopback;
+        # a VM without the guest agent, nothing.
+        "#addr\n100 192.168.10.110 172.17.0.1 fe80::1\n303\n101 127.0.0.1 192.168.10.101\n"
+    )
+
+    assert {g["id"]: g["addresses"] for g in out["guests"]} == {
+        "100": ["192.168.10.110", "172.17.0.1"], "101": ["192.168.10.101"], "303": [],
+    }
+    # v7 has v6's ports.
+    assert out["listening"] == [] and "ss" not in out["denied"]
 
 
 def test_a_list_the_user_may_not_read_says_so():
@@ -464,6 +485,27 @@ def test_an_older_status_line_has_no_overview():
         logic.parse_facts(FACTS.replace("status 5", "status 4"))
     with pytest.raises(ValueError):
         logic.parse_facts("Welcome to Ubuntu\n$ ")
+
+
+def test_the_guest_address_loop_reads_lxcs_and_the_vms_with_an_agent(tmp_path):
+    # Proxmox's commands, faked: two running guests of each kind, one VM without the agent.
+    fakes = {
+        "pct": "cat <<'T'\nVMID       Status     Lock         Name\n100        running                 wg\n"
+        "105        stopped                 old\nT",
+        "lxc-info": "[ $2 = 100 ] && printf '192.168.10.110\\n172.17.0.1\\n'",
+        "qm": "if [ $1 = list ]; then cat <<'T'\n      VMID NAME     STATUS     MEM(MB)\n"
+        "       101 NAS      running    4096\n       303 bare     running    2048\nT\nexit; fi\n"
+        "[ $3 = 101 ] || exit 2\n"
+        "echo '[ { \"ip-addresses\" : [ { \"ip-address\" : \"127.0.0.1\" } ] },'\n"
+        "echo '  { \"ip-addresses\" : [ { \"ip-address\" : \"192.168.10.101\" } ] } ]'",
+    }
+    for name, body in fakes.items():
+        (tmp_path / name).write_text(f"#!/bin/sh\n{body}\n")
+        (tmp_path / name).chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    out = subprocess.run(["sh", "-c", logic._ADDR_LOOP], capture_output=True, text=True, env=env, timeout=30).stdout
+
+    assert sorted(out.split("\n")) == ["", "100 192.168.10.110 172.17.0.1", "101 127.0.0.1 192.168.10.101", "303"]
 
 
 @pytest.mark.parametrize("request_", ["facts", "running", None])

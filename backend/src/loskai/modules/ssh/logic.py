@@ -8,6 +8,7 @@ left exactly as it was. Nothing here touches a file; `client.py` reads and write
 
 import base64
 import hashlib
+import ipaddress
 import re
 import struct
 
@@ -218,11 +219,14 @@ def public_key_of(private_key: str, comment: str) -> str:
 # it sits inside `command="…"`. docs/reference/ssh-status.md is the contract.
 #
 # The version line changes when what is installed must change. A machine with an older
-# line still answers `running`, without the ports; `facts` before v5 asks for a reinstall.
-STATUS_VERSION = "#loskai-status 6"
-OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 6))
-# The lines whose `facts` answer this Loskai reads — v6 changed only `running`.
-FACTS_VERSIONS = ("#loskai-status 5", STATUS_VERSION)
+# line still answers `running`, without what came later (ports v6, guest addresses v7);
+# `facts` before v5 asks for a reinstall.
+STATUS_VERSION = "#loskai-status 7"
+OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 7))
+# The lines whose `facts` answer this Loskai reads — v6 and v7 changed only `running`.
+FACTS_VERSIONS = ("#loskai-status 5", "#loskai-status 6", STATUS_VERSION)
+# The lines with a `#listen` section where the machine has `ss`.
+LISTEN_VERSIONS = ("#loskai-status 6", STATUS_VERSION)
 
 # Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
 # letting its user run exactly System's update commands — and this file's removal — with no
@@ -257,6 +261,23 @@ _LISTEN = (
     f"elif sudo -n true 2>/dev/null; then sudo -n sh -c '{_LISTEN_LOOP}'; "
     f"else echo '!partial'; sh -c '{_LISTEN_LOOP}'; fi; fi; "
 )
+# Each running Proxmox guest's addresses, `<id> <address>…`: an LXC's from `lxc-info`, a VM's
+# from its QEMU guest agent — capped at 3 s each and asked side by side, since an agent
+# that is configured but not answering makes `qm` wait. Root only, so as root or through
+# `sudo -n`, else nothing. `set -f`: the address pattern must not glob. No quotes inside, as
+# `_LISTEN_LOOP`.
+_ADDR_LOOP = (
+    "set -f; pct list 2>/dev/null | grep -w running | while read -r i rest; do "
+    "echo $i $(lxc-info -n $i -iH </dev/null 2>/dev/null); done; "
+    "qm list 2>/dev/null | grep -w running | { while read -r i rest; do "
+    "(echo $i $(timeout 3 qm guest cmd $i network-get-interfaces </dev/null 2>/dev/null "
+    "| grep -oE [0-9]+[.][0-9]+[.][0-9]+[.][0-9]+)) & done; wait; }"
+)
+_ADDR = (
+    "if command -v pct >/dev/null; then echo '#addr'; "
+    f"if [ $(id -u) = 0 ]; then sh -c '{_ADDR_LOOP}'; "
+    f"elif sudo -n true 2>/dev/null; then sudo -n sh -c '{_ADDR_LOOP}'; fi; fi"
+)
 _RUNNING = (
     "if command -v docker >/dev/null; then echo '#docker'; "
     f"{_DOCKER_PS} 2>/dev/null || sudo -n {_DOCKER_PS} 2>/dev/null || "
@@ -266,7 +287,8 @@ _RUNNING = (
     + _LISTEN +
     "if command -v pct >/dev/null; then echo '#pct'; "
     "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
-    "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi"
+    "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi; "
+    + _ADDR
 )
 # What every command Loskai runs on a machine starts with — the overview, an action, a
 # tool's settings — so each finds the same programs: a forced command or `sh -c` gets
@@ -412,7 +434,8 @@ def parse_running(output: str) -> dict:
     `containers` are `{name, image, status, ports}`, `ports` the TCP ports published on
     the machine's addresses; `services` the running systemd units that aren't the base
     system's (`hidden` counts those); `guests` the running Proxmox LXCs and VMs, `{id, name,
-    kind}`; `listening` the services' TCP ports, `{service, port, host}` (`host` "" for
+    kind, addresses}` (`addresses` their IPv4 ones off loopback and link-local; [] where
+    unknown: a VM without the guest agent, no root, a line before v7); `listening` the services' TCP ports, `{service, port, host}` (`host` "" for
     every address — see `_listeners`), None from a line older than v6; `denied` the lists
     the user may not read (`docker`, `pct`, `qm`, and `listen` when only root may say which
     service holds a port), and `ss` when the machine has no `ss` to list ports with. Raises ValueError for output that isn't the status command's — a
@@ -423,6 +446,7 @@ def parse_running(output: str) -> dict:
         raise ValueError("not Loskai's status output")
     out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
     listen: list[str] = []
+    addresses: dict[str, list[str]] = {}
     section = None
     seen = set()
     for raw in lines[1:]:
@@ -443,6 +467,9 @@ def parse_running(output: str) -> dict:
             )
         elif section == "listen":
             listen.append(line)
+        elif section == "addr":
+            guest_id, *found = line.split()
+            addresses[guest_id] = [a for a in found if _guest_address(a)]
         elif section == "systemd":
             unit = line.split()[0]
             if not unit.endswith(".service"):
@@ -459,11 +486,13 @@ def parse_running(output: str) -> dict:
     out["containers"].sort(key=lambda c: c["name"])
     out["services"].sort()
     out["guests"].sort(key=lambda g: int(g["id"]))
+    for guest in out["guests"]:
+        guest["addresses"] = addresses.get(guest["id"], [])
     published = {p for c in out["containers"] for p in c["ports"]}
-    out["listening"] = _listeners(listen, published) if head == STATUS_VERSION else None
+    out["listening"] = _listeners(listen, published) if head in LISTEN_VERSIONS else None
     # v6 prints its `#listen` section only where `ss` exists: without it, an empty list
     # would read as "nothing listens".
-    if head == STATUS_VERSION and "listen" not in seen:
+    if head in LISTEN_VERSIONS and "listen" not in seen:
         out["denied"].append("ss")
     return out
 
@@ -518,6 +547,15 @@ def _listeners(lines: list[str], published: set[int]) -> list[dict]:
             host = address.split("%")[0].strip("[]")
             current = (int(port), "" if host in ("0.0.0.0", "::", "*", "") else host)
     return sorted(found.values(), key=lambda s: (s["service"], s["port"], s["host"]))
+
+
+def _guest_address(text: str) -> bool:
+    """An IPv4 address a guest may be named by: not loopback, not link-local."""
+    try:
+        address = ipaddress.IPv4Address(text)
+    except ValueError:
+        return False
+    return not (address.is_loopback or address.is_link_local or address.is_unspecified)
 
 
 def _guest(line: str, section: str) -> dict | None:

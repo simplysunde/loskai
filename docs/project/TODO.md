@@ -778,9 +778,10 @@ machines and routes from there too".
 
 **Steps** — a commit each.
 
-- [ ] 43a Status command v7: `#addr` — `<id> <address>…` per running guest, as root or
+- [x] 43a Status command v7: `#addr` — `<id> <address>…` per running guest, as root or
       `sudo -n`, nothing otherwise. `parse_running` gives each guest `addresses`. Tests
-      and `ssh-status.md`, `api.md` with it.
+      and `ssh-status.md`, `api.md` with it. Built: the loop is tested against fake
+      `pct`/`qm`/`lxc-info`; a hanging agent costs 3 s once, not 3 s per VM.
 - [ ] 43b The card: opens on click; Route and Name per row, or the name already given.
       `AddRouteModal` takes a pick to start on; `AddMachineModal` a name. Tests;
       `using-loskai.md`, `architecture.md` with it.

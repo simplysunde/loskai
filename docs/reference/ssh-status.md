@@ -44,7 +44,7 @@ since the epoch). A running list is reused for 30 s and an overview for 60 s (`R
 The first line is always the version, `#loskai-status <n>`. The rest are sections, each a
 marker line followed by its rows.
 
-**`running`** — markers `#docker`, `#systemd`, `#listen`, `#pct`, `#qm`:
+**`running`** — markers `#docker`, `#systemd`, `#listen`, `#pct`, `#qm`, `#addr`:
 
 | Section | Rows | Notes |
 |---|---|---|
@@ -52,6 +52,7 @@ marker line followed by its rows.
 | `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`) |
 | `#listen` | each `ss -Htlnp` line, then `@<pid> <unit>` for each process behind it (the unit from `/proc/<pid>/cgroup`, empty for none) | since v6; only where `ss` exists |
 | `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept |
+| `#addr` | `<id> <address>…` per running guest: an LXC's from `lxc-info -iH`, a VM's from its QEMU guest agent (`qm guest cmd <id> network-get-interfaces`, at most 3 s each, side by side) | since v7; only on Proxmox, as root or `sudo -n`, else empty; a VM without the agent gets no address |
 
 A row of `!denied` means the SSH user may not read that list: `docker`, `pct` and `qm` each
 try the plain command, then `sudo -n` (which never prompts), then say `!denied`.
@@ -65,7 +66,8 @@ Parsed to `{ containers, services, hidden, guests, listening, denied }`:
   loopback, a range as each of its ports unless wider than 16 (then its first) (`[]` from a
   line before v6);
 - `services` the unit names without `.service`; `hidden` how many base services were left out;
-- `guests` the running ones, `{id, name, kind}` with `kind` `lxc` or `vm`;
+- `guests` the running ones, `{id, name, kind, addresses}` with `kind` `lxc` or `vm`, and
+  `addresses` its IPv4 ones off loopback and link-local (`[]` where unknown);
 - `listening` the ports services listen on, `{service, port, host}` — `host` "" when on
   every address (also when bound to an interface, `0.0.0.0%eth0`), else the one it is on.
   Left out: loopback, a process with no unit, the
@@ -131,8 +133,9 @@ the new line, so:
 
 1. Bump `STATUS_VERSION`, and add the old one to `OLD_STATUS_VERSIONS`.
 2. Keep every parser accepting the versions whose output it can still read.
-   `parse_running` reads them all — from a line before v6, without ports.
-   `parse_facts` reads `FACTS_VERSIONS` (v5 and v6, whose `facts` part is the same) — a
+   `parse_running` reads them all — from a line before v6, without ports; before v7,
+   without guest addresses.
+   `parse_facts` reads `FACTS_VERSIONS` (v5 to v7, whose `facts` part is the same) — a
    page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
@@ -145,6 +148,7 @@ the new line, so:
 | 4 | `facts` adds the tailnet (`tailscale status`), and each project's commits not pushed |
 | 5 | `facts` adds `sudo`: whether Loskai's sudo rule (updates without a password) is there |
 | 6 | `running` adds each container's ports and `#listen`, the ports services listen on (Phase 42a) |
+| 7 | `running` adds `#addr`, each running Proxmox guest's addresses (Phase 43a) |
 
 ## Adding a fact
 
