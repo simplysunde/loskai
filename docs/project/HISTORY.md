@@ -4,6 +4,26 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-11 — Machines on the tailnet: both host addresses in every `from=`
+
+Sunde asked whether the Machines tab could manage a machine that is on the tailnet but not
+the LAN — and from a PC without Tailscale. The network already allowed it (Loskai's
+container reached two tailnet machines' SSH through the Docker host's Tailscale); `from=`
+did not, naming only the host's LAN address while a tailnet machine sees its Tailscale one.
+One optional setting, `host_tailscale_ip`, now goes into every machine's `from=` beside
+`host_ip`.
+
+- **Every machine gets both, not the one its address calls for.** Choosing per machine meant
+  telling a tailnet address from a LAN one, two versions of the lines in Settings › SSH,
+  and a reinstall when a machine moved between the two. Both addresses are the same host,
+  so the lock is no looser.
+- **Ignored without `host_ip`.** No `host_ip` means no `from=`; the Tailscale address alone
+  would lock Loskai out of every LAN machine.
+- **Typed in, not detected:** Loskai's container can't ask the host's Tailscale, and the
+  status line reads it only from a machine already set up.
+- Checked and unchanged: Routing and Docker; machines set up before keep their lines (Loskai
+  never compares installed lines), and Caddy and AdGuard's install needs nothing new.
+
 ## 2026-11-11 — Tailscale as the way in, not a replacement
 
 Sunde asked how Tailscale could reach everything, "without complicating it too much for
