@@ -637,3 +637,22 @@ test("a link needs a name", async () => {
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "NAS" } });
   expect(screen.getByRole("button", { name: "Add link" })).toBeEnabled();
 });
+
+
+test("Link leaves out a container that has a link already; Route offers it, to make the link its route", async () => {
+  RESPONSES["/api/docker/containers"] = [
+    JELLYFIN,
+    { ...JELLYFIN, id: "def456", name: "whoami-whoami-1", project: "whoami", url: "http://192.168.10.220:8081" },
+  ];
+  renderModal({ mode: "docker" });
+  expect(await screen.findByText("whoami-whoami-1")).toBeInTheDocument();
+  fireEvent.click(screen.getByText("whoami-whoami-1"));
+
+  fireEvent.click(screen.getByRole("button", { name: "Link" }));
+
+  expect(screen.queryByText("whoami-whoami-1")).not.toBeInTheDocument();
+  expect(screen.getByText("jellyfin-jellyfin-1")).toBeInTheDocument();
+  // The pick went with it: nothing would overwrite the link on submit.
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+  expect(hostInput().value).toBe("");
+});

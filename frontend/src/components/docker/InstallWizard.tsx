@@ -519,12 +519,13 @@ interface RouteResult {
 
 // Without Caddy, the install's last step puts it on the Dashboard: a link to where a browser
 // reaches it — the Docker host and its published port — following the container, so a new
-// port moves the link. A container Docker can't name a published port for is linked from
-// the Routing tab, where the address can be typed.
+// port moves the link. Where that can't be named, it says why: no Docker host IP set (the
+// usual case on a fresh Loskai-alone install), or no single port a browser can reach.
 function LinkNow({ recipe, containerName }: { recipe: Recipe; containerName: string }) {
   const qc = useQueryClient();
   const containers = useContainers();
   const container = containers.data?.find((c) => c.name === containerName);
+  const hostIp = useSettings().data?.host_ip?.value;
   const [name, setName] = useState(recipe.name);
 
   const link = useMutation({
@@ -562,13 +563,28 @@ function LinkNow({ recipe, containerName }: { recipe: Recipe; containerName: str
     );
   }
   if (!container?.published_upstream) {
+    const routing = (
+      <Link to="/routing" className="text-teal-300 underline underline-offset-2">
+        Routing tab
+      </Link>
+    );
     return (
       <div className={`${box} text-slate-400`}>
-        Docker can't name the port it's published on, so link it from the{" "}
-        <Link to="/routing" className="text-teal-300 underline underline-offset-2">
-          Routing tab
-        </Link>{" "}
-        — Add link, where you can type it.
+        {hostIp ? (
+          <>
+            It has no single port a browser can reach — none published, several, or only on
+            127.0.0.1 — so link it from the {routing}, where you can type the address.
+          </>
+        ) : (
+          <>
+            Loskai doesn't know this host's LAN IP, so it can't say where a browser reaches it.
+            Set <span className="text-slate-300">Docker Host LAN IP</span> in{" "}
+            <Link to="/settings" className="text-teal-300 underline underline-offset-2">
+              Settings
+            </Link>
+            , or link it from the {routing}, where you can type the address.
+          </>
+        )}
       </div>
     );
   }

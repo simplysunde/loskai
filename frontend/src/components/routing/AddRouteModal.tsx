@@ -115,7 +115,10 @@ export function AddRouteModal({
 
   if (!open) return null;
 
-  const unroutedContainers = (containers.data ?? []).filter((c) => !c.subdomain);
+  // What isn't managed as a row already: for a route, no route (a linked container is
+  // offered — routing it makes its link the route); for a link, neither — picking a linked
+  // one would overwrite its link.
+  const unroutedContainers = (containers.data ?? []).filter((c) => (link ? !c.subdomain && !c.url : !c.subdomain));
   const pickedContainer = chosen.container ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
   const hosts = hostOptions({
     rows: rows.data,
@@ -179,7 +182,8 @@ export function AddRouteModal({
   const makeLink = (next: boolean) => {
     if (next === asLink) return;
     setAsLink(next);
-    if (pickedContainer) pickContainer(pickedContainer, next);
+    if (pickedContainer && next && pickedContainer.url) clear(); // not on Link's list
+    else if (pickedContainer) pickContainer(pickedContainer, next);
   };
 
   const canSubmit = (link ? Boolean(name.trim()) && fields.upstreamOk : fields.valid) && !pending;
@@ -213,7 +217,15 @@ export function AddRouteModal({
       {/* One height on both lists, so switching doesn't move the fields and buttons. */}
       <div className="mt-3 h-40 overflow-y-auto">
         {source === "container" && (
-          <PickList empty={containers.isLoading ? "Reading the containers…" : "No unrouted containers."}>
+          <PickList
+            empty={
+              containers.isLoading
+                ? "Reading the containers…"
+                : link
+                  ? "No container without a route or link."
+                  : "No unrouted containers."
+            }
+          >
             {unroutedContainers.map((c) => (
               <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
             ))}

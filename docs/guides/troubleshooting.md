@@ -266,10 +266,12 @@ same device: if that fails, so will the card.
 - **A certificate warning, or an error page from the app** — **Opens over HTTPS** may not
   match it: ticked for one that speaks plain HTTP, or unticked for one that only speaks
   HTTPS (Proxmox, `:8006`). Edit the link and flip it. A self-signed app warns once per device.
-- **"Docker can't name the port it's published on"** — the container publishes no port, or
-  several, or **Docker Host LAN IP** isn't set (Settings › General), so Loskai can't say
-  where a browser reaches it. Publish one port, or give it a `loskai.port` label, or type the
-  address.
+- **"Loskai doesn't know this host's LAN IP"** (the install's last step) — set **Docker Host
+  LAN IP** in Settings › General, so Loskai can say where a browser reaches a container.
+- **"It has no single port a browser can reach"**, or **"… has no single published port on a
+  known address"** — the container publishes no port, or several, or only on `127.0.0.1`
+  (which opens on each viewer's own device). Publish one port, give it a `loskai.port`
+  label, or type the address.
 - **"… is routed at … — remove its route first"** — it has an HTTPS name already. A route
   doesn't turn into a link: **Remove route** on its row, then add the link.
 - **"… is the link … — give it this name with Assign a URL"** — a new route was given a

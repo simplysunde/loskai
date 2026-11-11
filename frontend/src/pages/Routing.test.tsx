@@ -13,7 +13,7 @@ const ADGUARD_ROUTE = {
 
 let calls: { path: string; method: string; body: unknown }[] = [];
 
-function stubApi(routes: unknown[]) {
+function stubApi(routes: unknown[], caddy: unknown = undefined) {
   calls = [];
   vi.stubGlobal(
     "fetch",
@@ -27,7 +27,7 @@ function stubApi(routes: unknown[]) {
         path === "/api/caddy/routes"
           ? routes
           : path === "/api/health"
-            ? { adguard: { status: "healthy", url: "http://192.168.10.230:3000", answer_ip: "192.168.10.216" } }
+            ? { adguard: { status: "healthy", url: "http://192.168.10.230:3000", answer_ip: "192.168.10.216" }, caddy }
             : path === "/api/settings"
               ? { base_domain: { value: "example.no", source: "settings" } }
               : path === "/api/adguard/status"
@@ -111,4 +111,15 @@ test("a row action that fails says so above the table", async () => {
   const alert = await screen.findByRole("alert");
   expect(alert).toHaveTextContent("Couldn't change who sees it");
   expect(alert).toHaveTextContent("instance 'adguard' not found");
+});
+
+
+test("without Caddy nothing offers a route — not AdGuard's pill either — and links are added", async () => {
+  stubApi([], { status: "unconfigured" });
+  renderPage();
+
+  expect(await screen.findByRole("link", { name: "Open AdGuard" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: /Add link/ })).toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Sync/ })).not.toBeInTheDocument();
 });

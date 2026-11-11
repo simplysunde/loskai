@@ -116,7 +116,7 @@ export function Routing() {
   const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
   const adguardUpstream = urlToUpstream(h?.adguard?.url);
   const canRouteAdguard =
-    routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
+    caddy && routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
 
   // Machines live on their own tab; the route forms still list them, and the table names them.
   const rows = allRows.filter((r) => !isMachine(r));

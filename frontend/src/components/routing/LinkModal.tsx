@@ -46,7 +46,13 @@ export function LinkModal({
   const fields = useRouteFields({
     mode: "lan",
     baseDomain: null,
-    initialUpstream: (following ? published : null) ?? row.upstream ?? (dockerHost ? `${dockerHost}:` : ""),
+    // A link keeps its address. A container's record may hold its old route's, which can be
+    // a Docker service name a browser can't open — so it starts at the published port, else
+    // the Docker host. Anything else's stored address is a LAN one, and a fine start.
+    initialUpstream:
+      (following ? published : null) ??
+      (editing || !row.container ? row.upstream : published) ??
+      (dockerHost ? `${dockerHost}:` : ""),
     initialTls: row.upstream_tls ?? false,
   });
 

@@ -42,6 +42,7 @@ function renderWizard({
   local_count = 0,
   install = { ok: true, output: "Started", container: "grafana-app-1" } as unknown,
   health = {} as unknown,
+  settings = { base_domain: { value: "example.no", source: "stored", secret: false } } as unknown,
   containers = [
     { name: "grafana-app-1", instance_id: "grafana", subdomain: null, suggested_upstream: "grafana:3000" },
   ] as unknown[],
@@ -54,7 +55,7 @@ function renderWizard({
       : path === "/api/docker/containers"
         ? containers
         : path === "/api/settings"
-          ? { base_domain: { value: "example.no", source: "stored", secret: false } }
+          ? settings
           : path === "/api/routes"
             ? { url: "https://grafana.example.no", warning: null }
           : path === "/api/links"
@@ -471,4 +472,30 @@ test("without Caddy set up, the last step offers a link to the Dashboard, not a 
   expect(JSON.parse(String(post?.[1]?.body))).toEqual({
     name: "Grafana", upstream: "192.168.10.220:3000", container: "grafana-app-1", follow_container: true,
   });
+});
+
+
+test("without Caddy or a Docker host IP, the last step says which is missing", async () => {
+  renderWizard({
+    health: { caddy: { status: "unconfigured" } },
+    containers: [{ name: "grafana-app-1", instance_id: "grafana", subdomain: null, published_upstream: null }],
+  });
+  await deployGrafana();
+
+  expect(await screen.findByText(/doesn't know this host's LAN IP/)).toBeInTheDocument();
+  expect(screen.getByText("Docker Host LAN IP")).toBeInTheDocument();
+});
+
+test("with the host IP set, a container with no reachable port says so instead", async () => {
+  renderWizard({
+    health: { caddy: { status: "unconfigured" } },
+    settings: {
+      base_domain: { value: "example.no", source: "stored", secret: false },
+      host_ip: { value: "192.168.10.220", source: "stored", secret: false },
+    },
+    containers: [{ name: "grafana-app-1", instance_id: "grafana", subdomain: null, published_upstream: null }],
+  });
+  await deployGrafana();
+
+  expect(await screen.findByText(/no single port a browser can reach/)).toBeInTheDocument();
 });
