@@ -7,6 +7,10 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // `make live` answers on :8080 like an install, so by any name it's reached by — its IP,
+    // the machine's name, its route through Caddy — as the install does. Plain `npm run dev`
+    // keeps Vite's check: IP addresses and localhost only.
+    allowedHosts: process.env.LOSKAI_LIVE ? true : undefined,
     proxy: {
       // Dev: the backend runs on :8000 (prod container serves API + bundle on :8080).
       // ws: true so the terminal WebSockets (a container's, a machine's) proxy through too.
