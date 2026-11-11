@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-11 — Tailscale as the way in, not a replacement
+
+Sunde asked how Tailscale could reach everything, "without complicating it too much for
+setup". Tailscale runs as a **subnet router** beside Caddy and AdGuard — a recipe for the
+Docker host, and a script for a VM, LXC or Raspberry Pi (Sunde's addition) — and split DNS
+sends the base domain to AdGuard. No Loskai code.
+
+- **Not instead of AdGuard:** MagicDNS names devices, not services, and takes no names of
+  your own.
+- **Not instead of Caddy:** `tailscale serve` is one name per device; a name per service
+  needs a node per service and a Tailscale API key in Loskai, which keeps no third-party key.
+- **Userspace networking in the recipe**, so installing it changes nothing on the Docker
+  host; the script uses kernel mode where it can, being the box's whole job.
+
 ## 2026-11-11 — The running list routes and names
 
 Sunde: add the route and name-a-machine functions to the Machines tab's running list, "so
