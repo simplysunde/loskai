@@ -51,14 +51,22 @@ marker line followed by its rows.
 | `#docker` | `name\|image\|status\|ports` (`docker ps --format`) | only where `docker` exists; `ports` since v6 |
 | `#systemd` | `systemctl list-units --type=service --state=running` | base services counted as `hidden` (`BASE_SERVICES`, `BASE_PREFIXES`), but `LISTEN_ALSO` (Proxmox's `pveproxy`), listed so its port can be routed |
 | `#listen` | each `ss -Htlnp` line, then `@<pid> <unit>` for each process behind it (the unit from `/proc/<pid>/cgroup`, empty for none) | since v6; only where `ss` exists |
-| `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept |
-| `#addr` | `<id> <address>…` per running guest: an LXC's from `lxc-info -iH`, a VM's from its QEMU guest agent (`qm guest cmd <id> network-get-interfaces`, at most 3 s each, side by side) | since v7; only on Proxmox, as root or `sudo -n`, else empty; a VM without the agent gets no address |
+| `#pct`, `#qm` | `pct list`, `qm list` | only on Proxmox; running guests kept. As root (or through sudo for `sh`), one script prints both and `#addr` from the same lists — since v8, each list runs once |
+| `#addr` | `<id> <address>…` per running guest: an LXC's from `lxc-info -iH`, a VM's from its QEMU guest agent (`qm guest cmd <id> network-get-interfaces`, at most 3 s each, side by side) | since v7; only on Proxmox, as root or through sudo, else absent; a VM without the agent gets no address |
 
 A row of `!denied` means the SSH user may not read that list: `docker`, `pct` and `qm` each
-try the plain command, then `sudo -n` (which never prompts), then say `!denied`.
-`systemctl` runs once, with no fallback. `#listen` runs as root when the user is root or has
-`sudo -n`; otherwise it says `!partial` and runs as the user, who sees only its own
-processes' sockets — the others' ports come without a pid, so without a service.
+try the plain command, then `sudo -n` (which never prompts) where sudo allows it, then say
+`!denied`. `systemctl` runs once, with no fallback. `#listen` runs as root when the user is
+root or sudo allows it `sh`; otherwise it says `!partial` and runs as the user, who sees only
+its own processes' sockets — the others' ports come without a pid, so without a service.
+
+**Sudo is asked so that it logs nothing** (since v8). `sudo -n true` — and any command sudo
+refuses — is logged as an incident, and may mail root: on every poll, for a user without
+sudo. So the line first asks `sudo -n -l` (no command), which sudo refuses without logging
+to a user with no passwordless rule; only then, for each use, `sudo -n -l <command>`, which
+it answers without logging to a user with one; and runs `sudo -n <command>` only when that
+says yes. A user with no sudo, or a narrow rule (Loskai's own for updates), leaves nothing
+in the machine's logs.
 
 Parsed to `{ containers, services, hidden, guests, listening, denied }`:
 
@@ -123,7 +131,8 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
   either appears.
 - **POSIX `sh`.** It runs under the user's login shell, which may be `dash`, `bash` or
   `ash`. The test suite runs it with `sh` for every request.
-- **`sudo -n` only**, so it never waits for a password.
+- **`sudo -n` only**, so it never waits for a password — and only once `sudo -n -l` says
+  the command is allowed, so a refusal is never logged.
 - **Nothing secret in the output** — it is cached and served to the logged-in admin.
 
 ## Versions
@@ -149,6 +158,7 @@ the new line, so:
 | 5 | `facts` adds `sudo`: whether Loskai's sudo rule (updates without a password) is there |
 | 6 | `running` adds each container's ports and `#listen`, the ports services listen on (Phase 42a) |
 | 7 | `running` adds `#addr`, each running Proxmox guest's addresses (Phase 43a) |
+| 8 | `running` asks sudo with `sudo -n -l` before using it, so sudo logs no refusal every poll; a Proxmox host's `pct list` and `qm list` run once, not twice |
 
 ## Adding a fact
 

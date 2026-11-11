@@ -215,18 +215,20 @@ def public_key_of(private_key: str, comment: str) -> str:
 # client asks for, this runs instead; the request only picks one of two fixed answers
 # (`$SSH_ORIGINAL_COMMAND`, compared in a `case`, never run): `facts` — the machine's
 # overview — or anything else, what runs there. Each list falls back to `sudo -n` (never
-# prompts), and `!denied` marks one the user may not read. No double quotes or backslashes:
-# it sits inside `command="…"`. docs/reference/ssh-status.md is the contract.
+# prompts) where sudo allows it, and `!denied` marks one the user may not read. No double
+# quotes or backslashes: it sits inside `command="…"`. docs/reference/ssh-status.md is the
+# contract.
 #
 # The version line changes when what is installed must change. A machine with an older
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
-# `facts` before v5 asks for a reinstall.
-STATUS_VERSION = "#loskai-status 7"
-OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 7))
-# The lines whose `facts` answer this Loskai reads — v6 and v7 changed only `running`.
-FACTS_VERSIONS = ("#loskai-status 5", "#loskai-status 6", STATUS_VERSION)
+# `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
+# Proxmox host's guests once.
+STATUS_VERSION = "#loskai-status 8"
+OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 8))
+# The lines whose `facts` answer this Loskai reads — v6 to v8 changed only `running`.
+FACTS_VERSIONS = ("#loskai-status 5", "#loskai-status 6", "#loskai-status 7", STATUS_VERSION)
 # The lines with a `#listen` section where the machine has `ss`.
-LISTEN_VERSIONS = ("#loskai-status 6", STATUS_VERSION)
+LISTEN_VERSIONS = ("#loskai-status 6", "#loskai-status 7", STATUS_VERSION)
 
 # Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
 # letting its user run exactly System's update commands — and this file's removal — with no
@@ -245,6 +247,21 @@ def remove_sudo_rule(on_fail: str) -> str:
     )
 
 _DOCKER_PS = "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}'"
+# Whether sudo may be used, asked so that sudo logs nothing: `sudo -n -l` with no command is
+# refused quietly to a user with no passwordless rule, where `sudo -n true` is logged as an
+# incident — and may mail root — on every poll. `S=1` when it may; each use then asks, as
+# quietly, whether that very command is allowed (`sudo -n -l <command>`), so a narrow rule —
+# Loskai's own for updates — logs nothing either.
+_SUDO = "S=0; if [ $(id -u) != 0 ] && sudo -n -l >/dev/null 2>&1; then S=1; fi; "
+
+
+def _with_sudo(command: str) -> str:
+    """`command` through `sudo -n`, only where sudo allows it — never a logged refusal."""
+    return f"{{ [ $S = 1 ] && sudo -n -l {command} >/dev/null 2>&1 && sudo -n {command}; }}"
+
+
+# A whole script as root, through sudo: allowed when `sh` is.
+_SUDO_SH = "[ $S = 1 ] && sudo -n -l sh >/dev/null 2>&1"
 # Each TCP listener (`ss -Htlnp`), and after it the systemd unit of each process behind it,
 # `@<pid> <unit>` from its cgroup. Only root sees every process's sockets, so a user without
 # `sudo -n` gets `!partial` first and only its own processes' pids. One script, run as root,
@@ -258,37 +275,49 @@ _LISTEN_LOOP = (
 _LISTEN = (
     "if command -v ss >/dev/null; then echo '#listen'; "
     f"if [ $(id -u) = 0 ]; then sh -c '{_LISTEN_LOOP}'; "
-    f"elif sudo -n true 2>/dev/null; then sudo -n sh -c '{_LISTEN_LOOP}'; "
+    f"elif {_SUDO_SH}; then sudo -n sh -c '{_LISTEN_LOOP}'; "
     f"else echo '!partial'; sh -c '{_LISTEN_LOOP}'; fi; fi; "
 )
-# Each running Proxmox guest's addresses, `<id> <address>…`: an LXC's from `lxc-info`, a VM's
-# from its QEMU guest agent — capped at 3 s each and asked side by side, since an agent
-# that is configured but not answering makes `qm` wait. Root only, so as root or through
-# `sudo -n`, else nothing. `set -f`: the address pattern must not glob. No quotes inside, as
-# `_LISTEN_LOOP`.
-_ADDR_LOOP = (
-    "set -f; pct list 2>/dev/null | grep -w running | while read -r i rest; do "
-    "echo $i $(lxc-info -n $i -iH </dev/null 2>/dev/null); done; "
-    "qm list 2>/dev/null | grep -w running | { while read -r i rest; do "
+# A Proxmox host's guests, as root: `pct list` and `qm list`, each run once — `qm list` is
+# slow — then each running guest's addresses from those same lists, `<id> <address>…`: an
+# LXC's from `lxc-info`, a VM's from its QEMU guest agent, capped at 3 s each and asked side
+# by side, since an agent that is configured but not answering makes `qm` wait. The section
+# markers and `!denied` arrive as `$1`–`$4`: no quotes inside, so `sh -c '…'` carries it.
+# Each list is kept whole in a variable and printed line by line with IFS set to a newline
+# (made without a backslash); `set -f`, so nothing in a line or the pattern globs.
+_PVE_LOOP = (
+    "set -f; O=$IFS; N=$(echo; echo x); N=${N%x}; IFS=$N; "
+    "P=$(pct list 2>/dev/null) || P=$4; Q=$(qm list 2>/dev/null) || Q=$4; "
+    "echo $1; for l in $P; do echo $l; done; "
+    "echo $2; for l in $Q; do echo $l; done; "
+    "echo $3; "
+    "for l in $P; do echo $l; done | { IFS=$O; grep -w running | while read -r i rest; do "
+    "echo $i $(lxc-info -n $i -iH </dev/null 2>/dev/null); done; }; "
+    "for l in $Q; do echo $l; done | { IFS=$O; grep -w running | { while read -r i rest; do "
     "(echo $i $(timeout 3 qm guest cmd $i network-get-interfaces </dev/null 2>/dev/null "
-    "| grep -oE [0-9]+[.][0-9]+[.][0-9]+[.][0-9]+)) & done; wait; }"
+    "| grep -oE [0-9]+[.][0-9]+[.][0-9]+[.][0-9]+)) & done; wait; }; }"
 )
-_ADDR = (
-    "if command -v pct >/dev/null; then echo '#addr'; "
-    f"if [ $(id -u) = 0 ]; then sh -c '{_ADDR_LOOP}'; "
-    f"elif sudo -n true 2>/dev/null; then sudo -n sh -c '{_ADDR_LOOP}'; fi; fi"
+_PVE_ARGS = "sh '#pct' '#qm' '#addr' '!denied'"
+# Without root or sudo for `sh`, the lists as the user (or a narrow rule for them), and no
+# addresses — those need root.
+_PVE = (
+    "if command -v pct >/dev/null; then "
+    f"if [ $(id -u) = 0 ]; then sh -c '{_PVE_LOOP}' {_PVE_ARGS}; "
+    f"elif {_SUDO_SH}; then sudo -n sh -c '{_PVE_LOOP}' {_PVE_ARGS}; "
+    "else echo '#pct'; pct list 2>/dev/null || "
+    f"{_with_sudo('pct list')} 2>/dev/null || echo '!denied'; "
+    f"echo '#qm'; qm list 2>/dev/null || {_with_sudo('qm list')} 2>/dev/null || echo '!denied'; "
+    "fi; fi"
 )
 _RUNNING = (
-    "if command -v docker >/dev/null; then echo '#docker'; "
-    f"{_DOCKER_PS} 2>/dev/null || sudo -n {_DOCKER_PS} 2>/dev/null || "
+    _SUDO
+    + "if command -v docker >/dev/null; then echo '#docker'; "
+    f"{_DOCKER_PS} 2>/dev/null || {_with_sudo(_DOCKER_PS)} 2>/dev/null || "
     "echo '!denied'; fi; "
     "echo '#systemd'; "
     "systemctl list-units --type=service --state=running --no-legend --plain --no-pager 2>/dev/null; "
-    + _LISTEN +
-    "if command -v pct >/dev/null; then echo '#pct'; "
-    "pct list 2>/dev/null || sudo -n pct list 2>/dev/null || echo '!denied'; "
-    "echo '#qm'; qm list 2>/dev/null || sudo -n qm list 2>/dev/null || echo '!denied'; fi; "
-    + _ADDR
+    + _LISTEN
+    + _PVE
 )
 # What every command Loskai runs on a machine starts with — the overview, an action, a
 # tool's settings — so each finds the same programs: a forced command or `sh -c` gets

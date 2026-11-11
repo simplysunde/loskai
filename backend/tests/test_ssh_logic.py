@@ -488,13 +488,16 @@ def test_an_older_status_line_has_no_overview():
         logic.parse_facts("Welcome to Ubuntu\n$ ")
 
 
-def test_the_guest_address_loop_reads_lxcs_and_the_vms_with_an_agent(tmp_path):
+def test_a_proxmox_host_s_guests_are_listed_once_and_their_addresses_read(tmp_path):
     # Proxmox's commands, faked: two running guests of each kind, one VM without the agent.
+    # Each fake notes its call, so the test sees `qm list` — slow on a real host — run once.
+    calls = tmp_path / "calls"
     fakes = {
-        "pct": "cat <<'T'\nVMID       Status     Lock         Name\n100        running                 wg\n"
+        "pct": f"echo pct $1 >> {calls}\ncat <<'T'\nVMID       Status     Lock         Name\n100        running                 wg\n"
         "105        stopped                 old\nT",
         "lxc-info": "[ $2 = 100 ] && printf '192.168.10.110\\n172.17.0.1\\n'",
-        "qm": "if [ $1 = list ]; then cat <<'T'\n      VMID NAME     STATUS     MEM(MB)\n"
+        "qm": f"echo qm $1 >> {calls}\n"
+        "if [ $1 = list ]; then cat <<'T'\n      VMID NAME     STATUS     MEM(MB)\n"
         "       101 NAS      running    4096\n       303 bare     running    2048\nT\nexit; fi\n"
         "[ $3 = 101 ] || exit 2\n"
         "echo '[ { \"ip-addresses\" : [ { \"ip-address\" : \"127.0.0.1\" } ] },'\n"
@@ -504,9 +507,74 @@ def test_the_guest_address_loop_reads_lxcs_and_the_vms_with_an_agent(tmp_path):
         (tmp_path / name).write_text(f"#!/bin/sh\n{body}\n")
         (tmp_path / name).chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
-    out = subprocess.run(["sh", "-c", logic._ADDR_LOOP], capture_output=True, text=True, env=env, timeout=30).stdout
+    out = subprocess.run(
+        ["sh", "-c", logic._PVE_LOOP, "sh", "#pct", "#qm", "#addr", "!denied"],
+        capture_output=True, text=True, env=env, timeout=30,
+    ).stdout
+    running = logic.parse_running("#loskai-status 8\n" + out)
 
-    assert sorted(out.split("\n")) == ["", "100 192.168.10.110 172.17.0.1", "101 127.0.0.1 192.168.10.101", "303"]
+    assert running["guests"] == [
+        {"id": "100", "name": "wg", "kind": "lxc", "addresses": ["192.168.10.110", "172.17.0.1"]},
+        {"id": "101", "name": "NAS", "kind": "vm", "addresses": ["192.168.10.101"]},
+        {"id": "303", "name": "bare", "kind": "vm", "addresses": []},
+    ]
+    listed = [c for c in calls.read_text().split("\n") if c.endswith(" list")]
+    assert sorted(listed) == ["pct list", "qm list"]
+
+
+def test_a_failing_proxmox_list_is_denied_not_empty(tmp_path):
+    for name in ("pct", "qm"):
+        (tmp_path / name).write_text("#!/bin/sh\nexit 1\n")
+        (tmp_path / name).chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    out = subprocess.run(
+        ["sh", "-c", logic._PVE_LOOP, "sh", "#pct", "#qm", "#addr", "!denied"],
+        capture_output=True, text=True, env=env, timeout=30,
+    ).stdout
+
+    assert logic.parse_running("#loskai-status 8\n#listen\n" + out)["denied"] == ["pct", "qm"]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root, sudo is never asked")
+@pytest.mark.parametrize("bare,command", [(1, 1), (0, 1)])
+def test_sudo_runs_nothing_it_would_refuse(tmp_path, bare, command):
+    """`sudo -n true` is logged as an incident for a user sudo refuses — every poll, and it
+    may mail root. v8 asks with `sudo -n -l` first, which sudo answers without logging: a
+    user with no passwordless rule (`bare` refused), or one whose rules don't cover the
+    command (`command` refused), gets no sudo run at all. Docker, Proxmox and ss are faked
+    so that every list would fall back to sudo."""
+    calls = tmp_path / "calls"
+    fakes = {
+        "sudo": f'echo "$*" >> {calls}\ncase "$*" in "-n -l") exit {bare};; "-n -l "*) exit {command};; esac\nexit 0',
+        "docker": "exit 1", "pct": "exit 1", "qm": "exit 1", "ss": "exit 0",
+    }
+    for name, body in fakes.items():
+        (tmp_path / name).write_text(f"#!/bin/sh\n{body}\n")
+        (tmp_path / name).chmod(0o755)
+    env = {"PATH": f"{tmp_path}:{os.environ['PATH']}", "HOME": str(tmp_path)}
+    out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
+
+    asked = calls.read_text().split("\n")[:-1]
+    assert asked and all(a.startswith("-n -l") for a in asked), asked
+    if bare:
+        assert asked == ["-n -l"]  # refused once, quietly; nothing else asked
+    assert set(logic.parse_running(out)["denied"]) >= {"docker", "pct", "qm"}
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root, sudo is never asked")
+def test_a_user_sudo_allows_still_gets_the_root_lists(tmp_path):
+    calls = tmp_path / "calls"
+    (tmp_path / "sudo").write_text(f'#!/bin/sh\necho "$*" >> {calls}\nexit 0\n')
+    for name, body in {"sudo": None, "pct": "exit 1", "ss": "exit 0"}.items():
+        if body:
+            (tmp_path / name).write_text(f"#!/bin/sh\n{body}\n")
+        (tmp_path / name).chmod(0o755)
+    env = {"PATH": f"{tmp_path}:{os.environ['PATH']}", "HOME": str(tmp_path)}
+    subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30)
+
+    ran = [a for a in calls.read_text().split("\n") if a and not a.startswith("-n -l")]
+    # The listeners and Proxmox's lists, each a whole script as root.
+    assert [a.split(" ", 3)[:3] for a in ran] == [["-n", "sh", "-c"], ["-n", "sh", "-c"]]
 
 
 @pytest.mark.parametrize("request_", ["facts", "running", None])

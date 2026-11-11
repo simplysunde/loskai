@@ -4,6 +4,23 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-11 — Status line v8: sudo asked so it logs nothing
+
+A review found every poll ran `sudo -n true` to decide whether to read a machine's
+listeners and guest addresses as root (v6, v7). Tried in a Debian container with sudo
+logging to a file: that is logged as an incident for a user sudo refuses — every 30 s per
+machine, and with sudo's defaults it may mail root — for a command whose contract is that
+it only reads. `sudo -n -l` with no command is refused silently; `sudo -n -l <command>` is
+answered silently to a user with any passwordless rule. v8 asks those first: no sudo, a
+narrow rule or sudo with a password left nothing in the log; full passwordless sudo still
+reads as root. Before v6, sudo was tried only after a plain command failed; asking first
+keeps the root lists without the noise.
+
+The same version lists a Proxmox host's guests once: `qm list` is slow, and v7 ran it (and
+`pct list`) twice, once for the lists and again for the addresses. Without quotes or
+backslashes, a list kept in a variable can't be printed line by line the usual way; IFS is
+set to a newline made from `$(echo; echo x)`.
+
 ## 2026-11-11 — Links: a Dashboard entry without Caddy
 
 Sunde asked to keep the Dashboard with Loskai running alone — an entry opening
