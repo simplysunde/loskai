@@ -218,8 +218,16 @@ tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole
 wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
 copies that. From then on the row shows how much
 is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
-hovering lists them. On Proxmox, or where the user isn't in the `docker` group, give it
+clicking it lists them. On Proxmox, or where the user isn't in the `docker` group, give it
 `sudo` for `docker ps`, `pct list` and `qm list` to see those.
+
+From that list you can add what you see:
+
+- **A port** (`+ :8080`) opens Add route with it picked. One already routed shows its
+  name instead.
+- **Name**, on a Proxmox VM or LXC, opens Name a machine with its name and address filled
+  in. One already named shows that name. A VM's address comes from its QEMU guest agent;
+  without one, you type it.
 
 **Updates without a password**: System's Update otherwise asks for the user's `sudo`
 password in the terminal. Switching it on puts a sudo rule on the machine that lets Loskai's user

@@ -9,6 +9,7 @@ import {
   HardDrive,
   Loader2,
   MoreVertical,
+  Plus,
   Route as RouteIcon,
   Settings,
   Tag,
@@ -22,11 +23,12 @@ import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
-import type { Tool } from "../../lib/tools";
+import type { Tool, ToolTarget } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { splitUpstream } from "../../lib/validation";
 import { DOCKER_HOST_ID, routesOn } from "./machine";
 import { ToolsMenu } from "./MachineTools";
+import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "./machineServices";
 import { RunningPill } from "./RunningPill";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
@@ -42,7 +44,10 @@ export function MachineTable({
   onOpen,
   onDelete,
   onAddRoute,
+  onRouteService,
   onName,
+  onNameGuest,
+  dockerHost,
   onTerminal,
   onUpdate,
   tools,
@@ -66,9 +71,15 @@ export function MachineTable({
   onDelete: (machine: RouteRow) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
   onAddRoute?: (machine: RouteRow) => void;
+  // A port on its running list: Add route there, with it picked.
+  onRouteService?: (machine: RouteRow, service: MachineService) => void;
   // The Docker host before it is named (`DOCKER_HOST_ID`): naming it is all its row offers,
   // beside Add route — no SSH, DNS or settings until it is a machine.
   onName?: (machine: RouteRow) => void;
+  // A Proxmox guest on its running list: Name a machine, with its name and address.
+  onNameGuest?: (guest: { name: string; address: string }) => void;
+  // The Docker host's address: its containers are the Container source, not buttons here.
+  dockerHost?: string | null;
   // The tools in the image: a set-up machine's row opens each added one in a dialog.
   tools?: Tool[];
   onTool?: (machine: RouteRow, toolId: string) => void;
@@ -84,6 +95,44 @@ export function MachineTable({
       </div>
     );
   }
+
+  // The buttons on each row of a machine's running list: a route per port (or the one it
+  // has), and naming a guest (or the machine it already is).
+  const runningActions = (m: RouteRow) => {
+    const r = running[m.id];
+    const services = servicesOn(m, r, rows, dockerHost);
+    return (target: ToolTarget, id: string): React.ReactNode => {
+      if (target === "lxc" || target === "vm") {
+        const guest = r?.guests?.find((g) => g.id === id);
+        if (!guest || !onNameGuest) return null;
+        const named = guestMachine(guest, rows);
+        if (named) return <span className="truncate text-[11px] text-slate-400">{named.fqdn ?? named.name}</span>;
+        const address = guestAddress(guest, m.upstream);
+        return (
+          <button
+            title={address ? `Name it as a machine, at ${address}` : "Name it as a machine — its address isn't known (a VM without the QEMU guest agent)"}
+            onClick={() => onNameGuest({ name: guestHostname(guest.name), address })}
+            className={RUNNING_BUTTON}
+          >
+            <HardDrive className="h-3 w-3" />
+            Name
+          </button>
+        );
+      }
+      if (!onRouteService) return null;
+      return services
+        .filter((s) => s.kind === target && s.name === id)
+        .map((s) =>
+          s.route?.fqdn ? (
+            <RouteLink key={s.key} host={s.route.fqdn} scheme={s.route.scheme} />
+          ) : (
+            <button key={s.key} title={`Add a route to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
+              <Plus className="h-3 w-3" />:{s.upstream.split(":").pop()}
+            </button>
+          ),
+        );
+    };
+  };
 
   const ids = machines.map((m) => m.id);
   const anyOpen = expanded.anyOpen(ids);
@@ -152,7 +201,7 @@ export function MachineTable({
                     <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
                     <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
                       {running[m.id] ? (
-                        <RunningPill running={running[m.id]} user={host?.user} />
+                        <RunningPill running={running[m.id]} user={host?.user} actions={runningActions(m)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}
@@ -272,3 +321,6 @@ export function MachineTable({
 function sshTitle(alias: string, host: SshHost): string {
   return `ssh ${alias} — ${host.user ?? "?"}@${host.hostname ?? alias}, port ${host.port}`;
 }
+
+const RUNNING_BUTTON =
+  "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800";

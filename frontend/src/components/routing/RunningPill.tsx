@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ToolTarget } from "../../lib/tools";
@@ -10,17 +10,42 @@ const DENIED: Record<string, string> = {
   qm: "VMs",
 };
 
-// How many things run on a machine; hovering (or focusing) lists them all. The card is
-// portalled to the body and `fixed` at the pill, because the table scrolls sideways and
-// would clip it; it stays open while the pointer is on it, so a long list can scroll.
-export function RunningPill({ running, user }: { running: Running; user?: string }) {
+// How many things run on a machine; a click lists them all, with what can be done to each
+// (`actions`: a route on a port, naming a guest). The card is portalled to the body and
+// `fixed` at the pill, because the table scrolls sideways and would clip it. Esc, a click
+// outside it, or one of its buttons closes it.
+export function RunningPill({
+  running,
+  user,
+  actions,
+}: {
+  running: Running;
+  user?: string;
+  actions?: (target: ToolTarget, id: string) => React.ReactNode;
+}) {
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  const closing = useRef<number | undefined>(undefined);
-  const keep = () => window.clearTimeout(closing.current);
-  const close = () => {
-    keep();
-    closing.current = window.setTimeout(() => setAt(null), 150);
-  };
+  const pill = useRef<HTMLButtonElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!at) return;
+    // Scrolling the page would leave the card behind; scrolling inside it is the list.
+    const away = (e: Event) => {
+      const t = e.target as Node;
+      if (!pill.current?.contains(t) && !card.current?.contains(t)) setAt(null);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAt(null);
+    };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("scroll", away, true);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("scroll", away, true);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [at]);
 
   if (!running.ok) {
     return (
@@ -33,36 +58,40 @@ export function RunningPill({ running, user }: { running: Running; user?: string
     );
   }
 
-  const show = (el: HTMLElement) => {
-    keep();
+  // Wider with a column of buttons; on a screen too narrow for it (a phone), 8px from each side.
+  const width = actions ? 448 : 384;
+  const toggle = (el: HTMLElement) => {
+    if (at) return setAt(null);
     const r = el.getBoundingClientRect();
-    // On a screen too narrow for the card (a phone), it shrinks to 8px from each side.
-    setAt({ left: Math.max(8, Math.min(r.left, window.innerWidth - 400)), top: r.bottom + 4 });
+    setAt({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 16)), top: r.bottom + 4 });
   };
   return (
-    <span
-      tabIndex={0}
-      onMouseEnter={(e) => show(e.currentTarget)}
-      onFocus={(e) => show(e.currentTarget)}
-      onMouseLeave={close}
-      onBlur={close}
-      className="cursor-help rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300 outline-none focus:ring-1 focus:ring-teal-500"
-    >
-      {runningCount(running)} running
+    <>
+      <button
+        ref={pill}
+        type="button"
+        aria-expanded={at !== null}
+        onClick={(e) => toggle(e.currentTarget)}
+        className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300 outline-none hover:bg-emerald-500/20 focus:ring-1 focus:ring-teal-500"
+      >
+        {runningCount(running)} running
+      </button>
       {at &&
         createPortal(
           <div
-            role="tooltip"
-            onMouseEnter={keep}
-            onMouseLeave={close}
-            style={{ left: at.left, top: at.top }}
-            className="fixed z-50 max-h-80 w-96 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
+            ref={card}
+            role="dialog"
+            aria-label="Running"
+            // A button in it opens a dialog of its own (Add route, Name a machine), so it goes.
+            onClick={(e) => (e.target as HTMLElement).closest("button") && setAt(null)}
+            style={{ left: at.left, top: at.top, width }}
+            className="fixed z-50 max-h-80 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
           >
-            <RunningList running={running} user={user} />
+            <RunningList running={running} user={user} actions={actions} />
           </div>,
           document.body,
         )}
-    </span>
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { RunningPill } from "./RunningPill";
 
@@ -13,14 +13,14 @@ const RUNNING = {
   denied: ["qm", "listen"],
 };
 
-test("the pill counts what runs, and hovering lists all of it", () => {
+test("the pill counts what runs, and a click lists all of it", () => {
   render(<RunningPill running={RUNNING} user="loskai" />);
 
-  const pill = screen.getByText("3 running");
-  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  fireEvent.mouseEnter(pill);
+  const pill = screen.getByRole("button", { name: "3 running" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  fireEvent.click(pill);
 
-  const card = screen.getByRole("tooltip");
+  const card = screen.getByRole("dialog", { name: "Running" });
   expect(card).toHaveTextContent("Containers (1)");
   expect(card).toHaveTextContent("jellyfin");
   expect(card).toHaveTextContent("Up 2 days");
@@ -35,12 +35,38 @@ test("the pill counts what runs, and hovering lists all of it", () => {
   expect(card).not.toHaveTextContent("listen");
 });
 
-test("keyboard focus opens it too", () => {
+test("Esc, a click outside, or the pill again closes it", () => {
   render(<RunningPill running={RUNNING} />);
+  const pill = screen.getByRole("button", { name: "3 running" });
 
-  fireEvent.focus(screen.getByText("3 running"));
+  fireEvent.click(pill);
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-  expect(screen.getByRole("tooltip")).toBeInTheDocument();
+  fireEvent.click(pill);
+  fireEvent.mouseDown(document.body);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  fireEvent.click(pill);
+  fireEvent.click(pill);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("each row gets its actions, and one clicked closes the card", () => {
+  const route = vi.fn();
+  render(
+    <RunningPill
+      running={RUNNING}
+      actions={(target, id) => target === "container" && <button onClick={() => route(id)}>Route it</button>}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "3 running" }));
+  fireEvent.click(screen.getByRole("button", { name: "Route it" }));
+
+  expect(route).toHaveBeenCalledWith("jellyfin");
+  // What it opens is a dialog of its own; the card mustn't sit over it.
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 test("a machine that can't be read says why in its tooltip", () => {

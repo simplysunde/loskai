@@ -40,6 +40,7 @@ export function AddRouteModal({
   baseDomain,
   mode,
   initialMachine,
+  initialService,
   pending = false,
   error,
   onSubmit,
@@ -51,6 +52,8 @@ export function AddRouteModal({
   // Opened from a machine's row on the Machines tab: what runs there, with its address in
   // the host field. The address is what puts the route on it.
   initialMachine?: { id: string; address: string };
+  // From a port on that machine's running list: already picked.
+  initialService?: MachineService;
   pending?: boolean;
   error?: string | null;
   onSubmit: (route: NewRoute) => void;
@@ -61,8 +64,10 @@ export function AddRouteModal({
   const running = useRunning(open && mayMachines);
   // A machine's row is on the Machines tab, so whoever opened it from there may read it.
   const [source, setSource] = useState<Source>(initialMachine ? "machines" : "container");
-  const [link, setLink] = useState<{ container?: string; name?: string }>({});
-  const [picked, setPicked] = useState<string | null>(null);
+  const [link, setLink] = useState<{ container?: string; name?: string }>(
+    initialService ? { name: initialService.name } : {},
+  );
+  const [picked, setPicked] = useState<string | null>(initialService?.key ?? null);
   // A picked container's route follows it by default whenever its address can be derived.
   const [follow, setFollow] = useState(false);
   const [derived, setDerived] = useState<string | null>(null);
@@ -72,7 +77,12 @@ export function AddRouteModal({
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
   // Opened from a machine, an address typed by hand starts on it; only the port is left.
   const machineUpstream = initialMachine ? `${initialMachine.address}:` : "";
-  const fields = useRouteFields({ mode: pickedMode ?? mode, baseDomain, initialUpstream: machineUpstream });
+  const fields = useRouteFields({
+    mode: pickedMode ?? mode,
+    baseDomain,
+    initialPrefix: initialService?.prefix,
+    initialUpstream: initialService?.upstream ?? machineUpstream,
+  });
 
   const containers = useContainers({ enabled: open });
   // The rows the Routing page already fetched — no extra endpoint — for the host dropdown's

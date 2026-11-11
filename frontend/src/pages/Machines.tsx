@@ -11,6 +11,7 @@ import { useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewRoute } from "../components/routing/AddRouteModal";
+import type { MachineService } from "../components/routing/machineServices";
 import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/machine";
 import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
@@ -33,9 +34,9 @@ export function Machines() {
   const navigate = useNavigate();
   // The machine open in its dialog, from the cog on its row.
   const { id: openId, section } = useParams();
-  // Naming a machine — the Docker host's address when named from its row; editing one is
-  // in its dialog.
-  const [naming, setNaming] = useState<{ address?: string } | null>(null);
+  // Naming a machine — the Docker host's address when named from its row, a Proxmox guest's
+  // name and address from a running list; editing one is in its dialog.
+  const [naming, setNaming] = useState<{ address?: string; name?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
@@ -45,8 +46,9 @@ export function Machines() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
-  // The machine a new route is being added on, from its row.
-  const [routeOn, setRouteOn] = useState<RouteRow | null>(null);
+  // The machine a new route is being added on, from its row — with a port of its running
+  // list already picked, from there.
+  const [routeOn, setRouteOn] = useState<{ machine: RouteRow; service?: MachineService } | null>(null);
   // The machine with a terminal open, and what it runs there — its shell, or System's Update.
   const [terminalFor, setTerminalFor] = useState<{ machine: RouteRow; run?: ToolRun } | null>(null);
   // A tool on a machine, from the Tools menu on its row.
@@ -167,24 +169,34 @@ export function Machines() {
             setError(null);
             setNaming({ address: m.upstream ?? "" });
           }}
+          onNameGuest={(guest) => {
+            setError(null);
+            setNaming(guest);
+          }}
+          dockerHost={settings.data?.host_ip?.value}
           onDelete={(m) => {
             setDeleteError(null);
             setDeletePassword("");
             setConfirmDelete(m);
           }}
-          onAddRoute={(m) => {
+          onAddRoute={(machine) => {
             setError(null);
-            setRouteOn(m);
+            setRouteOn({ machine });
+          }}
+          onRouteService={(machine, service) => {
+            setError(null);
+            setRouteOn({ machine, service });
           }}
           busyId={remove.isPending ? remove.variables?.id : null}
         />
       )}
 
       <AddMachineModal
-        key={naming ? `naming-${naming.address ?? ""}` : "closed"}
+        key={naming ? `naming-${naming.name ?? ""}-${naming.address ?? ""}` : "closed"}
         open={naming !== null}
         baseDomain={baseDomain}
         address={naming?.address}
+        name={naming?.name}
         pending={save.isPending}
         error={error}
         onSubmit={(m) => save.mutate(m)}
@@ -192,11 +204,12 @@ export function Machines() {
       />
 
       <AddRouteModal
-        key={routeOn?.id ?? "route-closed"}
+        key={routeOn ? `${routeOn.machine.id}-${routeOn.service?.key ?? ""}` : "route-closed"}
         open={routeOn !== null}
         baseDomain={baseDomain}
         mode={health.data?.caddy?.mode ?? null}
-        initialMachine={routeOn ? { id: routeOn.id, address: routeOn.upstream ?? "" } : undefined}
+        initialMachine={routeOn ? { id: routeOn.machine.id, address: routeOn.machine.upstream ?? "" } : undefined}
+        initialService={routeOn?.service}
         pending={addRoute.isPending}
         error={error}
         onSubmit={(r) => addRoute.mutate(r)}

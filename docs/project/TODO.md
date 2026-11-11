@@ -782,9 +782,11 @@ machines and routes from there too".
       `sudo -n`, nothing otherwise. `parse_running` gives each guest `addresses`. Tests
       and `ssh-status.md`, `api.md` with it. Built: the loop is tested against fake
       `pct`/`qm`/`lxc-info`; a hanging agent costs 3 s once, not 3 s per VM.
-- [ ] 43b The card: opens on click; Route and Name per row, or the name already given.
+- [x] 43b The card: opens on click; Route and Name per row, or the name already given.
       `AddRouteModal` takes a pick to start on; `AddMachineModal` a name. Tests;
-      `using-loskai.md`, `architecture.md` with it.
+      `using-loskai.md`, `architecture.md` with it. Built: one list of a machine's ports,
+      routed or not (`servicesOn`), for both the picker and the card. The Docker host's
+      containers get no button — they're the Container source, as in the picker.
 - [ ] 43c Live: reinstall on proxmox; name a guest from its row, route a service from one.
 
 ## Backlog / Future ideas

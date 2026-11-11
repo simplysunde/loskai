@@ -43,6 +43,15 @@ export function useSsh() {
   return useQuery({ queryKey: ["ssh"], queryFn: () => api.get<SshStatus>("/api/ssh") });
 }
 
+// A running Proxmox LXC or VM. `addresses`: its IPv4 ones (from status line v7; [] where
+// unknown — a VM without the guest agent).
+export interface Guest {
+  id: string;
+  name: string;
+  kind: "lxc" | "vm";
+  addresses?: string[];
+}
+
 // What runs on a machine, read with the status key (works while the main key is locked).
 export interface Running {
   ok: boolean;
@@ -52,11 +61,12 @@ export interface Running {
   containers?: { name: string; image: string; status: string; ports: number[] }[];
   services?: string[];
   hidden?: number; // base-system services, counted not listed
-  guests?: { id: string; name: string; kind: "lxc" | "vm" }[];
+  guests?: Guest[];
   // The ports services listen on — `host` "" for every address; null before status line v6.
   listening?: { service: string; port: number; host: string }[] | null;
-  // Lists the SSH user may not read: docker, pct, qm — and listen, when only its own
-  // processes' sockets could be read (the Add route picker says so; the running list doesn't).
+  // Lists that can't be read: docker, pct, qm — and listen, when only the SSH user's own
+  // processes' sockets could be read, ss when there's no ss (the Add route picker says so;
+  // the running list doesn't).
   denied?: string[];
 }
 

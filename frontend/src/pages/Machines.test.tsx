@@ -63,6 +63,10 @@ const FACTS = {
 let facts: unknown = FACTS;
 let factsStatus = 200;
 let settingsReply: unknown = {};
+const RUNNING = {
+  nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days", ports: [] }], services: [], guests: [] },
+};
+let runningReply: unknown = RUNNING;
 const ADMIN_STATUS = { authed: true, needs_setup: false, user: { username: "admin", level: 4, tabs: ["routing", "docker", "machines"] } };
 let authStatus: unknown = ADMIN_STATUS;
 let sshKey: unknown = null;
@@ -132,6 +136,7 @@ beforeEach(() => {
   facts = FACTS;
   factsStatus = 200;
   settingsReply = {};
+  runningReply = RUNNING;
   authStatus = ADMIN_STATUS;
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
@@ -174,7 +179,7 @@ beforeEach(() => {
                   { at: "2026-11-01T09:00:00Z", event: "open", machine: "pve", from: "192.168.10.5", target: "root@192.168.10.10" },
                 ].filter((e) => e.machine === (new URLSearchParams(path.split("?")[1]).get("machine") ?? e.machine))
             : path === "/api/ssh/running"
-              ? { nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days", ports: [] }], services: [], guests: [] } }
+              ? runningReply
             : path.endsWith("/tools/git/settings")
               ? gitStatus === 423
                 ? { detail: "Loskai's key is locked — enter your password" }
@@ -697,6 +702,60 @@ test("a row of the Running list gets the buttons of the tools that apply", async
   expect(
     screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=services&action=restart-container&target=plex-1"),
   ).toBeInTheDocument();
+});
+
+// --- The running list's buttons (Phase 43) ---
+
+test("a port on the running list adds a route there, already picked; a routed one shows its name", async () => {
+  setUp();
+  runningReply = {
+    nas: {
+      ok: true, checked: 0, services: [], guests: [], listening: [], denied: [],
+      containers: [
+        { name: "plex-1", image: "plex", status: "Up", ports: [32400] },
+        { name: "web", image: "nginx", status: "Up", ports: [8080] },
+      ],
+    },
+  };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "2 running" }));
+  const card = screen.getByRole("dialog", { name: "Running" });
+  // plex is routed at 192.168.10.50:32400 already: its name, not a button.
+  expect(within(card).getByRole("link", { name: "plex.example.no" })).toBeInTheDocument();
+  fireEvent.click(within(card).getByRole("button", { name: ":8080" }));
+
+  expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
+  expect(screen.getByRole("textbox", { name: "Port" })).toHaveValue("8080");
+  expect(screen.getByPlaceholderText("grafana")).toHaveValue("web");
+});
+
+test("a Proxmox guest on the running list is named from there, or shows the machine it is", async () => {
+  setUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  runningReply = {
+    pve: {
+      ok: true, checked: 0, containers: [], services: [], listening: [], denied: [],
+      guests: [
+        // Already the machine "Storage box", at 192.168.10.50.
+        { id: "101", name: "NAS", kind: "vm", addresses: ["192.168.10.50"] },
+        // A Docker bridge first: the address on the host's network is the one filled in.
+        { id: "102", name: "Home Assistant", kind: "lxc", addresses: ["172.17.0.1", "192.168.10.60"] },
+      ],
+    },
+  };
+  renderPage();
+
+  const pveRow = (await screen.findByText("pve")).closest("tr") as HTMLElement;
+  fireEvent.click(await within(pveRow).findByRole("button", { name: "2 running" }));
+  const card = screen.getByRole("dialog", { name: "Running" });
+  expect(card).toHaveTextContent("nas.example.no");
+  fireEvent.click(within(card).getByRole("button", { name: "Name" }));
+
+  expect(await screen.findByPlaceholderText("rack1.vm3")).toHaveValue("home-assistant");
+  expect(screen.getByPlaceholderText("192.168.10.50")).toHaveValue("192.168.10.60");
 });
 
 test("a tool the machine lacks is offered to add, when Loskai can install what it needs", async () => {

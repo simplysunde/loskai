@@ -19,7 +19,8 @@ Everything so far:
   machines — set a machine's SSH user and port in its form, download the file from
   Settings › SSH. Saving a machine with an SSH user sets SSH up: trust its host key, then type its
   password once and Loskai installs its key. Each machine then shows how much runs on it —
-  containers, services, Proxmox guests — listed on hover — and opens a terminal in the
+  containers, services, Proxmox guests — listed on a click, where a port adds a route and a
+  guest is named as a machine (its address read from Proxmox) — and opens a terminal in the
   browser. Every terminal session is logged, in Settings › Logs. Loskai's key and the config
   download are in Settings › SSH; the cog on a machine's row opens its dialog, laid out like a
   settings window — one scroll, a side menu to jump around, a search — General (with its

@@ -25,6 +25,7 @@ export function AddMachineModal({
   open,
   baseDomain,
   address: initialAddress = "",
+  name: initialName = "",
   pending = false,
   error,
   onSubmit,
@@ -32,14 +33,16 @@ export function AddMachineModal({
 }: {
   open: boolean;
   baseDomain: string | null;
-  // Already known — the Docker host's, named from its row.
+  // Already known — the Docker host's, named from its row; a Proxmox guest's, from the
+  // running list (its name too).
   address?: string;
+  name?: string;
   pending?: boolean;
   error?: string | null;
   onSubmit: (machine: NewMachine) => void;
   onClose: () => void;
 }) {
-  const [hostname, setHostname] = useState("");
+  const [hostname, setHostname] = useState(initialName);
   const [address, setAddress] = useState(initialAddress);
   const [sshUser, setSshUser] = useState("");
   const [sshPort, setSshPort] = useState("22");
