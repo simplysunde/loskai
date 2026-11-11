@@ -789,6 +789,45 @@ machines and routes from there too".
       containers get no button — they're the Container source, as in the picker.
 - [ ] 43c Live: reinstall on proxmox; name a guest from its row, route a service from one.
 
+## Phase 44 — Reaching the homelab from outside, with Tailscale
+
+Asked 2026-11-11: Tailscale as a way in, "without complicating it too much for setup". Sunde
+chose a recipe that runs a Tailscale **subnet router** as a container, and asked for a
+standalone install script too, "which can be used for a VM, an LXC or a Raspberry Pi".
+
+**Decisions (2026-11-11)**
+
+- **Tailscale is the way in, not a replacement.** A subnet router shares the LAN with the
+  tailnet, and Tailscale's split DNS sends the base domain to AdGuard — so the same names,
+  certificates and routes work from anywhere. Replacing AdGuard can't work (MagicDNS names
+  devices, not services); replacing Caddy (`tailscale serve`) gives a name per device, not
+  per service, and would need a Tailscale API key in Loskai, which keeps no third-party key.
+- **No Loskai code.** A recipe (in `loskai-recipes`), a script (`scripts/`), and a guide.
+- **The auth key is optional** in both: without one, Tailscale prints a login link (the
+  container's log, the script's output), and no key is stored.
+
+**What is known before building**
+
+- The official image's entrypoint (`containerboot`) takes `TS_AUTHKEY`, `TS_ROUTES`,
+  `TS_HOSTNAME`, `TS_STATE_DIR`, and runs in userspace networking unless told otherwise —
+  no `/dev/net/tun`, no capabilities, nothing changed on the host. Host networking gives it
+  the best chance of a direct connection, rather than a relay.
+- A standalone box: Tailscale's own install script covers Debian, Ubuntu, Raspberry Pi OS
+  and more. An LXC has no `/dev/net/tun` unless given one (`pct set <id> -dev0
+  /dev/net/tun`); without it, `tailscaled` can run in userspace networking instead.
+- Approving the route and setting split DNS happen in Tailscale's admin console — the guide
+  says where.
+
+**Steps** — a commit each.
+
+- [ ] 44a The recipe `tailscale` in `loskai-recipes`: the auth key (optional, secret), the
+      network to share, the device's name. State in `./state`.
+- [ ] 44b `scripts/tailscale-subnet-router.sh`, run on the box: installs Tailscale, finds
+      the LAN, shares it; userspace networking where there's no TUN device; safe to run
+      again. With a guide, `docs/guides/tailscale.md`: both ways in, then the admin
+      console's two settings.
+- [ ] 44c Live: a real tailnet — share the LAN from each, open a routed name from a phone.
+
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
   login factor (TOTP) once Loskai holds keys.
