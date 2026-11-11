@@ -13,7 +13,7 @@ const dockerHost = row({ id: "dh", name: "docker", kind: "machine", upstream: "1
 const ok = (r: Partial<Running>): Running => ({ ok: true, checked: 0, containers: [], listening: [], denied: [], ...r });
 
 test("one row per port, on the machine's address, without what is already routed", () => {
-  const rows = [nas, row({ id: "plex", kind: "service", upstream: "192.168.10.50:32400" })];
+  const rows = [nas, row({ id: "plex", kind: "service", subdomain: "plex", routed: true, upstream: "192.168.10.50:32400" })];
   const [g] = machineServices(rows, {
     nas: ok({
       containers: [{ name: "plex", image: "plex", status: "Up", ports: [32400] }, { name: "web", image: "nginx", status: "Up", ports: [8080, 8443] }],
@@ -67,4 +67,23 @@ test("an unreachable machine is a group with its error; one without SSH has none
   const groups = machineServices([nas, other], { nas: { ok: false, checked: 0, error: "Can't reach it" } }, null);
 
   expect(groups).toEqual([{ machine: nas, services: [], note: "Can't reach it" }]);
+});
+
+
+test("a port is taken by a route or a link, not by a record whose route was removed", () => {
+  const listening = [
+    { service: "hass", port: 8123, host: "" },
+    { service: "grafana", port: 3000, host: "" },
+    { service: "nodered", port: 1880, host: "" },
+  ];
+  const rows = [
+    nas,
+    // Routed once, then Remove route: the record keeps its address, serving nothing there.
+    row({ id: "hass", kind: "service", upstream: "192.168.10.50:8123" }),
+    row({ id: "graf", kind: "service", route_mode: "direct", upstream: "192.168.10.50:3000" }),
+    row({ id: "red", kind: "service", subdomain: "red", routed: true, upstream: "192.168.10.50:1880" }),
+  ];
+  const [g] = machineServices(rows, { nas: ok({ listening }) }, "192.168.10.220");
+
+  expect(g.services.map((s) => s.name)).toEqual(["hass"]);
 });

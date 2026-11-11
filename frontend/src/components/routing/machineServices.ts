@@ -35,7 +35,13 @@ export function servicesOn(
 ): MachineService[] {
   const address = machine.upstream;
   if (!r?.ok || !address) return [];
-  const routes = new Map(rows.filter((x) => !isMachine(x) && x.upstream).map((x) => [x.upstream, x]));
+  // A port is taken by a route or a link at it — not by a record whose route was removed,
+  // which keeps its address but serves nothing there.
+  const routes = new Map(
+    rows
+      .filter((x) => !isMachine(x) && x.upstream && (x.routed || x.route_mode === "direct"))
+      .map((x) => [x.upstream, x]),
+  );
   const services: MachineService[] = [];
   const add = (kind: MachineService["kind"], name: string, port: number) => {
     const upstream = `${address}:${port}`;
