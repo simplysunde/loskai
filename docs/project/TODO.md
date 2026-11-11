@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 42** (below) — Add route from what runs on a machine. **Phase 41** — recipes for
+**Now:** **Phase 43** (below) — Route and name from a machine's running list; Phase 42's
+live check (42d) is half done. **Phase 41** — recipes for
 Forgejo and Immich, `make demo` recording the README's animations, the README — is done. **Phase 40**, the sweep, is done. Since it: account
 levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
 page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
@@ -742,6 +743,48 @@ based on the recognized services running there (not proxmox items)".
       `api.md` if the running response's row changes; HISTORY (why the built-ins left).
 - [ ] 42d Live: on a real machine with SSH set up — reinstall the status line, see its
       services and ports, route one, open it. Then `make demo` again (the Routing flow).
+      So far (2026-11-11): reinstalled on docker and proxmox; docker lists its containers
+      by port, proxmox has nothing left (its :8006 is routed as pm). Routing one is left.
+
+## Phase 43 — Route and name from a machine's running list
+
+Asked 2026-11-11: on the Machines tab, the running list (containers, services, Proxmox
+LXCs and VMs) should offer adding a route and naming a machine, "so we can quickly add
+machines and routes from there too".
+
+**Decisions (2026-11-11, Sunde)**
+
+- **The running card opens on a click**, not a hover: it holds buttons now, which a hover
+  card can't offer on a phone. Esc or a click outside closes it.
+- **A container or service with a port: Route** — Add route on that machine with it picked
+  (the Machines list's pick). Already routed: its name instead. No port: no button.
+- **A Proxmox guest: Name** — Name a machine with its name and address filled in. Already
+  named (a machine at one of its addresses): that name instead.
+- **Guest addresses come from the status line (v7)** — Sunde chose this over typing them,
+  which would make "already named" a guess by name. Proxmox's `pct list`/`qm list` have no
+  addresses.
+
+**What is known before building**
+
+- An LXC's addresses: `lxc-info -n <id> -iH` (root) — the live ones, Docker bridges
+  inside it too. A VM's: only through its QEMU guest agent (`qm guest cmd <id>
+  network-get-interfaces`), which waits when the agent is configured but not answering —
+  so each is capped (`timeout`) and they run side by side. A VM without the agent has no
+  address: Name then leaves it to type.
+- Several addresses: the one on the Proxmox host's network (its /24) is filled in, else
+  the first; IPv4, off loopback and link-local.
+- `facts` doesn't change: `FACTS_VERSIONS` gains v7. A v6 machine keeps its ports; only
+  the addresses wait for a reinstall.
+
+**Steps** — a commit each.
+
+- [ ] 43a Status command v7: `#addr` — `<id> <address>…` per running guest, as root or
+      `sudo -n`, nothing otherwise. `parse_running` gives each guest `addresses`. Tests
+      and `ssh-status.md`, `api.md` with it.
+- [ ] 43b The card: opens on click; Route and Name per row, or the name already given.
+      `AddRouteModal` takes a pick to start on; `AddMachineModal` a name. Tests;
+      `using-loskai.md`, `architecture.md` with it.
+- [ ] 43c Live: reinstall on proxmox; name a guest from its row, route a service from one.
 
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
