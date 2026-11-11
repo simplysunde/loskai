@@ -4,6 +4,21 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-11 — The running list routes and names
+
+Sunde: add the route and name-a-machine functions to the Machines tab's running list, "so
+we can quickly add machines and routes from there too". A port gets a button to route it, a
+Proxmox guest one to name it.
+
+- **The card opens on a click, not a hover.** It holds buttons now, which a hover card
+  can't offer on a phone.
+- **Guest addresses are read from Proxmox** (status line v7) — Sunde's choice over typing
+  them, since without an address "already named" would be a guess by name. An LXC's come
+  from `lxc-info`; a VM's only from its QEMU guest agent, so a VM without one is still
+  typed in.
+- **The Docker host's containers get no button**, as in the picker: they are routed from
+  the Container source, where a route can follow its container.
+
 ## 2026-11-10 — Add route's Network source becomes Machines
 
 Sunde: "the network selector should be changed to machines and allow selections based on the
