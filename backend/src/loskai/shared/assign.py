@@ -636,21 +636,27 @@ class RouteCreate(BaseModel):
     follow_container: bool = False
 
 
-async def _followed_upstream(body: "RouteCreate") -> str:
-    """The upstream a following route gets: the container's, asked of Docker now.
+async def _followed_upstream(
+    container: str | None, instance_id: str | None, *, link: bool = False
+) -> str:
+    """The upstream a following route or link gets: the container's, asked of Docker now —
+    for a route how Caddy dials it, for a link where a browser reaches it.
 
-    The one place route creation depends on the Docker socket, deliberately — everywhere
-    else an unreachable daemon means "unknown" and the route goes ahead (validate_container).
-    A following route's address *is* Docker's answer, so without one there is no route to
-    make: 503, not a guess."""
-    container = body.container
-    if not container and body.instance_id:
-        existing = instances_store.get_instance(body.instance_id)
+    The one place creating either depends on the Docker socket, deliberately — everywhere
+    else an unreachable daemon means "unknown" and it goes ahead (validate_container). A
+    following record's address *is* Docker's answer, so without one there is nothing to
+    make: 503, not a guess. The container comes from the request, or from the record when
+    editing by `instance_id`."""
+    what = "link" if link else "route"
+    if not container and instance_id:
+        existing = instances_store.get_instance(instance_id)
         container = existing.container if existing else None
     if not container:
-        raise AssignError("only a container's route can follow its container", 400)
+        raise AssignError(f"only a container's {what} can follow its container", 400)
     try:
-        upstream = await asyncio.to_thread(follow.derive_upstream, container)
+        upstream = await asyncio.to_thread(
+            follow.derive_published if link else follow.derive_upstream, container
+        )
     except Exception as exc:  # noqa: BLE001 — any docker/transport failure
         raise AssignError(
             f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
@@ -658,8 +664,12 @@ async def _followed_upstream(body: "RouteCreate") -> str:
         )
     if not upstream:
         raise AssignError(
+            f"'{container}' has no single published port on a known address — set the "
+            "address by hand, publish one port, or set the Docker host's LAN IP in Settings"
+            if link else
             f"'{container}'s port can't be determined — set the address by hand, or "
-            "give the container a loskai.port label", 400
+            "give the container a loskai.port label",
+            400,
         )
     return upstream
 
@@ -675,30 +685,6 @@ class LinkCreate(BaseModel):
     # As for a route, but the address followed is where a browser reaches the container: the
     # Docker host and its published port (follow.published_upstreams).
     follow_container: bool = False
-
-
-async def _followed_link_upstream(body: "LinkCreate") -> str:
-    """A following link's upstream: where a browser reaches the container, asked of Docker
-    now — as `_followed_upstream` is for a route, and refused the same ways."""
-    container = body.container
-    if not container and body.instance_id:
-        existing = instances_store.get_instance(body.instance_id)
-        container = existing.container if existing else None
-    if not container:
-        raise AssignError("only a container's link can follow its container", 400)
-    try:
-        upstream = await asyncio.to_thread(follow.derive_published, container)
-    except Exception as exc:  # noqa: BLE001 — any docker/transport failure
-        raise AssignError(
-            f"can't ask Docker for '{container}'s address ({describe_error(exc)}) — "
-            "set it by hand, or retry", 503
-        )
-    if not upstream:
-        raise AssignError(
-            f"'{container}' has no single published port on a known address — set it by "
-            "hand, or set the Docker host's LAN IP in Settings", 400
-        )
-    return upstream
 
 
 @router.post("/machines")
@@ -740,7 +726,10 @@ async def post_route(body: RouteCreate) -> dict:
     base, current_ip = settings_store.dns_context()
     if body.container:
         validate_container(body.container)
-    upstream = await _followed_upstream(body) if body.follow_container else body.upstream
+    upstream = (
+        await _followed_upstream(body.container, body.instance_id)
+        if body.follow_container else body.upstream
+    )
     return await assign_route(
         caddy, adguard,
         prefix=body.prefix, upstream=upstream,
@@ -756,7 +745,10 @@ async def post_link(body: LinkCreate) -> dict:
     """Create or edit a link (`instance_id` to edit one). No Caddy route, no DNS rewrite."""
     if body.container:
         validate_container(body.container)
-    upstream = await _followed_link_upstream(body) if body.follow_container else body.upstream
+    upstream = (
+        await _followed_upstream(body.container, body.instance_id, link=True)
+        if body.follow_container else body.upstream
+    )
     return await make_link(
         name=body.name, upstream=upstream, upstream_tls=body.upstream_tls,
         container=body.container, instance_id=body.instance_id,

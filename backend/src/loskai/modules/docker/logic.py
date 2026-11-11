@@ -367,6 +367,29 @@ def suggested_upstream(
     return f"{host}:{port}" if host and port else None
 
 
+def published_upstream(
+    container_name: str,
+    service: str | None,
+    ports: dict | None,
+    host_ip: str | None = None,
+    labels: dict | None = None,
+    host_network: bool = False,
+) -> str | None:
+    """Where a browser reaches the container — what a link (Phase 45) opens and follows: the
+    `lan` dial, the Docker host and the published port, never a Docker service name. None
+    for a port published only on loopback: that address opens on the viewer's own device,
+    and the port isn't reachable at the Docker host's LAN IP either."""
+    host, port = _dial(container_name, service, ports, "lan", host_ip, labels, host_network)
+    if not host or not port:
+        return None
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return None
+    except ValueError:
+        pass  # a name, not an address
+    return f"{host}:{port}"
+
+
 def primary_container(containers: list[dict], declared: str | None = None) -> str | None:
     """Which container of a freshly installed compose project the instance joins to.
 

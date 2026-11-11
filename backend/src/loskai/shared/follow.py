@@ -32,12 +32,17 @@ RETRY_INITIAL = 2.0  # seconds; doubles per failed connect, capped
 RETRY_MAX = 60.0
 
 
-def derived_upstreams() -> dict[str, str | None]:
-    """`{container name: the upstream it is dialled at}` for every container, from one
-    Docker listing. None where it can't be derived (no port, or several, and no label).
-    Raises the Docker client's errors — callers decide what "unreachable" means to them."""
+def _listed(field: str) -> dict[str, str | None]:
+    """`{container name: its <field>}` for every container, from one Docker listing. None
+    where it can't be derived (no port, or several, and no label). Raises the Docker
+    client's errors — callers decide what "unreachable" means to them."""
     rows = docker_client.list_containers(settings_store.caddy_host(), settings_store.value("host_ip"))
-    return {row["name"]: row["suggested_upstream"] for row in rows}
+    return {row["name"]: row[field] for row in rows}
+
+
+def derived_upstreams() -> dict[str, str | None]:
+    """`{container name: the upstream Caddy dials it at}` — what a route follows."""
+    return _listed("suggested_upstream")
 
 
 def derive_upstream(container: str) -> str | None:
@@ -48,8 +53,7 @@ def derive_upstream(container: str) -> str | None:
 def published_upstreams() -> dict[str, str | None]:
     """`{container name: where a browser reaches it}` — the Docker host and the published
     port, what a link follows. Not Caddy's form: that may be a Docker service name."""
-    rows = docker_client.list_containers(settings_store.caddy_host(), settings_store.value("host_ip"))
-    return {row["name"]: row["published_upstream"] for row in rows}
+    return _listed("published_upstream")
 
 
 def derive_published(container: str) -> str | None:

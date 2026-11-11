@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from loskai.modules.docker import logic
 from loskai.modules.docker.quick_commands import quick_commands_for
 from loskai.shared.instances import Instance
@@ -427,3 +429,24 @@ def test_network_subnets_are_read_from_each_network_s_address_and_prefix():
 
     assert logic.network_subnets(attrs) == ["172.18.0.0/16", "172.20.0.0/24"]
     assert logic.network_subnets({}) == []
+
+
+# --- Where a browser reaches a container (a link's address, Phase 45) ---
+
+
+@pytest.mark.parametrize("bind,expected", [
+    ("0.0.0.0", "192.168.10.220:8080"),        # all interfaces: the Docker host's LAN IP
+    ("192.168.10.30", "192.168.10.30:8080"),    # published to one address: that one
+    ("127.0.0.1", None),                      # loopback: opens on the viewer's own device
+    ("::1", None),
+])
+def test_a_link_s_address_is_the_published_port_never_loopback(bind, expected):
+    ports = {"80/tcp": [{"HostIp": bind, "HostPort": "8080"}]}
+    assert logic.published_upstream("web-1", "web", ports, "192.168.10.220") == expected
+
+
+def test_a_link_s_address_is_never_a_service_name():
+    # Where Caddy would dial `web:80` on a shared network, a browser gets the host's port.
+    ports = {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]}
+    assert logic.suggested_upstream("web-1", "web", ports, "docker", "192.168.10.220") == "web:80"
+    assert logic.published_upstream("web-1", "web", ports, "192.168.10.220") == "192.168.10.220:8080"

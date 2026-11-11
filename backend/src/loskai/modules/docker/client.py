@@ -95,8 +95,8 @@ class DockerClient:
                 # Where anything on the LAN reaches it — a browser, a link (Phase 45): the
                 # Docker host and the published port, whatever Caddy uses. The same as
                 # suggested_upstream in `lan` mode; never a Docker service name.
-                "published_upstream": logic.suggested_upstream(
-                    c.name, service, ports, "lan", host_ip, labels, host_network
+                "published_upstream": logic.published_upstream(
+                    c.name, service, ports, host_ip, labels, host_network
                 ),
                 # The half that is known even when the port is not — the form pre-fills
                 # `<host>:` and leaves only the port to type.
