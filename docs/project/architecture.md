@@ -773,7 +773,8 @@ pages narrow: the sidebar is a drawer and each table row a card
 
 - **Each decision lives once.** One helper pre-fills every route form (`containerPrefill`);
   one hook saves and re-ups both stack editor views (`useSaveAndUp`); one validation module
-  holds the rules every route form checks.
+  holds the rules every route form checks. Each owner, and who uses it:
+  [where-logic-lives.md](../contributing/where-logic-lives.md).
 - **Configuration and status are split by kind**: Settings holds fields, and a status sits
   on the tab that owns it — AdGuard's and Caddy's on Routing.
 - **The UI conventions** — minimal text, short tooltips, one layout, never a half-true

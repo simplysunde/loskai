@@ -1,0 +1,117 @@
+[Docs](../README.md) › [Contributing](../README.md#contributing)
+
+# Where each decision lives
+
+**Read this when** you are about to write a function that decides something — an address,
+a name, a command, whether a request is allowed — or change one that does.
+
+Each decision lives in one function, its **owner**. The worst bugs here were one decision
+made twice: two ways to compute an address, two route forms pre-filling a container
+differently. So, before writing one:
+
+1. **Find the decision below.** If it is here, call its owner; don't write a second one.
+2. **If it isn't, the new function is its owner**: add a row in the same commit.
+3. **A new caller goes in its row's Used by**, in the same commit.
+4. **If the browser and the server both have to decide it**, both rows go in, and a line
+   under [Pairs](#pairs-that-must-agree) says what keeps them in step.
+
+Paths are from `backend/src/loskai/` for Python and `frontend/src/` for TypeScript. **Used
+by** lists the files that call the owner, besides its own file; a frontend file that only
+reads a field the owner fills, such as `suggested_upstream`, counts.
+
+`bash scripts/check-docs.sh` checks that every owner is still defined in the file its row
+names, and that every file in **Used by** still uses it. It can't see a new caller missing
+from a row: adding one is up to whoever writes the call.
+
+What a tool or a recipe does is data, not a function: its contract is
+[tool-schema.md](../reference/tool-schema.md) or [recipe-schema.md](../reference/recipe-schema.md).
+What a machine's status key may run is [ssh-status.md](../reference/ssh-status.md).
+
+## Records and routes
+
+| Decision | Owner | Used by |
+|---|---|---|
+| Whether a record is a machine (declared by `kind`) | `shared/instances.py` `is_machine` | `modules/ssh/connect.py` `modules/ssh/router.py` `shared/assign.py` `shared/dashboard.py` |
+| The same, in the browser | `components/routing/machine.ts` `isMachine` | `components/routing/MachineDialog.tsx` `components/routing/ServiceTable.tsx` `components/routing/hostOptions.ts` `components/routing/machineServices.ts` `pages/Machines.tsx` `pages/Routing.tsx` |
+| Which routes are on a machine: those on its address | `shared/instances.py` `on_address` | `shared/assign.py` |
+| The same, in the browser | `components/routing/machine.ts` `machineAt` `routesOn` | `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` `pages/Machines.tsx` `pages/settings/General.tsx` |
+| The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
+| Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
+| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
+| Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | its own routes, `post_route` and `post_machine` |
+| Making a link | `shared/assign.py` `make_link` | its own route, `post_link` |
+| What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | `assign` and `make_link`, in its own file |
+| The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallWizard.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
+| A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` `components/routing/RouteFields.tsx` |
+| What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/machineServices.ts` `pages/Routing.tsx` |
+| Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/MachineTable.tsx` `pages/Routing.tsx` |
+
+## Containers
+
+| Decision | Owner | Used by |
+|---|---|---|
+| A container's upstream, as Caddy reaches it | `modules/docker/logic.py` `suggested_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/containerPrefill.ts` `lib/containers.ts` `pages/Routing.tsx` |
+| A container's address, as the browser reaches it | `modules/docker/logic.py` `published_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `lib/containers.ts` `pages/Routing.tsx` |
+| A route following its container to a new port | `shared/follow.py` `derive_upstream` `derive_published` | `shared/assign.py` |
+| What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/recipes.py` `modules/docker/updates.py` |
+| Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/recipes.py` |
+| Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
+
+## Caddy and AdGuard
+
+| Decision | Owner | Used by |
+|---|---|---|
+| A route's Caddy JSON, and which servers it goes in (`both` is two routes) | `modules/caddy/service.py` `build_route` `wants_https` `wants_http` `expected_route_ids` | `upsert_route` and the sync, in its own file |
+| Pushing and removing a route | `modules/caddy/service.py` `upsert_route` `teardown_route` | `shared/assign.py` `shared/follow.py` |
+| Which of Caddy's servers is `:443` and which `:80` | `modules/caddy/service.py` `select_server_name` `select_http_server_name` | `modules/caddy/client.py` |
+| The address a DNS rewrite answers with | `modules/adguard/service.py` `target_answer` | `shared/assign.py` |
+| Which rewrites to add and remove: Loskai's own, by `(domain, answer)` | `modules/adguard/service.py` `reconcile` `plan_reconcile` `is_loskai_domain` | `modules/adguard/router.py` |
+
+## Access and secrets
+
+| Decision | Owner | Used by |
+|---|---|---|
+| Whether a request comes from Loskai's own page | `shared/auth.py` `same_origin` | `shared/terminal.py`, and the middleware in its own file |
+| The level each route needs | `shared/access.py` `rule_for` `allows` | `shared/auth.py` |
+| Asking for a password again, with the login backoff | `shared/auth.py` `check_password` | `modules/ssh/router.py`, and login in its own file |
+| Who may open a terminal WebSocket, and when it closes | `shared/terminal.py` `accept` `relay` | `modules/docker/router.py` `modules/ssh/router.py` |
+| Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/recipes.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
+| A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | every module that reads a setting |
+| Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
+
+## Machines and tools
+
+| Decision | Owner | Used by |
+|---|---|---|
+| The status line a machine installs | `modules/ssh/logic.py` `STATUS_COMMAND` `status_line` | `modules/ssh/connect.py` |
+| Reading what the status key answered | `modules/ssh/logic.py` `parse_facts` `parse_running` | `modules/ssh/connect.py` |
+| Which programs the overview detects | `modules/ssh/logic.py` `PROGRAMS` | `modules/ssh/tool.py` |
+| The `PATH` a command runs with: `~/.local/bin` added | `modules/ssh/logic.py` `USER_PATH` | `modules/ssh/connect.py` `modules/ssh/tool.py` |
+| What a run looks like on the machine: sudo's password, tmux, `[done]` or `[failed]` | `modules/ssh/tool.py` `visible` | `modules/ssh/connect.py` |
+| Which tmux session an action runs in | `modules/ssh/tool.py` `session_name` | `modules/ssh/connect.py` |
+| The same, in the browser | `lib/tools.ts` `sessionName` | `lib/toolRows.ts` |
+| Whether a target may reach a command as `$1` | `modules/ssh/tool.py` `check_target` | `modules/ssh/connect.py` |
+| How a missing program is installed | `modules/ssh/tool.py` `INSTALLERS` `install_script` | `modules/ssh/connect.py` |
+| What the sudo rule for updates allows | `modules/ssh/tool.py` `update_commands` `allow_script` | `modules/ssh/connect.py` |
+| sudo's password for an automatic run: checked, held for one run | `modules/ssh/connect.py` `prepare` `take_password` | `modules/ssh/router.py` |
+| What a tool's card lists, and its one-line summary | `lib/toolRows.ts` `toolSummary` `listsOf` `toolContext` | `components/routing/MachineDialog.tsx` `components/routing/MachineTools.tsx` `components/routing/ToolDialog.tsx` |
+| An automatic run's terminal: drops down, lingers, stays on a failure | `components/shared/QuickTerminal.tsx` `QuickTerminal` | `components/routing/MachineTerminal.tsx` |
+
+## The page
+
+| Decision | Owner | Used by |
+|---|---|---|
+| Escape closes the top dialog only | `lib/useEscape.ts` `useEscape` | `components/shared/Modal.tsx` `components/shared/QuickTerminal.tsx` |
+| A link from the app to a page of these docs | `lib/docs.ts` `docUrl` | `components/docker/StackGroups.tsx` |
+
+## Pairs that must agree
+
+Each pair is a decision the browser makes again, so a page can answer without asking the
+server. Change one side, change the other in the same commit.
+
+| Decision | Server | Browser | What keeps them in step |
+|---|---|---|---|
+| Whether a record is a machine | `is_machine` | `isMachine` | The server sends `kind`; the browser only reads it. The fallback on the upstream's shape is for rows from before `kind`. |
+| Which routes are on a machine | `on_address` | `machineAt`, `routesOn` | The same rule: the upstream's host is the machine's address. Nothing checks they agree. |
+| What a name and an upstream may be | `validate_prefix`, `validate_upstream` | `lib/validation.ts` | The server enforces; the browser only says so while typing. A rule only the browser has isn't a rule. |
+| Which tmux session an action runs in | `session_name` | `sessionName` | Nothing checks they agree. The browser's has only the shared-`session` case. |

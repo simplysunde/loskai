@@ -26,7 +26,10 @@ homelab.
 
 - **Simple and functional.** Judge a change by what it makes simpler or what it fixes; "it's
   tidier" or "it's symmetrical" is not a reason. Each decision lives in one place — the
-  worst bugs here were one decision made twice (two ways to compute an address).
+  worst bugs here were one decision made twice (two ways to compute an address). Each
+  owner, and the files that use it, is in `docs/contributing/where-logic-lives.md`: look
+  there before writing a function that decides something, and add a new owner or caller
+  to it in the same commit.
 - **Removal is an option.** When a feature is questioned, price deleting it — what goes,
   what is lost, which commits would restore it — beside fixing it. One mode beats a
   half-used second one: ACME support was deleted outright for that reason.

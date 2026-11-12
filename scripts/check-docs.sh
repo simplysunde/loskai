@@ -3,7 +3,7 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Eight checks:
+# Nine checks:
 #   1. Relative links (inline or reference-style) that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
@@ -21,6 +21,8 @@
 #   8. The docs' enumerations against the code: the modules (CLAUDE.md and the READMEs),
 #      the admin tabs, the HTTP route count and the public routes named in CLAUDE.md, and
 #      every route against its row in docs/reference/api.md.
+#   9. docs/contributing/where-logic-lives.md: each decision's owner is still defined in the
+#      file its row names, and each file listed as using it still does.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -298,6 +300,76 @@ if problems:
     print("\n".join(problems))
     sys.exit(1)
 print("\nThe docs' enumerations match the code")
+PY
+
+log "Checking where-logic-lives.md against the code"
+
+python3 - <<'PY'
+import pathlib
+import re
+import sys
+
+# Each row names a decision's owner, `file` `name`..., and the files that use it. An owner
+# renamed, moved or deleted, or a listed user that stopped calling it, fails here. A new
+# caller missing from its row can't be seen: plain words like `accept` or `resolve` match
+# too much unrelated code to tell.
+PAGE = pathlib.Path("docs/contributing/where-logic-lives.md")
+ROOTS = {".py": pathlib.Path("backend/src/loskai"), ".ts": pathlib.Path("frontend/src"),
+         ".tsx": pathlib.Path("frontend/src")}
+
+def source(rel: str) -> pathlib.Path | None:
+    root = ROOTS.get(pathlib.PurePath(rel).suffix)
+    return root / rel if root and (root / rel).is_file() else None
+
+def code(path: pathlib.Path) -> str:
+    """The file without its comments and docstrings, so a mention in prose isn't a use."""
+    out, in_doc = [], False
+    for line in path.read_text().splitlines():
+        s = line.strip()
+        if path.suffix == ".py":
+            quotes = s.count('"""')
+            if in_doc:
+                in_doc = quotes == 0
+                continue
+            if s.startswith('"""'):
+                in_doc = quotes == 1
+                continue
+            if s.startswith("#"):
+                continue
+        elif s.startswith(("//", "*", "/*")):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+problems, rows = [], 0
+for line in PAGE.read_text().splitlines():
+    cells = [c.strip() for c in line.strip().strip("|").split("|")]
+    if len(cells) != 3 or not cells[1].startswith("`") or "/" not in cells[1].split("`")[1]:
+        continue
+    rows += 1
+    owner, *names = re.findall(r"`([^`]+)`", cells[1])
+    path = source(owner)
+    if not path:
+        problems.append(f"  {PAGE}: owner {owner} is not a file")
+        continue
+    text = path.read_text()
+    for name in names:
+        defined = rf"(?m)^\s*(?:export\s+)?(?:async\s+)?(?:def|class|function|const|let|type|interface)\s+{name}\b|^{name}\s*[:=]"
+        if not re.search(defined, text):
+            problems.append(f"  {PAGE}: {owner} no longer defines {name}")
+    for user in re.findall(r"`([^`]+\.(?:py|tsx?))`", cells[2]):
+        upath = source(user)
+        if not upath:
+            problems.append(f"  {PAGE}: {user} (using {', '.join(names)}) is not a file")
+        elif not any(re.search(rf"\b{n}\b", code(upath)) for n in names):
+            problems.append(f"  {PAGE}: {user} no longer uses {', '.join(names)}")
+
+print(f"owners: {rows}")
+if problems:
+    print(f"\n{len(problems)} problem(s):")
+    print("\n".join(problems))
+    sys.exit(1)
+print("\nEvery owner is where its row says, and every listed user still uses it")
 PY
 
 log "Checking the recipes repo's copy of the schema"
