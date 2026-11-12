@@ -479,6 +479,13 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     ]
 
 
+def test_an_overview_from_an_older_line_is_read_and_says_so():
+    """Read as before — but a fix since (v10: no logged sudo refusal) needs it installed again."""
+    older = logic.parse_facts(FACTS)
+    assert older["os"] and older["outdated"] is True
+    assert logic.parse_facts(FACTS.replace(FACTS.splitlines()[0], logic.STATUS_VERSION, 1))["outdated"] is False
+
+
 def test_an_older_status_line_has_no_overview():
     with pytest.raises(logic.OldStatusLine):
         logic.parse_facts(OUTPUT)

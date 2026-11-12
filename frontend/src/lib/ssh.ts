@@ -89,6 +89,7 @@ export interface Facts {
   ok: boolean;
   error?: string;
   old?: boolean; // its status line predates the overview: install again
+  outdated?: boolean; // read, but its line is older than this Loskai's: install again for what changed
   checked: number;
   os?: string | null;
   os_id?: string | null;

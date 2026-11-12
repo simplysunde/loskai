@@ -634,7 +634,7 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    tailnet, tailscale_self, projects, sudo_rule}`.
+    tailnet, tailscale_self, projects, sudo_rule, outdated}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
@@ -650,7 +650,8 @@ def parse_facts(output: str) -> dict:
     subject}` — `folder` relative to home ("" for home itself), `claude` and `committed`
     seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
     without one); `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
-    where the machine won't say.
+    where the machine won't say; `outdated` true on a line older than this Loskai's — still
+    read, but a fix since (v10's quiet sudo) reaches it only when it is installed again.
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
@@ -683,6 +684,7 @@ def parse_facts(output: str) -> dict:
         "tailscale_self": _tailscale_self(sections.get("tsself")),
         "projects": [p for p in map(_project, sections.get("projects", [])) if p],
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
+        "outdated": head != STATUS_VERSION,
     }
 
 

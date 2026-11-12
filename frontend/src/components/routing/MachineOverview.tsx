@@ -70,6 +70,17 @@ export function MachineOverview({
         ))}
       </div>
 
+      {facts.outdated && (
+        <p
+          title="Read as before. Installing again brings what changed since — such as reading through sudo without a refusal in the machine's auth log every poll."
+          className="text-xs text-slate-500"
+        >
+          Its status line is older than this Loskai.
+          <button onClick={onReinstall} className="ml-2 text-teal-400 hover:underline">
+            Install again
+          </button>
+        </p>
+      )}
     </div>
   );
 }

@@ -683,6 +683,27 @@ test("a machine on the older status line is offered the reinstall for its overvi
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
+test("an overview from the current status line has no reinstall note", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  renderPage("/machines/nas/overview");
+
+  expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
+  expect(screen.queryByText("Its status line is older than this Loskai.")).toBeNull();
+});
+
+test("an overview read from an older status line says so, and offers the reinstall", async () => {
+  sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
+  sshTrusted = { nas: true };
+  facts = { ...FACTS, outdated: true };
+  renderPage("/machines/nas/overview");
+
+  expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
+  expect(screen.getByText("Its status line is older than this Loskai.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Install again" }));
+  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+});
+
 function setUp() {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };

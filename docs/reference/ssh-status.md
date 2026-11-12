@@ -156,7 +156,8 @@ the new line, so:
 2. Keep every parser accepting the versions whose output it can still read.
    `parse_running` reads them all — from a line before v6, without ports; before v7,
    without guest addresses.
-   `parse_facts` reads `FACTS_VERSIONS` (v5 to v10; before v9, without `tailscale_self`) — a
+   `parse_facts` reads `FACTS_VERSIONS` (v5 to v10; before v9, without `tailscale_self`), and
+   says `outdated` for any but the current one — the overview offers the reinstall. A
    page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
