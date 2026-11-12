@@ -339,6 +339,16 @@ def test_a_machine_without_ss_says_so_instead_of_listing_nothing():
     assert out["denied"] == ["ss"] and out["listening"] == []
 
 
+@pytest.mark.parametrize("host,loopback", [
+    ("127.0.0.1", True), ("127.0.0.53%lo", True), ("[::1]", True), ("*%lo", True),
+    ("[::ffff:127.0.0.1]", True),  # an IPv4 loopback, as a dual-stack socket shows it
+    ("0.0.0.0", False), ("[::]", False), ("*", False), ("", False), ("192.168.10.5", False),
+    ("[fe80::1]%eth0", False), ("0.0.0.0%eth0", False), ("127.example", False),
+])
+def test_loopback_is_the_address_parsed_not_its_text(host, loopback):
+    assert logic._loopback(host) is loopback
+
+
 def test_a_listener_bound_to_an_interface_is_on_its_addresses():
     out = logic.parse_running(
         "#loskai-status 6\n#listen\n"

@@ -551,7 +551,18 @@ _RANGE_LISTED = 16
 
 
 def _loopback(host: str) -> bool:
-    return host.startswith("127.") or host in ("::1", "[::1]") or host.endswith("%lo")
+    """A bound address only this machine reaches, as `docker ps` and `ss` print it:
+    `127.0.0.1`, `[::1]`, `[::ffff:127.0.0.1]`, or anything bound to the loopback device
+    (`127.0.0.53%lo`, `*%lo`). Parsed, as the rest of Loskai decides loopback, not matched."""
+    address, _, device = host.partition("%")
+    if device == "lo":
+        return True
+    try:
+        ip = ipaddress.ip_address(address.strip("[]"))
+    except ValueError:
+        return False  # `*`, or no address: every one
+    mapped = ip.ipv4_mapped if isinstance(ip, ipaddress.IPv6Address) else None
+    return (mapped or ip).is_loopback
 
 
 def _published(ports: str) -> list[int]:
