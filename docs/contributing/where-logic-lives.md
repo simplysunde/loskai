@@ -10,18 +10,19 @@ made twice: two ways to compute an address, two route forms pre-filling a contai
 differently. So, before writing one:
 
 1. **Find the decision below.** If it is here, call its owner; don't write a second one.
-2. **If it isn't, the new function is its owner**: add a row in the same commit.
-3. **A new caller goes in its row's Used by**, in the same commit.
-4. **If the browser and the server both have to decide it**, both rows go in, and a line
+2. **If it isn't, the new function is its owner**: add a row in the same commit, with
+   **Used by** left empty, and run `python3 scripts/where-used.py --write` to fill it in.
+3. **If the browser and the server both have to decide it**, both rows go in, and a line
    under [Pairs](#pairs-that-must-agree) says what keeps them in step.
 
-Paths are from `backend/src/loskai/` for Python and `frontend/src/` for TypeScript. **Used
-by** lists the files that call the owner, besides its own file; a frontend file that only
-reads a field the owner fills, such as `suggested_upstream`, counts.
+Paths are from `backend/src/loskai/` for Python and `frontend/src/` for TypeScript.
 
-`bash scripts/check-docs.sh` checks that every owner is still defined in the file its row
-names, and that every file in **Used by** still uses it. It can't see a new caller missing
-from a row: adding one is up to whoever writes the call.
+**Used by is generated**: `scripts/where-used.py` follows the imports to every file that
+uses the owner, besides its own file and the tests. Reading a field the owner fills, such
+as `suggested_upstream`, counts. `bash scripts/check-docs.sh` fails while an owner is no
+longer defined where its row says, or while **Used by** is out of date — a new caller, a
+caller gone. `python3 scripts/where-used.py --write` brings it up to date. For any
+function, listed here or not: `python3 scripts/where-used.py <name>`.
 
 What a tool or a recipe does is data, not a function: its contract is
 [tool-schema.md](../reference/tool-schema.md) or [recipe-schema.md](../reference/recipe-schema.md).
@@ -38,12 +39,12 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
 | How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
-| Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | its own routes, `post_route` and `post_machine` |
-| Making a link | `shared/assign.py` `make_link` | its own route, `post_link` |
-| What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | `assign` and `make_link`, in its own file |
+| Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
+| Making a link | `shared/assign.py` `make_link` | only its own file |
+| What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | only its own file |
 | The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallWizard.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
-| A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` `components/routing/RouteFields.tsx` |
-| What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/machineServices.ts` `pages/Routing.tsx` |
+| A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` |
+| What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `pages/Routing.tsx` |
 | Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/MachineTable.tsx` `pages/Routing.tsx` |
 
 ## Containers
@@ -61,7 +62,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| A route's Caddy JSON, and which servers it goes in (`both` is two routes) | `modules/caddy/service.py` `build_route` `wants_https` `wants_http` `expected_route_ids` | `upsert_route` and the sync, in its own file |
+| A route's Caddy JSON, and which servers it goes in (`both` is two routes) | `modules/caddy/service.py` `build_route` `wants_https` `wants_http` `expected_route_ids` | only its own file |
 | Pushing and removing a route | `modules/caddy/service.py` `upsert_route` `teardown_route` | `shared/assign.py` `shared/follow.py` |
 | Which of Caddy's servers is `:443` and which `:80` | `modules/caddy/service.py` `select_server_name` `select_http_server_name` | `modules/caddy/client.py` |
 | The address a DNS rewrite answers with | `modules/adguard/service.py` `target_answer` | `shared/assign.py` |
@@ -71,12 +72,12 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| Whether a request comes from Loskai's own page | `shared/auth.py` `same_origin` | `shared/terminal.py`, and the middleware in its own file |
+| Whether a request comes from Loskai's own page | `shared/auth.py` `same_origin` | `shared/terminal.py` |
 | The level each route needs | `shared/access.py` `rule_for` `allows` | `shared/auth.py` |
-| Asking for a password again, with the login backoff | `shared/auth.py` `check_password` | `modules/ssh/router.py`, and login in its own file |
+| Asking for a password again, with the login backoff | `shared/auth.py` `check_password` | `modules/ssh/router.py` |
 | Who may open a terminal WebSocket, and when it closes | `shared/terminal.py` `accept` `relay` | `modules/docker/router.py` `modules/ssh/router.py` |
 | Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/recipes.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
-| A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | every module that reads a setting |
+| A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
 
 ## Machines and tools

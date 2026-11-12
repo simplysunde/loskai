@@ -28,8 +28,8 @@ homelab.
   tidier" or "it's symmetrical" is not a reason. Each decision lives in one place — the
   worst bugs here were one decision made twice (two ways to compute an address). Each
   owner, and the files that use it, is in `docs/contributing/where-logic-lives.md`: look
-  there before writing a function that decides something, and add a new owner or caller
-  to it in the same commit.
+  there before writing a function that decides something, and add a new owner to it in
+  the same commit (`scripts/where-used.py --write` fills in who uses it).
 - **Removal is an option.** When a feature is questioned, price deleting it — what goes,
   what is lost, which commits would restore it — beside fixing it. One mode beats a
   half-used second one: ACME support was deleted outright for that reason.
@@ -82,7 +82,7 @@ Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocat
 (C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `compose.build.yml` (on
 top of any of them: build Loskai from the checkout instead of pulling it), `compose.live.yml`
 (on top of those: the working tree, live-reloading — `make live`), `caddy/` (the
-Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`,
+Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`, `where-used.py`,
 `sync-recipe-schema.sh`, `check-phone.sh`, `record-demo.sh`, the LXC scripts,
 `container-entrypoint.sh`), `demo/` (`make demo`'s machine image, setup, flows and conversion). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
@@ -98,6 +98,8 @@ commit messages are user-facing — Check for updates shows them as "What change
 - Frontend (in `frontend/`): `npm run dev` (Vite on `:5173`, proxies `/api/*` → `:8000`);
   tests `npm test`; `npm run build`; lint `npx oxlint src`.
 - Docs: `bash scripts/check-docs.sh` (or `make check-docs`).
+- Who uses a function: `python3 scripts/where-used.py <name>`; `--write` fills in
+  `where-logic-lives.md`'s Used by.
 - Phone layout: `LOSKAI_USER=… LOSKAI_PASSWORD=… make check-phone [URL=…]` — screenshots a
   running Loskai at phone widths (Docker); `docs/contributing/phone-layout.md`.
 - The animations in the README and Using Loskai: `make demo [ONLY=…]` — records them in a
