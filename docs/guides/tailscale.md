@@ -53,7 +53,10 @@ a link to log it in. Then switch **Share this network** on: it asks for sudo's p
 turns on IP forwarding and shares the network the machine is on — `192.168.10.0/24` for an
 address in `192.168.10.x`. It says **waiting for approval** until step 2.1 is done (its
 **Approve** link goes there), and links to **Split DNS** (step 2.2) after. Switching it off
-stops sharing — every network the machine shares, also one added by hand.
+stops sharing — every network the machine shares, also one added by hand — and removes the
+setting that turned forwarding on at boot, but leaves forwarding on until the machine
+restarts: Docker needs it too, and turning it off would cut the containers on a Docker host
+off from the network.
 
 **In a Proxmox LXC**, Tailscale needs a TUN device, which Proxmox gives a container only when
 asked. On the Proxmox host, before adding the tool:
