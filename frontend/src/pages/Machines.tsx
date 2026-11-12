@@ -229,6 +229,8 @@ export function Machines() {
           machine={{ id: terminalFor.machine.id, name: terminalFor.machine.name }}
           sshKey={ssh.data?.key ?? null}
           run={terminalFor.run}
+          // The row's only run is System's Update, which is automatic.
+          quick={Boolean(terminalFor.run)}
           onClose={() => {
             setTerminalFor(null);
             // An update changes what the overview counts as waiting.

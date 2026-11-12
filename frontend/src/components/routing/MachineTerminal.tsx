@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
@@ -7,6 +7,7 @@ import { useUnlockFor } from "../../lib/settings";
 import { runQuery, type ToolRun } from "../../lib/tools";
 import { keyUnlocked, type SshKey } from "../../lib/ssh";
 import { Modal } from "../shared/Modal";
+import { QuickTerminal, type QuickPhase } from "../shared/QuickTerminal";
 import { XtermSession } from "../shared/XtermSession";
 import { INPUT } from "../../lib/ui";
 import { YourPassword } from "../shared/YourPassword";
@@ -15,6 +16,9 @@ import { YourPassword } from "../shared/YourPassword";
 // locked — the one case the password below fixes. A session that ends by itself closes 1000.
 const LOCKED = 4423;
 const ENDED = 1000;
+// What a failed automatic run prints before it waits for Enter (`tool.visible`): inside
+// tmux its exit code never reaches the session's end, so the output is how it is told.
+const FAILED = /\[failed, exit (\d+)\]/;
 
 // What `POST …/run` says about a run before its terminal opens.
 interface Prepared {
@@ -31,15 +35,20 @@ type Stage = "unlock" | "preparing" | "password" | "terminal";
 // next for sudo's password when sudo would — checked on the machine before anything runs —
 // and its terminal closes itself once it is done; anything else lasts until it is closed or
 // the session ends, however long that is.
+//
+// `quick`: the run is automatic, so it drops down from the top (QuickTerminal) rather than
+// opening a dialog — only the prompts, the key's and sudo's passwords, are dialogs.
 export function MachineTerminal({
   machine,
   sshKey,
   run,
+  quick = false,
   onClose,
 }: {
   machine: { id: string; name: string };
   sshKey: SshKey | null;
   run?: ToolRun;
+  quick?: boolean;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -51,6 +60,9 @@ export function MachineTerminal({
   const [password, setPassword] = useState("");
   const [sudoPassword, setSudoPassword] = useState("");
   const [prepared, setPrepared] = useState<Prepared | null>(null);
+  // How a quick run ended, and the last of what it printed, to find out.
+  const [ended, setEnded] = useState<{ phase: "done" | "failed"; detail?: string } | null>(null);
+  const tail = useRef("");
 
   const prepare = useMutation({
     mutationFn: (withPassword?: string) => {
@@ -88,6 +100,45 @@ export function MachineTerminal({
   });
 
   const query = run ? `?${runQuery(run)}${prepared?.ticket ? `&ticket=${encodeURIComponent(prepared.ticket)}` : ""}` : "";
+
+  if (run && quick && (stage === "preparing" || stage === "terminal") && (!prepared || prepared.automatic)) {
+    const notReady = stage === "preparing" && prepare.isError && !(prepare.error instanceof ApiError && prepare.error.status === 423);
+    const phase: QuickPhase = notReady ? "failed" : stage === "preparing" ? "preparing" : ended?.phase ?? "running";
+    return (
+      <QuickTerminal
+        title={`${run.title} — ${machine.name}`}
+        phase={phase}
+        detail={notReady ? apiMessage(prepare.error, "Couldn't get it ready") : ended?.detail}
+        onClose={onClose}
+      >
+        {stage === "terminal" && (
+          <XtermSession
+            key={session}
+            url={`/api/ssh/machines/${machine.id}/terminal${query}`}
+            height="h-[30vh]"
+            onOutput={(text) => {
+              tail.current = (tail.current + text).slice(-400);
+              const failed = FAILED.exec(tail.current);
+              if (failed && !ended) setEnded({ phase: "failed", detail: `exit ${failed[1]}` });
+            }}
+            onClosed={(code, reason) => {
+              if (code === LOCKED) {
+                prepare.reset();
+                setStage("unlock");
+              } else if (ended?.phase === "failed") {
+                // Enter, after reading why: it is done with.
+                if (code === ENDED) onClose();
+              } else if (code === ENDED) {
+                setEnded({ phase: "done" });
+              } else {
+                setEnded({ phase: "failed", detail: reason || `closed (${code})` });
+              }
+            }}
+          />
+        )}
+      </QuickTerminal>
+    );
+  }
 
   return (
     <Modal

@@ -57,8 +57,10 @@ Everything so far:
 - **Git** — a tool for a machine's git: its commit name and email (`git config --global`),
   read and set from its card, and the projects folder Claude Code finds its projects in.
 - **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,
-  Tailscale's Disconnect, adding a tool — ask for sudo's password in a dialog first, only
-  when sudo would, check it on the machine, and close their terminal when they are done.
+  Tailscale's switches, adding a tool — ask for sudo's password in a dialog first, only
+  when sudo would, check it on the machine, and run in a small terminal that drops down from
+  the top of the page rather than a dialog: done, it stays three seconds (hover holds it,
+  Keep open keeps it) and slides away; failed, it stays with its exit code.
 - **Escape closes a dialog**, the top one only, as clicking outside it does. In a field being
   edited it first puts the value back; in a terminal it goes to the program there.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. What a program in the

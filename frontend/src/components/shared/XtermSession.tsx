@@ -26,17 +26,24 @@ interface Copied {
 export function XtermSession({
   url,
   onClosed,
+  onOutput,
   toolbar,
+  height = "h-[55vh]",
 }: {
   url: string;
   // How the server closed it — a machine's terminal reopens after the key is unlocked.
   onClosed?: (code: number, reason: string) => void;
+  // What the session prints, as text — read by the quick terminal for how a run ended.
+  onOutput?: (text: string) => void;
   toolbar?: (run: (command: string) => void) => ReactNode;
+  height?: string;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
+  const onOutputRef = useRef(onOutput);
+  onOutputRef.current = onOutput;
   const [copied, setCopied] = useState<Copied | null>(null);
 
   useEffect(() => {
@@ -86,6 +93,7 @@ export function XtermSession({
     });
 
     const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
     let ws: WebSocket | null = null;
     const sendResize = () => {
       if (ws?.readyState === WebSocket.OPEN) {
@@ -108,7 +116,11 @@ export function XtermSession({
         term.focus();
       };
       socket.onmessage = (e) => {
-        term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+        const data = typeof e.data === "string" ? e.data : new Uint8Array(e.data);
+        term.write(data);
+        if (onOutputRef.current) {
+          onOutputRef.current(typeof data === "string" ? data : decoder.decode(data, { stream: true }));
+        }
       };
       socket.onclose = (e) => {
         const why = e.reason ? `: ${e.reason}` : "";
@@ -166,7 +178,7 @@ export function XtermSession({
           <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
         </span>
       </div>
-      <div ref={hostRef} className="h-[55vh] rounded-lg bg-slate-950 p-2" />
+      <div ref={hostRef} className={`${height} rounded-lg bg-slate-950 p-2`} />
     </>
   );
 }

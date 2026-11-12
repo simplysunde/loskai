@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-12 — An automatic run drops down instead of opening a dialog
+
+Sunde found the terminal that opened and closed by itself for Share this network
+"quite distracting", and asked for a quake-style one for runs that do one thing and end,
+with "a tiny timer" to glimpse what ran. An automatic run now drops down from the top of
+the page (`QuickTerminal`), with no backdrop, so the page stays usable; done, it lingers
+three seconds while a bar empties — the bar's CSS animation is the timer, so hovering
+pauses both — and **Keep open** keeps it; failed, it stays with its exit code. The prompts
+before it (the key's password, sudo's) stay dialogs, as they need an answer. A failure is
+told by the `[failed, exit N]` line in the output, not the session's end: in tmux the
+session ends the same either way. Shells and the runs that aren't automatic keep the dialog —
+you work in those.
+
 ## 2026-11-12 — Subnet routing is the Tailscale tool's, not a setting
 
 Sunde asked whether turning subnet routing on belongs in Settings, "since these are

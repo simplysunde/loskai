@@ -182,8 +182,12 @@ Any character but letters, digits, `_` and `-` in the name (a target's `.` or `@
 
 `true` for an action that runs to the end without anyone at it: System's update, a reboot,
 restarting a service. Before its terminal opens, sudo's password is asked for in a dialog,
-when sudo would ask, and checked on the machine. The terminal then closes itself when the
-command succeeds; a failure stays open with its exit code. Leave it out for anything whose
+when sudo would ask, and checked on the machine. Its terminal is not a dialog: it drops down
+from the top of the page (`QuickTerminal`), which stays usable under it. When the command
+succeeds it stays three seconds — hovering holds it, **Keep open** keeps it — and slides
+away; a failure stays, saying its exit code, until closed or Enter is pressed in it. The
+page tells a failure by the `[failed, exit N]` line `tool.visible` prints: inside tmux, the
+exit code never reaches the end of the session. Leave it out for anything whose
 output is the point (a status, a pull) or that you work in (a shell, an attach, Claude,
 a login link): those answer sudo in the terminal. Adding a tool, and the sudo rule, always
 run this way.

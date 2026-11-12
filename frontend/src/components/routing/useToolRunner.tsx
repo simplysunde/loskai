@@ -10,12 +10,19 @@ import { MachineTerminal } from "./MachineTerminal";
 // with `confirm` — for the machine's page and each tool's page. `ui` is what to render.
 export function useToolRunner(machine: { id: string; name: string } | undefined, sshKey: SshKey | null) {
   const [run, setRun] = useState<ToolRun | "shell" | null>(null);
+  // An automatic run — the action says so; the sudo rule and adding a tool always are —
+  // drops down rather than opening a dialog.
+  const [quick, setQuick] = useState(false);
   const [confirming, setConfirming] = useState<{ run: ToolRun; action: ToolAction } | null>(null);
   const qc = useQueryClient();
 
+  const begin = (r: ToolRun, action?: ToolAction) => {
+    setQuick(Boolean(action?.automatic || r.sudo || r.install));
+    setRun(r);
+  };
   const start = (r: ToolRun, action?: ToolAction) => {
     if (action?.confirm) setConfirming({ run: r, action });
-    else setRun(r);
+    else begin(r, action);
   };
 
   const ui = machine && (
@@ -25,6 +32,7 @@ export function useToolRunner(machine: { id: string; name: string } | undefined,
           machine={machine}
           sshKey={sshKey}
           run={run === "shell" ? undefined : run}
+          quick={run !== "shell" && quick}
           onClose={() => {
             setRun(null);
             // What it ran may have changed what runs there, and what the machine has.
@@ -40,7 +48,7 @@ export function useToolRunner(machine: { id: string; name: string } | undefined,
         confirmLabel={confirming?.action.label}
         onCancel={() => setConfirming(null)}
         onConfirm={() => {
-          if (confirming) setRun(confirming.run);
+          if (confirming) begin(confirming.run, confirming.action);
           setConfirming(null);
         }}
       >

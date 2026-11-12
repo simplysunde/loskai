@@ -76,9 +76,9 @@ const TOOLS = [
   {
     id: "system", name: "System", description: "Update the system, reboot, shut down.", requires: [], installable: [],
     actions: [
-      { id: "update", label: "Update", description: "Update it.", target: null, confirm: null,
+      { id: "update", label: "Update", description: "Update it.", target: null, confirm: null, automatic: true,
         run: { apt: "sudo apt-get update && sudo apt-get -y dist-upgrade" } },
-      { id: "reboot", label: "Reboot", description: "Restart it.", target: null,
+      { id: "reboot", label: "Reboot", description: "Restart it.", target: null, automatic: true,
         confirm: "Everything on it stops until it is back up.", run: "sudo reboot" },
     ],
   },
@@ -196,6 +196,14 @@ beforeEach(() => {
               ? { values: { name: "Ola Nordmann", email: "ola@example.no" } }
             : path.endsWith("/facts")
               ? facts
+            // As the backend says: automatic when the action is, and the sudo rule and an
+            // install always — an automatic run drops down instead of opening a dialog.
+            : path.endsWith("/run")
+              ? (() => {
+                  const r = JSON.parse(String(init?.body ?? "{}"));
+                  const action = TOOLS.find((t) => t.id === r.tool)?.actions.find((a) => a.id === r.action) as { automatic?: boolean } | undefined;
+                  return { automatic: Boolean(r.sudo || r.install || action?.automatic), needs_password: false, ticket: null };
+                })()
             : path.endsWith("/scan")
               ? { fingerprint: "SHA256:abc", type: "ssh-ed25519", state: "new" }
               : {};

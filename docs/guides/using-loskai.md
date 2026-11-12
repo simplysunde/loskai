@@ -178,10 +178,12 @@ nothing to switch on, each as a card under its **Tools**. **System** updates it 
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it; hovering a button shows the command. One that runs by itself — System's, Services,
-Proxmox, ending a tmux session, Tailscale's Disconnect, adding a tool — asks first for
-sudo's password in a dialog when sudo would, checks it on the machine, and closes its
-terminal when it is done; a failure stays open with its exit code. The others (a shell,
-tmux, Claude, Connect) answer sudo in the terminal as usual. With
+Proxmox, ending a tmux session, Tailscale's switches, adding a tool — asks first for
+sudo's password in a dialog when sudo would, checks it on the machine, and runs in a small
+terminal that drops down from the top of the page instead of a dialog. Done, it stays three
+seconds so you can see what ran (hover to hold it, **Keep open** to keep it) and slides
+away; a failure stays, with its exit code. The others (a shell,
+tmux, Claude, connecting Tailscale) answer sudo in the terminal as usual. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
 back up.
 

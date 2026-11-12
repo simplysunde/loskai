@@ -40,3 +40,14 @@ html.light body {
   background: #f8fafc; /* inverted slate-950 */
   color: #1e293b; /* inverted slate-200 */
 }
+
+/* The quick terminal's linger (QuickTerminal): the bar empties, and when it has the panel
+   goes — the animation is the timer, so hovering pauses both. */
+@keyframes quick-linger {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
