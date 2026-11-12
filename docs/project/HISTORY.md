@@ -17,6 +17,14 @@ Loskai would need a Tailscale API key, and Loskai keeps no third-party keys. For
 turned on for IPv4 only — IPv6 forwarding makes Linux stop taking its address from router
 advertisements, and the shared network is IPv4.
 
+**The script `scripts/tailscale-subnet-router.sh` is gone** (Phase 44b, restored by
+reverting its removal). It covered a box Loskai doesn't manage, but any box can be named on
+the Machines tab and given the tool — and three ways to do one thing was one too many;
+Sunde: "sticking with the tool is best". The recipe stays, as the optional way for a Docker
+host that shouldn't run Tailscale itself. What the script did that the tool doesn't: fall
+back to userspace networking in an LXC without a TUN device — the guide gives the LXC one
+instead.
+
 ## 2026-11-11 — Status line v8: sudo asked so it logs nothing
 
 A review found every poll ran `sudo -n true` to decide whether to read a machine's

@@ -24,14 +24,14 @@ Not on everything. Routes keep using LAN addresses; Tailscale only adds the ways
 | Device | Tailscale | How | Why |
 |---|---|---|---|
 | Your phone, your laptop | **Yes** | Tailscale's app, logged in to your tailnet | How you get in from outside |
-| One box at home — the **subnet router** | **Yes** | The recipe or the script ([step 1](#1-run-the-subnet-router)) | Shares your LAN with the tailnet |
+| One box at home — the **subnet router** | **Yes** | Its Tailscale tool, or the recipe ([step 1](#1-run-the-subnet-router)) | Shares your LAN with the tailnet |
 | A machine away from home — a VPS, a box elsewhere | **Yes** | Tailscale's own install | The only way to reach it |
 | The Docker host Loskai runs on | Only to manage machines on the tailnet | Tailscale's own install — from Loskai, its Tailscale tool — then its address in Settings | Loskai's SSH connects from here — [below](#managing-a-machine-on-your-tailnet) |
 | Caddy's box | Only to route to machines on the tailnet | Tailscale's own install | Caddy connects from here — [below](#routing-to-a-machine-on-your-tailnet) |
 | Everything else — servers, the NAS, AdGuard, PCs at home | **No** | — | Reached on the LAN, and through the subnet router from outside |
 
 One box can be several of these: a Docker host with Tailscale installed can be the subnet
-router too — run the script on it instead of installing the recipe.
+router too — **Share this network** on its Tailscale card, rather than the recipe as well.
 
 A device without Tailscale still uses all of Loskai — its page opens on the LAN, and Loskai
 makes the connections from the Docker host. It can't open a tailnet address itself.
@@ -42,60 +42,38 @@ One is enough — pick the box:
 
 | Where | How |
 |---|---|
-| **Any machine on the Machines tab** | Its **Tailscale** tool: add it, **Connect**, then **Share this network** ([below](#from-the-machines-tab)) |
-| **The Docker host** | The **Tailscale** recipe, from the Docker tab's install wizard |
-| **Any other box** — a VM, an LXC, a Raspberry Pi | `scripts/tailscale-subnet-router.sh`, run on it |
-
-The recipe and the script ask the same three things: the network to share (your LAN, `192.168.10.0/24`), the
-device's name on the tailnet, and an **auth key**, which is optional. Without one, Tailscale
-prints a login link — open it and log in to your tailnet. Either way the key is used once;
-the device stays logged in after.
+| **Any machine on the Machines tab** — the Docker host, a VM, an LXC, a Raspberry Pi | Its **Tailscale** tool ([below](#from-the-machines-tab)) |
+| **The Docker host, without installing Tailscale on it** | The **Tailscale** recipe, from the Docker tab's install wizard ([below](#the-recipe)) |
 
 ### From the Machines tab
 
 On a machine with SSH set up, its dialog's **Tools** → **Add tool** → **Tailscale** installs
-it, and **Connect** logs it in (the link shows in the terminal). Then **Share this network**,
-on the Tailscale card: it asks for sudo's password, turns on IP forwarding and shares the
-network the machine is on. The card says **waiting for approval** until step 2.1 is done, and
+it, with Tailscale's own installer, and **Connect** logs it in (the link shows in the
+terminal). Then **Share this network**, on the Tailscale card: it asks for sudo's password,
+turns on IP forwarding and shares the network the machine is on — `192.168.10.0/24` for an
+address in `192.168.10.x`. The card says **waiting for approval** until step 2.1 is done, and
 **Sharing 192.168.10.0/24** after. **Stop sharing** takes it back.
 
-### The recipe
-
-Install **Tailscale** from the Docker tab like any recipe. With no auth key, the wizard's
-last step shows the login link once Tailscale prints it — open it and log in. It waits an
-hour; after that the container starts over with a new link, at the end of its logs on the
-Docker tab (the line after `To authenticate, visit:`).
-
-It runs in *userspace networking*: no TUN device, no extra rights, nothing changed on the
-Docker host. Its login is kept in `state/` beside its compose file.
-
-### The script
-
-On the box, as root — the same `BASE` as the [install guide](install.md):
-
-```bash
-BASE=https://raw.githubusercontent.com/simplysunde/loskai/main
-curl -fsSL $BASE/scripts/tailscale-subnet-router.sh | bash
-```
-
-It installs Tailscale (with Tailscale's own install script), shares the network the box's
-default route is on, and names the device after the box. To choose instead, put the values
-on the `bash` side of the pipe:
-
-```bash
-curl -fsSL $BASE/scripts/tailscale-subnet-router.sh | TS_ROUTES=192.168.10.0/24 TS_HOSTNAME=home-lan bash
-```
-
-It needs systemd (Debian, Ubuntu, Raspberry Pi OS and the like) and is safe to run again.
-
-**In a Proxmox LXC** there is no TUN device unless Proxmox gives it one, so the script falls
-back to userspace networking — it works, more slowly. For kernel mode, on the Proxmox host:
+**In a Proxmox LXC**, Tailscale needs a TUN device, which Proxmox gives a container only when
+asked. On the Proxmox host, before adding the tool:
 
 ```bash
 pct set <CTID> -dev0 /dev/net/tun
 ```
 
-then restart the LXC and run the script again; it switches back by itself.
+then restart the LXC.
+
+### The recipe
+
+Install **Tailscale** from the Docker tab like any recipe. It asks the network to share (your
+LAN, `192.168.10.0/24`), the device's name on the tailnet, and an **auth key**, which is
+optional and used once. With no auth key, the wizard's last step shows the login link once
+Tailscale prints it — open it and log in. It waits an hour; after that the container starts
+over with a new link, at the end of its logs on the Docker tab (the line after `To
+authenticate, visit:`).
+
+It runs in *userspace networking*: no TUN device, no extra rights, nothing changed on the
+Docker host. Its login is kept in `state/` beside its compose file.
 
 ## 2. Two settings in Tailscale's admin console
 

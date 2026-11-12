@@ -829,8 +829,13 @@ standalone install script too, "which can be used for a VM, an LXC or a Raspberr
       again. With a guide, `docs/guides/tailscale.md`: both ways in, then the admin
       console's two settings. Built: run in a Debian 12 container with systemd — kernel
       mode with a TUN device, userspace without, and back again on the next run. A box
-      already logged in (`tailscale set`) is 44c's to see.
-- [ ] 44c Live: a real tailnet — share the LAN from each, open a routed name from a phone.
+      already logged in (`tailscale set`) is 44c's to see. *Retired 2026-11-12* for 44d.
+- [x] 44d The Tailscale tool shares a machine's network (**Share this network**, **Stop
+      sharing**), and its card says whether the tailnet approved it (status line v9). Built:
+      the commands run under `dash` with sudo faked, and the status line with Tailscale
+      faked; a machine with nothing shared, live.
+- [ ] 44c Live: a real tailnet — share the LAN from the tool (codebox) and the recipe, open
+      a routed name from a phone.
 
 ## Phase 45 — Links: a Dashboard entry without Caddy
 
