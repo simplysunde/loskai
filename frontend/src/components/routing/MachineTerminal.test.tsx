@@ -7,9 +7,10 @@ import { MachineTerminal } from "./MachineTerminal";
 import { json } from "../../test/render";
 
 // xterm needs a real canvas; what matters here is which session opens, and when.
-const sessions: { url: string; onClosed?: (code: number, reason: string) => void }[] = [];
+type Session = { url: string; onClosed?: (code: number, reason: string) => void; onOutput?: (text: string) => void };
+const sessions: Session[] = [];
 vi.mock("../shared/XtermSession", () => ({
-  XtermSession: (props: { url: string; onClosed?: (code: number, reason: string) => void }) => {
+  XtermSession: (props: Session) => {
     sessions.push(props);
     return <div>shell at {props.url}</div>;
   },
@@ -139,6 +140,16 @@ test("a run sudo needs no password for opens at once; one that isn't automatic s
   expect(screen.queryByLabelText("sudo password")).toBeNull();
   sessions[sessions.length - 1].onClosed?.(1000, "");
   expect(onClose).not.toHaveBeenCalled();
+});
+
+test("a run that isn't automatic closes on the Enter its prompt asks for, not on a dropped connection", async () => {
+  const attach = { tool: "system", action: "status", title: "Status" } as never;
+  const first = renderRun([{ body: { automatic: false, needs_password: false, ticket: null } }], attach);
+  await screen.findByText(/shell at/);
+  // Drawn by tmux: the prompt comes with colour codes around it.
+  sessions[sessions.length - 1].onOutput?.("up 3 days\r\n\x1b[1m[done, exit 0]\x1b[0m Enter closes this.\r\n");
+  sessions[sessions.length - 1].onClosed?.(1000, "");
+  expect(first.onClose).toHaveBeenCalled();
 });
 
 test("a key that locked before the run asks for your password first", async () => {

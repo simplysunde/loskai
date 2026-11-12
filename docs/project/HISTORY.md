@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-12 — "Enter closes this" closes the window; Escape closes an ended terminal
+
+Sunde detached from a new tmux session and was left with a dialog saying `[done, exit 0]
+Enter closes this.` — Enter ended the session, and the dialog stayed, with Escape going to
+a terminal that had nothing left in it. Two changes. A tool's run closes its window when
+its session ends after the prompt was printed: that end is the Enter. It isn't closed on any
+end, because the server closes a session that the machine dropped (a reboot, the network)
+exactly as one that finished, and a window vanishing then would hide why. And once any
+terminal's session has ended, Escape is passed on to close its dialog, as everywhere else;
+`[session closed] Esc closes this.` says so.
+
 ## 2026-11-12 — An automatic run drops down instead of opening a dialog
 
 Sunde found the terminal that opened and closed by itself for Share this network

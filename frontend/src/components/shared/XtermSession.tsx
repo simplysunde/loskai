@@ -58,7 +58,11 @@ export function XtermSession({
     term.open(hostRef.current!);
     fit.fit();
 
+    // Once the session has ended there is no program left to read Escape, so it is passed on:
+    // the dialog the terminal is in closes, as it would anywhere else.
+    let ended = false;
     term.attachCustomKeyEventHandler((e) => {
+      if (ended && e.key === "Escape") return false;
       const action = clipboardAction(e, term.hasSelection());
       if (action === "copy") {
         e.preventDefault();
@@ -124,7 +128,8 @@ export function XtermSession({
       };
       socket.onclose = (e) => {
         const why = e.reason ? `: ${e.reason}` : "";
-        term.write(`\r\n\x1b[90m[session closed${why}]\x1b[0m\r\n`);
+        ended = true;
+        term.write(`\r\n\x1b[90m[session closed${why}] Esc closes this.\x1b[0m\r\n`);
         onClosedRef.current?.(e.code, e.reason);
       };
       ws = wsRef.current = socket;

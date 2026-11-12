@@ -62,7 +62,8 @@ Everything so far:
   the top of the page rather than a dialog: done, it stays three seconds (hover holds it,
   Keep open keeps it) and slides away; failed, it stays with its exit code.
 - **Escape closes a dialog**, the top one only, as clicking outside it does. In a field being
-  edited it first puts the value back; in a terminal it goes to the program there.
+  edited it first puts the value back; in a terminal it goes to the program there, until
+  the session has ended. A tool's run closes its window on the Enter its prompt asks for.
 - **Terminals** — Tab completes, Ctrl+Shift+C copies, Ctrl+V pastes. What a program in the
   terminal copies — tmux, Claude Code's `c`, an editor — reaches your clipboard (OSC 52);
   Shift+drag selects even where a program uses the mouse. The container terminal

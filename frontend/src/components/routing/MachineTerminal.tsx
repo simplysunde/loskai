@@ -16,9 +16,15 @@ import { YourPassword } from "../shared/YourPassword";
 // locked — the one case the password below fixes. A session that ends by itself closes 1000.
 const LOCKED = 4423;
 const ENDED = 1000;
-// What a failed automatic run prints before it waits for Enter (`tool.visible`): inside
-// tmux its exit code never reaches the session's end, so the output is how it is told.
+// What a run prints before it waits for Enter (`tool.visible`): `[done, exit N]`, or for an
+// automatic one `[failed, exit N]`. Inside tmux its exit code never reaches the session's
+// end, so the output is how it is told — and a session that ends once the prompt is up
+// ended by Enter, not by the connection dropping.
 const FAILED = /\[failed, exit (\d+)\]/;
+const PROMPT = /\[(?:done|failed), exit \d+\] Enter closes this/;
+// The output as text, without the colour and cursor codes tmux draws it with.
+const CODES = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[A-Za-z]`, "g");
+const plain = (text: string) => text.replace(CODES, "");
 
 // What `POST …/run` says about a run before its terminal opens.
 interface Prepared {
@@ -118,7 +124,7 @@ export function MachineTerminal({
             height="h-[30vh]"
             onOutput={(text) => {
               tail.current = (tail.current + text).slice(-400);
-              const failed = FAILED.exec(tail.current);
+              const failed = FAILED.exec(plain(tail.current));
               if (failed && !ended) setEnded({ phase: "failed", detail: `exit ${failed[1]}` });
             }}
             onClosed={(code, reason) => {
@@ -218,11 +224,15 @@ export function MachineTerminal({
         <XtermSession
           key={session}
           url={`/api/ssh/machines/${machine.id}/terminal${query}`}
+          onOutput={run ? (text) => { tail.current = (tail.current + text).slice(-400); } : undefined}
           onClosed={(code) => {
             if (code === LOCKED) {
               prepare.reset();
               setStage("unlock");
-            } else if (code === ENDED && prepared?.automatic) onClose();
+            } else if (code === ENDED && (prepared?.automatic || PROMPT.test(plain(tail.current)))) {
+              // "Enter closes this", pressed. Anything else stays, saying why it closed.
+              onClose();
+            }
           }}
         />
       )}

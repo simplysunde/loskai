@@ -200,8 +200,10 @@ run this way.
 
 1. The command under `sh -c`, with the target as `$1`.
 2. Then `[done, exit N] Enter closes this.`, waiting for Enter, so the output stays on
-   screen. An `automatic` one ends at once when it succeeds, and otherwise says
-   `[failed, exit N]` and waits.
+   screen; Enter ends the session and closes its window. An `automatic` one ends at once
+   when it succeeds, and otherwise says `[failed, exit N]` and waits. The page tells Enter
+   from a dropped connection — both close the session the same way — by the prompt having
+   been printed: a window whose session ended without it stays, saying why.
 3. **Inside tmux** when the machine has it, in the session `session` says. Closing the
    browser tab leaves it running, and running the same action again attaches to it rather
    than starting a second.
