@@ -178,6 +178,16 @@ def test_host_tailscale_ip_is_a_bare_ip():
 ENV_ONLY_KEYS = {"stacks_dir", "loskai_password", "loskai_username", "data_dir", "static_dir"}
 
 
+def test_a_value_is_stored_without_the_spaces_around_it_except_a_password():
+    s.update({"host_tailscale_ip": " 100.100.10.20\n", "host_ip": "192.168.10.220 ",
+              "base_domain": "  ", "adguard_password": " pass word "})
+
+    assert s.resolve("host_tailscale_ip") == ("100.100.10.20", "stored")
+    assert s.resolve("host_ip") == ("192.168.10.220", "stored")
+    assert s.resolve("base_domain") == (None, "unset")  # only spaces: unset, like ""
+    assert s.resolve("adguard_password") == (" pass word ", "stored")
+
+
 def test_configurable_keys_match_the_env_model():
     """Settings keys are enumerated in three places — config.Settings, CONFIGURABLE_KEYS,
     and the frontend *_FIELDS arrays. Forgetting the middle one silently makes a key

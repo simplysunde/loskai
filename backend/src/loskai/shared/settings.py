@@ -296,6 +296,10 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
                 continue
             if _resolve(key, stored)[1] == "env":
                 continue  # env wins — never override from the UI
+            # A field's spaces are never meant: an address pasted with a newline would be
+            # written into every machine's `from=` with it. A password's may be.
+            if isinstance(val, str) and key not in SECRET_KEYS:
+                val = val.strip()
             if val in (None, ""):
                 stored.pop(key, None)
             else:
