@@ -870,6 +870,7 @@ test("with Loskai's key locked, the Git card asks for your password to read them
 
 test("Tailscale is two switches — connected, and sharing — with the tailnet folded under them", async () => {
   setUp();
+  facts = { ...FACTS, tailscale_self: { state: "on", shared: [], approved: [] } };
   renderPage();
   await screen.findByText("Storage box");
 
@@ -889,6 +890,19 @@ test("Tailscale is two switches — connected, and sharing — with the tailnet 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.path === "/api/ssh/machines/nas/run")?.body).toMatchObject({ tool: "tailscale", action: "share" }),
   );
+});
+
+test("on a status line before v9, sharing has no switch, only how to see it", async () => {
+  setUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale/ }));
+
+  expect(await screen.findByRole("switch", { name: "Connected" })).toBeChecked();
+  expect(screen.getByText(/Install again, under SSH, to see and change it/)).toBeInTheDocument();
+  expect(screen.queryByRole("switch", { name: "Share this network" })).not.toBeInTheDocument();
 });
 
 test("Tailscale off, or logged out, offers only to connect", async () => {

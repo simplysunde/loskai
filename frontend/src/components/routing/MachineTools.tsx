@@ -180,7 +180,14 @@ function TailscaleSettings({ tool: t, ctx }: { tool: Tool; ctx: ToolContext }) {
           onChange={() => run(up ? "down" : "up")}
         />
       </SettingRow>
-      {state === "on" && (
+      {/* A line before v9 doesn't say what it shares: no switch that could only guess. */}
+      {state === "on" && !self && (
+        <SettingRow
+          label="Share this network"
+          description="Its status line is older than this Loskai: Install again, under SSH, to see and change it"
+        />
+      )}
+      {state === "on" && self && (
         <SettingRow
           label="Share this network"
           description={
@@ -189,7 +196,7 @@ function TailscaleSettings({ tool: t, ctx }: { tool: Tool; ctx: ToolContext }) {
             ) : (
               <span className="flex flex-wrap gap-x-3">
                 {shared.map((net) =>
-                  self?.approved.includes(net) ? (
+                  self.approved.includes(net) ? (
                     <span key={net}>
                       <span className="font-mono text-slate-400">{net}</span> ·{" "}
                       <AdminLink
