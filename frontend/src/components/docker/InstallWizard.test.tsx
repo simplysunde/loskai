@@ -437,6 +437,17 @@ test("the last step shows the newest link the container logs under the recipe's 
     "https://login.example.com/a/second",
   );
   expect(screen.queryByText(/elsewhere/)).not.toBeInTheDocument();
+
+  // In JSON, in colour, or ending a sentence: only the address.
+  for (const [line, id] of [
+    ['{"msg":"visit https://login.example.com/a/json"}', "json"],
+    ["visit \x1b[1mhttps://login.example.com/a/colour\x1b[0m now", "colour"],
+    ["Visit https://login.example.com/a/stop.", "stop"],
+    ["(see https://login.example.com/a/paren)", "paren"],
+  ]) {
+    act(() => logs.onmessage!({ data: line }));
+    expect(screen.getByRole("link")).toHaveAttribute("href", `https://login.example.com/a/${id}`);
+  }
 });
 
 test("a recipe without a log_link opens no log stream", async () => {

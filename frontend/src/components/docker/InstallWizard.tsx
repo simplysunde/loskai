@@ -484,11 +484,13 @@ function LogLink({ prefix, container }: { prefix: string; container: string }) {
 
   useEffect(() => {
     const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`${escaped}\\S*`, "g");
+    // The rest of the address is the characters a URL is made of — not a quote, a bracket
+    // or a colour code a log wraps it in — less a sentence's full stop or comma at its end.
+    const pattern = new RegExp(`${escaped}[A-Za-z0-9\\-._~:/?#@!$&*+,;=%]*`, "g");
     const es = new EventSource(`/api/docker/containers/${encodeURIComponent(container)}/logs`);
     es.onmessage = (e) => {
       const found = String(e.data).match(pattern);
-      if (found) setUrl(found[found.length - 1]);
+      if (found) setUrl(found[found.length - 1].replace(/[.,;:!?]+$/, ""));
     };
     es.onerror = () => es.close();
     return () => es.close();
