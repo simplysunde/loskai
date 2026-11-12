@@ -60,13 +60,18 @@ try the plain command, then `sudo -n` (which never prompts) where sudo allows it
 root or sudo allows it `sh`; otherwise it says `!partial` and runs as the user, who sees only
 its own processes' sockets — the others' ports come without a pid, so without a service.
 
-**Sudo is asked so that it logs nothing** (since v8). `sudo -n true` — and any command sudo
-refuses — is logged as an incident, and may mail root: on every poll, for a user without
-sudo. So the line first asks `sudo -n -l` (no command), which sudo refuses without logging
-to a user with no passwordless rule; only then, for each use, `sudo -n -l <command>`, which
-it answers without logging to a user with one; and runs `sudo -n <command>` only when that
-says yes. A user with no sudo, or a narrow rule (Loskai's own for updates), leaves nothing
-in the machine's logs.
+**Sudo is asked so that it logs nothing** (since v8, and right since v10). `sudo -n true` —
+and any command sudo refuses — is logged as an incident, and may mail root: on every poll.
+`sudo -n -l` lists the user's rules without logging — but it answers as soon as *one* rule
+needs no password (sudo's default `listpw=any`), so it can't say whether a given command
+does. Up to v9 the line took `sudo -n -l <command>` saying yes as permission; with Loskai's
+own rule for updates beside a password-protected `ALL` (Ubuntu's `%sudo`), every check said
+yes and every use was refused — the ports and Proxmox's guests read as none, and a refusal
+logged each poll. Since v10 it uses sudo only when, in that listing, the last rule for every
+command (`ALL`), run as root, has `NOPASSWD` — sudo goes by the last rule that matches —
+and then still asks `sudo -n -l <command>` before each use. Anything narrower, Loskai's own
+rule included, uses no sudo: the lists are read as the user, and say what they couldn't
+read (`!partial`, `!denied`). Nothing is left in the machine's logs.
 
 Parsed to `{ containers, services, hidden, guests, listening, denied }`:
 
@@ -138,8 +143,8 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
   either appears.
 - **POSIX `sh`.** It runs under the user's login shell, which may be `dash`, `bash` or
   `ash`. The test suite runs it with `sh` for every request.
-- **`sudo -n` only**, so it never waits for a password — and only once `sudo -n -l` says
-  the command is allowed, so a refusal is never logged.
+- **`sudo -n` only**, so it never waits for a password — and only where the user's rules
+  let every command run without one, so a refusal is never logged (above).
 - **Nothing secret in the output** — it is cached and served to the logged-in admin.
 
 ## Versions
@@ -151,7 +156,7 @@ the new line, so:
 2. Keep every parser accepting the versions whose output it can still read.
    `parse_running` reads them all — from a line before v6, without ports; before v7,
    without guest addresses.
-   `parse_facts` reads `FACTS_VERSIONS` (v5 to v9; before v9, without `tailscale_self`) — a
+   `parse_facts` reads `FACTS_VERSIONS` (v5 to v10; before v9, without `tailscale_self`) — a
    page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
@@ -167,6 +172,7 @@ the new line, so:
 | 7 | `running` adds `#addr`, each running Proxmox guest's addresses (Phase 43a) |
 | 8 | `running` asks sudo with `sudo -n -l` before using it, so sudo logs no refusal every poll; a Proxmox host's `pct list` and `qm list` run once, not twice |
 | 9 | `facts` adds `#=tsself`: whether the machine is connected to its tailnet, the networks it shares, and which are approved |
+| 10 | sudo is used only where its last rule for every command needs no password: a check that a command was allowed said nothing of the password, so with Loskai's update rule every use was refused, and logged. `#=tsself` asks `tailscale status` once, not twice |
 
 ## Adding a fact
 

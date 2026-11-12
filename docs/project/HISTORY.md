@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-12 — Status line v10: sudo only where it needs no password
+
+A code review found v8's quiet sudo wrong for exactly the machines Loskai sets up: one with
+Loskai's update rule (`NOPASSWD`, a few commands) beside Ubuntu's `%sudo ALL` with a
+password. `sudo -n -l` answers without a password as soon as one rule needs none
+(`listpw=any`), so `sudo -n -l sh` said yes, `sudo -n sh` then wanted the password — and
+was refused, and logged, every 30 s; the listeners and Proxmox's guests read as empty
+rather than unreadable. There is no quiet way to ask sudo "would this need a password", so
+v10 reads the listing instead: sudo is used only when the last rule for `ALL`, as root, is
+`NOPASSWD`. A narrower passwordless rule (for `docker` alone, say) is no longer used: the
+list it would have read says `!denied` instead — honest, and never logged. The same version
+asks `tailscale status` once for both the state and the approved networks.
+
 ## 2026-11-12 — "Enter closes this" closes the window; Escape closes an ended terminal
 
 Sunde detached from a new tmux session and was left with a dialog saying `[done, exit 0]

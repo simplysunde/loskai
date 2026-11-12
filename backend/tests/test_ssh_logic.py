@@ -535,17 +535,37 @@ def test_a_failing_proxmox_list_is_denied_not_empty(tmp_path):
     assert logic.parse_running("#loskai-status 8\n#listen\n" + out)["denied"] == ["pct", "qm"]
 
 
+def _sudo_lists(rules: str | None) -> str:
+    """A fake sudo: `-n -l` prints `rules` as sudo lists them, or is refused (None); a
+    command is allowed by `-n -l <command>`, as with any rule for ALL."""
+    listing = f"User loskai may run the following commands on box:\n{rules}" if rules is not None else ""
+    return (f"case \"$*\" in \"-n -l\") [ -n '{listing}' ] || exit 1; printf '%s\\n' '{listing}'; exit 0;; "
+            "\"-n -l \"*) exit 0;; esac\nexit 0")
+
+
+# The rules sudo lists for each kind of user, as `sudo -n -l` prints them.
+PASSWORD_ALL = "    (ALL : ALL) ALL"
+LOSKAI_RULE = "    (root) NOPASSWD: /usr/bin/apt-get update, /usr/bin/apt-get -y dist-upgrade"
+FREE_ALL = "    (ALL) NOPASSWD: ALL"
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="as root, sudo is never asked")
-@pytest.mark.parametrize("bare,command", [(1, 1), (0, 1)])
-def test_sudo_runs_nothing_it_would_refuse(tmp_path, bare, command):
+@pytest.mark.parametrize("rules", [
+    None,  # no passwordless rule: `-n -l` itself is refused, quietly
+    PASSWORD_ALL + "\n" + LOSKAI_RULE,  # %sudo with a password, and Loskai's rule for updates
+    FREE_ALL + "\n" + PASSWORD_ALL,  # sudo goes by the last rule: that one wants a password
+    "    (www-data) NOPASSWD: ALL",  # passwordless, but not as root
+])
+def test_sudo_runs_nothing_it_would_refuse(tmp_path, rules):
     """`sudo -n true` is logged as an incident for a user sudo refuses — every poll, and it
-    may mail root. v8 asks with `sudo -n -l` first, which sudo answers without logging: a
-    user with no passwordless rule (`bare` refused), or one whose rules don't cover the
-    command (`command` refused), gets no sudo run at all. Docker, Proxmox and ss are faked
+    may mail root. `sudo -n -l` answers without logging, but as soon as any one rule needs no
+    password: with Loskai's own rule for updates, every command it was asked about was
+    "allowed" while running it wanted the password — refused, and logged. So sudo is used
+    only where the last rule for ALL, as root, needs none. Docker, Proxmox and ss are faked
     so that every list would fall back to sudo."""
     calls = tmp_path / "calls"
     fakes = {
-        "sudo": f'echo "$*" >> {calls}\ncase "$*" in "-n -l") exit {bare};; "-n -l "*) exit {command};; esac\nexit 0',
+        "sudo": f'echo "$*" >> {calls}\n{_sudo_lists(rules)}',
         "docker": "exit 1", "pct": "exit 1", "qm": "exit 1", "ss": "exit 0",
     }
     for name, body in fakes.items():
@@ -555,16 +575,16 @@ def test_sudo_runs_nothing_it_would_refuse(tmp_path, bare, command):
     out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
 
     asked = calls.read_text().split("\n")[:-1]
-    assert asked and all(a.startswith("-n -l") for a in asked), asked
-    if bare:
-        assert asked == ["-n -l"]  # refused once, quietly; nothing else asked
+    assert asked == ["-n -l"]  # asked once, quietly; nothing run
     assert set(logic.parse_running(out)["denied"]) >= {"docker", "pct", "qm"}
+    assert "listen" in logic.parse_running(out)["denied"]  # read as the user, and said so
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="as root, sudo is never asked")
-def test_a_user_sudo_allows_still_gets_the_root_lists(tmp_path):
+@pytest.mark.parametrize("rules", [FREE_ALL, PASSWORD_ALL + "\n" + LOSKAI_RULE + "\n" + FREE_ALL])
+def test_a_user_sudo_allows_still_gets_the_root_lists(tmp_path, rules):
     calls = tmp_path / "calls"
-    (tmp_path / "sudo").write_text(f'#!/bin/sh\necho "$*" >> {calls}\nexit 0\n')
+    (tmp_path / "sudo").write_text(f'#!/bin/sh\necho "$*" >> {calls}\n{_sudo_lists(rules)}\n')
     for name, body in {"sudo": None, "pct": "exit 1", "ss": "exit 0"}.items():
         if body:
             (tmp_path / name).write_text(f"#!/bin/sh\n{body}\n")

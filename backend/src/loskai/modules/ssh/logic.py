@@ -223,12 +223,12 @@ def public_key_of(private_key: str, comment: str) -> str:
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_VERSION = "#loskai-status 9"
-OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 9))
-# The lines whose `facts` answer this Loskai reads — v6 to v8 changed only `running`.
-FACTS_VERSIONS = (*(f"#loskai-status {n}" for n in range(5, 9)), STATUS_VERSION)
+STATUS_VERSION = "#loskai-status 10"
+OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 10))
+# The lines whose `facts` answer this Loskai reads — v6 to v8 and v10 changed nothing it reads.
+FACTS_VERSIONS = (*(f"#loskai-status {n}" for n in range(5, 10)), STATUS_VERSION)
 # The lines with a `#listen` section where the machine has `ss`.
-LISTEN_VERSIONS = (*(f"#loskai-status {n}" for n in range(6, 9)), STATUS_VERSION)
+LISTEN_VERSIONS = (*(f"#loskai-status {n}" for n in range(6, 10)), STATUS_VERSION)
 
 # Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
 # letting its user run exactly System's update commands — and this file's removal — with no
@@ -247,12 +247,20 @@ def remove_sudo_rule(on_fail: str) -> str:
     )
 
 _DOCKER_PS = "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}'"
-# Whether sudo may be used, asked so that sudo logs nothing: `sudo -n -l` with no command is
-# refused quietly to a user with no passwordless rule, where `sudo -n true` is logged as an
-# incident — and may mail root — on every poll. `S=1` when it may; each use then asks, as
-# quietly, whether that very command is allowed (`sudo -n -l <command>`), so a narrow rule —
-# Loskai's own for updates — logs nothing either.
-_SUDO = "S=0; if [ $(id -u) != 0 ] && sudo -n -l >/dev/null 2>&1; then S=1; fi; "
+# Whether sudo may be used, asked so that sudo logs nothing: `sudo -n true` — any command
+# sudo refuses — is logged as an incident, and may mail root, on every poll. `sudo -n -l`
+# lists the user's rules without logging, but answers as soon as *one* rule needs no
+# password (sudo's `listpw=any`), so whether a command is allowed (`sudo -n -l <command>`)
+# says nothing of whether it needs a password: with Loskai's own rule for updates beside
+# a password-protected `ALL`, every check said yes and every use was refused, and logged.
+# So `S=1` only when the last rule for every command (`ALL`), as root, needs no password —
+# sudo goes by the last rule that matches. A narrower rule leaves `S=0`: the lists are read
+# as the user, and say what they couldn't read.
+_SUDO = (
+    "S=0; if [ $(id -u) != 0 ] && sudo -n -l 2>/dev/null "
+    "| grep -E '^[[:space:]]+[(](ALL|root)([[:space:]]*:[^)]*)?[)][[:space:]]+([A-Z_]+:[[:space:]]*)*ALL$' | tail -n 1 "
+    "| grep -q NOPASSWD; then S=1; fi; "
+)
 
 
 def _with_sudo(command: str) -> str:
@@ -350,11 +358,12 @@ _FACTS = (
     # This machine on the tailnet: whether it is connected (its BackendState), the networks
     # it shares (`tailscale get`, which an older Tailscale lacks: none shown), and those the
     # tailnet has approved — its own `PrimaryRoutes`, the only ones with --peers=false.
-    "echo '#=tsself'; echo state $(tailscale status --json --peers=false 2>/dev/null "
-    "| grep -m 1 BackendState | tr -dc A-Za-z: | cut -d: -f2); "
-    "echo shared $(tailscale get advertise-routes 2>/dev/null | tr , ' '); "
-    "echo approved $(tailscale status --json --peers=false 2>/dev/null "
-    "| awk '/PrimaryRoutes/{on=1} on{print} on&&/null|[]]/{exit}' | grep -oE '[0-9a-f.:]+/[0-9]+'); fi; "
+    # Its status is asked once: one awk prints `state` and `approved` from it.
+    "echo '#=tsself'; echo shared $(tailscale get advertise-routes 2>/dev/null | tr , ' '); "
+    "tailscale status --json --peers=false 2>/dev/null | awk -v s=state -v r=approved -v e= "
+    "'/BackendState/&&!b{b=1;v=$2;gsub(/[^A-Za-z]/,e,v)} /PrimaryRoutes/{on=1} "
+    "on{while(match($0,/[0-9a-f.:]+[/][0-9]+/)){a=a OFS substr($0,RSTART,RLENGTH);$0=substr($0,RSTART+RLENGTH)}} "
+    "on&&/null|[]]/{on=0} END{print s,v;print r a}'; fi; "
     # Whether Loskai's sudo rule is there: nothing printed where its folder can't be searched.
     f"echo '#=sudo'; if [ -x /etc/sudoers.d ]; then [ -e {SUDO_RULE} ] && echo on || echo off; fi; "
     # The git repos one and two folders into the home folder — a machine's projects folder
