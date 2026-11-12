@@ -101,7 +101,7 @@ The Add route picker's Machines source offers these ports
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
 | `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
-| `#=tsroutes` | `shared <cidr>…` (`tailscale get advertise-routes`, Tailscale 1.90 on) and `approved <cidr>…` (its own `PrimaryRoutes`, from `tailscale status --json --peers=false`), only where `tailscale` is | `tailscale_routes` — `{shared, approved}`, without an exit node's `0.0.0.0/0` and `::/0`; `null` with no section (no Tailscale, or a line before v9) |
+| `#=tsroutes` | `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from `tailscale status --json --peers=false`), only where `tailscale` is | `tailscale_routes` — `{shared, approved}`, without an exit node's `0.0.0.0/0` and `::/0`; `null` with no section (no Tailscale, or a line before v9) |
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|committed\|subject` | `projects` — see below |
 | `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 

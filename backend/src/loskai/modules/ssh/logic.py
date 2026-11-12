@@ -347,7 +347,7 @@ _FACTS = (
     "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; "
     # The tailnet as this machine sees it, itself first — read-only, and no root needed.
     "echo '#=tailnet'; tailscale status 2>/dev/null | head -n 100; "
-    # The networks it shares with the tailnet (`tailscale get`, Tailscale 1.90 on), and those
+    # The networks it shares with the tailnet (`tailscale get`, which an older Tailscale lacks: nothing shown), and those
     # the tailnet has approved — its own `PrimaryRoutes`, the only ones with --peers=false.
     "echo '#=tsroutes'; echo shared $(tailscale get advertise-routes 2>/dev/null | tr , ' '); "
     "echo approved $(tailscale status --json --peers=false 2>/dev/null "
