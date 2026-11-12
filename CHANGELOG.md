@@ -80,10 +80,11 @@ Everything so far:
   login — shows it on the wizard's last step. Without Caddy set up, the last step offers a
   link instead of a route — Loskai can run alone, for Docker and Machines (install guide,
   "Loskai alone").
-- **The status line, version 8** — reading what runs on a machine no longer fills its auth
+- **The status line, version 9** — reading what runs on a machine no longer fills its auth
   log: sudo is asked in a way it doesn't log, where every poll was logged as a refused
-  sudo for a user without one. On Proxmox it lists the guests once, not twice. A machine
-  shows "install again" until its line is reinstalled.
+  sudo for a user without one. On Proxmox it lists the guests once, not twice. It says
+  Tailscale's state and which networks the machine shares, for the Tailscale card. A
+  machine shows "install again" until its line is reinstalled.
 - **Links** — a name and an address (`http://<ip>:<port>`) the Dashboard opens directly, with
   no Caddy or AdGuard: Add route offers Route or Link, and only Link while Caddy isn't set
   up. A container's link uses the port it's published on and follows it. A link becomes a
