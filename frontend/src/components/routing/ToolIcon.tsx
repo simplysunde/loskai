@@ -1,15 +1,11 @@
 import {
-  Activity,
   Download,
   LogIn,
   Play,
-  Plug,
   Power,
   RotateCw,
-  Share2,
   Square,
   Terminal,
-  Unplug,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -59,11 +55,6 @@ const SYMBOLS: Record<string, LucideIcon> = {
   "proxmox.shutdown-vm": Power,
   "tmux.attach": LogIn,
   "tmux.kill": Square,
-  "tailscale.up": Plug,
-  "tailscale.status": Activity,
-  "tailscale.down": Unplug,
-  "tailscale.share": Share2,
-  "tailscale.unshare": Square,
   "claude.terminal": Terminal,
   "claude.end": Square,
 };

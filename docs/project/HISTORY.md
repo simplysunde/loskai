@@ -17,6 +17,24 @@ Loskai would need a Tailscale API key, and Loskai keeps no third-party keys. For
 turned on for IPv4 only — IPv6 forwarding makes Linux stop taking its address from router
 advertisements, and the shared network is IPv4.
 
+**The card is two switches, not five buttons** (asked for an audit the same day). Connect,
+Status, Share this network, Stop sharing and Disconnect all showed whatever the state, the
+tailnet's device list came first, and "not connected" covered both off and logged out. Now
+**Connected** and **Share this network** are switches — each running the tool's own action,
+moving once the overview reads it back, as the sudo rule's does — the state is said (off,
+logged out, waiting for the tailnet's approval), and the rest of the tailnet is folded under
+them. Status is gone: it printed what the card lists. A warning for Tailscale SSH was
+considered and left out: where it matters — a machine reached on its Tailscale address —
+Loskai can't read the overview at all, so it could only ever show where it doesn't.
+
+**Funnel and Serve are not in Loskai.** Sunde asked whether the tool should publish
+services through them, with paths. No: Funnel puts a service on the public internet, which
+the Tailscale setup is built to avoid, and needs a tailnet policy Loskai can't see without
+an API key; Serve and Funnel are a second way to name services, beside the Routing tab — a
+decision made twice; and paths break any app not told its base URL (Proxmox among them).
+Both stay a terminal command on the machine. A route that should be public would be a
+Routing option, decided there.
+
 **The script `scripts/tailscale-subnet-router.sh` is gone** (Phase 44b, restored by
 reverting its removal). It covered a box Loskai doesn't manage, but any box can be named on
 the Machines tab and given the tool — and three ways to do one thing was one too many;

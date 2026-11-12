@@ -31,7 +31,7 @@ Not on everything. Routes keep using LAN addresses; Tailscale only adds the ways
 | Everything else — servers, the NAS, AdGuard, PCs at home | **No** | — | Reached on the LAN, and through the subnet router from outside |
 
 One box can be several of these: a Docker host with Tailscale installed can be the subnet
-router too — **Share this network** on its Tailscale card, rather than the recipe as well.
+router too — switch **Share this network** on, on its Tailscale card, rather than the recipe as well.
 
 A device without Tailscale still uses all of Loskai — its page opens on the LAN, and Loskai
 makes the connections from the Docker host. It can't open a tailnet address itself.
@@ -48,11 +48,12 @@ One is enough — pick the box:
 ### From the Machines tab
 
 On a machine with SSH set up, its dialog's **Tools** → **Add tool** → **Tailscale** installs
-it, with Tailscale's own installer, and **Connect** logs it in (the link shows in the
-terminal). Then **Share this network**, on the Tailscale card: it asks for sudo's password,
+it, with Tailscale's own installer. On its card, switch **Connected** on: the terminal shows
+a link to log it in. Then switch **Share this network** on: it asks for sudo's password,
 turns on IP forwarding and shares the network the machine is on — `192.168.10.0/24` for an
-address in `192.168.10.x`. The card says **waiting for approval** until step 2.1 is done, and
-**Sharing 192.168.10.0/24** after. **Stop sharing** takes it back.
+address in `192.168.10.x`. It says **waiting for approval** until step 2.1 is done (its
+**Approve** link goes there), and links to **Split DNS** (step 2.2) after. Switching it off
+stops sharing — every network the machine shares, also one added by hand.
 
 **In a Proxmox LXC**, Tailscale needs a TUN device, which Proxmox gives a container only when
 asked. On the Proxmox host, before adding the tool:
@@ -104,7 +105,7 @@ the Machines tab like any other: its terminal, its tools, what runs there.
 1. **Tailscale on the Docker host** Loskai runs on, with Tailscale's own install (not the
    recipe, which leaves the host itself off the tailnet). Loskai can do it: name the Docker
    host on the Machines tab (its row is first), set up its SSH, then **Add tool** →
-   **Tailscale** in its dialog and **Connect**. Its overview then shows the address — or
+   **Tailscale** in its dialog, and switch **Connected** on. Its overview then shows the address — or
    `tailscale ip -4` there prints it. **Tailscale on the Docker host**, under the field in
    step 2, goes to that machine, as far as it has got.
 2. **Settings › General › Docker Host Tailscale IP**: that address (or `HOST_TAILSCALE_IP`).

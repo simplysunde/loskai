@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Wrench } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, ChevronRight, Plus, Wrench } from "lucide-react";
 
 import { useFacts, useSsh } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
@@ -15,6 +15,7 @@ import {
   type ToolTarget,
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
+import { SettingRow, Switch } from "../shared/SettingRow";
 import { ToolSettings } from "./ToolSettings";
 
 const BUTTON =
@@ -64,6 +65,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   // Git's card holds the projects folder even without settings of its own.
   const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
   if (own.length + asks.length + lists.length === 0 && !settings) return null;
+  const tailscale = t.id === "tailscale";
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
@@ -74,24 +76,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
         </div>
       )}
       {settings && <ToolSettings tool={t} ctx={ctx} />}
-      {/* Tailscale's card: the tailnet as this machine sees it — devices, not targets. */}
-      {t.requires.includes("tailscale") && (ctx.facts.tailnet?.length ?? 0) > 0 && (
-        <ul className="mt-2 space-y-1 text-xs text-slate-300">
-          {ctx.facts.tailnet!.map((d) => (
-            <li key={d.ip} title={d.status} className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${d.online ? "bg-emerald-400" : "bg-slate-600"}`} />
-                <span className="truncate font-mono">{d.name}</span>
-                {d.self && <span className="text-slate-500">this machine</span>}
-              </span>
-              <span className="shrink-0 text-slate-500">
-                <span className="font-mono">{d.ip}</span> · {d.os}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {t.requires.includes("tailscale") && <SharedNetworks routes={ctx.facts.tailscale_routes} />}
+      {tailscale && <TailscaleSettings tool={t} ctx={ctx} />}
       {lists.map(({ kind, rows }) => (
         <div key={kind} className="mt-2">
           <ul className="space-y-1.5 text-xs text-slate-300">
@@ -109,7 +94,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           </ul>
         </div>
       ))}
-      {(own.length > 0 || asks.length > 0) && (
+      {!tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {own.map((a) => {
             const command = commandFor(a, manager);
@@ -137,46 +122,133 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
 const ADMIN = "https://login.tailscale.com/admin";
 const OUT_LINK = "text-teal-400 hover:text-teal-300 hover:underline";
 
-// What the machine shares with the tailnet (Share this network), and whether Tailscale has
-// approved it — until it does, nothing goes through. Approving it, and split DNS, are in
-// Tailscale's admin console: Loskai holds no Tailscale key to do either.
-function SharedNetworks({ routes }: { routes?: { shared: string[]; approved: string[] } | null }) {
-  if (!routes?.shared.length) return null;
+function AdminLink({ path, title, children }: { path: string; title: string; children: ReactNode }) {
   return (
-    <ul className="mt-2 space-y-1 text-xs text-slate-300">
-      {routes.shared.map((net) =>
-        routes.approved.includes(net) ? (
-          <li key={net} className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-            Sharing <span className="font-mono">{net}</span>
-            <a
-              href={`${ADMIN}/dns`}
-              target="_blank"
-              rel="noreferrer"
-              title="Your names away from home also need split DNS: a nameserver for your AdGuard, restricted to your base domain"
-              className={OUT_LINK}
-            >
-              Split DNS
-            </a>
-          </li>
-        ) : (
-          <li key={net} className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-            <span className="font-mono">{net}</span>
-            <span className="text-amber-300">waiting for approval</span>
-            <a
-              href={`${ADMIN}/machines`}
-              target="_blank"
-              rel="noreferrer"
-              title="Machines › this machine's ⋯ menu › Edit route settings — approve it. Disable key expiry there too."
-              className={OUT_LINK}
-            >
-              Approve
-            </a>
-          </li>
-        ),
+    <a href={`${ADMIN}/${path}`} target="_blank" rel="noreferrer" title={title} className={OUT_LINK}>
+      {children}
+    </a>
+  );
+}
+
+// Tailscale's card is two settings rather than a row of buttons: whether the machine is on
+// the tailnet, and whether it shares its network — each a switch that runs the tool's own
+// action (up/down, share/unshare) and moves once the overview reads the change back. Below
+// them, folded, the rest of the tailnet. Approving a device or a network, and split DNS, are
+// in Tailscale's admin console: Loskai holds no Tailscale key to do them.
+function TailscaleSettings({ tool: t, ctx }: { tool: Tool; ctx: ToolContext }) {
+  const [open, setOpen] = useState(false);
+  const self = ctx.facts.tailscale_self;
+  const ip = ctx.facts.tailscale ?? null;
+  // A line before v9 says only whether it has an address.
+  const state = self?.state ?? (ip ? "on" : "off");
+  const up = state === "on" || state === "approval";
+  const shared = self?.shared ?? [];
+  const others = (ctx.facts.tailnet ?? []).filter((d) => !d.self);
+  const online = others.filter((d) => d.online).length;
+  const name = ctx.facts.tailnet?.find((d) => d.self)?.name;
+  const run = (id: string) => {
+    const a = t.actions.find((x) => x.id === id);
+    if (a) ctx.onRun({ tool: t.id, action: a.id, title: a.label }, a);
+  };
+
+  return (
+    <div className="mt-1 divide-y divide-slate-800">
+      <SettingRow
+        label="Connected"
+        description={
+          state === "on" ? (
+            <span className="font-mono text-slate-400">
+              {ip}
+              {name && <span className="font-sans text-slate-500"> · {name}</span>}
+            </span>
+          ) : state === "approval" ? (
+            <span className="text-amber-300">
+              Waiting for your tailnet to approve this device ·{" "}
+              <AdminLink path="machines" title="Machines › this device › Approve">Approve</AdminLink>
+            </span>
+          ) : state === "login" ? (
+            <span className="text-amber-300">Logged out — connecting shows a link to log in</span>
+          ) : (
+            "Off"
+          )
+        }
+      >
+        <Switch
+          label="Connected"
+          checked={up}
+          title={up ? "Disconnect: take this machine off the tailnet" : "Connect: bring Tailscale up, in its terminal"}
+          onChange={() => run(up ? "down" : "up")}
+        />
+      </SettingRow>
+      {state === "on" && (
+        <SettingRow
+          label="Share this network"
+          description={
+            shared.length === 0 ? (
+              "Your devices reach this machine's network from anywhere"
+            ) : (
+              <span className="flex flex-wrap gap-x-3">
+                {shared.map((net) =>
+                  self?.approved.includes(net) ? (
+                    <span key={net}>
+                      <span className="font-mono text-slate-400">{net}</span> ·{" "}
+                      <AdminLink
+                        path="dns"
+                        title="Your names away from home also need split DNS: a nameserver for your AdGuard, restricted to your base domain"
+                      >
+                        Split DNS
+                      </AdminLink>
+                    </span>
+                  ) : (
+                    <span key={net} className="text-amber-300">
+                      <span className="font-mono">{net}</span> waiting for approval ·{" "}
+                      <AdminLink
+                        path="machines"
+                        title="Machines › this machine's ⋯ menu › Edit route settings — approve it. Disable key expiry there too."
+                      >
+                        Approve
+                      </AdminLink>
+                    </span>
+                  ),
+                )}
+              </span>
+            )
+          }
+        >
+          <Switch
+            label="Share this network"
+            checked={shared.length > 0}
+            title={shared.length > 0 ? "Stop sharing it" : "Share the network this machine is on: asks for sudo's password"}
+            onChange={() => run(shared.length > 0 ? "unshare" : "share")}
+          />
+        </SettingRow>
       )}
-    </ul>
+      {up && others.length > 0 && (
+        <div className="pt-2">
+          <button
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200"
+          >
+            {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            Tailnet · {others.length} other {others.length === 1 ? "device" : "devices"}, {online} online
+          </button>
+          {open && (
+            <ul className="mt-1.5 space-y-1 pl-5 text-xs text-slate-300">
+              {others.map((d) => (
+                <li key={d.ip} title={`${d.os} · ${d.status}`} className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${d.online ? "bg-emerald-400" : "bg-slate-600"}`} />
+                    <span className="truncate font-mono">{d.name}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-slate-500">{d.ip}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -195,16 +195,20 @@ and Add.
   Claude's are on their projects instead.
   **Attach** opens one in the terminal (detach with Ctrl+B, then D, and it keeps running),
   **End** ends it, and **New session** starts one with the name you type.
-- **Tailscale** is installed with Tailscale's own installer. **Connect** brings it up — the
-  first time, the terminal shows a link to log the machine in; **Status** shows the tailnet
-  in the terminal. The overview then shows
-  its Tailscale address, and Tailscale's card lists your tailnet — each device, its
-  address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
-  **Share this network** makes the machine a subnet router: it shares the network it is on
-  (`192.168.10.0/24`) with your tailnet, so your devices reach your homelab from anywhere —
-  [Tailscale](tailscale.md). Its card then says **waiting for approval** until you approve
-  it in Tailscale's admin console (**Approve** goes there), and **Sharing** after.
-  **Stop sharing** takes it back.
+- **Tailscale** is installed with Tailscale's own installer. Its card is two switches:
+  - **Connected** — on, it shows the machine's Tailscale address; off, **Logged out** or
+    **Waiting for your tailnet to approve this device** say what it is waiting for.
+    Switching it on brings Tailscale up in the terminal, which shows a link to log in the
+    first time; off disconnects it, after asking.
+  - **Share this network** — makes the machine a subnet router: it shares the network it
+    is on (`192.168.10.0/24`) with your tailnet, so your devices reach your homelab from
+    anywhere ([Tailscale](tailscale.md)). It says **waiting for approval** until you approve
+    it in Tailscale's admin console (**Approve** goes there), then links to **Split DNS**.
+
+  Both ask for sudo's password, except connecting, which answers sudo in the terminal. Under
+  them, folded, the rest of your tailnet: each device, its address, and whether it is
+  online. The overview shows the machine's Tailscale address too. In an LXC, Tailscale needs
+  the container to have `/dev/net/tun`.
 
 - **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
   git's global `user.name` and `user.email`, read from the machine and set there as you

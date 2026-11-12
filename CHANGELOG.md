@@ -31,10 +31,11 @@ Everything so far:
   container), Proxmox (reboot or shut down a guest); a tool the machine lacks is offered to
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:
-  installed with its own installer; connect (the login link shows in the terminal),
-  status, disconnect; **Share this network** makes the machine a subnet router for its
-  network, and its card says whether Tailscale has approved it yet; the machine's Tailscale
-  address in its overview, and the tailnet — each device, online or not — on its card. **Claude Code**: the
+  installed with its own installer; its card is two switches — **Connected** (the login
+  link shows in the terminal; logged out and waiting for approval are said) and **Share
+  this network**, which makes the machine a subnet router and says whether Tailscale has
+  approved it yet — with the rest of the tailnet folded under them; the machine's Tailscale
+  address in its overview. **Claude Code**: the
   git projects in the machine's projects folder (`~/projects`, changeable per machine on the
   Git card), each
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude

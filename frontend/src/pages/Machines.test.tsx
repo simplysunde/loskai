@@ -107,7 +107,15 @@ const TOOLS = [
   },
   {
     id: "tailscale", name: "Tailscale", description: "Connect it.", requires: ["tailscale"], installable: ["tailscale"],
-    actions: [{ id: "up", label: "Connect", description: "Up.", target: null, ask: null, confirm: null, session: null, run: "sudo tailscale up" }],
+    actions: [
+      { id: "up", label: "Connect", description: "Up.", target: null, ask: null, confirm: null, session: null, run: "sudo tailscale up" },
+      { id: "share", label: "Share this network", description: "Share.", target: null, ask: null, confirm: null, session: null,
+        automatic: true, run: "sudo tailscale set --advertise-routes=x" },
+      { id: "unshare", label: "Stop sharing", description: "Stop.", target: null, ask: null, confirm: "Stops it.", session: null,
+        automatic: true, run: "sudo tailscale set --advertise-routes=" },
+      { id: "down", label: "Disconnect", description: "Down.", target: null, ask: null, confirm: "Off.", session: null,
+        automatic: true, run: "sudo tailscale down" },
+    ],
   },
   {
     id: "git", name: "Git", description: "Who commits are by.", requires: ["git"], installable: ["git"], actions: [],
@@ -860,36 +868,68 @@ test("with Loskai's key locked, the Git card asks for your password to read them
   expect(calls.find((c) => c.path === "/api/ssh/unlock")?.body).toEqual({ password: "admin-pw" });
 });
 
-test("Tailscale says its address and how much of the tailnet is online, and lists it", async () => {
+test("Tailscale is two switches — connected, and sharing — with the tailnet folded under them", async () => {
   setUp();
   renderPage();
   await screen.findByText("Storage box");
 
   fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*100\.64\.0\.7 · 1 of 2 online/ }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*100\.64\.0\.7$/ }));
 
-  expect(await screen.findByText("phone")).toBeInTheDocument();
-  expect(screen.getByText("this machine")).toBeInTheDocument();
-  expect(screen.getByText("phone").closest("li")!.title).toBe("offline");
-  // A button's symbol says what it does, not a play button on every one.
-  const connect = screen.getByRole("button", { name: "Connect" }).querySelector("svg")!.classList;
-  expect(connect).toContain("lucide-plug");
+  expect(await screen.findByRole("switch", { name: "Connected" })).toBeChecked();
+  expect(screen.getByRole("switch", { name: "Share this network" })).not.toBeChecked();
+  // No row of buttons: each switch runs its action.
+  expect(screen.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+  // The rest of the tailnet, folded: this machine isn't among the others.
+  expect(screen.queryByText("phone")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Tailnet · 1 other device, 0 online/ }));
+  expect(screen.getByText("phone").closest("li")!.title).toBe("iOS · offline");
+
+  fireEvent.click(screen.getByRole("switch", { name: "Share this network" }));
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.path === "/api/ssh/machines/nas/run")?.body).toMatchObject({ tool: "tailscale", action: "share" }),
+  );
 });
 
-test("Tailscale says which networks it shares, and which wait for approval", async () => {
+test("Tailscale off, or logged out, offers only to connect", async () => {
   setUp();
-  facts = { ...FACTS, tailscale_routes: { shared: ["192.168.10.0/24", "10.0.0.0/24"], approved: ["192.168.10.0/24"] } };
+  facts = { ...FACTS, tailscale: null, tailscale_self: { state: "login", shared: [], approved: [] } };
   try {
     renderPage();
     await screen.findByText("Storage box");
 
     fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale/ }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*logged out/ }));
 
-    const shared = (await screen.findByText("192.168.10.0/24")).closest("li") as HTMLElement;
-    expect(shared).toHaveTextContent("Sharing 192.168.10.0/24");
+    const connected = await screen.findByRole("switch", { name: "Connected" });
+    expect(connected).not.toBeChecked();
+    expect(screen.getByText(/Logged out — connecting shows a link/)).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Share this network" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tailnet/ })).not.toBeInTheDocument();
+
+    fireEvent.click(connected);
+    await vi.waitFor(() =>
+      expect(calls.find((c) => c.path === "/api/ssh/machines/nas/run")?.body).toMatchObject({ tool: "tailscale", action: "up" }),
+    );
+  } finally {
+    facts = FACTS;
+  }
+});
+
+test("Tailscale says which networks it shares, and which wait for approval", async () => {
+  setUp();
+  facts = { ...FACTS, tailscale_self: { state: "on", shared: ["192.168.10.0/24", "10.0.0.0/24"], approved: ["192.168.10.0/24"] } };
+  try {
+    renderPage();
+    await screen.findByText("Storage box");
+
+    fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*sharing 192\.168\.10\.0\/24, 10\.0\.0\.0\/24/ }));
+
+    expect(await screen.findByRole("switch", { name: "Share this network" })).toBeChecked();
+    const shared = screen.getByText("192.168.10.0/24").parentElement as HTMLElement;
     expect(within(shared).getByRole("link", { name: "Split DNS" })).toHaveAttribute("href", "https://login.tailscale.com/admin/dns");
-    const waiting = screen.getByText("10.0.0.0/24").closest("li") as HTMLElement;
+    const waiting = screen.getByText("10.0.0.0/24").parentElement as HTMLElement;
     expect(waiting).toHaveTextContent("waiting for approval");
     expect(within(waiting).getByRole("link", { name: "Approve" })).toHaveAttribute("href", "https://login.tailscale.com/admin/machines");
   } finally {

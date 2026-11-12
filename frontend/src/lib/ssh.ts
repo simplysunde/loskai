@@ -103,9 +103,14 @@ export interface Facts {
   tailscale?: string | null; // its Tailscale IPv4 address; null: not connected
   // The devices `tailscale status` lists, this machine first (`self`).
   tailnet?: { ip: string; name: string; os: string; online: boolean; self: boolean; status: string }[];
-  // The networks it shares with the tailnet, and those approved; null: not known (no
-  // Tailscale, or a status line before v9).
-  tailscale_routes?: { shared: string[]; approved: string[] } | null;
+  // This machine on the tailnet: connected ("on"), "off", logged out ("login") or waiting
+  // for the tailnet's admin ("approval"); the networks it shares, and those approved. null:
+  // not known (no Tailscale, or a status line before v9).
+  tailscale_self?: {
+    state: "on" | "off" | "login" | "approval" | null;
+    shared: string[];
+    approved: string[];
+  } | null;
   // The git repos in the home folder; `folder` relative to it, times in seconds (0: never).
   projects?: {
     path: string;

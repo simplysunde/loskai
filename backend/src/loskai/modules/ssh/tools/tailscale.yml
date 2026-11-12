@@ -8,10 +8,6 @@ actions:
     label: Connect
     description: Bring Tailscale up. The first time, it prints a link to log this machine in.
     run: sudo tailscale up
-  status:
-    label: Status
-    description: This machine's tailnet, and who is on it.
-    run: tailscale status
   share:
     label: Share this network
     description: >-

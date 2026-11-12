@@ -83,13 +83,15 @@ export function listsOf(t: Tool, { facts, folder, tools }: ToolContext) {
 }
 
 // A tool in a few words, for its card and its page: what its lists hold, how many of
-// them run — or, for Tailscale, the machine's address.
+// them run — or, for Tailscale, the machine's address and what it shares.
 export function toolSummary(t: Tool, ctx: ToolContext): string {
   if (t.requires.includes("tailscale")) {
-    const tailnet = ctx.facts.tailnet ?? [];
+    const self = ctx.facts.tailscale_self;
+    if (self?.state === "login") return "logged out";
+    if (self?.state === "approval") return "waiting for approval";
     if (!ctx.facts.tailscale) return "not connected";
-    const online = tailnet.filter((d) => d.online).length;
-    return tailnet.length ? `${ctx.facts.tailscale} · ${online} of ${tailnet.length} online` : ctx.facts.tailscale;
+    const shared = self?.shared ?? [];
+    return shared.length ? `${ctx.facts.tailscale} · sharing ${shared.join(", ")}` : ctx.facts.tailscale;
   }
   const sessions = new Set((ctx.facts.tmux ?? []).map((s) => s.name));
   return listsOf(t, ctx)

@@ -101,7 +101,7 @@ The Add route picker's Machines source offers these ports
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
 | `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
-| `#=tsroutes` | `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from `tailscale status --json --peers=false`), only where `tailscale` is | `tailscale_routes` — `{shared, approved}`, without an exit node's `0.0.0.0/0` and `::/0`; `null` with no section (no Tailscale, or a line before v9) |
+| `#=tsself` | `state <BackendState>` (from `tailscale status --json --peers=false`), `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from the same status), only where `tailscale` is | `tailscale_self` — `{state, shared, approved}`: `state` `on` (Running), `off` (Stopped), `login` (NeedsLogin), `approval` (NeedsMachineAuth) or `null`; the networks without an exit node's `0.0.0.0/0` and `::/0`. `null` with no section (no Tailscale, or a line before v9) |
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|committed\|subject` | `projects` — see below |
 | `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 
@@ -145,7 +145,7 @@ the new line, so:
 2. Keep every parser accepting the versions whose output it can still read.
    `parse_running` reads them all — from a line before v6, without ports; before v7,
    without guest addresses.
-   `parse_facts` reads `FACTS_VERSIONS` (v5 to v9; before v9, without `tailscale_routes`) — a
+   `parse_facts` reads `FACTS_VERSIONS` (v5 to v9; before v9, without `tailscale_self`) — a
    page on an older line says so.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
@@ -160,7 +160,7 @@ the new line, so:
 | 6 | `running` adds each container's ports and `#listen`, the ports services listen on (Phase 42a) |
 | 7 | `running` adds `#addr`, each running Proxmox guest's addresses (Phase 43a) |
 | 8 | `running` asks sudo with `sudo -n -l` before using it, so sudo logs no refusal every poll; a Proxmox host's `pct list` and `qm list` run once, not twice |
-| 9 | `facts` adds `#=tsroutes`: the networks a machine shares with its tailnet, and which are approved |
+| 9 | `facts` adds `#=tsself`: whether the machine is connected to its tailnet, the networks it shares, and which are approved |
 
 ## Adding a fact
 

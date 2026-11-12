@@ -581,7 +581,7 @@ def test_the_networks_a_machine_shares_with_its_tailnet_and_which_are_approved(t
     # Tailscale, faked as it answers without root: two networks shared, one approved. The
     # AllowedIPs before PrimaryRoutes hold an address too, and must not be read as a route.
     status = (
-        '{\n  "Self": {\n    "AllowedIPs": [\n      "100.64.0.1/32"\n    ],\n'
+        '{\n  "BackendState": "Running",\n  "Self": {\n    "AllowedIPs": [\n      "100.64.0.1/32"\n    ],\n'
         '    "PrimaryRoutes": [\n      "192.168.10.0/24"\n    ],\n    "Online": true\n  }\n}'
     )
     (tmp_path / "tailscale").write_text(
@@ -594,19 +594,26 @@ def test_the_networks_a_machine_shares_with_its_tailnet_and_which_are_approved(t
     env = {"PATH": f"{tmp_path}:{os.environ['PATH']}", "HOME": str(tmp_path), "SSH_ORIGINAL_COMMAND": "facts"}
     out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
 
-    assert logic.parse_facts(out)["tailscale_routes"] == {
-        "shared": ["192.168.10.0/24", "10.0.0.0/24"], "approved": ["192.168.10.0/24"],
+    assert logic.parse_facts(out)["tailscale_self"] == {
+        "state": "on", "shared": ["192.168.10.0/24", "10.0.0.0/24"], "approved": ["192.168.10.0/24"],
     }
 
 
-def test_shared_networks_leave_out_an_exit_node_and_need_v9():
+@pytest.mark.parametrize("backend,state", [
+    ("Running", "on"), ("Stopped", "off"), ("NeedsLogin", "login"), ("NeedsMachineAuth", "approval"),
+    ("Starting", None), ("", None),
+])
+def test_the_tailscale_state_and_shared_networks_leave_out_an_exit_node_and_need_v9(backend, state):
     v9 = FACTS.replace("status 5", "status 9").replace(
-        "#=sudo", "#=tsroutes\nshared 192.168.10.0/24 0.0.0.0/0 ::/0\napproved\n#=sudo"
+        "#=sudo", f"#=tsself\nstate {backend}\nshared 192.168.10.0/24 0.0.0.0/0 ::/0\napproved\n#=sudo"
     )
-    assert logic.parse_facts(v9)["tailscale_routes"] == {"shared": ["192.168.10.0/24"], "approved": []}
-    # An older line, or a machine without Tailscale, has no section: not known, not "none".
-    assert logic.parse_facts(FACTS)["tailscale_routes"] is None
-    assert logic.parse_facts(FACTS.replace("status 5", "status 8"))["tailscale_routes"] is None
+    assert logic.parse_facts(v9)["tailscale_self"] == {"state": state, "shared": ["192.168.10.0/24"], "approved": []}
+
+
+def test_an_older_line_or_no_tailscale_has_no_tailscale_self():
+    # No section: not known, rather than "off" or "nothing shared".
+    assert logic.parse_facts(FACTS)["tailscale_self"] is None
+    assert logic.parse_facts(FACTS.replace("status 5", "status 8"))["tailscale_self"] is None
 
 
 @pytest.mark.parametrize("request_", ["facts", "running", None])

@@ -347,9 +347,12 @@ _FACTS = (
     "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; "
     # The tailnet as this machine sees it, itself first — read-only, and no root needed.
     "echo '#=tailnet'; tailscale status 2>/dev/null | head -n 100; "
-    # The networks it shares with the tailnet (`tailscale get`, which an older Tailscale lacks: nothing shown), and those
-    # the tailnet has approved — its own `PrimaryRoutes`, the only ones with --peers=false.
-    "echo '#=tsroutes'; echo shared $(tailscale get advertise-routes 2>/dev/null | tr , ' '); "
+    # This machine on the tailnet: whether it is connected (its BackendState), the networks
+    # it shares (`tailscale get`, which an older Tailscale lacks: none shown), and those the
+    # tailnet has approved — its own `PrimaryRoutes`, the only ones with --peers=false.
+    "echo '#=tsself'; echo state $(tailscale status --json --peers=false 2>/dev/null "
+    "| grep -m 1 BackendState | tr -dc A-Za-z: | cut -d: -f2); "
+    "echo shared $(tailscale get advertise-routes 2>/dev/null | tr , ' '); "
     "echo approved $(tailscale status --json --peers=false 2>/dev/null "
     "| awk '/PrimaryRoutes/{on=1} on{print} on&&/null|[]]/{exit}' | grep -oE '[0-9a-f.:]+/[0-9]+'); fi; "
     # Whether Loskai's sudo rule is there: nothing printed where its folder can't be searched.
@@ -622,7 +625,7 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    tailnet, tailscale_routes, projects, sudo_rule}`.
+    tailnet, tailscale_self, projects, sudo_rule}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
@@ -630,9 +633,10 @@ def parse_facts(output: str) -> dict:
     `updates` `{manager, count}` or None; `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
     `{name, created, attached, windows}`; `tailscale` its Tailscale IPv4 address, or None
     (not installed, or not connected); `tailnet` the devices `tailscale status` lists,
-    `{ip, name, os, online, self, status}`, this machine first; `tailscale_routes` the
-    networks it shares with the tailnet, `{shared, approved}` — None without Tailscale or
-    from a line before v9; `projects` the git repos in
+    `{ip, name, os, online, self, status}`, this machine first; `tailscale_self` this
+    machine on the tailnet, `{state, shared, approved}` — `state` "on", "off", "login" (logged
+    out), "approval" (waiting for the tailnet's admin) or None, and the networks it shares
+    and those approved — None without Tailscale or from a line before v9; `projects` the git repos in
     the home folder, `{path, folder, name, branch, dirty, claude, ahead, committed,
     subject}` — `folder` relative to home ("" for home itself), `claude` and `committed`
     seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
@@ -667,7 +671,7 @@ def parse_facts(output: str) -> dict:
         "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
         "tailscale": next(iter(sections.get("tailscale", [])), None),
         "tailnet": _tailnet(sections.get("tailnet", [])),
-        "tailscale_routes": _tailscale_routes(sections.get("tsroutes")),
+        "tailscale_self": _tailscale_self(sections.get("tsself")),
         "projects": [p for p in map(_project, sections.get("projects", [])) if p],
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
     }
@@ -742,15 +746,23 @@ def _project(line: str) -> dict | None:
 _TAILNET_IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$|^[0-9a-f:]+:[0-9a-f:]*$")
 
 
-def _tailscale_routes(lines: list[str] | None) -> dict | None:
-    """`shared <cidr>…` and `approved <cidr>…` → `{shared, approved}`. An exit node's
-    `0.0.0.0/0` and `::/0` are not a network shared, so they are left out."""
+# Tailscale's BackendState, as the card says it. Starting and the others pass: None.
+_TS_STATES = {"Running": "on", "Stopped": "off", "NeedsLogin": "login", "NeedsMachineAuth": "approval"}
+
+
+def _tailscale_self(lines: list[str] | None) -> dict | None:
+    """`state <BackendState>`, `shared <cidr>…` and `approved <cidr>…` → `{state, shared,
+    approved}`. An exit node's `0.0.0.0/0` and `::/0` are not a network shared, so they are
+    left out."""
     if lines is None:
         return None
     rows = {key: rest.split() for key, _, rest in (line.partition(" ") for line in lines)}
     return {
-        key: [r for r in rows.get(key, []) if "/" in r and r not in ("0.0.0.0/0", "::/0")]
-        for key in ("shared", "approved")
+        "state": _TS_STATES.get(next(iter(rows.get("state", [])), "")),
+        **{
+            key: [r for r in rows.get(key, []) if "/" in r and r not in ("0.0.0.0/0", "::/0")]
+            for key in ("shared", "approved")
+        },
     }
 
 
