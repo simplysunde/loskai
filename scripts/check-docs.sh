@@ -18,9 +18,9 @@
 #      beside this one (scripts/sync-recipe-schema.sh). Skipped, not failed, without it.
 #   7. Every page under docs/ opens the same way: a breadcrumb linking back to the index,
 #      the title, then a `**Read this when**` line (docs/README.md, Conventions).
-#   8. The docs' enumerations against the code: the modules (CLAUDE.md and the READMEs),
-#      the admin tabs, the HTTP route count and the public routes named in CLAUDE.md, and
-#      every route against its row in docs/reference/api.md.
+#   8. The docs' enumerations against the code: the modules and the HTTP route count
+#      wherever a current page states them, the admin tabs and public routes named in
+#      CLAUDE.md, and every route against its row in docs/reference/api.md.
 #   9. docs/contributing/where-logic-lives.md: each decision's owner is still defined in the
 #      file its row names, and its Used by column is what scripts/where-used.py finds.
 #
@@ -193,8 +193,17 @@ def listed(pattern: str) -> list[str] | None:
     return [i.strip(" `*") for i in re.split(r",| and ", m.group(1)) if i.strip(" `*")]
 
 
+# Every page that says how things are now: the history files are left out, since a count
+# there was true when it was written.
+HISTORICAL = {"docs/project/HISTORY.md", "docs/project/TODO.md", "docs/project/todo-archive.md"}
+import subprocess
+current = [f for f in subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=True,
+           check=True).stdout.split() if f not in HISTORICAL and pathlib.Path(f).is_file()]
+
 # 1. The modules, against backend/src/loskai/modules/ — every "N modules" and every
-#    "modules (A, B, …)" in CLAUDE.md and the two READMEs a visitor starts from.
+#    "modules (A, B, …)" in CLAUDE.md and the two READMEs a visitor starts from, and every
+#    "N independent modules" or "the backend has N modules" anywhere else. Elsewhere a plain
+#    "two modules" is a part of them ("Routing uses two modules"), not the total.
 mods = sorted(
     d.name for d in pathlib.Path("backend/src/loskai/modules").iterdir()
     if d.is_dir() and not d.name.startswith("__")
@@ -202,13 +211,15 @@ mods = sorted(
 if listed(r"modules \(([^)]*)\)") is None:
     problems.append("  CLAUDE.md: no 'modules (...)' list found — did the wording change?")
 NUMBERS = {w: n for n, w in enumerate("zero one two three four five six seven eight nine ten".split())}
-for doc in ("CLAUDE.md", "README.md", "docs/README.md"):
+for doc in current:
     text = re.sub(r"\s+", " ", pathlib.Path(doc).read_text())
-    for word in re.findall(r"\b(\w+) (?:independent )?modules\b", text):
+    entry = doc in ("CLAUDE.md", "README.md", "docs/README.md")
+    claim = r"\b(\w+) (?:independent )?modules\b" if entry else r"\b(\w+) independent modules\b|backend has (\w+) modules\b"
+    for word in ("".join(m) for m in re.findall(claim, text, re.I)):
         count = NUMBERS.get(word.lower(), int(word) if word.isdigit() else None)
         if count is not None and count != len(mods):
             problems.append(f"  {doc}: says {word} modules, there are {len(mods)}")
-    for items in re.findall(r"modules \(([^)]*)\)", text):
+    for items in re.findall(r"modules \(([^)]*)\)", text) if entry else ():
         claimed = sorted(i.strip(" `*").lower() for i in re.split(r",| and ", items) if i.strip(" `*"))
         if claimed != mods:
             problems.append(f"  {doc}: modules ({items}) != {mods} on disk")
@@ -236,7 +247,8 @@ elif tabs != admin_nav:
     problems.append(f"  CLAUDE.md: admin tabs {tabs} != NAV {admin_nav} (public tabs excluded)")
 
 # 3. The HTTP route count. Drifts the moment a route is added — the two terminal
-#    WebSockets are not counted, because CLAUDE.md names them separately.
+#    WebSockets are not counted, because CLAUDE.md names them separately. CLAUDE.md must
+#    say it; every other "N routes" or "N HTTP routes" on a current page must agree.
 routes = 0
 for f in pathlib.Path("backend/src/loskai").rglob("*.py"):
     routes += len(re.findall(r"@router\.(?:get|post|put|patch|delete)\(", f.read_text()))
@@ -245,6 +257,11 @@ if not m:
     problems.append("  CLAUDE.md: no 'N HTTP routes' claim found — did the wording change?")
 elif int(m.group(1)) != routes:
     problems.append(f"  CLAUDE.md: claims {m.group(1)} HTTP routes, code has {routes}")
+for doc in current:
+    text = re.sub(r"\s+", " ", pathlib.Path(doc).read_text())
+    for n in re.findall(r"\b(\d+) (?:HTTP )?routes\b", text):
+        if doc != "CLAUDE.md" and int(n) != routes:
+            problems.append(f"  {doc}: says {n} routes, code has {routes}")
 
 # 4. Every unauthenticated route named. This is the security boundary; an omission here
 #    reads as "that route is gated" when it isn't.
