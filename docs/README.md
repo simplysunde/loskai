@@ -39,7 +39,7 @@ Operating Loskai. Read in roughly this order the first time.
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
 | [backend-certificates.md](guides/backend-certificates.md) | Only if you open a backend on its own port — Proxmox `:8006`, a NAS UI. Runs Caddy as an ACME server for its own CA so the backend serves a certificate your devices already trust. Loskai is not involved; this is Caddy and the backend. |
 | [migration.md](guides/migration.md) | Bringing containers you already run into Loskai — installing the recipe over your data, moving a compose folder, or writing a `docker run` container a compose file — and when not to bother. Also covers relocating Loskai itself. |
-| [tailscale.md](guides/tailscale.md) | Reaching your routed names away from home. A Tailscale subnet router — the recipe on the Docker host, or a script for a VM, LXC or Raspberry Pi — and the two settings in Tailscale's admin console. |
+| [tailscale.md](guides/tailscale.md) | Reaching your routed names away from home. A Tailscale subnet router — **Share this network** on a machine's Tailscale tool, or the recipe on the Docker host — and the two settings in Tailscale's admin console. |
 | [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Symptom-indexed: 502s, redirect loops, DNS, certs, VPN, greyed-out module cards, a stack that won't start. |
 
 ## Reference
@@ -50,7 +50,7 @@ Exact contracts. Two kinds, and the difference matters:
 
 | Page | When to read it |
 |---|---|
-| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 75 routes; the live `/docs` (Swagger) is authoritative. |
+| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 76 routes; the live `/docs` (Swagger) is authoritative. |
 | [ssh-status.md](reference/ssh-status.md) | Reading something new from a machine without anyone unlocking the SSH key — the status key's forced command, its requests, output and versions. |
 | [tool-schema.md](reference/tool-schema.md) | Adding a tool or an action to one — what a machine's dialog can run over SSH. Tools are data, validated, ship in the image, and apply where the machine has what they need. |
 | [recipe-schema.md](reference/recipe-schema.md) | Authoring a `recipe.yml`, or changing the install wizard's validation. Recipes are declarative data — validated, never executed. |
