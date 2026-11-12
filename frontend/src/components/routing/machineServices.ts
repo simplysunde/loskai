@@ -87,12 +87,28 @@ export function guestMachine(guest: Guest, rows: RouteRow[]): RouteRow | null {
   return rows.find((r) => isMachine(r) && r.upstream !== null && addresses.includes(r.upstream)) ?? null;
 }
 
-// The address to name a guest by: the one on its host's network (the same /24), else its
-// first — an LXC running Docker has a bridge address too. "" when Loskai knows none.
+// The address to name a guest by: the one closest to its host's — the most leading bits in
+// common, so the one on the host's network whatever its size, not a Docker bridge's an LXC
+// running Docker has too. Else, or on a tie, the first. "" when Loskai knows none.
 export function guestAddress(guest: Guest, hostAddress: string | null): string {
   const addresses = guest.addresses ?? [];
-  const net = (a: string) => a.split(".").slice(0, 3).join(".");
-  return addresses.find((a) => hostAddress && net(a) === net(hostAddress)) ?? addresses[0] ?? "";
+  const host = ipv4(hostAddress ?? "");
+  let best = addresses[0] ?? "";
+  let most = -1;
+  for (const a of addresses) {
+    const n = ipv4(a);
+    if (host === null || n === null) continue;
+    const common = n === host ? 32 : Math.clz32((n ^ host) >>> 0);
+    if (common > most) [best, most] = [a, common];
+  }
+  return best;
+}
+
+// A dotted IPv4 address as a number, or null.
+function ipv4(text: string): number | null {
+  const parts = text.split(".");
+  if (parts.length !== 4 || !parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255)) return null;
+  return parts.reduce((n, p) => n * 256 + Number(p), 0);
 }
 
 // A guest's name as a hostname: "NAS" → "nas", "Home Assistant" → "home-assistant".

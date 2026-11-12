@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import type { Running } from "../../lib/ssh";
-import { machineServices } from "./machineServices";
+import { guestAddress, machineServices } from "./machineServices";
 import type { RouteRow } from "./ServiceTable";
 
 const row = (r: Partial<RouteRow>): RouteRow => ({
@@ -86,4 +86,16 @@ test("a port is taken by a route or a link, not by a record whose route was remo
   const [g] = machineServices(rows, { nas: ok({ listening }) }, "192.168.10.220");
 
   expect(g.services.map((s) => s.name)).toEqual(["hass"]);
+});
+
+test("a guest is named by its address closest to its host's, whatever the network's size", () => {
+  const guest = (addresses: string[]) => ({ id: "101", name: "nas", kind: "lxc" as const, addresses });
+
+  // A /24: as before.
+  expect(guestAddress(guest(["172.17.0.1", "192.168.10.60"]), "192.168.10.5")).toBe("192.168.10.60");
+  // A /16: not Docker's bridge, listed first, though the third number differs.
+  expect(guestAddress(guest(["172.17.0.1", "10.0.7.9"]), "10.0.1.5")).toBe("10.0.7.9");
+  // No host address, or none to go by: the first.
+  expect(guestAddress(guest(["10.0.7.9", "172.17.0.1"]), null)).toBe("10.0.7.9");
+  expect(guestAddress(guest([]), "10.0.1.5")).toBe("");
 });
