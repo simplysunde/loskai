@@ -91,6 +91,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           ))}
         </ul>
       )}
+      {t.requires.includes("tailscale") && <SharedNetworks routes={ctx.facts.tailscale_routes} />}
       {lists.map(({ kind, rows }) => (
         <div key={kind} className="mt-2">
           <ul className="space-y-1.5 text-xs text-slate-300">
@@ -130,6 +131,52 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
         </div>
       )}
     </div>
+  );
+}
+
+const ADMIN = "https://login.tailscale.com/admin";
+const OUT_LINK = "text-teal-400 hover:text-teal-300 hover:underline";
+
+// What the machine shares with the tailnet (Share this network), and whether Tailscale has
+// approved it — until it does, nothing goes through. Approving it, and split DNS, are in
+// Tailscale's admin console: Loskai holds no Tailscale key to do either.
+function SharedNetworks({ routes }: { routes?: { shared: string[]; approved: string[] } | null }) {
+  if (!routes?.shared.length) return null;
+  return (
+    <ul className="mt-2 space-y-1 text-xs text-slate-300">
+      {routes.shared.map((net) =>
+        routes.approved.includes(net) ? (
+          <li key={net} className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+            Sharing <span className="font-mono">{net}</span>
+            <a
+              href={`${ADMIN}/dns`}
+              target="_blank"
+              rel="noreferrer"
+              title="Your names away from home also need split DNS: a nameserver for your AdGuard, restricted to your base domain"
+              className={OUT_LINK}
+            >
+              Split DNS
+            </a>
+          </li>
+        ) : (
+          <li key={net} className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+            <span className="font-mono">{net}</span>
+            <span className="text-amber-300">waiting for approval</span>
+            <a
+              href={`${ADMIN}/machines`}
+              target="_blank"
+              rel="noreferrer"
+              title="Machines › this machine's ⋯ menu › Edit route settings — approve it. Disable key expiry there too."
+              className={OUT_LINK}
+            >
+              Approve
+            </a>
+          </li>
+        ),
+      )}
+    </ul>
   );
 }
 

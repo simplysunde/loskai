@@ -32,8 +32,9 @@ Everything so far:
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:
   installed with its own installer; connect (the login link shows in the terminal),
-  status, disconnect; the machine's Tailscale address in its overview, and the tailnet —
-  each device, online or not — on its card. **Claude Code**: the
+  status, disconnect; **Share this network** makes the machine a subnet router for its
+  network, and its card says whether Tailscale has approved it yet; the machine's Tailscale
+  address in its overview, and the tailnet — each device, online or not — on its card. **Claude Code**: the
   git projects in the machine's projects folder (`~/projects`, changeable per machine on the
   Git card), each
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude

@@ -876,6 +876,27 @@ test("Tailscale says its address and how much of the tailnet is online, and list
   expect(connect).toContain("lucide-plug");
 });
 
+test("Tailscale says which networks it shares, and which wait for approval", async () => {
+  setUp();
+  facts = { ...FACTS, tailscale_routes: { shared: ["192.168.10.0/24", "10.0.0.0/24"], approved: ["192.168.10.0/24"] } };
+  try {
+    renderPage();
+    await screen.findByText("Storage box");
+
+    fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale/ }));
+
+    const shared = (await screen.findByText("192.168.10.0/24")).closest("li") as HTMLElement;
+    expect(shared).toHaveTextContent("Sharing 192.168.10.0/24");
+    expect(within(shared).getByRole("link", { name: "Split DNS" })).toHaveAttribute("href", "https://login.tailscale.com/admin/dns");
+    const waiting = screen.getByText("10.0.0.0/24").closest("li") as HTMLElement;
+    expect(waiting).toHaveTextContent("waiting for approval");
+    expect(within(waiting).getByRole("link", { name: "Approve" })).toHaveAttribute("href", "https://login.tailscale.com/admin/machines");
+  } finally {
+    facts = FACTS;
+  }
+});
+
 test("a tool's dialog on an older status line goes straight to installing it again", async () => {
   setUp();
   facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };

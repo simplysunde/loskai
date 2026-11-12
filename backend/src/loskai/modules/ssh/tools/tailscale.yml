@@ -12,6 +12,29 @@ actions:
     label: Status
     description: This machine's tailnet, and who is on it.
     run: tailscale status
+  share:
+    label: Share this network
+    description: >-
+      Share the network this machine is on with your tailnet, so your devices reach it
+      from anywhere. Tailscale's admin console then has to approve it.
+    automatic: true
+    # The network on the default route's interface, as the kernel names it (192.168.10.0/24
+    # for 192.168.10.x/24). Forwarding is IPv4 only: IPv6 forwarding stops a machine taking
+    # its address from the router.
+    run: >-
+      dev=$(ip -o route show default | awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}') &&
+      lan=$(ip -o -4 route show dev "$dev" proto kernel scope link | awk '{print $1; exit}') &&
+      [ -n "$lan" ] || { echo "Couldn't find the network this machine is on."; exit 1; };
+      echo "Sharing $lan" &&
+      echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-loskai-tailscale.conf >/dev/null &&
+      { sudo sysctl -q -p /etc/sysctl.d/99-loskai-tailscale.conf || echo "Couldn't turn on IP forwarding here."; } &&
+      sudo tailscale set --advertise-routes="$lan"
+  unshare:
+    label: Stop sharing
+    description: Stop sharing this machine's network with your tailnet.
+    automatic: true
+    confirm: Your devices away from home can't reach this network through it until it is shared again.
+    run: sudo tailscale set --advertise-routes= && sudo rm -f /etc/sysctl.d/99-loskai-tailscale.conf
   down:
     label: Disconnect
     description: Take this machine off the tailnet until it is connected again.

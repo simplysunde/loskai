@@ -577,6 +577,38 @@ def test_a_user_sudo_allows_still_gets_the_root_lists(tmp_path):
     assert [a.split(" ", 3)[:3] for a in ran] == [["-n", "sh", "-c"], ["-n", "sh", "-c"]]
 
 
+def test_the_networks_a_machine_shares_with_its_tailnet_and_which_are_approved(tmp_path):
+    # Tailscale, faked as it answers without root: two networks shared, one approved. The
+    # AllowedIPs before PrimaryRoutes hold an address too, and must not be read as a route.
+    status = (
+        '{\n  "Self": {\n    "AllowedIPs": [\n      "100.64.0.1/32"\n    ],\n'
+        '    "PrimaryRoutes": [\n      "192.168.10.0/24"\n    ],\n    "Online": true\n  }\n}'
+    )
+    (tmp_path / "tailscale").write_text(
+        "#!/bin/sh\ncase $1 in\n"
+        "  get) echo 192.168.10.0/24,10.0.0.0/24 ;;\n"
+        f"  status) [ $2 = --json ] && printf '%s\\n' '{status}' ;;\n"
+        "  ip) echo 100.64.0.1 ;;\nesac\n"
+    )
+    (tmp_path / "tailscale").chmod(0o755)
+    env = {"PATH": f"{tmp_path}:{os.environ['PATH']}", "HOME": str(tmp_path), "SSH_ORIGINAL_COMMAND": "facts"}
+    out = subprocess.run(["sh", "-c", logic.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
+
+    assert logic.parse_facts(out)["tailscale_routes"] == {
+        "shared": ["192.168.10.0/24", "10.0.0.0/24"], "approved": ["192.168.10.0/24"],
+    }
+
+
+def test_shared_networks_leave_out_an_exit_node_and_need_v9():
+    v9 = FACTS.replace("status 5", "status 9").replace(
+        "#=sudo", "#=tsroutes\nshared 192.168.10.0/24 0.0.0.0/0 ::/0\napproved\n#=sudo"
+    )
+    assert logic.parse_facts(v9)["tailscale_routes"] == {"shared": ["192.168.10.0/24"], "approved": []}
+    # An older line, or a machine without Tailscale, has no section: not known, not "none".
+    assert logic.parse_facts(FACTS)["tailscale_routes"] is None
+    assert logic.parse_facts(FACTS.replace("status 5", "status 8"))["tailscale_routes"] is None
+
+
 @pytest.mark.parametrize("request_", ["facts", "running", None])
 def test_the_forced_command_runs_in_sh_and_answers_each_request(request_):
     # The real command, on this machine: whatever is installed, it must parse.

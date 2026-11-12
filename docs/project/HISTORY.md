@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-12 — Subnet routing is the Tailscale tool's, not a setting
+
+Sunde asked whether turning subnet routing on belongs in Settings, "since these are
+technically Loskai settings", or in the Tailscale tool. The tool: Settings holds values
+Loskai stores and uses itself, while sharing a network is something a machine's Tailscale
+does — and any machine can be the router, not only the Docker host. So **Share this
+network** and **Stop sharing** are Tailscale tool actions, and the card says whether the
+tailnet has approved the network, read by the status line (v9) without root. Approving it
+and split DNS stay in Tailscale's admin console, which the card links to: doing them from
+Loskai would need a Tailscale API key, and Loskai keeps no third-party keys. Forwarding is
+turned on for IPv4 only — IPv6 forwarding makes Linux stop taking its address from router
+advertisements, and the shared network is IPv4.
+
 ## 2026-11-11 — Status line v8: sudo asked so it logs nothing
 
 A review found every poll ran `sudo -n true` to decide whether to read a machine's

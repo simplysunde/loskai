@@ -200,6 +200,11 @@ and Add.
   in the terminal. The overview then shows
   its Tailscale address, and Tailscale's card lists your tailnet — each device, its
   address and OS, and whether it is online. In an LXC, Tailscale needs the container to have `/dev/net/tun`.
+  **Share this network** makes the machine a subnet router: it shares the network it is on
+  (`192.168.10.0/24`) with your tailnet, so your devices reach your homelab from anywhere —
+  [Tailscale](tailscale.md). Its card then says **waiting for approval** until you approve
+  it in Tailscale's admin console (**Approve** goes there), and **Sharing** after.
+  **Stop sharing** takes it back.
 
 - **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
   git's global `user.name` and `user.email`, read from the machine and set there as you

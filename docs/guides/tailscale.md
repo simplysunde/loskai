@@ -42,13 +42,22 @@ One is enough — pick the box:
 
 | Where | How |
 |---|---|
+| **Any machine on the Machines tab** | Its **Tailscale** tool: add it, **Connect**, then **Share this network** ([below](#from-the-machines-tab)) |
 | **The Docker host** | The **Tailscale** recipe, from the Docker tab's install wizard |
 | **Any other box** — a VM, an LXC, a Raspberry Pi | `scripts/tailscale-subnet-router.sh`, run on it |
 
-Either asks the same three things: the network to share (your LAN, `192.168.10.0/24`), the
+The recipe and the script ask the same three things: the network to share (your LAN, `192.168.10.0/24`), the
 device's name on the tailnet, and an **auth key**, which is optional. Without one, Tailscale
 prints a login link — open it and log in to your tailnet. Either way the key is used once;
 the device stays logged in after.
+
+### From the Machines tab
+
+On a machine with SSH set up, its dialog's **Tools** → **Add tool** → **Tailscale** installs
+it, and **Connect** logs it in (the link shows in the terminal). Then **Share this network**,
+on the Tailscale card: it asks for sudo's password, turns on IP forwarding and shares the
+network the machine is on. The card says **waiting for approval** until step 2.1 is done, and
+**Sharing 192.168.10.0/24** after. **Stop sharing** takes it back.
 
 ### The recipe
 
