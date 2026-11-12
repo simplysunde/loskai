@@ -61,7 +61,6 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const own = t.actions.filter((a) => !a.target && !a.ask);
   const asks = t.actions.filter((a) => a.ask);
   const lists = listsOf(t, ctx);
-  const sessions = new Set((ctx.facts.tmux ?? []).map((s) => s.name));
   // Git's card holds the projects folder even without settings of its own.
   const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
   if (own.length + asks.length + lists.length === 0 && !settings) return null;
@@ -85,7 +84,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
               <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <span className="min-w-0">
                   <span className="break-all font-mono">{r.name}</span>
-                  {isLive(t, kind, r.name, sessions) && <span className="ml-2 text-emerald-300">running</span>}
+                  {isLive(t, kind, r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
                 <span className="flex shrink-0 flex-wrap items-center gap-1"><RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} /></span>

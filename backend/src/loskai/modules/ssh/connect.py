@@ -362,6 +362,8 @@ async def facts(machine_id: str) -> dict:
     if cached and time.monotonic() - cached[0] < FACTS_TTL:
         return cached[1]
     view = await _ask_status(t, host_key, "facts", logic.parse_facts)
+    if view.get("ok"):
+        view = tool.claim_sessions(view, tool.load())
     _facts[t.id] = (time.monotonic(), view)
     return view
 

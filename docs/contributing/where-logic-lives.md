@@ -90,7 +90,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The `PATH` a command runs with: `~/.local/bin` added | `modules/ssh/logic.py` `USER_PATH` | `modules/ssh/connect.py` `modules/ssh/tool.py` |
 | What a run looks like on the machine: sudo's password, tmux, `[done]` or `[failed]` | `modules/ssh/tool.py` `visible` | `modules/ssh/connect.py` |
 | Which tmux session an action runs in | `modules/ssh/tool.py` `session_name` | `modules/ssh/connect.py` |
-| The same, in the browser | `lib/tools.ts` `sessionName` | `lib/toolRows.ts` |
+| Whose each tmux session is, and which rows' shared sessions are running | `modules/ssh/tool.py` `claim_sessions` | `modules/ssh/connect.py` |
 | Whether a target may reach a command as `$1` | `modules/ssh/tool.py` `check_target` | `modules/ssh/connect.py` |
 | How a missing program is installed | `modules/ssh/tool.py` `INSTALLERS` `install_script` | `modules/ssh/connect.py` |
 | What the sudo rule for updates allows | `modules/ssh/tool.py` `update_commands` `allow_script` | `modules/ssh/connect.py` |
@@ -115,4 +115,3 @@ server. Change one side, change the other in the same commit.
 | Whether a record is a machine | `is_machine` | `isMachine` | The server sends `kind`; the browser only reads it. The fallback on the upstream's shape is for rows from before `kind`. |
 | Which routes are on a machine | `on_address` | `machineAt`, `routesOn` | The same rule: the upstream's host is the machine's address. Nothing checks they agree. |
 | What a name and an upstream may be | `validate_prefix`, `validate_upstream` | `lib/validation.ts` | The server enforces; the browser only says so while typing. A rule only the browser has isn't a rule. |
-| Which tmux session an action runs in | `session_name` | `sessionName` | Nothing checks they agree. The browser's has only the shared-`session` case. |

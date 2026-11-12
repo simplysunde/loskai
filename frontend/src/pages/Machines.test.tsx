@@ -50,10 +50,12 @@ const FACTS = {
     { ip: "100.64.0.7", name: "nas", os: "linux", online: true, self: true, status: "-" },
     { ip: "100.64.0.9", name: "phone", os: "iOS", online: false, self: false, status: "offline" },
   ],
+  // As the server sends them: whose each session is, and which rows' sessions run.
   tmux: [
-    { name: "build", created: 1793212547, attached: false, windows: 2 },
-    { name: "claude-site", created: 1793212547, attached: false, windows: 1 },
+    { name: "build", created: 1793212547, attached: false, windows: 2, tool: null },
+    { name: "claude-site", created: 1793212547, attached: false, windows: 1, tool: "claude" },
   ],
+  live: { claude: { project: ["site"] } },
   projects: [
     { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
       ahead: 2, committed: 1793211000, subject: "Add the header" },

@@ -68,11 +68,6 @@ export function runQuery(run: ToolRun): string {
   return q.toString();
 }
 
-// The tmux session a shared-`session` action runs in for `target`, named as tool.session_name.
-export function sessionName(session: string, target: string): string {
-  return `${session}-${target}`.replace(/[^A-Za-z0-9_-]/g, "_");
-}
-
 // The programs `tool` requires that a machine with `programs` lacks — none: it applies.
 export function missing(tool: Tool, programs: string[]): string[] {
   return tool.requires.filter((p) => !programs.includes(p));

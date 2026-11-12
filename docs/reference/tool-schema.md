@@ -172,7 +172,9 @@ Which tmux session the action runs in, where the machine has tmux:
 - *(left out)*: Loskai's own, one per action and target — `loskai-<tool>-<action>[-<target>]`.
 - **a name**: shared by every action that gives it, one per target — `<name>-<target>`.
   Running any of them while it is there attaches to it instead of starting another, and a
-  card's row says `running` while it is there.
+  card's row says `running` while it is there. Which session is whose, and which rows are
+  running, the server works out with the overview (`tool.claim_sessions`): the page never
+  names a session.
 - **`false`**: none — for an action that is tmux itself, such as attaching to a session.
 
 Any character but letters, digits, `_` and `-` in the name (a target's `.` or `@`) becomes

@@ -178,7 +178,7 @@ def cell(file: str, names: list[str], users: list[str]) -> str:
     return " ".join(f"`{u}`" for u in users)
 
 
-ROW = re.compile(r"^\| (?P<decision>[^|]+) \| (?P<owner>`[^`]+/[^`]+\.(?:py|tsx?)`(?: `[^`]+`)+) \| (?P<used>[^|]*) \|$")
+ROW = re.compile(r"^\| (?P<decision>[^|]+) \| (?P<owner>`[^`]+/[^`]+\.(?:py|tsx?)`(?: `[^`]+`)+) \|\s*(?P<used>[^|]*?)\s*\|$")
 
 
 def render_page(uses) -> tuple[str, list[str]]:

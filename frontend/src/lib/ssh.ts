@@ -99,7 +99,10 @@ export interface Facts {
   disks?: { mount: string; device: string; size: number; used: number }[]; // bytes
   updates?: { manager: string; count: number } | null;
   programs?: string[]; // what tools require (lib/tools.ts)
-  tmux?: { name: string; created: number; attached: boolean; windows: number }[];
+  // `tool`: the tool whose shared session it is (`claude-site` is Claude Code's), else null.
+  tmux?: { name: string; created: number; attached: boolean; windows: number; tool: string | null }[];
+  // By tool and kind, the rows whose shared session is running: { claude: { project: ["site"] } }.
+  live?: Record<string, Record<string, string[]>>;
   tailscale?: string | null; // its Tailscale IPv4 address; null: not connected
   // The devices `tailscale status` lists, this machine first (`self`).
   tailnet?: { ip: string; name: string; os: string; online: boolean; self: boolean; status: string }[];

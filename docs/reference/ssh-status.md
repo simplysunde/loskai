@@ -121,6 +121,12 @@ dirty, claude, ahead, committed, subject}` — `folder` the path's parent (`""` 
 directly in the home folder), `branch` and `ahead` `null` where the row says `-`, `dirty` a
 boolean.
 
+**What the sessions are** is added after reading, not by the machine: `tool.claim_sessions`
+gives each tmux session its `tool` — the one whose shared `session` it is (`claude-site` is
+Claude Code's), else `null` — and the overview `live`, by tool and kind, the rows whose
+shared session is running: `{"claude": {"project": ["site"]}}`. Sessions are named by
+`tool.session_name` only, so the page reads these and never names one.
+
 For `facts`, `PATH` gets `$HOME/.local/bin` appended (`logic.USER_PATH`): a forced command
 has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) live there.
 

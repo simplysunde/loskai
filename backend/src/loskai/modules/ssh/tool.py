@@ -514,4 +514,31 @@ def session_name(t: Tool, action: Action, target: str | None) -> str | None:
     if action.session is False:
         return None
     base = action.session if isinstance(action.session, str) else f"loskai-{t.id}-{action.id}"
-    return re.sub(r"[^A-Za-z0-9_-]", "_", base + (f"-{target}" if target else ""))
+    return _tmux_name(base + (f"-{target}" if target else ""))
+
+
+def _tmux_name(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_-]", "_", name)
+
+
+def claim_sessions(facts: dict, tools: dict[str, Tool]) -> dict:
+    """The overview with what its tmux sessions are, so the page never names one: each
+    session's `tool`, the one whose shared `session` it is (`claude-site` is Claude Code's),
+    else None; and `live`, by tool and kind, the rows whose shared session is running —
+    `{"claude": {"project": ["site"]}}`."""
+    sessions = facts.get("tmux") or []
+    names = {s["name"] for s in sessions}
+    rows = {"project": [p["name"] for p in facts.get("projects") or []],
+            "session": [s["name"] for s in sessions]}
+    shared = [(t, a) for t in tools.values() for a in t.actions.values() if isinstance(a.session, str)]
+    live: dict[str, dict[str, list[str]]] = {}
+    for t, a in shared:
+        running = [r for r in rows.get(a.target or "", []) if session_name(t, a, r) in names]
+        if running:
+            kinds = live.setdefault(t.id, {})
+            kinds[a.target] = sorted(set(kinds.get(a.target, [])) | set(running))
+
+    def owner(name: str) -> str | None:
+        return next((t.id for t, a in shared if name.startswith(_tmux_name(a.session) + "-")), None)
+
+    return {**facts, "tmux": [{**s, "tool": owner(s["name"])} for s in sessions], "live": live}

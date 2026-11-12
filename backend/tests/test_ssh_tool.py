@@ -170,6 +170,27 @@ def test_an_action_can_share_a_session_or_be_tmux_itself():
     assert tool.session_name(t, t.actions["attach"], "work") is None
 
 
+def test_the_overview_says_whose_each_session_is_and_which_rows_run():
+    tools = {"claude": tool.parse("claude", {"name": "C", "description": "d", "actions": {
+        "open": {"label": "Open", "description": "d", "target": "project", "session": "claude", "run": "true"},
+        "end": {"label": "End", "description": "d", "target": "project", "session": "claude", "run": "true"},
+        "pull": {"label": "Pull", "description": "d", "target": "project", "run": "true"},
+    }})}
+    facts = {"ok": True, "projects": [{"name": "site"}, {"name": "my.blog"}, {"name": "idle"}],
+             "tmux": [{"name": "claude-site"}, {"name": "claude-my_blog"}, {"name": "claude-gone"},
+                      {"name": "work"}]}
+
+    view = tool.claim_sessions(facts, tools)
+
+    # Named as the run names it: a project's `.` is a `_` in tmux.
+    assert view["live"] == {"claude": {"project": ["my.blog", "site"]}}
+    # A session left from a project no longer there is still Claude Code's, not the user's.
+    assert [(s["name"], s["tool"]) for s in view["tmux"]] == [
+        ("claude-site", "claude"), ("claude-my_blog", "claude"), ("claude-gone", "claude"), ("work", None)]
+    assert facts["tmux"][0] == {"name": "claude-site"}  # the cached overview is not changed in place
+    assert tool.claim_sessions({"ok": True, "tmux": None, "projects": None}, tools)["live"] == {}
+
+
 def test_ask_and_session_are_checked():
     doc = {"name": "T", "description": "d", "actions": {
         "a": {"label": "A", "description": "d", "run": "true", "ask": "colour"},
