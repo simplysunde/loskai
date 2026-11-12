@@ -132,6 +132,16 @@ def validate_container(container: str) -> None:
         raise AssignError(f"no container named '{container}'", 404)
 
 
+def same_container(instance_id: str | None, container: str) -> None:
+    """Editing a record by id never moves it to another container. The page never asks; a
+    request that did would have its container ignored while a following record took the new
+    one's address — until the follower wrote the old one's back."""
+    existing = instances_store.get_instance(instance_id) if instance_id else None
+    if existing is not None and existing.container != container:
+        held = f"the container '{existing.container}'" if existing.container else "no container"
+        raise AssignError(f"'{existing.name}' is on {held} — editing it can't change that", 409)
+
+
 def address_taken(address: str, exclude_id: str) -> Instance | None:
     """The other machine already at this address, if any. A route's machine is the one at
     its upstream's address, so two machines on one address would make that ambiguous."""
@@ -726,6 +736,7 @@ async def post_route(body: RouteCreate) -> dict:
     base, current_ip = settings_store.dns_context()
     if body.container:
         validate_container(body.container)
+        same_container(body.instance_id, body.container)
     upstream = (
         await _followed_upstream(body.container, body.instance_id)
         if body.follow_container else body.upstream
@@ -745,6 +756,7 @@ async def post_link(body: LinkCreate) -> dict:
     """Create or edit a link (`instance_id` to edit one). No Caddy route, no DNS rewrite."""
     if body.container:
         validate_container(body.container)
+        same_container(body.instance_id, body.container)
     upstream = (
         await _followed_upstream(body.container, body.instance_id, link=True)
         if body.follow_container else body.upstream

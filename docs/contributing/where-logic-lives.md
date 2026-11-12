@@ -41,6 +41,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
+| Whether an edit may move a record to another container: never | `shared/assign.py` `same_container` | only its own file |
 | What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | only its own file |
 | The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallWizard.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
 | A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` |

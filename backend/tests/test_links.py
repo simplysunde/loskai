@@ -258,6 +258,31 @@ def test_a_following_link_takes_the_browser_s_address(client, no_caddy_no_adguar
     assert _stored("whoami").upstream == "192.168.10.220:8081"  # never Caddy's `whoami:80`
 
 
+def test_editing_a_record_can_t_move_it_to_another_container(client, no_caddy_no_adguard, monkeypatch):
+    """By id, the request's container must be the record's: it was ignored while a following
+    record took the other container's address, which the follower then wrote back."""
+    monkeypatch.setattr(assign_module.docker_client, "container_names", lambda: {"a-1", "b-1"})
+    monkeypatch.setattr(follow, "published_upstreams", lambda: {"a-1": "192.168.10.220:8081", "b-1": "192.168.10.220:8082"})
+    monkeypatch.setattr(follow, "derived_upstreams", lambda: {"a-1": "a:80", "b-1": "b:80"})
+    instances_store.upsert_instance(Instance(
+        id="a", name="A", type="docker", container="a-1", upstream="192.168.10.220:8081",
+        route_mode="direct", follow_container=True,
+    ))
+
+    for path, extra in (("/api/links", {"name": "A"}), ("/api/routes", {"prefix": "a"})):
+        r = client.post(path, json={**extra, "upstream": "", "instance_id": "a", "container": "b-1",
+                                    "follow_container": True})
+        assert r.status_code == 409, r.text
+        assert "container 'a-1'" in r.json()["detail"]
+    assert _stored("a").upstream == "192.168.10.220:8081" and _stored("a").container == "a-1"
+
+    # Its own container, as the page sends it when it sends one: edited as before.
+    r = client.post("/api/links", json={"name": "A2", "upstream": "", "instance_id": "a", "container": "a-1",
+                                        "follow_container": True})
+    assert r.status_code == 200, r.text
+    assert _stored("a").name == "A2"
+
+
 def test_a_link_without_a_published_port_cannot_follow(client, no_caddy_no_adguard, monkeypatch):
     monkeypatch.setattr(assign_module.docker_client, "container_names", lambda: {"whoami-whoami-1"})
     monkeypatch.setattr(follow, "published_upstreams", lambda: {"whoami-whoami-1": None})
