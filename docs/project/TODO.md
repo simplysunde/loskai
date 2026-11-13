@@ -958,7 +958,12 @@ places. Four bugs they found, each checked in the code, go first.
 - [x] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
 - [x] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
       remove dialog's pending state, Machines loaded lazily
-- [ ] Frontend live
+- [x] Frontend live: Chromium (Playwright) against the same scratch Loskai — every tab and
+      Settings page renders with no page errors; a route row opens at the server's `url`;
+      Add route says `https://tv.smoke.test`, then `http://` once HTTP is picked, and saves
+      under the shared banner; turning SSH on shows `homelab@172.17.0.2`, the server's
+      target; Check for updates counts; a new stack with an empty `image:` stays open on
+      Compose's refusal; Export config saves `loskai-config-<date>.json`
 - [ ] 46q Tests: the effect, not the response; tests that couldn't fail
 - [ ] 46r Tests: one signed-in admin client; settings untouched by the environment
 - [ ] 46s Docs: stale facts, superseded notes, browser/server pairs registered
