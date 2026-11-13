@@ -180,3 +180,17 @@ def test_asking_is_on_unless_switched_off_and_takes_only_yes_or_no(admin):
     assert admin.get("/api/ssh").json()["key"]["asks_password"] is True
     assert unlock.unlocked_key("admin") is None
     assert admin.put("/api/settings", json={"ssh_ask_password": "sometimes"}, headers=ORIGIN).status_code == 422
+
+
+def test_an_unlock_ending_while_it_is_looked_up_is_locked_not_a_failure(admin, monkeypatch):
+    _unlock(admin, ADMIN)
+    real = unlock._holders
+    reads = []
+
+    def ends_after_the_first_read():
+        reads.append(1)
+        return real() if len(reads) == 1 else {}
+    monkeypatch.setattr(unlock, "_holders", ends_after_the_first_read)
+
+    assert unlock.unlocked_until("admin") is not None  # one read: it held then
+    assert len(reads) == 1

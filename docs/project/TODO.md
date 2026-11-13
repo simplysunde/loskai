@@ -56,6 +56,27 @@ visible without unpacking a phase back out. The checklists stay in
 
 ---
 
+## Phase 53 — A review's findings, Phases 48–52
+
+Asked 2026-11-13 (Sunde, "go ahead"): fix what a code review of Phases 48–52 found, one commit
+each. Left out: counting wrong passwords across an account's devices as well (#4) — Sunde's
+Phase 48 choice, to decide.
+
+**Steps**
+
+- [x] 53a `unlock.unlocked_until` read the file twice: an unlock ending in between was a `500`
+- [ ] 53b The unlock dialog answered before the reads it unlocked had come back
+- [ ] 53c The client's address was worked out (a DNS lookup behind Caddy) holding the
+      one-password-check lock
+- [ ] 53d A project's settings dialog refused to save for an untouched empty field
+- [ ] 53e `tool.visible` built `$PROJECTS` itself, beside `_projects_env`
+- [ ] 53f The `repo` kind let an `ssh://` user start with `-`
+- [ ] 53g A new SSH user while the key is locked: asked for, not a warning
+- [ ] 53h A new SSH user whose old one never had the key: the warning said it was still there
+- [ ] 53i The SSH setup dialog's own admin-password field, beside the unlock dialog
+
+---
+
 ## Phase 52 — The SSH unlock asks less, and only when you act
 
 Asked 2026-11-13 (Sunde): "really annoyed at the constant reminder for unlocking with the

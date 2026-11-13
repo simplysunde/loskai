@@ -58,19 +58,25 @@ def lock(username: str | None = None) -> None:
         store.update_json(_path(), {}, lambda held: {k: v for k, v in held.items() if k != username})
 
 
+def _until(username: str) -> float | None:
+    """When `username`'s unlock ends, read once — None while they hold none (expired, or
+    their sessions or level changed since, which locks it)."""
+    held = _holders().get(username)
+    if not isinstance(held, list) or len(held) != 2:
+        return None
+    user = users.get(username)
+    if time.time() >= held[0] or user is None or user.generation != held[1] or not user.may("machines"):
+        lock(username)
+        return None
+    return held[0]
+
+
 def _holds(username: str) -> bool:
     if not settings_store.ssh_asks_password():
         # Switched off by an admin: the Machines tab is enough.
         user = users.get(username)
         return user is not None and user.may("machines")
-    held = _holders().get(username)
-    if not isinstance(held, list) or len(held) != 2:
-        return False
-    user = users.get(username)
-    if time.time() >= held[0] or user is None or user.generation != held[1] or not user.may("machines"):
-        lock(username)
-        return False
-    return True
+    return _until(username) is not None
 
 
 def unlocked_key(username: str | None) -> asyncssh.SSHKey | None:
@@ -80,6 +86,6 @@ def unlocked_key(username: str | None) -> asyncssh.SSHKey | None:
 
 def unlocked_until(username: str | None) -> float | None:
     """When `username`'s unlock ends — None while locked, or while nothing is asked."""
-    if not settings_store.ssh_asks_password():
+    if not username or not settings_store.ssh_asks_password():
         return None
-    return _holders()[username][0] if username and _holds(username) else None
+    return _until(username)
