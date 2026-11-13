@@ -353,7 +353,9 @@ function folderProblem(f: Folder, all: Folder[]): string | null {
   if (!f.source.trim()) return "Which folder on the Docker host?";
   const problem = pathProblem(f.source);
   if (problem) return problem;
-  if (!f.target.trim().startsWith("/")) return "The path inside the container starts with /, like /media/films.";
+  // As the server's stackform.folders_problem: a ':' would split the volume spec.
+  if (!f.target.trim().startsWith("/") || f.target.includes(":"))
+    return "The path inside the container starts with /, like /media/films.";
   if (all.some((o) => o !== f && o.service === f.service && o.target.trim() === f.target.trim()))
     return `Two folders land at ${f.target.trim()}.`;
   return null;

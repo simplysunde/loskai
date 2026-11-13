@@ -105,6 +105,12 @@ test("a folder the server would refuse is said before saving", async () => {
   fireEvent.change(await screen.findByLabelText("Folder 1 on the host"), { target: { value: "~/media" } });
   expect(screen.getByText(/write the full path|\/root/)).toBeInTheDocument();
   expect(screen.getByText("Save").closest("button")).toBeDisabled();
+
+  // A ':' in the container's path, as the server refuses it (stackform.folders_problem).
+  fireEvent.change(screen.getByLabelText("Folder 1 on the host"), { target: { value: "/srv/films" } });
+  fireEvent.change(screen.getByLabelText("Folder 1 in the container"), { target: { value: "/media/films:ro" } });
+  expect(screen.getByText(/starts with \/, like \/media\/films/)).toBeInTheDocument();
+  expect(screen.getByText("Save").closest("button")).toBeDisabled();
 });
 
 test("an added folder left empty is not a change", async () => {
