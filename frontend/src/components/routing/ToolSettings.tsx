@@ -7,6 +7,7 @@ import { useUnlockFor } from "../../lib/settings";
 import type { ToolContext } from "../../lib/toolRows";
 import { rowSettingsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { InlineText, SettingRow } from "../shared/SettingRow";
+import { Overlay } from "../shared/Modal";
 import { YourPassword } from "../shared/YourPassword";
 
 // The machine's settings by id, and each row's by kind and row: `targets.project.site`.
@@ -31,7 +32,7 @@ function useToolSettings(tool: Tool, machineId: string) {
 // A tool's settings, in its card: each a value on the machine, read with Loskai's key while
 // the card is open and written the same way, then read back. Git's card also holds the
 // machine's projects folder — Loskai's own, on its record, where Claude Code finds its
-// projects. A row's own settings are under its cog (`RowSettingsButton`).
+// projects. A row's own settings open from its cog (`RowSettingsButton`).
 export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
   const qc = useQueryClient();
   const { key, url, values } = useToolSettings(tool, ctx.machineId);
@@ -85,21 +86,19 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
   );
 }
 
-// A row's cog: opens its own settings beneath it, and is teal while any of them is set.
+// A row's cog: opens its own settings in a dialog, and is teal while any of them is set.
 export function RowSettingsButton({
   tool,
   ctx,
   kind,
   name,
-  open,
-  onToggle,
+  onOpen,
 }: {
   tool: Tool;
   ctx: ToolContext;
   kind: ToolTarget;
   name: string;
-  open: boolean;
-  onToggle: () => void;
+  onOpen: () => void;
 }) {
   const { values } = useToolSettings(tool, ctx.machineId);
   const own = values.data?.targets?.[kind]?.[name] ?? {};
@@ -107,10 +106,10 @@ export function RowSettingsButton({
   return (
     <button
       type="button"
-      aria-label={`${name}'s own settings`}
-      aria-expanded={open}
+      aria-label={`Settings for ${name}`}
+      aria-haspopup="dialog"
       title={set.length ? `Its own: ${set.map((s) => `${s.label} ${own[s.id]}`).join(", ")}` : "Its own settings, in place of the card's"}
-      onClick={onToggle}
+      onClick={onOpen}
       className={`flex items-center rounded-md border px-1.5 py-1 hover:bg-slate-800 ${
         set.length ? "border-teal-700 text-teal-300" : "border-slate-700 text-slate-400"
       }`}
@@ -120,37 +119,99 @@ export function RowSettingsButton({
   );
 }
 
-// A row's own settings, beneath it: each empty while the card's applies — shown greyed —
-// and emptied to take it off again.
-export function RowSettings({ tool, ctx, kind, name }: { tool: Tool; ctx: ToolContext; kind: ToolTarget; name: string }) {
+const FIELD =
+  "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-teal-500 disabled:text-slate-500";
+
+// A row's own settings, in a dialog: each field empty while the card's applies — its value
+// shown greyed — and emptied to take it off again. Save writes the ones changed, each read
+// back; Cancel leaves them as they were.
+export function RowSettingsDialog({
+  tool,
+  ctx,
+  kind,
+  name,
+  onClose,
+}: {
+  tool: Tool;
+  ctx: ToolContext;
+  kind: ToolTarget;
+  name: string;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const { key, url, values } = useToolSettings(tool, ctx.machineId);
+  const settings = rowSettingsOf(tool, kind);
   const own = values.data?.targets?.[kind]?.[name] ?? {};
+  // What is typed; until then, what the machine has.
+  const [draft, setDraft] = useState<Record<string, string> | null>(null);
+  const shown = draft ?? Object.fromEntries(settings.map((s) => [s.id, own[s.id] ?? ""]));
+  const changed = settings.filter((s) => shown[s.id].trim() !== (own[s.id] ?? ""));
+  const empty = settings.find((s) => !s.unset && !shown[s.id].trim());
+  const save = useMutation({
+    mutationFn: async () => {
+      for (const s of changed) {
+        qc.setQueryData(key, await api.put<Values>(`${url}/${s.id}`, { value: shown[s.id].trim(), target: name }));
+      }
+    },
+    onSuccess: onClose,
+  });
+  const locked = values.error instanceof ApiError && values.error.status === 423;
+
   return (
-    <div className="mt-1 rounded-md border border-slate-800 px-2.5">
-      {rowSettingsOf(tool, kind).map((s) => {
-        const fallback = s.overrides ? values.data?.values[s.overrides] : null;
-        return (
-          <SettingRow key={s.id} label={s.label} description={s.description}>
-            {values.isLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
-            ) : (
-              <InlineText
-                label={`${s.label} for ${name}`}
-                value={own[s.id] ?? ""}
-                placeholder={fallback ?? "not set"}
-                disabled={!values.data}
-                validate={(v) => (v || s.unset ? null : "It needs a value.")}
-                onSave={async (v) => {
-                  const next = await api.put<Values>(`${url}/${s.id}`, { value: v, target: name });
-                  qc.setQueryData(key, next);
-                }}
+    <Overlay onClose={onClose} label={`Settings for ${name}`}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (changed.length && !empty) save.mutate();
+        }}
+      >
+        <h2 className="text-base font-semibold text-slate-100">
+          Settings for <span className="font-mono">{name}</span>
+        </h2>
+        <p className="mt-1 text-sm text-slate-400">In place of the card's, for this {kind} only — empty, the card's applies.</p>
+        <div className="mt-4 space-y-3">
+          {settings.map((s, i) => (
+            <label key={s.id} className="block">
+              <span className="text-sm text-slate-200">{s.label}</span>
+              <span className="mb-1.5 block text-xs text-slate-500">{s.description}</span>
+              <input
+                aria-label={s.label}
+                autoFocus={i === 0}
+                value={shown[s.id]}
+                onChange={(e) => setDraft({ ...shown, [s.id]: e.target.value })}
+                placeholder={(s.overrides ? values.data?.values[s.overrides] : null) ?? "not set"}
+                disabled={!values.data || save.isPending}
+                className={FIELD}
               />
-            )}
-          </SettingRow>
-        );
-      })}
-    </div>
+            </label>
+          ))}
+        </div>
+        {values.isLoading && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-500" />}
+        {(save.error || values.error) && (
+          <p className="mt-3 text-sm text-rose-400">
+            {save.error
+              ? apiMessage(save.error, "Couldn't save it")
+              : locked
+                ? "Loskai's key is locked — unlock it on the card first."
+                : apiMessage(values.error, "Couldn't read them")}
+          </p>
+        )}
+        {empty && <p className="mt-3 text-sm text-rose-400">{empty.label} needs a value.</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!changed.length || Boolean(empty) || save.isPending}
+            className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+          >
+            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save
+          </button>
+        </div>
+      </form>
+    </Overlay>
   );
 }
 

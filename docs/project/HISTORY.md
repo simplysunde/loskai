@@ -7,8 +7,10 @@
 ## 2026-11-13 — A project's own commit name and email (Phase 50)
 
 Sunde wanted to override the global commit identity per project. It is a cog on the
-project's row on Git's card, opening its Name and Email beneath it — `git config --local`,
-empty for the global one. Rather than code for Git, a tool setting can now be a value of
+project's row on Git's card, opening its Name and Email in a dialog — `git config --local`,
+empty for the global one. The fields first opened beneath the row and saved as each was
+left; Sunde found that no way to enter a value, so they are a dialog with Save and Cancel —
+not a dropdown, which closes on a scroll, as a phone's keyboard opening does. Rather than code for Git, a tool setting can now be a value of
 each project (`target: project`), with the global setting it `overrides` and an `unset`;
 Git's file holds the commands, as for every other action. Each project's values are read in
 the same SSH command as the global ones: reading them in the status line would have made

@@ -17,7 +17,7 @@ import {
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
-import { RowSettings, RowSettingsButton, ToolSettings } from "./ToolSettings";
+import { RowSettingsButton, RowSettingsDialog, ToolSettings } from "./ToolSettings";
 
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
@@ -62,8 +62,8 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const own = t.actions.filter((a) => !a.target && !a.ask);
   const asks = t.actions.filter((a) => a.ask);
   const lists = listsOf(t, ctx);
-  // The row whose own settings are open beneath it.
-  const [open, setOpen] = useState<string | null>(null);
+  // The row whose own settings are open in a dialog.
+  const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
   // Git's card holds the projects folder even without settings of its own.
   const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
   if (own.length + asks.length + lists.length === 0 && !settings) return null;
@@ -84,33 +84,24 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           <ul className="space-y-1.5 text-xs text-slate-300">
             {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
             {rows.map((r) => (
-              <li key={r.name}>
-                <div title={r.title} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-                  <span className="min-w-0">
-                    <span className="break-all font-mono">{r.name}</span>
-                    {isLive(t, kind, r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
-                    <span className="block truncate text-slate-500">{r.detail}</span>
-                  </span>
-                  <span className="flex shrink-0 flex-wrap items-center gap-1">
-                    <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} />
-                    {rowSettingsOf(t, kind).length > 0 && (
-                      <RowSettingsButton
-                        tool={t}
-                        ctx={ctx}
-                        kind={kind}
-                        name={r.name}
-                        open={open === `${kind}/${r.name}`}
-                        onToggle={() => setOpen(open === `${kind}/${r.name}` ? null : `${kind}/${r.name}`)}
-                      />
-                    )}
-                  </span>
-                </div>
-                {open === `${kind}/${r.name}` && <RowSettings tool={t} ctx={ctx} kind={kind} name={r.name} />}
+              <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                <span className="min-w-0">
+                  <span className="break-all font-mono">{r.name}</span>
+                  {isLive(t, kind, r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
+                  <span className="block truncate text-slate-500">{r.detail}</span>
+                </span>
+                <span className="flex shrink-0 flex-wrap items-center gap-1">
+                  <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} />
+                  {rowSettingsOf(t, kind).length > 0 && (
+                    <RowSettingsButton tool={t} ctx={ctx} kind={kind} name={r.name} onOpen={() => setOpen({ kind, name: r.name })} />
+                  )}
+                </span>
               </li>
             ))}
           </ul>
         </div>
       ))}
+      {open && <RowSettingsDialog tool={t} ctx={ctx} kind={open.kind} name={open.name} onClose={() => setOpen(null)} />}
       {!tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {own.map((a) => {

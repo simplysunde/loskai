@@ -183,7 +183,7 @@ A setting may also have:
   as `$1` and the value as `$2`, with `$PROJECTS` set as for an action. The same read lists
   every git repo in the projects folder and reads each one's after the machine's, so the
   card still makes one connection. The card shows a cog on each project's row, teal while
-  any of its settings is set, that opens them beneath it.
+  any of its settings is set, that opens them in a dialog; Save writes the fields changed.
 - **`overrides`** names the machine's setting this one replaces where it is set, of the
   same kind: its value is what an empty field shows, greyed. Only shown — what applies is
   the program's own rule (git's `--local` over `--global`).

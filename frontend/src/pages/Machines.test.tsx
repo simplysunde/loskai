@@ -899,30 +899,44 @@ test("the Git card reads the machine's commit name and email, and sets one", asy
   await vi.waitFor(() => expect(within(tools).getByLabelText("Email")).toHaveValue("ola@example.no"));
 });
 
-test("a project's cog sets its own commit email, the global one shown while it has none", async () => {
+test("a project's cog opens a dialog that sets its own commit email, the global one shown while it has none", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  const cog = await within(tools).findByRole("button", { name: "site's own settings" });
-  expect(cog).toHaveAttribute("aria-expanded", "false");
+  const cog = await within(tools).findByRole("button", { name: "Settings for site" });
   fireEvent.click(cog);
-  expect(await within(tools).findByLabelText("Name for site")).toHaveAttribute("placeholder", "Ola Nordmann");
-  const email = within(tools).getByLabelText("Email for site");
+  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  await vi.waitFor(() => expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann"));
+  const email = within(dialog).getByLabelText("Email");
   expect(email).toHaveAttribute("placeholder", "not set");
-  fireEvent.focus(email);
+  const save = within(dialog).getByRole("button", { name: "Save" });
+  expect(save).toBeDisabled(); // nothing changed yet
   fireEvent.change(email, { target: { value: "ola@work.example" } });
-  fireEvent.blur(email);
+  fireEvent.click(save);
 
-  await vi.waitFor(() =>
-    expect(calls.find((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual({
-      path: "/api/ssh/machines/nas/tools/git/settings/project-email", method: "PUT",
-      body: { value: "ola@work.example", target: "site" },
-    }),
-  );
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull());
+  // Only the field changed is written.
+  expect(calls.filter((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual([{
+    path: "/api/ssh/machines/nas/tools/git/settings/project-email", method: "PUT",
+    body: { value: "ola@work.example", target: "site" },
+  }]);
   // Set, its cog says so; the card's own Email is untouched.
-  await vi.waitFor(() => expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example"));
+  expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example");
   expect(within(tools).getByLabelText("Email")).toHaveValue("");
+});
+
+test("a project's settings dialog cancelled writes nothing", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Settings for site" }));
+  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Someone" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+  expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull();
+  expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
 test("a setting changed is in the machine's log, with what it was set to", async () => {
@@ -1150,7 +1164,7 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(within(gitRow).queryByRole("button", { name: "Claude" })).toBeNull();
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
   expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
-  expect((row.firstElementChild as HTMLElement).title).toBe("Last commit: Add the header");
+  expect(row.title).toBe("Last commit: Add the header");
   // In ~ rather than ~/projects: not listed.
   expect(screen.queryByText("notes")).not.toBeInTheDocument();
   fireEvent.click(within(row).getByRole("button", { name: "Claude" }));

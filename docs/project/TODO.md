@@ -64,8 +64,12 @@ the same row as the rest of the action buttons?"
 **Decisions**
 
 - A cog at the end of each project row on Git's card opens the project's own **Name** and
-  **Email** beneath it: `git config --local`, in the repo. Empty is the global one, shown
-  greyed; emptying one takes it off. The cog is teal while either is set.
+  **Email** in a dialog: `git config --local`, in the repo. Empty is the global one, shown
+  greyed; emptying one takes it off. **Save** writes the fields changed, **Cancel** nothing.
+  The cog is teal while either is set. (First built as fields that opened beneath the row
+  and saved as you left each — Sunde: "please use a dialog or a dropdown with the fields so
+  i can enter a value". A dialog, not a dropdown: a dropdown closes on a scroll, and on a
+  phone the keyboard opening scrolls.)
 - A setting gains `target: project`, `overrides` and `unset` in the tool file, so the
   commands stay in Git's file. Each project's are read in the same command as the global
   ones — one connection when the card opens, and no change to the status line (which would
@@ -83,6 +87,7 @@ the same row as the rest of the action buttons?"
       no failure), the next commit was by the global name and still the project's email; a
       folder named `bad name` not read; no project or `../x` refused `409`; the card at 1280
       and 390 px with the cog teal and open, no page errors, no sideways scroll
+- [x] 50c The fields in a dialog with Save and Cancel, not beneath the row
 
 ---
 
