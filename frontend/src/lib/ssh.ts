@@ -25,6 +25,7 @@ export interface SshStatus {
   key: SshKey | null;
   hosts: Record<string, SshHost>;
   trusted: Record<string, boolean>; // machine ids with a trusted host key
+  targets: Record<string, string>; // how the server reaches each machine with a user: "user@host[:port]"
   projects: Record<string, string>; // each machine's projects folder: "~/projects", "~"
 }
 

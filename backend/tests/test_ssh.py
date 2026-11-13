@@ -56,7 +56,7 @@ def _write_config(ssh_dir, text):
 
 
 def test_no_key_until_one_is_made(client):
-    assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "projects": {}}
+    assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "targets": {}, "projects": {}}
 
 
 def test_the_key_is_made_and_never_returned(client, ssh_dir):
@@ -143,6 +143,18 @@ def test_a_machine_with_ssh_gets_an_entry_after_the_hand_written_ones(client, ss
     assert _config(ssh_dir) == HAND_WRITTEN + "\nHost nas\n    HostName 192.168.10.50\n    User admin\n    Port 2222\n"
     assert client.get("/api/ssh").json()["hosts"]["nas"] == {
         "hostname": "192.168.10.50", "user": "admin", "port": 2222,
+    }
+
+
+def test_each_machine_with_a_user_is_shown_as_the_server_reaches_it(client, ssh_dir):
+    _machine(client, ssh={"user": "admin", "port": 2222})
+    _machine(client, hostname="pve", address="192.168.10.10")
+    # Written by hand: no HostName, so the connection goes to the machine's address.
+    _write_config(ssh_dir, _config(ssh_dir) + "\nHost pve\n    User root\n")
+
+    assert client.get("/api/ssh").json()["targets"] == {
+        "nas": "admin@192.168.10.50:2222",
+        "pve": "root@192.168.10.10",
     }
 
 

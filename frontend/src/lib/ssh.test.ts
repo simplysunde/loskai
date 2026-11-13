@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { removalNeedsPassword, takesKeysOff, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
-const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, projects: {} });
+const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
 const KEY = { public_key: "ssh-ed25519 AAAA loskai", fingerprint: "SHA256:x", lines: [], from: null, unlocked_until: null };
 
 test("removing a set-up machine takes Loskai's key off it, and asks for your password while it is locked", () => {

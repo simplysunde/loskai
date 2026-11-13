@@ -44,7 +44,8 @@ function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Ans
   renderWithQuery(
     <SshSetupModal
       machine={{ id: "nas", name: "nas" }}
-      host={{ hostname: "192.168.10.50", user: "loskai", port: 22 }}
+      user="loskai"
+      target="loskai@nas.lan:2222"
       sshKey={sshKey}
       onClose={() => {}}
     />,
@@ -58,6 +59,8 @@ test("a new machine's host key is shown first, and nothing else is offered until
     "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "new" } },
     "/trust": { body: { fingerprint: FP, state: "trusted" } },
   });
+  // The login is the server's, as it will connect — not put together here.
+  expect(screen.getByText("loskai@nas.lan:2222")).toBeInTheDocument();
 
   expect(await screen.findByText(FP)).toBeInTheDocument();
   expect(screen.queryByLabelText("Machine password")).not.toBeInTheDocument();

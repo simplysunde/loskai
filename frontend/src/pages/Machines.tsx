@@ -154,6 +154,7 @@ export function Machines() {
           machines={machines}
           rows={rows}
           ssh={sshHosts}
+          targets={ssh.data?.targets}
           trusted={trusted}
           running={running.data ?? {}}
           onOpen={(m) => navigate(`/machines/${m.id}`)}

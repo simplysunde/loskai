@@ -172,7 +172,18 @@ beforeEach(() => {
             : path === "/api/machines"
               ? { url: "nas.example.no", instance_id: "nas", warning: null, moved: ["plex"] }
             : path === "/api/ssh"
-              ? { key: sshKey, hosts: sshHosts, trusted: sshTrusted, projects: { nas: "~/projects", pve: "~/projects" } }
+              ? {
+                  key: sshKey,
+                  hosts: sshHosts,
+                  trusted: sshTrusted,
+                  // As the server reaches each: the fixtures' aliases are their machine ids.
+                  targets: Object.fromEntries(
+                    Object.entries(sshHosts as Record<string, { hostname: string; user?: string }>)
+                      .filter(([, h]) => h.user)
+                      .map(([id, h]) => [id, `${h.user}@${h.hostname}`]),
+                  ),
+                  projects: { nas: "~/projects", pve: "~/projects" },
+                }
             : path === "/api/instances/nas" && init?.method === "DELETE"
               ? deleteReply
             : path === "/api/ssh/tools"

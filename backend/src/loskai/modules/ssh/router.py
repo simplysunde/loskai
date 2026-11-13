@@ -55,15 +55,16 @@ def _known() -> dict[str, bool]:
 @router.get("")
 def ssh_status() -> dict:
     """Loskai's key (null before one is made), each `Host` in the config, which machines
-    have a trusted host key, and each machine's projects folder."""
+    have a trusted host key, how each machine with an SSH user is reached
+    (`connect.reach`), and each machine's projects folder."""
+    hosts = logic.hosts(client.read_config())
+    machines = [i for i in instances_store.list_instances() if instances_store.is_machine(i)]
     return {
         "key": _key_view(),
-        "hosts": logic.hosts(client.read_config()),
+        "hosts": hosts,
         "trusted": _known(),
-        "projects": {
-            i.id: tool.show_folder(i.projects_folder)
-            for i in instances_store.list_instances() if instances_store.is_machine(i)
-        },
+        "targets": {i.id: t.shown() for i in machines if (t := connect.reach(i, hosts))},
+        "projects": {i.id: tool.show_folder(i.projects_folder) for i in machines},
     }
 
 

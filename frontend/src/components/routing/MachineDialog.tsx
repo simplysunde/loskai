@@ -497,10 +497,11 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       )}
 
       {/* Shown once the SSH config has the login: just after a save, on its refetch. */}
-      {setup && host?.user && (
+      {setup && host?.user && ssh.data?.targets[machine.id] && (
         <SshSetupModal
           machine={{ id: machine.id, name: machine.name }}
-          host={host}
+          user={host.user}
+          target={ssh.data.targets[machine.id]}
           sshKey={ssh.data?.key ?? null}
           onClose={() => setSetup(false)}
         />

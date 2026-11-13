@@ -49,21 +49,35 @@ class Target:
     port: int
     user: str
 
+    def shown(self) -> str:
+        """`user@host`, and `:port` when it isn't 22 — how a page shows the login."""
+        return f"{self.user}@{self.host}" + ("" if self.port == 22 else f":{self.port}")
 
-def target(machine_id: str) -> Target:
-    """The machine and how its SSH config entry says to reach it."""
-    inst = instances_store.get_instance(machine_id)
-    if inst is None or not instances_store.is_machine(inst):
-        raise SshError(f"no machine '{machine_id}'", 404)
-    entry = logic.hosts(client.read_config()).get(inst.subdomain or "")
+
+def reach(inst: instances_store.Instance, hosts: dict[str, dict]) -> Target | None:
+    """How the machine's SSH config entry says to reach it — its `HostName`, else the
+    machine's own address — or None while the entry has no user. `hosts` is
+    `logic.hosts` of the config."""
+    entry = hosts.get(inst.subdomain or "")
     if not entry or not entry.get("user"):
-        raise SshError(f"'{inst.name}' has no SSH user — set one in its form", 409)
+        return None
     return Target(
         id=inst.id,
         host=str(entry.get("hostname") or inst.upstream),
         port=int(entry["port"]),
         user=str(entry["user"]),
     )
+
+
+def target(machine_id: str) -> Target:
+    """The machine and how its SSH config entry says to reach it."""
+    inst = instances_store.get_instance(machine_id)
+    if inst is None or not instances_store.is_machine(inst):
+        raise SshError(f"no machine '{machine_id}'", 404)
+    found = reach(inst, logic.hosts(client.read_config()))
+    if found is None:
+        raise SshError(f"'{inst.name}' has no SSH user — set one in its form", 409)
+    return found
 
 
 def _trusted(t: Target) -> str:

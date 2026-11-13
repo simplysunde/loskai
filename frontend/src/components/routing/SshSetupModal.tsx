@@ -7,7 +7,7 @@ import { useUnlockFor } from "../../lib/settings";
 import { useMe } from "../../lib/useAuth";
 import { CopyButton } from "../shared/CopyButton";
 import { YourPassword } from "../shared/YourPassword";
-import { keyUnlocked, runningCount, type Running, type SshHost, type SshKey } from "../../lib/ssh";
+import { keyUnlocked, runningCount, type Running, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -34,19 +34,20 @@ const PRIMARY =
 // pasted by hand — and a test with the keys proves it.
 export function SshSetupModal({
   machine,
-  host,
+  user,
+  target,
   sshKey,
   onClose,
 }: {
   machine: { id: string; name: string };
-  host: SshHost;
+  user: string;
+  target: string; // the server's, from GET /api/ssh
   sshKey: SshKey | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
   const unlockFor = useUnlockFor();
   const { admin } = useMe();
-  const target = `${host.user}@${host.hostname}${host.port === 22 ? "" : `:${host.port}`}`;
   const [trusted, setTrusted] = useState(false);
   const [mode, setMode] = useState<"install" | "manual">("install");
   const [adminPassword, setAdminPassword] = useState("");
@@ -239,7 +240,7 @@ export function SshSetupModal({
                 type="password"
                 autoComplete="off"
                 aria-label="Machine password"
-                placeholder={`Password for ${host.user}`}
+                placeholder={`Password for ${user}`}
                 value={machinePassword}
                 onChange={(e) => setMachinePassword(e.target.value)}
                 className={`mt-2 ${INPUT}`}
@@ -249,7 +250,7 @@ export function SshSetupModal({
             <>
               <p className="mt-3 text-xs text-slate-500">
                 Add both lines to <code className="text-slate-400">~/.ssh/authorized_keys</code> for{" "}
-                {host.user} on the machine. The second only lists what runs.
+                {user} on the machine. The second only lists what runs.
               </p>
               <div className="mt-2 flex items-start gap-2">
                 <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-2 text-[11px] text-slate-400">

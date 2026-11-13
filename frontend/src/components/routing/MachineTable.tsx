@@ -41,6 +41,7 @@ export function MachineTable({
   machines,
   rows,
   ssh = {},
+  targets = {},
   trusted = {},
   running = {},
   onOpen,
@@ -61,6 +62,8 @@ export function MachineTable({
   rows: RouteRow[];
   // SSH config entries by alias; a machine's is named after its hostname.
   ssh?: Record<string, SshHost>;
+  // How the server reaches each machine with an SSH user, by id ("user@host[:port]").
+  targets?: Record<string, string>;
   // Machine ids with a trusted host key, and what runs on each of those, by id.
   trusted?: Record<string, boolean>;
   running?: Record<string, Running>;
@@ -229,8 +232,8 @@ export function MachineTable({
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
                       <div className="flex items-center justify-end gap-1.5">
-                        {sshReady && m.subdomain && host && trusted[m.id] && onTerminal && (
-                          <IconButton title={`Terminal: ${sshTitle(m.subdomain, host)}`} onClick={() => onTerminal(m)}>
+                        {sshReady && m.subdomain && targets[m.id] && trusted[m.id] && onTerminal && (
+                          <IconButton title={`Terminal: ssh ${m.subdomain} — ${targets[m.id]}`} onClick={() => onTerminal(m)}>
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
@@ -332,9 +335,6 @@ export function MachineTable({
 }
 
 
-function sshTitle(alias: string, host: SshHost): string {
-  return `ssh ${alias} — ${host.user ?? "?"}@${host.hostname ?? alias}, port ${host.port}`;
-}
 
 const RUNNING_BUTTON =
   "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800";
