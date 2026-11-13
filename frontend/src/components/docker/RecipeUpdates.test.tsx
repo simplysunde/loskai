@@ -97,7 +97,9 @@ test("one that can't be updated says why, with no Update button", async () => {
     list: [{ ...JELLYFIN, updatable: false, reason: "the new version asks for TOKEN — reinstall to answer" }],
   });
 
-  fireEvent.click(await screen.findByText("Jellyfin"));
+  // It isn't counted as one that can be updated.
+  expect(await screen.findByText("None can be updated here — each says why.")).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Jellyfin"));
   expect(screen.getByText(/asks for TOKEN/)).toBeInTheDocument();
   expect(screen.queryByText("Update")).not.toBeInTheDocument();
 });

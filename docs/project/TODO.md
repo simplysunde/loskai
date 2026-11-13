@@ -921,7 +921,7 @@ places. Four bugs they found, each checked in the code, go first.
 **Steps**
 
 - [x] 46a A new stack whose `up` fails stays open on what Compose said
-- [ ] 46b Check for updates counts only the recipes it can update
+- [x] 46b Check for updates counts only the recipes it can update
 - [ ] 46c Each machine's SSH target comes from the server — the setup dialog showed
       `user@undefined` for an entry without `HostName`
 - [ ] 46d The Dashboard's cards are keyed by id, not name

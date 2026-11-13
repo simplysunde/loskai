@@ -48,7 +48,8 @@ export function RecipeUpdates({ onClose }: { onClose: () => void }) {
     gcTime: 0,
   });
   const list = check.data?.list ?? [];
-  const pending = list.filter((u) => u.status !== "current" && u.status !== "gone").length;
+  const updatable = list.filter((u) => u.updatable).length;
+  const behind = list.some((u) => u.status !== "current" && u.status !== "gone");
 
   return (
     <Modal title="Check for updates" onClose={onClose} wide>
@@ -65,9 +66,11 @@ export function RecipeUpdates({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-slate-400">
             {list.length === 0
               ? "No stacks were installed from a recipe."
-              : pending
-                ? `${pending} of ${list.length} installed recipes can be updated.`
-                : "Every installed recipe is up to date."}
+              : updatable
+                ? `${updatable} of ${list.length} installed recipes can be updated.`
+                : behind
+                  ? "None can be updated here — each says why."
+                  : "Every installed recipe is up to date."}
           </p>
           {check.data?.syncFailed && (
             <p className="text-xs text-amber-300">Some sources couldn't be synced — showing what they last had.</p>
