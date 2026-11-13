@@ -66,6 +66,18 @@ actions:
       s=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
       git -C "$d" remote | grep -q . || continue;
       printf '\n== %s\n' "$d"; git -C "$d" pull --ff-only || s=1; done; exit $s
+  push-all:
+    label: Push all
+    description: >-
+      Push every project with commits its remote doesn't have yet, as of the last fetch —
+      and any without an upstream, which says so.
+    run: >-
+      cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
+      s=0; n=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
+      git -C "$d" remote | grep -q . || continue;
+      [ "$(git -C "$d" rev-list --count '@{u}..HEAD' 2>/dev/null)" = 0 ] && continue;
+      n=1; printf '\n== %s\n' "$d"; git -C "$d" push || s=1; done;
+      [ $n = 1 ] || echo "Nothing to push."; exit $s
   clone:
     label: Clone
     description: >-

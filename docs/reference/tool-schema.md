@@ -135,6 +135,10 @@ come from the overview (`rowsOf` in `lib/toolRows.ts`); the Running list's kinds
 its rows. A tmux session another tool claims — named after an action's shared `session`,
 like `claude-site` — is listed on that tool's card, not tmux's.
 
+An action with neither is the machine's. On a card that lists rows, those sit at the
+list's foot, under the rows' buttons (Git's **Pull all** and **Push all**), and what asks
+for a name to its left.
+
 `ask` takes the same kinds, for an action on something that doesn't exist yet: the card
 shows a name field beside its button, and the name is checked against the kind and passed
 as `$1`, exactly like a target. An action has one or the other.

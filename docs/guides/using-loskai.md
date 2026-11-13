@@ -220,8 +220,10 @@ and Add.
   fast-forwards), **Push** and **Terminal** (a shell in it), and a cog for the project's
   own **Name** and **Email** — set in its `.git/config`, in place of the global ones for
   that project only; empty, the global one applies (shown greyed), and the cog is teal
-  while one is set. A fresh clone starts without them. **Pull all** pulls every
-  project that has a remote, and **Clone** takes a repository's address — `https://…`,
+  while one is set. A fresh clone starts without them. Under the projects' buttons,
+  **Pull all** pulls every project that has a remote, and **Push all** pushes every one
+  with commits its remote doesn't have yet (as of the last fetch — Pull all fetches),
+  and any without an upstream, which says so. **Clone** takes a repository's address — `https://…`,
   `ssh://…` or `git@host:path` — into the projects folder. They run in the machine's
   terminal as its SSH user, so the remote decides what happens there: over SSH, the
   machine needs its own key for that user added at the forge (Loskai's key never leaves

@@ -124,6 +124,8 @@ const TOOLS = [
     id: "git", name: "Git", description: "Who commits are by.", requires: ["git"], installable: ["git"],
     actions: [
       { id: "pull", label: "Pull", description: "Bring it in.", target: "project", ask: null, confirm: null, run: "git pull --ff-only" },
+      { id: "pull-all", label: "Pull all", description: "Pull each.", target: null, ask: null, confirm: null, run: "git pull" },
+      { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
     ],
     settings: [
@@ -924,6 +926,23 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   // Set, its cog says so; the card's own Email is untouched.
   expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example");
   expect(within(tools).getByLabelText("Email")).toHaveValue("");
+});
+
+test("Git's Pull all and Push all are together at its list's foot, ahead of Clone", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  const pullAll = await within(tools).findByRole("button", { name: "Pull all" });
+  const pushAll = within(tools).getByRole("button", { name: "Push all" });
+  expect(pushAll.parentElement).toBe(pullAll.parentElement);
+  // After the projects; before Clone's field, which is first on a phone and left on a wider screen.
+  const site = within(tools).getAllByText("site").at(-1)!;
+  expect(site.compareDocumentPosition(pullAll) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const clone = within(tools).getByRole("button", { name: "Clone" });
+  expect(pullAll.compareDocumentPosition(clone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(pushAll);
+  await vi.waitFor(() => expect(calls.some((c) => c.path.endsWith("/run") && String(JSON.stringify(c.body)).includes("push-all"))).toBe(true));
 });
 
 test("a project's settings dialog cancelled writes nothing", async () => {

@@ -58,7 +58,8 @@ Everything so far:
   read and set from its card — and, under a project's cog, that project's own — and the
   projects folder Claude Code finds its projects in.
   Its projects have **Pull** (fast-forward only), **Push** and **Terminal**; **Pull all**
-  pulls every project with a remote, and **Clone** takes a repository's address
+  pulls every project with a remote, **Push all** pushes every one with commits to push,
+  and **Clone** takes a repository's address
   (`https://…`, `ssh://…` or `git@host:path`) into the projects folder. They run in the
   terminal as the machine's SSH user: over SSH with that user's own key, over HTTPS asking
   for a login there when the remote needs one.

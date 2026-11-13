@@ -22,6 +22,10 @@ import { RowSettingsButton, RowSettingsDialog, ToolSettings } from "./ToolSettin
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
 
+// A row's button — and, under a list, the tool's own (Pull all), so they line up as one column.
+const ROW_BUTTON =
+  "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40";
+
 // The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's:
 // small bordered ones, in rose for those that ask first (End, Stop).
 export function RowButtons({
@@ -68,6 +72,23 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
   if (own.length + asks.length + lists.length === 0 && !settings) return null;
   const tailscale = t.id === "tailscale";
+  // The tool's own actions: at a list's foot, small like the rows' buttons; else the card's.
+  const ownButtons = (small: boolean) =>
+    own.map((a) => {
+      const command = commandFor(a, manager);
+      return (
+        <button
+          key={a.id}
+          disabled={!command}
+          title={command ? `${a.description}\n$ ${command}` : `No command for ${manager ?? "this machine"}'s package manager`}
+          onClick={() => ctx.onRun({ tool: t.id, action: a.id, title: a.label }, a)}
+          className={small ? ROW_BUTTON : BUTTON}
+        >
+          <ActionIcon tool={t.id} action={a.id} className={small ? undefined : "h-3.5 w-3.5"} /> {a.label}
+        </button>
+      );
+    });
+  const askFields = asks.map((a) => <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />);
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
@@ -79,18 +100,20 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
       )}
       {settings && <ToolSettings tool={t} ctx={ctx} />}
       {tailscale && <TailscaleSettings tool={t} ctx={ctx} />}
-      {lists.map(({ kind, rows }) => (
+      {lists.map(({ kind, rows }, i) => (
         <div key={kind} className="mt-2">
-          <ul className="space-y-1.5 text-xs text-slate-300">
-            {rows.length === 0 && <li className="text-slate-500">None yet.</li>}
+          {/* On a wider screen a grid, so every row's buttons start in one column — and the
+              foot's (Pull all) under them. On a phone each row's are under its name. */}
+          <ul className="space-y-1.5 text-xs text-slate-300 sm:grid sm:grid-flow-row-dense sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:space-y-0">
+            {rows.length === 0 && <li className="text-slate-500 sm:col-span-2">None yet.</li>}
             {rows.map((r) => (
-              <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+              <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:contents">
                 <span className="min-w-0">
                   <span className="break-all font-mono">{r.name}</span>
                   {isLive(t, kind, r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
-                <span className="flex shrink-0 flex-wrap items-center gap-1">
+                <span className="flex flex-wrap items-center gap-1">
                   <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} />
                   {rowSettingsOf(t, kind).length > 0 && (
                     <RowSettingsButton tool={t} ctx={ctx} kind={kind} name={r.name} onOpen={() => setOpen({ kind, name: r.name })} />
@@ -98,29 +121,22 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                 </span>
               </li>
             ))}
+            {/* The last list's foot: the tool's own actions in the buttons' column, what asks
+                for a name (Clone) beside them — on a phone, under them. */}
+            {i === lists.length - 1 && !tailscale && (own.length > 0 || asks.length > 0) && (
+              <li className="flex flex-col gap-2 pt-1 sm:contents">
+                {own.length > 0 && <span className="flex flex-wrap items-center gap-1 sm:col-start-2 sm:mt-1">{ownButtons(true)}</span>}
+                {asks.length > 0 && <span className="flex flex-wrap items-center gap-2 sm:col-start-1 sm:mt-1">{askFields}</span>}
+              </li>
+            )}
           </ul>
         </div>
       ))}
       {open && <RowSettingsDialog tool={t} ctx={ctx} kind={open.kind} name={open.name} onClose={() => setOpen(null)} />}
-      {!tailscale && (own.length > 0 || asks.length > 0) && (
+      {lists.length === 0 && !tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {own.map((a) => {
-            const command = commandFor(a, manager);
-            return (
-              <button
-                key={a.id}
-                disabled={!command}
-                title={command ? `${a.description}\n$ ${command}` : `No command for ${manager ?? "this machine"}'s package manager`}
-                onClick={() => ctx.onRun({ tool: t.id, action: a.id, title: a.label }, a)}
-                className={BUTTON}
-              >
-                <ActionIcon tool={t.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
-              </button>
-            );
-          })}
-          {asks.map((a) => (
-            <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />
-          ))}
+          {ownButtons(false)}
+          {askFields}
         </div>
       )}
     </div>

@@ -17,7 +17,7 @@ def test_every_shipped_tool_is_valid():
     assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["open"].session == "claude"
     # Claude Code is its sessions; the project's git is the Git tool's.
     assert set(tools["claude"].actions) == {"open", "end", "new"}
-    assert {"pull", "push", "terminal", "pull-all", "clone"} == set(tools["git"].actions)
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo"
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
@@ -66,6 +66,36 @@ def test_pull_all_pulls_each_project_with_a_remote_and_says_which_failed(tmp_pat
     assert "== copy" in out.stdout and "== site" in out.stdout and "== local" not in out.stdout
     log = subprocess.run(["git", "log", "--format=%s"], cwd=projects / "copy", capture_output=True, text=True).stdout
     assert log.split() == ["two", "one"]
+
+
+def test_push_all_pushes_each_project_ahead_of_its_remote_and_skips_the_rest(tmp_path):
+    def git(*args, cwd):
+        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+    who = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    origin, projects = tmp_path / "origin.git", tmp_path / "projects"
+    git("init", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    projects.mkdir()
+    git("clone", str(origin), "site", cwd=projects)
+    git(*who, "commit", "--allow-empty", "-m", "one", cwd=projects / "site")
+    git("push", "-u", "origin", "HEAD:main", cwd=projects / "site")
+    git("clone", str(origin), "copy", cwd=projects)  # up to date: left alone
+    git(*who, "commit", "--allow-empty", "-m", "two", cwd=projects / "site")
+    git("init", "-q", "local", cwd=projects)  # no remote: left alone
+    run = tool.load()["git"].actions["push-all"].run
+
+    out = subprocess.run(["sh", "-c", f"PROJECTS={projects}; " + run], capture_output=True, text=True, timeout=30)
+
+    assert out.returncode == 0, out.stderr
+    assert "== site" in out.stdout and "== copy" not in out.stdout and "== local" not in out.stdout
+    log = subprocess.run(["git", "log", "--format=%s", "main"], cwd=origin, capture_output=True, text=True).stdout
+    assert log.split() == ["two", "one"]
+    again = subprocess.run(["sh", "-c", f"PROJECTS={projects}; " + run], capture_output=True, text=True, timeout=30)
+    assert again.returncode == 0 and "Nothing to push." in again.stdout
+    # A branch with no upstream is tried, and fails saying so.
+    git("checkout", "-q", "-b", "new", cwd=projects / "copy")
+    failed = subprocess.run(["sh", "-c", f"PROJECTS={projects}; " + run], capture_output=True, text=True, timeout=30)
+    assert failed.returncode == 1 and "== copy" in failed.stdout and "upstream" in failed.stderr
 
 
 def test_every_installer_is_for_a_program_the_overview_detects():

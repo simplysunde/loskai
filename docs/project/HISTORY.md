@@ -4,6 +4,14 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — Push all, under the rows' buttons (Phase 51)
+
+Sunde wanted Pull all under the projects' Pull buttons, and a Push all. A card with a list
+now puts the tool's own actions at the list's foot, under the rows' buttons, with Clone's
+field to their left — a layout rule rather than a new key, since Git is the only tool with
+both. Push all skips a project its last fetch says is up to date, so a remote that asks for
+a login is only asked when there is something to send.
+
 ## 2026-11-13 — A project's own commit name and email (Phase 50)
 
 Sunde wanted to override the global commit identity per project. It is a cog on the

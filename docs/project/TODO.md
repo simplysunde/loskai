@@ -56,6 +56,35 @@ visible without unpacking a phase back out. The checklists stay in
 
 ---
 
+## Phase 51 — Push all, and the card's all-buttons under the rows'
+
+Asked 2026-11-13 (Sunde): "I would like the pull all button to be under the rest of the pull
+buttons, and maybe add a push all too".
+
+**Decisions**
+
+- On a card that lists rows, the tool's own actions (no `target`, no `ask`) sit at the
+  list's foot, in the rows' buttons' column — Pull all starts under Pull — and in their
+  small style; what asks for a name (Clone) is on the left of the same line. The list is a
+  two-column grid on a wider screen so the column lines up. On a phone, where the rows' buttons
+  are under each name, the all-buttons come straight after the list and Clone below them.
+  A layout rule, not a key in the tool file: only Git has a list and actions of its own.
+- **Push all** pushes each project with a remote that has commits its upstream lacks, as
+  of the last fetch — one already up to date isn't contacted, so a private HTTPS remote
+  doesn't ask for a login for nothing. One without an upstream is tried, and fails saying
+  so; it says "Nothing to push." when there was none. Not `automatic`: a remote may ask.
+
+**Steps**
+
+- [x] 51a Push all (tested on real repos: ahead, up to date, no remote, no upstream), its
+      icon, the foot of the list
+- [x] 51b Live: a Debian machine with a local remote — Push all through the terminal sent
+      `site`'s new commit (the remote's log `two one`), left `copy` (up to date) and `local`
+      (no remote) alone, and said "Nothing to push." run again; the card at 1280 and 390 px
+      with Pull all at Pull's x (850 and 42), no page errors, no sideways scroll
+
+---
+
 ## Phase 50 — A project's own commit name and email
 
 Asked 2026-11-13 (Sunde): a way to override the global user name and email — "a cog icon on

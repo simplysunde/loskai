@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowDownToLine,
   ArrowUp,
+  ArrowUpFromLine,
   Download,
   LogIn,
   Play,
@@ -60,6 +61,7 @@ const SYMBOLS: Record<string, LucideIcon> = {
   "git.push": ArrowUp,
   "git.terminal": Terminal,
   "git.pull-all": ArrowDownToLine,
+  "git.push-all": ArrowUpFromLine,
 };
 
 export function ActionIcon({ tool, action, className = "h-2.5 w-2.5" }: { tool: string; action: string; className?: string }) {
