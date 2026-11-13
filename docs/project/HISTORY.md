@@ -4,6 +4,30 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — Big files split where a seam is (Phase 47)
+
+Phase 46 left its three biggest files whole as "tidier, not simpler". Sunde: "splitting when
+it serves no purpose or is detrimental to the overall functionality should be avoided, but
+making too big files, should also be avoided when possible". So a file past about 500 lines
+is looked at, and split where each part reads alone — a contract, a step, the pure part and
+the I/O — never where the parts must agree, such as a format's writer and its reader. The
+rule is in CLAUDE.md's principles and the sweep's estimate.
+
+**Split:** `ssh/logic.py` (801) — the status key's contract to `status.py`, its command and
+the parsers of what it answers together, since each section one writes the other reads;
+`docker/recipes.py` (797) — the manifest's rules (pure) to `manifest.py`, an install, its
+record and the recipe icon to `install.py`; `InstallWizard.tsx` (857) — its Configure and Done
+steps to their own files; `MachineDialog.tsx` (613) — the side menu, which knows nothing of
+machines, to `shared/SectionPane.tsx`, and Turn on SSH to `EnableSshModal.tsx`. Tests
+followed where a test file was one module's. Nothing changed in behaviour: the same 914 and
+372 tests pass, and a live run checked each split file against a real machine, Docker and
+Caddy, and in Chromium.
+
+**Left whole, each one subject:** `shared/assign.py` (787 — the record-making verbs beside
+their HTTP surface, as in every shared module; the one cut, links, shares its checks),
+`ssh/connect.py`, `ssh/tool.py` (one contract, `tool-schema.md`), `pages/Routing.tsx` (its
+mutations write the page's own state), `StackGroups.tsx`.
+
 ## 2026-11-13 — The second sweep: decisions made twice again (Phase 46)
 
 Sunde asked for a checkpoint (the tag `checkpoint-2026-11-13`) and a refactor of the whole
@@ -34,7 +58,7 @@ modes, the pre-accounts password, and the refusal of an encrypted key from befor
 an account saved before levels — the live `users.json` still holds one.
 
 **Not done, on purpose:** splitting `recipes.py`, `ssh/logic.py` or `InstallWizard.tsx`
-(tidier, not simpler); one key-unlock hook (five flows around one request, their shared
+(tidier, not simpler — superseded the same day by Phase 47, above); one key-unlock hook (five flows around one request, their shared
 parts already one); moving the Assign form's pre-fill into the form (one caller); one git
 runner (four calls, four ways to fail); the base domain's old rewrites (2026-09-20).
 

@@ -84,7 +84,7 @@ Loskai next. Nobody needs them to run it.
 | [architecture.md](project/architecture.md) | You want how Loskai is put together — its three components (Routing, Docker, Machines), what each does and doesn't, and why. |
 | [HISTORY.md](project/HISTORY.md) | Before reversing a decision: what landed, when, and what it walked back. |
 | [TODO.md](project/TODO.md) | What is being built now, and the backlog. |
-| [todo-archive.md](project/todo-archive.md) | How a finished phase (1–38, 40–45) was built. |
+| [todo-archive.md](project/todo-archive.md) | How a finished phase (1–38, 40–46) was built. |
 
 ## Conventions
 

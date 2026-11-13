@@ -4,10 +4,9 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 47** (below) — the big files split where a seam is. **Phase 46**, the
-second sweep, is done. Phases 34–45 —
-machines over SSH, accounts, automatic runs, the key kept simply, the first sweep, the demo,
-routes from what runs on a machine, Tailscale, links — are built and in
+**Now:** nothing in flight. **Phase 47** (below) split the big files where a seam is. Phases
+34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
+demo, routes from what runs on a machine, Tailscale, links — are built and in
 [`todo-archive.md`](todo-archive.md) with Phases 1–33 and 37; what is left in them is live
 checks on Sunde's machines, under *Open, not in flight*. `HISTORY.md` carries why each thing
 is the way it is — read it before reversing anything, since several current decisions are
@@ -121,85 +120,13 @@ avoided when possible")**
 - [x] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx` (857 → 378, 190,
       315; the path helpers its Review and Configure steps share to `lib/recipes.ts`)
 - [x] 47d `SectionPane.tsx` and `EnableSshModal.tsx` from `MachineDialog.tsx` (613 → 470, 134, 63)
-- [ ] 47e Live: a scratch Loskai — a machine's install, overview and running list; a recipe
+- [x] 47e Live: a scratch Loskai — a machine's install, overview and running list; a recipe
       synced, installed and routed; the wizard and the machine dialog in Chromium
-
-## Phase 46 — The second sweep: decisions made twice again
-
-Asked 2026-11-13: a checkpoint (tag `checkpoint-2026-11-13`), then a refactor of the whole
-codebase. Three read-only reviews, as in Phase 40, found the code still lean — about 2–3%
-could go — and that the 157 commits since Phase 40 (the running list, tools, Tailscale,
-links, status lines up to v10) had brought back about a dozen decisions made in two or more
-places. Four bugs they found, each checked in the code, go first.
-
-**Decisions (2026-11-13, Sunde: "go ahead with the recommended changes, and drop the old code")**
-
-- Bugs first, then the backend, the frontend, the tests and the docs — a commit each, every
-  check run, each area checked live before the next.
-- **Old code dropped:** the unused `git_build`/`registry_pull` recipe modes (no recipe in
-  `loskai-recipes` uses them), the pre-accounts `admin_password_hash`, and the refusal of a
-  key from before Phase 38 (the live key is unencrypted). **Kept:** reading an account saved
-  before levels (`users._level`) — the live `users.json` still holds one, saved with
-  `role`/`tabs`, and dropping it would lock that account out; it can go once the file has
-  been saved since.
-- **Not done, on purpose:** splitting `recipes.py`, `ssh/logic.py` or `InstallWizard.tsx`
-  (tidier, simpler in no way — walked back the same day, Phase 47); one style for the tab strips and an `IconButton` with
-  `disabled` (visible changes for no fix); compacting tests where nothing is decided
-  twice; the base domain's old rewrites left behind when it changes (decided 2026-09-20 —
-  Settings › Network › Clear); the STACKS_DIR comment repeated in the three compose files
-  (each is read alone, by someone installing from it).
-
-**Steps**
-
-- [x] 46a A new stack whose `up` fails stays open on what Compose said
-- [x] 46b Check for updates counts only the recipes it can update
-- [x] 46c Each machine's SSH target comes from the server — the setup dialog showed
-      `user@undefined` for an entry without `HostName`
-- [x] 46d The Dashboard's cards are keyed by id, not name
-- [x] 46e The reviews' unchecked bugs — Tailscale's "approval" read two ways, a typed name
-      lost on Cancel, the wizard's silent failures — each checked, fixed where real
-- [x] 46f Backend: AdGuard's expected rewrite and its conflict rule, once
-- [x] 46g Backend: statuses decided where raised — `ToolError`, the base domain's refusal,
-      one `instances.require`
-- [x] 46h Backend: the status line's version is a number, not three lists
-- [x] 46i Backend: saving a machine leaves the HTTP handler (`assign.save_machine`)
-- [x] 46j Backend: which recipe a stack came from, once; the small duplicates and stale
-      comments. Not done: one git runner — each of the four calls handles its failure its
-      own way (raise, None, []), so a wrapper would only save the keyword arguments
-- [x] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
-      pre-Phase-38 key's refusal
-- [x] Backend live: a scratch Loskai on `:8010` with a real Caddy, AdGuard and a Debian
-      machine. The public keys read the new way are byte-for-byte the old ones on the live
-      keys. SSH: `targets` named `homelab@172.17.0.2`; scan, trust, install (two lines in
-      `authorized_keys`), facts on v10 not `outdated`; a bad target 409, no setting 404, a
-      bad value 422 — each from `tool.py`; removing SSH took both lines off and forgot the
-      host key. A recipe installed (`.env`, the published port in `docker inspect`), routed,
-      and served through Caddy (whoami's body); reconcile left both rewrites as they were,
-      a hand-added answer was reported and kept, and the clear list marked it unmanaged.
-      Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (6245fca)
-- [x] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
-- [x] 46m Frontend: the route forms' preview and follow toggle, once (`opensAt`,
-      `follow`, `OpensAt`) — Assign now says the scheme too. Not done: moving the Assign
-      form's pre-fill from the Routing page into the form — it has one caller, so it is
-      decided once already, and the move would rewrite eight of its tests
-- [x] 46n Not done: one key-unlock hook. The five are five flows around one request —
-      unlock, then a terminal, an install, a removal, a delete or a settings read — and
-      what they share (`useUnlockFor`, `YourPassword`, `removalNeedsPassword`) is one
-      already, since Phase 40; a hook would wrap only the `POST`
-- [x] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
-- [x] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
-      remove dialog's pending state, Machines loaded lazily
-- [x] Frontend live: Chromium (Playwright) against the same scratch Loskai — every tab and
-      Settings page renders with no page errors; a route row opens at the server's `url`;
-      Add route says `https://tv.smoke.test`, then `http://` once HTTP is picked, and saves
-      under the shared banner; turning SSH on shows `homelab@172.17.0.2`, the server's
-      target; Check for updates counts; a new stack with an empty `image:` stays open on
-      Compose's refusal; Export config saves `loskai-config-<date>.json`
-- [x] 46q Tests: the effect, not the response; tests that couldn't fail
-- [x] 46r Tests: one signed-in admin client; settings untouched by the environment
-- [x] 46s Docs: stale facts, superseded notes, browser/server pairs registered
-- [x] 46t Docs: finished phases to the archive; `check-docs` checks where each phase lives
-      and the instance schema; the HISTORY entry
+      — live: status line v10 on a Debian machine, its overview and running list read; a bad
+      folder answer refused before any file; the wizard's path notes, Deploy, and Route it
+      (the app's own body through Caddy, `.env` quoted, the install record written, Check for
+      updates `current`); the dialog opening at a section, the mark following picks and the
+      scroll, the search, Turn on SSH; no page errors on any tab
 
 ---
 

@@ -12,8 +12,9 @@ lean — about 5–7% could go — and that the value was elsewhere: the dozen *
 two or more places**, which is CLAUDE.md's "each decision lives in one place" and the
 pattern behind this project's worst bugs. Aim at those first, then at the big files that
 have a seam (Stage 1), and say so in the estimate. Its write-up — what became one, what was
-left alone and why — is Phase 40 in `docs/project/todo-archive.md` and its entry in `docs/project/HISTORY.md`; the second
-(Phase 46, 2026-11-13) is beside it. Read both before another, so it doesn't redo or undo them.
+left alone and why — is Phase 40 in `docs/project/todo-archive.md` and its entry in
+`docs/project/HISTORY.md`; the second (Phase 46, 2026-11-13) and the big files' split (Phase
+47) are beside it. Read them before another, so it doesn't redo or undo them.
 
 There are two stages, and the first changes nothing.
 
