@@ -25,7 +25,7 @@ from ipaddress import ip_address
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from ..modules.adguard.client import AdGuardError, adguard
@@ -428,6 +428,38 @@ async def name_machine(caddy_client, adguard_client, **kwargs) -> dict:
     return await assign(caddy_client, adguard_client, route_mode="dns_only", **kwargs)
 
 
+async def save_machine(
+    caddy_client, adguard_client, *, hostname: str, address: str, instance_id: str | None,
+    ssh, base_domain: str | None, current_ip: str | None, acting: User | None,
+) -> dict:
+    """Name a machine, or re-point one, and keep its SSH entry in step: `ssh` is its login
+    (`ssh_machines.follow_machine`), None to remove its SSH connection, or `KEEP`.
+
+    Removing the connection takes off what Loskai put on the machine, as deleting it does:
+    where that is, read first — a locked key stops it here, unchanged — and taken off only
+    once the save has gone through."""
+    prev = instances_store.get_instance(instance_id) if instance_id else None
+    if prev is not None:  # before its SSH entry is read, below
+        access.require_instance(acting, prev.kind)
+    if refusal := ssh_machines.rename_refusal(prev, hostname):
+        raise AssignError(refusal, 409)
+    removal = ssh_machines.prepare_removal(prev) if prev is not None and ssh is None else None
+    result = await name_machine(
+        caddy_client, adguard_client,
+        prefix=hostname, upstream=address, instance_id=instance_id,
+        base_domain=base_domain, current_ip=current_ip, acting=acting,
+    )
+    inst = instances_store.get_instance(result["instance_id"])
+    if inst is not None:
+        warnings = [result["warning"]]
+        if ssh is None and prev is not None:
+            warnings.append(await ssh_machines.remove_keys(prev, removal))
+            await asyncio.to_thread(ssh_machines.forget_trust, prev)
+        warnings.append(await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh))
+        result["warning"] = " ".join(w for w in warnings if w) or None
+    return result
+
+
 # --- Links ---
 #
 # A link is a name and an address the Dashboard opens directly: `route_mode: "direct"` and no
@@ -692,33 +724,12 @@ class LinkCreate(BaseModel):
 async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
     base, current_ip = settings_store.dns_context()
-    prev = instances_store.get_instance(body.instance_id) if body.instance_id else None
-    if prev is not None:  # before its SSH entry is read, below
-        access.require_instance(auth.current_user(), prev.kind)
-    if refusal := ssh_machines.rename_refusal(prev, body.hostname):
-        raise HTTPException(status_code=409, detail=refusal)
-    # Removing its SSH connection takes off what Loskai put on the machine, as deleting it
-    # does: where that is, read now — a locked key stops it here, unchanged — and taken off
-    # once the save has gone through.
-    removal = None
-    if prev is not None and "ssh" in body.model_fields_set and body.ssh is None:
-        removal = ssh_machines.prepare_removal(prev)
-    result = await name_machine(
+    return await save_machine(
         caddy, adguard,
-        prefix=body.hostname, upstream=body.address,
-        instance_id=body.instance_id,
+        hostname=body.hostname, address=body.address, instance_id=body.instance_id,
+        ssh=body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP,
         base_domain=base, current_ip=current_ip, acting=auth.current_user(),
     )
-    inst = instances_store.get_instance(result["instance_id"])
-    if inst is not None:
-        ssh = body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP
-        warnings = [result["warning"]]
-        if ssh is None and prev is not None:
-            warnings.append(await ssh_machines.remove_keys(prev, removal))
-            await asyncio.to_thread(ssh_machines.forget_trust, prev)
-        warnings.append(await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh))
-        result["warning"] = " ".join(w for w in warnings if w) or None
-    return result
 
 
 @router.post("/routes")
