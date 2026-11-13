@@ -73,7 +73,8 @@ _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 
 
 class ToolError(LoskaiError, ValueError):
-    """A tool file that isn't valid, or an action that can't run as asked."""
+    """A tool file that isn't valid, or an action that can't run as asked — 422 for a value
+    it can't take, 404 for no such action or setting, 409 for one that can't run here."""
 
     status_code = 422
 
@@ -308,7 +309,7 @@ def write_setting_script(t: Tool, setting_id: str, value: str) -> str:
     its kind first. Raises ToolError for no such setting, or a value it can't take."""
     s = t.settings.get(setting_id)
     if s is None:
-        raise ToolError(f"{t.name} has no setting {setting_id!r}")
+        raise ToolError(f"{t.name} has no setting {setting_id!r}", 404)
     if not TARGETS[s.value].fullmatch(value):
         raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
     return f"sh -c {shlex.quote(s.write)} loskai {shlex.quote(value)}"
@@ -339,11 +340,11 @@ def action_script(t: Tool, action_id: str, manager: str | None) -> str:
     """The shell an action runs on a machine with `manager`."""
     action = t.actions.get(action_id)
     if action is None:
-        raise ToolError(f"{t.name} has no action {action_id!r}")
+        raise ToolError(f"{t.name} has no action {action_id!r}", 404)
     if isinstance(action.run, str):
         return action.run
     if manager not in action.run:
-        raise ToolError(f"{t.name} › {action.label} has no command for {manager or 'this machine'}'s package manager")
+        raise ToolError(f"{t.name} › {action.label} has no command for {manager or 'this machine'}'s package manager", 409)
     return action.run[manager]
 
 
@@ -367,7 +368,7 @@ def update_commands(manager: str | None) -> list[str]:
     for part in script.split("&&"):
         m = _SUDO_STEP.match(part.strip())
         if not m:
-            raise ToolError(f"System › Update isn't plain sudo commands for {manager}: {part.strip()!r}")
+            raise ToolError(f"System › Update isn't plain sudo commands for {manager}: {part.strip()!r}", 409)
         steps.append(m.group(1) + m.group(2))
     return steps
 
@@ -418,10 +419,10 @@ def to_install(t: Tool, programs: set[str]) -> list[str]:
     when a script will need it."""
     lacking = missing(t, programs)
     if not lacking:
-        raise ToolError(f"{t.name} has everything it needs here")
+        raise ToolError(f"{t.name} has everything it needs here", 409)
     cannot = [p for p in lacking if p not in INSTALLERS]
     if cannot:
-        raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here")
+        raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here", 409)
     if any("script" in INSTALLERS[p] for p in lacking) and "curl" not in programs and "curl" not in lacking:
         lacking = ["curl", *lacking]
     return lacking
@@ -438,7 +439,7 @@ def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
         elif manager in how["packages"]:
             packages.append(how["packages"][manager])
         else:
-            raise ToolError(f"No {program} package for {manager or 'this machine'}'s package manager")
+            raise ToolError(f"No {program} package for {manager or 'this machine'}'s package manager", 409)
     steps = ([f"{PACKAGE_INSTALL[manager]} {' '.join(map(shlex.quote, packages))}"] if packages else []) + scripts
     return " && ".join(steps)
 
@@ -448,10 +449,10 @@ def check_target(kind: str | None, target: str | None) -> None:
     machine."""
     if kind is None:
         if target:
-            raise ToolError("This action is for the machine, not one thing on it")
+            raise ToolError("This action is for the machine, not one thing on it", 409)
         return
     if not target or not TARGETS[kind].fullmatch(target):
-        raise ToolError(f"Not a {kind}: {target!r}")
+        raise ToolError(f"Not a {kind}: {target!r}", 409)
 
 
 # Hands sudo the password read at the start (`$p`), so every `sudo` after it in the run finds

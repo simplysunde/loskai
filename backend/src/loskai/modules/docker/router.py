@@ -120,9 +120,7 @@ def orphans() -> list[dict]:
 async def delete_orphan(instance_id: str) -> dict:
     """Clean up an orphaned docker instance: verify its container is really gone, then
     tear down its route + rewrite and drop the record."""
-    inst = instances_store.get_instance(instance_id)
-    if inst is None:
-        raise HTTPException(status_code=404, detail="instance not found")
+    inst = instances_store.require(instance_id)
     if inst.type != "docker" or not inst.container:
         raise HTTPException(status_code=409, detail="not a container-backed instance")
     live = _docker_call(docker_client.container_names)

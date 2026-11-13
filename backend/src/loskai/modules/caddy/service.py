@@ -251,8 +251,7 @@ async def push_all(client: CaddyClient, base_domain: str | None) -> list[dict]:
     """Rebuild every route from the instance list (recovery backstop). Only touches
     routes whose @id matches an instance — human-added routes are left alone. Skips
     `dns_only` instances entirely — they have no Caddy route to push."""
-    if not base_domain:
-        raise ValueError("base_domain is not set")
+    base_domain = instances_store.require_base(base_domain)
     results: list[dict] = []
     for inst in instances_store.list_routed():
         if inst.route_mode != "proxy":

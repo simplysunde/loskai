@@ -17,6 +17,7 @@ from pydantic import BaseModel, ValidationError, model_validator
 
 from ..config import settings
 from . import access, auth, icons, store
+from .errors import LoskaiError
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,14 @@ def get_instance(instance_id: str) -> Instance | None:
     return next((i for i in list_instances() if i.id == instance_id), None)
 
 
+
+def require(instance_id: str) -> Instance:
+    """The record — or a 404, the one "not found" every lookup by id answers."""
+    inst = get_instance(instance_id)
+    if inst is None:
+        raise LoskaiError(f"instance '{instance_id}' not found", 404)
+    return inst
+
 def get_by_container(container: str) -> Instance | None:
     """The instance linked to a container (one per container) — used to keep a container
     assign idempotent so it never creates a duplicate docker instance."""
@@ -131,6 +140,13 @@ def on_address(host: str) -> list[Instance]:
 def fqdn(subdomain: str, base_domain: str) -> str:
     """A route's full name — the one Caddy serves and AdGuard answers for."""
     return f"{subdomain}.{base_domain}"
+
+
+def require_base(base_domain: str | None) -> str:
+    """The base domain every route's name needs — or a 400 saying where to set it."""
+    if not base_domain:
+        raise LoskaiError("base_domain is not set — configure it in Settings", 400)
+    return base_domain
 
 
 def web_scheme(instance: Instance) -> str:
@@ -269,9 +285,7 @@ router = APIRouter(prefix="/api", tags=["instances"])
 def _owned(instance_id: str) -> Instance:
     """The record, for a change by the current account — 404 when there is none, 403 when
     it is another tab's (`access.require_instance`)."""
-    inst = get_instance(instance_id)
-    if inst is None:
-        raise HTTPException(status_code=404, detail=f"instance '{instance_id}' not found")
+    inst = require(instance_id)
     access.require_instance(auth.current_user(), inst.kind)
     return inst
 

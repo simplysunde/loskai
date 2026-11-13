@@ -32,6 +32,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
+| A record by id, or a 404; the base domain a name needs, or a 400 | `shared/instances.py` `require` `require_base` | `modules/adguard/service.py` `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` |
 | Whether a record is a machine (declared by `kind`) | `shared/instances.py` `is_machine` | `modules/adguard/service.py` `modules/ssh/connect.py` `modules/ssh/router.py` `shared/assign.py` `shared/dashboard.py` |
 | The same, in the browser | `components/routing/machine.ts` `isMachine` | `components/routing/MachineDialog.tsx` `components/routing/ServiceTable.tsx` `components/routing/hostOptions.ts` `components/routing/machineServices.ts` `pages/Machines.tsx` `pages/Routing.tsx` |
 | Which routes are on a machine: those on its address | `shared/instances.py` `on_address` | `shared/assign.py` |

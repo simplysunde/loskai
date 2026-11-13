@@ -8,6 +8,7 @@ import pytest
 
 from loskai.modules.adguard import service
 from loskai.shared import instances as instances_store
+from loskai.shared.errors import LoskaiError
 from loskai.shared.instances import Instance
 
 BASE = "example.no"
@@ -93,8 +94,9 @@ async def test_refuses_before_deleting_when_restore_would_fail(data_dir):
     instances_store.upsert_instance(inst("grafana", "grafana"))
     client = FakeClient([{"domain": "grafana.example.no", "answer": IP}])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(LoskaiError, match="CADDY_HOST_IP") as refused:
         await service.clear_and_restore(client, BASE, None)
+    assert refused.value.status_code == 400
 
     assert client.deleted == []
     assert len(client.existing) == 1
@@ -103,8 +105,9 @@ async def test_refuses_before_deleting_when_restore_would_fail(data_dir):
 async def test_refuses_when_base_domain_unset(data_dir):
     client = FakeClient([{"domain": "grafana.example.no", "answer": IP}])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(LoskaiError, match="base_domain is not set") as refused:
         await service.clear_and_restore(client, None, IP)
+    assert refused.value.status_code == 400
 
     assert client.deleted == []
 

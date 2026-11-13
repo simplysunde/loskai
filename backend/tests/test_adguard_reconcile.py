@@ -6,6 +6,7 @@ import pytest
 
 from loskai.modules.adguard import service
 from loskai.shared import instances as instances_store
+from loskai.shared.errors import LoskaiError
 from loskai.shared.instances import Instance
 
 BASE = "example.no"
@@ -163,7 +164,7 @@ async def test_reconcile_migrates_orphan_on_ip_change(data_dir):
 async def test_reconcile_requires_answer_ip_for_proxy_instance(data_dir):
     # current_ip is only required when a `proxy` instance is actually routed.
     instances_store.upsert_instance(inst("grafana", "grafana"))
-    with pytest.raises(ValueError):
+    with pytest.raises(LoskaiError, match="CADDY_HOST_IP"):
         await service.reconcile(FakeClient([]), BASE, None)
 
 

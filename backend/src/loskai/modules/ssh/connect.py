@@ -408,31 +408,28 @@ async def plan(
     this machine, what the log says about it, and whether it is automatic (`Action.automatic`;
     an install is). The command comes from the tool file and the machine's overview (its
     package manager, its programs), never from the request; with `password` it reads
-    sudo's first (`tool.visible`). Raises SshError: 404 no such tool or action, 409 it can't
-    run here as asked."""
+    sudo's first (`tool.visible`). Raises SshError or ToolError: 404 no such tool or action,
+    409 it can't run here as asked."""
     t = _tool(tool_id)
     target(machine_id)  # an SSH user, or 409
     inst = instances_store.get_instance(machine_id)
     f = await _overview(machine_id)
     manager = (f.get("updates") or {}).get("manager")
     programs = set(f.get("programs") or [])
-    try:
-        if install:
-            script = tool.install_script(t, programs, manager)
-            # Never in tmux: it may be tmux that is missing.
-            return tool.visible(script, None, None, automatic=True, password=password), {
-                "event": "add-tool", "tool": t.id, "programs": tool.to_install(t, programs), "command": script,
-            }, True
-        lacking = tool.missing(t, programs)
-        if lacking:
-            raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
-        action = t.actions.get(action_id or "")
-        if action is None:
-            raise SshError(f"{t.name} has no action {action_id!r}", 404)
-        tool.check_target(action.target or action.ask, target_name)
-        script = tool.action_script(t, action.id, manager)
-    except tool.ToolError as exc:
-        raise SshError(str(exc), 409)
+    if install:
+        script = tool.install_script(t, programs, manager)
+        # Never in tmux: it may be tmux that is missing.
+        return tool.visible(script, None, None, automatic=True, password=password), {
+            "event": "add-tool", "tool": t.id, "programs": tool.to_install(t, programs), "command": script,
+        }, True
+    lacking = tool.missing(t, programs)
+    if lacking:
+        raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
+    action = t.actions.get(action_id or "")
+    if action is None:
+        raise SshError(f"{t.name} has no action {action_id!r}", 404)
+    tool.check_target(action.target or action.ask, target_name)
+    script = tool.action_script(t, action.id, manager)
     session = tool.session_name(t, action, target_name) if "tmux" in programs else None
     command = tool.visible(
         script, target_name, session, inst.projects_folder if inst else None,
@@ -451,14 +448,12 @@ async def plan(
 async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tuple[str, dict, bool]:
     """What a terminal runs to put the sudo rule on (`allow`) — for System's update on this
     machine's package manager — or to take it off, and what the log says; always automatic.
-    Raises SshError 409 before the overview says which package manager it has."""
+    Raises SshError 409 before the overview says which package manager it has, ToolError
+    409 when System's update there isn't plain sudo steps."""
     target(machine_id)  # an SSH user, or 409
     if allow:
         f = await _overview(machine_id)
-        try:
-            script = tool.allow_script((f.get("updates") or {}).get("manager"))
-        except tool.ToolError as exc:
-            raise SshError(str(exc), 409)
+        script = tool.allow_script((f.get("updates") or {}).get("manager"))
     else:
         script = tool.REMOVE_RULE_SCRIPT
     command = tool.visible(script, None, None, automatic=True, password=password)
@@ -564,14 +559,11 @@ async def write_setting(
     machine_id: str, tool_id: str, setting_id: str, value: str, peer: str | None = None,
 ) -> dict[str, str | None]:
     """Set one of a tool's settings on the machine, then read them all back — the effect,
-    not the exit code. Logged, with the value. Raises SshError 404/422 for no such setting
-    or a value it can't take, 502 when the machine says no."""
+    not the exit code. Logged, with the value. Raises ToolError 404/422 for no such setting
+    or a value it can't take, SshError 502 when the machine says no."""
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    try:
-        script = tool.write_setting_script(found, setting_id, value)
-    except tool.ToolError as exc:
-        raise SshError(str(exc), 404 if setting_id not in found.settings else 422)
+    script = tool.write_setting_script(found, setting_id, value)
     result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + script)}")
     log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
     if result.exit_status != 0:

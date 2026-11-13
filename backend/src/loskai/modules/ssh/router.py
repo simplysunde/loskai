@@ -21,6 +21,7 @@ from ...shared import auth
 from ...shared import instances as instances_store
 from ...shared import store
 from ...shared import terminal
+from ...shared.errors import LoskaiError
 from . import client, connect, logic, tool, unlock
 
 router = APIRouter(prefix="/api/ssh", tags=["ssh"])
@@ -258,7 +259,7 @@ async def machine_terminal(
         t, conn, process = await connect.open_terminal(
             machine_id, terminal.clamp(cols), terminal.clamp(rows), command, password
         )
-    except connect.SshError as exc:
+    except LoskaiError as exc:  # SshError, or a tool's ToolError
         asked = {"tool": tool, "action": "install" if install else action} if tool else {"sudo": sudo} if sudo else {}
         connect.log("refused", machine_id, peer, error=exc.detail, **asked)
         # A close reason is at most 123 bytes.

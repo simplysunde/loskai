@@ -71,8 +71,6 @@ async def clear_rewrites() -> dict:
     base, current_ip = settings_store.dns_context()
     try:
         return await service.clear_and_restore(adguard, base, current_ip)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))
 
@@ -82,7 +80,5 @@ async def reconcile() -> dict:
     base, current_ip = settings_store.dns_context()
     try:
         return await service.reconcile(adguard, base, current_ip)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))

@@ -30,11 +30,7 @@ async def routes() -> list[dict]:
 @router.post("/push")
 async def push() -> dict:
     base = settings_store.value("base_domain")
-    try:
-        results = await service.push_all(caddy, base)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    return {"pushed": results}
+    return {"pushed": await service.push_all(caddy, base)}
 
 
 @router.get("/root-certificate")

@@ -18,6 +18,7 @@ import httpx
 
 from ...shared import instances as instances_store
 from ...shared.instances import Instance
+from ...shared.errors import LoskaiError
 from .client import AdGuardClient, AdGuardError, describe_error
 
 logger = logging.getLogger(__name__)
@@ -278,11 +279,10 @@ def _check_reconcilable(
 
     `current_ip` is only required when at least one routed instance is `proxy` — a LAN made
     entirely of `dns_only` instances needs no `CADDY_HOST_IP` configured at all."""
-    if not base_domain:
-        raise ValueError("base_domain is not set")
+    instances_store.require_base(base_domain)
     routed = instances_store.list_routed()
     if any(inst.route_mode == "proxy" for inst in routed) and not current_ip:
-        raise ValueError("Caddy answer IP is not derivable — set CADDY_HOST_IP")
+        raise LoskaiError("Caddy answer IP is not derivable — set CADDY_HOST_IP", 400)
     return routed
 
 

@@ -175,14 +175,11 @@ async def assign(
     """`acting` is the account asking (the endpoints pass it): a record this changes must be
     on its tab — a machine the Machines tab's, a route Routing's — whichever way it was found."""
     validate_prefix(prefix, route_mode)
-    if not base_domain:
-        raise AssignError("base_domain is not set — configure it in Settings", 400)
+    instances_store.require_base(base_domain)
     upstream = upstream.strip()
     validate_upstream(upstream, route_mode)
 
-    existing = instances_store.get_instance(instance_id) if instance_id else None
-    if instance_id and existing is None:
-        raise AssignError(f"instance '{instance_id}' not found", 404)
+    existing = instances_store.require(instance_id) if instance_id else None
 
     # No duplicates: assigning a container (or a built-in network service) targets its
     # existing instance — change its URL — rather than creating a second one. Keyed by the
@@ -474,9 +471,7 @@ async def make_link(
     upstream = upstream.strip()
     validate_upstream(upstream)
 
-    existing = instances_store.get_instance(instance_id) if instance_id else None
-    if instance_id and existing is None:
-        raise AssignError(f"instance '{instance_id}' not found", 404)
+    existing = instances_store.require(instance_id) if instance_id else None
     if existing is None and container:
         existing = instances_store.get_by_container(container)
     if existing is not None:
@@ -518,9 +513,7 @@ async def make_link(
 async def unassign(
     caddy_client, adguard_client, instance_id: str, *, base_domain: str | None
 ) -> dict:
-    inst = instances_store.get_instance(instance_id)
-    if inst is None:
-        raise AssignError(f"instance '{instance_id}' not found", 404)
+    inst = instances_store.require(instance_id)
     if not inst.subdomain:
         return {"caddy": "ok", "adguard": "skipped", "cleared": False}
 
@@ -589,9 +582,7 @@ async def delete_instance(
     Type-agnostic: deleting a docker instance removes the route but leaves the container
     untouched (it just becomes an unrouted container again, re-routable via Add route).
     Since containers no longer auto-create instances, a deleted docker record won't reappear."""
-    inst = instances_store.get_instance(instance_id)
-    if inst is None:
-        raise AssignError(f"instance '{instance_id}' not found", 404)
+    inst = instances_store.require(instance_id)
     return await purge_instance(caddy_client, adguard_client, inst, base_domain=base_domain)
 
 
