@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
+import { syncFailed, type SyncResult } from "../../lib/recipes";
 import { recipeSources, useSettings, type RecipeSource } from "../../lib/settings";
 
 // What GET /api/docker/recipes reports per source — sync state the settings list shows so
@@ -15,11 +16,6 @@ interface SourceStatus {
   builtin: boolean;
   synced: boolean;
   count: number;
-}
-
-interface SyncResult {
-  ok: boolean;
-  results: { url: string; label: string; ok: boolean; output: string }[];
 }
 
 // The install wizard's git sources: one row per repo, each independently switched on or
@@ -61,11 +57,9 @@ export function RecipeSources() {
       api.post<SyncResult>("/api/docker/recipes/refresh", url ? { url } : undefined),
     onSuccess: (result) => {
       setError(null);
-      const failed = result.results.filter((r) => !r.ok);
       setNote(
-        failed.length
-          ? `${failed.map((r) => r.label).join(", ")} failed — the last sync still applies.`
-          : `Synced ${result.results.length === 1 ? result.results[0].label : `${result.results.length} sources`}.`,
+        syncFailed(result) ??
+          `Synced ${result.results.length === 1 ? result.results[0].label : `${result.results.length} sources`}.`,
       );
       qc.invalidateQueries({ queryKey: ["docker-recipes"] });
     },

@@ -57,6 +57,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | A route following its container to a new port | `shared/follow.py` `derive_upstream` `derive_published` | `shared/assign.py` |
 | What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/recipes.py` `modules/docker/updates.py` |
 | Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/recipes.py` |
+| Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailed` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
 
 ## Caddy and AdGuard

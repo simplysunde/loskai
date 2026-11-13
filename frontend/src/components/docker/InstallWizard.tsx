@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { api, ApiError, apiMessage } from "../../lib/api";
+import { api, apiMessage } from "../../lib/api";
+import { syncFailed, type SyncResult } from "../../lib/recipes";
 import { useContainers } from "../../lib/containers";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { useSettings } from "../../lib/settings";
@@ -81,7 +82,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   });
 
   const refresh = useMutation({
-    mutationFn: () => api.post("/api/docker/recipes/refresh"),
+    mutationFn: () => api.post<SyncResult>("/api/docker/recipes/refresh"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-recipes"] }),
   });
 
@@ -138,7 +139,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           chosen={chosen}
           setChosen={setChosen}
           pending={install.isPending}
-          error={install.error instanceof ApiError ? install.error.message : null}
+          error={install.error ? apiMessage(install.error, "Install failed") : null}
           onBack={() => setReviewed(false)}
           onInstall={() => install.mutate(selected)}
         />
@@ -153,6 +154,9 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           data={data}
           loading={isLoading}
           refreshing={refresh.isPending}
+          refreshFailed={
+            refresh.error ? apiMessage(refresh.error, "Sync failed") : refresh.data ? syncFailed(refresh.data) : null
+          }
           onRefresh={() => refresh.mutate()}
           onPick={pick}
         />
@@ -233,12 +237,14 @@ function PickStep({
   data,
   loading,
   refreshing,
+  refreshFailed,
   onRefresh,
   onPick,
 }: {
   data?: RecipeList;
   loading: boolean;
   refreshing: boolean;
+  refreshFailed: string | null;
   onRefresh: () => void;
   onPick: (r: Recipe) => void;
 }) {
@@ -274,6 +280,7 @@ function PickStep({
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh recipes
         </button>
       </div>
+      {refreshFailed && <p className="-mt-2 mb-3 text-xs text-amber-300">{refreshFailed}</p>}
       {loading ? (
         <div className="flex justify-center py-10 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />

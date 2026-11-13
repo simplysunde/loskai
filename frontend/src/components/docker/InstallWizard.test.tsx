@@ -41,6 +41,7 @@ function renderWizard({
   sources = SOURCES as unknown[],
   local_count = 0,
   install = { ok: true, output: "Started", container: "grafana-app-1" } as unknown,
+  refresh = { ok: true, results: [] } as unknown,
   health = {} as unknown,
   settings = { base_domain: { value: "example.no", source: "stored", secret: false } } as unknown,
   containers = [
@@ -48,8 +49,11 @@ function renderWizard({
   ] as unknown[],
 } = {}) {
   const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
+    if (path.endsWith("/install") && install instanceof Error) throw install;
     const body = path.endsWith("/install")
       ? install
+      : path.endsWith("/refresh")
+        ? refresh
       : path === "/api/health"
         ? health
       : path === "/api/docker/containers"
@@ -214,6 +218,27 @@ test("a failed install offers no route", async () => {
   expect(screen.queryByText("Route it")).not.toBeInTheDocument();
   // The output is what explains a failure, so it starts open.
   expect(screen.getByText("port is allocated")).toBeVisible();
+});
+
+test("an install that can't reach Loskai says so", async () => {
+  renderWizard({ install: new TypeError("Failed to fetch") });
+  await pickGrafana();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+
+  expect(await screen.findByText("Install failed")).toBeInTheDocument();
+});
+
+test("Refresh recipes says which source failed to sync", async () => {
+  renderWizard({
+    refresh: {
+      ok: false,
+      results: [{ url: "https://example.invalid/x.git", label: "x", ok: false, output: "could not resolve host" }],
+    },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: /Refresh recipes/ }));
+
+  expect(await screen.findByText("x failed — the last sync still applies.")).toBeInTheDocument();
 });
 
 // --- Phase 30d: the catalog, the steps, and routing from the last one ---
