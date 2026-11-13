@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 48** (below) — the open bugs before a release. Phase 47 split the big
-files where a seam is. Phases
+**Now:** nothing in flight. **Phase 48** (below) fixed the open bugs before a release; Phase 47
+split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
 [`todo-archive.md`](todo-archive.md) with Phases 1–33 and 37; what is left in them is live
@@ -83,6 +83,14 @@ between today and a first release. The bugs are the ones under *Open, not in fli
       failed to see it (in a 0750 /etc/sudoers.d); so a new SSH user takes Loskai's things
       off the old one first, as removing the connection does, and keeps the host key. A
       locked key doesn't stop the change: it warns what stayed
+- [x] 48f Live: a scratch Loskai, a Debian machine with tmux, and a second client
+      — live: a guesser in another container waited (`429` after 6) while the owner signed
+      in from the host; the sudo rule put on with sudo's password as the socket's first
+      message, through tmux's FIFO — the rule on, no session or folder left, the ticket
+      nowhere in the access log; a resize sent first refused `4422`; the SSH user changed
+      from `homelab` — its two `loskai` lines and the rule gone, the host key still
+      trusted; and (48c) a closed container terminal's shell and its job gone on Alpine
+      and Debian
 
 ---
 

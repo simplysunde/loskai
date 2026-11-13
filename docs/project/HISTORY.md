@@ -4,6 +4,33 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — The open bugs, before a release (Phase 48)
+
+Asked what stands between today and a first release, Sunde chose to fix what could be fixed
+now. Five bugs from *Open, not in flight*:
+
+- **A run's tmux pane waits 30 s for sudo's password, then ends.** Cut off between the
+  session starting and the password arriving, it waited on its FIFO for good, and the next
+  run of that action attached to it — a blank terminal.
+- **The sudo ticket is the terminal socket's first message**, never in its URL: uvicorn's
+  access log keeps URLs. Anything else first is refused.
+- **A closed container terminal hangs up its shell.** Docker keeps an exec'd process after
+  its socket closes, and Loskai can't signal it from its own container, so the shell
+  carries a mark in its environment and closing runs a hangup for that mark in the
+  container. A process made to ignore hangups (`nohup`) stays, as it would on a real
+  terminal.
+- **Wrong passwords count per account and client** (Sunde chose it over also keeping a
+  looser account-wide limit). Per account only, a guesser kept the account's owner out.
+  A guesser with many addresses gets 5 free tries per address; one check at a time, with
+  argon2, still bounds the rate.
+- **A new SSH user takes Loskai's things off the old one first** (Sunde chose it over
+  warning whenever the folder can't be read, which would warn on every 0750 machine). The
+  sudo rule is the old user's, and only another user could fail to see it. A locked key
+  warns rather than stopping the change: a field saved as you type has no place to ask
+  for the password.
+
+Left open: a `secret` flag for tool settings, which no setting needs yet.
+
 ## 2026-11-13 — Big files split where a seam is (Phase 47)
 
 Phase 46 left its three biggest files whole as "tidier, not simpler". Sunde: "splitting when
