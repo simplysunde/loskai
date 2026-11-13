@@ -4,8 +4,8 @@
 `env_file=<repo-root>/.env` (for real `uv run` dev use — see config.py). Left alone,
 every test would depend on whatever happens to be in the developer's local `.env` —
 e.g. a real `LOSKAI_PASSWORD` there makes first-run-setup tests fail because the app no
-longer thinks it's a fresh install. Reset every field to its no-`.env` value before each
-test so the suite stays hermetic no matter what's on disk.
+longer thinks it's a fresh install. Reset every field to its default before each test so
+the suite stays hermetic no matter what's on disk or in the environment.
 
 The two path defaults are then pointed at `tmp_path` rather than left at their clean
 values, which since 2026-09-10 resolve to the repo's own `data/` and `stacks/` — real,
@@ -19,14 +19,24 @@ from pathlib import Path
 
 import pytest
 
+from fastapi.testclient import TestClient
+
 from loskai.config import Settings, settings
+from loskai.main import app
 from loskai.modules.docker.client import docker_client
 from loskai.shared import auth, follow
+
+# The first admin's password, and the Origin a change needs — for a test that types the
+# password again (an unlock, a second login) or sends a header itself: `from conftest import`.
+PASSWORD = "correct horse battery"
+ORIGIN = {"origin": "http://testserver"}
 
 
 @pytest.fixture(autouse=True)
 def _isolated_settings(monkeypatch, tmp_path):
-    clean = Settings(_env_file=None)
+    # Each field's own default — not `Settings(_env_file=None)`, which still reads the
+    # environment, so an exported LOSKAI_PASSWORD or BASE_DOMAIN changed what tests saw.
+    clean = Settings.model_construct()
     for name in Settings.model_fields:
         monkeypatch.setattr(settings, name, getattr(clean, name))
     # Created, not just named: `stacks_dir_ok()` is false for a missing directory, and
@@ -35,6 +45,14 @@ def _isolated_settings(monkeypatch, tmp_path):
         path = tmp_path / name.removesuffix("_dir")
         path.mkdir()
         monkeypatch.setattr(settings, name, str(path))
+
+
+@pytest.fixture
+def admin():
+    """A client signed in as the first admin, `admin` — as first-run setup leaves you."""
+    with TestClient(app) as c:
+        assert c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD}).status_code == 200
+        yield c
 
 
 @pytest.fixture

@@ -14,20 +14,7 @@ from loskai.shared import access, auth, users
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
-ADMIN_PASSWORD = "correct horse battery"
-ORIGIN = {"origin": "http://testserver"}
-
-
-@pytest.fixture(autouse=True)
-def no_env_password(monkeypatch):
-    monkeypatch.setattr(config.settings, "loskai_password", None)
-
-
-@pytest.fixture
-def admin():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": ADMIN_PASSWORD})
-        yield c
+from conftest import ORIGIN
 
 
 def _operator(admin, name: str, level: int) -> TestClient:

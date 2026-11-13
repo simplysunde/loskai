@@ -4,14 +4,11 @@ therefore by *magic bytes*, not by filename or a caller-declared content type.
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 from loskai import config
-from loskai.main import app
 from loskai.shared import icons
 from loskai.shared import instances as store
 
-PASSWORD = "smoke-test-password"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 JPEG = b"\xff\xd8\xff" + b"\x00" * 64
 WEBP = b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"\x00" * 64
@@ -24,15 +21,12 @@ def base_domain(monkeypatch):
 
 
 @pytest.fixture
-def client():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        c.post("/api/login", json={"username": "admin", "password": PASSWORD})
-        store.upsert_instance(
-            store.Instance(id="grafana", name="Grafana", type="external",
-                           subdomain="grafana", upstream="192.168.10.50:3000")
-        )
-        yield c
+def client(admin):
+    store.upsert_instance(
+        store.Instance(id="grafana", name="Grafana", type="external",
+                       subdomain="grafana", upstream="192.168.10.50:3000")
+    )
+    return admin
 
 
 # --- sniffing ---

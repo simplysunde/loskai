@@ -7,17 +7,14 @@ and a route turn into each other.
 import asyncio
 
 import pytest
-from fastapi.testclient import TestClient
 
 from loskai import config
-from loskai.main import app
 from loskai.modules.caddy import service as caddy_service
 from loskai.shared import assign as assign_module
 from loskai.shared import follow
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
-PASSWORD = "smoke-test-password"
 
 
 @pytest.fixture(autouse=True)
@@ -26,11 +23,8 @@ def base_domain(monkeypatch):
 
 
 @pytest.fixture
-def client():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        c.post("/api/login", json={"username": "admin", "password": PASSWORD})
-        yield c
+def client(admin):
+    return admin
 
 
 @pytest.fixture

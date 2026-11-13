@@ -9,11 +9,9 @@ import time
 
 import asyncssh
 import pytest
-from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from loskai import config
-from loskai.main import app
 from loskai.modules.ssh import client as ssh_client
 from loskai.shared import instances as instances_store
 from loskai.shared import users as users_module
@@ -21,7 +19,7 @@ from loskai.modules.ssh import connect, logic, unlock
 from loskai.modules.ssh import tool as tool_module
 from loskai.shared import assign as assign_module
 
-PASSWORD = "correct horse battery"
+from conftest import PASSWORD
 HOST_KEY = asyncssh.generate_private_key("ssh-ed25519")
 OTHER_KEY = asyncssh.generate_private_key("ssh-ed25519")
 STATUS = "#loskai-status 5\n#docker\nweb|nginx|Up 1 hour\n#systemd\ncron.service loaded active running x\n"
@@ -93,13 +91,11 @@ def machine_net(monkeypatch):
 
 
 @pytest.fixture
-def api():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        c.post("/api/machines", json={
-            "hostname": "nas", "address": "192.168.10.50", "ssh": {"user": "loskai", "port": 2222},
-        })
-        yield c
+def api(admin):
+    admin.post("/api/machines", json={
+        "hostname": "nas", "address": "192.168.10.50", "ssh": {"user": "loskai", "port": 2222},
+    })
+    return admin
 
 
 def _with_key(api):

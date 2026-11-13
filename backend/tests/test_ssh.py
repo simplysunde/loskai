@@ -14,7 +14,7 @@ from loskai.shared import assign as assign_module
 from loskai.shared import auth
 from loskai.shared import instances as instances_store
 
-PASSWORD = "correct horse battery"
+from conftest import PASSWORD
 HAND_WRITTEN = "# mine\nHost laptop\n    HostName 192.168.10.5\n"
 
 
@@ -30,10 +30,8 @@ def env(monkeypatch):
 
 
 @pytest.fixture
-def client():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        yield c
+def client(admin):
+    return admin
 
 
 @pytest.fixture

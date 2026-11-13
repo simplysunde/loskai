@@ -4,7 +4,6 @@ import base64
 import json
 
 import httpx
-import pytest
 
 from loskai.modules.adguard.client import AdGuardClient
 

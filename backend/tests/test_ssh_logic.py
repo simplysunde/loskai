@@ -3,7 +3,6 @@
 import os
 import subprocess
 
-import asyncssh
 import pytest
 
 from loskai.modules.ssh import logic

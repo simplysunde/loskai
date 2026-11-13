@@ -20,7 +20,6 @@ from loskai.shared import settings as s
 @pytest.fixture(autouse=True)
 def isolated_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", str(tmp_path))
-    monkeypatch.setattr(config.settings, "loskai_password", None)
 
 
 def _admin(password="correct horse battery"):

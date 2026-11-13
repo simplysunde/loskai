@@ -965,7 +965,7 @@ places. Four bugs they found, each checked in the code, go first.
       target; Check for updates counts; a new stack with an empty `image:` stays open on
       Compose's refusal; Export config saves `loskai-config-<date>.json`
 - [x] 46q Tests: the effect, not the response; tests that couldn't fail
-- [ ] 46r Tests: one signed-in admin client; settings untouched by the environment
+- [x] 46r Tests: one signed-in admin client; settings untouched by the environment
 - [ ] 46s Docs: stale facts, superseded notes, browser/server pairs registered
 - [ ] 46t Docs: finished phases to the archive; `check-docs` checks where each phase lives
       and the instance schema; the HISTORY entry

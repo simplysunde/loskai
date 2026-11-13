@@ -3,28 +3,24 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from loskai import config
 from loskai.main import app
 from loskai.modules.ssh import client, unlock
 
-ADMIN = "correct horse battery"
-ORIGIN = {"origin": "http://testserver"}
+from conftest import ORIGIN, PASSWORD as ADMIN
 
 
 @pytest.fixture(autouse=True)
-def fresh(monkeypatch):
-    monkeypatch.setattr(config.settings, "loskai_password", None)
+def fresh():
     unlock.lock()
     yield
     unlock.lock()
 
 
 @pytest.fixture
-def admin():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": ADMIN})
-        c.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
-        yield c
+def admin(admin):
+    """The signed-in admin (conftest's), with a key made."""
+    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
+    return admin
 
 
 def _login(name: str, password: str) -> TestClient:

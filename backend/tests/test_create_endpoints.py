@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 
 from loskai import config
 from loskai.main import app
+from conftest import PASSWORD
 
-PASSWORD = "smoke-test-password"
 
 
 @pytest.fixture(autouse=True)
@@ -20,11 +20,8 @@ def base_domain(monkeypatch):
 
 
 @pytest.fixture
-def client():
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        c.post("/api/login", json={"username": "admin", "password": PASSWORD})
-        yield c
+def client(admin):
+    return admin
 
 
 def test_both_creation_endpoints_require_a_session():

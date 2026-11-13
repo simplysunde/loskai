@@ -1,22 +1,9 @@
 """A refusal's status is decided where it is raised (`shared/errors.py`), and one handler
 answers with it — so "not found" is a 404 and a bad request a 400, whichever route it is."""
 
-import pytest
-from fastapi.testclient import TestClient
-
-from loskai import config
-from loskai.main import app
-
-PASSWORD = "correct horse battery"
-ORIGIN = {"origin": "http://testserver"}
 
 
-@pytest.fixture
-def admin(monkeypatch):
-    monkeypatch.setattr(config.settings, "loskai_password", None)
-    with TestClient(app) as c:
-        c.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
-        yield c
+from conftest import ORIGIN
 
 
 def test_a_missing_stack_is_404_on_every_route(admin):
