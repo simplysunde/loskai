@@ -55,8 +55,7 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
 - `modules/ssh/` — Loskai's keys (`client.py`, owner-only files; the main one usable only
-  while its user has unlocked it with their password, `unlock.py` — 15 minutes unless
-  Settings › SSH says longer) and its SSH config and known_hosts,
+  while its user has unlocked it with their password, `unlock.py`) and its SSH config and known_hosts,
   edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
   the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
   rename, move and delete. **Tools** (`tool.py`, the files in `tools/`) are what a

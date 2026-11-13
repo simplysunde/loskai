@@ -105,7 +105,7 @@ An **instance** is anything Loskai knows by name:
   "type":      "docker",             // "docker" (a container) | "external" (anything else)
   "kind":      "service",            // "service" (published at a URL) | "machine" (an address)
   "subdomain": "grafana",            // null = known but not routed
-  "route_mode": "proxy",             // "proxy" (Caddy + AdGuard) | "dns_only" (AdGuard only)
+  "route_mode": "proxy",             // "proxy" (Caddy + AdGuard) | "dns_only" (AdGuard only) | "direct" (a link)
   "upstream":  "192.168.10.100:3000", // host:port for proxy; a bare IP for dns_only
   "upstream_tls": false,             // dial the upstream over HTTPS, unverified (Proxmox)
   "scheme":    "https",              // "https" | "both" | "http" — which Caddy server(s)

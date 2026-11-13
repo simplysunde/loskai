@@ -82,6 +82,9 @@ instead.
 
 ## 2026-11-11 — Status line v8: sudo asked so it logs nothing
 
+_Its sudo check was wrong for a machine with Loskai's rule beside a password-protected
+`%sudo ALL`; v10 replaced it the next day (above)._
+
 A review found every poll ran `sudo -n true` to decide whether to read a machine's
 listeners and guest addresses as root (v6, v7). Tried in a Debian container with sudo
 logging to a file: that is logged as an incident for a user sudo refuses — every 30 s per
@@ -141,6 +144,9 @@ One optional setting, `host_tailscale_ip`, now goes into every machine's `from=`
   never compares installed lines), and Caddy and AdGuard's install needs nothing new.
 
 ## 2026-11-11 — Tailscale as the way in, not a replacement
+
+_Its "no Loskai code" was walked back the next day: sharing the network became the
+Tailscale tool's ("Subnet routing is the Tailscale tool's", above), and the script retired._
 
 Sunde asked how Tailscale could reach everything, "without complicating it too much for
 setup". Tailscale runs as a **subnet router** beside Caddy and AdGuard — a recipe for the
@@ -498,7 +504,8 @@ host's address by itself.
 ## 2026-11-02 — Accounts: an admin, and operators limited to tabs (Phase 35)
 
 _Its key slots — the SSH key sealed per account — were walked back two days later by Phase
-38 (above); the accounts themselves stand._
+38, and its operators, given any set of tabs, became levels on 2026-11-06 ("Levels instead
+of tabs") — both above; the accounts themselves stand._
 
 **This reverses "one password, no accounts"** (2026-08, and architecture.md's access section
 until now). That was right while one person ran Loskai: logout could end every session by
@@ -783,6 +790,9 @@ overview's `programs`; its section is still `#=tools`, since renaming a marker w
 a status-line version for nothing).
 
 ## 2026-11-01 — Phase 34f: plugins are data, and run where they can be seen
+
+_Its enabled plugins were walked back the same day: tools are found from what the machine
+has, nothing enabled (Phase 34f′, above)._
 
 **A plugin is a file, not code** (Sunde: plugins "we install and enable based on needs,
 kinda like the recipes, although… tied to the image"). Code plugins would have run inside

@@ -802,6 +802,8 @@ standalone install script too, "which can be used for a VM, an LXC or a Raspberr
   devices, not services); replacing Caddy (`tailscale serve`) gives a name per device, not
   per service, and would need a Tailscale API key in Loskai, which keeps no third-party key.
 - **No Loskai code.** A recipe (in `loskai-recipes`), a script (`scripts/`), and a guide.
+  *Walked back 2026-11-12:* sharing the network became the Tailscale tool's (44d), and the
+  script was retired.
 - **The auth key is optional** in both: without one, Tailscale prints a login link (the
   container's log, the script's output), and no key is stored.
 
@@ -966,7 +968,7 @@ places. Four bugs they found, each checked in the code, go first.
       Compose's refusal; Export config saves `loskai-config-<date>.json`
 - [x] 46q Tests: the effect, not the response; tests that couldn't fail
 - [x] 46r Tests: one signed-in admin client; settings untouched by the environment
-- [ ] 46s Docs: stale facts, superseded notes, browser/server pairs registered
+- [x] 46s Docs: stale facts, superseded notes, browser/server pairs registered
 - [ ] 46t Docs: finished phases to the archive; `check-docs` checks where each phase lives
       and the instance schema; the HISTORY entry
 
@@ -999,12 +1001,11 @@ places. Four bugs they found, each checked in the code, go first.
   owned domain for now. Precondition when revisited: DNS hosted somewhere with an API Caddy
   has a plugin for. **Confirmed 2026-09-27: one.com has no caddy-dns module**, so the two
   routes are NS-delegating a subdomain, or CNAME-ing `_acme-challenge` to an acme-dns
-  instance — neither moves the registrar. Phase 24 made the LXC script provider-agnostic, so
-  either is configuration rather than a patch
+  instance — neither moves the registrar. ACME support was removed outright on 2026-09-27 (the
+  internal CA is the only TLS mode), so either means bringing it back, deliberately
 - **Store read amplification** (twin of Phase 15's deferred F12, noted 2026-08-29): every
   `get_instance` / `get_by_container` / `get_by_origin` / `list_routed` re-reads and re-parses
-  the whole `instances.json`, so one assign reads the file several times over — 25 call sites
-  app-wide (39 counting `list_instances` itself), seven of them inside `instances.py`. Same
+  the whole `instances.json`, so one assign reads the file several times over. Same
   shape as F12's per-key `settings.json` reads. A request-scoped read is the fix; changing the *storage format* is not (JSON is the
   right choice while the app is the writer and the file stays a human-readable recovery record)
 - Tier-3 integration rig + Forgejo CI (Phase 8b) — deferred by choice

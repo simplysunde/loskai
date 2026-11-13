@@ -126,7 +126,10 @@ server. Change one side, change the other in the same commit.
 
 | Decision | Server | Browser | What keeps them in step |
 |---|---|---|---|
-| Whether a record is a machine | `is_machine` | `isMachine` | The server sends `kind`; the browser only reads it. The fallback on the upstream's shape is for rows from before `kind`. |
+| Whether a record is a machine | `is_machine` | `isMachine` | The server sends `kind`; the browser only reads it. |
 | Which routes are on a machine | `on_address` | `machineAt`, `routesOn` | The same rule: the upstream's host is the machine's address. Nothing checks they agree. |
 | What a name and an upstream may be | `validate_prefix`, `validate_upstream` | `lib/validation.ts` | The server enforces; the browser only says so while typing. A rule only the browser has isn't a rule. |
+| Whether removing a machine, or its SSH, takes Loskai's things off it first — and so needs the key unlocked | `connect.removal` | `takesKeysOff`, `removalNeedsPassword` (`lib/ssh.ts`) | The same test: a key, and the machine's host key trusted. Nothing checks they agree; a page that skips the password gets the server's `423` and asks then. |
+| Whether a run is automatic: no terminal to type in, sudo's password asked first | `connect.plan` (`Action.automatic`, adding a tool, the sudo rule) | `useToolRunner` | The tool file's `automatic`, sent with each action; the other two are always automatic on both sides. |
+| What a folder to mount may be | `recipes.path_problem`, `resolve_mounts`, `stackform.folders_problem` | `pathProblem`, the wizard's `folderProblems`, `StackForm`'s `folderProblem` | The server enforces; the browser says so before saving. They drifted once — a `:` in a container path (2026-11-13). |
 | Where a route or link will open, shown before it is saved | `open_url` | `useRouteFields`' `opensAt` (the three route forms), and the install wizard's `LinkNow` | Nothing checks they agree: the record doesn't exist until it is saved, so there is nothing to ask the server. A link opens at `http://` or, when its backend speaks HTTPS, `https://` and its address; a route at `https://` and its name, `http://` only when it is HTTP only. Once saved, every row opens at the server's `url`. |
