@@ -40,6 +40,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
 | Where a record's uploaded icon is served | `shared/instances.py` `icon_url` | `modules/caddy/service.py` `shared/dashboard.py` |
+| What a change to the records makes stale, in the browser | `lib/routes.ts` `refreshRecords` | `components/docker/InstallWizard.tsx` `components/routing/useSaveMachine.ts` `components/settings/ClearRewrites.tsx` `pages/Machines.tsx` `pages/Routing.tsx` |
 | How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallWizard.tsx` `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
@@ -63,6 +64,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | A stack by name, or a 404; its `.env` as written | `modules/docker/stacks.py` `require_stack` `env_text` | `modules/docker/stackform.py` `modules/docker/updates.py` |
 | Which recipe a stack came from: its install record's, else its folder's name | `modules/docker/recipes.py` `installed_as` `stack_recipe` | `modules/docker/stackform.py` `modules/docker/updates.py` |
 | Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailed` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
+| The recipe list, and its type | `lib/recipes.ts` `useRecipes` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
 
 ## Caddy and AdGuard

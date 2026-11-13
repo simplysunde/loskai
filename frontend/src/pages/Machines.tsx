@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { HardDrive, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
-import { saveNew, useRouteRows } from "../lib/routes";
+import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { removalNeedsPassword, takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
@@ -68,8 +68,7 @@ export function Machines() {
   const machines = dockerHost ? [...named, dockerHost] : named;
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-    qc.invalidateQueries({ queryKey: ["adguard-status"] });
+    refreshRecords(qc);
     qc.invalidateQueries({ queryKey: ["ssh"] });
     qc.invalidateQueries({ queryKey: ["ssh-running"] });
   };
@@ -138,7 +137,7 @@ export function Machines() {
 
       {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
           state is in its row. */}
-      {result && <SaveBanner result={result} />}
+      {result && <div className="mb-4"><SaveBanner result={result} /></div>}
       {deleteWarning && (
         <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           {deleteWarning}

@@ -4,6 +4,7 @@ import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { refreshRecords } from "../../lib/routes";
 
 type Rewrite = { domain: string; answer: string; managed: boolean };
 
@@ -52,9 +53,8 @@ export function ClearRewrites() {
       setError(null);
       setNote(summarise(result));
       // The DNS column and the health banner both read what AdGuard now holds.
-      qc.invalidateQueries({ queryKey: ["adguard-status"] });
+      refreshRecords(qc);
       qc.invalidateQueries({ queryKey: ["health"] });
-      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
     },
     onError: (err) => {
       setConfirming(false);

@@ -951,8 +951,11 @@ places. Four bugs they found, each checked in the code, go first.
       `follow`, `OpensAt`) — Assign now says the scheme too. Not done: moving the Assign
       form's pre-fill from the Routing page into the form — it has one caller, so it is
       decided once already, and the move would rewrite eight of its tests
-- [ ] 46n Frontend: one key-unlock hook
-- [ ] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
+- [x] 46n Not done: one key-unlock hook. The five are five flows around one request —
+      unlock, then a terminal, an install, a removal, a delete or a settings read — and
+      what they share (`useUnlockFor`, `YourPassword`, `removalNeedsPassword`) is one
+      already, since Phase 40; a hook would wrap only the `POST`
+- [x] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
 - [ ] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
       remove dialog's pending state, Machines loaded lazily
 - [ ] Frontend live

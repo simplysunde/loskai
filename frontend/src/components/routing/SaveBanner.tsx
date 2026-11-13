@@ -4,7 +4,7 @@ import type { SaveResult } from "./useSaveMachine";
 export function SaveBanner({ result }: { result: SaveResult }) {
   return (
     <div
-      className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
+      className={`rounded-lg border px-3 py-2 text-sm ${
         result.warning
           ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
           : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"

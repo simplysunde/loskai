@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
 import type { NewLink, NewRoute } from "../components/routing/AddRouteModal";
@@ -13,6 +13,15 @@ export function saveNew(r: NewRoute | NewLink) {
     return api.post<SaveResult>("/api/links", link);
   }
   return api.post<SaveResult>("/api/routes", r);
+}
+
+// What a change to the records makes stale: the record list (Routing, Machines, the
+// pickers), the DNS column, the Dashboard, and the container rows' routes and links. One
+// list, so every change refreshes every view of the records.
+export function refreshRecords(qc: QueryClient) {
+  for (const key of ["caddy-routes", "adguard-status", "dashboard", "docker-containers"]) {
+    qc.invalidateQueries({ queryKey: [key] });
+  }
 }
 
 // GET /api/adguard/status: whether each routed name's rewrite is there, by instance id.

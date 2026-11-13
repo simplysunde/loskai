@@ -1,22 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { syncFailed, type SyncResult } from "../../lib/recipes";
+import { syncFailed, useRecipes, type SyncResult } from "../../lib/recipes";
 import { recipeSources, useSettings, type RecipeSource } from "../../lib/settings";
-
-// What GET /api/docker/recipes reports per source — sync state the settings list shows so
-// "added a repo" and "that repo has actually been cloned" are distinguishable here rather
-// than only in the wizard.
-interface SourceStatus {
-  url: string;
-  label: string;
-  enabled: boolean;
-  builtin: boolean;
-  synced: boolean;
-  count: number;
-}
 
 // The install wizard's git sources: one row per repo, each independently switched on or
 // off, top of the list winning a name clash. The shipped default is an ordinary row with
@@ -33,11 +21,7 @@ export function RecipeSources() {
   const [note, setNote] = useState<string | null>(null);
 
   const { data: settings } = useSettings();
-  const recipes = useQuery({
-    queryKey: ["docker-recipes"],
-    queryFn: () => api.get<{ sources: SourceStatus[]; local_count: number }>("/api/docker/recipes"),
-    retry: false,
-  });
+  const recipes = useRecipes();
 
   const sources = recipeSources(settings);
   const statusOf = (url: string) => recipes.data?.sources.find((s) => s.url === url);

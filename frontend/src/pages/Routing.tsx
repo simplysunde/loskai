@@ -15,7 +15,7 @@ import {
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
-import { saveNew, useRouteRows } from "../lib/routes";
+import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { answerHost, useCaddySetUp, useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
@@ -30,6 +30,7 @@ import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { CopyButton } from "../components/shared/CopyButton";
+import { SaveBanner } from "../components/routing/SaveBanner";
 
 interface Orphan {
   id: string;
@@ -121,9 +122,7 @@ export function Routing() {
   const machines = allRows.filter(isMachine);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-    qc.invalidateQueries({ queryKey: ["adguard-status"] });
-    qc.invalidateQueries({ queryKey: ["dashboard"] });
+    refreshRecords(qc);
     qc.invalidateQueries({ queryKey: ["docker-orphans"] });
   };
 
@@ -160,7 +159,6 @@ export function Routing() {
     onSuccess: (data) => {
       setAddOpen(false);
       setResult(data);
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
       invalidate();
     },
     onError: (err) => setAssignError(apiMessage(err)),
@@ -184,7 +182,6 @@ export function Routing() {
     onSuccess: (data) => {
       setLinkTarget(null);
       setResult(data);
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
       invalidate();
     },
     onError: (err) => setAssignError(apiMessage(err)),
@@ -421,18 +418,7 @@ export function Routing() {
           </div>
         )}
         {failed && <ActionError {...failed} onDismiss={() => setFailed(null)} />}
-        {result && (
-          <div
-            className={`rounded-lg border px-3 py-2 text-sm ${
-              result.warning
-                ? "border-amber-600/40 bg-amber-500/10 text-amber-200"
-                : "border-emerald-600/40 bg-emerald-500/10 text-emerald-200"
-            }`}
-          >
-            <span className="font-medium">{result.url}</span> —{" "}
-            {result.warning ?? (result.link ? "link saved — on the Dashboard." : "route + DNS rewrite created.")}
-          </div>
-        )}
+        {result && <SaveBanner result={result} />}
       </div>
 
       {routes.isLoading ? (

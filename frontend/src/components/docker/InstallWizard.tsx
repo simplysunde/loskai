@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { api, apiMessage } from "../../lib/api";
-import { syncFailed, type SyncResult } from "../../lib/recipes";
+import { syncFailed, useRecipes, type Recipe, type RecipeList, type SyncResult } from "../../lib/recipes";
 import { RouteLink } from "../shared/RouteLink";
 import { useContainers } from "../../lib/containers";
 import { useCaddySetUp } from "../../lib/useHealth";
@@ -12,48 +12,10 @@ import { useSettings } from "../../lib/settings";
 import { isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
-import { OptionList, type RecipeOption } from "./RecipeOptions";
+import { OptionList } from "./RecipeOptions";
 import { INPUT } from "../../lib/ui";
+import { refreshRecords } from "../../lib/routes";
 
-interface RecipeEnv {
-  key: string;
-  label: string;
-  default?: string;
-  secret?: boolean;
-  // `path`: a host folder mounted into the container — the wizard says where it lands.
-  type?: "text" | "path";
-}
-interface Recipe {
-  id: string;
-  name: string;
-  type: string;
-  description?: string;
-  env: RecipeEnv[];
-  suggested_subdomain?: string;
-  service?: string | null;
-  // Where a link the app logs after install points (a login): the last step shows it.
-  log_link?: string | null;
-  // Folders the user adds at install, however many they have: each lands at
-  // `target/<its name>`. Written to compose.override.yml, never into the recipe's file.
-  mounts?: { label: string; target: string; read_only: boolean } | null;
-  // Features switched on at install (a GPU, say), each added to the override when on.
-  options?: RecipeOption[];
-  // instructions.md, verbatim. Shown before the form — it is the recipe's own
-  // walk-through, and the only place a recipe author can say "log in with admin/admin".
-  instructions: string;
-  // The recipe ships an icon.png — shown here, and given to the route at install.
-  icon?: boolean;
-  source: string;
-  source_url?: string | null;
-}
-interface RecipeList {
-  recipes: Recipe[];
-  invalid: { id: string; source: string; error: string }[];
-  // A recipe id defined by more than one source: `source` lost, `shadowed_by` won.
-  shadowed: { id: string; source: string; shadowed_by: string }[];
-  sources: { url: string; label: string; enabled: boolean; synced: boolean; count: number }[];
-  local_count: number;
-}
 interface InstallResult {
   ok: boolean;
   output: string;
@@ -76,11 +38,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   const [chosen, setChosen] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<InstallResult | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["docker-recipes"],
-    queryFn: () => api.get<RecipeList>("/api/docker/recipes"),
-    retry: false,
-  });
+  const { data, isLoading } = useRecipes();
 
   const refresh = useMutation({
     mutationFn: () => api.post<SyncResult>("/api/docker/recipes/refresh"),
@@ -96,10 +54,9 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: (r) => {
       setResult(r);
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
       qc.invalidateQueries({ queryKey: ["docker-stacks"] });
       // The install registers an instance, which the Routing table and dashboard read.
-      qc.invalidateQueries({ queryKey: ["instances"] });
+      refreshRecords(qc);
     },
   });
 
@@ -543,9 +500,7 @@ function LinkNow({ recipe, containerName }: { recipe: Recipe; containerName: str
         follow_container: true,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
-      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      refreshRecords(qc);
     },
   });
 
@@ -642,9 +597,7 @@ function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: st
         follow_container: true,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["docker-containers"] });
-      qc.invalidateQueries({ queryKey: ["caddy-routes"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      refreshRecords(qc);
     },
   });
 
