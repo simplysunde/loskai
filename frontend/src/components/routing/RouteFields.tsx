@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 import { HostSelect } from "./HostSelect";
@@ -19,22 +18,19 @@ export interface FollowState {
 const LINK = "text-xs text-teal-400 hover:text-teal-300 hover:underline";
 
 // The prefix and the upstream — host, port, and whether it speaks HTTPS. Each modal keeps
-// its own chrome and submit; `preview` is the slot for the FQDN line AssignModal shows under
-// the prefix (AddRouteModal renders its own further down, next to the submit).
+// its own chrome and submit, and shows where it will open (`OpensAt`) above them.
 //
 // `link`: the same address for a link (Phase 45) — no prefix (the form asks for a name
 // instead), and an address the browser opens rather than one Caddy dials.
 export function RouteFields({
   fields,
   autoFocus = false,
-  preview,
   follow,
   hosts = [],
   link = false,
 }: {
   fields: RouteFieldsState;
   autoFocus?: boolean;
-  preview?: ReactNode;
   follow?: FollowState;
   // The host dropdown's options: the Docker host, this container, the named machines.
   hosts?: HostOption[];
@@ -56,7 +52,6 @@ export function RouteFields({
             placeholder="grafana"
             className={INPUT}
           />
-          {preview}
           {fields.prefix && !fields.prefixOk && (
             <span className="mt-1 block text-xs text-rose-400">
               Single DNS label only: lowercase letters, digits, hyphens.
@@ -177,5 +172,14 @@ export function RouteFormFooter({
         {label}
       </button>
     </div>
+  );
+}
+
+// Where a route or link will open once saved (`fields.opensAt`), above a form's buttons.
+export function OpensAt({ url }: { url: string }) {
+  return (
+    <p className="mt-4 text-xs text-slate-500">
+      → <span className="font-mono text-slate-300">{url}</span>
+    </p>
   );
 }

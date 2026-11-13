@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import type { FollowState } from "./RouteFields";
+import type { Scheme } from "./SchemeSelect";
 import {
   assembleFqdn,
   isValidHost,
@@ -74,12 +76,27 @@ export function useRouteFields({
     portOk,
     upstreamOk: hostOk && portOk,
     valid: prefixOk && hostOk && portOk,
-    fqdn: assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN"),
     hostHint: mode === "docker" ? "jellyfin" : "192.168.10.100",
     upstreamHelp:
       mode === "docker"
         ? "Caddy shares a Docker network with this container, so it can dial it by name."
         : "Must be reachable from wherever Caddy runs — a LAN IP:port. A container name resolves only if Caddy shares a Docker network with it.",
+    // Where the record will open once saved, as the server's open_url will put it: a link
+    // at its address, over https when its backend speaks it; a route at its name, over
+    // http only when it is HTTP only. Shown before saving — there is no record to ask yet.
+    opensAt: (as: Scheme | "link") =>
+      as === "link"
+        ? `${tls ? "https" : "http"}://${host.trim()}:${port.trim()}`
+        : `${as === "http" ? "http" : "https"}://${assembleFqdn(prefix || "name", baseDomain || "BASE_DOMAIN")}`,
+    // Following a container: on, the upstream is its address now (`derived`) and locked.
+    follow: (on: boolean, setOn: (on: boolean) => void, derived: string | null): FollowState => ({
+      on,
+      derived,
+      set: (next) => {
+        setOn(next);
+        if (next && derived) setUpstream(derived);
+      },
+    }),
     // What both route modals post to /api/routes; AddRouteModal spreads its links on top.
     payload: () => ({
       prefix,

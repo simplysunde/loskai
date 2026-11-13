@@ -13,7 +13,7 @@ import { hostOptions } from "./hostOptions";
 import { machineLabel } from "./machine";
 import { machineServices, type MachineService } from "./machineServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
-import { RouteFields, RouteFormFooter } from "./RouteFields";
+import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
 import { Overlay } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -187,7 +187,6 @@ export function AddRouteModal({
   };
 
   const canSubmit = (link ? Boolean(name.trim()) && fields.upstreamOk : fields.valid) && !pending;
-  const linkUrl = `${fields.tls ? "https" : "http"}://${fields.upstream}`;
 
   return (
     <Overlay onClose={onClose}>
@@ -290,27 +289,10 @@ export function AddRouteModal({
         fields={fields}
         hosts={hosts}
         link={link}
-        follow={
-          pickedContainer
-            ? {
-                on: follow,
-                derived,
-                set: (on) => {
-                  setFollow(on);
-                  if (on && derived) fields.set({ upstream: derived });
-                },
-              }
-            : undefined
-        }
+        follow={pickedContainer ? fields.follow(follow, setFollow, derived) : undefined}
       />
       {!link && <SchemeSelect value={scheme} onChange={setScheme} />}
-
-      <p className="mt-4 text-xs text-slate-500">
-        →{" "}
-        <span className="font-mono text-slate-300">
-          {link ? linkUrl : scheme === "http" ? `http://${fields.fqdn}` : `https://${fields.fqdn}`}
-        </span>
-      </p>
+      <OpensAt url={fields.opensAt(link ? "link" : scheme)} />
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
       <RouteFormFooter

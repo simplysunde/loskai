@@ -33,12 +33,15 @@ function renderModal(overrides = {}) {
   return { onSubmit };
 }
 
-test("shows the assembled FQDN live as you type the prefix", () => {
+test("shows where it will open as you type the prefix, over the scheme picked", () => {
   renderModal();
   fireEvent.change(screen.getByPlaceholderText("grafana"), {
     target: { value: "jelly" },
   });
-  expect(screen.getByText("jelly.example.no")).toBeInTheDocument();
+  expect(screen.getByText("https://jelly.example.no")).toBeInTheDocument();
+  // The same line Add route shows: an HTTP-only route opens at http://.
+  fireEvent.click(screen.getByRole("button", { name: "HTTP" }));
+  expect(screen.getByText("http://jelly.example.no")).toBeInTheDocument();
 });
 
 test("Assign is disabled until prefix and upstream are valid", () => {

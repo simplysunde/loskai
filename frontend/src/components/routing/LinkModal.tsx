@@ -3,7 +3,7 @@ import { useState } from "react";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
 import { hostOptions } from "./hostOptions";
-import { RouteFields, RouteFormFooter } from "./RouteFields";
+import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 
@@ -75,25 +75,9 @@ export function LinkModal({
         fields={fields}
         link
         hosts={hostOptions({ rows, dockerHost })}
-        follow={
-          row.container
-            ? {
-                on: following,
-                derived: published,
-                set: (on) => {
-                  setFollowing(on);
-                  if (on && published) fields.set({ upstream: published });
-                },
-              }
-            : undefined
-        }
+        follow={row.container ? fields.follow(following, setFollowing, published ?? null) : undefined}
       />
-      <p className="mt-4 text-xs text-slate-500">
-        →{" "}
-        <span className="font-mono text-slate-300">
-          {fields.tls ? "https" : "http"}://{fields.upstream}
-        </span>
-      </p>
+      <OpensAt url={fields.opensAt("link")} />
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
       <RouteFormFooter
         label="Save link"

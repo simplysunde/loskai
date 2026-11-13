@@ -1,13 +1,13 @@
 import { useState } from "react";
 
-import { RouteFields, RouteFormFooter } from "./RouteFields";
+import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
 import type { RouteRow } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { hostOptions } from "./hostOptions";
 import { Overlay } from "../shared/Modal";
 
-// Assign URL form: a single-label prefix + an upstream host:port, with the assembled FQDN
+// Assign URL form: a single-label prefix + an upstream host:port, with where it will open
 // shown live. Presentational — submit is handed to onSubmit (wired to /api/routes). The
 // upstream hint follows the Caddy mode (Docker names vs LAN IPs). Re-pointing a *machine*
 // is a different form entirely and goes to AddMachineModal (Phase 21e).
@@ -78,26 +78,11 @@ export function AssignModal({
         fields={fields}
         hosts={hosts}
         autoFocus
-        preview={
-          <span className="mt-1 block text-xs text-slate-500">
-            → <span className="text-teal-300">{fields.fqdn}</span>
-          </span>
-        }
-        follow={
-          follow
-            ? {
-                on: following,
-                derived: follow.derived,
-                set: (on) => {
-                  setFollowing(on);
-                  if (on && follow.derived) fields.set({ upstream: follow.derived });
-                },
-              }
-            : undefined
-        }
+        follow={follow ? fields.follow(following, setFollowing, follow.derived) : undefined}
       />
 
       <SchemeSelect value={scheme} onChange={setScheme} />
+      <OpensAt url={fields.opensAt(scheme)} />
 
       {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 

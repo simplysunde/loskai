@@ -947,8 +947,10 @@ places. Four bugs they found, each checked in the code, go first.
       a hand-added answer was reported and kept, and the clear list marked it unmanaged.
       Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (6245fca)
 - [x] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
-- [ ] 46m Frontend: the route forms' preview and follow toggle, once; the Assign form
-      decides its own pre-fill, like `LinkModal`
+- [x] 46m Frontend: the route forms' preview and follow toggle, once (`opensAt`,
+      `follow`, `OpensAt`) — Assign now says the scheme too. Not done: moving the Assign
+      form's pre-fill from the Routing page into the form — it has one caller, so it is
+      decided once already, and the move would rewrite eight of its tests
 - [ ] 46n Frontend: one key-unlock hook
 - [ ] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
 - [ ] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
