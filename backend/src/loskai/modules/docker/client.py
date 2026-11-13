@@ -280,10 +280,14 @@ class DockerClient:
 
     # --- Interactive exec (driven by the WebSocket handler in the router) ---
 
-    def exec_create(self, container_id: str, cmd: list[str]) -> str:
+    def exec_create(self, container_id: str, cmd: list[str], env: dict[str, str] | None = None) -> str:
         return self.api.exec_create(
-            container_id, cmd, stdin=True, stdout=True, stderr=True, tty=True
+            container_id, cmd, stdin=True, stdout=True, stderr=True, tty=True, environment=env
         )["Id"]
+
+    def exec_run(self, container_id: str, cmd: list[str]) -> None:
+        """Run `cmd` in the container, no terminal, and wait for it to end."""
+        self.api.exec_start(self.api.exec_create(container_id, cmd)["Id"])
 
     def exec_start(self, exec_id: str):
         # socket=True returns a raw, bidirectional socket for streaming.

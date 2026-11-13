@@ -8,6 +8,7 @@ BaseHTTPMiddleware doesn't cover WS connections, and this is a root shell.
 import asyncio
 import contextlib
 import logging
+import secrets
 import socket
 
 from docker.errors import APIError, NotFound
@@ -172,6 +173,17 @@ async def logs(container_id: str, tail: int = 200):
 # exits when `exec` fails, so the fallback never ran.
 SHELL_COMMAND = "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi"
 
+# Docker keeps an exec'd shell running after its socket closes, and Loskai can't signal it
+# from its own container. So each terminal's shell carries a mark in its environment, and
+# closing the terminal hangs up every process in the container that has it — the shell and
+# what it started (one that ignores a hangup, as `nohup` makes it, stays). `$1` is the mark.
+TERMINAL_MARK = "LOSKAI_TERMINAL"
+HANGUP_COMMAND = (
+    'for e in /proc/[0-9]*/environ; do p=${e%/environ}; '
+    f'tr "\\0" "\\n" < "$e" 2>/dev/null | grep -qx "{TERMINAL_MARK}=$1" && kill -HUP "${{p#/proc/}}" 2>/dev/null; '
+    "done; true"
+)
+
 
 @router.websocket("/containers/{container_id}/exec")
 async def exec_terminal(websocket: WebSocket, container_id: str):
@@ -179,11 +191,13 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
     cookie = await terminal.accept(websocket, "docker")
     if cookie is None:
         return
+    mark = secrets.token_hex(8)
     try:
         exec_id = await asyncio.to_thread(
             docker_client.exec_create,
             container_id,
             ["/bin/sh", "-c", SHELL_COMMAND],
+            {TERMINAL_MARK: mark},
         )
         sock = await asyncio.to_thread(docker_client.exec_start, exec_id)
     except DOCKER_ERRORS as exc:
@@ -210,7 +224,13 @@ async def exec_terminal(websocket: WebSocket, container_id: str):
         except OSError as exc:
             # The peer usually closed first — teardown detail, not an operator problem.
             logger.debug("exec socket close failed: %s", exc)
-        await websocket.close()
+        try:
+            await asyncio.to_thread(docker_client.exec_run, container_id, ["/bin/sh", "-c", HANGUP_COMMAND, "sh", mark])
+        except DOCKER_ERRORS as exc:
+            # Gone with its container, most often; else the shell outlives the terminal, as before.
+            logger.debug("terminal shell not hung up: %s", exc)
+        with contextlib.suppress(RuntimeError):  # the browser closed it first
+            await websocket.close()
 
 
 # --- Stacks ---

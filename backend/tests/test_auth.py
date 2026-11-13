@@ -13,6 +13,7 @@ from starlette.websockets import WebSocketDisconnect
 from loskai import config
 from loskai.main import app
 from loskai.modules.docker.client import docker_client
+from loskai.modules.docker.router import HANGUP_COMMAND
 from loskai.shared import auth, store, users
 from loskai.shared import settings as s
 
@@ -261,8 +262,10 @@ class _Exec:
 def test_log_out_closes_an_open_terminal(client, monkeypatch):
     monkeypatch.setattr(auth, "SESSION_RECHECK", 0.05)
     shell = _Exec()
-    monkeypatch.setattr(docker_client, "exec_create", lambda *a: "exec-id")
+    created, ran = [], []
+    monkeypatch.setattr(docker_client, "exec_create", lambda *a: created.append(a) or "exec-id")
     monkeypatch.setattr(docker_client, "exec_start", lambda exec_id: shell)
+    monkeypatch.setattr(docker_client, "exec_run", lambda *a: ran.append(a))
     client.post("/api/login", json={"username": "admin", "password": PASSWORD})
 
     with client.websocket_connect("/api/docker/containers/abc/exec") as ws:
@@ -273,6 +276,36 @@ def test_log_out_closes_an_open_terminal(client, monkeypatch):
         with pytest.raises(WebSocketDisconnect):
             ws.receive_bytes()
     assert shell._sock.fileno() == -1  # and the exec socket closed with it
+    # Docker keeps the shell running after that: it is hung up by the mark it was given.
+    (container, _, env), = created
+    mark = env["LOSKAI_TERMINAL"]
+    assert ran == [(container, ["/bin/sh", "-c", HANGUP_COMMAND, "sh", mark])]
+
+
+def test_closing_a_terminal_hangs_up_its_shell_and_what_it_started_not_another():
+    """Run as the container would: two marked shells, each with a child; the hangup for one
+    ends it and its child, and leaves the other."""
+    import os
+    import subprocess
+    import time
+
+    def marked(mark):
+        shell = subprocess.Popen(["sh", "-c", "sleep 60 & echo $!; wait"], stdout=subprocess.PIPE, text=True,
+                                 env={"PATH": "/usr/bin:/bin", "LOSKAI_TERMINAL": mark})
+        return shell, int(shell.stdout.readline())
+
+    (mine, child), (other, _) = marked("aaaa"), marked("bbbb")
+    try:
+        subprocess.run(["sh", "-c", HANGUP_COMMAND, "sh", "aaaa"], check=True, timeout=10)
+        mine.wait(timeout=5)
+        assert other.poll() is None
+        with pytest.raises(ProcessLookupError):
+            for _ in range(50):
+                os.kill(child, 0)
+                time.sleep(0.05)
+    finally:
+        subprocess.run(["sh", "-c", HANGUP_COMMAND, "sh", "bbbb"], timeout=10)
+        other.wait(timeout=5)
 
 
 def _ends_within(token, seconds, tab="machines") -> bool:

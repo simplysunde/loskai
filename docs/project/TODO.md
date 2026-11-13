@@ -36,10 +36,6 @@ visible without unpacking a phase back out. The checklists stay in
   the moment each wait ends keeps that account out until it stops or Loskai restarts. The proposed
   fix: key the count by client. `auth.peer` already tells the client, trusting
   `X-Forwarded-For` only on requests from Caddy's own address (2026-11-07). Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
-- **A closed terminal leaves its shell running in the container.** Docker keeps an exec'd
-  process alive after its connection closes (live, 2026-10-30: four closed terminals, four
-  `bash` processes left). Needs a way to end it — `exec_inspect` gives its host PID, which
-  Loskai's container can't signal.
 - **A sudo rule Loskai can't see may be left behind.** Taking a machine off checks for the rule
   with `[ -e /etc/sudoers.d/loskai ]` when `sudo -n rm` fails. Where that folder is 0750 (it
   is 0755 on Debian), a user other than the one the rule was made for sees nothing, and the
@@ -85,7 +81,10 @@ between today and a first release. The bugs are the ones under *Open, not in fli
 - [x] 48b The sudo ticket out of the terminal's URL (uvicorn's access log has it): the URL
       says `sudo_password=true` and the ticket is the socket's first message; anything else
       first, or nothing in 10 s, is refused `4422`
-- [ ] 48c A closed container terminal ends its shell
+- [x] 48c A closed container terminal ends its shell: the shell gets a mark in its
+      environment, and closing the terminal hangs up what has it (`HANGUP_COMMAND`, run
+      in the container) — live on Alpine (busybox) and Debian (bash): the shell and a job
+      it started gone, the container's own process left
 - [ ] 48d Wrong passwords counted per client as well as per account
 - [ ] 48e A sudo rule Loskai can't see is not reported as removed
 
