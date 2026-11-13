@@ -286,7 +286,14 @@ async def assign(
                         "stale rewrite %s -> %s not deleted: %s",
                         old_domain, old_answer, describe_error(exc),
                     )
-            await adguard_client.add_rewrite(domain, answer)
+            # Only when it isn't there already: AdGuard keeps a second copy of a pair, and a
+            # save that changes neither half — a machine's dialog saves each field — would
+            # add one each time, and a delete would then leave one behind.
+            if not any(
+                r.get("domain") == domain and r.get("answer") == answer
+                for r in await adguard_client.list_rewrites()
+            ):
+                await adguard_client.add_rewrite(domain, answer)
             # Only the answer: a change made while AdGuard answered (the follower, the
             # private toggle, an icon) is kept.
             inst = instances_store.update_fields(inst.id, dns_answer=answer) or inst

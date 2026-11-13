@@ -122,7 +122,9 @@ Content-Type: application/json
 ```
 
 Used by the assign flow (Step 2). `answer` is the shared Caddy IP for a `proxy` instance,
-or that instance's own `upstream` for `dns_only`. Re-adding an identical entry is harmless.
+or that instance's own `upstream` for `dns_only`. **Re-adding an identical entry keeps a
+second copy** (v0.107.80, seen 2026-11-13), so the assign lists the rewrites first and adds
+only a pair that isn't there — a save that changes neither half adds nothing.
 
 ### 4. Delete a rewrite
 

@@ -41,9 +41,17 @@ class FakeAdGuard:
         self.fail = fail
         self.added: list[tuple[str, str]] = []
         self.deleted: list[tuple[str, str]] = []
+        self.held: list[tuple[str, str]] = []  # what AdGuard holds, copies and all
 
     def base_url(self):
         return "http://adguard" if self._configured else None
+
+    async def list_rewrites(self):
+        if self.fail:
+            import httpx
+
+            raise httpx.ConnectError("adguard down")
+        return [{"domain": d, "answer": a} for d, a in self.held]
 
     async def add_rewrite(self, domain, answer):
         if self.fail:
@@ -51,9 +59,12 @@ class FakeAdGuard:
 
             raise httpx.ConnectError("adguard down")
         self.added.append((domain, answer))
+        self.held.append((domain, answer))
 
     async def delete_rewrite(self, domain, answer):
         self.deleted.append((domain, answer))
+        if (domain, answer) in self.held:
+            self.held.remove((domain, answer))
 
 
 # --- Validation / uniqueness ---
@@ -533,6 +544,18 @@ async def test_moving_a_machine_moves_every_route_on_its_address():
     assert instances_store.get_instance("files").upstream == "192.168.10.60:5000"
     # ...and Caddy was told, not just the store.
     assert sorted(caddy.pushed[-2:]) == ["files", "plex"]
+
+
+async def test_saving_a_machine_unchanged_keeps_one_rewrite():
+    # AdGuard keeps a second copy of a pair; each field the machine's dialog saves would add one.
+    adguard = FakeAdGuard()
+    for _ in range(3):
+        await assign.name_machine(
+            FakeCaddy(), adguard, prefix="nas", upstream="192.168.10.50",
+            instance_id="nas" if adguard.added else None, base_domain=BASE, current_ip=IP,
+        )
+
+    assert adguard.held == [(f"nas.{BASE}", "192.168.10.50")]
 
 
 async def test_a_change_made_while_adguard_answers_is_kept():
