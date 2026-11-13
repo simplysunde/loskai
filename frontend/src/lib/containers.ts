@@ -39,14 +39,13 @@ export interface Container {
   mem?: { percent: number | null } | null;
 }
 
-// `poll`: the Docker tab keeps the list fresh; a form only needs it once. `retry: false`
-// keeps a down Docker daemon from holding up the page that asks.
+// `poll`: the Docker tab keeps the list fresh; a form only needs it once. No query retries
+// (main.tsx), so a down Docker daemon doesn't hold up the page that asks.
 export function useContainers({ poll = false, enabled = true }: { poll?: boolean; enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["docker-containers"],
     queryFn: () => api.get<Container[]>("/api/docker/containers"),
     refetchInterval: poll ? 5_000 : undefined,
-    retry: false,
     enabled,
   });
 }

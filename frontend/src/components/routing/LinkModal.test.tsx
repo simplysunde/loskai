@@ -9,7 +9,7 @@ const port = () => screen.getByRole("textbox", { name: "Port" }) as HTMLInputEle
 
 function row(overrides: Partial<RouteRow>): RouteRow {
   return {
-    id: "jellyfin", name: "Jellyfin", type: "docker", subdomain: null, fqdn: null,
+    id: "jellyfin", name: "Jellyfin", type: "docker", kind: "service", subdomain: null, fqdn: null,
     upstream: null, private: false, routed: false, synced: null, ...overrides,
   };
 }

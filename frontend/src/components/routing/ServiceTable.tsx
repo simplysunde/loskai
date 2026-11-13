@@ -14,7 +14,7 @@ export interface RouteRow {
   id: string;
   name: string;
   type: "docker" | "external";
-  kind?: "service" | "machine";
+  kind: "service" | "machine";
   subdomain: string | null;
   // `direct`: a link — no subdomain, opened at its upstream (Phase 45).
   route_mode?: "proxy" | "dns_only" | "direct";
@@ -147,11 +147,6 @@ export function ServiceTable({
                       https
                     </span>
                   )}
-                  {row.route_mode === "dns_only" && (
-                    <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
-                      dns-only
-                    </span>
-                  )}
                   {link && (
                     <span
                       title="A link: the Dashboard opens this address directly — no name, no Caddy route"
@@ -173,7 +168,7 @@ export function ServiceTable({
                 {/* A phone has no column headings: it shows these two only when something
                     is wrong, and says which. */}
                 <td className={`px-4 py-3 ${routeFine(row) ? "max-sm:hidden" : ""}`}>
-                  {!row.routed || row.route_mode === "dns_only" ? (
+                  {!row.routed ? (
                     <Dash />
                   ) : row.synced === null ? (
                     <StatusBadge status="unknown" label={<><OnPhone>route</OnPhone>unknown</>} />
@@ -260,7 +255,7 @@ function Dash() {
 }
 
 function routeFine(row: RouteRow) {
-  return !row.routed || row.route_mode === "dns_only" || row.synced === true;
+  return !row.routed || row.synced === true;
 }
 function OnPhone({ children }: { children: string }) {
   return <span className="sm:hidden">{children} </span>;

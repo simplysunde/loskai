@@ -9,6 +9,7 @@ import {
 
 import { api, ApiError } from "../lib/api";
 import { CopyButton } from "../components/shared/CopyButton";
+import { saveFile } from "../lib/download";
 
 interface RootCert {
   pem: string;
@@ -48,19 +49,10 @@ export function Certificate() {
     retry: false, // 409 (no internal CA) is an answer, not a blip — don't hammer Caddy
   });
 
-  // Same shape as the config export in settings/General: the API hands back the PEM as
-  // JSON and the browser saves it, so the download is same-origin. A direct link to
-  // Caddy's own :80 file would be a plain-HTTP download from an HTTPS page, which
-  // Chrome and Edge block silently.
+  // The API hands back the PEM as JSON and the browser saves it (`saveFile`): a direct link
+  // to Caddy's own :80 file would be a plain-HTTP download from an HTTPS page.
   const download = () => {
-    if (!cert.data) return;
-    const blob = new Blob([cert.data.pem], { type: "application/x-x509-ca-cert" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = cert.data.filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (cert.data) saveFile(cert.data.filename, cert.data.pem, "application/x-x509-ca-cert");
   };
 
   const status = cert.error instanceof ApiError ? cert.error.status : null;

@@ -2,11 +2,9 @@ import { splitUpstream } from "../../lib/validation";
 import type { RouteRow } from "./ServiceTable";
 
 /** A machine is an address rather than a service — the thing routes sit on. Declared by
- *  the backend on the record (`kind`), not re-derived here: one rule, one place. The
- *  upstream-shape fallback is only for a row from a build older than that field. */
+ *  the backend on the record (`kind`), not re-derived here: one rule, one place. */
 export function isMachine(row: RouteRow): boolean {
-  if (row.kind) return row.kind === "machine";
-  return Boolean(row.upstream) && !row.upstream!.includes(":");
+  return row.kind === "machine";
 }
 
 // A machine's full name, so nothing shown is a partial one (a dotted `adguard.lxc`

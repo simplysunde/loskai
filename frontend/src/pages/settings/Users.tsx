@@ -107,14 +107,11 @@ export function Users() {
           setRemoving(null);
           remove.reset();
         }}
+        pending={remove.isPending}
+        error={remove.isError ? apiMessage(remove.error, "Couldn't remove it") : null}
         onConfirm={() => removing && remove.mutate(removing.username)}
       >
         Their sessions end now, and they can no longer sign in.
-        {remove.isError && (
-          <span className="mt-2 block text-rose-400">
-            {apiMessage(remove.error, "Couldn't remove it")}
-          </span>
-        )}
       </ConfirmDialog>
     </div>
   );

@@ -19,7 +19,6 @@ export function QuickCommands({
   const { data } = useQuery({
     queryKey: ["quick-commands", containerId],
     queryFn: () => api.get<QuickCommand[]>(`/api/docker/containers/${containerId}/quick-commands`),
-    retry: false,
   });
 
   if (!data?.length) return null;

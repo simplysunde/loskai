@@ -5,7 +5,7 @@ import type { RouteRow } from "./ServiceTable";
 
 function row(over: Partial<RouteRow>): RouteRow {
   return {
-    id: "x", name: "x", type: "external", subdomain: "x", fqdn: "x.example.no",
+    id: "x", name: "x", type: "external", kind: "service", subdomain: "x", fqdn: "x.example.no",
     upstream: "192.168.10.50:3000", private: false, routed: true, synced: true,
     ...over,
   };
@@ -18,10 +18,6 @@ test("the backend's `kind` decides, not the address shape", () => {
   expect(isMachine(row({ upstream: "192.168.10.50", kind: "machine" }))).toBe(true);
 });
 
-test("a row from before `kind` falls back to the address shape", () => {
-  expect(isMachine(row({ upstream: "192.168.10.50" }))).toBe(true);
-  expect(isMachine(row({ upstream: "192.168.10.50:80" }))).toBe(false);
-});
 
 test("the routes on a machine are the services on its address", () => {
   const nas = row({ id: "nas", upstream: "192.168.10.50", kind: "machine" });

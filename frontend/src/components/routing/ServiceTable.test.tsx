@@ -8,6 +8,7 @@ function row(overrides: Partial<RouteRow> = {}): RouteRow {
     id: "grafana",
     name: "Grafana",
     type: "docker",
+    kind: "service",
     subdomain: "grafana",
     fqdn: "grafana.example.no",
     upstream: "192.168.10.100:3000",
@@ -78,21 +79,6 @@ test("external routed row can be deleted; unrouted row shows Assign", () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Assign a URL" }));
   expect(onAssign).toHaveBeenCalledOnce();
-});
-
-test("a dns_only row shows a dns-only tag and a dash for Route", () => {
-  render(
-    <ServiceTable
-      rows={[
-        row({
-          id: "vm1", name: "vm1", type: "external", subdomain: "vm1", fqdn: "vm1.example.no",
-          upstream: "192.168.10.55", route_mode: "dns_only", synced: null,
-        }),
-      ]}
-    />,
-  );
-  expect(screen.getByText("dns-only")).toBeInTheDocument();
-  expect(screen.getAllByText("—")).toHaveLength(1);
 });
 
 test("a proxy row with known sync state shows a real badge, not a dash", () => {

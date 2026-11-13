@@ -22,7 +22,6 @@ export function StatsBar() {
     queryKey: ["docker-stats"],
     queryFn: () => api.get<HostStats>("/api/docker/stats"),
     refetchInterval: 10_000,
-    retry: false,
   });
   if (isError || !data) return null;
 

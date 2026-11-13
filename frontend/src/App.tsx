@@ -7,7 +7,6 @@ import { RequireAuth } from "./components/shared/RequireAuth";
 import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
-import { Machines } from "./pages/Machines";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
 import { General } from "./pages/settings/General";
@@ -18,10 +17,13 @@ import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { Ssh } from "./pages/settings/Ssh";
 import { Users } from "./pages/settings/Users";
 
-// The Docker page pulls in xterm (~half the bundle). Load it only when that tab is
-// opened so the initial JS chunk stays small.
+// The Docker and Machines pages pull in xterm (~half the bundle). Load each only when its
+// tab is opened so the initial JS chunk stays small.
 const Docker = lazy(() =>
   import("./pages/Docker").then((m) => ({ default: m.Docker }))
+);
+const Machines = lazy(() =>
+  import("./pages/Machines").then((m) => ({ default: m.Machines }))
 );
 
 function PageFallback() {
@@ -67,7 +69,9 @@ export default function App() {
           path="/machines"
           element={
             <RequireAuth tab="machines">
-              <Machines />
+              <Suspense fallback={<PageFallback />}>
+                <Machines />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -76,7 +80,9 @@ export default function App() {
           path="/machines/:id/:section?"
           element={
             <RequireAuth tab="machines">
-              <Machines />
+              <Suspense fallback={<PageFallback />}>
+                <Machines />
+              </Suspense>
             </RequireAuth>
           }
         />

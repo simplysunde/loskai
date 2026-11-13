@@ -58,7 +58,6 @@ export function SshSetupModal({
   const scan = useQuery({
     queryKey: ["ssh-scan", machine.id],
     queryFn: () => api.post<Scan>(`/api/ssh/machines/${machine.id}/scan`),
-    retry: false,
     gcTime: 0,
   });
   const isTrusted = trusted || scan.data?.state === "trusted";

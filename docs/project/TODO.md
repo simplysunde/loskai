@@ -956,7 +956,7 @@ places. Four bugs they found, each checked in the code, go first.
       what they share (`useUnlockFor`, `YourPassword`, `removalNeedsPassword`) is one
       already, since Phase 40; a hook would wrap only the `POST`
 - [x] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
-- [ ] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
+- [x] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
       remove dialog's pending state, Machines loaded lazily
 - [ ] Frontend live
 - [ ] 46q Tests: the effect, not the response; tests that couldn't fail

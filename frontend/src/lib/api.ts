@@ -19,8 +19,8 @@ export function apiMessage(err: unknown, fallback = "Couldn't reach Loskai"): st
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
   });
 
   if (res.status === 401) {

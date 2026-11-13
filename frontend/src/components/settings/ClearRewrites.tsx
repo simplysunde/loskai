@@ -41,7 +41,6 @@ export function ClearRewrites() {
     enabled: confirming,
     staleTime: 0,
     gcTime: 0,
-    retry: false,
   });
   const entries = preview.data?.rewrites ?? [];
   const lost = entries.filter((e) => !e.managed).length;

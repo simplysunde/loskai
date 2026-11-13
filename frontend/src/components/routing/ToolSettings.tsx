@@ -24,7 +24,6 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
     queryKey: key,
     queryFn: () => api.get<Values>(url),
     enabled: settings.length > 0,
-    retry: false,
   });
   const locked = values.error instanceof ApiError && values.error.status === 423;
 

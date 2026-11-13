@@ -37,7 +37,6 @@ export function VolumeList() {
     queryFn: () => api.get<Volume[]>("/api/docker/volumes"),
     // Sizes come from `docker system df`, which walks every volume — not a 5s poll.
     refetchInterval: 60_000,
-    retry: false,
   });
 
   if (isLoading) {

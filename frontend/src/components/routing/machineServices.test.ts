@@ -5,7 +5,7 @@ import { guestAddress, machineServices } from "./machineServices";
 import type { RouteRow } from "./ServiceTable";
 
 const row = (r: Partial<RouteRow>): RouteRow => ({
-  id: "x", name: "x", type: "external", subdomain: null, fqdn: null, upstream: null,
+  id: "x", name: "x", type: "external", kind: "service", subdomain: null, fqdn: null, upstream: null,
   private: false, routed: false, synced: null, ...r,
 });
 const nas = row({ id: "nas", name: "nas", kind: "machine", upstream: "192.168.10.50" });

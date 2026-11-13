@@ -72,13 +72,11 @@ export function StackGroups({
     queryFn: () =>
       api.get<Record<string, Pick<Container, "cpu" | "mem">>>("/api/docker/containers/stats"),
     refetchInterval: 5_000,
-    retry: false,
   });
   const stacks = useQuery({
     queryKey: ["docker-stacks"],
     queryFn: () => api.get<Stack[]>("/api/docker/stacks"),
     refetchInterval: 8_000,
-    retry: false,
   });
 
   const [failed, setFailed] = useState<{ title: string; detail: string } | null>(null);

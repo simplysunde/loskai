@@ -10,6 +10,7 @@ import { useSsh } from "../../lib/ssh";
 import { machineAt } from "../../components/routing/machine";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 import { RecipeSources } from "../../components/settings/RecipeSources";
+import { saveFile } from "../../lib/download";
 
 // App-wide knobs. Per-service config (AdGuard, WireGuard, Caddy) lives under
 // Settings > Network; this category keeps the app-level settings + backup. Fields commit
@@ -59,17 +60,12 @@ export function General() {
   // Fetch the config snapshot and trigger a browser download of it as JSON.
   const exportConfig = useMutation({
     mutationFn: () => api.get<unknown>("/api/export"),
-    onSuccess: (snapshot) => {
-      const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `loskai-config-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
+    onSuccess: (snapshot) =>
+      saveFile(
+        `loskai-config-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(snapshot, null, 2),
+        "application/json",
+      ),
     onError: (err) => setError(apiMessage(err, "Export failed")),
   });
 

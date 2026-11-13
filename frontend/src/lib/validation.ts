@@ -26,17 +26,6 @@ export function assembleFqdn(prefix: string, baseDomain: string): string {
   return `${prefix}.${baseDomain}`;
 }
 
-// An upstream is a bare host:port — it goes straight into Caddy's `dial`, so a scheme or
-// path (e.g. https://host:8006/) would make a broken route. Mirrors the backend guard.
-export function isValidUpstream(upstream: string): boolean {
-  const u = upstream.trim();
-  if (!u || /\s/.test(u) || u.includes("://") || u.includes("/")) return false;
-  const idx = u.lastIndexOf(":");
-  if (idx <= 0 || idx === u.length - 1) return false;
-  const port = u.slice(idx + 1);
-  return /^\d+$/.test(port) && +port >= 1 && +port <= 65535;
-}
-
 // The route forms collect an upstream as two fields, host and port. `splitUpstream` takes a
 // stored or pasted "host:port" apart at its last colon; a value with no port is all host.
 export function splitUpstream(value: string): { host: string; port: string } {
