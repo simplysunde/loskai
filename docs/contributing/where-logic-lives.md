@@ -40,7 +40,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
 | Where a record's uploaded icon is served | `shared/instances.py` `icon_url` | `modules/caddy/service.py` `shared/dashboard.py` |
-| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
+| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallWizard.tsx` `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
 | Saving or deleting a machine, and what Loskai put on it with its SSH connection | `shared/assign.py` `save_machine` `purge_instance` | `modules/docker/router.py` |

@@ -298,12 +298,13 @@ test("the last step routes the install: its suggested name, following its contai
 test("a reinstall that kept its route says so instead of offering another", async () => {
   renderWizard({
     containers: [
-      { name: "grafana-app-1", instance_id: "grafana", subdomain: "graf", suggested_upstream: "grafana:3000" },
+      // An http route: where it opens is the server's url, scheme and all.
+      { name: "grafana-app-1", instance_id: "grafana", subdomain: "graf", suggested_upstream: "grafana:3000", url: "http://graf.example.no" },
     ],
   });
   await deployGrafana();
 
-  expect(await screen.findByText("graf.example.no")).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "graf.example.no" })).toHaveAttribute("href", "http://graf.example.no");
   expect(screen.queryByRole("button", { name: "Add route" })).not.toBeInTheDocument();
 });
 

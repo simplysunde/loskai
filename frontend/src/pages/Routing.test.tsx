@@ -8,7 +8,7 @@ import { renderWithQuery, json } from "../test/render";
 const ADGUARD_ROUTE = {
   id: "adguard", name: "AdGuard", type: "external", kind: "service", subdomain: "adguard",
   fqdn: "adguard.example.no", upstream: "192.168.10.230:3000", origin: "adguard",
-  private: false, routed: true, synced: true,
+  url: "http://adguard.example.no", private: false, routed: true, synced: true,
 };
 
 let calls: { path: string; method: string; body: unknown }[] = [];
@@ -73,9 +73,10 @@ test("a routed AdGuard opens at its name, and offers no second route", async () 
   stubApi([ADGUARD_ROUTE]);
   renderPage();
 
+  // Where it opens is the server's url — an http route here — never put together in the page.
   expect(
     await screen.findByRole("link", { name: "Open AdGuard at adguard.example.no" }),
-  ).toHaveAttribute("href", "https://adguard.example.no");
+  ).toHaveAttribute("href", "http://adguard.example.no");
   expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
   expect(screen.getByText("adguard.example.no", { selector: "span" })).toBeInTheDocument();
 });

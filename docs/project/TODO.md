@@ -946,7 +946,7 @@ places. Four bugs they found, each checked in the code, go first.
       and served through Caddy (whoami's body); reconcile left both rewrites as they were,
       a hand-added answer was reported and kept, and the clear list marked it unmanaged.
       Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (6245fca)
-- [ ] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
+- [x] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
 - [ ] 46m Frontend: the route forms' preview and follow toggle, once; the Assign form
       decides its own pre-fill, like `LinkModal`
 - [ ] 46n Frontend: one key-unlock hook

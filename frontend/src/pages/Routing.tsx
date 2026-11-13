@@ -108,10 +108,8 @@ export function Routing() {
 
   // Once AdGuard is routed (from its pill, which sets `origin`), its link-out
   // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
-  const adguardRoute = (routes.data ?? []).find((r) => r.origin === "adguard" && r.fqdn);
-  const adguardUrl = adguardRoute
-    ? `${adguardRoute.scheme === "http" ? "http" : "https"}://${adguardRoute.fqdn}`
-    : h?.adguard?.url;
+  const adguardRoute = (routes.data ?? []).find((r) => r.origin === "adguard" && r.url);
+  const adguardUrl = adguardRoute?.url ?? h?.adguard?.url;
   // What the pill shows beside its name: where its link goes, minus the scheme.
   const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
   const adguardUpstream = urlToUpstream(h?.adguard?.url);

@@ -5,10 +5,11 @@ import { Link } from "react-router-dom";
 
 import { api, apiMessage } from "../../lib/api";
 import { syncFailed, type SyncResult } from "../../lib/recipes";
+import { RouteLink } from "../shared/RouteLink";
 import { useContainers } from "../../lib/containers";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { useSettings } from "../../lib/settings";
-import { assembleFqdn, isValidPrefix, pathProblem } from "../../lib/validation";
+import { isValidPrefix, pathProblem } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
 import { Modal } from "../shared/Modal";
 import { OptionList, type RecipeOption } from "./RecipeOptions";
@@ -666,15 +667,11 @@ function RouteNow({ recipe, containerName }: { recipe: Recipe; containerName: st
       </div>
     );
   }
-  // A reinstall keeps its earlier record, route included.
+  // A reinstall keeps its earlier record, route included — where it opens is the server's.
   if (container?.subdomain) {
     return (
       <div className={`${box} text-slate-400`}>
-        Already routed at{" "}
-        <span className="text-teal-300">
-          {baseDomain ? assembleFqdn(container.subdomain, baseDomain) : container.subdomain}
-        </span>
-        .
+        Already routed{container.url ? <> at <RouteLink url={container.url} /></> : ""}.
       </div>
     );
   }
