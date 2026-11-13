@@ -417,7 +417,6 @@ async def plan(
     409 it can't run here as asked."""
     t = _tool(tool_id)
     target(machine_id)  # an SSH user, or 409
-    inst = instances_store.get_instance(machine_id)
     f = await _overview(machine_id)
     manager = (f.get("updates") or {}).get("manager")
     programs = set(f.get("programs") or [])
@@ -437,7 +436,7 @@ async def plan(
     script = tool.action_script(t, action.id, manager)
     session = tool.session_name(t, action, target_name) if "tmux" in programs else None
     command = tool.visible(
-        script, target_name, session, inst.projects_folder if inst else None,
+        script, target_name, session, _projects_folder(machine_id),
         automatic=action.automatic, password=password,
     )
     details = {

@@ -317,7 +317,7 @@ _SETTING_MARK = "#loskai-setting "
 
 def _projects_env(projects: str | None) -> str:
     """`$PROJECTS` set, and exported, to the machine's projects folder (`projects`, as stored;
-    None: the default)."""
+    None: the default) — the one place it is worked out, for an action's run and a setting's."""
     folder = PROJECTS if projects is None else projects
     return "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; export PROJECTS; "
 
@@ -568,11 +568,7 @@ def visible(
     checked it). It is never in a command line: read into a shell variable, and handed to
     `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
     through a FIFO in a folder of its own, read once and removed; a pane sent nothing ends (`PASSWORD_WAIT`)."""
-    folder = PROJECTS if projects is None else projects
-    body = (
-        USER_PATH + "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
-        'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
-    )
+    body = USER_PATH + _projects_env(projects) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")
     if automatic:
         job += "; s=$?; [ $s = 0 ] && exit 0; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
