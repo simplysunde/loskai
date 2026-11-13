@@ -31,11 +31,6 @@ visible without unpacking a phase back out. The checklists stay in
   the install guide — so both repos must be pushed there before an install can work. Then
   the first `make release` (once per boot, QEMU for arm64: the script says how), and make
   both packages public on GitHub — the install guide's `docker compose pull` needs them.
-- **Decide: count wrong passwords per client.** The login backoff counts per account but
-  not per client (behind Caddy every request has Caddy's address), so a LAN script guessing
-  the moment each wait ends keeps that account out until it stops or Loskai restarts. The proposed
-  fix: key the count by client. `auth.peer` already tells the client, trusting
-  `X-Forwarded-For` only on requests from Caddy's own address (2026-11-07). Found by the 2026-10-30 review; documented in `SECURITY.md` meanwhile.
 - **A sudo rule Loskai can't see may be left behind.** Taking a machine off checks for the rule
   with `[ -e /etc/sudoers.d/loskai ]` when `sudo -n rm` fails. Where that folder is 0750 (it
   is 0755 on Debian), a user other than the one the rule was made for sees nothing, and the
@@ -85,7 +80,9 @@ between today and a first release. The bugs are the ones under *Open, not in fli
       environment, and closing the terminal hangs up what has it (`HANGUP_COMMAND`, run
       in the container) — live on Alpine (busybox) and Debian (bash): the shell and a job
       it started gone, the container's own process left
-- [ ] 48d Wrong passwords counted per client as well as per account
+- [x] 48d Wrong passwords counted per account and client (Sunde: per account + client,
+      over also keeping a looser account-wide limit): a guesser's waits are their own, the
+      owner signs in from another device; one check at a time still bounds many addresses
 - [ ] 48e A sudo rule Loskai can't see is not reported as removed
 
 ---

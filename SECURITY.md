@@ -83,7 +83,8 @@ your network. Read this before deciding where it runs and who can reach it.
   15 minutes, or what Settings › SSH says. **Log out ends your sessions on every device** — a copied cookie stops working too,
   and an open terminal closes within seconds; so does a changed password, or the account
   removed. After 5 wrong passwords, each one costs a wait that doubles up to a minute: a
-  guesser gets about one try a minute. Each sign-in and wrong password — at login, or asked
+  guesser gets about one try a minute. The wait is for that account from that device, so
+  someone guessing doesn't keep you out. Each sign-in and wrong password — at login, or asked
   again to unlock the SSH key or change a password — is logged (when, the username typed,
   from where — never the password) in Settings › Logs, which only an admin reads.
 - **The lock is on the API, never the page.** Every `/api/*` route needs the session except
@@ -102,9 +103,6 @@ your network. Read this before deciding where it runs and who can reach it.
 - **No HTTPS of its own.** Port `:8080` is plain HTTP. Reach Loskai through its routed name
   (`https://loskai.<your domain>`) — a login there gets a `Secure` cookie, never sent in
   the clear — and don't open `:8080` beyond the machines you manage it from.
-- **One login limit per account, for every client.** Someone on your network who keeps
-  guessing an account's password keeps that account out too, until they stop or Loskai
-  restarts.
 
 ## Reporting a vulnerability
 

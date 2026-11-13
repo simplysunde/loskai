@@ -386,6 +386,27 @@ def test_a_right_password_after_the_wait_clears_the_count(client, monkeypatch):
         assert _wrong(client).status_code == 401  # free again
 
 
+def test_a_guesser_waits_alone_and_the_owner_still_signs_in_from_another_device(client, monkeypatch):
+    """The count was per account only, so someone on the LAN guessing the admin's password
+    kept the admin out too. Behind Caddy, the client it forwarded for is the one counted."""
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://10.0.0.1:2019")
+    wrong = {"username": "admin", "password": "wrong"}
+    with TestClient(app, client=("10.0.0.66", 50000)) as guesser, TestClient(app, client=("10.0.0.1", 50000)) as caddy:
+        for _ in range(auth.FREE_FAILURES + 1):
+            assert guesser.post("/api/login", json=wrong).status_code == 401
+        assert guesser.post("/api/login", json=wrong).status_code == 429
+
+        owner = caddy.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={"x-forwarded-for": "10.0.0.9"})
+        assert owner.status_code == 200
+        # The guesser's own wait stands: the owner's sign-in cleared only the owner's count.
+        assert guesser.post("/api/login", json=wrong).status_code == 429
+        # And a guess through Caddy is counted for the client it came from, not for Caddy.
+        for _ in range(auth.FREE_FAILURES + 1):
+            caddy.post("/api/login", json=wrong, headers={"x-forwarded-for": "10.0.0.7"})
+        assert caddy.post("/api/login", json=wrong, headers={"x-forwarded-for": "10.0.0.7"}).status_code == 429
+        assert caddy.post("/api/login", json={"username": "admin", "password": PASSWORD}, headers={"x-forwarded-for": "10.0.0.9"}).status_code == 200
+
+
 # --- Sign-in log ---
 
 

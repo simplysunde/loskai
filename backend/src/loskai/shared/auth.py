@@ -17,6 +17,7 @@ import secrets
 import socket
 import threading
 import time
+from collections.abc import Hashable
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -188,10 +189,11 @@ def same_origin(headers) -> bool:
 
 
 def peer(conn: Request | WebSocket) -> str | None:
-    """Who is asking, for the logs: the socket's peer — or, when that is Caddy, the client it
+    """Who is asking: the socket's peer — or, when that is Caddy, the client it
     forwarded for (the first `X-Forwarded-For` hop; Caddy drops one a client sent). Anyone
     else's header is their own word, and `:8080` takes requests from the LAN, so it is
-    ignored. Display only — nothing is decided by it."""
+    ignored. The logs show it, and the login backoff counts by it — never more than a
+    wait: no access is decided by it."""
     host = conn.client.host if conn.client else None
     forwarded = conn.headers.get("x-forwarded-for")
     if forwarded and host in _caddy_addresses():
@@ -260,25 +262,26 @@ QUIET_RESET = 15 * 60  # seconds
 
 
 class _Backoff:
-    """Wrong passwords counted per username — not per IP: behind Caddy every request comes from
-    Caddy's address — so a right password clears only its own account's count: an operator
-    signing in can't wipe the count of someone guessing the admin's. The price is that a
-    guesser's waits are that account's too — one who keeps guessing keeps it out. One check
-    at a time, for everyone (`lock`). In memory: a restart clears it."""
+    """Wrong passwords counted per account and client — `(username, peer)`, the client Caddy
+    forwarded for when it is Caddy asking (`peer`) — so a guesser's waits are their own: the account's
+    owner, on another device, still signs in. A right password clears only its own count:
+    an operator signing in can't wipe the count of someone guessing the admin's. One check at
+    a time, for everyone (`lock`), so a guesser with many addresses still gets one guess per
+    password check. In memory: a restart clears it."""
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.counts: dict[str, list[float]] = {}  # username → [failures, until, last failure]
+        self.counts: dict[Hashable, list[float]] = {}  # (username, client) → [failures, until, last failure]
 
-    def wait_left(self, username: str) -> float:
-        return self.counts.get(username, [0, 0.0, 0.0])[1] - time.monotonic()
+    def wait_left(self, key: Hashable) -> float:
+        return self.counts.get(key, [0, 0.0, 0.0])[1] - time.monotonic()
 
-    def failed(self, username: str) -> None:
+    def failed(self, key: Hashable) -> None:
         now = time.monotonic()
-        # Names nobody has guessed for a while go, so made-up ones can't pile up.
-        for name in [n for n, (_, until, last) in self.counts.items() if now - last > QUIET_RESET and until < now]:
-            del self.counts[name]
-        count = self.counts.setdefault(username, [0, 0.0, 0.0])
+        # Counts nobody has added to for a while go, so made-up names can't pile up.
+        for old in [k for k, (_, until, last) in self.counts.items() if now - last > QUIET_RESET and until < now]:
+            del self.counts[old]
+        count = self.counts.setdefault(key, [0, 0.0, 0.0])
         if now - count[2] > QUIET_RESET:
             count[0] = 0
         count[2] = now
@@ -286,8 +289,8 @@ class _Backoff:
         if count[0] > FREE_FAILURES:
             count[1] = now + min(2 ** (count[0] - FREE_FAILURES), MAX_WAIT)
 
-    def reset(self, username: str) -> None:
-        self.counts.pop(username, None)
+    def reset(self, key: Hashable) -> None:
+        self.counts.pop(key, None)
 
 
 _backoff = _Backoff()
@@ -315,8 +318,9 @@ def check_password(
             detail="Another password is being checked. Try again.",
             headers={"Retry-After": "1"},
         )
+    key = (username, peer(request))
     try:
-        wait = _backoff.wait_left(username)
+        wait = _backoff.wait_left(key)
         if wait > 0:
             seconds = math.ceil(wait)
             raise HTTPException(
@@ -326,10 +330,10 @@ def check_password(
             )
         user = users.verify(username, password)
         if user is None:
-            _backoff.failed(username)
+            _backoff.failed(key)
             _log_login(username, request, ok=False, asked_for=asked_for)
             raise HTTPException(status_code=wrong_status, detail="Wrong username or password" if wrong_status == 401 else "Wrong password")
-        _backoff.reset(username)
+        _backoff.reset(key)
         return user
     finally:
         _backoff.lock.release()

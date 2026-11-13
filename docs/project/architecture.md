@@ -735,10 +735,12 @@ terminal lives in an open page, which keeps the session, while the terminal's ow
 the cookie is never renewed.
 **Wrong passwords cost time**: after 5, each one starts a wait (2 s, doubling to 60 s) during
 which login answers `429`; 15 quiet minutes start the count again. A wrong username costs
-the same as a wrong password, and the answer doesn't say which. The count is per username,
-not per client — behind Caddy every request comes from Caddy's address — so a guesser's
-waits are that account's too, and one who keeps guessing keeps it out; it lives in memory,
-and a restart clears it. Counting per client is open (TODO). **Each login is logged** —
+the same as a wrong password, and the answer doesn't say which. The count is per account
+and client (`auth.peer`: the client Caddy forwarded for, when Caddy is asking), so a
+guesser's waits are their own — the account's owner signs in from another device — and
+only one password is checked at a time, so many addresses don't guess faster than one. It
+lives in memory, and a restart clears it (2026-11-13; per account only before, which let a
+guesser keep the account's owner out). **Each login is logged** —
 `data/logins.log`, shown in Settings › Logs: when, the username typed, from where (as in
 the SSH log, `X-Forwarded-For` is believed only from Caddy's own addresses — `auth.peer`),
 and whether it signed in, and each wrong password asked again for an action (the SSH unlock, a
