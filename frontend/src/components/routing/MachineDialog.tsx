@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Boxes,
@@ -6,7 +6,6 @@ import {
   KeyRound,
   Loader2,
   ScrollText,
-  Search,
   SlidersHorizontal,
   Terminal,
   Wrench,
@@ -21,15 +20,17 @@ import { removalNeedsPassword, useFacts, useRunning, useSsh } from "../../lib/ss
 import { toolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
-import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, isValidSshLogin, SSH_USER } from "../../lib/validation";
+import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { Modal, Overlay } from "../shared/Modal";
+import { Overlay } from "../shared/Modal";
+import { SectionPane } from "../shared/SectionPane";
 import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
 import { SshLog } from "../settings/SshLog";
 import type { NewMachine } from "./AddMachineModal";
 import { isMachine } from "./machine";
 import { MachineOverview } from "./MachineOverview";
 import { AddToolMenu, MachineTools, RowButtons } from "./MachineTools";
+import { EnableSshModal } from "./EnableSshModal";
 import { RunningList } from "./RunningPill";
 import { SaveBanner } from "./SaveBanner";
 import { SshSetupModal } from "./SshSetupModal";
@@ -77,16 +78,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [enabling, setEnabling] = useState(false);
   // Your password, when removing the connection needs Loskai's key unlocked.
   const [removePassword, setRemovePassword] = useState("");
-  const [query, setQuery] = useState("");
-  // The section the side menu marks: the one scrolled to, or the one just picked.
-  const [active, setActive] = useState<string>(() =>
-    SECTIONS.some((s) => s.id === section) ? section! : "general",
-  );
-  const pane = useRef<HTMLDivElement>(null);
-  const anchors = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
-  // While a pick scrolls the pane, the scroll doesn't move the mark.
-  const picking = useRef(0);
-  const opened = useRef(false);
 
   const routes = useRoutes();
   const qc = useQueryClient();
@@ -130,32 +121,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   // Opened at a section (/machines/<id>/ssh): start there, once the sections are drawn — or
   // at General, when it isn't one this machine or account has.
   const ready = Boolean(machine && ssh.data);
-  useEffect(() => {
-    if (!ready || opened.current) return;
-    opened.current = true;
-    const at = anchors.current[section as SectionId];
-    if (at && at !== anchors.current.general) pick(section as SectionId, "auto");
-    else if (section) pick("general", "auto");
-  });
-
-  function pick(s: SectionId, behavior: ScrollBehavior = "smooth") {
-    setActive(s);
-    picking.current = Date.now() + 800;
-    anchors.current[s]?.scrollIntoView?.({ behavior, block: "start" });
-  }
-
-  // The mark follows the scroll: the last section whose top has passed the pane's top, or
-  // the last one once the pane is scrolled to its end.
-  function onScroll() {
-    const el = pane.current;
-    if (!el || Date.now() < picking.current) return;
-    const ids = (Object.keys(anchors.current) as SectionId[]).filter((k) => anchors.current[k]);
-    const top = el.getBoundingClientRect().top + 24;
-    let at = ids[0];
-    for (const k of ids) if (anchors.current[k]!.getBoundingClientRect().top <= top) at = k;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) at = ids[ids.length - 1];
-    if (at) setActive(at);
-  }
 
   if (!machine) {
     return (
@@ -194,12 +159,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
   // The log is an admin's, as every log is.
   const available = SECTIONS.filter((s) => (s.group === 0 || host?.user) && (s.id !== "log" || admin));
-  // Searching narrows the menu and the sections shown to those it finds.
-  const q = query.trim().toLowerCase();
+  // The search finds Tools by the names of the tools too.
   const toolNames = (tools.data ?? []).map((t) => t.name).join(" ");
-  const shown = available.filter(
-    (s) => !q || `${s.label} ${s.words} ${s.id === "tools" ? toolNames : ""}`.toLowerCase().includes(q),
-  );
 
   const content: Record<SectionId, ReactNode> = {
     general: (
@@ -394,65 +355,17 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         }
         onClose={close}
       >
-        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          {/* A strip across the top on a phone, a column with the search beside the content wider up. */}
-          <nav
-            aria-label="Categories"
-            className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2 sm:block sm:w-52 sm:space-y-0.5 sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3"
-          >
-            <label className="mb-2 hidden items-center sm:flex gap-2 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5">
-              <Search className="h-3.5 w-3.5 text-slate-500" />
-              <input
-                aria-label="Search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search"
-                className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-600"
-              />
-            </label>
-            {shown.map((s, i) => (
-              <div key={s.id} className="shrink-0">
-                {i > 0 && shown[i - 1].group !== s.group && (
-                  <div className="mx-2 my-2 hidden border-t border-slate-800 sm:block" />
-                )}
-                <button
-                  onClick={() => pick(s.id)}
-                  aria-current={s.id === active ? "location" : undefined}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition sm:gap-3 ${
-                    s.id === active
-                      ? "bg-teal-500/10 text-teal-200"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-                  }`}
-                >
-                  <s.icon className="h-4 w-4" />
-                  {s.label}
-                </button>
-              </div>
-            ))}
-            {shown.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">Nothing matches.</p>}
-          </nav>
-          <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-5 pb-5">
-            {result && <div className="pt-4"><SaveBanner result={result} /></div>}
-            {/* The last section is at least the pane's height, so a pick can scroll any
-                section to the top — even while the ones below are still loading. */}
-            {shown.map((s) => (
-              <section
-                key={s.id}
-                aria-label={s.label}
-                ref={(el) => {
-                  anchors.current[s.id] = el;
-                }}
-                className="border-b border-slate-800 py-4 last-of-type:min-h-full last-of-type:border-b-0"
-              >
-                <div className="mb-2 flex items-center justify-between gap-4">
-                  <h2 className="text-sm font-semibold text-slate-100">{s.label}</h2>
-                  {headingActions[s.id]}
-                </div>
-                {content[s.id]}
-              </section>
-            ))}
-          </div>
-        </div>
+        <SectionPane
+          sections={available.map((s) => ({
+            ...s,
+            words: s.id === "tools" ? `${s.words} ${toolNames}` : s.words,
+            action: headingActions[s.id],
+            content: content[s.id],
+          }))}
+          start={section}
+          ready={ready}
+          top={result && <div className="pt-4"><SaveBanner result={result} /></div>}
+        />
       </Shell>
 
       <ConfirmDialog
@@ -486,7 +399,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       </ConfirmDialog>
 
       {enabling && (
-        <EnableSsh
+        <EnableSshModal
           name={machine.name}
           onClose={() => setEnabling(false)}
           onSave={async (login) => {
@@ -544,62 +457,6 @@ function Shell({
     </Overlay>
   );
 }
-
-// Turning SSH on: the login, and what comes next. Saving puts it in the SSH config, and the
-// setup — trust its host key, then Loskai's key onto it — opens straight after, as when a
-// user is typed in.
-function EnableSsh({
-  name,
-  onSave,
-  onClose,
-}: {
-  name: string;
-  onSave: (login: { user: string; port: number }) => Promise<void>;
-  onClose: () => void;
-}) {
-  const [user, setUser] = useState("");
-  const [port, setPort] = useState("22");
-  const save = useMutation({ mutationFn: () => onSave({ user, port: Number(port) }) });
-  const ok = isValidSshLogin(user, port);
-  return (
-    <Modal title={`Turn on SSH for ${name}`} onClose={onClose} narrow>
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-      >
-        <p className="text-xs text-slate-500">
-          Loskai logs in with its own key, as the user you give it — a <span className="font-mono">loskai</span>{" "}
-          user with sudo is a good choice. Next you trust the machine's host key, then either type
-          the machine's password once and Loskai puts its key there, or add the key yourself.
-        </p>
-        <div className="flex gap-2">
-          <input aria-label="SSH user" placeholder="User" value={user} autoFocus
-            onChange={(e) => setUser(e.target.value.trim())} className={`${FIELD} flex-1`} />
-          <input aria-label="SSH port" inputMode="numeric" value={port}
-            onChange={(e) => setPort(e.target.value.trim())} className={`${FIELD} w-20`} />
-        </div>
-        {user && !ok && (
-          <p className="text-xs text-rose-400">A login name (letters, digits, _ . -) and a port from 1 to 65535.</p>
-        )}
-        {save.isError && (
-          <p className="text-xs text-rose-400">{apiMessage(save.error, "Couldn't turn it on")}</p>
-        )}
-        <div className="flex justify-end">
-          <button type="submit" disabled={!ok || save.isPending}
-            className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50">
-            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Turn on
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-const FIELD =
-  "rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-teal-500";
 
 function NotYet({ onSetUp, children }: { onSetUp: () => void; children: ReactNode }) {
   return (

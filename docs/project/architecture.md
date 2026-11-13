@@ -499,7 +499,8 @@ Open: running one command on several machines at once.
 (`on_address`), `modules/ssh/` — `client.py`, `logic.py`, `status.py`, `connect.py`, `unlock.py`,
 `machines.py`, `tool.py`, `tools/`; frontend `pages/Machines.tsx`, `pages/settings/Ssh.tsx`,
 `components/routing/` — `MachineTable.tsx`, `AddMachineModal.tsx`, `MachineDialog.tsx`,
-`MachineTools.tsx`, `ToolDialog.tsx`, `SshSetupModal.tsx`, `MachineTerminal.tsx`,
+`MachineTools.tsx`, `ToolDialog.tsx`, `EnableSshModal.tsx`, `SshSetupModal.tsx`,
+`MachineTerminal.tsx`,
 `RunningPill.tsx`, `machine.ts`.
 
 ---

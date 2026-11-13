@@ -102,7 +102,8 @@ avoided when possible")**
   - `InstallWizard.tsx` (857): the Configure step to `InstallConfigure.tsx`, the Done step
     (its route or link) to `InstallDone.tsx`.
   - `MachineDialog.tsx` (613): the side menu — search, the mark that follows the scroll,
-    opening at a section — to `SectionPane.tsx`; it knows nothing of machines.
+    opening at a section — to `shared/SectionPane.tsx`, which knows nothing of machines; and
+    the Turn on SSH dialog to `EnableSshModal.tsx`, as every other dialog in `routing/` is.
 - **Left whole, each one subject:** `shared/assign.py` (787 — the record-making verbs and
   their HTTP surface, which sits beside its logic as in every shared module; the one cut,
   links, shares the checks and the container's address), `ssh/connect.py` (582 — talking to
@@ -119,7 +120,7 @@ avoided when possible")**
       (recipes 797 → 349, manifest 222, install 217; the tests 1125 → 270, 197, 662)
 - [x] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx` (857 → 378, 190,
       315; the path helpers its Review and Configure steps share to `lib/recipes.ts`)
-- [ ] 47d `SectionPane.tsx` from `MachineDialog.tsx`
+- [x] 47d `SectionPane.tsx` and `EnableSshModal.tsx` from `MachineDialog.tsx` (613 → 470, 134, 63)
 - [ ] 47e Live: a scratch Loskai — a machine's install, overview and running list; a recipe
       synced, installed and routed; the wizard and the machine dialog in Chromium
 
