@@ -293,8 +293,11 @@ still there. Adding it again later installs the same key again.
   **Clear rewrites** (under Reset rewrites) deletes every rewrite in AdGuard, hand-added ones
   too, then writes Loskai's back — for an AdGuard that had rewrites before Loskai. Under
   WireGuard, a reminder of the DNS to give each peer: AdGuard's IP.
-- **SSH** — Loskai's key (its fingerprint, New key), how long your password unlocks it
-  (15 minutes unless you pick 1, 3, 8 or 24 hours), and the SSH config for your own computer.
+- **SSH** — Loskai's key (its fingerprint, New key), whether using it asks for your password
+  (**Ask for your password**: yes, unless you switch it off — fine for one person on a LAN or
+  tailnet over HTTPS, not for Loskai reachable from the internet), how long the password
+  unlocks it (15 minutes unless you pick 1, 3, 8 or 24 hours), and the SSH config for your
+  own computer.
 - **Users** — the accounts: add one, set its level, set its password, remove it.
 - **Security** — how long you stay signed in once no Loskai page is open (2 hours unless
   changed).

@@ -158,3 +158,25 @@ def test_a_file_of_unlocks_that_doesn_t_parse_is_locked_until_the_next_unlock(ad
     assert unlock.unlocked_key("admin") is None
     assert _unlock(admin, ADMIN).status_code == 200
     assert unlock.unlocked_key("admin") is not None
+
+
+# --- An admin can switch the asking off ---
+
+
+def test_switched_off_the_machines_tab_is_enough_and_the_page_is_told(admin):
+    assert admin.put("/api/settings", json={"ssh_ask_password": "no"}, headers=ORIGIN).status_code == 200
+
+    unlock.lock()  # a new key starts unlocked: locked, it is still usable
+    assert unlock.unlocked_key("admin") is not None
+    key = admin.get("/api/ssh").json()["key"]
+    assert key["asks_password"] is False and key["unlocked_until"] is None
+    b = _add(admin, "viewer", 2)  # Docker, not Machines
+    assert unlock.unlocked_key("viewer") is None
+    assert b.get("/api/ssh").status_code == 403
+
+
+def test_asking_is_on_unless_switched_off_and_takes_only_yes_or_no(admin):
+    unlock.lock()  # a new key starts unlocked
+    assert admin.get("/api/ssh").json()["key"]["asks_password"] is True
+    assert unlock.unlocked_key("admin") is None
+    assert admin.put("/api/settings", json={"ssh_ask_password": "sometimes"}, headers=ORIGIN).status_code == 422

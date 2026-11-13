@@ -50,7 +50,10 @@ Everything so far:
   goes anyway, with a warning that they are still there. Changing a machine's SSH user
   takes them off the old user the same way.
 - **How long the SSH key stays unlocked** is a setting in Settings › SSH: 15 minutes, 1, 3,
-  8 or 24 hours (`SSH_UNLOCK_MINUTES` too).
+  8 or 24 hours (`SSH_UNLOCK_MINUTES` too) — and restarting Loskai doesn't lock it. It asks
+  for your password in one dialog, only when you do something that needs it. An admin can
+  switch the asking off (**Ask for your password**, `SSH_ASK_PASSWORD`), for one person on a
+  LAN or tailnet.
 - **Updates without a password** — a machine's SSH section can allow System's Update to run
   without sudo asking: a sudo rule for exactly its update commands, switched on (with the
   password once) and off in its SSH section, and taken off with the machine.

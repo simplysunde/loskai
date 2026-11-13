@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     # How long your password unlocks Loskai's SSH key for, in minutes: one of
     # settings.SSH_UNLOCK_CHOICES. Unset means 15.
     ssh_unlock_minutes: str | None = None
+    # Whether using Loskai's SSH key asks for your password: "yes" or "no" (any signed-in
+    # account with the Machines tab uses it). Unset means yes.
+    ssh_ask_password: str | None = None
     # How long a session lasts without activity, in minutes: one of
     # settings.SESSION_IDLE_CHOICES. Unset means 120.
     session_idle_minutes: str | None = None

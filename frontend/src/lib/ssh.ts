@@ -10,9 +10,12 @@ export interface SshKey {
   lines: string[]; // both lines a machine gets: the main key's, then the status key's
   from: string | null; // the Docker host's IP the keys are limited to
   unlocked_until: string | null; // when the main key locks again; null while locked
+  asks_password?: boolean; // false: an admin switched off asking — it is never locked
 }
-// Whether the main key is unlocked now — for your account (the backend's `unlocked_until`).
+// Whether the main key is unlocked now — for your account (the backend's `unlocked_until`),
+// or for good, when nothing asks for the password.
 export function keyUnlocked(key?: SshKey | null): boolean {
+  if (key?.asks_password === false) return true;
   return Boolean(key?.unlocked_until && Date.parse(key.unlocked_until) > Date.now());
 }
 

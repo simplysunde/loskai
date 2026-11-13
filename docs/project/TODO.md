@@ -74,7 +74,16 @@ reactively depending on what action is taken"; "and the admin switch would be a 
       reads shows **Locked**, asking when clicked; a project's cog asks first; a terminal or
       run shows only the prompt, then connects — cancelled, it closes. The Git card's inline
       unlock form and the terminal's own are gone
-- [ ] 52c An admin switch, Settings › SSH: ask for the password to use the key — on by default
+- [x] 52c An admin switch, Settings › SSH — **Ask for your password**, `ssh_ask_password`
+      (`SSH_ASK_PASSWORD`): `yes` by default; `no`, the Machines tab is enough. Its tooltip,
+      SECURITY.md and the deployment table say for whom
+- [x] 52d Live: unlocked, the backend stopped and started again — still unlocked, a setting
+      read `200`, `unlocks.json` `0600`; logged out, locked. In a browser at 1280 and 390 px:
+      opening the Git card asked nothing and showed **Locked**; Terminal showed the prompt
+      alone (no terminal window), Cancel closed it; clicking **Locked** asked, and unlocked
+      the name read as set; a terminal then opened with no prompt; no page errors. The switch,
+      with a second Machines-level account never unlocked: read `423` with asking on, `200`
+      off (`asks_password: false`), `423` again on
 
 ---
 

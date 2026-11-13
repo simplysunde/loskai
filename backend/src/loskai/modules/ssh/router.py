@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from ...shared import auth
 from ...shared import instances as instances_store
+from ...shared import settings as settings_store
 from ...shared import store
 from ...shared import terminal
 from ...shared.errors import LoskaiError
@@ -44,6 +45,8 @@ def _key_view() -> dict | None:
         "lines": connect.lines(),
         "from": from_ip,
         "unlocked_until": datetime.fromtimestamp(until, UTC).isoformat() if until else None,
+        # False: an admin switched off asking for the password — it is never locked.
+        "asks_password": settings_store.ssh_asks_password(),
     }
 
 

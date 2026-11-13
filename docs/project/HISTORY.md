@@ -15,7 +15,10 @@ nags less instead. Unlocks were held in the process, so every restart locked the
 which holds no secret. And it asks only when you act: one password dialog for the app,
 opened by a change the key was locked for (then sent again), by clicking a **Locked**
 value, or by opening a terminal — never by a card merely opening, which is where the Git
-card's inline form had made it a constant reminder.
+card's inline form had made it a constant reminder. An admin can also switch the asking
+off (`ssh_ask_password`), on by default: right for one person on a LAN or tailnet over
+HTTPS, which is how Sunde runs it, and documented as wrong for Loskai reachable from the
+internet — kept as a choice rather than removing the unlock, since it matters there.
 
 ## 2026-11-13 — Push all, under the rows' buttons (Phase 51)
 

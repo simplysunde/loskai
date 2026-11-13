@@ -50,6 +50,13 @@ test("an unlocked key opens the machine's shell at once", () => {
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal")).toBeInTheDocument();
 });
 
+test("with asking switched off, a key never unlocked opens the shell at once", () => {
+  renderTerminal({ ...KEY, unlocked_until: null, asks_password: false });
+
+  expect(screen.getByText("shell at /api/ssh/machines/nas/terminal")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog", { name: "Unlock Loskai's key" })).toBeNull();
+});
+
 test("a locked key asks for your password alone — no terminal behind it — then connects", async () => {
   const fetchMock = renderTerminal({ ...KEY, unlocked_until: null });
 

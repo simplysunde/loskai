@@ -65,6 +65,13 @@ export const SSH_UNLOCK_CHOICES = [
   { value: "1440", label: "24 hours" },
 ];
 
+// Whether using Loskai's SSH key asks for your password — `ssh_ask_password`
+// (shared/settings.SSH_ASK_PASSWORD_CHOICES); the first is the default.
+export const SSH_ASK_PASSWORD_CHOICES = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No — the Machines tab is enough" },
+];
+
 // The one ["settings"] query — every surface that reads a setting uses it.
 export function useSettings(enabled = true) {
   return useQuery({

@@ -37,6 +37,7 @@ CONFIGURABLE_KEYS = [
     "recipes_repos",
     "certificate_tab",
     "ssh_unlock_minutes",
+    "ssh_ask_password",
     "session_idle_minutes",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
@@ -67,6 +68,12 @@ CERTIFICATE_TAB_DEFAULT = "public"
 SSH_UNLOCK_CHOICES = ("15", "60", "180", "480", "1440")
 SSH_UNLOCK_DEFAULT = "15"
 
+# Whether using Loskai's SSH key asks for your password at all. "no": any signed-in account
+# with the Machines tab uses it as it is — for one person on a LAN or tailnet, over HTTPS;
+# a stolen or unattended session then reaches the machines at once (SECURITY.md).
+SSH_ASK_PASSWORD_CHOICES = ("yes", "no")
+SSH_ASK_PASSWORD_DEFAULT = "yes"
+
 # How long a session lasts without activity, in minutes; each request renews it. 2 hours,
 # like Proxmox's ticket, unless chosen otherwise — up to a week.
 SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
@@ -79,6 +86,9 @@ _CHOICES = {
     "certificate_tab": (CERTIFICATE_TAB_MODES, CERTIFICATE_TAB_DEFAULT, "Certificate tab must be one of {}"),
     "ssh_unlock_minutes": (
         SSH_UNLOCK_CHOICES, SSH_UNLOCK_DEFAULT, "How long the SSH key stays unlocked must be one of {} minutes",
+    ),
+    "ssh_ask_password": (
+        SSH_ASK_PASSWORD_CHOICES, SSH_ASK_PASSWORD_DEFAULT, "Whether the SSH key asks for your password must be one of {}",
     ),
     "session_idle_minutes": (
         SESSION_IDLE_CHOICES, SESSION_IDLE_DEFAULT, "How long a session lasts idle must be one of {} minutes",
@@ -158,6 +168,11 @@ def certificate_tab() -> str:
 def ssh_unlock_seconds() -> int:
     """How long an unlock of the SSH key lasts."""
     return int(choice("ssh_unlock_minutes")) * 60
+
+
+def ssh_asks_password() -> bool:
+    """Whether using the SSH key needs an unlock — your password typed again."""
+    return choice("ssh_ask_password") == "yes"
 
 
 def session_idle_seconds() -> int:

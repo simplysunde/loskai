@@ -18,7 +18,13 @@ your network. Read this before deciding where it runs and who can reach it.
   `data/` and its backups. Loskai uses it only for a while after you type your password —
   your unlock, not anyone else's — 15 minutes unless Settings › SSH says longer (up to 24 hours,
   each hour longer that a stolen session reaches your machines too); logging out locks it
-  sooner, and restarting Loskai doesn't. It works only from the Docker host
+  sooner, and restarting Loskai doesn't. An admin can switch the asking off (Settings › SSH,
+  `SSH_ASK_PASSWORD=no`): then any signed-in account with the Machines tab uses the key, and
+  a session left open or stolen reaches your machines at once. That suits one person
+  reaching Loskai over HTTPS on a LAN or tailnet; not Loskai reachable from the internet,
+  plain `http://` on a shared network, or a computer others use. More Machines-level
+  accounts mean more sessions that could be. (With asking on it is a speed bump rather than
+  a wall: a session with the Docker tab can mount `data/` and read the key.) It works only from the Docker host
   when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
   itself, also from Loskai's own Docker networks). Give Loskai's login
   user on each machine only the `sudo` you want it to have.

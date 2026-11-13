@@ -267,7 +267,10 @@ accounts' passwords only as hashes; and its **SSH private key** as an owner-only
 (`0600`, like a key in `~/.ssh`), limited on each machine by `from=` to the Docker host. Never return the key, log it, or put it in an export —
 only its public half leaves `modules/ssh/client.py`. An action that uses it asks for the
 user's password again (`auth.check_password`, which shares the login backoff), which unlocks
-it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key used without unlocking is the **status key**
+it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`), kept
+across restarts (`data/ssh/unlocks.json`); the page asks in one dialog, only for what was
+done (`UnlockPrompt`). An admin may switch asking off (`ssh_ask_password: no`): then the
+Machines tab is enough. The one key used without unlocking is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
 command in `status.STATUS_COMMAND` — it only reads, and never gets any other use
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password

@@ -2,9 +2,19 @@ import { Download } from "lucide-react";
 
 import { SshKeySection } from "../../components/settings/SshKeySection";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
-import { SSH_UNLOCK_CHOICES, type FieldDef } from "../../lib/settings";
+import { SSH_ASK_PASSWORD_CHOICES, SSH_UNLOCK_CHOICES, type FieldDef } from "../../lib/settings";
 
 const UNLOCK_FIELDS: FieldDef[] = [
+  {
+    key: "ssh_ask_password",
+    label: "Ask for your password",
+    options: SSH_ASK_PASSWORD_CHOICES,
+    below: (
+      <p className="mt-1 text-xs text-slate-500" title="Fine for one person reaching Loskai over HTTPS on a LAN or tailnet. Not for Loskai reachable from the internet, or a computer others use: a session left open or stolen then reaches your machines at once.">
+        No: anyone signed in with the Machines tab uses the key without it.
+      </p>
+    ),
+  },
   { key: "ssh_unlock_minutes", label: "Keep the key unlocked for", options: SSH_UNLOCK_CHOICES },
 ];
 

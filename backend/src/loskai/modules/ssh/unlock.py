@@ -5,6 +5,8 @@ for you — like `sudo`, another user unlocks for themselves — for 15 minutes,
 Settings › SSH says, and it ends sooner when you log out, your password changes (your
 sessions' generation moves on) or you lose the Machines tab.
 
+An admin can switch the asking off (`ssh_ask_password`): then the Machines tab is enough.
+
 Who holds an unlock is kept in a file beside the key, so a restart of Loskai — a deploy, or
 every save under `make live` — doesn't lock it. The file holds no secret: names, times and
 generations. Whoever could write it could read the key itself.
@@ -57,6 +59,10 @@ def lock(username: str | None = None) -> None:
 
 
 def _holds(username: str) -> bool:
+    if not settings_store.ssh_asks_password():
+        # Switched off by an admin: the Machines tab is enough.
+        user = users.get(username)
+        return user is not None and user.may("machines")
     held = _holders().get(username)
     if not isinstance(held, list) or len(held) != 2:
         return False
@@ -73,4 +79,7 @@ def unlocked_key(username: str | None) -> asyncssh.SSHKey | None:
 
 
 def unlocked_until(username: str | None) -> float | None:
+    """When `username`'s unlock ends — None while locked, or while nothing is asked."""
+    if not settings_store.ssh_asks_password():
+        return None
     return _holders()[username][0] if username and _holds(username) else None
