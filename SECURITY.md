@@ -70,7 +70,8 @@ your network. Read this before deciding where it runs and who can reach it.
   things off it** (off the old user, for a change) —
   the sudo rule first, then its two `authorized_keys` lines, and nothing else — before
   Loskai forgets it. A machine that can't be reached then goes anyway, and Loskai says what
-  is still there to remove by hand.
+  is still there to remove by hand. With its key locked, none of the three goes ahead until
+  you type your password.
 - **A recipe runs the images it names.** Recipes are data, never executed themselves, but
   installing one starts its containers — trust a recipe source as you would its images.
 

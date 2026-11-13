@@ -69,39 +69,41 @@ def prepare_removal(inst: Instance):
     return connect.removal(inst.id)
 
 
-def prepare_user_change(prev: Instance, ssh) -> tuple[object | None, str | None]:
+def prepare_user_change(prev: Instance, ssh):
     """Before a machine's SSH user changes: where Loskai's lines are under the old user — its
     key, and the sudo rule written for that user, which the new one may not see (where
     /etc/sudoers.d is 0750) — to take off once the save has gone through, as removing the
-    connection does. `(None, None)` when the user stays. A locked key doesn't stop the
-    change: `(None, warning)`, saying what stayed."""
+    connection does. None when the user stays. SshError 423 while the key is locked — the
+    page asks for your password, nothing changed — as `prepare_removal`."""
     if ssh is KEEP or ssh is None:
-        return None, None
+        return None
     try:
         old = connect.target(prev.id).user
     except connect.SshError:
-        return None, None  # no SSH user before: nothing of Loskai's under one
+        return None  # no SSH user before: nothing of Loskai's under one
     if old == ssh.user:
-        return None, None
-    try:
-        return connect.removal(prev.id), None
-    except connect.SshError:
-        return None, (
-            f"Loskai's key was locked, so what it put on the machine for {old} stayed — "
-            f"remove its loskai lines from {old}'s ~/.ssh/authorized_keys, and as root: rm -f {logic.SUDO_RULE}"
-        )
+        return None
+    return connect.removal(prev.id)
 
 
-async def remove_keys(inst: Instance, removal) -> str | None:
+async def remove_keys(inst: Instance, removal, *, user_changed: bool = False) -> str | None:
     """Take what Loskai put on a machine — its sudo rule, its lines — off it, when the machine
-    or its SSH connection goes. Best-effort: a machine that can't be reached goes anyway,
-    and the warning says what is still there."""
+    or its SSH connection goes, or (`user_changed`) its old SSH user. Best-effort: a machine
+    that can't be reached goes anyway, and the warning says what may still be there. An old
+    user Loskai can't log in as may never have had its key — a typo fixed before Install."""
     if removal is None:
         return None
     try:
         sudo_left = await connect.uninstall(*removal)
     except connect.SshError as exc:
         connect.log("uninstall", inst.id, None, ok=False, error=exc.detail)
+        if user_changed:
+            old = removal[0].user
+            return (
+                f"Loskai couldn't log in as {old} to take its key off ({exc.detail}) — if it was "
+                f"installed for {old}, remove its loskai lines from {old}'s ~/.ssh/authorized_keys, "
+                f"and as root: rm -f {logic.SUDO_RULE}"
+            )
         return (
             f"Loskai's key and any sudo rule it added are still on the machine ({exc.detail}) — "
             f"remove its loskai lines from ~/.ssh/authorized_keys by hand, and as root: rm -f {logic.SUDO_RULE}"

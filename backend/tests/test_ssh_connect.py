@@ -1150,13 +1150,31 @@ def test_the_same_user_or_another_port_reaches_nothing(api, machine_net):
     assert machine_net["logins"] == []
 
 
-def test_a_locked_key_lets_the_user_change_and_says_what_stayed(api, machine_net):
+def test_a_locked_key_stops_the_user_change_until_it_is_unlocked(api, machine_net):
+    """As removing the connection: the page asks for the password and sends it again — so
+    nothing of Loskai's is left under the old user."""
     _with_key(api)
     _trust(api)
     unlock.lock()
 
     r = _change_user(api, "admin")
 
-    assert r.status_code == 200 and "for loskai stayed" in r.json()["warning"]
+    assert r.status_code == 423
     assert machine_net["logins"] == []
+    assert logic.hosts(ssh_client.read_config())["nas"]["user"] == "loskai"  # unchanged
+    api.post("/api/ssh/unlock", json={"password": PASSWORD}, headers=ORIGIN)
+    assert _change_user(api, "admin").status_code == 200
+    assert [login["command"] for login in machine_net["logins"]] == [logic.UNINSTALL_SCRIPT]
+
+
+def test_an_old_user_loskai_can_t_log_in_as_may_never_have_had_its_key(api, machine_net):
+    """A typo fixed before Install: the old user is no account there."""
+    _with_key(api)
+    _trust(api)
+    machine_net["fail"] = asyncssh.PermissionDenied("no such user")
+
+    r = _change_user(api, "admin")
+
+    assert r.status_code == 200
+    assert "if it was installed for loskai" in r.json()["warning"]
     assert logic.hosts(ssh_client.read_config())["nas"]["user"] == "admin"
