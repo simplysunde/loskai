@@ -66,7 +66,7 @@ Phase 48 choice, to decide.
 
 - [x] 53a `unlock.unlocked_until` read the file twice: an unlock ending in between was a `500`
 - [x] 53b The unlock dialog answered before the reads it unlocked had come back
-- [ ] 53c The client's address was worked out (a DNS lookup behind Caddy) holding the
+- [x] 53c The client's address was worked out (a DNS lookup behind Caddy) holding the
       one-password-check lock
 - [ ] 53d A project's settings dialog refused to save for an untouched empty field
 - [ ] 53e `tool.visible` built `$PROJECTS` itself, beside `_projects_env`

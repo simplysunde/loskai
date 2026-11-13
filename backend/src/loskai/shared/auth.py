@@ -309,6 +309,9 @@ def check_password(
         if me is None:
             raise HTTPException(status_code=401, detail="Authentication required")
         username = me.username
+    # Who is asking — worked out before the lock: behind Caddy it resolves Caddy's address,
+    # and a slow resolver must not hold every other password check up.
+    key = (username, peer(request))
     # One password check at a time, so parallel guesses can't all land before the first
     # failure counts. The rest are turned away, not queued: a queue would hold a worker
     # thread each, which every other sync route needs too.
@@ -318,7 +321,6 @@ def check_password(
             detail="Another password is being checked. Try again.",
             headers={"Retry-After": "1"},
         )
-    key = (username, peer(request))
     try:
         wait = _backoff.wait_left(key)
         if wait > 0:

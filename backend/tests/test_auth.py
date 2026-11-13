@@ -644,3 +644,19 @@ def test_a_username_ending_in_a_newline_is_refused():
     users.check_username("bob")
     with pytest.raises(users.UserError):
         users.check_username("bob\n")
+
+
+def test_who_is_asking_is_worked_out_before_the_one_password_check_lock(client, monkeypatch):
+    # Behind Caddy, that resolves Caddy's address: a slow resolver mustn't hold every check up.
+    held = []
+
+    def peer(request):
+        free = auth._backoff.lock.acquire(blocking=False)
+        if free:
+            auth._backoff.lock.release()
+        held.append(not free)
+        return "192.168.10.5"
+    monkeypatch.setattr(auth, "peer", peer)
+
+    assert client.post("/api/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
+    assert held and not any(held)
