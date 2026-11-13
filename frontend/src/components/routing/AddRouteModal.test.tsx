@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -177,7 +177,9 @@ function renderPicker(overrides = {}) {
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  return { onSubmit };
+  // Every query answered: what isn't shown then is never going to be.
+  const settled = () => waitFor(() => expect(client.isFetching()).toBe(0));
+  return { onSubmit, settled };
 }
 
 const CONTAINERS = [
@@ -475,8 +477,9 @@ test("the keyboard picks from the list — but Enter never swaps a typed address
 });
 
 test("with no hosts to offer, the host field is a plain text field", async () => {
-  const { onSubmit } = renderPicker();
+  const { onSubmit, settled } = renderPicker();
 
+  await settled();
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.77", "8080");
@@ -547,9 +550,10 @@ test("opened from a machine without SSH, the list says so, not that no machine h
 
 test("an account that may not use the Machines tab isn't offered the source", async () => {
   RESPONSES["/api/auth/status"] = { ...admin, user: { username: "kid", level: 1, tabs: ["routing"] } };
-  renderPicker();
+  const { settled } = renderPicker();
 
   await screen.findByRole("button", { name: /Container/ });
+  await settled(); // the account's level is known
   expect(screen.queryByRole("button", { name: /Machines/ })).not.toBeInTheDocument();
 });
 

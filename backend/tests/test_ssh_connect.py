@@ -924,9 +924,15 @@ def test_the_password_goes_to_the_terminal_once_as_its_first_line_and_never_into
 
 def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
     _ready(api, machine_net)
+    # A second set-up machine, so the ticket is what refuses — not a machine that isn't there.
+    api.post("/api/machines", json={"hostname": "pve", "address": "192.168.10.10", "ssh": {"user": "root", "port": 22}})
+    fp = api.post("/api/ssh/machines/pve/scan").json()["fingerprint"]
+    api.post("/api/ssh/machines/pve/trust", json={"fingerprint": fp})
     ticket = _prepare(api, password="sudo-pw").json()["ticket"]
 
-    assert _closed_with(api, TERMINAL.replace("/nas/", "/pve/") + f"&tool=system&action=update&ticket={ticket}")[0] in (4404, 4409)
+    assert _closed_with(api, TERMINAL.replace("/nas/", "/pve/") + f"&tool=system&action=update&ticket={ticket}") == (
+        4409, "That password is no longer held — run it again",
+    )
     assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
 
 

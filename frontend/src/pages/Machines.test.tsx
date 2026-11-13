@@ -1138,11 +1138,14 @@ test("a set-up machine's row updates its system in its terminal; the plain one h
 test("a set-up machine's row opens a terminal on it", async () => {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
+  sshKey = UNLOCKED_KEY;
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
+  // Its tooltip says where the server logs in; the terminal is a shell on that machine.
+  fireEvent.click(await within(nasRow()).findByTitle("Terminal: ssh nas — loskai@192.168.10.50"));
   expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal")).toBeInTheDocument();
 });
 
 test("a machine that doesn't exist says so", async () => {

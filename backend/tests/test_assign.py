@@ -103,24 +103,30 @@ def test_validate_upstream_rejects_scheme_path_and_bad_port():
 
 
 async def test_assign_rejects_url_upstream():
+    caddy, ag = FakeCaddy(), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            FakeCaddy(), FakeAdGuard(), prefix="proxmox",
+            caddy, ag, prefix="proxmox",
             upstream="https://192.168.10.202:8006/", base_domain=BASE, current_ip=IP,
         )
     assert exc.value.status_code == 422
+    # Refused before anything was written.
+    assert instances_store.list_instances() == [] and caddy.pushed == [] and ag.added == []
 
 
 async def test_assign_rejects_duplicate_subdomain():
     instances_store.upsert_instance(
         Instance(id="other", name="Other", type="external", subdomain="grafana")
     )
+    caddy, ag = FakeCaddy(), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="1.2.3.4:80",
+            caddy, ag, prefix="grafana", upstream="1.2.3.4:80",
             base_domain=BASE, current_ip=IP,
         )
     assert exc.value.status_code == 409
+    assert [i.id for i in instances_store.list_instances()] == ["other"]
+    assert caddy.pushed == [] and ag.added == []
 
 
 # --- Happy path (new external instance) ---
@@ -137,11 +143,12 @@ async def test_assign_sets_upstream_tls():
 
 
 async def test_assign_with_container_creates_docker_instance():
+    caddy = FakeCaddy()
     result = await assign.assign(
-        FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
+        caddy, FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
         base_domain=BASE, current_ip=IP, container="grafana",
     )
-    assert result["caddy"] == "ok"
+    assert result["caddy"] == "ok" and caddy.pushed == ["grafana"]
     inst = instances_store.get_instance("grafana")
     assert inst.type == "docker" and inst.container == "grafana"
 
@@ -163,12 +170,12 @@ async def test_a_failed_icon_lookup_never_fails_the_route(monkeypatch):
         raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
 
     monkeypatch.setattr(assign.recipes, "recipe_icon", broken)
-    adguard = FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        FakeCaddy(), adguard, prefix="grafana", upstream="192.168.10.100:3000",
+        caddy, adguard, prefix="grafana", upstream="192.168.10.100:3000",
         base_domain=BASE, current_ip=IP, container="grafana-app-1",
     )
-    assert result["caddy"] == "ok"
+    assert result["caddy"] == "ok" and caddy.pushed == ["grafana"]
     assert adguard.added == [(f"grafana.{BASE}", IP)]
     assert instances_store.get_instance("grafana").icon is None
 
@@ -257,15 +264,16 @@ async def test_assign_creates_external_routes_and_rewrites():
 
 
 async def test_caddy_failure_rolls_back_new_instance():
-    caddy = FakeCaddy(fail=True)
+    caddy, ag = FakeCaddy(fail=True), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            caddy, FakeAdGuard(), prefix="nas", upstream="192.168.10.50:5000",
+            caddy, ag, prefix="nas", upstream="192.168.10.50:5000",
             base_domain=BASE, current_ip=IP,
         )
     assert exc.value.status_code == 502
-    # The instance created in Step 0 was rolled back.
+    # The instance created in Step 0 was rolled back, and AdGuard never asked.
     assert instances_store.get_instance("nas") is None
+    assert ag.added == []
 
 
 async def test_caddy_failure_restores_existing_instance():
@@ -285,11 +293,13 @@ async def test_caddy_failure_restores_existing_instance():
 
 
 async def test_adguard_failure_still_succeeds_with_warning():
+    caddy = FakeCaddy()
     result = await assign.assign(
-        FakeCaddy(), FakeAdGuard(fail=True), prefix="nas", upstream="192.168.10.50:5000",
+        caddy, FakeAdGuard(fail=True), prefix="nas", upstream="192.168.10.50:5000",
         base_domain=BASE, current_ip=IP,
     )
-    assert result["caddy"] == "ok" and result["adguard"] == "error"
+    # The route is in Caddy — the effect, not the "ok" assign reports.
+    assert caddy.pushed == ["nas"] and result["adguard"] == "error"
     assert "won't resolve" in result["warning"]
     # Route persisted even though the rewrite failed; dns_answer not claimed.
     assert instances_store.get_instance("nas").dns_answer is None
@@ -368,9 +378,11 @@ async def test_unassign_caddy_failure_rolls_back():
     instances_store.upsert_instance(
         Instance(id="nas", name="NAS", type="external", subdomain="nas", dns_answer=IP)
     )
+    ag = FakeAdGuard()
     with pytest.raises(AssignError):
-        await assign.unassign(FakeCaddy(fail=True), FakeAdGuard(), "nas", base_domain=BASE)
+        await assign.unassign(FakeCaddy(fail=True), ag, "nas", base_domain=BASE)
     assert instances_store.get_instance("nas").subdomain == "nas"  # restored
+    assert ag.deleted == []  # its rewrite still answers
 
 
 # --- DNS-only mode: no Caddy, AdGuard answer = the instance's own IP ---
@@ -642,12 +654,12 @@ class PickyCaddy(FakeCaddy):
         super().__init__()
         self.fail_ids = set(fail_ids)
 
-    async def push_route(self, route):
+    async def push_route(self, route, http=False):
         if route["@id"] in self.fail_ids:
             import httpx
 
             raise httpx.ConnectError("caddy down")
-        await super().push_route(route)
+        await super().push_route(route, http)
 
 
 async def test_a_failed_repush_warns_but_keeps_the_store_correct():
@@ -743,7 +755,7 @@ async def test_name_machine_wrapper_makes_a_machine():
         caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, current_ip=IP,
     )
 
-    assert result["caddy"] == "skipped"  # no reverse proxy involved
+    assert result["caddy"] == "skipped" and caddy.pushed == []  # no reverse proxy involved
     assert instances_store.is_machine(instances_store.get_instance("nas"))
 
 

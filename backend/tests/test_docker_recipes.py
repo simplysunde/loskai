@@ -1001,8 +1001,9 @@ def test_a_recipe_with_an_icon_says_so(installable):
 
 def test_a_recipe_without_an_icon_has_none(installable):
     assert recipes.get_recipe("grafana")["icon"] is False
-    with pytest.raises(recipes.RecipeError):
+    with pytest.raises(recipes.RecipeError, match="has no icon") as missing:
         recipes.icon_path("grafana")
+    assert missing.value.status_code == 404
 
 
 @pytest.mark.parametrize(
