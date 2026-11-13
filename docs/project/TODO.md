@@ -937,7 +937,15 @@ places. Four bugs they found, each checked in the code, go first.
       own way (raise, None, []), so a wrapper would only save the keyword arguments
 - [x] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
       pre-Phase-38 key's refusal
-- [ ] Backend live
+- [x] Backend live: a scratch Loskai on `:8010` with a real Caddy, AdGuard and a Debian
+      machine. The public keys read the new way are byte-for-byte the old ones on the live
+      keys. SSH: `targets` named `homelab@172.17.0.2`; scan, trust, install (two lines in
+      `authorized_keys`), facts on v10 not `outdated`; a bad target 409, no setting 404, a
+      bad value 422 — each from `tool.py`; removing SSH took both lines off and forgot the
+      host key. A recipe installed (`.env`, the published port in `docker inspect`), routed,
+      and served through Caddy (whoami's body); reconcile left both rewrites as they were,
+      a hand-added answer was reported and kept, and the clear list marked it unmanaged.
+      Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (6245fca)
 - [ ] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
 - [ ] 46m Frontend: the route forms' preview and follow toggle, once; the Assign form
       decides its own pre-fill, like `LinkModal`
