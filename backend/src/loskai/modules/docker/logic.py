@@ -186,10 +186,7 @@ def published_host_binding(ports: dict | None) -> tuple[str | None, str] | None:
     host_port = binding.get("HostPort")
     if not host_port:
         return None
-    host_ip = binding.get("HostIp")
-    if host_ip in (None, "", "0.0.0.0", "::"):
-        host_ip = None
-    return host_ip, host_port
+    return _concrete_ip(binding.get("HostIp")), host_port
 
 
 # Networks that carry no embedded DNS, so sharing one proves nothing about name resolution.
@@ -220,8 +217,8 @@ def matches_hostname(
 
     Three keys, because the container name alone is not enough. `compose.colocated.yml`
     pins `container_name: caddy`, but a stack that omits it gets `<project>-caddy-1` and
-    `caddy` survives only as a network alias — which is precisely the layout Stage B is
-    for. The compose service label is checked too, since that is what the alias is derived
+    `caddy` survives only as a network alias — which is precisely the layout where Caddy
+    runs in a stack of its own. The compose service label is checked too, since that is what the alias is derived
     from and it is already read for the upstream form.
     """
     if not hostname:
@@ -286,6 +283,7 @@ def label_port(labels: dict | None) -> str | None:
 
 
 def _concrete_ip(host_ip: str | None) -> str | None:
+    """A binding's address, or None for every address (`0.0.0.0`, `::`, unset)."""
     return None if host_ip in (None, "", "0.0.0.0", "::") else host_ip
 
 
@@ -448,7 +446,6 @@ def link_instances(rows: list[dict], instances: list, url_of=lambda inst: None) 
             **row,
             "subdomain": route.subdomain if route else None,
             "instance_id": inst.id if inst else None,
-            "scheme": route.scheme if route else None,
             "url": urls.get(row["name"]),
         })
     return out

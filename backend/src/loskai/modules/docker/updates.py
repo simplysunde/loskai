@@ -138,8 +138,7 @@ def _commits_since(recipe: dict, since: str | None) -> list[dict]:
 def _entry(directory: Path, compose: Path, record: dict | None, recipe: dict) -> dict:
     installed = compose.read_text(encoding="utf-8")
     offered = _offered(recipe)
-    env = directory / ".env"
-    defaults, unanswered = new_questions(recipe["env"], env.read_text(encoding="utf-8") if env.is_file() else "")
+    defaults, unanswered = new_questions(recipe["env"], stacks.env_text(directory))
     state = status(installed, offered, record["compose"] if record else None)
     reason = None
     if recipe["type"] == "git_build":
@@ -173,8 +172,7 @@ def _installed() -> list[tuple[Path, Path, dict | None, dict | None, str]]:
         compose = stacks.compose_path(directory)
         if compose is None:
             continue
-        record = recipes.read_record(directory)
-        rid = record["recipe"] if record else directory.name
+        record, rid = recipes.installed_as(directory)
         if record or rid in catalog:
             found.append((directory, compose, record, catalog.get(rid), rid))
     return found
@@ -223,10 +221,9 @@ def apply_update(name: str) -> dict:
         raise RecipeError(f"the new version doesn't load with this stack's files: {checked['output']}")
     os.replace(candidate, compose)
 
-    env = directory / ".env"
-    defaults, _ = new_questions(recipe["env"], env.read_text(encoding="utf-8") if env.is_file() else "")
+    text = stacks.env_text(directory)
+    defaults, _ = new_questions(recipe["env"], text)
     if defaults:
-        text = env.read_text(encoding="utf-8") if env.is_file() else ""
-        store.write_private(env, text + ("" if not text or text.endswith("\n") else "\n") + dotenv.render_env(defaults))
+        store.write_private(directory / ".env", text + ("" if not text or text.endswith("\n") else "\n") + dotenv.render_env(defaults))
     recipes.write_record(directory, recipe, offered)
     return stacks.stack_action(name, "pull")

@@ -687,11 +687,16 @@ def with_icon(record: Instance, recipe: dict) -> Instance:
     return record.model_copy(update={"icon": filename})
 
 
-def stack_recipe(directory: Path) -> dict | None:
-    """The recipe a stack came from — by its install record, or by its name for one from
-    before records (or moved in by hand). None when no source has it."""
+def installed_as(directory: Path) -> tuple[dict | None, str]:
+    """A stack's install record, and the id of the recipe it came from — the record's, or
+    for a stack from before records (or moved in by hand), its folder's name."""
     record = read_record(directory)
-    rid = record["recipe"] if record else directory.name
+    return record, record["recipe"] if record else directory.name
+
+
+def stack_recipe(directory: Path) -> dict | None:
+    """The recipe a stack came from (`installed_as`). None when no source has it."""
+    _, rid = installed_as(directory)
     try:
         return merged_recipes()["recipes"].get(rid)
     except (OSError, RecipeError):
@@ -701,18 +706,14 @@ def stack_recipe(directory: Path) -> dict | None:
 def recipe_icon(record: Instance) -> Instance:
     """A new route record for a container in a recipe's stack, given the recipe's icon as
     the install would have — for a route deleted and added again, or a stack the wizard
-    didn't install. The stack is the folder compose ran in (its `working_dir` label, not the
-    project name, which compose lowercases and strips), and only one in the stacks folder.
-    As at install, only the recipe's primary container gets it, never a database beside it."""
+    didn't install. The stack is the one compose ran it from (`stacks.stack_of`). As at
+    install, only the recipe's primary container gets it, never a database beside it."""
     try:
         labels = docker_client.labels_of(record.container) if record.container else {}
-        working_dir = labels.get("com.docker.compose.project.working_dir")
-        if not working_dir:
+        stack = stacks.stack_of(labels.get("com.docker.compose.project.working_dir"))
+        if stack is None:
             return record
-        directory = Path(working_dir).resolve()
-        if directory.parent != stacks.stacks_dir().resolve() or not directory.is_dir():
-            return record
-        recipe = stack_recipe(directory)
+        recipe = stack_recipe(stacks.stacks_dir() / stack)
         if recipe is None:
             return record
         containers = docker_client.containers_in_project(labels["com.docker.compose.project"])

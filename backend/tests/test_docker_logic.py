@@ -76,9 +76,9 @@ def test_a_container_is_joined_to_its_instance():
     ]
     rows = [{"name": "grafana"}, {"name": "bambuddy-bambuddy-1"}, {"name": "stray"}]
     assert logic.link_instances(rows, instances) == [
-        {"name": "grafana", "subdomain": "graf", "instance_id": "graf", "scheme": "http", "url": None},
-        {"name": "bambuddy-bambuddy-1", "subdomain": None, "instance_id": "bambuddy", "scheme": None, "url": None},
-        {"name": "stray", "subdomain": None, "instance_id": None, "scheme": None, "url": None},
+        {"name": "grafana", "subdomain": "graf", "instance_id": "graf", "url": None},
+        {"name": "bambuddy-bambuddy-1", "subdomain": None, "instance_id": "bambuddy", "url": None},
+        {"name": "stray", "subdomain": None, "instance_id": None, "url": None},
     ]
 
 
@@ -107,7 +107,7 @@ def test_a_container_linked_twice_shows_the_route_of_the_routed_record():
         Instance(id="tv", name="TV", type="docker", container="jellyfin-jellyfin-1", subdomain="tv", scheme="both"),
     ]
     row = logic.link_instances([{"name": "jellyfin-jellyfin-1"}], instances)[0]
-    assert (row["subdomain"], row["scheme"], row["instance_id"]) == ("tv", "both", "jellyfin")
+    assert (row["subdomain"], row["instance_id"]) == ("tv", "jellyfin")
 
 
 def test_suggested_container_port_prefers_single_published():

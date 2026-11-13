@@ -161,6 +161,11 @@ def is_link(instance: Instance) -> bool:
     return instance.route_mode == "direct"
 
 
+def icon_url(instance: Instance) -> str | None:
+    """Where a record's uploaded icon is served — None for the generic glyph."""
+    return f"/api/instances/{instance.id}/icon" if instance.icon else None
+
+
 def open_url(instance: Instance, base_domain: str | None) -> str | None:
     """Where a person opens this record — the one place it is decided, for the Dashboard,
     the launcher and the route and container rows. A route at its name; a link at its

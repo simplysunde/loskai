@@ -21,7 +21,6 @@ export interface Container {
   uptime: number | null;
   ports: string[];
   subdomain: string | null;
-  scheme?: "https" | "both" | "http" | null;
   // Where its route or link opens (the server's instances.open_url), or null.
   url?: string | null;
   suggested_upstream: string | null;

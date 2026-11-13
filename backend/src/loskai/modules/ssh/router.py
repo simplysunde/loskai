@@ -48,9 +48,7 @@ def _key_view() -> dict | None:
 
 def _known() -> dict[str, bool]:
     """Which machines (by id) have a trusted host key."""
-    return {
-        line.split()[0]: True for line in client.read_known_hosts().splitlines() if line.strip()
-    }
+    return dict.fromkeys(logic.known_keys(client.read_known_hosts()), True)
 
 
 @router.get("")

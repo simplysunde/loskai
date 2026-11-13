@@ -314,7 +314,8 @@ async def assign(
     return {
         "caddy": "ok" if inst.route_mode == "proxy" else "skipped",
         "adguard": adguard_status,
-        "url": _display_url(inst, domain),
+        # dns_only has no scheme at all: the name resolves straight to the machine.
+        "url": instances_store.open_url(inst, base_domain) or domain,
         "instance_id": inst.id,
         "moved": moved,
         "warning": warning,
@@ -336,15 +337,6 @@ async def _recipe_icon(inst: Instance) -> Instance:
     if iconed.icon:
         return instances_store.give_icon(inst.id, iconed.icon) or inst
     return inst
-
-
-def _display_url(instance: Instance, domain: str) -> str:
-    """What to show and link after an assign. `dns_only` has no scheme at all (the name
-    resolves straight to a machine), and an `http` route has no certificate — calling it
-    https would hand back a URL that cannot connect."""
-    if instance.route_mode != "proxy":
-        return domain
-    return f"{instances_store.web_scheme(instance)}://{domain}"
 
 
 async def _tear_down_route(caddy_client, inst: Instance, prev: Instance | None) -> None:  # noqa: D401

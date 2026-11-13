@@ -149,10 +149,9 @@ def _options(recipe: dict | None, declared: set[str]) -> list[dict]:
 
 
 def _disk(directory) -> tuple[str, str]:
-    env_file = directory / ".env"
     override_file = stacks.override_path(directory)
     return (
-        env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
+        stacks.env_text(directory),
         override_file.read_text(encoding="utf-8") if override_file else "",
     )
 
@@ -160,10 +159,7 @@ def _disk(directory) -> tuple[str, str]:
 def get_form(name: str, base: dict | None = None) -> dict:
     """The stack as fields — from its files, or from `base`: the text view's unsaved `.env`
     and override, so switching back to the form keeps what was typed there."""
-    directory = stacks.stack_path(name)
-    compose = stacks.compose_path(directory)
-    if compose is None:
-        raise StackError(f"stack '{name}' not found", 404)
+    directory, compose = stacks.require_stack(name)
     compose_text = compose.read_text(encoding="utf-8")
     try:
         doc = yaml.safe_load(compose_text)
@@ -234,10 +230,7 @@ def save_form(
     or to `base`, the text view's unsaved `.env` and override. Everything is checked before
     anything is written. `preview` writes nothing and returns the `.env` and override the
     save would leave, for the text view to open with."""
-    directory = stacks.stack_path(name)
-    compose = stacks.compose_path(directory)
-    if compose is None:
-        raise StackError(f"stack '{name}' not found", 404)
+    directory, compose = stacks.require_stack(name)
     disk_env, disk_override = _disk(directory)
     env_text, override_text = _base(base) or (disk_env, disk_override)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))

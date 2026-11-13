@@ -63,9 +63,24 @@ def override_path(directory: Path) -> Path | None:
     return next((directory / n for n in _OVERRIDE_NAMES if (directory / n).is_file()), None)
 
 
+def env_text(directory: Path) -> str:
+    """A stack's `.env` as written — "" when it has none."""
+    env = directory / ".env"
+    return env.read_text(encoding="utf-8") if env.is_file() else ""
+
+
 def stack_path(name: str) -> Path:
     _validate_name(name)
     return stacks_dir() / name
+
+
+def require_stack(name: str) -> tuple[Path, Path]:
+    """A stack's folder and its compose file — or a 404: no compose file, no stack."""
+    directory = stack_path(name)
+    compose = compose_path(directory)
+    if compose is None:
+        raise StackError(f"stack '{name}' not found", 404)
+    return directory, compose
 
 
 def list_stacks() -> list[dict]:
@@ -148,11 +163,7 @@ def claim_dir(name: str) -> tuple[Path, bool]:
 
 
 def get_stack(name: str) -> dict:
-    directory = stack_path(name)
-    compose = compose_path(directory)
-    if compose is None:
-        raise StackError(f"stack '{name}' not found", 404)
-    env_file = directory / ".env"
+    directory, compose = require_stack(name)
     override = override_path(directory)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     return {
@@ -161,7 +172,7 @@ def get_stack(name: str) -> dict:
         "services": sorted(declared),
         "compose": compose.read_text(encoding="utf-8"),
         "compose_file": compose.name,
-        "env": env_file.read_text(encoding="utf-8") if env_file.is_file() else "",
+        "env": env_text(directory),
         # Compose merges it in, so a stack that has one isn't described by compose.yml alone.
         "override": override.read_text(encoding="utf-8") if override else None,
         "override_file": override.name if override else None,
@@ -185,9 +196,7 @@ def run_compose(directory: Path, *args: str) -> dict:
 def stack_action(name: str, action: str) -> dict:
     if action not in _ACTIONS:
         raise StackError(f"unknown action: {action}")
-    directory = stack_path(name)
-    if compose_path(directory) is None:
-        raise StackError(f"stack '{name}' not found", 404)
+    directory, _ = require_stack(name)
     if action == "up":
         return run_compose(directory, "up", "-d")
     if action == "pull":

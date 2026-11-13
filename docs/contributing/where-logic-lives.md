@@ -39,6 +39,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The same, in the browser | `components/routing/machine.ts` `machineAt` `routesOn` | `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` `pages/Machines.tsx` `pages/settings/General.tsx` |
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
+| Where a record's uploaded icon is served | `shared/instances.py` `icon_url` | `modules/caddy/service.py` `shared/dashboard.py` |
 | How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
@@ -59,6 +60,8 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | A route following its container to a new port | `shared/follow.py` `derive_upstream` `derive_published` | `shared/assign.py` |
 | What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/recipes.py` `modules/docker/updates.py` |
 | Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/recipes.py` |
+| A stack by name, or a 404; its `.env` as written | `modules/docker/stacks.py` `require_stack` `env_text` | `modules/docker/stackform.py` `modules/docker/updates.py` |
+| Which recipe a stack came from: its install record's, else its folder's name | `modules/docker/recipes.py` `installed_as` `stack_recipe` | `modules/docker/stackform.py` `modules/docker/updates.py` |
 | Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailed` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
 
@@ -90,6 +93,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Decision | Owner | Used by |
 |---|---|---|
 | How a machine is reached over SSH — its `HostName`, else its address — and that login shown | `modules/ssh/connect.py` `reach` | `modules/ssh/router.py` |
+| Each machine's trusted host key | `modules/ssh/logic.py` `known_keys` `known_key` | `modules/ssh/connect.py` `modules/ssh/router.py` |
 | The status line a machine installs | `modules/ssh/logic.py` `STATUS_COMMAND` `status_line` | `modules/ssh/connect.py` |
 | Reading what the status key answered, and which line it came from | `modules/ssh/logic.py` `parse_facts` `parse_running` `line_version` | `modules/ssh/connect.py` |
 | Which programs the overview detects | `modules/ssh/logic.py` `PROGRAMS` | `modules/ssh/tool.py` |

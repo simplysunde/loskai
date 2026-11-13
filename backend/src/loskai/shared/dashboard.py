@@ -24,7 +24,7 @@ def _card(inst, base: str | None) -> dict:
         "id": inst.id,
         "name": inst.name,
         "url": instances.open_url(inst, base),
-        "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
+        "icon": instances.icon_url(inst),
     }
 
 

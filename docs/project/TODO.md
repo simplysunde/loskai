@@ -932,8 +932,9 @@ places. Four bugs they found, each checked in the code, go first.
       one `instances.require`
 - [x] 46h Backend: the status line's version is a number, not three lists
 - [x] 46i Backend: saving a machine leaves the HTTP handler (`assign.save_machine`)
-- [ ] 46j Backend: which recipe a stack came from, once; one git runner; the small
-      duplicates and stale comments
+- [x] 46j Backend: which recipe a stack came from, once; the small duplicates and stale
+      comments. Not done: one git runner — each of the four calls handles its failure its
+      own way (raise, None, []), so a wrapper would only save the keyword arguments
 - [ ] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
       pre-Phase-38 key's refusal
 - [ ] Backend live

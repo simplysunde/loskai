@@ -134,14 +134,24 @@ def _describe(exc: BaseException, t: Target, credential: str) -> str:
 # --- The host key ---
 
 
+async def _host_key(t: Target) -> asyncssh.SSHKey:
+    """The host key the machine answers with now; SshError 502 when it can't be reached."""
+    try:
+        return await client.scan_host_key(t.host, t.port)
+    except Exception as exc:  # noqa: BLE001 — any failure to reach it is the same answer
+        raise SshError(_describe(exc, t, "connection"), 502)
+
+
+def _failed(result: asyncssh.SSHCompletedProcess) -> str:
+    """The last line a failed command wrote to stderr — what it says went wrong."""
+    return (str(result.stderr or "").strip().splitlines() or ["no error output"])[-1]
+
+
 async def scan(machine_id: str) -> dict:
     """The machine's host key as it answers now, and how that compares with the trusted one:
     `new` (none trusted yet), `trusted`, or `changed`."""
     t = target(machine_id)
-    try:
-        key = await client.scan_host_key(t.host, t.port)
-    except Exception as exc:  # noqa: BLE001 — any failure to reach it is the same answer
-        raise SshError(_describe(exc, t, "connection"), 502)
+    key = await _host_key(t)
     offered = key.export_public_key("openssh").decode().split()
     known = logic.known_key(client.read_known_hosts(), t.id)
     state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
@@ -154,10 +164,7 @@ async def trust(machine_id: str, fingerprint: str) -> dict:
     """Trust the host key the machine answers with — only if it is the one that was shown
     (`fingerprint`), so what is trusted is what the person looked at."""
     t = target(machine_id)
-    try:
-        key = await client.scan_host_key(t.host, t.port)
-    except Exception as exc:  # noqa: BLE001
-        raise SshError(_describe(exc, t, "connection"), 502)
+    key = await _host_key(t)
     if key.get_fingerprint() != fingerprint:
         raise SshError("The machine answered with a different host key than the one shown", 409)
     line = " ".join(key.export_public_key("openssh").decode().split()[:2])
@@ -222,8 +229,7 @@ async def install(machine_id: str, password: str) -> dict:
         password=password, stdin="\n".join(await asyncio.to_thread(lines, t)) + "\n",
     )
     if result.exit_status != 0:
-        detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
-        raise SshError(f"Adding Loskai's key on {t.host} failed: {detail[0]}", 502)
+        raise SshError(f"Adding Loskai's key on {t.host} failed: {_failed(result)}", 502)
     return await test(machine_id)
 
 
@@ -250,8 +256,7 @@ async def uninstall(t: Target, host_key: str) -> bool:
     refused."""
     result = await _run(t, logic.UNINSTALL_SCRIPT, host_key)
     if result.exit_status != 0:
-        detail = str(result.stderr or "").strip().splitlines()[-1:] or ["no error output"]
-        raise SshError(f"Removing Loskai's key on {t.host} failed: {detail[0]}", 502)
+        raise SshError(f"Removing Loskai's key on {t.host} failed: {_failed(result)}", 502)
     return "!sudo-rule" in str(result.stdout or "").splitlines()
 
 

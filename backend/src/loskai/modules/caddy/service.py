@@ -27,8 +27,8 @@ def caddy_mode(admin_url: str | None) -> str | None:
     upstream**: Phase 16 Stage A replaced that with per-container network detection
     (`modules/docker/logic.upstream_mode`), because this answer diverges from "can Caddy
     resolve this container's name?" exactly where it matters. The frontend still uses it as
-    the hint fallback for route sources that have no container — Network service and
-    External."""
+    the hint fallback for a route with no container — a machine's service, or an address
+    typed in."""
     if not admin_url:
         return None
     host = urlparse(admin_url).hostname
@@ -216,7 +216,7 @@ async def list_with_sync(client: CaddyClient, base_domain: str | None) -> list[d
             "url": instances_store.open_url(inst, base_domain),
             # The URL, not the stored filename: the table renders this directly, exactly
             # as the dashboard card does.
-            "icon": f"/api/instances/{inst.id}/icon" if inst.icon else None,
+            "icon": instances_store.icon_url(inst),
             "routed": routed,
             "synced": synced,
         })

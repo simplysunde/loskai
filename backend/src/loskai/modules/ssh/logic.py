@@ -436,13 +436,14 @@ UNINSTALL_SCRIPT = (
 # so a rename or a move keeps the trusted key, and a changed key is still refused.
 
 
+def known_keys(text: str) -> dict[str, str]:
+    """Each machine's trusted host key (`<type> <base64>`), by machine id."""
+    return {parts[0]: f"{parts[1]} {parts[2]}" for parts in (line.split() for line in _split(text)) if len(parts) >= 3}
+
+
 def known_key(text: str, machine_id: str) -> str | None:
     """The trusted host key (`<type> <base64>`) for a machine, or None."""
-    for line in _split(text):
-        parts = line.split()
-        if len(parts) >= 3 and parts[0] == machine_id:
-            return f"{parts[1]} {parts[2]}"
-    return None
+    return known_keys(text).get(machine_id)
 
 
 def set_known(text: str, machine_id: str, key: str) -> str:

@@ -65,7 +65,7 @@ class CaddyClient:
     async def list_live_routes(self, http: bool = False) -> list[dict]:
         """The routes in the routing server — or, `http`, the `:80` one: `[]` when there is
         no such server, since a deployment without one simply cannot serve `scheme:
-        "http"`, which `upsert_route` rejects."""
+        "http"`, which `push_route` refuses."""
         server = await (self.http_server_name() if http else self.server_name())
         if not server:
             return []

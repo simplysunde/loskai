@@ -218,17 +218,25 @@ def get_view() -> dict[str, Any]:
     return view
 
 
+# The settings that must be a bare IP — no scheme or port — and how a refusal names each.
+# Each is written where only an address works: every AdGuard rewrite's answer, the host
+# before a published port in a container's upstream, each machine's `from=`.
+_BARE_IPS = {
+    "caddy_host_ip": ("Caddy LAN IP", "192.168.10.100"),
+    "host_ip": ("Host IP", "192.168.10.50"),
+    "host_tailscale_ip": ("Tailscale IP", "100.101.102.103"),
+}
+
+
 def _validate(key: str, val: Any) -> None:
     """Reject values that would corrupt downstream use. Raises ValueError (→ 422)."""
-    if key == "caddy_host_ip":
-        # This becomes the answer for every AdGuard rewrite, so it must be a bare IP —
-        # a scheme or port (e.g. 'http://10.0.0.5') produces unresolvable rewrites.
+    if key in _BARE_IPS:
+        label, example = _BARE_IPS[key]
         try:
             parsed = ip_address(str(val).strip())
         except ValueError:
-            raise ValueError(
-                "Caddy LAN IP must be a bare IP address (e.g. 192.168.10.100) — no scheme or port"
-            )
+            raise ValueError(f"{label} must be a bare IP address (e.g. {example}) — no scheme or port")
+    if key == "caddy_host_ip":
         # AdGuard hands this answer to every LAN client (`_unreachable`). Both fail as a
         # refused connection, never as a DNS error, which is why they are caught here.
         reason = _unreachable(parsed)
@@ -269,22 +277,6 @@ def _validate(key: str, val: Any) -> None:
             if url in seen:
                 raise ValueError(f"Duplicate recipe source: {url}")
             seen.add(url)
-    if key == "host_ip":
-        # Prefixed onto a published port to form a container upstream, so it must be a bare IP.
-        try:
-            ip_address(str(val).strip())
-        except ValueError:
-            raise ValueError(
-                "Host IP must be a bare IP address (e.g. 192.168.10.50) — no scheme or port"
-            )
-    if key == "host_tailscale_ip":
-        # Written into each machine's `from=`, where anything but an address breaks the line.
-        try:
-            ip_address(str(val).strip())
-        except ValueError:
-            raise ValueError(
-                "Tailscale IP must be a bare IP address (e.g. 100.101.102.103) — no scheme or port"
-            )
 
 
 def update(payload: dict[str, Any]) -> dict[str, Any]:
@@ -393,10 +385,7 @@ def derive_caddy_host_ip() -> str | None:
     explicit = value("caddy_host_ip")
     if explicit:
         return _usable_answer_ip(explicit, "CADDY_HOST_IP")
-    admin = value("caddy_admin_url")
-    if not admin:
-        return None
-    host = urlparse(admin).hostname
+    host = caddy_host()
     if not host:
         return None
     try:
