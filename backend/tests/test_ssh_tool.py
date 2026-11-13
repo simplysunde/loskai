@@ -35,6 +35,7 @@ def test_clone_takes_an_https_or_ssh_remote(url):
 @pytest.mark.parametrize("url", [
     "-oProxyCommand=x", "ext::sh -c touch", "ssh://-oProxyCommand=x/a", "file:///etc/passwd", "/srv/repo",
     "git@host:-x", "https://h/a b", "https://h/a;rm", "git@-h:x",
+    "ssh://-Efoo@host/x", "ssh://-oProxyCommand=x@host/a",  # a user an old git hands ssh as an option
 ])
 def test_clone_refuses_an_option_another_transport_or_a_path(url):
     """`$1` is quoted, but git reads it: never an option, and never `ext::`, which runs a command."""

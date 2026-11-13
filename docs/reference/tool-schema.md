@@ -124,7 +124,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `vm` | each running VM (Proxmox) | its id, `200` |
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
-| `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a host that starts with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
+| `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a user and a host that each start with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
 
 Every target kind starts with a letter, a digit or (a session) `_`, never `-`, so `$1` can't
 reach a command as one of its options. A setting's kinds (`git-name`, `email`, below) are
