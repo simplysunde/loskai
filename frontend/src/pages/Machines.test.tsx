@@ -242,22 +242,6 @@ beforeEach(() => {
 });
 
 
-// Holds the unlock's reply until `release`, so a second click lands while it is in flight.
-function holdUnlock() {
-  const answer = fetch;
-  let release = () => {};
-  const held = new Promise<void>((r) => (release = r));
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string, init?: RequestInit) => {
-      const reply = answer(path, init);
-      if (path === "/api/ssh/unlock") await held;
-      return reply;
-    }),
-  );
-  return () => release();
-}
-
 const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElement;
 // The machine's dialog: its side menu, and the category shown.
 const dialog = () => screen.getByRole("dialog", { name: "Storage box" });
@@ -339,7 +323,25 @@ test("deleting a machine names the routes on its address, which keep it", async 
   expect(screen.getByText(/2 routes are on its address/)).toHaveTextContent("(jellyfin, plex)");
 });
 
-test("deleting a set-up machine takes Loskai's key off it, unlocking the key first", async () => {
+// The server refusing the first change to `path` as locked (423), as it does while Loskai's
+// key is locked; anything after goes to the usual answers.
+function lockedOnce(path: string) {
+  const answer = fetch;
+  let refused = false;
+  vi.stubGlobal("fetch", (p: string, init?: RequestInit) =>
+    p === path && (init?.method ?? "GET") !== "GET" && !refused
+      ? ((refused = true), Promise.resolve(json({ detail: "Loskai's key is locked — enter your password" }, 423)))
+      : answer(p, init),
+  );
+}
+
+async function unlockInPrompt(password = "pw") {
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: password } });
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
+}
+
+test("deleting a set-up machine with the key locked asks for your password in the one dialog, then deletes", async () => {
   setUp();
   sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
   renderPage();
@@ -348,15 +350,11 @@ test("deleting a set-up machine takes Loskai's key off it, unlocking the key fir
   fireEvent.click(within(nasRow()).getByTitle("More"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
   expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
-  // No password, no try: each unlock counts against your login limit.
-  expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "pw" } });
-  // A second click while it runs sends nothing more.
-  const release = holdUnlock();
+  // No password field of its own: the server says it is locked, and the one dialog asks.
+  expect(screen.queryByLabelText("Your password")).toBeNull();
+  lockedOnce("/api/instances/nas");
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  await vi.waitFor(() => expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled());
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  release();
+  await unlockInPrompt();
 
   await vi.waitFor(() =>
     expect(calls.filter((c) => c.method !== "GET").map((c) => [c.method, c.path])).toEqual([
@@ -366,19 +364,16 @@ test("deleting a set-up machine takes Loskai's key off it, unlocking the key fir
   );
 });
 
-test("turning SSH off with the key locked asks for your password, and sends it once", async () => {
+test("turning SSH off with the key locked asks for your password in the one dialog, then turns it off", async () => {
   setUp();
   sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
   renderPage("/machines/nas/ssh");
 
   fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
-  expect(screen.getByRole("button", { name: "Turn off" })).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "pw" } });
-  const release = holdUnlock();
+  expect(screen.queryByLabelText("Your password")).toBeNull();
+  lockedOnce("/api/machines");
   fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
-  await vi.waitFor(() => expect(screen.getByRole("button", { name: "Turn off" })).toBeDisabled());
-  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
-  release();
+  await unlockInPrompt("admin-pw");
 
   await vi.waitFor(() =>
     expect(calls.filter((c) => c.method !== "GET").map((c) => [c.method, c.path])).toEqual([
@@ -386,6 +381,8 @@ test("turning SSH off with the key locked asks for your password, and sends it o
       ["POST", "/api/machines"],
     ]),
   );
+  expect(calls.find((c) => c.path === "/api/ssh/unlock")!.body).toEqual({ password: "admin-pw" });
+  expect(calls.find((c) => c.path === "/api/machines")!.body).toMatchObject({ instance_id: "nas", ssh: null });
 });
 
 test("turning SSH off when the key locked meanwhile asks for your password then", async () => {
@@ -1325,22 +1322,6 @@ test("a machine logged into as root needs no rule", async () => {
 
   expect(await screen.findByText("not needed — it logs in as root")).toBeInTheDocument();
   expect(screen.queryByRole("switch", { name: "Updates without a password" })).toBeNull();
-});
-
-test("turning SSH off with Loskai's key locked asks for your password first", async () => {
-  setUp();
-  sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
-  renderPage("/machines/nas/ssh");
-
-  fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
-  fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
-
-  await vi.waitFor(() => expect(calls.find((c) => c.path === "/api/machines")).toBeTruthy());
-  const unlockAt = calls.findIndex((c) => c.path === "/api/ssh/unlock");
-  expect(calls[unlockAt].body).toEqual({ password: "admin-pw" });
-  expect(unlockAt).toBeLessThan(calls.findIndex((c) => c.path === "/api/machines"));
-  expect(calls.find((c) => c.path === "/api/machines")!.body).toMatchObject({ instance_id: "nas", ssh: null });
 });
 
 test("the unlock prompt says how long Settings › SSH keeps the key unlocked", async () => {

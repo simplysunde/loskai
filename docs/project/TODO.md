@@ -73,7 +73,8 @@ Phase 48 choice, to decide.
 - [x] 53f The `repo` kind let an `ssh://` user start with `-`
 - [x] 53g A new SSH user while the key is locked: asked for, not a warning
 - [x] 53h A new SSH user whose old one never had the key: the warning said it was still there
-- [ ] 53i The SSH setup dialog's own admin-password field, beside the unlock dialog
+- [x] 53i The SSH setup dialog's, the delete's and Turn off SSH's own password fields, beside
+      the unlock dialog: gone — each asks through the server's `423` and `UnlockPrompt`
 
 ---
 

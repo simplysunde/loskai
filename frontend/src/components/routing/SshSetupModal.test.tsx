@@ -1,8 +1,9 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import type { SshKey } from "../../lib/ssh";
 import { SshSetupModal } from "./SshSetupModal";
+import { UnlockPrompt } from "../shared/UnlockPrompt";
 import { renderWithQuery, json } from "../../test/render";
 
 const FP = "SHA256:XwXWP1efObJOv+IhNojI/m+P5drO8my+LOVsqOVPaRQ";
@@ -42,13 +43,16 @@ function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Ans
     }),
   );
   renderWithQuery(
+    <>
     <SshSetupModal
       machine={{ id: "nas", name: "nas" }}
       user="loskai"
       target="loskai@nas.lan:2222"
       sshKey={sshKey}
       onClose={() => {}}
-    />,
+    />
+    <UnlockPrompt />
+    </>,
   );
 }
 
@@ -97,33 +101,41 @@ test("Install sends the machine's password once, and shows what the test found",
   expect(paths()).not.toContain("/api/ssh/unlock");
 });
 
-test("a locked key is unlocked with the admin password before the machine's is sent", async () => {
+test("a locked key asks for your password in the one dialog, then the install goes on with the machine's", async () => {
   renderModal(LOCKED, {
     "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted" } },
     "/unlock": { body: UNLOCKED },
-    "/install": { body: TESTED },
+    "/install": [{ status: 423, body: { detail: "Loskai's key is locked — enter your password" } }, { body: TESTED }],
   });
 
   fireEvent.change(await screen.findByLabelText("Machine password"), { target: { value: "machine-pw" } });
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  // No password field of its own for Loskai's key.
+  expect(screen.queryByLabelText("Your password")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Install" }));
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
   await screen.findByText("Loskai logs in with its key.");
-  expect(paths().slice(-2)).toEqual(["/api/ssh/unlock", "/api/ssh/machines/nas/install"]);
+  // Refused as locked, the password, then the install sent again — with the machine's password.
+  expect(paths().filter((p) => p.startsWith("/api/ssh/")).slice(-3)).toEqual([
+    "/api/ssh/machines/nas/install", "/api/ssh/unlock", "/api/ssh/machines/nas/install",
+  ]);
+  expect(calls.filter((c) => c.path.endsWith("/install")).at(-1)?.body).toEqual({ password: "machine-pw" });
   expect(calls.find((c) => c.path === "/api/ssh/unlock")?.body).toEqual({ password: "admin-pw" });
 });
 
-test("a key that locked meanwhile brings the admin password back", async () => {
+test("the password dialog cancelled, the setup says the key is locked", async () => {
   renderModal(UNLOCKED, {
     "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted" } },
-    "/test": { status: 423, body: { detail: "Loskai's key is locked — enter the admin password" } },
+    "/test": { status: 423, body: { detail: "Loskai's key is locked — enter your password" } },
   });
 
   fireEvent.click(await screen.findByRole("tab", { name: "I'll add it myself" }));
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+  fireEvent.click(within(await screen.findByRole("dialog", { name: "Unlock Loskai's key" })).getByRole("button", { name: "Cancel" }));
 
-  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
-  expect(screen.getByText(/key is locked/)).toBeInTheDocument();
+  expect(await screen.findByText(/key is locked/)).toBeInTheDocument();
 });
 
 test("I'll add it myself shows this machine's lines, then tests without any password", async () => {

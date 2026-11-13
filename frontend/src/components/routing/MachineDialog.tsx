@@ -1,5 +1,5 @@
 import { useState, type ComponentType, type ReactNode } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Boxes,
   HardDrive,
@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { api, apiMessage } from "../../lib/api";
+import { apiMessage } from "../../lib/api";
 import { useRoutes } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { removalNeedsPassword, useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
 import { applies, useTools, type ToolTarget } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
@@ -36,8 +36,6 @@ import { SaveBanner } from "./SaveBanner";
 import { SshSetupModal } from "./SshSetupModal";
 import { useSaveMachine, type SaveResult } from "./useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
-import { INPUT } from "../../lib/ui";
-import { YourPassword } from "../shared/YourPassword";
 
 // What opening a machine can hand over: what a save said, and whether to start its SSH
 // setup — after naming it, or from a tool's "Install again".
@@ -77,10 +75,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [removing, setRemoving] = useState(false);
   const [enabling, setEnabling] = useState(false);
   // Your password, when removing the connection needs Loskai's key unlocked.
-  const [removePassword, setRemovePassword] = useState("");
 
   const routes = useRoutes();
-  const qc = useQueryClient();
   const settings = useSettings();
   const tools = useTools();
   const ssh = useSsh();
@@ -99,19 +95,10 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   });
 
   // Removing the SSH connection takes Loskai's key and sudo rule off the machine first, which
-  // needs the key unlocked: your password, typed in the dialog when it is locked.
-  const removeNeedsPassword = removalNeedsPassword(ssh.data, id);
+  // needs the key unlocked: while it is locked, the save asks for your password (api.ts).
   const removeSsh = useMutation({
-    mutationFn: async (change: NewMachine) => {
-      if (removeNeedsPassword) await api.post("/api/ssh/unlock", { password: removePassword });
-      return save.mutateAsync(change);
-    },
-    onSuccess: () => {
-      setRemoving(false);
-      setRemovePassword("");
-    },
-    // The key may have locked meanwhile: ask again, with the password field.
-    onError: () => qc.invalidateQueries({ queryKey: ["ssh"] }),
+    mutationFn: (change: NewMachine) => save.mutateAsync(change),
+    onSuccess: () => setRemoving(false),
   });
 
   const machine = routes.data?.find((r) => r.id === id && isMachine(r));
@@ -374,7 +361,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         confirmLabel="Turn off"
         destructive
         pending={removeSsh.isPending}
-        disabled={removeNeedsPassword && !removePassword}
         onConfirm={() =>
           removeSsh.mutate({
             hostname, address: machine.upstream ?? "", instance_id: machine.id, ssh: null,
@@ -388,9 +374,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         {trusted
           ? "Loskai's key and its sudo rule come off the machine — nothing else there changes — then its entry, user and port go, and its host key is forgotten."
           : "Its entry goes, and with it the user and port."}
-        {removeNeedsPassword && (
-          <YourPassword value={removePassword} onChange={setRemovePassword} className={`mt-3 block ${INPUT}`} placeholder="Your password — unlocks Loskai's key" />
-        )}
         {removeSsh.isError && (
           <span className="mt-2 block text-rose-400">
             {apiMessage(removeSsh.error, "Couldn't turn it off")}

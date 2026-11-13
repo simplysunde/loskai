@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — A review's findings (Phase 53)
+
+A code review of Phases 48–52 found eight things worth fixing; each is a commit. Two were
+from Phase 52 itself (an unlock read twice could be a `500`; the dialog answered before what
+it unlocked was read again). A new SSH user with the key locked now waits for the password,
+as removing the connection does, rather than warning and leaving Loskai's sudo rule behind —
+possible only now that one dialog asks and the save is sent again. For the same reason the
+setup, delete and Turn off SSH dialogs lost their own password fields: one way to unlock.
+Left for Sunde: wrong passwords are counted per account and device (Phase 48's choice), so a
+guesser that keeps changing address gets a few free tries on each; an account-wide limit
+would close that.
+
 ## 2026-11-13 — The SSH unlock asks less, and only when you act (Phase 52)
 
 Sunde was asked for the password to unlock the SSH key too often, and asked how bad removing

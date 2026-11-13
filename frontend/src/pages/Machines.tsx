@@ -6,7 +6,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { api, apiMessage } from "../lib/api";
 import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { removalNeedsPassword, takesKeysOff, useRunning, useSsh } from "../lib/ssh";
+import { takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
@@ -21,8 +21,6 @@ import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
-import { INPUT } from "../lib/ui";
-import { YourPassword } from "../components/shared/YourPassword";
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
 // certificate. Every route on a machine's address is on it, so moving it here re-points them all.
@@ -43,7 +41,6 @@ export function Machines() {
   // Deleting a set-up machine takes Loskai's key off it first, which needs the key unlocked:
   // your password, typed in the dialog when it is locked. What went wrong shows there;
   // a machine deleted with its key still on it says so after.
-  const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
   // The machine a new route is being added on, from its row — with a port of its running
@@ -95,22 +92,15 @@ export function Machines() {
   });
 
   const remove = useMutation({
-    mutationFn: async (row: RouteRow) => {
-      if (removalNeedsPassword(ssh.data, row.id)) await api.post("/api/ssh/unlock", { password: deletePassword });
-      return api.del<{ warning: string | null }>(`/api/instances/${row.id}`);
-    },
+    // With Loskai's key on it and the key locked, the delete asks for your password (api.ts).
+    mutationFn: (row: RouteRow) => api.del<{ warning: string | null }>(`/api/instances/${row.id}`),
     onSuccess: (data) => {
       setConfirmDelete(null);
-      setDeletePassword("");
       setDeleteWarning(data.warning);
       invalidate();
       qc.invalidateQueries({ queryKey: ["ssh"] });
     },
-    onError: (err) => {
-      setDeleteError(apiMessage(err, "Delete failed"));
-      // The key may have locked meanwhile: ask again, with the password field.
-      qc.invalidateQueries({ queryKey: ["ssh"] });
-    },
+    onError: (err) => setDeleteError(apiMessage(err, "Delete failed")),
   });
 
   const deleting = confirmDelete ? routesOn(confirmDelete, rows) : [];
@@ -176,7 +166,6 @@ export function Machines() {
           dockerHost={settings.data?.host_ip?.value}
           onDelete={(m) => {
             setDeleteError(null);
-            setDeletePassword("");
             setConfirmDelete(m);
           }}
           onAddRoute={(machine) => {
@@ -245,7 +234,6 @@ export function Machines() {
         destructive
         confirmLabel="Delete"
         pending={remove.isPending}
-        disabled={confirmDelete !== null && removalNeedsPassword(ssh.data, confirmDelete.id) && !deletePassword}
         onCancel={() => {
           setConfirmDelete(null);
           setDeleteError(null);
@@ -260,9 +248,6 @@ export function Machines() {
         {confirmDelete && takesKeysOff(ssh.data, confirmDelete.id)
           ? " Loskai's key is taken off the machine first; nothing else on it changes."
           : " The machine itself isn't affected."}
-        {confirmDelete && removalNeedsPassword(ssh.data, confirmDelete.id) && (
-          <YourPassword value={deletePassword} onChange={setDeletePassword} className={`mt-3 block ${INPUT}`} placeholder="Your password — unlocks Loskai's key" />
-        )}
         {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}
         {/* Deleting a machine doesn't break what runs on it: nothing links those routes,
             so they keep the address they already have. */}

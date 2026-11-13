@@ -2,12 +2,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, ShieldAlert, ShieldCheck, Terminal } from "lucide-react";
 
-import { api, ApiError, apiMessage } from "../../lib/api";
-import { useUnlockFor } from "../../lib/settings";
+import { api, apiMessage } from "../../lib/api";
 import { useMe } from "../../lib/useAuth";
 import { CopyButton } from "../shared/CopyButton";
 import { YourPassword } from "../shared/YourPassword";
-import { keyUnlocked, runningCount, type Running, type SshKey } from "../../lib/ssh";
+import { runningCount, type Running, type SshKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -46,14 +45,12 @@ export function SshSetupModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const unlockFor = useUnlockFor();
   const { admin } = useMe();
   const [trusted, setTrusted] = useState(false);
   const [mode, setMode] = useState<"install" | "manual">("install");
   const [adminPassword, setAdminPassword] = useState("");
   const [machinePassword, setMachinePassword] = useState("");
   // The key can lock between opening this and submitting; a 423 brings the field back.
-  const [askAdmin, setAskAdmin] = useState(false);
 
   const scan = useQuery({
     queryKey: ["ssh-scan", machine.id],
@@ -81,32 +78,23 @@ export function SshSetupModal({
     },
   });
 
-  const locked = !keyUnlocked(sshKey);
-  const needAdmin = askAdmin || locked;
-
+  // While Loskai's key is locked, Install or Test asks for your password first (api.ts).
   const connect = useMutation({
-    mutationFn: async () => {
-      if (needAdmin) await api.post("/api/ssh/unlock", { password: adminPassword });
-      return mode === "install"
+    mutationFn: () =>
+      mode === "install"
         ? api.post<Tested>(`/api/ssh/machines/${machine.id}/install`, { password: machinePassword })
-        : api.post<Tested>(`/api/ssh/machines/${machine.id}/test`);
-    },
+        : api.post<Tested>(`/api/ssh/machines/${machine.id}/test`),
     onSuccess: () => {
-      setAdminPassword("");
       setMachinePassword("");
-      setAskAdmin(false);
       qc.invalidateQueries({ queryKey: ["ssh"] });
       qc.invalidateQueries({ queryKey: ["ssh-running"] });
       qc.invalidateQueries({ queryKey: ["ssh-facts"] });
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.status === 423) setAskAdmin(true);
     },
   });
 
   const machineLines = scan.data?.lines ?? sshKey?.lines ?? [];
   const canConnect =
-    (!needAdmin || adminPassword) && (mode === "manual" || machinePassword) && !connect.isPending;
+    (mode === "manual" || machinePassword) && !connect.isPending;
 
   return (
     <Modal
@@ -261,15 +249,6 @@ export function SshSetupModal({
                   className="inline-flex shrink-0 items-center rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
                 />
               </div>
-            </>
-          )}
-
-          {needAdmin && (
-            <>
-              <p className="mt-3 text-xs text-slate-500">
-                Your password unlocks Loskai's key for {unlockFor}.
-              </p>
-              <YourPassword value={adminPassword} onChange={setAdminPassword} className={`mt-2 ${INPUT}`} />
             </>
           )}
 
