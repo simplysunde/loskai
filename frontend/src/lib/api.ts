@@ -1,5 +1,8 @@
 // Fetch wrapper: JSON in/out, cookie session, and a 401 -> /login redirect so an
-// expired session bounces to the security screen instead of silently failing.
+// expired session bounces to the security screen instead of silently failing. A change
+// refused because Loskai's SSH key is locked (423) asks for your password and is sent again.
+
+import { requestUnlock } from "./unlock";
 
 export class ApiError extends Error {
   status: number;
@@ -16,7 +19,7 @@ export function apiMessage(err: unknown, fallback = "Couldn't reach Loskai"): st
   return err instanceof ApiError ? err.message : fallback;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, again = true): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
     ...options,
@@ -28,6 +31,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       window.location.assign("/login");
     }
     throw new ApiError(401, "Authentication required");
+  }
+
+  // Only what you did: a read made in the background (a card opening) shows it is locked
+  // instead, and asks when it is clicked.
+  if (res.status === 423 && again && (options.method ?? "GET") !== "GET" && (await requestUnlock())) {
+    return request<T>(path, options, false);
   }
 
   if (!res.ok) {

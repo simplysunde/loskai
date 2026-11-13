@@ -340,7 +340,10 @@ Install it for me logs in once with the machine's password and replaces Loskai's
 `authorized_keys` (`logic.INSTALL_SCRIPT`), or the lines are pasted by hand; either ends with
 a test using both keys (`connect.py`). The main key is unlocked by each user's own
 password, typed again (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
-(`ssh_unlock_minutes`) — and locked by logout. Each set-up machine's row shows how
+(`ssh_unlock_minutes`) — and locked by logout. The page asks for it in one place,
+`UnlockPrompt`, and only for what you did: a change refused `423` asks and is sent again
+(`api.ts`); a read made as a card opens shows **Locked** instead, asking when clicked; a
+terminal shows only the prompt until it is unlocked (a WebSocket's `4423` too). Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `status.parse_running` — and clicking lists it, with a button to route each port
 (`machineServices.servicesOn`, the Add route picker's list) and to name each Proxmox guest

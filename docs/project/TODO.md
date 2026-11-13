@@ -69,9 +69,11 @@ reactively depending on what action is taken"; "and the admin switch would be a 
 
 - [x] 52a An unlock outlasts a restart: who holds one is in `data/ssh/unlocks.json` (owner-only,
       no secret), not the process — `make live` restarts on every save, and locked it each time
-- [ ] 52b One password dialog for the whole app, opened by what you do: a change refused
-      because the key is locked asks, then goes on; a card that only reads shows it is locked,
-      and asks when you click
+- [x] 52b One password dialog for the whole app (`UnlockPrompt`, in the layout), opened by
+      what you do: a change refused `423` asks, then is sent again (`api.ts`); a card that only
+      reads shows **Locked**, asking when clicked; a project's cog asks first; a terminal or
+      run shows only the prompt, then connects — cancelled, it closes. The Git card's inline
+      unlock form and the terminal's own are gone
 - [ ] 52c An admin switch, Settings › SSH: ask for the password to use the key — on by default
 
 ---

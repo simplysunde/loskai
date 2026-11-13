@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 
 import { Machines } from "./Machines";
+import { UnlockPrompt } from "../components/shared/UnlockPrompt";
 import { renderWithQuery, json } from "../test/render";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
@@ -271,6 +272,7 @@ function renderPage(at = "/machines") {
         <Route path="/machines" element={<Machines />} />
         <Route path="/machines/:id/:section?" element={<Machines />} />
       </Routes>
+      <UnlockPrompt />
     </MemoryRouter>,
   );
 }
@@ -402,8 +404,8 @@ test("turning SSH off when the key locked meanwhile asks for your password then"
   );
   fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
 
-  expect(await screen.findByText(/Loskai's key is locked/)).toBeInTheDocument();
-  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  expect(within(prompt).getByLabelText("Your password")).toBeInTheDocument();
 });
 
 test("a machine deleted with Loskai's key still on it says so", async () => {
@@ -693,9 +695,9 @@ test("a set-up machine's dialog, one scroll: its overview under General, tools, 
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
 
   fireEvent.click(within(dialog()).getByRole("button", { name: "Terminal" }));
-  // No key in this stub, so it asks to unlock first.
-  expect(await screen.findByText("Terminal — Storage box")).toBeInTheDocument();
-  expect(screen.getByLabelText("Your password")).toBeInTheDocument();
+  // No key in this stub, so it asks to unlock first — alone, the terminal opening after.
+  expect(await screen.findByRole("dialog", { name: "Unlock Loskai's key" })).toBeInTheDocument();
+  expect(screen.queryByText("Terminal — Storage box")).toBeNull();
 });
 
 test("a machine on the older status line is offered the reinstall for its overview", async () => {
@@ -965,20 +967,65 @@ test("a setting changed is in the machine's log, with what it was set to", async
   expect(await within(await screen.findByRole("region", { name: "Log" })).findByText("Set git › email to ola@example.no")).toBeInTheDocument();
 });
 
-test("with Loskai's key locked, the Git card asks for your password to read them", async () => {
+test("with Loskai's key locked, the Git card only says so, and asks for your password when clicked", async () => {
   setUp();
   gitStatus = 423;
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  expect(await within(tools).findByText(/Loskai's key is locked/)).toBeInTheDocument();
-  expect(within(tools).getByLabelText("Name")).toBeDisabled();
-  fireEvent.change(within(tools).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  const locked = await within(tools).findByRole("button", { name: "Name — unlock to read it" });
+  // Opening the card asks nothing.
+  expect(screen.queryByRole("dialog", { name: "Unlock Loskai's key" })).toBeNull();
+  fireEvent.click(locked);
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
   gitStatus = 200;
-  fireEvent.click(within(tools).getByRole("button", { name: "Unlock" }));
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
+  // What was read while it was locked is read again.
   await vi.waitFor(() => expect(within(tools).getByLabelText("Name")).toHaveValue("Ola Nordmann"));
   expect(calls.find((c) => c.path === "/api/ssh/unlock")?.body).toEqual({ password: "admin-pw" });
+  expect(screen.queryByRole("dialog", { name: "Unlock Loskai's key" })).toBeNull();
+});
+
+test("with Loskai's key locked, a project's cog asks for your password, then opens its settings", async () => {
+  setUp();
+  gitStatus = 423;
+  renderPage("/machines/nas/tools");
+
+  await screen.findByRole("button", { name: "Name — unlock to read it" });
+  fireEvent.click(screen.getByRole("button", { name: "Settings for site" }));
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  gitStatus = 200;
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  await vi.waitFor(() => expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann"));
+});
+
+test("a change refused because the key locked meanwhile asks for your password, then is sent again", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  const email = await within(tools).findByLabelText("Email");
+  let refused = false;
+  const real = globalThis.fetch;
+  vi.stubGlobal("fetch", (path: string, init?: RequestInit) =>
+    path.endsWith("/settings/email") && !refused
+      ? ((refused = true), Promise.resolve(json({ detail: "Loskai's key is locked — enter your password" }, 423)))
+      : real(path, init),
+  );
+  fireEvent.focus(email);
+  fireEvent.change(email, { target: { value: "ola@example.no" } });
+  fireEvent.blur(email);
+
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
+
+  // The second, sent again.
+  await vi.waitFor(() => expect(calls.filter((c) => c.path.endsWith("/settings/email"))).toHaveLength(1));
 });
 
 test("Tailscale is two switches — connected, and sharing — with the tailnet folded under them", async () => {
@@ -1297,5 +1344,5 @@ test("the unlock prompt says how long Settings › SSH keeps the key unlocked", 
   await screen.findByText("Storage box");
 
   fireEvent.click(await within(nasRow()).findByTitle(/^Terminal: ssh nas/));
-  expect(await screen.findByText("Your password unlocks it for 3 hours.")).toBeInTheDocument();
+  expect(await screen.findByText(/Your password unlocks it for 3 hours\./)).toBeInTheDocument();
 });

@@ -26,6 +26,7 @@ import { useDashboard } from "../../lib/useDashboard";
 import { navDots } from "../../lib/navDots";
 import { useHealth, type ModuleState } from "../../lib/useHealth";
 import { getTheme, setTheme, type Theme } from "../../lib/theme";
+import { UnlockPrompt } from "./UnlockPrompt";
 
 // `public: true` marks a tab a logged-out visitor is meant to see. It is also what
 // scripts/check-docs.sh subtracts before comparing this list to CLAUDE.md's admin tabs —
@@ -208,6 +209,7 @@ export function Layout() {
       <main data-scroll-root className="min-h-0 flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <UnlockPrompt />
     </div>
   );
 }

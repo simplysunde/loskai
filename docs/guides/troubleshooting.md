@@ -225,7 +225,8 @@ never required: unticked, Jellyfin still runs and transcodes on the CPU.
 ## A machine over SSH
 
 - **"Loskai's key is locked"** — your password unlocks it for you, for 15 minutes unless
-  Settings › SSH says longer. The dialog asks for it.
+  Settings › SSH says longer. A dialog asks for it when you do something that needs it; a
+  **Locked** field asks when clicked. Cancelled, the action is not done.
 - **"This machine's host key has changed."** — the machine was reinstalled, or something
   else answers at its address. **Trust the new key** only if you know why.
 - **"Its status line is older than this Loskai — install again"** — press **Install again**

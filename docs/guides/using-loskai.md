@@ -214,7 +214,8 @@ and Add.
 
 - **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
   git's global `user.name` and `user.email`, read from the machine and set there as you
-  edit them (with Loskai's key, so the card asks for your password while it is locked) —
+  edit them (with Loskai's key: while it is locked they show **Locked**, which asks for your
+  password when clicked) —
   and the machine's **projects folder**, `~/projects` unless you change it (`~` or one
   folder in it). It lists the git projects there, each with **Pull** (only when it
   fast-forwards), **Push** and **Terminal** (a shell in it), and a cog for the project's
@@ -248,7 +249,11 @@ Give a machine an **SSH user** and Loskai sets up SSH to it right after you save
 host key it shows against the machine's, then type that user's password once and Loskai
 installs its key (**Install it for me**), or copy its two lines over yourself (**I'll add it
 myself**). The first time, it says "Loskai has no SSH key yet." — an admin's password makes
-it. Its dialog does this again, under SSH. Once it's set up, a terminal button sits on its row and in its dialog, and the row
+it. Its dialog does this again, under SSH. Reaching a machine uses Loskai's key, which
+your password unlocks for a while (Settings › SSH): while it is locked, what you do that
+needs it — a terminal, a run, a change — asks for your password in one dialog and then
+goes on; a card that only reads shows **Locked** in place of a value, and asks when you
+click it. Once it's set up, a terminal button sits on its row and in its dialog, and the row
 gets **Update** (the download arrow) — System's update, run in that terminal. In it, what a program copies —
 tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
 wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C

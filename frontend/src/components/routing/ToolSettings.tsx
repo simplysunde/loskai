@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Lock, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
-import { useUnlockFor } from "../../lib/settings";
+import { requestUnlock } from "../../lib/unlock";
 import type { ToolContext } from "../../lib/toolRows";
 import { rowSettingsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { InlineText, SettingRow } from "../shared/SettingRow";
 import { Overlay } from "../shared/Modal";
-import { YourPassword } from "../shared/YourPassword";
 
 // The machine's settings by id, and each row's by kind and row: `targets.project.site`.
 type Values = {
@@ -58,11 +57,13 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
         <SettingRow key={s.id} label={s.label} description={s.description}>
           {values.isLoading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+          ) : locked ? (
+            <LockedField label={s.label} />
           ) : (
             <InlineText
               label={s.label}
               value={values.data?.values[s.id] ?? ""}
-              placeholder={locked ? "locked" : "not set"}
+              placeholder="not set"
               disabled={!values.data}
               validate={(v) => (v ? null : "It needs a value.")}
               onSave={async (v) => {
@@ -73,16 +74,26 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
           )}
         </SettingRow>
       ))}
-      {locked ? (
-        <Unlock onDone={() => qc.invalidateQueries({ queryKey: key })} />
-      ) : (
-        values.isError && (
-          <p className="py-1 text-xs text-rose-400">
-            {apiMessage(values.error, "Couldn't read them")}
-          </p>
-        )
+      {values.isError && !locked && (
+        <p className="py-1 text-xs text-rose-400">{apiMessage(values.error, "Couldn't read them")}</p>
       )}
     </div>
+  );
+}
+
+// A setting read while Loskai's key was locked: in the field's place, a button that asks for
+// your password — and, unlocked, the setting is read again.
+function LockedField({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${label} — unlock to read it`}
+      title="Read with Loskai's key, which is locked — click to unlock it"
+      onClick={() => void requestUnlock()}
+      className="flex w-56 items-center gap-2 rounded-lg border border-dashed border-slate-700 px-2.5 py-1 text-sm text-slate-500 hover:border-slate-500 hover:text-slate-300"
+    >
+      <Lock className="h-3.5 w-3.5" /> Locked
+    </button>
   );
 }
 
@@ -103,13 +114,17 @@ export function RowSettingsButton({
   const { values } = useToolSettings(tool, ctx.machineId);
   const own = values.data?.targets?.[kind]?.[name] ?? {};
   const set = rowSettingsOf(tool, kind).filter((s) => own[s.id]);
+  const locked = values.error instanceof ApiError && values.error.status === 423;
   return (
     <button
       type="button"
       aria-label={`Settings for ${name}`}
       aria-haspopup="dialog"
       title={set.length ? `Its own: ${set.map((s) => `${s.label} ${own[s.id]}`).join(", ")}` : "Its own settings, in place of the card's"}
-      onClick={onOpen}
+      // Read with the key: while it is locked, your password first.
+      onClick={async () => {
+        if (!locked || (await requestUnlock())) onOpen();
+      }}
       className={`flex items-center rounded-md border px-1.5 py-1 hover:bg-slate-800 ${
         set.length ? "border-teal-700 text-teal-300" : "border-slate-700 text-slate-400"
       }`}
@@ -155,7 +170,6 @@ export function RowSettingsDialog({
     },
     onSuccess: onClose,
   });
-  const locked = values.error instanceof ApiError && values.error.status === 423;
 
   return (
     <Overlay onClose={onClose} label={`Settings for ${name}`}>
@@ -189,11 +203,7 @@ export function RowSettingsDialog({
         {values.isLoading && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-500" />}
         {(save.error || values.error) && (
           <p className="mt-3 text-sm text-rose-400">
-            {save.error
-              ? apiMessage(save.error, "Couldn't save it")
-              : locked
-                ? "Loskai's key is locked — unlock it on the card first."
-                : apiMessage(values.error, "Couldn't read them")}
+            {save.error ? apiMessage(save.error, "Couldn't save it") : apiMessage(values.error, "Couldn't read them")}
           </p>
         )}
         {empty && <p className="mt-3 text-sm text-rose-400">{empty.label} needs a value.</p>}
@@ -212,44 +222,5 @@ export function RowSettingsDialog({
         </div>
       </form>
     </Overlay>
-  );
-}
-
-// The settings are read with Loskai's key: while it is locked, your password unlocks it here.
-function Unlock({ onDone }: { onDone: () => void }) {
-  const qc = useQueryClient();
-  const unlockFor = useUnlockFor();
-  const [password, setPassword] = useState("");
-  const unlock = useMutation({
-    mutationFn: () => api.post("/api/ssh/unlock", { password }),
-    onSuccess: () => {
-      setPassword("");
-      qc.invalidateQueries({ queryKey: ["ssh"] });
-      onDone();
-    },
-  });
-  return (
-    <form
-      className="flex flex-wrap items-center justify-end gap-2 py-1"
-      onSubmit={(e) => {
-        e.preventDefault();
-        unlock.mutate();
-      }}
-    >
-      <span className="mr-auto text-xs text-slate-500">Loskai's key is locked — your password unlocks it for {unlockFor}.</span>
-      <YourPassword value={password} onChange={setPassword} className="w-48 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-sm text-slate-100 outline-none focus:border-teal-500" />
-      <button
-        type="submit"
-        disabled={!password || unlock.isPending}
-        className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40"
-      >
-        {unlock.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Unlock
-      </button>
-      {unlock.isError && (
-        <span className="w-full text-right text-xs text-rose-400">
-          {apiMessage(unlock.error, "Couldn't unlock it")}
-        </span>
-      )}
-    </form>
   );
 }

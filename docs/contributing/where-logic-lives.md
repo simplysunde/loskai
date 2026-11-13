@@ -90,6 +90,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/install.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
 | A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
+| Asking for your password to unlock it — when, and once for the page | `lib/unlock.ts` `requestUnlock` | `components/routing/MachineTerminal.tsx` `components/routing/ToolSettings.tsx` `lib/api.ts` |
 
 ## Machines and tools
 

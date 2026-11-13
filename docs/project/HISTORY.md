@@ -12,7 +12,10 @@ unattended computer, a stolen cookie — and only as a speed bump against a dete
 since a session with the Docker tab can mount `data/` and read the key. Worth keeping, so it
 nags less instead. Unlocks were held in the process, so every restart locked the key — and
 `make live` restarts on every save; who holds one is now kept in `data/ssh/unlocks.json`,
-which holds no secret.
+which holds no secret. And it asks only when you act: one password dialog for the app,
+opened by a change the key was locked for (then sent again), by clicking a **Locked**
+value, or by opening a terminal — never by a card merely opening, which is where the Git
+card's inline form had made it a constant reminder.
 
 ## 2026-11-13 — Push all, under the rows' buttons (Phase 51)
 

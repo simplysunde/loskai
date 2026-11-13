@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import type { SshKey } from "../../lib/ssh";
 import { MachineTerminal } from "./MachineTerminal";
+import { UnlockPrompt } from "../shared/UnlockPrompt";
 import { json } from "../../test/render";
 
 // xterm needs a real canvas; what matters here is which session opens, and when.
@@ -28,7 +29,7 @@ afterEach(() => {
   sessions.length = 0;
 });
 
-function renderTerminal(sshKey: SshKey, unlockStatus = 200) {
+function renderTerminal(sshKey: SshKey, unlockStatus = 200, onClose = () => {}) {
   const fetchMock = vi.fn(async () =>
     json(unlockStatus === 200 ? KEY : { detail: "Invalid password" }, unlockStatus),
   );
@@ -36,7 +37,8 @@ function renderTerminal(sshKey: SshKey, unlockStatus = 200) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={sshKey} onClose={() => {}} />
+      <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={sshKey} onClose={onClose} />
+      <UnlockPrompt />
     </QueryClientProvider>,
   );
   return fetchMock;
@@ -48,25 +50,30 @@ test("an unlocked key opens the machine's shell at once", () => {
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal")).toBeInTheDocument();
 });
 
-test("a locked key asks for the admin password, then connects", async () => {
+test("a locked key asks for your password alone — no terminal behind it — then connects", async () => {
   const fetchMock = renderTerminal({ ...KEY, unlocked_until: null });
 
+  const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
   expect(screen.queryByText(/shell at/)).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "admin-pw" } });
-  fireEvent.click(screen.getByRole("button", { name: "Unlock and connect" }));
+  fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
+  fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
   expect(await screen.findByText(/shell at/)).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith("/api/ssh/unlock", expect.objectContaining({ method: "POST" }));
 });
 
-test("a wrong admin password says so and opens nothing", async () => {
-  renderTerminal({ ...KEY, unlocked_until: null }, 403);
+test("a wrong password says so and opens nothing; cancelled, the terminal closes", async () => {
+  const onClose = vi.fn();
+  renderTerminal({ ...KEY, unlocked_until: null }, 403, onClose);
 
-  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "nope" } });
-  fireEvent.click(screen.getByRole("button", { name: "Unlock and connect" }));
+  fireEvent.change(await screen.findByLabelText("Your password"), { target: { value: "nope" } });
+  fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
   expect(await screen.findByText("Invalid password")).toBeInTheDocument();
   expect(screen.queryByText(/shell at/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
 });
 
 test("a session the server closes as locked brings the password back", async () => {
@@ -97,6 +104,7 @@ function renderRun(replies: Reply[], run = { tool: "system", action: "update", t
   render(
     <QueryClientProvider client={client}>
       <MachineTerminal machine={{ id: "nas", name: "nas" }} sshKey={KEY} run={run} onClose={onClose} />
+      <UnlockPrompt />
     </QueryClientProvider>,
   );
   return { calls, onClose };
@@ -154,8 +162,16 @@ test("a run that isn't automatic closes on the Enter its prompt asks for, not on
   expect(first.onClose).toHaveBeenCalled();
 });
 
-test("a key that locked before the run asks for your password first", async () => {
-  renderRun([{ status: 423, body: { detail: "Loskai's key is locked — enter your password" } }]);
+test("a key that locked before the run asks for your password, then the run goes on", async () => {
+  const { calls } = renderRun([
+    { status: 423, body: { detail: "Loskai's key is locked — enter your password" } },
+    { body: { automatic: false, needs_password: false, ticket: null } },
+  ]);
 
-  expect(await screen.findByLabelText("Your password")).toBeInTheDocument();
+  fireEvent.change(await screen.findByLabelText("Your password"), { target: { value: "admin-pw" } });
+  fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+  // Sent again once unlocked, and its terminal opens.
+  expect(await screen.findByText(/shell at/)).toBeInTheDocument();
+  expect(calls).toHaveLength(2);
 });
