@@ -910,8 +910,11 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   const tools = await screen.findByRole("region", { name: "Tools" });
   const cog = await within(tools).findByRole("button", { name: "Settings for site" });
   fireEvent.click(cog);
+  // Opened once the settings are read again: never the locked error it had.
   const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
-  await vi.waitFor(() => expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann"));
+  expect(within(dialog).queryByText(/locked/)).toBeNull();
+  expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
+  expect(within(dialog).getByLabelText("Name")).toBeEnabled();
   const email = within(dialog).getByLabelText("Email");
   expect(email).toHaveAttribute("placeholder", "not set");
   const save = within(dialog).getByRole("button", { name: "Save" });
@@ -1000,8 +1003,11 @@ test("with Loskai's key locked, a project's cog asks for your password, then ope
   gitStatus = 200;
   fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
+  // Opened once the settings are read again: never the locked error it had.
   const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
-  await vi.waitFor(() => expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann"));
+  expect(within(dialog).queryByText(/locked/)).toBeNull();
+  expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
+  expect(within(dialog).getByLabelText("Name")).toBeEnabled();
 });
 
 test("a change refused because the key locked meanwhile asks for your password, then is sent again", async () => {

@@ -23,9 +23,13 @@ function Prompt() {
   const [password, setPassword] = useState("");
   const unlock = useMutation({
     mutationFn: () => api.post("/api/ssh/unlock", { password }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ssh"] });
-      qc.invalidateQueries({ predicate: (q) => q.state.error instanceof ApiError && q.state.error.status === 423 });
+    // What was read while it was locked is read again first, so what opens next shows it —
+    // not the locked error it had. Unlocked by then whatever the reads say.
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ["ssh"] }),
+        qc.invalidateQueries({ predicate: (q) => q.state.error instanceof ApiError && q.state.error.status === 423 }),
+      ]);
       answerUnlock(true);
     },
   });
