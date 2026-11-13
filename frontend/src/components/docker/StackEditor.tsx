@@ -126,8 +126,11 @@ function TextFiles({
     const ok = await saving.run(
       async () => {
         if (creating) {
-          await api.post("/api/docker/stacks", { name: stackName, compose: files.compose, env: files.env });
-          return;
+          return api.post<{ ok: boolean; output: string }>("/api/docker/stacks", {
+            name: stackName,
+            compose: files.compose,
+            env: files.env,
+          });
         }
         for (const k of keys.filter(dirty)) {
           current = k;

@@ -114,6 +114,21 @@ test("when Compose refuses the saved stack, the dialog stays open on its output"
   expect(onClose).not.toHaveBeenCalled();
 });
 
+test("a new stack whose up fails stays open on what Compose said", async () => {
+  const onClose = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => json({ ok: false, output: "service \"app\" has neither an image nor a build context" })),
+  );
+  renderWithQuery(<StackEditor name={null} onClose={onClose} />);
+
+  fireEvent.change(screen.getByPlaceholderText("stack name"), { target: { value: "scratch" } });
+  fireEvent.click(screen.getByText("Create + up"));
+
+  expect(await screen.findByText(/neither an image nor a build context/)).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 test("Tab types spaces, and Enter keeps the indent — one deeper after a key", async () => {
   await renderEditor({ override: null });
   fireEvent.click(await screen.findByRole("tab", { name: "compose.override.yml" }));
