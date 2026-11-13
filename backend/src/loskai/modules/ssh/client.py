@@ -3,7 +3,7 @@ the connections to the machines.
 
 Both private keys are owner-only files (`0600`), as a key in `~/.ssh` is: the main key, used
 only while its user has unlocked it (`unlock.py`, a password check), and the status key,
-which each machine limits to listing what runs (`logic.status_line`). Nothing here returns a
+which each machine limits to listing what runs (`status.status_line`). Nothing here returns a
 private key: only public halves leave this module. Editing the files is
 `logic.py`'s; this only reads and replaces them.
 """
@@ -16,7 +16,7 @@ import asyncssh
 
 from ...config import settings as env
 from ...shared import store
-from . import logic
+from . import status
 
 KEY_TYPE = "ssh-ed25519"
 KEY_COMMENT = "loskai"
@@ -73,13 +73,13 @@ def status_key() -> asyncssh.SSHKey:
     """The status key, made on first use: a key made before it existed gets one then."""
     path = _status_path()
     if not path.exists():
-        key = asyncssh.generate_private_key(KEY_TYPE, comment=logic.STATUS_COMMENT)
+        key = asyncssh.generate_private_key(KEY_TYPE, comment=status.STATUS_COMMENT)
         store.replace_private(path, key.export_private_key("openssh").decode())
     return asyncssh.import_private_key(path.read_text(encoding="utf-8"))
 
 
 def status_public_key() -> str:
-    return _public(status_key(), logic.STATUS_COMMENT)
+    return _public(status_key(), status.STATUS_COMMENT)
 
 
 def read_known_hosts() -> str:

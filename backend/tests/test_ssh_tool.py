@@ -5,7 +5,7 @@ import subprocess
 
 import pytest
 
-from loskai.modules.ssh import logic, tool
+from loskai.modules.ssh import status, tool
 from loskai.modules.ssh.tool import ToolError
 
 
@@ -21,7 +21,7 @@ def test_every_shipped_tool_is_valid():
 
 
 def test_every_installer_is_for_a_program_the_overview_detects():
-    assert set(tool.INSTALLERS) <= set(logic.PROGRAMS)
+    assert set(tool.INSTALLERS) <= set(status.PROGRAMS)
     for how in tool.INSTALLERS.values():
         assert set(how) in ({"packages"}, {"script"})
         assert set(how.get("packages", {})) <= set(tool.MANAGERS)

@@ -60,7 +60,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).
 - `modules/ssh/` — Loskai's keys (`client.py`, owner-only files; the main one usable only
   while its user has unlocked it with their password, `unlock.py`) and its SSH config and known_hosts,
-  edited in place (`logic.py`); `connect.py` trusts a machine's host key, installs and tests
+  edited in place (`logic.py`); the status key's contract — its forced command and the parsers
+  of what it answers (`status.py`); `connect.py` trusts a machine's host key, installs and tests
   the keys, opens a terminal, logs sessions, and reads what runs there; `machines.py` keeps a machine's entry in step with its
   rename, move and delete. **Tools** (`tool.py`, the files in `tools/`) are what a
   machine's dialog can run — data shipped in the image, like recipes, applying where the
@@ -267,7 +268,7 @@ only its public half leaves `modules/ssh/client.py`. An action that uses it asks
 user's password again (`auth.check_password`, which shares the login backoff), which unlocks
 it for that user — 15 minutes, or what Settings › SSH says (`ssh_unlock_minutes`). The one key used without unlocking is the **status key**
 (`data/ssh/status_ed25519`), and only because each machine restricts it to the forced
-command in `logic.STATUS_COMMAND` — it only reads, and never gets any other use
+command in `status.STATUS_COMMAND` — it only reads, and never gets any other use
 (`docs/reference/ssh-status.md` is its contract: requests, output, versions). A machine's own password
 (Install it for me) is used for one connection and stored nowhere. So is a `sudo` password
 for an **automatic** action (`automatic: true` in its tool file): asked for in a dialog,

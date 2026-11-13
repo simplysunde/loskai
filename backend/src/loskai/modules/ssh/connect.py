@@ -22,7 +22,7 @@ from ...shared.errors import LoskaiError
 from ...shared import instances as instances_store
 from ..docker.client import docker_client
 from ...shared import settings as settings_store
-from . import client, logic, tool, unlock
+from . import client, logic, status, tool, unlock
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +214,7 @@ def lines(t: Target | None = None) -> list[str]:
     from_ip = from_addresses(t)
     return [
         logic.authorized_keys_line(public, from_ip),
-        logic.status_line(client.status_public_key(), from_ip),
+        status.status_line(client.status_public_key(), from_ip),
     ]
 
 
@@ -320,7 +320,7 @@ async def _ask_status(t: Target, host_key: str, command: str, parse) -> dict:
     try:
         result = await client.run(t.host, t.port, t.user, host_key, command, client_key=client.status_key())
         view = {"ok": True, **parse(str(result.stdout or ""))}
-    except logic.OldStatusLine:
+    except status.OldStatusLine:
         view = {"ok": False, "old": True, "error": "Its status line is older than this Loskai — install again"}
     except ValueError:
         view = {"ok": False, "error": "The status key's line on the machine is missing or out of date — install again"}
@@ -333,7 +333,7 @@ async def _ask_status(t: Target, host_key: str, command: str, parse) -> dict:
 
 
 async def _read_running(t: Target, host_key: str) -> dict:
-    view = await _ask_status(t, host_key, "running", logic.parse_running)
+    view = await _ask_status(t, host_key, "running", status.parse_running)
     _running[t.id] = (time.monotonic(), view)
     return view
 
@@ -371,7 +371,7 @@ async def running() -> dict[str, dict]:
 
 
 async def facts(machine_id: str) -> dict:
-    """The machine's overview, read with the status key (`logic.parse_facts`), reused for
+    """The machine's overview, read with the status key (`status.parse_facts`), reused for
     `FACTS_TTL`. Always a view, never an error once the machine is set up: `ok` false with
     `error` — and `old` when its status line is older than this Loskai, so the page offers the
     reinstall."""
@@ -380,7 +380,7 @@ async def facts(machine_id: str) -> dict:
     cached = _facts.get(t.id)
     if cached and time.monotonic() - cached[0] < FACTS_TTL:
         return cached[1]
-    view = await _ask_status(t, host_key, "facts", logic.parse_facts)
+    view = await _ask_status(t, host_key, "facts", status.parse_facts)
     if view.get("ok"):
         view = tool.claim_sessions(view, tool.load())
     _facts[t.id] = (time.monotonic(), view)
@@ -556,7 +556,7 @@ async def read_settings(machine_id: str, tool_id: str) -> dict[str, str | None]:
     the main key, so the key must be unlocked (423)."""
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + tool.read_settings_script(found))}")
+    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + tool.read_settings_script(found))}")
     return tool.parse_settings(found, str(result.stdout or ""))
 
 
@@ -569,7 +569,7 @@ async def write_setting(
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
     script = tool.write_setting_script(found, setting_id, value)
-    result = await _run(t, f"sh -c {shlex.quote(logic.USER_PATH + script)}")
+    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + script)}")
     log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
     if result.exit_status != 0:
         said = str(result.stderr or result.stdout or "").strip().splitlines()

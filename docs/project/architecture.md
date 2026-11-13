@@ -342,13 +342,13 @@ a test using both keys (`connect.py`). The main key is unlocked by each user's o
 password, typed again (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
 (`ssh_unlock_minutes`) — and locked by logout. Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
-`logic.parse_running` — and clicking lists it, with a button to route each port
+`status.parse_running` — and clicking lists it, with a button to route each port
 (`machineServices.servicesOn`, the Add route picker's list) and to name each Proxmox guest
 by its address (status line v7); the backend asks each machine at most every 30 s, only
 while someone is looking. The machine's dialog adds its **overview** — system,
 uptime, memory, disks, updates waiting, the programs tools require, tmux sessions, the
 Tailscale address, the git projects in the home folder — from the same key's second
-request (`facts`, `logic.parse_facts`, at most every 60 s). One forced command answers both,
+request (`facts`, `status.parse_facts`, at most every 60 s). One forced command answers both,
 picking by `$SSH_ORIGINAL_COMMAND` without running it; its contract, and how to add a fact,
 is [ssh-status.md](../reference/ssh-status.md).
 
@@ -496,7 +496,7 @@ Later, optional: a second login factor (TOTP), once Loskai holds keys.
 Open: running one command on several machines at once.
 
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
-(`on_address`), `modules/ssh/` — `client.py`, `logic.py`, `connect.py`, `unlock.py`,
+(`on_address`), `modules/ssh/` — `client.py`, `logic.py`, `status.py`, `connect.py`, `unlock.py`,
 `machines.py`, `tool.py`, `tools/`; frontend `pages/Machines.tsx`, `pages/settings/Ssh.tsx`,
 `components/routing/` — `MachineTable.tsx`, `AddMachineModal.tsx`, `MachineDialog.tsx`,
 `MachineTools.tsx`, `ToolDialog.tsx`, `SshSetupModal.tsx`, `MachineTerminal.tsx`,

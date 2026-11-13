@@ -97,10 +97,10 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 |---|---|---|
 | How a machine is reached over SSH — its `HostName`, else its address — and that login shown | `modules/ssh/connect.py` `reach` | `modules/ssh/router.py` |
 | Each machine's trusted host key | `modules/ssh/logic.py` `known_keys` `known_key` | `modules/ssh/connect.py` `modules/ssh/router.py` |
-| The status line a machine installs | `modules/ssh/logic.py` `STATUS_COMMAND` `status_line` | `modules/ssh/connect.py` |
-| Reading what the status key answered, and which line it came from | `modules/ssh/logic.py` `parse_facts` `parse_running` `line_version` | `modules/ssh/connect.py` |
-| Which programs the overview detects | `modules/ssh/logic.py` `PROGRAMS` | `modules/ssh/tool.py` |
-| The `PATH` a command runs with: `~/.local/bin` added | `modules/ssh/logic.py` `USER_PATH` | `modules/ssh/connect.py` `modules/ssh/tool.py` |
+| The status line a machine installs | `modules/ssh/status.py` `STATUS_COMMAND` `status_line` | `modules/ssh/connect.py` |
+| Reading what the status key answered, and which line it came from | `modules/ssh/status.py` `parse_facts` `parse_running` `line_version` | `modules/ssh/connect.py` |
+| Which programs the overview detects | `modules/ssh/status.py` `PROGRAMS` | `modules/ssh/tool.py` |
+| The `PATH` a command runs with: `~/.local/bin` added | `modules/ssh/status.py` `USER_PATH` | `modules/ssh/connect.py` `modules/ssh/tool.py` |
 | What a run looks like on the machine: sudo's password, tmux, `[done]` or `[failed]` | `modules/ssh/tool.py` `visible` | `modules/ssh/connect.py` |
 | Which tmux session an action runs in | `modules/ssh/tool.py` `session_name` | `modules/ssh/connect.py` |
 | Whose each tmux session is, and which rows' shared sessions are running | `modules/ssh/tool.py` `claim_sessions` | `modules/ssh/connect.py` |

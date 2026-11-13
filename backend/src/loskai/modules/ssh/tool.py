@@ -21,11 +21,12 @@ from pathlib import Path
 import yaml
 
 from ...shared.errors import LoskaiError
-from .logic import PROGRAMS, SUDO_RULE, USER_PATH, remove_sudo_rule
+from .logic import SUDO_RULE, remove_sudo_rule
+from .status import PROGRAMS, USER_PATH
 
 DIR = Path(__file__).parent / "tools"
 
-# The package managers the overview recognises (`logic._FACTS`' updates section), and how
+# The package managers the overview recognises (`status._FACTS`' updates section), and how
 # each installs packages.
 MANAGERS = ("apt", "dnf", "apk", "pacman")
 PACKAGE_INSTALL = {
@@ -50,7 +51,7 @@ INSTALLERS: dict[str, dict] = {
 }
 
 # A machine's projects folder: `~` or one folder in it — as deep as the overview looks for
-# projects (`logic._FACTS`). Stored relative to home; an action finds it as `$PROJECTS`.
+# projects (`status._FACTS`). Stored relative to home; an action finds it as `$PROJECTS`.
 PROJECTS = "projects"
 _FOLDER = re.compile(r"^~(/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?/?$")
 
@@ -114,7 +115,7 @@ class Tool:
     id: str
     name: str
     description: str
-    requires: tuple[str, ...]  # programs from logic.PROGRAMS
+    requires: tuple[str, ...]  # programs from status.PROGRAMS
     actions: dict[str, Action]
     settings: dict[str, Setting] = field(default_factory=dict)
 

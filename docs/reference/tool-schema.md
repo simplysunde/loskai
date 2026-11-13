@@ -77,7 +77,7 @@ Unknown keys are refused. The validator names every problem at once.
 ### `requires`, and getting a program
 
 `requires` lists programs by name. A program must be one the overview detects:
-`logic.PROGRAMS` (`tmux`, `claude`, `docker`, `pct`, `qm`, `git`, `sudo`, `tailscale`,
+`status.PROGRAMS` (`tmux`, `claude`, `docker`, `pct`, `qm`, `git`, `sudo`, `tailscale`,
 `curl`).
 
 How to get a program is said once, for every tool, in `tool.INSTALLERS`:
@@ -159,7 +159,7 @@ they show while the key is unlocked; a `read` that prints nothing, or fails, is 
 Editing one runs its `write` with the new value as `$1`, checked against its kind first
 (`git-name` and `email`, beside the target kinds), then reads them all back. Each change is
 in the SSH log as `setting`, with the value — so a setting is never a secret. Both `read` and
-`write` run under `sh -c` with `~/.local/bin` on the `PATH` (`logic.USER_PATH`).
+`write` run under `sh -c` with `~/.local/bin` on the `PATH` (`status.USER_PATH`).
 
 Refused: `404` no such tool or setting, `409` the tool doesn't apply on the machine (or its
 overview can't be read), `422` a value its kind refuses, `423` while the key is locked, and
@@ -223,7 +223,7 @@ dialog's password came with it — never the password.
 1. Add `tools/<id>.yml`.
 2. Run `uv run pytest tests/test_ssh_tool.py`. Its first test loads every shipped tool,
    so a mistake fails there with every problem named.
-3. If it needs a program the overview doesn't detect yet, add it to `logic.PROGRAMS` first.
+3. If it needs a program the overview doesn't detect yet, add it to `status.PROGRAMS` first.
    That changes the status command, so it follows [ssh-status.md](ssh-status.md)'s
    version steps. If Loskai can install it, add it to `tool.INSTALLERS`.
 4. A new kind of `target` needs a row in the Running list to put it on: `tool.TARGETS`,

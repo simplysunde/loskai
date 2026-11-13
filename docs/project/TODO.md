@@ -114,7 +114,7 @@ avoided when possible")**
 
 **Steps**
 
-- [ ] 47a `ssh/status.py` from `ssh/logic.py`, its tests with it
+- [x] 47a `ssh/status.py` from `ssh/logic.py`, its tests with it (logic 801 → 248, status 563)
 - [ ] 47b `docker/manifest.py` and `docker/install.py` from `docker/recipes.py`, tests with them
 - [ ] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx`
 - [ ] 47d `SectionPane.tsx` from `MachineDialog.tsx`

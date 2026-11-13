@@ -18,8 +18,8 @@ restrict,from="<Docker host>",command="<STATUS_COMMAND>" ssh-ed25519 AAAA… los
 addresses it works from — the Docker host's (`host_ip`), plus, on the Docker host itself,
 the subnets of Loskai's container's networks, since Docker doesn't translate those
 connections; left out when `host_ip` is unset; and `command=` makes sshd run Loskai's
-command **whatever the client asks for**. The text is `logic.STATUS_COMMAND`, in
-`backend/src/loskai/modules/ssh/logic.py`, and this page is its contract.
+command **whatever the client asks for**. The text is `status.STATUS_COMMAND`, in
+`backend/src/loskai/modules/ssh/status.py`, and this page is its contract.
 
 ## Requests
 
@@ -28,8 +28,8 @@ command only compares it in a `case` to pick one of two fixed answers:
 
 | Request | Answer | Parsed by | Asked by |
 |---|---|---|---|
-| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests, and the ports the containers and services take | `logic.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
-| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `logic.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._overview`) |
+| `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests, and the ports the containers and services take | `status.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
+| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects | `status.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._overview`) |
 
 Two requests rather than one answer, because the overview costs more (counting updates
 runs the package manager's simulation, ~0.5 s) and only one page shows it.
@@ -132,7 +132,7 @@ Claude Code's), else `null` — and the overview `live`, by tool and kind, the r
 shared session is running: `{"claude": {"project": ["site"]}}`. Sessions are named by
 `tool.session_name` only, so the page reads these and never names one.
 
-For `facts`, `PATH` gets `$HOME/.local/bin` appended (`logic.USER_PATH`): a forced command
+For `facts`, `PATH` gets `$HOME/.local/bin` appended (`status.USER_PATH`): a forced command
 has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) live there.
 
 ## Rules for the command
@@ -160,7 +160,7 @@ number back. Changing what the command runs means each machine needs the new lin
    `tailscale_self`), and says `outdated` for any but the current one — the overview offers
    the reinstall. A page on an older line says so. A number newer than this Loskai's is
    not read.
-3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
+3. A request an old line can't answer raises `status.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
 
 | Version | What changed |
@@ -178,10 +178,10 @@ number back. Changing what the command runs means each machine needs the new lin
 
 ## Adding a fact
 
-1. Add a section to `_FACTS` in `logic.py`: `echo '#=<name>'; <command>;`, following the
+1. Add a section to `_FACTS` in `status.py`: `echo '#=<name>'; <command>;`, following the
    rules above.
 2. Parse it in `parse_facts` into a key, and add a row to the table above.
 3. Bump the version (see above).
 4. Add the key to `Facts` in `frontend/src/lib/ssh.ts`, and show it in `MachineOverview`.
-5. Tests: a sample in `test_ssh_logic.py`. The test that runs the real command picks up the
+5. Tests: a sample in `test_ssh_status.py`. The test that runs the real command picks up the
    new section by itself.
