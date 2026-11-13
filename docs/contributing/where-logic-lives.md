@@ -40,25 +40,25 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
 | Where a record's uploaded icon is served | `shared/instances.py` `icon_url` | `modules/caddy/service.py` `shared/dashboard.py` |
-| What a change to the records makes stale, in the browser | `lib/routes.ts` `refreshRecords` | `components/docker/InstallWizard.tsx` `components/routing/useSaveMachine.ts` `components/settings/ClearRewrites.tsx` `pages/Machines.tsx` `pages/Routing.tsx` |
-| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallWizard.tsx` `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
+| What a change to the records makes stale, in the browser | `lib/routes.ts` `refreshRecords` | `components/docker/InstallDone.tsx` `components/docker/InstallWizard.tsx` `components/routing/useSaveMachine.ts` `components/settings/ClearRewrites.tsx` `pages/Machines.tsx` `pages/Routing.tsx` |
+| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallDone.tsx` `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | A file the browser saves, from what the API answered | `lib/download.ts` `saveFile` | `pages/Certificate.tsx` `pages/settings/General.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
 | Saving or deleting a machine, and what Loskai put on it with its SSH connection | `shared/assign.py` `save_machine` `purge_instance` | `modules/docker/router.py` |
 | Whether an edit may move a record to another container: never | `shared/assign.py` `same_container` | only its own file |
 | What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | only its own file |
-| The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallWizard.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
+| The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallConfigure.tsx` `components/docker/InstallDone.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
 | A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` |
-| What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `pages/Routing.tsx` |
-| Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/MachineTable.tsx` `pages/Routing.tsx` |
+| What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `pages/Routing.tsx` |
+| Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `components/routing/MachineTable.tsx` `pages/Routing.tsx` |
 
 ## Containers
 
 | Decision | Owner | Used by |
 |---|---|---|
-| A container's upstream, as Caddy reaches it | `modules/docker/logic.py` `suggested_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/containerPrefill.ts` `lib/containers.ts` `pages/Routing.tsx` |
-| A container's address, as the browser reaches it | `modules/docker/logic.py` `published_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `lib/containers.ts` `pages/Routing.tsx` |
+| A container's upstream, as Caddy reaches it | `modules/docker/logic.py` `suggested_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `components/routing/containerPrefill.ts` `lib/containers.ts` `pages/Routing.tsx` |
+| A container's address, as the browser reaches it | `modules/docker/logic.py` `published_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `lib/containers.ts` `pages/Routing.tsx` |
 | A route following its container to a new port | `shared/follow.py` `derive_upstream` `derive_published` | `shared/assign.py` |
 | What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/install.py` `modules/docker/updates.py` |
 | Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/install.py` |

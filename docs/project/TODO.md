@@ -117,7 +117,8 @@ avoided when possible")**
 - [x] 47a `ssh/status.py` from `ssh/logic.py`, its tests with it (logic 801 → 248, status 563)
 - [x] 47b `docker/manifest.py` and `docker/install.py` from `docker/recipes.py`, tests with them
       (recipes 797 → 349, manifest 222, install 217; the tests 1125 → 270, 197, 662)
-- [ ] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx`
+- [x] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx` (857 → 378, 190,
+      315; the path helpers its Review and Configure steps share to `lib/recipes.ts`)
 - [ ] 47d `SectionPane.tsx` from `MachineDialog.tsx`
 - [ ] 47e Live: a scratch Loskai — a machine's install, overview and running list; a recipe
       synced, installed and routed; the wizard and the machine dialog in Chromium
