@@ -149,16 +149,17 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
 
 ## Versions
 
-`STATUS_VERSION` is the first line. Changing what the command runs means each machine needs
-the new line, so:
+`STATUS_VERSION` is the first line, `#loskai-status <STATUS_LINE>`; `line_version` reads the
+number back. Changing what the command runs means each machine needs the new line, so:
 
-1. Bump `STATUS_VERSION`, and add the old one to `OLD_STATUS_VERSIONS`.
+1. Bump `STATUS_LINE`. Every earlier number stays readable on its own.
 2. Keep every parser accepting the versions whose output it can still read.
-   `parse_running` reads them all — from a line before v6, without ports; before v7,
-   without guest addresses.
-   `parse_facts` reads `FACTS_VERSIONS` (v5 to v10; before v9, without `tailscale_self`), and
-   says `outdated` for any but the current one — the overview offers the reinstall. A
-   page on an older line says so.
+   `parse_running` reads them all — from a line before v6 (`LISTEN_SINCE`), without ports;
+   before v7, without guest addresses.
+   `parse_facts` reads every line from v5 (`FACTS_SINCE`; before v9, without
+   `tailscale_self`), and says `outdated` for any but the current one — the overview offers
+   the reinstall. A page on an older line says so. A number newer than this Loskai's is
+   not read.
 3. A request an old line can't answer raises `logic.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
 

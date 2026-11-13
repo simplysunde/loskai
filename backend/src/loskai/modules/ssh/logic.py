@@ -223,12 +223,19 @@ def public_key_of(private_key: str, comment: str) -> str:
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_VERSION = "#loskai-status 10"
-OLD_STATUS_VERSIONS = tuple(f"#loskai-status {n}" for n in range(1, 10))
-# The lines whose `facts` answer this Loskai reads — v6 to v8 and v10 changed nothing it reads.
-FACTS_VERSIONS = (*(f"#loskai-status {n}" for n in range(5, 10)), STATUS_VERSION)
-# The lines with a `#listen` section where the machine has `ss`.
-LISTEN_VERSIONS = (*(f"#loskai-status {n}" for n in range(6, 10)), STATUS_VERSION)
+STATUS_LINE = 10
+STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
+# The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
+# reads), and the first with a `#listen` section where the machine has `ss`.
+FACTS_SINCE = 5
+LISTEN_SINCE = 6
+
+
+def line_version(head: str) -> int | None:
+    """The version a status line's answer starts with (`#loskai-status 7` → 7) — None for
+    output that isn't one this Loskai knows: another program's, or a newer line."""
+    m = re.fullmatch(r"#loskai-status ([1-9][0-9]*)", head)
+    return int(m.group(1)) if m and int(m.group(1)) <= STATUS_LINE else None
 
 # Updates without a password: a sudo rule Loskai may put on a machine (tool.allow_script),
 # letting its user run exactly System's update commands — and this file's removal — with no
@@ -489,7 +496,8 @@ def parse_running(output: str) -> dict:
     key line from another version, or a shell where the forced command should be."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
-    if head not in (STATUS_VERSION, *OLD_STATUS_VERSIONS):
+    version = line_version(head)
+    if version is None:
         raise ValueError("not Loskai's status output")
     out: dict = {"containers": [], "services": [], "hidden": 0, "guests": [], "denied": []}
     listen: list[str] = []
@@ -536,10 +544,10 @@ def parse_running(output: str) -> dict:
     for guest in out["guests"]:
         guest["addresses"] = addresses.get(guest["id"], [])
     published = {p for c in out["containers"] for p in c["ports"]}
-    out["listening"] = _listeners(listen, published) if head in LISTEN_VERSIONS else None
+    out["listening"] = _listeners(listen, published) if version >= LISTEN_SINCE else None
     # v6 prints its `#listen` section only where `ss` exists: without it, an empty list
     # would read as "nothing listens".
-    if head in LISTEN_VERSIONS and "listen" not in seen:
+    if version >= LISTEN_SINCE and "listen" not in seen:
         out["denied"].append("ss")
     return out
 
@@ -666,10 +674,11 @@ def parse_facts(output: str) -> dict:
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
     lines = output.splitlines()
     head = lines[0].strip() if lines else ""
-    if head in OLD_STATUS_VERSIONS and head not in FACTS_VERSIONS:
-        raise OldStatusLine(head)
-    if head not in FACTS_VERSIONS:
+    version = line_version(head)
+    if version is None:
         raise ValueError("not Loskai's status output")
+    if version < FACTS_SINCE:
+        raise OldStatusLine(head)
     sections: dict[str, list[str]] = {}
     current: list[str] | None = None
     for raw in lines[1:]:
@@ -695,7 +704,7 @@ def parse_facts(output: str) -> dict:
         "tailscale_self": _tailscale_self(sections.get("tsself")),
         "projects": [p for p in map(_project, sections.get("projects", [])) if p],
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
-        "outdated": head != STATUS_VERSION,
+        "outdated": version != STATUS_LINE,
     }
 
 

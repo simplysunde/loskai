@@ -930,7 +930,7 @@ places. Four bugs they found, each checked in the code, go first.
 - [x] 46f Backend: AdGuard's expected rewrite and its conflict rule, once
 - [x] 46g Backend: statuses decided where raised — `ToolError`, the base domain's refusal,
       one `instances.require`
-- [ ] 46h Backend: the status line's version is a number, not three lists
+- [x] 46h Backend: the status line's version is a number, not three lists
 - [ ] 46i Backend: saving a machine leaves the HTTP handler (`assign.save_machine`)
 - [ ] 46j Backend: which recipe a stack came from, once; one git runner; the small
       duplicates and stale comments

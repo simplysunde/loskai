@@ -505,6 +505,26 @@ def test_an_older_status_line_has_no_overview():
         logic.parse_facts("Welcome to Ubuntu\n$ ")
 
 
+@pytest.mark.parametrize("head, version", [
+    ("#loskai-status 1", 1),
+    (logic.STATUS_VERSION, logic.STATUS_LINE),
+    (f"#loskai-status {logic.STATUS_LINE + 1}", None),  # newer than this Loskai: not read
+    ("#loskai-status 05", None),
+    ("#loskai-status", None),
+    ("Welcome to Ubuntu", None),
+])
+def test_a_status_line_s_version_is_its_number(head, version):
+    assert logic.line_version(head) == version
+
+
+def test_every_line_since_v5_gives_an_overview_and_every_one_since_v6_its_ports():
+    # Nothing to bump when a version is added: each later line is read like the one before.
+    for n in range(logic.FACTS_SINCE, logic.STATUS_LINE + 1):
+        assert logic.parse_facts(FACTS.replace("status 5", f"status {n}", 1))["os"]
+        listening = logic.parse_running(f"#loskai-status {n}\n#listen\n")["listening"]
+        assert (listening is not None) == (n >= logic.LISTEN_SINCE)
+
+
 def test_a_proxmox_host_s_guests_are_listed_once_and_their_addresses_read(tmp_path):
     # Proxmox's commands, faked: two running guests of each kind, one VM without the agent.
     # Each fake notes its call, so the test sees `qm list` — slow on a real host — run once.
