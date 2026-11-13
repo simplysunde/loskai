@@ -947,6 +947,17 @@ test("on a status line before v9, sharing has no switch, only how to see it", as
   expect(screen.queryByRole("switch", { name: "Share this network" })).not.toBeInTheDocument();
 });
 
+test("Tailscale waiting for approval reads the same in the overview as on its card", async () => {
+  setUp();
+  facts = { ...FACTS, tailscale_self: { state: "approval", shared: [], approved: [] } };
+  renderPage("/machines/nas");
+
+  await screen.findByRole("region", { name: "General" });
+  expect(await within(category("General")).findByText("waiting for approval")).toBeInTheDocument();
+  expect(within(category("General")).queryByText("100.64.0.7")).toBeNull();
+  expect(within(category("Tools")).getByText("waiting for approval")).toBeInTheDocument();
+});
+
 test("Tailscale off, or logged out, offers only to connect", async () => {
   setUp();
   facts = { ...FACTS, tailscale: null, tailscale_self: { state: "login", shared: [], approved: [] } };

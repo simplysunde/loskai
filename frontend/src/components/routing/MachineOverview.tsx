@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 
 import { formatBytes, formatUptime } from "../../lib/format";
-import type { Facts } from "../../lib/ssh";
+import { tailscaleStatus, type Facts } from "../../lib/ssh";
 
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
 
@@ -55,7 +55,11 @@ export function MachineOverview({
           <>
             <dt className="text-slate-500">Tailscale</dt>
             <dd className="font-mono text-slate-300">
-              {facts.tailscale ?? <span className="font-sans text-slate-500">not connected</span>}
+              {tailscaleStatus(facts) === facts.tailscale ? (
+                facts.tailscale
+              ) : (
+                <span className="font-sans text-slate-500">{tailscaleStatus(facts)}</span>
+              )}
             </dd>
           </>
         )}

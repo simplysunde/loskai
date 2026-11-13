@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Plus, Wrench } from "lucide-react";
 
-import { useFacts, useSsh } from "../../lib/ssh";
+import { tailscaleState, useFacts, useSsh } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
 import { isLive, listsOf, toolContext, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
@@ -138,8 +138,7 @@ function TailscaleSettings({ tool: t, ctx }: { tool: Tool; ctx: ToolContext }) {
   const [open, setOpen] = useState(false);
   const self = ctx.facts.tailscale_self;
   const ip = ctx.facts.tailscale ?? null;
-  // A line before v9 says only whether it has an address.
-  const state = self?.state ?? (ip ? "on" : "off");
+  const state = tailscaleState(ctx.facts);
   const up = state === "on" || state === "approval";
   const shared = self?.shared ?? [];
   const others = (ctx.facts.tailnet ?? []).filter((d) => !d.self);

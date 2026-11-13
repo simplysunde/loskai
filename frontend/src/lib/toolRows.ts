@@ -1,5 +1,5 @@
 import { formatAgo } from "./format";
-import type { Facts, SshStatus } from "./ssh";
+import { tailscaleStatus, type Facts, type SshStatus } from "./ssh";
 import type { Tool, ToolAction, ToolRun, ToolTarget } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
@@ -83,11 +83,9 @@ export function listsOf(t: Tool, { facts, folder }: ToolContext) {
 // them run — or, for Tailscale, the machine's address and what it shares.
 export function toolSummary(t: Tool, ctx: ToolContext): string {
   if (t.requires.includes("tailscale")) {
-    const self = ctx.facts.tailscale_self;
-    if (self?.state === "login") return "logged out";
-    if (self?.state === "approval") return "waiting for approval";
-    if (!ctx.facts.tailscale) return "not connected";
-    const shared = self?.shared ?? [];
+    const status = tailscaleStatus(ctx.facts);
+    if (status !== ctx.facts.tailscale) return status;
+    const shared = ctx.facts.tailscale_self?.shared ?? [];
     return shared.length ? `${ctx.facts.tailscale} · sharing ${shared.join(", ")}` : ctx.facts.tailscale;
   }
   return listsOf(t, ctx)

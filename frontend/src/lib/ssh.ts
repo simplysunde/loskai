@@ -141,3 +141,17 @@ export function useFacts(machineId: string, enabled: boolean) {
     enabled,
   });
 }
+
+// What Tailscale is doing on the machine: the line's own state (v9), or before it, whether
+// it has an address.
+export function tailscaleState(facts: Facts): "on" | "off" | "login" | "approval" {
+  return facts.tailscale_self?.state ?? (facts.tailscale ? "on" : "off");
+}
+
+// Tailscale in a few words — its address, or what it waits for — for the overview and its card.
+export function tailscaleStatus(facts: Facts): string {
+  const state = tailscaleState(facts);
+  if (state === "login") return "logged out";
+  if (state === "approval") return "waiting for approval";
+  return facts.tailscale ?? "not connected";
+}
