@@ -30,6 +30,10 @@ homelab.
   owner, and the files that use it, is in `docs/contributing/where-logic-lives.md`: look
   there before writing a function that decides something, and add a new owner to it in
   the same commit (`scripts/where-used.py --write` fills in who uses it).
+- **A file is split at a seam, not at a size.** Past about 500 lines a file is worth a look:
+  split it where each part reads alone — a contract, a step, the pure part and the I/O —
+  and say why one stays whole. Never cut apart what must agree (a format's writer and its
+  reader), or into parts that only make sense together.
 - **Removal is an option.** When a feature is questioned, price deleting it — what goes,
   what is lost, which commits would restore it — beside fixing it. One mode beats a
   half-used second one: ACME support was deleted outright for that reason.

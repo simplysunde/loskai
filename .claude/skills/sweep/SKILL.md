@@ -10,9 +10,9 @@ A sweep answers "how much could Loskai be simplified while keeping everything it
 and then, if asked, does it. The first one (Phase 40, 2026-11-05) found the code already
 lean — about 5–7% could go — and that the value was elsewhere: the dozen **decisions made in
 two or more places**, which is CLAUDE.md's "each decision lives in one place" and the
-pattern behind this project's worst bugs. Aim at those, not at the line count, and say so
-in the estimate. Its write-up — what became one, what was left alone and why — is Phase 40
-in `docs/project/todo-archive.md` and its entry in `docs/project/HISTORY.md`; the second
+pattern behind this project's worst bugs. Aim at those first, then at the big files that
+have a seam (Stage 1), and say so in the estimate. Its write-up — what became one, what was
+left alone and why — is Phase 40 in `docs/project/todo-archive.md` and its entry in `docs/project/HISTORY.md`; the second
 (Phase 46, 2026-11-13) is beside it. Read both before another, so it doesn't redo or undo them.
 
 There are two stages, and the first changes nothing.
@@ -21,6 +21,8 @@ There are two stages, and the first changes nothing.
 
 1. **Size it:** `wc -l` over `backend/src`, `backend/tests`, `frontend/src` (tests apart),
    `docs/`.
+   List every file over ~500 lines, and for each its seam or why it has none (CLAUDE.md:
+   split at a seam, not at a size — Phase 47 split four that Phase 46 had left whole).
 2. **Three reviewers in parallel**, read-only, launched together: backend
    (`backend/src/loskai/`), frontend (`frontend/src/`), and tests + docs + tooling
    (`backend/tests/`, the frontend tests, `docs/`, `CLAUDE.md`, `SECURITY.md`, `README.md`,

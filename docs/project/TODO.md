@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 46** (below), the second sweep, is done. Phases 34–45 —
+**Now:** **Phase 47** (below) — the big files split where a seam is. **Phase 46**, the
+second sweep, is done. Phases 34–45 —
 machines over SSH, accounts, automatic runs, the key kept simply, the first sweep, the demo,
 routes from what runs on a machine, Tailscale, links — are built and in
 [`todo-archive.md`](todo-archive.md) with Phases 1–33 and 37; what is left in them is live
@@ -78,6 +79,48 @@ visible without unpacking a phase back out. The checklists stay in
 
 ---
 
+## Phase 47 — Big files split where a seam is
+
+Asked 2026-11-13, after Phase 46 left its three biggest files whole as "tidier, simpler in
+no way". Nine files are over 500 lines; four of them hold subjects that read alone.
+
+**Decisions (2026-11-13, Sunde: "splitting when it serves no purpose or is detrimental to
+the overall functionality should be avoided, but making too big files, should also be
+avoided when possible")**
+
+- A file past about 500 lines is looked at; it is split where each part reads alone — a
+  contract, a step, the pure part and the I/O — never where the parts must agree (a
+  format's writer and its reader stay together). The rule is in CLAUDE.md's principles and
+  the sweep's estimate.
+- **Split:**
+  - `ssh/logic.py` (801): the status key's contract — its versions, the forced command and
+    the parsers of what it answers, the subject of `ssh-status.md` — to `ssh/status.py`;
+    `logic.py` keeps the SSH config, `authorized_keys`, `known_hosts` and the sudo rule.
+  - `docker/recipes.py` (797): the pure manifest checks and answers (`recipe-schema.md`'s
+    rules) to `manifest.py`, the install and its record to `install.py`; `recipes.py` keeps
+    the sources, the scan and the sync.
+  - `InstallWizard.tsx` (857): the Configure step to `InstallConfigure.tsx`, the Done step
+    (its route or link) to `InstallDone.tsx`.
+  - `MachineDialog.tsx` (613): the side menu — search, the mark that follows the scroll,
+    opening at a section — to `SectionPane.tsx`; it knows nothing of machines.
+- **Left whole, each one subject:** `shared/assign.py` (787 — the record-making verbs and
+  their HTTP surface, which sits beside its logic as in every shared module; the one cut,
+  links, shares the checks and the container's address), `ssh/connect.py` (582 — talking to
+  a machine; every section uses `target` and `_run`), `ssh/tool.py` (545 — one contract,
+  `tool-schema.md`), `pages/Routing.tsx` (542 — its mutations write the page's own state),
+  `StackGroups.tsx` (537 — already in components).
+- Tests follow their module where a test file is one module's (`test_ssh_logic.py`,
+  `test_docker_recipes.py`).
+
+**Steps**
+
+- [ ] 47a `ssh/status.py` from `ssh/logic.py`, its tests with it
+- [ ] 47b `docker/manifest.py` and `docker/install.py` from `docker/recipes.py`, tests with them
+- [ ] 47c `InstallConfigure.tsx` and `InstallDone.tsx` from `InstallWizard.tsx`
+- [ ] 47d `SectionPane.tsx` from `MachineDialog.tsx`
+- [ ] 47e Live: a scratch Loskai — a machine's install, overview and running list; a recipe
+      synced, installed and routed; the wizard and the machine dialog in Chromium
+
 ## Phase 46 — The second sweep: decisions made twice again
 
 Asked 2026-11-13: a checkpoint (tag `checkpoint-2026-11-13`), then a refactor of the whole
@@ -97,7 +140,7 @@ places. Four bugs they found, each checked in the code, go first.
   `role`/`tabs`, and dropping it would lock that account out; it can go once the file has
   been saved since.
 - **Not done, on purpose:** splitting `recipes.py`, `ssh/logic.py` or `InstallWizard.tsx`
-  (tidier, simpler in no way); one style for the tab strips and an `IconButton` with
+  (tidier, simpler in no way — walked back the same day, Phase 47); one style for the tab strips and an `IconButton` with
   `disabled` (visible changes for no fix); compacting tests where nothing is decided
   twice; the base domain's old rewrites left behind when it changes (decided 2026-09-20 —
   Settings › Network › Clear); the STACKS_DIR comment repeated in the three compose files
