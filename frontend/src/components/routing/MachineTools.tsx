@@ -352,7 +352,8 @@ function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: T
       onSubmit={(e) => {
         e.preventDefault();
         onRun({ tool: tool.id, action: action.id, target: name.trim(), title: `${action.label}: ${name.trim()}` }, action);
-        setName("");
+        // One that asks first keeps the name, so a Cancel there loses nothing.
+        if (!action.confirm) setName("");
       }}
     >
       <input

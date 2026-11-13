@@ -925,7 +925,7 @@ places. Four bugs they found, each checked in the code, go first.
 - [x] 46c Each machine's SSH target comes from the server — the setup dialog showed
       `user@undefined` for an entry without `HostName`
 - [x] 46d The Dashboard's cards are keyed by id, not name
-- [ ] 46e The reviews' unchecked bugs — Tailscale's "approval" read two ways, a typed name
+- [x] 46e The reviews' unchecked bugs — Tailscale's "approval" read two ways, a typed name
       lost on Cancel, the wizard's silent failures — each checked, fixed where real
 - [ ] 46f Backend: AdGuard's expected rewrite and its conflict rule, once
 - [ ] 46g Backend: statuses decided where raised — `ToolError`, the base domain's refusal,

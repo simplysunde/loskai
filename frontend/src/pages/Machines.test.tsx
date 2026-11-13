@@ -40,6 +40,7 @@ const ROUTES = [
 
 let calls: { path: string; method: string; body: unknown }[] = [];
 let sshHosts: Record<string, unknown> = {};
+let toolsReply: unknown[] = [];
 let sshTrusted: Record<string, boolean> = {};
 const FACTS = {
   ok: true, checked: 0, os: "Debian GNU/Linux 12 (bookworm)", kernel: "Linux 6.1.0", uptime: 3 * 86400 + 7200,
@@ -142,6 +143,7 @@ beforeEach(() => {
   sessionStorage.setItem("loskai.machines.expanded", JSON.stringify(["nas", "pve"]));
   calls = [];
   sshHosts = {};
+  toolsReply = TOOLS;
   sshTrusted = {};
   facts = FACTS;
   factsStatus = 200;
@@ -187,7 +189,7 @@ beforeEach(() => {
             : path === "/api/instances/nas" && init?.method === "DELETE"
               ? deleteReply
             : path === "/api/ssh/tools"
-              ? TOOLS
+              ? toolsReply
             : path === "/api/auth/status"
               ? authStatus
             : path === "/api/settings"
@@ -1068,6 +1070,22 @@ test("an action that asks for a name runs on what is typed", async () => {
   fireEvent.change(name, { target: { value: "work" } });
   fireEvent.click(screen.getByRole("button", { name: "New session" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=new&target=work")).toBeInTheDocument();
+});
+
+test("a name typed for an action that asks first is kept when that is cancelled", async () => {
+  setUp();
+  toolsReply = TOOLS.map((t) => ({
+    ...t,
+    actions: t.actions.map((a) => ("ask" in a && a.ask === "session" ? { ...a, confirm: "Start it?" } : a)),
+  }));
+  renderPage("/machines/nas/tools");
+
+  const name = await screen.findByLabelText("New session — name");
+  fireEvent.change(name, { target: { value: "work" } });
+  fireEvent.click(screen.getByRole("button", { name: "New session" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+  expect(screen.getByLabelText("New session — name")).toHaveValue("work");
 });
 
 test("a project lists in its machine's projects folder, says its Claude session runs, and opens it", async () => {
