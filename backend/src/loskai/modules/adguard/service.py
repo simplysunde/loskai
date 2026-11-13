@@ -32,6 +32,22 @@ def target_answer(instance: Instance, current_ip: str | None) -> str | None:
     return current_ip
 
 
+def expected(instance: Instance, base_domain: str, current_ip: str | None) -> tuple[str, str] | None:
+    """The `(domain, answer)` rewrite a routed instance should have — what reconcile writes,
+    the DNS column checks and the clear dialog calls managed. None when its answer can't be
+    determined (`target_answer`)."""
+    target = target_answer(instance, current_ip)
+    if not instance.subdomain or not target:
+        return None
+    return instances_store.fqdn(instance.subdomain, base_domain), target
+
+
+def foreign(answers: set[str], target: str, stored: str | None) -> list[str]:
+    """The answers on an instance's domain that Loskai didn't write — neither its target nor
+    the answer it last wrote (`dns_answer`): a hand-added entry, reported, never touched."""
+    return sorted(a for a in answers if a != target and a != stored)
+
+
 def is_loskai_domain(domain: str, base_domain: str) -> bool:
     """True if `domain` sits under `.base_domain` in Loskai's own namespace — a `proxy`
     instance's single label, or a `dns_only` instance's dot-separated multi-label name (no
@@ -96,12 +112,10 @@ def plan_reconcile(
     }
 
     for inst in instances:
-        if not inst.subdomain:
+        found = expected(inst, base_domain, current_ip)
+        if not found:
             continue
-        target = target_answer(inst, current_ip)
-        if not target:
-            continue
-        domain = instances_store.fqdn(inst.subdomain, base_domain)
+        domain, target = found
         answers = by_domain.get(domain, set())
         stored = inst.dns_answer
 
@@ -113,9 +127,8 @@ def plan_reconcile(
         if stored and stored != target and stored in answers:
             plan.deletes.append((domain, stored))
 
-        foreign = sorted(a for a in answers if a != target and a != stored)
-        if foreign:
-            plan.conflicts.append({"id": inst.id, "domain": domain, "answers": foreign})
+        if hand_added := foreign(answers, target, stored):
+            plan.conflicts.append({"id": inst.id, "domain": domain, "answers": hand_added})
 
     known_answers = {current_ip} if current_ip else set()
     known_answers |= {inst.dns_answer for inst in instances if inst.dns_answer}
@@ -142,23 +155,23 @@ def dns_status_rows(
     for inst in instances:
         if not inst.subdomain:
             continue
-        domain = instances_store.fqdn(inst.subdomain, base_domain) if base_domain else inst.subdomain
-        target = target_answer(inst, current_ip)
-        if by_domain is None or target is None or not base_domain:
-            rows.append(
-                {"id": inst.id, "domain": domain, "present": None, "conflict": False, "target": target}
-            )
+        found = expected(inst, base_domain, current_ip) if base_domain else None
+        if by_domain is None or found is None:
+            domain = instances_store.fqdn(inst.subdomain, base_domain) if base_domain else inst.subdomain
+            rows.append({
+                "id": inst.id, "domain": domain, "present": None, "conflict": False,
+                "target": target_answer(inst, current_ip),
+            })
             continue
+        domain, target = found
         answers = by_domain.get(domain, set())
-        rows.append(
-            {
-                "id": inst.id,
-                "domain": domain,
-                "present": target in answers,
-                "conflict": any(a != target and a != inst.dns_answer for a in answers),
-                "target": target,
-            }
-        )
+        rows.append({
+            "id": inst.id,
+            "domain": domain,
+            "present": target in answers,
+            "conflict": bool(foreign(answers, target, inst.dns_answer)),
+            "target": target,
+        })
     return rows
 
 
@@ -175,7 +188,7 @@ def consistency_warnings(
     manual conflict — Loskai never auto-overwrites it). Returns `[]` when drift can't be
     determined (AdGuard unreachable, or no base domain / answer IP). `machine` says which
     tab the instance is on, so each sidebar entry can flag only its own."""
-    machines = {i.id for i in instances if i.kind == "machine"}
+    machines = {i.id for i in instances if instances_store.is_machine(i)}
     warnings: list[dict] = []
     for row in dns_status_rows(instances, rewrites, base_domain, current_ip):
         if row["present"] is None:
@@ -215,14 +228,9 @@ def annotate_rewrites(
 
     The distinction is the whole point of showing the list before a clear — a managed entry
     is restored seconds later, an unmanaged one is gone for good. Pure, so the "would it
-    come back" question is answered by the same `instances.fqdn`/`target_answer` pair the
+    come back" question is answered by the same `expected` the
     restore itself uses, not by a second guess at the rule."""
-    managed = set()
-    if base_domain:
-        for inst in routed:
-            target = target_answer(inst, current_ip)
-            if target:
-                managed.add((instances_store.fqdn(inst.subdomain, base_domain), target))
+    managed = {found for inst in routed if base_domain and (found := expected(inst, base_domain, current_ip))}
     return [
         {
             "domain": entry.get("domain", ""),
@@ -291,17 +299,6 @@ async def reconcile(
 
     rewrites = await client.list_rewrites()
     plan = plan_reconcile(routed, rewrites, base_domain, current_ip)
-    by_domain = _index_by_domain(rewrites)
-
-    # Domains already resolving to their target, plus any we successfully add below.
-    ensured: set[str] = set()
-    for inst in routed:
-        target = target_answer(inst, current_ip)
-        if not target:
-            continue
-        domain = instances_store.fqdn(inst.subdomain, base_domain)
-        if target in by_domain.get(domain, set()):
-            ensured.add(domain)
     added: list[str] = []
     deleted: list[str] = []
     swept: list[str] = []
@@ -311,7 +308,6 @@ async def reconcile(
         try:
             await client.add_rewrite(domain, answer)
             added.append(domain)
-            ensured.add(domain)
         except (httpx.HTTPError, AdGuardError) as exc:
             logger.warning(
                 "reconcile: add %s -> %s failed: %s", domain, answer, describe_error(exc)
@@ -338,11 +334,14 @@ async def reconcile(
                 "reconcile: sweep %s -> %s failed: %s", domain, answer, describe_error(exc)
             )
 
-    # Persist dns_answer for instances whose name now resolves to their target.
+    # Persist dns_answer for instances whose name now resolves to their target: already
+    # in sync, or just added.
     for inst in routed:
-        domain = instances_store.fqdn(inst.subdomain, base_domain)
-        target = target_answer(inst, current_ip)
-        if domain in ensured and target and inst.dns_answer != target:
+        found = expected(inst, base_domain, current_ip)
+        if not found:
+            continue
+        domain, target = found
+        if (inst.id in plan.in_sync or domain in added) and inst.dns_answer != target:
             instances_store.update_fields(inst.id, dns_answer=target)
 
     return {

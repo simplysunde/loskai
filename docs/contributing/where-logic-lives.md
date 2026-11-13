@@ -32,7 +32,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| Whether a record is a machine (declared by `kind`) | `shared/instances.py` `is_machine` | `modules/ssh/connect.py` `modules/ssh/router.py` `shared/assign.py` `shared/dashboard.py` |
+| Whether a record is a machine (declared by `kind`) | `shared/instances.py` `is_machine` | `modules/adguard/service.py` `modules/ssh/connect.py` `modules/ssh/router.py` `shared/assign.py` `shared/dashboard.py` |
 | The same, in the browser | `components/routing/machine.ts` `isMachine` | `components/routing/MachineDialog.tsx` `components/routing/ServiceTable.tsx` `components/routing/hostOptions.ts` `components/routing/machineServices.ts` `pages/Machines.tsx` `pages/Routing.tsx` |
 | Which routes are on a machine: those on its address | `shared/instances.py` `on_address` | `shared/assign.py` |
 | The same, in the browser | `components/routing/machine.ts` `machineAt` `routesOn` | `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` `pages/Machines.tsx` `pages/settings/General.tsx` |
@@ -68,6 +68,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Pushing and removing a route | `modules/caddy/service.py` `upsert_route` `teardown_route` | `shared/assign.py` `shared/follow.py` |
 | Which of Caddy's servers is `:443` and which `:80` | `modules/caddy/service.py` `select_server_name` `select_http_server_name` | `modules/caddy/client.py` |
 | The address a DNS rewrite answers with | `modules/adguard/service.py` `target_answer` | `shared/assign.py` |
+| The rewrite a routed instance should have, and which answers on its name are hand-added | `modules/adguard/service.py` `expected` `foreign` | only its own file |
 | Which rewrites to add and remove: Loskai's own, by `(domain, answer)` | `modules/adguard/service.py` `reconcile` `plan_reconcile` `is_loskai_domain` | `modules/adguard/router.py` |
 
 ## Access and secrets
