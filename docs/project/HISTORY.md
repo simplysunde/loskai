@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — Claude Code is its sessions, Git is the project's git (Phase 49)
+
+Sunde found Claude Code's card cluttered by Pull and Push. Claude Code now opens and ends
+Claude's sessions and starts a project; a project's git — Pull, Push, a shell, and the new
+Clone and Pull all — is on the Git card, which lists the same projects. The overlap is
+intended. A remote's own way of logging in is left to git in the terminal (the machine
+user's own key over SSH, a login prompt over HTTPS), so nothing new is stored and Loskai's
+key never reaches a forge. Clone's address is a new `ask` kind, `repo`, which takes only
+the usual transports: git's `ext::` would run a command.
+
 ## 2026-11-13 — The open bugs, before a release (Phase 48)
 
 Asked what stands between today and a first release, Sunde chose to fix what could be fixed

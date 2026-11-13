@@ -216,16 +216,22 @@ and Add.
   git's global `user.name` and `user.email`, read from the machine and set there as you
   edit them (with Loskai's key, so the card asks for your password while it is locked) —
   and the machine's **projects folder**, `~/projects` unless you change it (`~` or one
-  folder in it).
+  folder in it). It lists the git projects there, each with **Pull** (only when it
+  fast-forwards), **Push** and **Terminal** (a shell in it); **Pull all** pulls every
+  project that has a remote, and **Clone** takes a repository's address — `https://…`,
+  `ssh://…` or `git@host:path` — into the projects folder. They run in the machine's
+  terminal as its SSH user, so the remote decides what happens there: over SSH, the
+  machine needs its own key for that user added at the forge (Loskai's key never leaves
+  Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
+  public repository just works, and a private one asks for its login in the terminal.
 - **Claude Code** lists the git projects in the machine's projects folder, set on the Git
   card (a tool's dialog has a **Settings** button there), with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
   worked there. **Claude**
   opens it: the session already running there, else the last conversation continued,
   else a new one. It runs in tmux with **Remote Control** on, so after you close the tab
-  you can carry on from the Claude app or claude.ai/code. **Terminal** is a shell in the
-  project, **Pull** brings in what was pushed from elsewhere (only when it fast-forwards),
-  **Push** sends your commits, and **End** stops its Claude — the conversation stays.
+  you can carry on from the Claude app or claude.ai/code. **End** stops its Claude — the
+  conversation stays. Pulling, pushing and a shell in the project are on the Git card.
   **New project** makes the folder, starts a git repository and opens Claude in it.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.

@@ -1,6 +1,7 @@
 # Claude Code in the machine's projects — the git repos in its projects folder ($PROJECTS) —
 # each in the tmux session claude-<project>, with Remote Control on, so a session carries on
-# in the Claude app or on another computer after the tab closes.
+# in the Claude app or on another computer after the tab closes. Pulling, pushing and a
+# shell in a project are the Git tool's.
 # docs/reference/tool-schema.md is the format.
 name: Claude Code
 description: Manage your Claude sessions here, one per project.
@@ -20,22 +21,6 @@ actions:
       if ls ~/.claude/projects/"$(pwd | sed 's,[^A-Za-z0-9],-,g')"/*.jsonl >/dev/null 2>&1;
       then claude --continue --remote-control "$(hostname): $1";
       else claude --remote-control "$(hostname): $1"; fi
-  terminal:
-    label: Terminal
-    description: A shell in this project.
-    target: project
-    session: false
-    run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
-  pull:
-    label: Pull
-    description: Bring in what was pushed from elsewhere — only when it fast-forwards, never a merge.
-    target: project
-    run: cd "$PROJECTS/$1" && git pull --ff-only
-  push:
-    label: Push
-    description: Send this project's commits to its remote.
-    target: project
-    run: cd "$PROJECTS/$1" && git push
   end:
     label: End
     description: End Claude's session in this project.

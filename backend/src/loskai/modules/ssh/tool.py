@@ -65,6 +65,15 @@ TARGETS = {
     "vm": re.compile(r"^\d{1,9}$"),
     "session": re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@+=,~-]{0,99}$"),
     "project": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
+    # A git remote to clone: https://, http://, ssh:// or git:// with a host that starts
+    # with a letter or digit (never an option to ssh), or scp-like `user@host:path`. No
+    # other transport — `ext::` would run a command.
+    "repo": re.compile(
+        r"^(?=.{1,300}$)(?:"
+        r"(?:https?|ssh|git)://(?:[A-Za-z0-9._~%-]+@)?[A-Za-z0-9][A-Za-z0-9.-]*(?::\d{1,5})?/[A-Za-z0-9._~%/+@-]+"
+        r"|[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*:[A-Za-z0-9._~][A-Za-z0-9._~/+-]*"
+        r")$"
+    ),
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),

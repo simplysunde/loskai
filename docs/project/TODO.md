@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 48** (below) fixed the open bugs before a release; Phase 47
-split the big files where a seam is. Phases
+**Now:** nothing in flight. **Phase 49** (below) gave a project's git to the Git tool; Phase 48
+fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
 [`todo-archive.md`](todo-archive.md) with Phases 1–33 and 37; what is left in them is live
@@ -53,6 +53,36 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 49 — Claude Code is its sessions, Git is the project's git
+
+Asked 2026-11-13 (Sunde): the push and pull buttons clutter Claude Code's card; it should be
+about Claude's sessions, and the Git tool should get more — a clone, a pull to update a
+project. "There will be some overlap … I think that will be fine; depending on ssh or http
+remotes some things will of course behave differently."
+
+**Decisions**
+
+- Claude Code keeps **Claude**, **End** and **New project** (it makes a git repo, but it is
+  how a Claude project starts). **Pull**, **Push** and **Terminal** move to Git; the projects
+  are listed on both cards, each with its own buttons.
+- Git gains **Clone** (`ask: repo`, a new kind: `https`/`http`/`ssh`/`git` URLs and scp-like
+  `user@host:path`, never another transport — `ext::` runs a command) and **Pull all**
+  (every project with a remote, fast-forward only; it fails if one did).
+- SSH and HTTPS remotes are left to git in the terminal, as the machine's SSH user: its own
+  key and a host-key prompt over SSH, a login prompt over HTTPS. Loskai's key is never
+  offered to a forge. None of them is `automatic`, so a prompt can be answered.
+
+**Steps**
+
+- [x] 49a The tool files, the `repo` kind, the Clone field (its placeholder and width) and
+      the icons (arrows for Pull and Push, not git's logo on a card that is git's)
+- [x] 49b Live: a Debian machine — Clone of a public HTTPS repo into `~/projects`; a project
+      reset one commit back brought up to date by Pull all; Pull "Already up to date";
+      `ext::sh -c id` refused `4409` before anything ran; the project in the overview; Git's
+      card at 1280 and 390 px with no page errors and no sideways scroll
 
 ---
 

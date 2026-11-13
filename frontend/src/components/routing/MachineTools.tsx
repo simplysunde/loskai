@@ -344,8 +344,14 @@ export function ToolsMenu({
 
 // An action that runs on a name typed for it — a new session, a new project. The server
 // checks the name; it reaches the command as `$1`.
+// What an asked-for value looks like, in its field: a name, or (Clone) a repository's address.
+const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; what: string }>> = {
+  repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
+};
+
 function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
   const [name, setName] = useState("");
+  const asked = (action.ask && ASKED[action.ask]) || { placeholder: "name", width: "w-32", what: "name" };
   return (
     <form
       className="flex items-center gap-1.5"
@@ -357,11 +363,11 @@ function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: T
       }}
     >
       <input
-        aria-label={`${action.label} — name`}
+        aria-label={`${action.label} — ${asked.what}`}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="name"
-        className="w-32 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200"
+        placeholder={asked.placeholder}
+        className={`${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`}
       />
       <button type="submit" disabled={!name.trim()} title={`${action.description}\n$ ${typeof action.run === "string" ? action.run : ""}`} className={BUTTON}>
         <Plus className="h-3.5 w-3.5" /> {action.label}

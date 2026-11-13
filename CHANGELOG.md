@@ -41,9 +41,8 @@ Everything so far:
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude
   conversation; **Claude**
   opens its running session, else continues the last conversation, else starts one — in
-  tmux, with Remote Control, so it carries on in the Claude app; **Terminal**, **Pull**
-  (fast-forward only), **Push** and **End** on each project; **New project** makes the
-  folder, `git init`, and starts Claude in it. The **Tools** button on a machine's row lists
+  tmux, with Remote Control, so it carries on in the Claude app; **End** on each project;
+  **New project** makes the folder, `git init`, and starts Claude in it. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
 - **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key
@@ -57,6 +56,11 @@ Everything so far:
   password once) and off in its SSH section, and taken off with the machine.
 - **Git** — a tool for a machine's git: its commit name and email (`git config --global`),
   read and set from its card, and the projects folder Claude Code finds its projects in.
+  Its projects have **Pull** (fast-forward only), **Push** and **Terminal**; **Pull all**
+  pulls every project with a remote, and **Clone** takes a repository's address
+  (`https://…`, `ssh://…` or `git@host:path`) into the projects folder. They run in the
+  terminal as the machine's SSH user: over SSH with that user's own key, over HTTPS asking
+  for a login there when the remote needs one.
 - **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,
   Tailscale's switches, adding a tool — ask for sudo's password in a dialog first, only
   when sudo would, check it on the machine, and run in a small terminal that drops down from

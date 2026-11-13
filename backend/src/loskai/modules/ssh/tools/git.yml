@@ -1,8 +1,11 @@
-# git on the machine: who the commits made there are by. Its card also holds the machine's
-# projects folder, which Claude Code finds its projects in.
+# git on the machine: who the commits made there are by, and its projects — the git repos in
+# its projects folder ($PROJECTS), which Claude Code finds its projects in too: clone one,
+# pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
+# user, so a remote over SSH uses that user's own key and asks to trust a new host there,
+# and one over HTTPS asks for its login there when it needs one.
 # docs/reference/tool-schema.md is the format.
 name: Git
-description: Who commits made on it are by, and where its projects are.
+description: Your projects' git — clone, pull, push — and who commits made on it are by.
 requires: [git]
 settings:
   name:
@@ -17,3 +20,35 @@ settings:
     value: email
     read: git config --global user.email
     write: git config --global user.email "$1"
+actions:
+  pull:
+    label: Pull
+    description: Bring in what was pushed from elsewhere — only when it fast-forwards, never a merge.
+    target: project
+    run: cd "$PROJECTS/$1" && git pull --ff-only
+  push:
+    label: Push
+    description: Send this project's commits to its remote.
+    target: project
+    run: cd "$PROJECTS/$1" && git push
+  terminal:
+    label: Terminal
+    description: A shell in this project.
+    target: project
+    session: false
+    run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
+  pull-all:
+    label: Pull all
+    description: Pull every project that has a remote — each only when it fast-forwards.
+    run: >-
+      cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
+      s=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
+      git -C "$d" remote | grep -q . || continue;
+      printf '\n== %s\n' "$d"; git -C "$d" pull --ff-only || s=1; done; exit $s
+  clone:
+    label: Clone
+    description: >-
+      Clone a repository into the projects folder — https://…, ssh://… or git@host:path.
+      Over SSH it uses this machine's own key for its user.
+    ask: repo
+    run: mkdir -p "$PROJECTS" && cd "$PROJECTS" && git clone -- "$1"

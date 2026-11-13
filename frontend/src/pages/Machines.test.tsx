@@ -121,7 +121,11 @@ const TOOLS = [
     ],
   },
   {
-    id: "git", name: "Git", description: "Who commits are by.", requires: ["git"], installable: ["git"], actions: [],
+    id: "git", name: "Git", description: "Who commits are by.", requires: ["git"], installable: ["git"],
+    actions: [
+      { id: "pull", label: "Pull", description: "Bring it in.", target: "project", ask: null, confirm: null, run: "git pull --ff-only" },
+      { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
+    ],
     settings: [
       { id: "name", label: "Name", description: "On every commit.", value: "git-name", read: "git config --global user.name", write: "x" },
       { id: "email", label: "Email", description: "On every commit.", value: "email", read: "git config --global user.email", write: "x" },
@@ -1072,6 +1076,19 @@ test("an action that asks for a name runs on what is typed", async () => {
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=new&target=work")).toBeInTheDocument();
 });
 
+test("Clone asks for a repository's address and runs on it; Git's card has the projects too", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  const address = await screen.findByLabelText("Clone — repository");
+  expect(address).toHaveAttribute("placeholder", "https://… or git@host:path");
+  fireEvent.change(address, { target: { value: "git@github.com:simplysunde/loskai.git" } });
+  fireEvent.click(screen.getByRole("button", { name: "Clone" }));
+  expect(
+    await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=clone&target=git%40github.com%3Asimplysunde%2Floskai.git"),
+  ).toBeInTheDocument();
+});
+
 test("a name typed for an action that asks first is kept when that is cancelled", async () => {
   setUp();
   toolsReply = TOOLS.map((t) => ({
@@ -1092,7 +1109,13 @@ test("a project lists in its machine's projects folder, says its Claude session 
   setUp();
   renderPage("/machines/nas/tools");
 
-  const row = (await screen.findByText("site")).closest("li") as HTMLElement;
+  // On Claude Code's card and on Git's, each with its own buttons.
+  const rows = (await screen.findAllByText("site")).map((el) => el.closest("li") as HTMLElement);
+  const row = rows.find((r) => within(r).queryByRole("button", { name: "Claude" }))!;
+  const gitRow = rows.find((r) => within(r).queryByRole("button", { name: "Pull" }))!;
+  expect(rows).toHaveLength(2);
+  expect(within(row).queryByRole("button", { name: "Pull" })).toBeNull();
+  expect(within(gitRow).queryByRole("button", { name: "Claude" })).toBeNull();
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
   expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
   expect(row.title).toBe("Last commit: Add the header");

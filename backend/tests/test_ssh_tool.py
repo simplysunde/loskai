@@ -15,10 +15,57 @@ def test_every_shipped_tool_is_valid():
 
     assert {"system", "services", "proxmox", "tmux", "tailscale", "claude"} <= set(tools)
     assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["open"].session == "claude"
-    assert {"pull", "push", "end", "terminal"} <= set(tools["claude"].actions)
+    # Claude Code is its sessions; the project's git is the Git tool's.
+    assert set(tools["claude"].actions) == {"open", "end", "new"}
+    assert {"pull", "push", "terminal", "pull-all", "clone"} == set(tools["git"].actions)
+    assert tools["git"].actions["clone"].ask == "repo"
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
+
+
+@pytest.mark.parametrize("url", [
+    "https://github.com/simplysunde/loskai.git", "git@github.com:simplysunde/loskai.git",
+    "ssh://git@192.168.10.216:2222/sunde/loskai.git", "http://192.168.10.216:3000/sunde/loskai.git",
+])
+def test_clone_takes_an_https_or_ssh_remote(url):
+    assert tool.TARGETS["repo"].fullmatch(url)
+
+
+@pytest.mark.parametrize("url", [
+    "-oProxyCommand=x", "ext::sh -c touch", "ssh://-oProxyCommand=x/a", "file:///etc/passwd", "/srv/repo",
+    "git@host:-x", "https://h/a b", "https://h/a;rm", "git@-h:x",
+])
+def test_clone_refuses_an_option_another_transport_or_a_path(url):
+    """`$1` is quoted, but git reads it: never an option, and never `ext::`, which runs a command."""
+    assert not tool.TARGETS["repo"].fullmatch(url)
+
+
+def test_pull_all_pulls_each_project_with_a_remote_and_says_which_failed(tmp_path):
+    import subprocess
+
+    def git(*args, cwd):
+        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+    origin, projects = tmp_path / "origin.git", tmp_path / "projects"
+    git("init", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    projects.mkdir()
+    git("clone", str(origin), "site", cwd=projects)
+    (projects / "site" / "a").write_text("x")
+    git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--allow-empty", "-m", "one", cwd=projects / "site")
+    git("push", "origin", "HEAD:main", cwd=projects / "site")
+    git("clone", str(origin), "copy", cwd=projects)
+    git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--allow-empty", "-m", "two", cwd=projects / "site")
+    git("push", "origin", "HEAD:main", cwd=projects / "site")
+    git("init", "-q", "local", cwd=projects)  # no remote: left alone
+
+    run = tool.load()["git"].actions["pull-all"].run
+    out = subprocess.run(["sh", "-c", f"PROJECTS={projects}; " + run], capture_output=True, text=True, timeout=30)
+
+    assert out.returncode == 0, out.stderr
+    assert "== copy" in out.stdout and "== site" in out.stdout and "== local" not in out.stdout
+    log = subprocess.run(["git", "log", "--format=%s"], cwd=projects / "copy", capture_output=True, text=True).stdout
+    assert log.split() == ["two", "one"]
 
 
 def test_every_installer_is_for_a_program_the_overview_detects():
@@ -326,7 +373,7 @@ def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
 def test_git_s_settings_are_its_name_and_email():
     git = tool.load()["git"]
 
-    assert list(git.settings) == ["name", "email"] and git.actions == {}
+    assert list(git.settings) == ["name", "email"]
     assert git.settings["email"].write == 'git config --global user.email "$1"'
 
 
