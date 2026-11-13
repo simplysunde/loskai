@@ -28,12 +28,10 @@ def test_missing_name_and_bad_type():
     assert any("type" in e for e in errors)
 
 
-def test_git_build_requires_repo():
-    errors = recipes.validate_manifest({"name": "X", "type": "git_build"})
-    assert any("git_repo" in e for e in errors)
-    assert recipes.validate_manifest(
-        {"name": "X", "type": "git_build", "git_repo": "https://x"}
-    ) == []
+@pytest.mark.parametrize("rtype", ["git_build", "registry_pull"])
+def test_the_dropped_install_patterns_are_refused(rtype):
+    # Never used by a recipe, and gone: pull is the one pattern.
+    assert recipes.validate_manifest({"name": "X", "type": rtype}) == ["'type' must be one of ['pull']"]
 
 
 @pytest.mark.parametrize("value", ["https://login.example.com/", "https://login.example.com:8443/a/"])
@@ -521,7 +519,7 @@ def installable(data_dir, monkeypatch):
         'env:\n  - key: PORT\n    label: Host port\n    default: "3000"\n'
         "  - key: PW\n    label: Admin password\n    secret: true\n",
     )
-    monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
+    monkeypatch.setattr(recipes.stacks, "run_compose", lambda d, *args: {"ok": True, "output": "Started"})
     # The reinstall check asks Docker which containers exist; never the real daemon here.
     monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     return data_dir
@@ -570,7 +568,7 @@ def test_install_refuses_an_undeclared_answer_before_touching_disk(installable, 
 
 
 def test_failed_compose_registers_no_instance(installable, monkeypatch):
-    monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": False, "output": "boom"})
+    monkeypatch.setattr(recipes.stacks, "run_compose", lambda d, *args: {"ok": False, "output": "boom"})
     _fake_project(monkeypatch, [])
     result = recipes.install_recipe("grafana", {})
     assert result["ok"] is False and result["instance_id"] is None
@@ -625,17 +623,6 @@ def test_a_fresh_install_reports_no_reused_data(installable, monkeypatch):
     assert recipes.install_recipe("grafana", {})["reused_data"] is False
 
 
-def test_git_build_needs_an_empty_folder(data_dir, monkeypatch):
-    _make_recipe(data_dir / "recipes", "app", "App", 'git_repo: "https://x"\n')
-    # _make_recipe writes type: pull; make this one a git_build.
-    manifest = data_dir / "recipes" / "app" / "recipe.yml"
-    manifest.write_text(manifest.read_text().replace("type: pull", "type: git_build"))
-    (recipes.stacks.stacks_dir() / "app" / "data").mkdir(parents=True)
-    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
-
-    with pytest.raises(recipes.RecipeError, match="clones into an empty one"):
-        recipes.install_recipe("app", {})
-
 
 def test_reinstall_keeps_the_route_record(installable, monkeypatch):
     """The open Phase 28 bug: a reinstall replaced the record wholesale, wiping its route
@@ -667,11 +654,11 @@ def test_a_change_made_during_a_reinstall_s_up_is_kept(installable, monkeypatch)
     ))
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
 
-    def up(directory, build):
+    def up(directory, *args):
         instances_store.update_fields("grafana", upstream="192.168.10.220:3001", private=True)
         return {"ok": True, "output": "Started"}
 
-    monkeypatch.setattr(recipes, "_compose_up", up)
+    monkeypatch.setattr(recipes.stacks, "run_compose", up)
     recipes.install_recipe("grafana", {})
 
     inst = instances_store.get_instance("grafana")

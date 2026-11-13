@@ -31,11 +31,10 @@ def test_corrupt_settings_file_refuses_to_boot(data_dir):
 
 
 def test_corrupt_settings_file_never_reads_as_an_empty_dict(data_dir):
-    """The takeover path this guards: `{}` means `admin_password_hash` is None, and
-    POST /api/auth/setup is public and only refuses once a hash exists."""
-    (data_dir / "settings.json").write_text('{"admin_password_hash": "$argon2id$v=19')
+    """Read as `{}`, a cut-off file would quietly unset every stored setting."""
+    (data_dir / "settings.json").write_text('{"base_domain": "home.lan", "adguard_url": "http://')
     with pytest.raises(CorruptStoreError):
-        s.admin_password_hash()
+        s.resolve("base_domain")
 
 
 def test_settings_file_must_hold_an_object(data_dir):

@@ -112,17 +112,6 @@ def test_ensure_seeded_is_idempotent(monkeypatch):
     assert len(users.all_users()) == 1
 
 
-def test_an_install_from_before_accounts_keeps_its_password_as_the_admin(tmp_path):
-    # Its one password, hashed in settings.json, becomes the account `admin`; the key goes.
-    from argon2 import PasswordHasher
-
-    store.write_json(tmp_path / "settings.json", {"admin_password_hash": PasswordHasher().hash("old-password"), "base_domain": "x.no"})
-    users.ensure_seeded()
-
-    assert users.verify("admin", "old-password").admin
-    stored = store.read_json(tmp_path / "settings.json", {})
-    assert "admin_password_hash" not in stored and stored["base_domain"] == "x.no"
-
 
 def test_accounts_saved_with_tabs_get_a_level_and_none_loses_access(tmp_path):
     (tmp_path / "users.json").write_text(json.dumps({"users": [

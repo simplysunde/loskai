@@ -48,11 +48,8 @@ def test_update_removes_key_when_blank():
     assert s.resolve("adguard_url") == (None, "unset")
 
 
-def test_view_excludes_admin_hash_and_marks_secret():
-    # An install from before accounts still has its hash here until startup moves it.
-    s._update_stored(lambda stored: {**stored, "admin_password_hash": "$argon2id$whatever"})
+def test_view_marks_secrets_and_the_env_only_stacks_dir():
     view = s.get_view()
-    assert "admin_password_hash" not in view
     assert view["adguard_password"]["secret"] is True
     assert view["stacks_dir"]["source"] == "env"
 

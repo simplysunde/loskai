@@ -10,7 +10,6 @@ import base64
 import hashlib
 import ipaddress
 import re
-import struct
 
 # `Keyword value` or `Keyword=value`, as ssh_config(5) allows. Keywords are case-insensitive.
 _LINE = re.compile(r"^(\s*)([A-Za-z][A-Za-z0-9]*)(\s*=\s*|\s+)(.*?)\s*$")
@@ -181,30 +180,6 @@ def fingerprint_of(public_key: str) -> str:
     blob = base64.b64decode(public_key.split()[1])
     return "SHA256:" + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip("=")
 
-
-def public_key_of(private_key: str, comment: str) -> str:
-    """The public key of an OpenSSH private key file — encrypted or not, because the format
-    keeps the public half in the clear ahead of the encrypted part. So Loskai keeps one file,
-    and the public key it shows can never belong to a different private key."""
-    body = "".join(line for line in private_key.splitlines() if not line.startswith("-----"))
-    data = base64.b64decode(body)
-    magic = b"openssh-key-v1\0"
-    if not data.startswith(magic):
-        raise ValueError("not an OpenSSH private key")
-    pos = len(magic)
-
-    def string() -> bytes:
-        nonlocal pos
-        (n,) = struct.unpack(">I", data[pos : pos + 4])
-        pos += 4 + n
-        return data[pos - n : pos]
-
-    string(), string(), string()  # cipher, KDF, KDF options
-    pos += 4  # number of keys: always 1
-    blob = string()
-    (type_len,) = struct.unpack(">I", blob[:4])
-    key_type = blob[4 : 4 + type_len].decode()
-    return f"{key_type} {base64.b64encode(blob).decode()} {comment}"
 
 
 # --- The status-only key ---

@@ -12,7 +12,6 @@ import time
 from datetime import UTC, datetime
 from typing import Literal
 
-import asyncssh
 from fastapi import APIRouter, HTTPException, Request, WebSocket
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
@@ -95,14 +94,6 @@ def unlock_key(body: PasswordRequest, request: Request) -> dict | None:
     if client.public_key() is None:
         raise HTTPException(status_code=409, detail="Loskai has no key yet")
     me = auth.check_password(body.password, request, wrong_status=403, asked_for="SSH unlock")
-    try:
-        client.load_key()
-    except asyncssh.KeyImportError:
-        raise HTTPException(
-            status_code=409,
-            detail="Loskai's key is from an older version — make a New key in Settings › SSH, "
-            "then set each machine up again",
-        )
     unlock.unlock(me.username)
     return _key_view()
 

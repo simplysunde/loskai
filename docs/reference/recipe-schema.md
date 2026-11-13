@@ -78,7 +78,7 @@ grafana/
 
 ```yaml
 name: Grafana                    # required — display name
-type: pull                       # required — pull | git_build | registry_pull
+type: pull                       # required — always pull
 description: Dashboards and observability   # optional — one-line summary
 
 # The questions the wizard asks. Each becomes a form field, and together they
@@ -104,7 +104,6 @@ service: web                     # optional — which compose service is the pub
 log_link: https://login.example.com/   # optional — a link the app logs after install, shown on the last step
 
 # Type-specific fields:
-git_repo: https://github.com/you/app   # required for type: git_build only
 ```
 
 ### Fields
@@ -133,15 +132,13 @@ git_repo: https://github.com/you/app   # required for type: git_build only
 | `suggested_subdomain` | — | all | Pre-fills the optional Caddy/AdGuard assign step. |
 | `service` | — | all | Which compose service is the published one, for a multi-service recipe (app + database). Only affects which container the new instance links to — see below. Omit for a single-service recipe. |
 | `log_link` | — | all | Where a link the app writes to its log points — a login it waits for, like Tailscale's. The wizard's last step follows the installed container's logs and shows the newest link starting with it, so the user needn't open the logs. An `https://` address with a host and a path (`https://login.example.com/`): a link on any other site is never shown. Say what it is for in `instructions.md`. |
-| `git_repo` | ✅ (git_build) | git_build | Repo to `git clone` before building. |
 
-### `type` — the three install patterns
+### `type` — the install pattern
 
-| `type` | What Loskai runs | Notes |
-|---|---|---|
-| `pull` | `docker compose up -d` | Pre-built public image. |
-| `git_build` | `git clone <git_repo>` then `docker compose up -d --build` | Builds locally; needs `git_repo`. |
-| `registry_pull` | `docker compose up -d` | Image lives in your private Gitea registry. **Registry auth is a host precondition** — run `docker login <gitea-registry>` once on the Docker host; Loskai stores no registry credential. |
+`pull`, the only one: Loskai runs `docker compose up -d`, pulling a pre-built image. An
+image from a private registry works too, once the Docker host has run `docker login` for
+it — Loskai stores no registry credential. (`git_build` and `registry_pull` were dropped
+on 2026-11-13, never having been used by a recipe.)
 
 ---
 
@@ -202,8 +199,7 @@ exists either way) is routable from that picker.
 **Installing again.** Keep data beside the compose file (`./data`) — a stack's Delete keeps
 everything but `compose.yml`, its override, `.env` and `.loskai-recipe.json` unless told
 otherwise, and installing the same recipe again reuses that folder, data and all (the wizard
-says it did). A `git_build` recipe is the exception: it clones into an empty folder, so its
-install is refused while the folder exists. The record is kept
+says it did). The record is kept
 too: a reinstall re-points the earlier install's instance at the new container and leaves
 its route, icon and private flag alone. Because a route's id is its prefix, the recipe's id
 can already belong to something else — an external route, or a route to another container
@@ -407,16 +403,14 @@ take first. Trailers (`Co-Authored-By:`) are left out.
 
 Changing one of these is a new recipe id, or a commit message that says what to change by
 hand. Either way, an update is refused before anything is written unless `docker compose
-config` loads the new `compose.yml` with the stack's own override and `.env`. A `git_build`
-recipe isn't offered — it updates by reinstalling.
+config` loads the new `compose.yml` with the stack's own override and `.env`.
 
 ## Validation
 
 Loskai rejects a recipe (skips it, surfaces why) when:
 
 - `recipe.yml` is missing, not valid YAML, or not a mapping.
-- `name` or `type` is missing, `name` isn't text, or `type` is not one of the three values.
-- `type: git_build` with no `git_repo`.
+- `name` or `type` is missing, `name` isn't text, or `type` isn't `pull`.
 - an `env` entry is missing `key` or `label`.
 - `service` is present but is not a string.
 - an `env` entry's `type` is not `text` or `path`, or a `path` default is one of the cases

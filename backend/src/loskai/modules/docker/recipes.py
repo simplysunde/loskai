@@ -30,7 +30,7 @@ from .client import DOCKER_ERRORS, describe_error, docker_client
 
 logger = logging.getLogger(__name__)
 
-VALID_TYPES = {"pull", "git_build", "registry_pull"}
+VALID_TYPES = {"pull"}
 SOURCE_LOCAL = "local"
 # An `env` entry's `type`: what the wizard asks for, and how the answer is checked.
 # `path` is a host folder mounted into the container (see path_problem).
@@ -72,8 +72,6 @@ def validate_manifest(data: object) -> list[str]:
     rtype = data.get("type")
     if rtype not in VALID_TYPES:
         errors.append(f"'type' must be one of {sorted(VALID_TYPES)}")
-    if rtype == "git_build" and not data.get("git_repo"):
-        errors.append("type 'git_build' requires 'git_repo'")
     if "service" in data and not isinstance(data.get("service"), str):
         errors.append("'service' must be a compose service name")
     if "log_link" in data and not (
@@ -376,7 +374,6 @@ def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
         "description": data.get("description"),
         "env": data.get("env") or [],
         "suggested_subdomain": data.get("suggested_subdomain"),
-        "git_repo": data.get("git_repo"),
         # Which compose service is the published one, when the recipe runs several
         # (logic.primary_container). Optional — one service needs no declaration.
         "service": data.get("service"),
@@ -598,20 +595,7 @@ def install_recipe(
     # Also before any side effect: whose record this install will register under its id.
     slot = _instance_slot(recipe_id)
 
-    if recipe["type"] == "git_build":
-        # A clone needs an empty folder, so a leftover one can't be reused here.
-        target = stacks.stacks_dir() / recipe_id
-        if target.exists():
-            raise RecipeError(
-                f"'{recipe_id}' already has a folder in the stacks directory — a git_build "
-                "recipe clones into an empty one"
-            )
-        reused = False
-    else:
-        target, reused = stacks.claim_dir(recipe_id)
-
-    if recipe["type"] == "git_build":
-        _git_clone(recipe["git_repo"], target)
+    target, reused = stacks.claim_dir(recipe_id)
 
     compose_text = compose_src.read_text(encoding="utf-8")
     (target / "compose.yml").write_text(compose_text, encoding="utf-8")
@@ -626,8 +610,7 @@ def install_recipe(
     else:
         override_file.unlink(missing_ok=True)
 
-    build = recipe["type"] == "git_build"
-    result = _compose_up(target, build=build)
+    result = stacks.run_compose(target, "up", "-d")
     if not result["ok"]:
         # Nothing came up, so there is nothing to register. An instance whose `container`
         # names no container joins to nothing — it would show as a permanently orphaned
@@ -812,18 +795,3 @@ def _discover_container(recipe_id: str, declared: str | None) -> str | None:
     return logic.primary_container(containers, declared)
 
 
-def _git_clone(repo: str, target: Path) -> None:
-    try:
-        proc = subprocess.run(
-            ["git", "clone", "--depth", "1", repo, str(target)],
-            capture_output=True, text=True, timeout=GIT_TIMEOUT,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-        raise RecipeError(f"git clone failed: {exc}")
-    if proc.returncode != 0:
-        raise RecipeError((proc.stderr or proc.stdout).strip() or "git clone failed")
-
-
-def _compose_up(directory: Path, build: bool) -> dict:
-    args = ["up", "-d", "--build"] if build else ["up", "-d"]
-    return stacks.run_compose(directory, *args)

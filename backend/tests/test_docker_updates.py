@@ -84,7 +84,6 @@ def installed(tmp_path, monkeypatch):
         return {"ok": True, "output": " ".join(args)}
 
     monkeypatch.setattr(stacks, "run_compose", run)
-    monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
     monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])
     recipes.install_recipe("grafana", {"PORT": "8080"})
@@ -213,7 +212,6 @@ def test_a_git_sources_commits_since_the_install_are_listed(tmp_path, monkeypatc
     _git(cache, "add", ".")
     _git(cache, "commit", "-qm", "First")
     monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
-    monkeypatch.setattr(recipes, "_compose_up", lambda d, build: {"ok": True, "output": "Started"})
     monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
     monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])
     recipes.install_recipe("grafana", {})

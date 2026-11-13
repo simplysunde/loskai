@@ -23,7 +23,6 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
 from ..config import settings as env
-from . import settings as settings_store
 from . import store
 from .errors import LoskaiError
 
@@ -235,16 +234,11 @@ def verify(username: str, password: str) -> User | None:
 
 
 def ensure_seeded() -> None:
-    """At startup: an install from before accounts gets its password as the account `admin`
-    (the settings key then goes); a fresh one with `LOSKAI_PASSWORD` gets its first admin,
-    named `LOSKAI_USERNAME` (default `admin`). Otherwise first-run setup makes it."""
+    """At startup: a fresh install with `LOSKAI_PASSWORD` gets its first admin, named
+    `LOSKAI_USERNAME` (default `admin`). Otherwise first-run setup makes it."""
     if any_users():
         return
-    legacy = settings_store.admin_password_hash()
-    if legacy:
-        create("admin", "", ADMIN, hashed=legacy)
-        settings_store.drop_admin_password_hash()
-    elif env.loskai_password:
+    if env.loskai_password:
         # Lowercased, as login lowercases what is typed. A name that still isn't one stops
         # startup, saying which variable: skipping it would open first-run setup to anyone.
         name = (env.loskai_username or "admin").strip().lower()

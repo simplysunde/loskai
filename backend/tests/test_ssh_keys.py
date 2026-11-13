@@ -126,16 +126,3 @@ def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):
 
     assert client.public_key() != first
     assert unlock.unlocked_key("admin").export_public_key("openssh").decode().strip() == client.public_key()
-
-
-def test_a_key_from_before_phase_38_says_to_make_a_new_one(admin):
-    import asyncssh
-
-    old = asyncssh.generate_private_key("ssh-ed25519", comment="loskai")
-    client._private_path().write_text(old.export_private_key("openssh", passphrase="sealed").decode())
-    unlock.lock()
-
-    refused = _unlock(admin, ADMIN)
-
-    assert refused.status_code == 409 and "New key" in refused.json()["detail"]
-    assert unlock.unlocked_key("admin") is None

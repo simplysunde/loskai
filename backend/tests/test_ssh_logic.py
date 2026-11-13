@@ -131,12 +131,6 @@ def test_the_authorized_keys_line_restricts_the_key_to_the_docker_host():
     assert logic.authorized_keys_line(key, None) == key
 
 
-def test_the_public_key_is_read_from_the_encrypted_private_key():
-    key = asyncssh.generate_private_key("ssh-ed25519", comment="loskai")
-    encrypted = key.export_private_key("openssh", passphrase="secret").decode()
-
-    assert logic.public_key_of(encrypted, "loskai") == key.export_public_key("openssh").decode().strip()
-
 
 # --- The status key ---
 

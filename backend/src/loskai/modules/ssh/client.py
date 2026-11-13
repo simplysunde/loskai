@@ -44,23 +44,29 @@ def _known_hosts_path() -> Path:
 
 def public_key() -> str | None:
     """Loskai's public key (`ssh-ed25519 AAAA… loskai`), or None before one is made."""
-    path = _private_path()
-    if not path.exists():
+    if not _private_path().exists():
         return None
-    return logic.public_key_of(path.read_text(encoding="utf-8"), KEY_COMMENT)
+    return _public(load_key(), KEY_COMMENT)
 
 
 def create_key() -> str:
     """Generate a new key pair, replacing any old one, and return its public key."""
-    private = asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT).export_private_key("openssh").decode()
-    store.replace_private(_private_path(), private)
-    return logic.public_key_of(private, KEY_COMMENT)
+    key = asyncssh.generate_private_key(KEY_TYPE, comment=KEY_COMMENT)
+    store.replace_private(_private_path(), key.export_private_key("openssh").decode())
+    return _public(key, KEY_COMMENT)
 
 
 def load_key() -> asyncssh.SSHKey:
-    """The main private key. Raises `asyncssh.KeyImportError` for a key from before
-    Phase 38, which is encrypted, and FileNotFoundError before there is a key."""
+    """The main private key. FileNotFoundError before there is one."""
     return asyncssh.import_private_key(_private_path().read_text(encoding="utf-8"))
+
+
+def _public(key: asyncssh.SSHKey, comment: str) -> str:
+    """A key's public half as a line (`ssh-ed25519 AAAA… <comment>`) — read from the private
+    key itself, so it can never belong to a different one. The comment is how Loskai finds
+    its own lines in a machine's `authorized_keys`."""
+    key.set_comment(comment)
+    return key.export_public_key("openssh").decode().strip()
 
 
 def status_key() -> asyncssh.SSHKey:
@@ -73,7 +79,7 @@ def status_key() -> asyncssh.SSHKey:
 
 
 def status_public_key() -> str:
-    return status_key().export_public_key("openssh").decode().strip()
+    return _public(status_key(), logic.STATUS_COMMENT)
 
 
 def read_known_hosts() -> str:

@@ -359,10 +359,6 @@ function ReviewStep({
         </Row>
         <Row label="Install">
           <code className="text-slate-300">{recipe.type}</code>
-          {recipe.type === "git_build" ? " — clones the repo, then builds locally" : ""}
-          {recipe.type === "registry_pull"
-            ? " — needs docker login on the host, done once"
-            : ""}
         </Row>
         {paths(recipe).length > 0 && (
           <Row label="Data">

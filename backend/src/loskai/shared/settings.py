@@ -3,8 +3,7 @@
 `config.settings` supplies the env layer; `settings.json` (in the data volume) is the
 stored layer. Each value is resolved and tagged with its source so the UI can show
 env-set values read-only. Passwords are not settings: accounts live in `users.json`
-(`users.py`). A pre-accounts `admin_password_hash` stays here only until
-`users.ensure_seeded` moves it, and is never returned by the settings API.
+(`users.py`).
 """
 
 import logging
@@ -202,7 +201,7 @@ def recipe_sources() -> tuple[list[dict[str, Any]], Source]:
 
 
 def get_view() -> dict[str, Any]:
-    """Source-tagged settings for GET /api/settings. Never includes the admin hash."""
+    """Source-tagged settings for GET /api/settings."""
     stored = _read_stored()  # read once, resolve every key against it
     view: dict[str, Any] = {}
     for key in CONFIGURABLE_KEYS:
@@ -308,15 +307,6 @@ def update(payload: dict[str, Any]) -> dict[str, Any]:
 
 # --- Admin password hash (stored, never returned) ---
 
-
-def admin_password_hash() -> str | None:
-    """The one admin password of an install from before accounts — read once, to make it the
-    account `admin` (users.ensure_seeded), then dropped."""
-    return _read_stored().get("admin_password_hash")
-
-
-def drop_admin_password_hash() -> None:
-    _update_stored(lambda stored: {k: v for k, v in stored.items() if k != "admin_password_hash"})
 
 
 # --- Answer-IP derivation (used by the AdGuard rewrite / assign flow) ---

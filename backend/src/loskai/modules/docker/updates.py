@@ -141,9 +141,7 @@ def _entry(directory: Path, compose: Path, record: dict | None, recipe: dict) ->
     defaults, unanswered = new_questions(recipe["env"], stacks.env_text(directory))
     state = status(installed, offered, record["compose"] if record else None)
     reason = None
-    if recipe["type"] == "git_build":
-        reason = "this recipe builds from source — reinstall it to update"
-    elif unanswered:
+    if unanswered:
         reason = f"the new version asks for {', '.join(unanswered)} — reinstall to answer"
     changed = state != "current"
     return {

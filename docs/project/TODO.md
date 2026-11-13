@@ -935,7 +935,7 @@ places. Four bugs they found, each checked in the code, go first.
 - [x] 46j Backend: which recipe a stack came from, once; the small duplicates and stale
       comments. Not done: one git runner — each of the four calls handles its failure its
       own way (raise, None, []), so a wrapper would only save the keyword arguments
-- [ ] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
+- [x] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
       pre-Phase-38 key's refusal
 - [ ] Backend live
 - [ ] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
