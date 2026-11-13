@@ -368,8 +368,9 @@ rule covers, or a user `sudo -n true` lets in. Given the password, it checks it 
 for a minute, for that user and machine. The terminal takes the ticket: its pty opens with
 echo off, the password is the first line, and `tool.visible` reads it and hands it to
 `sudo -S -v` in the run's own tty, so every `sudo` after it finds sudo's timestamp. A tmux
-pane is another tty, so there it goes through a FIFO in a `mktemp -d` folder. The run
-ends by itself when it succeeds, and the dialog closes with it.
+pane is another tty, so there it goes through a FIFO in a `mktemp -d` folder; a pane sent
+nothing within 30 seconds (a connection cut off as it started) ends, so the next run of
+that action starts fresh rather than attaching to it. The run ends by itself when it succeeds, and the dialog closes with it.
 
 **Tools** are what a machine's dialog can *do* (Phase 34f): YAML files in
 `modules/ssh/tools/`, shipped in the image. Each names the programs it requires (from the

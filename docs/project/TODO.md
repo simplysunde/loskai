@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 47** (below) split the big files where a seam is. Phases
+**Now:** **Phase 48** (below) — the open bugs before a release. Phase 47 split the big
+files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
 [`todo-archive.md`](todo-archive.md) with Phases 1–33 and 37; what is left in them is live
@@ -47,12 +48,6 @@ visible without unpacking a phase back out. The checklists stay in
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
   the tool schema that keeps its value out. From the 2026-11-05 review.
-- **An automatic run cut off before its password arrives leaves its session waiting.** The
-  run's first line reads the sudo password; when its connection ends before that, its tmux
-  session (`loskai-<tool>-<action>`) stays on the machine, blocked on the read, and the next
-  run of that action attaches to it — a blank terminal — instead of starting. Seen live
-  2026-11-06, left by the dev build's double-opened socket (fixed); any connection dropped at
-  that moment does the same. Needs a timeout on that read, or a run that starts fresh.
 - **The sudo ticket rides in the terminal's URL**, so uvicorn's access log has it. It is
   one-time and lasts a minute, and the password itself is never there; sending it as the
   socket's first message would keep it out of the log. From the 2026-11-06 review.
@@ -75,6 +70,26 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 48 — The open bugs, before a release
+
+Asked 2026-11-13: "let's do what we can now like the bugfixing", after a look at what stands
+between today and a first release. The bugs are the ones under *Open, not in flight*.
+
+**Steps**
+
+- [x] 48a An automatic run cut off before its password arrives leaves its tmux session
+      waiting, and the next run of that action attaches to it — a blank terminal (seen live
+      2026-11-06). The pane now waits `tool.PASSWORD_WAIT` (30 s) for the password, then
+      removes its folder and ends — tested with a pane sent nothing; live in tmux, the
+      session ended by itself
+- [ ] 48b The sudo ticket out of the terminal's URL (uvicorn's access log has it): sent as
+      the socket's first message
+- [ ] 48c A closed container terminal ends its shell
+- [ ] 48d Wrong passwords counted per client as well as per account
+- [ ] 48e A sudo rule Loskai can't see is not reported as removed
 
 ---
 

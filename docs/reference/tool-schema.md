@@ -212,7 +212,8 @@ Adding a tool runs the same way, but never inside tmux: tmux may be what it inst
 
 It opens in the machine's terminal, so it needs Loskai's key unlocked like any terminal.
 With sudo's password from the dialog, the terminal's first line is that password, which
-the command reads with echo off and hands to `sudo -S -v`; in tmux, through a FIFO.
+the command reads with echo off and hands to `sudo -S -v`; in tmux, through a FIFO, and a
+pane sent nothing within 30 seconds ends.
 The SSH log records it as `action` (with the tool, the action, the target, the command and
 the tmux session), `add-tool` (with the tool, the programs and the command) or `sudo-rule`
 (`allow` — put on or taken off — and the command), each with `sudo_password: true` when the

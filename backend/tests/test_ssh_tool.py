@@ -1,6 +1,7 @@
 """Tools: the shipped files are valid, a bad one says every problem, and what runs is
 built from the file — the target only ever an argument."""
 
+import os
 import subprocess
 
 import pytest
@@ -143,6 +144,32 @@ def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_sess
     assert 'mkfifo "$d/p"' in command and 'rm -rf "$d"' in command
     assert "tmux new-session -d -s loskai-system-update" in command
     assert command.endswith("exec tmux attach-session -t =loskai-system-update")
+
+
+def _pane(tmp_path, job):
+    """A run's tmux pane, run as tmux would: in its own folder, beside the FIFO."""
+    folder = tmp_path / "run"
+    folder.mkdir()
+    os.mkfifo(folder / "p")
+    script = tool._pane_reads_password() + job
+    return folder, subprocess.Popen(["sh", "-c", script], cwd=folder, env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+                                    stdout=subprocess.PIPE, text=True)
+
+
+def test_the_pane_reads_the_password_then_removes_its_folder(tmp_path):
+    folder, pane = _pane(tmp_path, 'printf "<%s>" "$p"')
+    (folder / "p").write_text("hunter22\n")
+    out, _ = pane.communicate(timeout=10)
+    assert out == "<hunter22>" and not folder.exists()
+
+
+def test_a_pane_sent_no_password_ends_rather_than_wait_for_the_next_run(tmp_path, monkeypatch):
+    """Cut off between the session starting and the password arriving, the pane used to
+    wait on the FIFO for good — and the next run of that action attached to it, blank."""
+    monkeypatch.setattr(tool, "PASSWORD_WAIT", 1)
+    folder, pane = _pane(tmp_path, "echo ran")
+    out, _ = pane.communicate(timeout=10)
+    assert pane.returncode != 0 and out == "" and not folder.exists()
 
 
 def test_automatic_must_be_true_or_false():

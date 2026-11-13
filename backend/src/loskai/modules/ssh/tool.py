@@ -462,6 +462,20 @@ _SUDO_VALIDATE = "printf '%s\\n' \"$p\" | sudo -S -p '' -v 2>/dev/null; p="
 # The first line the terminal is sent is sudo's password: read with echo off — the pty is
 # opened without it — and echo back on for the rest.
 _READ_PASSWORD = "IFS= read -r p; stty echo 2>/dev/null; "
+# How long a run's tmux pane waits for the password. It is sent the moment the session
+# starts, so only a connection cut off in between leaves the pane waiting — and a pane left
+# blocked on the read would be what the next run of that action attaches to: a blank terminal.
+PASSWORD_WAIT = 30  # seconds
+
+
+def _pane_reads_password() -> str:
+    """The pane's start: it reads the password from the FIFO in its folder, then removes
+    the folder and goes home — or, sent nothing within `PASSWORD_WAIT`, removes it and
+    ends, and its session with it."""
+    return (
+        f'd=$PWD; (sleep {PASSWORD_WAIT}; rm -rf "$d"; kill $$) </dev/null >/dev/null 2>&1 & k=$!; '
+        'IFS= read -r p < p; kill $k; cd; rm -rf "$d"; '
+    )
 
 
 def visible(
@@ -480,7 +494,7 @@ def visible(
     With `password`, the terminal's first line is sudo's password (`connect.prepare`
     checked it). It is never in a command line: read into a shell variable, and handed to
     `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
-    through a FIFO in a folder of its own, read once and removed."""
+    through a FIFO in a folder of its own, read once and removed; a pane sent nothing ends (`PASSWORD_WAIT`)."""
     folder = PROJECTS if projects is None else projects
     body = (
         USER_PATH + "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; "
@@ -497,9 +511,9 @@ def visible(
         return job
     if not session:
         return _READ_PASSWORD + _SUDO_VALIDATE + "; " + job
-    # The pane starts in the FIFO's folder, reads it, and goes home. A session already
+    # The pane starts in the FIFO's folder (`_pane_reads_password`). A session already
     # running is attached to, as `-A` does, and the password not sent.
-    inner = "IFS= read -r p < p; cd; " + _SUDO_VALIDATE + "; " + job
+    inner = _pane_reads_password() + _SUDO_VALIDATE + "; " + job
     name = shlex.quote(session)
     return (
         _READ_PASSWORD + 'd=$(mktemp -d) && mkfifo "$d/p" && '
