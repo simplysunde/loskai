@@ -1,7 +1,7 @@
 import { ExternalLink, Boxes } from "lucide-react";
 
 export interface DashboardCard {
-  id?: string;
+  id: string;
   name: string;
   url: string | null;
   // Path to the uploaded image, or null for the generic glyph. A desktop launcher reading
