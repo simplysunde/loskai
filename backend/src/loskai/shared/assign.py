@@ -32,7 +32,7 @@ from ..modules.adguard.client import AdGuardError, adguard
 from ..modules.adguard.service import target_answer
 from ..modules.caddy import service as caddy_service
 from ..modules.caddy.client import CaddyError, caddy, describe_error
-from ..modules.docker import recipes
+from ..modules.docker import install
 from ..modules.docker.client import docker_client
 from ..modules.ssh import machines as ssh_machines
 from . import access, auth, follow
@@ -337,7 +337,7 @@ async def _recipe_icon(inst: Instance) -> Instance:
     if not inst.container:
         return inst
     try:
-        iconed = await asyncio.to_thread(recipes.recipe_icon, inst)
+        iconed = await asyncio.to_thread(install.recipe_icon, inst)
     except Exception:
         logger.exception("recipe icon for '%s' not applied", inst.container)
         return inst

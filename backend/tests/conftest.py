@@ -47,6 +47,17 @@ def _isolated_settings(monkeypatch, tmp_path):
         monkeypatch.setattr(settings, name, str(path))
 
 
+def make_recipe(base, name, display, extra_manifest="", compose=True):
+    """A recipe folder under `base`: its `recipe.yml`, and a one-service compose file."""
+    folder = base / name
+    folder.mkdir(parents=True)
+    manifest = f"name: {display}\ntype: pull\n{extra_manifest}"
+    (folder / "recipe.yml").write_text(manifest)
+    if compose:
+        (folder / "compose.yml").write_text("services:\n  app:\n    image: x\n")
+    return folder
+
+
 @pytest.fixture
 def admin():
     """A client signed in as the first admin, `admin` — as first-run setup leaves you."""
@@ -77,7 +88,7 @@ def _no_follower(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_docker_labels(monkeypatch):
-    """A new container route looks up its recipe's icon (recipes.recipe_icon), which asks
+    """A new container route looks up its recipe's icon (install.recipe_icon), which asks
     Docker for the container's labels. No compose labels means no icon, so route tests
     never reach the developer's daemon; the icon tests set their own."""
     monkeypatch.setattr(docker_client, "labels_of", lambda container: {})

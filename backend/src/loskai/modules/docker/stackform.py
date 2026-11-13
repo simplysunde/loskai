@@ -15,7 +15,7 @@ import re
 import yaml
 
 from ...shared import store
-from . import dotenv, logic, override, recipes, stacks
+from . import dotenv, install, logic, manifest, override, stacks
 from .stacks import StackError
 
 _VAR_RE = re.compile(r"\$\$|\$\{([A-Za-z_]\w*)(?:(:?[-?+])([^}]*))?\}|\$([A-Za-z_]\w*)")
@@ -119,7 +119,7 @@ def folders_problem(folders: list[dict], services: set[str]) -> str | None:
             return f"'{f['service']}' is not a service in this stack"
         if not source:
             return "a folder has no host path"
-        problem = recipes.path_problem(source)
+        problem = manifest.path_problem(source)
         if problem:
             return f"{source}: {problem}"
         if not target.startswith("/") or ":" in target:
@@ -170,7 +170,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
     if problem:
         raise StackError(f"compose.override.yml {problem}")
     env = dotenv.parse_env(env_text)
-    recipe = recipes.stack_recipe(directory)
+    recipe = install.stack_recipe(directory)
     questions = {str(q["key"]): q for q in (recipe["env"] if recipe else [])}
 
     variables = referenced(doc)
@@ -235,7 +235,7 @@ def save_form(
     env_text, override_text = _base(base) or (disk_env, disk_override)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     # Looked up once: it scans every recipe source.
-    recipe = recipes.stack_recipe(directory) if options or settings else None
+    recipe = install.stack_recipe(directory) if options or settings else None
 
     new_override = override_text
     if folders is not None:
@@ -279,7 +279,7 @@ def save_form(
         questions = {str(q["key"]): q for q in ((recipe or {}).get("env") or [])}
         for key, value in settings.items():
             if questions.get(key, {}).get("type") == "path" and str(value).strip():
-                problem = recipes.path_problem(str(value))
+                problem = manifest.path_problem(str(value))
                 if problem:
                     raise StackError(f"{questions[key]['label']}: {problem}")
         new_env = dotenv.set_env(env_text, {str(k): str(v) for k, v in settings.items()})

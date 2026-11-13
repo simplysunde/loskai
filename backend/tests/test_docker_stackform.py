@@ -4,7 +4,7 @@ changing only what the form shows."""
 import pytest
 import yaml
 
-from loskai.modules.docker import dotenv, override, recipes, stackform, stacks
+from loskai.modules.docker import dotenv, install, override, stackform, stacks
 from loskai.modules.docker.stacks import StackError
 
 COMPOSE = """\
@@ -323,8 +323,8 @@ def test_a_save_looks_the_recipe_up_once(stack, tmp_path, monkeypatch):
     )
     (folder / "compose.yml").write_text(COMPOSE)
     calls = []
-    real = recipes.stack_recipe
-    monkeypatch.setattr(recipes, "stack_recipe", lambda d: calls.append(d) or real(d))
+    real = install.stack_recipe
+    monkeypatch.setattr(install, "stack_recipe", lambda d: calls.append(d) or real(d))
     saved = stackform.save_form("jellyfin", {"PORT": "8097"}, None, preview=True, options={"hwaccel": True})
     assert 'PORT="8097"' in saved["env"] and "/dev/dri" in saved["override"]
     assert len(calls) == 1

@@ -11,7 +11,8 @@ no settings, nothing written.
 import sys
 from pathlib import Path
 
-from .recipes import RecipeError, _load_folder
+from .manifest import RecipeError
+from .recipes import _load_folder
 
 
 def check(paths: list[Path]) -> list[tuple[str, str | None]]:

@@ -23,6 +23,7 @@ from ...shared import terminal
 from ..adguard.client import adguard
 from ..caddy.client import caddy
 from . import logic
+from . import install
 from . import recipes as recipes_mod
 from . import stackform as stackform_mod
 from . import stacks as stacks_mod
@@ -318,7 +319,7 @@ def recipe_icon(recipe_id: str) -> FileResponse:
 
 @router.post("/recipes/{recipe_id}/install")
 def install_recipe(recipe_id: str, payload: dict = Body(default={})) -> dict:
-    return recipes_mod.install_recipe(
+    return install.install_recipe(
         recipe_id, payload.get("answers", {}), payload.get("mounts") or [], payload.get("options") or []
     )
 

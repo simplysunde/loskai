@@ -54,7 +54,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
 - `modules/<name>/` — `client.py` is I/O only; logic is pure (`service.py`, `logic.py`);
   `router.py` is the HTTP surface. WireGuard is only a reachability probe and a peer DNS hint.
 - `modules/docker/` — `stacks.py` (a stack is a folder in `STACKS_DIR`; compose runs),
-  `recipes.py` (sources, sync, validation, install, the recipe icon), `dotenv.py` (`.env`
+  `recipes.py` (the sources, their scan and sync), `manifest.py` (what a `recipe.yml` and
+  the answers to it may be — pure), `install.py` (an install, its record, the recipe icon), `dotenv.py` (`.env`
   read, changed and written), `override.py` (`compose.override.yml`: folders and options),
   `stackform.py` (the editor's form), `updates.py` (Check for updates),
   `check_recipes.py` (the validator as a CLI), `quick_commands.py` (terminal presets).

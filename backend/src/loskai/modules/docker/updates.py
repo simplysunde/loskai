@@ -5,7 +5,7 @@ replaces it. `.env` holds the answers — an update only adds a line for a quest
 have. `compose.override.yml` is the user's — an update never touches it, and is refused if
 the new compose.yml won't load with it.
 
-Pure helpers first, then the filesystem and git I/O, as in recipes.py.
+Pure helpers first, then the filesystem and git I/O.
 """
 
 import difflib
@@ -17,8 +17,8 @@ from pathlib import Path
 import yaml
 
 from ...shared import store
-from . import dotenv, recipes, stacks
-from .recipes import RecipeError
+from . import dotenv, install, recipes, stacks
+from .manifest import RecipeError
 from .stacks import StackError
 
 _TRAILER_RE = re.compile(r"^[A-Za-z][\w-]*: \S")
@@ -40,9 +40,9 @@ def status(installed: str, offered: str, recorded: str | None) -> str:
         return "current"
     if recorded is None:
         return "untracked"
-    if recipes.fingerprint(offered) == recorded:
+    if install.fingerprint(offered) == recorded:
         return "current"
-    return "available" if recipes.fingerprint(installed) == recorded else "edited"
+    return "available" if install.fingerprint(installed) == recorded else "edited"
 
 
 def compose_diff(installed: str, offered: str) -> str:
@@ -170,7 +170,7 @@ def _installed() -> list[tuple[Path, Path, dict | None, dict | None, str]]:
         compose = stacks.compose_path(directory)
         if compose is None:
             continue
-        record, rid = recipes.installed_as(directory)
+        record, rid = install.installed_as(directory)
         if record or rid in catalog:
             found.append((directory, compose, record, catalog.get(rid), rid))
     return found
@@ -223,5 +223,5 @@ def apply_update(name: str) -> dict:
     defaults, _ = new_questions(recipe["env"], text)
     if defaults:
         store.write_private(directory / ".env", text + ("" if not text or text.endswith("\n") else "\n") + dotenv.render_env(defaults))
-    recipes.write_record(directory, recipe, offered)
+    install.write_record(directory, recipe, offered)
     return stacks.stack_action(name, "pull")

@@ -60,10 +60,10 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | A container's upstream, as Caddy reaches it | `modules/docker/logic.py` `suggested_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `components/routing/containerPrefill.ts` `lib/containers.ts` `pages/Routing.tsx` |
 | A container's address, as the browser reaches it | `modules/docker/logic.py` `published_upstream` | `modules/docker/client.py` `shared/follow.py` `components/docker/InstallWizard.tsx` `components/routing/AddRouteModal.tsx` `lib/containers.ts` `pages/Routing.tsx` |
 | A route following its container to a new port | `shared/follow.py` `derive_upstream` `derive_published` | `shared/assign.py` |
-| What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/recipes.py` `modules/docker/updates.py` |
-| Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/recipes.py` |
+| What a generated `.env` says: every value quoted and escaped | `modules/docker/dotenv.py` `render_env` | `modules/docker/install.py` `modules/docker/updates.py` |
+| Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/install.py` |
 | A stack by name, or a 404; its `.env` as written | `modules/docker/stacks.py` `require_stack` `env_text` | `modules/docker/stackform.py` `modules/docker/updates.py` |
-| Which recipe a stack came from: its install record's, else its folder's name | `modules/docker/recipes.py` `installed_as` `stack_recipe` | `modules/docker/stackform.py` `modules/docker/updates.py` |
+| Which recipe a stack came from: its install record's, else its folder's name | `modules/docker/install.py` `installed_as` `stack_recipe` | `modules/docker/stackform.py` `modules/docker/updates.py` |
 | Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailed` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | The recipe list, and its type | `lib/recipes.ts` `useRecipes` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
@@ -87,7 +87,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | The level each route needs | `shared/access.py` `rule_for` `allows` | `shared/auth.py` |
 | Asking for a password again, with the login backoff | `shared/auth.py` `check_password` | `modules/ssh/router.py` |
 | Who may open a terminal WebSocket, and when it closes | `shared/terminal.py` `accept` `relay` | `modules/docker/router.py` `modules/ssh/router.py` |
-| Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/recipes.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
+| Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/install.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
 | A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
 
@@ -131,5 +131,5 @@ server. Change one side, change the other in the same commit.
 | What a name and an upstream may be | `validate_prefix`, `validate_upstream` | `lib/validation.ts` | The server enforces; the browser only says so while typing. A rule only the browser has isn't a rule. |
 | Whether removing a machine, or its SSH, takes Loskai's things off it first — and so needs the key unlocked | `connect.removal` | `takesKeysOff`, `removalNeedsPassword` (`lib/ssh.ts`) | The same test: a key, and the machine's host key trusted. Nothing checks they agree; a page that skips the password gets the server's `423` and asks then. |
 | Whether a run is automatic: no terminal to type in, sudo's password asked first | `connect.plan` (`Action.automatic`, adding a tool, the sudo rule) | `useToolRunner` | The tool file's `automatic`, sent with each action; the other two are always automatic on both sides. |
-| What a folder to mount may be | `recipes.path_problem`, `resolve_mounts`, `stackform.folders_problem` | `pathProblem`, the wizard's `folderProblems`, `StackForm`'s `folderProblem` | The server enforces; the browser says so before saving. They drifted once — a `:` in a container path (2026-11-13). |
+| What a folder to mount may be | `manifest.path_problem`, `resolve_mounts`, `stackform.folders_problem` | `pathProblem`, the wizard's `folderProblems`, `StackForm`'s `folderProblem` | The server enforces; the browser says so before saving. They drifted once — a `:` in a container path (2026-11-13). |
 | Where a route or link will open, shown before it is saved | `open_url` | `useRouteFields`' `opensAt` (the three route forms), and the install wizard's `LinkNow` | Nothing checks they agree: the record doesn't exist until it is saved, so there is nothing to ask the server. A link opens at `http://` or, when its backend speaks HTTPS, `https://` and its address; a route at `https://` and its name, `http://` only when it is HTTP only. Once saved, every row opens at the server's `url`. |

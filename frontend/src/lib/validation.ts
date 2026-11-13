@@ -64,7 +64,7 @@ export function isValidDnsTarget(value: string): boolean {
 }
 
 // A host folder a recipe mounts (an `env` entry with `type: path`). Mirrors the backend's
-// recipes.path_problem — each of these installs fine and mounts somewhere unintended: `~`
+// manifest.path_problem — each of these installs fine and mounts somewhere unintended: `~`
 // expands inside Loskai's container (compose runs as root there: /root), a bare name is a
 // Docker volume rather than a folder, and a ':' splits the volume spec.
 export function pathProblem(value: string): string | null {

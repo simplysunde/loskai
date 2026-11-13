@@ -5,8 +5,8 @@ import subprocess
 
 import pytest
 
-from loskai.modules.docker import recipes, stacks, updates
-from loskai.modules.docker.recipes import RecipeError
+from loskai.modules.docker import install, recipes, stacks, updates
+from loskai.modules.docker.manifest import RecipeError
 from loskai.shared import settings as settings_store
 
 V1 = "services:\n  app:\n    image: grafana/grafana:11.0\n"
@@ -18,7 +18,7 @@ ENV_SPEC = 'env:\n  - key: PORT\n    label: Host port\n    default: "3000"\n'
 
 
 def test_status_tells_the_recipe_moving_on_from_a_hand_edit():
-    installed = recipes.fingerprint(V1)
+    installed = install.fingerprint(V1)
     assert updates.status(V1, V1, installed) == "current"
     assert updates.status(V1, V2, installed) == "available"
     edited = V1 + "    restart: always\n"
@@ -84,15 +84,15 @@ def installed(tmp_path, monkeypatch):
         return {"ok": True, "output": " ".join(args)}
 
     monkeypatch.setattr(stacks, "run_compose", run)
-    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
-    monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])
-    recipes.install_recipe("grafana", {"PORT": "8080"})
+    monkeypatch.setattr(install.docker_client, "container_names", lambda: set())
+    monkeypatch.setattr(install.docker_client, "containers_in_project", lambda project: [])
+    install.install_recipe("grafana", {"PORT": "8080"})
     return {"recipe": folder, "stack": stacks.stacks_dir() / "grafana", "runs": runs}
 
 
 def test_install_records_the_recipe_and_its_compose(installed):
-    record = recipes.read_record(installed["stack"])
-    assert record == {"recipe": "grafana", "source": None, "commit": None, "compose": recipes.fingerprint(V1)}
+    record = install.read_record(installed["stack"])
+    assert record == {"recipe": "grafana", "source": None, "commit": None, "compose": install.fingerprint(V1)}
 
 
 def test_a_recipe_unchanged_since_install_is_current(installed):
@@ -154,7 +154,7 @@ def test_an_update_replaces_only_the_recipes_file(installed):
     # The answer given at install stays exactly as written; the new question gets its default.
     assert (stack / ".env").read_text() == 'PORT="8080"\nTZ="Europe/Oslo"\n'
     assert (stack / ".env").stat().st_mode & 0o777 == 0o600
-    assert recipes.read_record(stack)["compose"] == recipes.fingerprint(V2)
+    assert install.read_record(stack)["compose"] == install.fingerprint(V2)
     assert not (stack / ".compose.next.yml").exists()
     # Checked with the user's override before anything was written, then pulled and upped.
     assert installed["runs"][0] == ("-f", ".compose.next.yml", "-f", "compose.override.yml", "config", "--quiet")
@@ -212,9 +212,9 @@ def test_a_git_sources_commits_since_the_install_are_listed(tmp_path, monkeypatc
     _git(cache, "add", ".")
     _git(cache, "commit", "-qm", "First")
     monkeypatch.setattr(stacks, "run_compose", lambda d, *a: {"ok": True, "output": ""})
-    monkeypatch.setattr(recipes.docker_client, "container_names", lambda: set())
-    monkeypatch.setattr(recipes.docker_client, "containers_in_project", lambda project: [])
-    recipes.install_recipe("grafana", {})
+    monkeypatch.setattr(install.docker_client, "container_names", lambda: set())
+    monkeypatch.setattr(install.docker_client, "containers_in_project", lambda project: [])
+    install.install_recipe("grafana", {})
 
     (cache / "grafana" / "compose.yml").write_text(V2)
     _git(cache, "commit", "-qam", "Grafana 12.0\n\nDashboards migrate on first start.\n\nCo-Authored-By: A <a@b>")

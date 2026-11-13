@@ -155,7 +155,7 @@ async def test_assign_with_container_creates_docker_instance():
 
 async def test_a_new_container_route_gets_its_recipes_icon(monkeypatch):
     monkeypatch.setattr(
-        assign.recipes, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
+        assign.install, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
     )
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
@@ -169,7 +169,7 @@ async def test_a_failed_icon_lookup_never_fails_the_route(monkeypatch):
     def broken(inst):
         raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
 
-    monkeypatch.setattr(assign.recipes, "recipe_icon", broken)
+    monkeypatch.setattr(assign.install, "recipe_icon", broken)
     caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
         caddy, adguard, prefix="grafana", upstream="192.168.10.100:3000",
@@ -186,7 +186,7 @@ async def test_the_icon_keeps_a_change_made_while_it_was_looked_up(monkeypatch):
         instances_store.follow_upstream(inst.id, inst.upstream, "192.168.10.100:3001")
         return inst.model_copy(update={"icon": "grafana.png"})
 
-    monkeypatch.setattr(assign.recipes, "recipe_icon", slow)
+    monkeypatch.setattr(assign.install, "recipe_icon", slow)
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
         base_domain=BASE, current_ip=IP, container="grafana-app-1", follow_container=True,
@@ -201,7 +201,7 @@ async def test_an_existing_record_keeps_no_icon_once_removed(monkeypatch):
         Instance(id="grafana", name="Grafana", type="docker", container="grafana-app-1", subdomain="grafana")
     )
     monkeypatch.setattr(
-        assign.recipes, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
+        assign.install, "recipe_icon", lambda inst: inst.model_copy(update={"icon": "grafana.png"})
     )
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="dashboards", upstream="192.168.10.100:3000",
