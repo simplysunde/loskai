@@ -3,7 +3,7 @@
 # check-docs.sh — validate the documentation's internal wiring.
 # Run FROM anywhere:  bash scripts/check-docs.sh
 #
-# Nine checks:
+# Eleven checks:
 #   1. Relative links (inline or reference-style) that point at a file which doesn't exist.
 #   2. Heading anchors (#some-section) that no heading actually produces.
 #   3. Orphans — pages under docs/ not reachable from docs/README.md, the index.
@@ -23,6 +23,11 @@
 #      CLAUDE.md, and every route against its row in docs/reference/api.md.
 #   9. docs/contributing/where-logic-lives.md: each decision's owner is still defined in the
 #      file its row names, and its Used by column is what scripts/where-used.py finds.
+#  10. Each phase lives in one of TODO.md and todo-archive.md, not both, and the "finished
+#      phases (…)" ranges in CLAUDE.md, docs/README.md and the archive's header are the
+#      archive's phases. TODO.md had grown back to 1,017 lines of finished phases (2026-11-13).
+#  11. The instance schema in architecture.md against the Instance model: every field, and
+#      every value of a field with a fixed set. It left out route_mode "direct" for a link.
 #
 # Docs are segmented by audience (docs/guides, docs/reference, docs/contributing), so a
 # link's correct depth depends on where its file sits. That is easy to get wrong by hand
@@ -321,6 +326,65 @@ PY
 
 log "Checking where-logic-lives.md against the code"
 python3 scripts/where-used.py --check
+
+log "Checking where each phase lives"
+python3 - <<'PY'
+import re, sys
+
+def phases(path):
+    return {int(n) for n in re.findall(r"^## Phase (\d+)", open(path, encoding="utf-8").read(), re.M)}
+
+def expand(text):
+    found = set()
+    for part in text.split(","):
+        lo, _, hi = part.strip().partition("–")
+        found |= set(range(int(lo), int(hi or lo) + 1))
+    return found
+
+todo, archive = phases("docs/project/TODO.md"), phases("docs/project/todo-archive.md")
+problems = [f"  Phase {n} is in both TODO.md and todo-archive.md" for n in sorted(todo & archive)]
+for path in ("CLAUDE.md", "docs/README.md", "docs/project/todo-archive.md"):
+    for stated in re.findall(r"[Ff]inished phases? \(([0-9–, ]+)\)", open(path, encoding="utf-8").read()):
+        if expand(stated) != archive:
+            problems.append(f"  {path}: says the archive holds phases ({stated}); it holds {sorted(archive)}")
+print(f"TODO.md: {sorted(todo)} · archive: {len(archive)} phases")
+if problems:
+    print("\n".join(problems))
+    sys.exit(1)
+PY
+
+log "Checking architecture.md's instance schema against the model"
+python3 - <<'PY'
+import ast, re, sys
+
+model = next(
+    n for n in ast.parse(open("backend/src/loskai/shared/instances.py", encoding="utf-8").read()).body
+    if isinstance(n, ast.ClassDef) and n.name == "Instance"
+)
+fields = {}
+for f in model.body:
+    if isinstance(f, ast.AnnAssign) and isinstance(f.target, ast.Name):
+        ann = f.annotation
+        literal = (
+            [e.value for e in ann.slice.elts] if isinstance(ann, ast.Subscript)
+            and getattr(ann.value, "id", "") == "Literal" else []
+        )
+        fields[f.target.id] = literal
+text = open("docs/project/architecture.md", encoding="utf-8").read()
+block = text[text.index("An **instance** is anything Loskai knows by name"):]
+block = block[block.index("```jsonc") : block.index("```", block.index("```jsonc") + 3)]
+documented = {m.group(1): m.group(2) for m in re.finditer(r'^\s*"(\w+)":[^\n]*?(//[^\n]*)?$', block, re.M)}
+problems = [f"  the model's {name} is missing from the schema" for name in fields if name not in documented]
+problems += [f"  the schema's {name} is no field of the model" for name in documented if name not in fields]
+for name, values in fields.items():
+    for value in values:
+        if name in documented and f'"{value}"' not in (documented[name] or ""):
+            problems.append(f'  {name}: "{value}" is a value the schema doesn\'t name')
+print(f"Instance: {len(fields)} fields, the schema: {len(documented)}")
+if problems:
+    print("\n".join(problems))
+    sys.exit(1)
+PY
 
 log "Checking the recipes repo's copy of the schema"
 if [ -d "${LOSKAI_RECIPES_DIR:-../loskai-recipes}" ]; then

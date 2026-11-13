@@ -12,8 +12,8 @@ lean — about 5–7% could go — and that the value was elsewhere: the dozen *
 two or more places**, which is CLAUDE.md's "each decision lives in one place" and the
 pattern behind this project's worst bugs. Aim at those, not at the line count, and say so
 in the estimate. Its write-up — what became one, what was left alone and why — is Phase 40
-in `docs/project/TODO.md` (later the archive) and its entry in `docs/project/HISTORY.md`.
-Read both before a second sweep, so it doesn't redo or undo the first.
+in `docs/project/todo-archive.md` and its entry in `docs/project/HISTORY.md`; the second
+(Phase 46, 2026-11-13) is beside it. Read both before another, so it doesn't redo or undo them.
 
 There are two stages, and the first changes nothing.
 
@@ -121,6 +121,10 @@ asserting the effect, not the response. Never against the repo's `data/` (live s
   left goes too, the check as a line under "Open, not in flight"), and CLAUDE.md's pointer
   to the archive updated.
 - A "superseded by" line on each HISTORY entry a later one overturned without saying so.
+- What no check can see (Phase 46): TODO.md's "Now:" line, counts written into the backlog,
+  and a phase's own decisions walked back later.
+- Live, look at what the suite fakes: Phase 46 found AdGuard keeps a duplicate rewrite, which
+  every fake client had hidden.
 - Teach `check-docs.sh` the class of drift found, and prove it by breaking it once.
 - The HISTORY entry: why the sweep aimed where it did, what became one, what was
   deliberately not done, what is Sunde's call.

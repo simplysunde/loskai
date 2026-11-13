@@ -4,6 +4,45 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — The second sweep: decisions made twice again (Phase 46)
+
+Sunde asked for a checkpoint (the tag `checkpoint-2026-11-13`) and a refactor of the whole
+codebase. Three read-only reviews, as in Phase 40, found it still lean — 2–3% could go — so
+the sweep aimed again at decisions made in two or more places: the 157 commits since Phase
+40 had brought back about a dozen.
+
+**Bugs, each with a test that failed before:** a new stack whose `up` failed closed as if it
+had worked; Check for updates counted recipes it couldn't update; the SSH setup dialog
+built its login from `HostName` alone (`user@undefined`), now the server's `targets`; the
+Dashboard keyed cards by a name that can repeat; the overview read Tailscale's state its own
+way; the wizard said nothing when a sync or an install failed; a typed name was lost on a
+Cancel; the stack form let a `:` through that the server refuses. And one found in the live
+check: **AdGuard keeps a second copy of an identical rewrite**, and every save of a route or
+a machine added one — `adguard-api.md` had said re-adding was harmless.
+
+**What became one:** AdGuard's expected rewrite and its hand-added rule (`expected`,
+`foreign`); each status set where its error is raised (`ToolError`, `instances.require`,
+`require_base`); the status line's version, a number instead of three lists; saving a
+machine, out of its HTTP handler (`save_machine`); which recipe a stack came from; a stack
+or a 404, and its `.env`; the route forms' preview and follow toggle; what a change to the
+records refreshes; the recipe list and its type; the save banner; a file download; the
+tests' signed-in admin. Settings in tests no longer read the environment.
+
+**Old code dropped**, at Sunde's word: the unused `git_build` and `registry_pull` recipe
+modes, the pre-accounts password, and the refusal of an encrypted key from before Phase 38
+(the public key is asyncssh's now, byte-for-byte the same on the live key). **Kept:** reading
+an account saved before levels — the live `users.json` still holds one.
+
+**Not done, on purpose:** splitting `recipes.py`, `ssh/logic.py` or `InstallWizard.tsx`
+(tidier, not simpler); one key-unlock hook (five flows around one request, their shared
+parts already one); moving the Assign form's pre-fill into the form (one caller); one git
+runner (four calls, four ways to fail); the base domain's old rewrites (2026-09-20).
+
+**The docs:** TODO.md was back to 1,017 lines; Phases 34–45 went to the archive, their open
+live checks gathered under *Open, not in flight*. Four HISTORY entries overturned since now
+say so. `check-docs` now checks where each phase lives and the instance schema — the two
+drifts found by reading.
+
 ## 2026-11-12 — Status line v10: sudo only where it needs no password
 
 A code review found v8's quiet sudo wrong for exactly the machines Loskai sets up: one with
