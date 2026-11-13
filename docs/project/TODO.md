@@ -48,9 +48,6 @@ visible without unpacking a phase back out. The checklists stay in
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
   the tool schema that keeps its value out. From the 2026-11-05 review.
-- **The sudo ticket rides in the terminal's URL**, so uvicorn's access log has it. It is
-  one-time and lasts a minute, and the password itself is never there; sending it as the
-  socket's first message would keep it out of the log. From the 2026-11-06 review.
 - **Live checks on Sunde's machines, from Phases 34–44** — each with its context in its
   phase in [`todo-archive.md`](todo-archive.md). First **Install again** on each machine
   (status line v10; the overview says which are behind). Then:
@@ -85,8 +82,9 @@ between today and a first release. The bugs are the ones under *Open, not in fli
       2026-11-06). The pane now waits `tool.PASSWORD_WAIT` (30 s) for the password, then
       removes its folder and ends — tested with a pane sent nothing; live in tmux, the
       session ended by itself
-- [ ] 48b The sudo ticket out of the terminal's URL (uvicorn's access log has it): sent as
-      the socket's first message
+- [x] 48b The sudo ticket out of the terminal's URL (uvicorn's access log has it): the URL
+      says `sudo_password=true` and the ticket is the socket's first message; anything else
+      first, or nothing in 10 s, is refused `4422`
 - [ ] 48c A closed container terminal ends its shell
 - [ ] 48d Wrong passwords counted per client as well as per account
 - [ ] 48e A sudo rule Loskai can't see is not reported as removed

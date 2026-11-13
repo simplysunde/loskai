@@ -7,7 +7,9 @@ nothing here ever returns a private key. A machine's own password (Install it fo
 used for one connection and kept nowhere.
 """
 
+import asyncio
 import contextlib
+import json
 import time
 from datetime import UTC, datetime
 from typing import Literal
@@ -220,13 +222,14 @@ def session_log(limit: int = 200, machine: str | None = None) -> list[dict]:
 async def machine_terminal(
     websocket: WebSocket, machine_id: str, cols: int = 80, rows: int = 24,
     tool: str | None = None, action: str | None = None, target: str | None = None,
-    install: bool = False, sudo: Literal["allow", "remove"] | None = None, ticket: str | None = None,
+    install: bool = False, sudo: Literal["allow", "remove"] | None = None, sudo_password: bool = False,
 ):
     """A shell on the machine — or, given `tool` and `action` (and `target` for a row's
     action) or `install` (what the tool lacks), that command, worked out by `connect.plan`
     from the tool file; or `sudo` — putting on or taking off the rule that lets System's
-    update run without a password (`connect.plan_sudo`). The request only names it; a
-    `ticket` from `POST …/run` brings sudo's password, sent as the run's first line. Like the container
+    update run without a password (`connect.plan_sudo`). The request only names it; with
+    `sudo_password`, the socket's first message is the `ticket` from `POST …/run`
+    (`_ticket`), which brings sudo's password, sent as the run's first line. Like the container
     terminal it sits outside the HTTP middleware, so it checks the session and the `Origin`
     itself (closing `1008`), and closes when the session ends. It also needs the key
     unlocked: closed `4423` while it is locked, `4409` before the host key is trusted or
@@ -238,11 +241,12 @@ async def machine_terminal(
     peer = auth.peer(websocket)
     command, details, password = None, None, None
     try:
-        if ticket and not (tool or sudo):
+        if sudo_password and not (tool or sudo):
             raise connect.SshError("A password is only for a tool's action", 422)
+        ticket = await _ticket(websocket) if sudo_password else None
         if tool or sudo:
             asked = RunRequest(tool=tool, action=action, target=target, install=install, sudo=sudo)
-            command, details, _ = await _plan(machine_id, asked, bool(ticket))
+            command, details, _ = await _plan(machine_id, asked, sudo_password)
         if ticket:
             password = connect.take_password(ticket, machine_id, details)
         t, conn, process = await connect.open_terminal(
@@ -251,8 +255,9 @@ async def machine_terminal(
     except LoskaiError as exc:  # SshError, or a tool's ToolError
         asked = {"tool": tool, "action": "install" if install else action} if tool else {"sudo": sudo} if sudo else {}
         connect.log("refused", machine_id, peer, error=exc.detail, **asked)
-        # A close reason is at most 123 bytes.
-        await websocket.close(code=4000 + exc.status_code, reason=exc.detail.encode()[:120].decode(errors="ignore"))
+        # A close reason is at most 123 bytes. The browser may have gone already.
+        with contextlib.suppress(RuntimeError):
+            await websocket.close(code=4000 + exc.status_code, reason=exc.detail.encode()[:120].decode(errors="ignore"))
         return
     started = time.monotonic()
     if details:
@@ -278,6 +283,23 @@ async def machine_terminal(
             connect.after_action(machine_id)
         with contextlib.suppress(RuntimeError):  # the browser closed it first
             await websocket.close()
+
+
+# How long a terminal waits for its ticket, which the page sends the moment the socket opens.
+TICKET_WAIT = 10  # seconds
+
+
+async def _ticket(websocket: WebSocket) -> str:
+    """The ticket for sudo's password: the socket's first message, `{"type": "ticket",
+    "ticket": …}` — never in the URL, which uvicorn's access log keeps."""
+    try:
+        msg = await asyncio.wait_for(websocket.receive(), TICKET_WAIT)
+        sent = json.loads(msg.get("text") or "")
+    except (TimeoutError, ValueError):
+        sent = None
+    if isinstance(sent, dict) and sent.get("type") == "ticket" and isinstance(sent.get("ticket"), str):
+        return sent["ticket"]
+    raise connect.SshError("The password's ticket didn't come first — run it again", 422)
 
 
 @router.get("/running")

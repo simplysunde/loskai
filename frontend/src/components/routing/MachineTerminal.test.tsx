@@ -7,7 +7,7 @@ import { MachineTerminal } from "./MachineTerminal";
 import { json } from "../../test/render";
 
 // xterm needs a real canvas; what matters here is which session opens, and when.
-type Session = { url: string; onClosed?: (code: number, reason: string) => void; onOutput?: (text: string) => void };
+type Session = { url: string; first?: string; onClosed?: (code: number, reason: string) => void; onOutput?: (text: string) => void };
 const sessions: Session[] = [];
 vi.mock("../shared/XtermSession", () => ({
   XtermSession: (props: Session) => {
@@ -120,8 +120,10 @@ test("an automatic run asks for sudo's password, checked before its terminal ope
   fireEvent.change(field, { target: { value: "right" } });
   fireEvent.click(screen.getByRole("button", { name: "Run" }));
   expect(
-    await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update&ticket=t1"),
+    await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update&sudo_password=true"),
   ).toBeInTheDocument();
+  // The ticket is the socket's first message, never in the URL the server's access log keeps.
+  expect(sessions.at(-1)?.first).toBe(JSON.stringify({ type: "ticket", ticket: "t1" }));
   expect(calls.map((c) => c.body)).toEqual([
     { tool: "system", action: "update" },
     { tool: "system", action: "update", password: "wrong" },

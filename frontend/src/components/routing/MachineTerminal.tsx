@@ -105,7 +105,8 @@ export function MachineTerminal({
     },
   });
 
-  const query = run ? `?${runQuery(run)}${prepared?.ticket ? `&ticket=${encodeURIComponent(prepared.ticket)}` : ""}` : "";
+  const query = run ? `?${runQuery(run)}${prepared?.ticket ? "&sudo_password=true" : ""}` : "";
+  const ticket = prepared?.ticket ? JSON.stringify({ type: "ticket", ticket: prepared.ticket }) : undefined;
 
   if (run && quick && (stage === "preparing" || stage === "terminal") && (!prepared || prepared.automatic)) {
     const notReady = stage === "preparing" && prepare.isError && !(prepare.error instanceof ApiError && prepare.error.status === 423);
@@ -121,6 +122,7 @@ export function MachineTerminal({
           <XtermSession
             key={session}
             url={`/api/ssh/machines/${machine.id}/terminal${query}`}
+            first={ticket}
             height="h-[30vh]"
             onOutput={(text) => {
               tail.current = (tail.current + text).slice(-400);
@@ -224,6 +226,7 @@ export function MachineTerminal({
         <XtermSession
           key={session}
           url={`/api/ssh/machines/${machine.id}/terminal${query}`}
+          first={ticket}
           onOutput={run ? (text) => { tail.current = (tail.current + text).slice(-400); } : undefined}
           onClosed={(code) => {
             if (code === LOCKED) {

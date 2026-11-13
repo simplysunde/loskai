@@ -900,12 +900,28 @@ def test_a_wrong_password_is_said_before_the_terminal_and_a_user_without_sudo_to
     assert r.status_code == 409 and r.json()["detail"] == "loskai may not use sudo there"
 
 
+UPDATE = TERMINAL + "&tool=system&action=update&sudo_password=true"
+
+
+def _send_ticket(ws, ticket):
+    ws.send_text(json.dumps({"type": "ticket", "ticket": ticket}))
+
+
+def _closed_after_ticket(api, url, ticket):
+    """How a run's terminal given sudo's password closes: its ticket is the first message."""
+    with api.websocket_connect(url, headers=ORIGIN) as ws:
+        _send_ticket(ws, ticket)
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_bytes()
+    return exc.value.code, exc.value.reason
+
+
 def test_the_password_goes_to_the_terminal_once_as_its_first_line_and_never_into_the_log(api, machine_net, shell):
     _ready(api, machine_net)
     ticket = _prepare(api, password="sudo-pw").json()["ticket"]
-    url = TERMINAL + f"&tool=system&action=update&ticket={ticket}"
 
-    with api.websocket_connect(url, headers=ORIGIN) as ws:
+    with api.websocket_connect(UPDATE, headers=ORIGIN) as ws:
+        _send_ticket(ws, ticket)
         ws.receive_bytes()
 
     assert shell["first_line"] == "sudo-pw"
@@ -915,7 +931,20 @@ def test_the_password_goes_to_the_terminal_once_as_its_first_line_and_never_into
     assert "sudo-pw" not in ssh_client._log_path().read_text()
     assert "sudo-pw" not in json.dumps(api.get("/api/ssh/log").json())
     # Taken once.
-    assert _closed_with(api, url) == (4409, "That password is no longer held — run it again")
+    assert _closed_after_ticket(api, UPDATE, ticket) == (4409, "That password is no longer held — run it again")
+
+
+def test_the_ticket_never_rides_in_the_url_and_a_run_without_it_first_is_refused(api, machine_net, shell):
+    """uvicorn's access log keeps every socket's URL, so the ticket is the first message."""
+    _ready(api, machine_net)
+    _prepare(api, password="sudo-pw")
+
+    with api.websocket_connect(UPDATE, headers=ORIGIN) as ws:
+        ws.send_text(json.dumps({"type": "resize", "rows": 40, "cols": 120}))
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_bytes()
+    assert (exc.value.code, exc.value.reason) == (4422, "The password's ticket didn't come first — run it again")
+    assert "first_line" not in shell
 
 
 def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
@@ -926,10 +955,10 @@ def test_a_ticket_is_only_for_its_machine_and_its_user(api, machine_net, shell):
     api.post("/api/ssh/machines/pve/trust", json={"fingerprint": fp})
     ticket = _prepare(api, password="sudo-pw").json()["ticket"]
 
-    assert _closed_with(api, TERMINAL.replace("/nas/", "/pve/") + f"&tool=system&action=update&ticket={ticket}") == (
+    assert _closed_after_ticket(api, UPDATE.replace("/nas/", "/pve/"), ticket) == (
         4409, "That password is no longer held — run it again",
     )
-    assert _closed_with(api, TERMINAL + f"&ticket={ticket}") == (4422, "A password is only for a tool's action")
+    assert _closed_with(api, TERMINAL + "&sudo_password=true") == (4422, "A password is only for a tool's action")
 
 
 def test_a_ticket_never_taken_is_gone_when_its_time_is_up(api, machine_net, monkeypatch):
@@ -951,7 +980,7 @@ def test_a_ticket_is_only_for_the_run_it_was_given_for(api, machine_net, shell):
     _ready(api, machine_net)
     ticket = _prepare(api, password="sudo-pw").json()["ticket"]
 
-    assert _closed_with(api, TERMINAL + f"&tool=system&action=reboot&ticket={ticket}") == (
+    assert _closed_after_ticket(api, UPDATE.replace("=update", "=reboot"), ticket) == (
         4409, "That password is no longer held — run it again")
     assert "first_line" not in shell
 

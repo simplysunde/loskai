@@ -25,12 +25,16 @@ interface Copied {
 // machine's SSH terminal are both this; `toolbar` gets a function that types a command.
 export function XtermSession({
   url,
+  first,
   onClosed,
   onOutput,
   toolbar,
   height = "h-[55vh]",
 }: {
   url: string;
+  // Sent before anything else once the socket opens — a run's ticket for sudo's password,
+  // which never goes in the URL (the server's access log keeps it).
+  first?: string;
   // How the server closed it — a machine's terminal reopens after the key is unlocked.
   onClosed?: (code: number, reason: string) => void;
   // What the session prints, as text — read by the quick terminal for how a run ended.
@@ -116,6 +120,7 @@ export function XtermSession({
       );
       socket.binaryType = "arraybuffer";
       socket.onopen = () => {
+        if (first) socket.send(first);
         sendResize();
         term.focus();
       };
@@ -155,7 +160,7 @@ export function XtermSession({
       }
       term.dispose();
     };
-  }, [url]);
+  }, [url, first]);
 
   const run = (command: string) => {
     wsRef.current?.send(new TextEncoder().encode(command + "\n"));
