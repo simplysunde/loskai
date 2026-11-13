@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — The SSH unlock asks less, and only when you act (Phase 52)
+
+Sunde was asked for the password to unlock the SSH key too often, and asked how bad removing
+it would be. The review: it guards against someone with a session but not its password — an
+unattended computer, a stolen cookie — and only as a speed bump against a determined thief,
+since a session with the Docker tab can mount `data/` and read the key. Worth keeping, so it
+nags less instead. Unlocks were held in the process, so every restart locked the key — and
+`make live` restarts on every save; who holds one is now kept in `data/ssh/unlocks.json`,
+which holds no secret.
+
 ## 2026-11-13 — Push all, under the rows' buttons (Phase 51)
 
 Sunde wanted Pull all under the projects' Pull buttons, and a Push all. A card with a list

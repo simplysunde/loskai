@@ -56,6 +56,26 @@ visible without unpacking a phase back out. The checklists stay in
 
 ---
 
+## Phase 52 — The SSH unlock asks less, and only when you act
+
+Asked 2026-11-13 (Sunde): "really annoyed at the constant reminder for unlocking with the
+ssh key, how bad would it be to remove the password?" — a review of what the unlock protects
+(a session without its password: an unattended computer, a stolen cookie; and against a
+determined thief with a level-2 session only a speed bump, since the Docker tab can mount
+`data/`). Then: keep it, but stop it nagging; "make the password requirement pop up more
+reactively depending on what action is taken"; "and the admin switch would be a nice option".
+
+**Steps**
+
+- [x] 52a An unlock outlasts a restart: who holds one is in `data/ssh/unlocks.json` (owner-only,
+      no secret), not the process — `make live` restarts on every save, and locked it each time
+- [ ] 52b One password dialog for the whole app, opened by what you do: a change refused
+      because the key is locked asks, then goes on; a card that only reads shows it is locked,
+      and asks when you click
+- [ ] 52c An admin switch, Settings › SSH: ask for the password to use the key — on by default
+
+---
+
 ## Phase 51 — Push all, and the card's all-buttons under the rows'
 
 Asked 2026-11-13 (Sunde): "I would like the pull all button to be under the rest of the pull

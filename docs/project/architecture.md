@@ -93,7 +93,7 @@ volumes are in [`deployment.md`](../guides/deployment.md).
 Every component reads and writes one list, `data/instances.json`. There is **no database**:
 Loskai's state is files in `data/` — that one, `settings.json`, the accounts (`users.json`)
 and the cookie-signing `session_secret`, the launcher icons, `ssh/` (the keys, the SSH config,
-`known_hosts`, `sessions.log`), `logins.log`, local recipes in `recipes/` and the sources'
+`known_hosts`, `sessions.log`, who holds an unlock in `unlocks.json`), `logins.log`, local recipes in `recipes/` and the sources'
 clones in `recipes-cache/`.
 
 An **instance** is anything Loskai knows by name:
@@ -470,8 +470,10 @@ and limits what the next one loses:
 - **SSH actions ask for your password again**, like `sudo`, and that is what unlocks the key
   — for you, not for anyone else: for 15 minutes unless Settings › SSH says longer — not at
   login. Your logout, a new password or losing the Machines tab locks it. A stolen session
-  cookie then reaches the Docker tab, not the machines, and after a restart nothing reaches
-  them until someone types it.
+  cookie then reaches the Docker tab, not the machines — not directly: the Docker tab can
+  mount `data/`, so it is a speed bump for a session thief, not a wall. Who holds an unlock
+  is kept in `data/ssh/unlocks.json` (names, times and session generations — no secret), so
+  a restart of Loskai, every save under `make live` included, doesn't lock it.
 - **The key only works from the Docker host.** Each `authorized_keys` line a machine's SSH
   setup installs or offers to copy carries `from="<Docker host IP>"`, so a copied key is useless
   anywhere else — the strongest single limit, and enforced by the machine, not by Loskai.

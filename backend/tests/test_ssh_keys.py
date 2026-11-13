@@ -122,3 +122,39 @@ def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):
 
     assert client.public_key() != first
     assert unlock.unlocked_key("admin").export_public_key("openssh").decode().strip() == client.public_key()
+
+
+# --- An unlock outlasts a restart of Loskai ---
+
+
+def test_an_unlock_is_kept_beside_the_key_owner_only_and_with_no_secret_in_it(admin):
+    assert _unlock(admin, ADMIN).status_code == 200
+    path = client.ssh_dir() / "unlocks.json"
+
+    assert path.stat().st_mode & 0o777 == 0o600
+    text = path.read_text()
+    assert '"admin"' in text and ADMIN not in text and "PRIVATE KEY" not in text
+    # A restart reads it back: nothing about it is held in the process.
+    import importlib
+    importlib.reload(unlock)
+    assert unlock.unlocked_key("admin") is not None
+
+
+def test_a_kept_unlock_still_ends_with_a_logout_or_a_new_password(admin):
+    _unlock(admin, ADMIN)
+    admin.post("/api/logout", headers=ORIGIN)
+    assert unlock.unlocked_key("admin") is None
+    assert "admin" not in (client.ssh_dir() / "unlocks.json").read_text()
+
+    b = _add(_login("admin", ADMIN), "ola", 3)
+    assert _unlock(b, "ola-password").status_code == 200
+    assert _login("admin", ADMIN).patch("/api/users/ola", json={"password": "a-new-password"}, headers=ORIGIN).status_code == 200
+    assert unlock.unlocked_key("ola") is None
+
+
+def test_a_file_of_unlocks_that_doesn_t_parse_is_locked_until_the_next_unlock(admin):
+    (client.ssh_dir() / "unlocks.json").write_text("{not json")
+
+    assert unlock.unlocked_key("admin") is None
+    assert _unlock(admin, ADMIN).status_code == 200
+    assert unlock.unlocked_key("admin") is not None

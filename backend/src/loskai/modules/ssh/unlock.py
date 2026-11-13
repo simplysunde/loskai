@@ -4,18 +4,34 @@ A session cookie alone never reaches a machine. Typing your password again unloc
 for you — like `sudo`, another user unlocks for themselves — for 15 minutes, or what
 Settings › SSH says, and it ends sooner when you log out, your password changes (your
 sessions' generation moves on) or you lose the Machines tab.
+
+Who holds an unlock is kept in a file beside the key, so a restart of Loskai — a deploy, or
+every save under `make live` — doesn't lock it. The file holds no secret: names, times and
+generations. Whoever could write it could read the key itself.
 """
 
 import time
+from pathlib import Path
 
 import asyncssh
 
 from ...shared import settings as settings_store
-from ...shared import users
+from ...shared import store, users
 from . import client
 
-# Who holds an unlock: username → (until, the generation of their sessions then).
-_holders: dict[str, tuple[float, int]] = {}
+
+def _path() -> Path:
+    # Who holds an unlock: username → [until, the generation of their sessions then].
+    return client.ssh_dir() / "unlocks.json"
+
+
+def _holders() -> dict[str, list]:
+    """Who holds an unlock. A file that doesn't parse holds none: the next unlock rewrites it."""
+    try:
+        held = store.read_json(_path(), {})
+    except store.CorruptStoreError:
+        return {}
+    return held if isinstance(held, dict) else {}
 
 
 def unlock(username: str) -> float:
@@ -23,21 +39,26 @@ def unlock(username: str) -> float:
     A change to the setting applies from the next unlock."""
     user = users.get(username)
     until = time.time() + settings_store.ssh_unlock_seconds()
-    _holders[username] = (until, user.generation if user else -1)
+    entry = [until, user.generation if user else -1]
+    try:
+        store.update_json(_path(), {}, lambda held: {**(held if isinstance(held, dict) else {}), username: entry})
+    except store.CorruptStoreError:
+        store.write_json(_path(), {username: entry})
     return until
 
 
 def lock(username: str | None = None) -> None:
     """Lock it for `username`, or for everyone."""
     if username is None:
-        _holders.clear()
-    else:
-        _holders.pop(username, None)
+        if _path().exists():
+            store.write_json(_path(), {})
+    elif username in _holders():
+        store.update_json(_path(), {}, lambda held: {k: v for k, v in held.items() if k != username})
 
 
 def _holds(username: str) -> bool:
-    held = _holders.get(username)
-    if held is None:
+    held = _holders().get(username)
+    if not isinstance(held, list) or len(held) != 2:
         return False
     user = users.get(username)
     if time.time() >= held[0] or user is None or user.generation != held[1] or not user.may("machines"):
@@ -52,4 +73,4 @@ def unlocked_key(username: str | None) -> asyncssh.SSHKey | None:
 
 
 def unlocked_until(username: str | None) -> float | None:
-    return _holders[username][0] if username and _holds(username) else None
+    return _holders()[username][0] if username and _holds(username) else None
