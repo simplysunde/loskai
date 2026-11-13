@@ -161,7 +161,8 @@ export function RowSettingsDialog({
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const shown = draft ?? Object.fromEntries(settings.map((s) => [s.id, own[s.id] ?? ""]));
   const changed = settings.filter((s) => shown[s.id].trim() !== (own[s.id] ?? ""));
-  const empty = settings.find((s) => !s.unset && !shown[s.id].trim());
+  // Only what you changed: one never set and left alone stays as it is.
+  const empty = changed.find((s) => !s.unset && !shown[s.id].trim());
   const save = useMutation({
     mutationFn: async () => {
       for (const s of changed) {

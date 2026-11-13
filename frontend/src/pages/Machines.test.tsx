@@ -132,8 +132,9 @@ const TOOLS = [
     settings: [
       { id: "name", label: "Name", description: "On every commit.", value: "git-name", read: "git config --global user.name", write: "x" },
       { id: "email", label: "Email", description: "On every commit.", value: "email", read: "git config --global user.email", write: "x" },
+      // No `unset`: it needs a value once set — and one never set doesn't stop another saving.
       { id: "project-name", label: "Name", description: "This project's.", value: "git-name", read: "x", write: "x",
-        unset: "x", target: "project", overrides: "name" },
+        target: "project", overrides: "name" },
       { id: "project-email", label: "Email", description: "This project's.", value: "email", read: "x", write: "x",
         unset: "x", target: "project", overrides: "email" },
     ],
