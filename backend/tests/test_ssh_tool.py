@@ -373,8 +373,9 @@ def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
 def test_git_s_settings_are_its_name_and_email():
     git = tool.load()["git"]
 
-    assert list(git.settings) == ["name", "email"]
+    assert list(git.settings) == ["name", "email", "project-name", "project-email"]
     assert git.settings["email"].write == 'git config --global user.email "$1"'
+    assert git.settings["project-email"].target == "project" and git.settings["project-email"].overrides == "email"
 
 
 def test_a_tool_needs_an_action_or_a_setting_and_a_setting_names_its_kind():
@@ -391,7 +392,71 @@ def test_settings_are_read_in_one_script_and_unset_ones_are_none():
 
     assert script.count("git config --global user.") == 2
     assert tool.parse_settings(git, "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n") == {
-        "name": "Ola Nordmann", "email": None}
+        "values": {"name": "Ola Nordmann", "email": None}, "targets": {"project": {}}}
+
+
+def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path):
+    home = tmp_path / "home"
+    projects = home / "projects"
+    for name in ("site", "notes", "-x"):
+        subprocess.run(["git", "init", "-q", str(projects / name)], check=True)
+    git = tool.load()["git"]
+    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def sh(script):
+        out = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, timeout=30)
+        assert out.returncode == 0, out.stderr
+        return out.stdout
+
+    sh(tool.write_setting_script(git, "name", "Ola Nordmann"))
+    sh(tool.write_setting_script(git, "project-name", "Ola; $(id)", target="site"))
+    sh(tool.write_setting_script(git, "project-email", "ola@work.example", target="site"))
+    read = tool.parse_settings(git, sh(tool.read_settings_script(git)))
+
+    assert read["values"]["name"] == "Ola Nordmann"
+    # A folder no project can be named (`-x`) isn't read; one with nothing set reads None.
+    assert read["targets"] == {"project": {
+        "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example"},
+        "notes": {"project-name": None, "project-email": None}}}
+    # Taking one off leaves the global one, and taking off what isn't there is no failure.
+    sh(tool.write_setting_script(git, "project-name", "", target="site"))
+    sh(tool.write_setting_script(git, "project-name", "", target="site"))
+    assert tool.parse_settings(git, sh(tool.read_settings_script(git)))["targets"]["project"]["site"] == {
+        "project-name": None, "project-email": "ola@work.example"}
+    who = subprocess.run(["git", "-C", str(projects / "site"), "config", "user.name"], env=env,
+                         capture_output=True, text=True).stdout.strip()
+    assert who == "Ola Nordmann"
+
+
+def test_a_project_s_setting_needs_its_project_and_the_machine_s_none():
+    git = tool.load()["git"]
+
+    with pytest.raises(tool.ToolError, match="Not a project"):
+        tool.write_setting_script(git, "project-name", "Ola")
+    with pytest.raises(tool.ToolError, match="Not a project"):
+        tool.write_setting_script(git, "project-name", "Ola", target="../etc")
+    with pytest.raises(tool.ToolError, match="for the machine"):
+        tool.write_setting_script(git, "name", "Ola", target="site")
+    # The machine's name can't be taken off: it has no `unset`.
+    with pytest.raises(tool.ToolError, match="Not a valid git name"):
+        tool.write_setting_script(git, "name", "")
+
+
+def test_a_setting_s_target_and_what_it_overrides_are_checked():
+    def settings(**extra):
+        return {"name": "T", "description": "d", "settings": {
+            "n": {"label": "N", "description": "d", "value": "git-name", "read": "true", "write": "true"},
+            "p": {"label": "P", "description": "d", "value": "git-name", "read": "true", "write": "true", **extra}}}
+
+    with pytest.raises(tool.ToolError, match=r"settings.p.target` must be one of project"):
+        tool.parse("t", settings(target="session"))
+    with pytest.raises(tool.ToolError, match=r"settings.p.overrides` is only for a setting with a `target`"):
+        tool.parse("t", settings(overrides="n"))
+    with pytest.raises(tool.ToolError, match=r"settings.p.overrides` must name a setting of the machine's"):
+        tool.parse("t", settings(target="project", overrides="nothing"))
+    with pytest.raises(tool.ToolError, match=r"settings.p.unset` must be a command"):
+        tool.parse("t", settings(unset=""))
+    assert tool.parse("t", settings(target="project", overrides="n", unset="true")).settings["p"].overrides == "n"
 
 
 def test_a_value_reaches_the_write_command_only_as_1():

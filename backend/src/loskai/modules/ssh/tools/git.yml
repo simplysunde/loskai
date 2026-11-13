@@ -2,7 +2,8 @@
 # its projects folder ($PROJECTS), which Claude Code finds its projects in too: clone one,
 # pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
 # user, so a remote over SSH uses that user's own key and asks to trust a new host there,
-# and one over HTTPS asks for its login there when it needs one.
+# and one over HTTPS asks for its login there when it needs one. A project can have its own
+# commit name and email, in its .git/config, in place of the global ones.
 # docs/reference/tool-schema.md is the format.
 name: Git
 description: Your projects' git — clone, pull, push — and who commits made on it are by.
@@ -10,16 +11,36 @@ requires: [git]
 settings:
   name:
     label: Name
-    description: On every commit made here — git's global user.name.
+    description: On every commit made here, unless a project has its own — git's global user.name.
     value: git-name
     read: git config --global user.name
     write: git config --global user.name "$1"
   email:
     label: Email
-    description: On every commit made here — git's global user.email.
+    description: On every commit made here, unless a project has its own — git's global user.email.
     value: email
     read: git config --global user.email
     write: git config --global user.email "$1"
+  # A project's own, in place of the global ones; taking it off leaves the global one. Git
+  # says 5 when there was nothing to take off.
+  project-name:
+    label: Name
+    description: Who this project's commits are by — empty, the global name.
+    target: project
+    overrides: name
+    value: git-name
+    read: git -C "$PROJECTS/$1" config --local user.name
+    write: git -C "$PROJECTS/$1" config --local user.name "$2"
+    unset: git -C "$PROJECTS/$1" config --local --unset user.name; s=$?; [ $s = 0 ] || [ $s = 5 ]
+  project-email:
+    label: Email
+    description: The address on this project's commits — empty, the global email.
+    target: project
+    overrides: email
+    value: email
+    read: git -C "$PROJECTS/$1" config --local user.email
+    write: git -C "$PROJECTS/$1" config --local user.email "$2"
+    unset: git -C "$PROJECTS/$1" config --local --unset user.email; s=$?; [ $s = 0 ] || [ $s = 5 ]
 actions:
   pull:
     label: Pull

@@ -56,6 +56,36 @@ visible without unpacking a phase back out. The checklists stay in
 
 ---
 
+## Phase 50 — A project's own commit name and email
+
+Asked 2026-11-13 (Sunde): a way to override the global user name and email — "a cog icon on
+the same row as the rest of the action buttons?"
+
+**Decisions**
+
+- A cog at the end of each project row on Git's card opens the project's own **Name** and
+  **Email** beneath it: `git config --local`, in the repo. Empty is the global one, shown
+  greyed; emptying one takes it off. The cog is teal while either is set.
+- A setting gains `target: project`, `overrides` and `unset` in the tool file, so the
+  commands stay in Git's file. Each project's are read in the same command as the global
+  ones — one connection when the card opens, and no change to the status line (which would
+  have asked every machine to update its key, for a teal cog).
+- Not done: git's `includeIf` (an identity for a whole folder) — a third level, hard to show;
+  and a name and email at Clone — clone, then the cog.
+
+**Steps**
+
+- [x] 50a The schema (`target`, `overrides`, `unset`), the read of every project's and the
+      write with the project as `$1`, Git's `project-name` and `project-email`, the cog and
+      its panel, the log line for a value taken off
+- [x] 50b Live: a Debian machine — a commit in `site` was by its own name and email, one in
+      `notes` by the global ones; the name taken off (twice: the second, with nothing there,
+      no failure), the next commit was by the global name and still the project's email; a
+      folder named `bad name` not read; no project or `../x` refused `409`; the card at 1280
+      and 390 px with the cog teal and open, no page errors, no sideways scroll
+
+---
+
 ## Phase 49 — Claude Code is its sessions, Git is the project's git
 
 Asked 2026-11-13 (Sunde): the push and pull buttons clutter Claude Code's card; it should be

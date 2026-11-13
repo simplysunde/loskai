@@ -1,30 +1,41 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { useUnlockFor } from "../../lib/settings";
 import type { ToolContext } from "../../lib/toolRows";
-import type { Tool } from "../../lib/tools";
+import { rowSettingsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { InlineText, SettingRow } from "../shared/SettingRow";
 import { YourPassword } from "../shared/YourPassword";
 
-type Values = { values: Record<string, string | null> };
+// The machine's settings by id, and each row's by kind and row: `targets.project.site`.
+type Values = {
+  values: Record<string, string | null>;
+  targets?: Record<string, Record<string, Record<string, string | null>>>;
+};
+
+// A tool's settings as the machine has them — the machine's and every row's, in one read
+// with Loskai's key — and where they are set. The card and its rows share the one read.
+function useToolSettings(tool: Tool, machineId: string) {
+  const key = ["tool-settings", machineId, tool.id];
+  const url = `/api/ssh/machines/${machineId}/tools/${tool.id}/settings`;
+  const values = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<Values>(url),
+    enabled: (tool.settings?.length ?? 0) > 0,
+  });
+  return { key, url, values };
+}
 
 // A tool's settings, in its card: each a value on the machine, read with Loskai's key while
 // the card is open and written the same way, then read back. Git's card also holds the
 // machine's projects folder — Loskai's own, on its record, where Claude Code finds its
-// projects.
+// projects. A row's own settings are under its cog (`RowSettingsButton`).
 export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
   const qc = useQueryClient();
-  const key = ["tool-settings", ctx.machineId, tool.id];
-  const url = `/api/ssh/machines/${ctx.machineId}/tools/${tool.id}/settings`;
-  const settings = tool.settings ?? [];
-  const values = useQuery({
-    queryKey: key,
-    queryFn: () => api.get<Values>(url),
-    enabled: settings.length > 0,
-  });
+  const { key, url, values } = useToolSettings(tool, ctx.machineId);
+  const settings = (tool.settings ?? []).filter((s) => !s.target);
   const locked = values.error instanceof ApiError && values.error.status === 423;
 
   return (
@@ -70,6 +81,75 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
           </p>
         )
       )}
+    </div>
+  );
+}
+
+// A row's cog: opens its own settings beneath it, and is teal while any of them is set.
+export function RowSettingsButton({
+  tool,
+  ctx,
+  kind,
+  name,
+  open,
+  onToggle,
+}: {
+  tool: Tool;
+  ctx: ToolContext;
+  kind: ToolTarget;
+  name: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { values } = useToolSettings(tool, ctx.machineId);
+  const own = values.data?.targets?.[kind]?.[name] ?? {};
+  const set = rowSettingsOf(tool, kind).filter((s) => own[s.id]);
+  return (
+    <button
+      type="button"
+      aria-label={`${name}'s own settings`}
+      aria-expanded={open}
+      title={set.length ? `Its own: ${set.map((s) => `${s.label} ${own[s.id]}`).join(", ")}` : "Its own settings, in place of the card's"}
+      onClick={onToggle}
+      className={`flex items-center rounded-md border px-1.5 py-1 hover:bg-slate-800 ${
+        set.length ? "border-teal-700 text-teal-300" : "border-slate-700 text-slate-400"
+      }`}
+    >
+      <Settings className="h-3 w-3" />
+    </button>
+  );
+}
+
+// A row's own settings, beneath it: each empty while the card's applies — shown greyed —
+// and emptied to take it off again.
+export function RowSettings({ tool, ctx, kind, name }: { tool: Tool; ctx: ToolContext; kind: ToolTarget; name: string }) {
+  const qc = useQueryClient();
+  const { key, url, values } = useToolSettings(tool, ctx.machineId);
+  const own = values.data?.targets?.[kind]?.[name] ?? {};
+  return (
+    <div className="mt-1 rounded-md border border-slate-800 px-2.5">
+      {rowSettingsOf(tool, kind).map((s) => {
+        const fallback = s.overrides ? values.data?.values[s.overrides] : null;
+        return (
+          <SettingRow key={s.id} label={s.label} description={s.description}>
+            {values.isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+            ) : (
+              <InlineText
+                label={`${s.label} for ${name}`}
+                value={own[s.id] ?? ""}
+                placeholder={fallback ?? "not set"}
+                disabled={!values.data}
+                validate={(v) => (v || s.unset ? null : "It needs a value.")}
+                onSave={async (v) => {
+                  const next = await api.put<Values>(`${url}/${s.id}`, { value: v, target: name });
+                  qc.setQueryData(key, next);
+                }}
+              />
+            )}
+          </SettingRow>
+        );
+      })}
     </div>
   );
 }

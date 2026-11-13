@@ -80,6 +80,8 @@ TARGETS = {
 }
 
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+# The rows a setting can be a value of: those `read_settings_script` can list on the machine.
+SETTING_TARGETS = ("project",)
 
 
 class ToolError(LoskaiError, ValueError):
@@ -109,14 +111,19 @@ class Action:
 @dataclass(frozen=True)
 class Setting:
     """A value on the machine the tool's card shows and sets — read and written with
-    Loskai's key, the new value reaching `write` only as `$1`."""
+    Loskai's key, the new value reaching `write` only as `$1`. One with a `target` is a
+    value of each of those rows instead (a project's own commit name): the row is `$1` in
+    all three commands, and the value `$2`."""
 
     id: str
     label: str
     description: str
     value: str  # a kind in TARGETS: what it may be set to
     read: str  # prints the value; nothing (or failing) when it isn't set
-    write: str  # sets it to "$1"
+    write: str  # sets it to "$1" ("$2" with a target)
+    unset: str | None = None  # takes it off — set to nothing; None: it can't be
+    target: str | None = None  # `SETTING_TARGETS`: a value of each row of it, not the machine's
+    overrides: str | None = None  # the machine's setting this one replaces where it is set
 
 
 @dataclass(frozen=True)
@@ -226,7 +233,7 @@ def _settings(raw: object) -> tuple[dict[str, Setting], list[str]]:
         if not isinstance(spec, dict):
             problems.append(f"`{where}` must be a mapping")
             continue
-        extra = set(spec) - {"label", "description", "value", "read", "write"}
+        extra = set(spec) - {"label", "description", "value", "read", "write", "unset", "target", "overrides"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description", "read", "write"):
@@ -234,10 +241,22 @@ def _settings(raw: object) -> tuple[dict[str, Setting], list[str]]:
                 problems.append(f"`{where}.{key}` is required")
         if spec.get("value") not in TARGETS:
             problems.append(f"`{where}.value` must be one of {', '.join(TARGETS)}")
+        if "unset" in spec and (not isinstance(spec["unset"], str) or not spec["unset"].strip()):
+            problems.append(f"`{where}.unset` must be a command")
+        if "target" in spec and spec["target"] not in SETTING_TARGETS:
+            problems.append(f"`{where}.target` must be one of {', '.join(SETTING_TARGETS)}")
+        if "overrides" in spec and "target" not in spec:
+            problems.append(f"`{where}.overrides` is only for a setting with a `target`")
         out[setting_id] = Setting(
             id=setting_id, label=str(spec.get("label", "")), description=str(spec.get("description", "")),
             value=str(spec.get("value", "")), read=str(spec.get("read", "")), write=str(spec.get("write", "")),
+            unset=spec.get("unset"), target=spec.get("target"),
+            overrides=str(spec["overrides"]) if "overrides" in spec else None,
         )
+    for s in out.values():
+        o = out.get(s.overrides or "")
+        if s.overrides is not None and (o is None or o.target is not None or o.value != s.value):
+            problems.append(f"`settings.{s.id}.overrides` must name a setting of the machine's that takes a {s.value}")
     return out, problems
 
 
@@ -285,44 +304,89 @@ def view(t: Tool) -> dict:
         ],
         "settings": [
             {"id": s.id, "label": s.label, "description": s.description, "value": s.value,
-             "read": s.read, "write": s.write}
+             "read": s.read, "write": s.write, "unset": s.unset, "target": s.target, "overrides": s.overrides}
             for s in t.settings.values()
         ],
     }
 
 
-# What a setting's read prints its id before, so one connection reads them all.
+# What a setting's read prints its id before (and, for a row's, the row), so one connection
+# reads them all.
 _SETTING_MARK = "#loskai-setting "
 
 
-def read_settings_script(t: Tool) -> str:
-    """One script reading each of the tool's settings, each after a line naming it."""
-    return "; ".join(
-        f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null" for s in t.settings.values()
-    )
+def _projects_env(projects: str | None) -> str:
+    """`$PROJECTS` set, and exported, to the machine's projects folder (`projects`, as stored;
+    None: the default)."""
+    folder = PROJECTS if projects is None else projects
+    return "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; export PROJECTS; "
 
 
-def parse_settings(t: Tool, out: str) -> dict[str, str | None]:
-    """`read_settings_script`'s output → each setting's value, None where nothing was printed."""
-    values: dict[str, str | None] = dict.fromkeys(t.settings)
-    current = None
+def read_settings_script(t: Tool, projects: str | None = None) -> str:
+    """One script reading each of the tool's settings, each after a line naming it — a
+    project's for every git repo in the projects folder, after a line naming both. A folder
+    whose name a project can't have is skipped, so a name never needs quoting or breaks a line."""
+    machine = [
+        f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null"
+        for s in t.settings.values() if s.target is None
+    ]
+    rows = [
+        f"printf '%s\\n' \"{_SETTING_MARK}{s.id} $n\"; sh -c {shlex.quote(s.read)} loskai \"$n\" 2>/dev/null"
+        for s in t.settings.values() if s.target == "project"
+    ]
+    if rows:
+        machine.append(
+            _projects_env(projects) + 'for g in "$PROJECTS"/*/.git; do d=${g%/.git}; n=${d##*/}; '
+            "case $n in [!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) continue;; esac; [ -d \"$g\" ] || continue; "
+            + "; ".join(rows) + "; done"
+        )
+    return "; ".join(machine)
+
+
+def parse_settings(t: Tool, out: str) -> dict:
+    """`read_settings_script`'s output → `{values, targets}`: the machine's settings by id,
+    and each row's by kind and row (`{"project": {"site": {"project-name": …}}}`) — None
+    where nothing was printed."""
+    values: dict[str, str | None] = {s.id: None for s in t.settings.values() if s.target is None}
+    targets: dict[str, dict[str, dict[str, str | None]]] = {
+        s.target: {} for s in t.settings.values() if s.target
+    }
+    slot: tuple[dict, str] | None = None
     for line in out.splitlines():
         if line.startswith(_SETTING_MARK):
-            current = line[len(_SETTING_MARK):].strip()
-        elif current in values and values[current] is None and line.strip():
-            values[current] = line.strip()
-    return values
+            setting_id, _, row = line[len(_SETTING_MARK):].strip().partition(" ")
+            s = t.settings.get(setting_id)
+            slot = None
+            if s and s.target is None and not row:
+                slot = (values, s.id)
+            elif s and s.target and TARGETS[s.target].fullmatch(row):
+                slot = (targets[s.target].setdefault(row, {o.id: None for o in t.settings.values()
+                                                          if o.target == s.target}), s.id)
+        elif slot and slot[0][slot[1]] is None and line.strip():
+            slot[0][slot[1]] = line.strip()
+    return {"values": values, "targets": targets}
 
 
-def write_setting_script(t: Tool, setting_id: str, value: str) -> str:
+def write_setting_script(
+    t: Tool, setting_id: str, value: str, target: str | None = None, projects: str | None = None,
+) -> str:
     """What sets one of the tool's settings: its `write`, the value as `$1` — checked against
-    its kind first. Raises ToolError for no such setting, or a value it can't take."""
+    its kind first — or, for a row's, the row as `$1` and the value as `$2`. Nothing, for a
+    setting that can be taken off, runs its `unset`. Raises ToolError for no such setting,
+    a row it isn't for, or a value it can't take."""
     s = t.settings.get(setting_id)
     if s is None:
         raise ToolError(f"{t.name} has no setting {setting_id!r}", 404)
-    if not TARGETS[s.value].fullmatch(value):
+    check_target(s.target, target)
+    if not value and s.unset:
+        command, args = s.unset, []
+    elif TARGETS[s.value].fullmatch(value):
+        command, args = s.write, [value]
+    else:
         raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
-    return f"sh -c {shlex.quote(s.write)} loskai {shlex.quote(value)}"
+    args = ([target] if target else []) + args
+    script = f"sh -c {shlex.quote(command)} loskai" + "".join(f" {shlex.quote(a)}" for a in args)
+    return _projects_env(projects) + script if s.target else script
 
 
 def parse_folder(text: str) -> str:

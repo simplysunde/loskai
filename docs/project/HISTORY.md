@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-13 — A project's own commit name and email (Phase 50)
+
+Sunde wanted to override the global commit identity per project. It is a cog on the
+project's row on Git's card, opening its Name and Email beneath it — `git config --local`,
+empty for the global one. Rather than code for Git, a tool setting can now be a value of
+each project (`target: project`), with the global setting it `overrides` and an `unset`;
+Git's file holds the commands, as for every other action. Each project's values are read in
+the same SSH command as the global ones: reading them in the status line would have made
+every machine update its key for the sake of a teal cog. An identity for a whole folder
+(git's `includeIf`) was left out as a third level that is hard to show.
+
 ## 2026-11-13 — Claude Code is its sessions, Git is the project's git (Phase 49)
 
 Sunde found Claude Code's card cluttered by Pull and Push. Claude Code now opens and ends

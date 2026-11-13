@@ -20,7 +20,7 @@ interface LogEntry {
   user?: string; // the account that did it
   allow?: boolean; // sudo-rule: put on (true) or taken off
   sudo_rule_left?: boolean; // uninstall: the sudo rule stayed
-  setting?: string; // setting: which, and what it was set to
+  setting?: string; // setting: which, and what it was set to (nothing: taken off); `target` its project
   value?: string;
 }
 
@@ -41,7 +41,9 @@ function what(e: LogEntry): string {
     case "sudo-rule":
       return e.allow ? "Allowing updates without a password" : "Taking off updates without a password";
     case "setting":
-      return `${e.ok ? "Set" : "Couldn't set"} ${e.tool} › ${e.setting} to ${e.value ?? ""}`;
+      return e.value
+        ? `${e.ok ? "Set" : "Couldn't set"} ${e.tool} › ${e.setting}${e.target ? ` of ${e.target}` : ""} to ${e.value}`
+        : `${e.ok ? "Took off" : "Couldn't take off"} ${e.tool} › ${e.setting}${e.target ? ` of ${e.target}` : ""}`;
     case "uninstall":
       return !e.ok
         ? `Couldn't take Loskai's key off: ${e.error ?? ""}`

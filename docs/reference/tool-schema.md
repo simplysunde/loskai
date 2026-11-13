@@ -162,9 +162,36 @@ Editing one runs its `write` with the new value as `$1`, checked against its kin
 in the SSH log as `setting`, with the value — so a setting is never a secret. Both `read` and
 `write` run under `sh -c` with `~/.local/bin` on the `PATH` (`status.USER_PATH`).
 
+A setting may also have:
+
+```yaml
+  project-email:
+    label: Email
+    description: The address on this project's commits — empty, the global email.
+    target: project            # optional — a value of each project, not of the machine
+    overrides: email           # optional, with `target` — the machine's setting it replaces
+    value: email
+    read: git -C "$PROJECTS/$1" config --local user.email
+    write: git -C "$PROJECTS/$1" config --local user.email "$2"
+    unset: git -C "$PROJECTS/$1" config --local --unset user.email   # optional
+```
+
+- **`unset`** takes the setting off: it runs when the value is set to nothing. A setting
+  without one needs a value.
+- **`target`** makes it a value of each row of that kind: only `project` (`tool.SETTING_TARGETS`),
+  the rows a settings read can list on the machine itself. Its commands get the project
+  as `$1` and the value as `$2`, with `$PROJECTS` set as for an action. The same read lists
+  every git repo in the projects folder and reads each one's after the machine's, so the
+  card still makes one connection. The card shows a cog on each project's row, teal while
+  any of its settings is set, that opens them beneath it.
+- **`overrides`** names the machine's setting this one replaces where it is set, of the
+  same kind: its value is what an empty field shows, greyed. Only shown — what applies is
+  the program's own rule (git's `--local` over `--global`).
+
 Refused: `404` no such tool or setting, `409` the tool doesn't apply on the machine (or its
-overview can't be read), `422` a value its kind refuses, `423` while the key is locked, and
-`502` when the `write` fails, with the first line the machine said.
+overview can't be read), or a project missing or given where it doesn't belong, `422` a
+value its kind refuses, `423` while the key is locked, and `502` when the `write` fails,
+with the first line the machine said.
 
 ### `session`
 

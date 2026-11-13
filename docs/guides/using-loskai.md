@@ -217,7 +217,10 @@ and Add.
   edit them (with Loskai's key, so the card asks for your password while it is locked) —
   and the machine's **projects folder**, `~/projects` unless you change it (`~` or one
   folder in it). It lists the git projects there, each with **Pull** (only when it
-  fast-forwards), **Push** and **Terminal** (a shell in it); **Pull all** pulls every
+  fast-forwards), **Push** and **Terminal** (a shell in it), and a cog for the project's
+  own **Name** and **Email** — set in its `.git/config`, in place of the global ones for
+  that project only; empty, the global one applies (shown greyed), and the cog is teal
+  while one is set. A fresh clone starts without them. **Pull all** pulls every
   project that has a remote, and **Clone** takes a repository's address — `https://…`,
   `ssh://…` or `git@host:path` — into the projects folder. They run in the machine's
   terminal as its SSH user, so the remote decides what happens there: over SSH, the

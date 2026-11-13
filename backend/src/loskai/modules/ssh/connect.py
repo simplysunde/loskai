@@ -551,26 +551,36 @@ async def _tool_here(machine_id: str, tool_id: str) -> tool.Tool:
     return t
 
 
-async def read_settings(machine_id: str, tool_id: str) -> dict[str, str | None]:
-    """A tool's settings as the machine has them now, by id — None where unset. Read with
-    the main key, so the key must be unlocked (423)."""
+def _projects_folder(machine_id: str) -> str | None:
+    inst = instances_store.get_instance(machine_id)
+    return inst.projects_folder if inst else None
+
+
+async def read_settings(machine_id: str, tool_id: str) -> dict:
+    """A tool's settings as the machine has them now: `{values, targets}` — the machine's by
+    id, and each project's (`tool.parse_settings`), None where unset. Read with the main key,
+    so the key must be unlocked (423)."""
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + tool.read_settings_script(found))}")
+    script = tool.read_settings_script(found, _projects_folder(machine_id))
+    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + script)}")
     return tool.parse_settings(found, str(result.stdout or ""))
 
 
 async def write_setting(
     machine_id: str, tool_id: str, setting_id: str, value: str, peer: str | None = None,
-) -> dict[str, str | None]:
-    """Set one of a tool's settings on the machine, then read them all back — the effect,
-    not the exit code. Logged, with the value. Raises ToolError 404/422 for no such setting
-    or a value it can't take, SshError 502 when the machine says no."""
+    row: str | None = None,
+) -> dict:
+    """Set one of a tool's settings on the machine — a project's, given its `row` — or, set
+    to nothing, take it off; then read them all back — the effect, not the exit code.
+    Logged, with the value. Raises ToolError 404/409/422 for no such setting, a row it isn't
+    for, or a value it can't take, SshError 502 when the machine says no."""
     t = target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    script = tool.write_setting_script(found, setting_id, value)
+    script = tool.write_setting_script(found, setting_id, value, row, _projects_folder(machine_id))
     result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + script)}")
-    log("setting", machine_id, peer, tool=found.id, setting=setting_id, value=value, ok=result.exit_status == 0)
+    log("setting", machine_id, peer, tool=found.id, setting=setting_id, target=row, value=value,
+        ok=result.exit_status == 0)
     if result.exit_status != 0:
         said = str(result.stderr or result.stdout or "").strip().splitlines()
         raise SshError(f"The machine said: {said[0] if said else f'exit {result.exit_status}'}", 502)

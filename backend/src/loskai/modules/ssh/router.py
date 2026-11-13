@@ -196,19 +196,22 @@ async def prepare_run(machine_id: str, body: RunRequest) -> dict:
 
 @router.get("/machines/{machine_id}/tools/{tool_id}/settings")
 async def tool_settings(machine_id: str, tool_id: str) -> dict:
-    """A tool's settings as the machine has them now (`{ values }`), read with the main key."""
-    return {"values": await connect.read_settings(machine_id, tool_id)}
+    """A tool's settings as the machine has them now (`{ values, targets }`: the machine's,
+    and each project's), read with the main key."""
+    return await connect.read_settings(machine_id, tool_id)
 
 
 class SettingRequest(BaseModel):
-    value: str
+    value: str  # empty: take it off, where the setting can be
+    target: str | None = None  # the project, for a project's setting
 
 
 @router.put("/machines/{machine_id}/tools/{tool_id}/settings/{setting_id}")
 async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body: SettingRequest, request: Request) -> dict:
-    """Set one of a tool's settings on the machine; `{ values }` read back after."""
-    values = await connect.write_setting(machine_id, tool_id, setting_id, body.value.strip(), auth.peer(request))
-    return {"values": values}
+    """Set one of a tool's settings on the machine; `{ values, targets }` read back after."""
+    return await connect.write_setting(
+        machine_id, tool_id, setting_id, body.value.strip(), auth.peer(request), body.target,
+    )
 
 
 @router.get("/log")

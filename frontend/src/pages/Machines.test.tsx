@@ -129,6 +129,10 @@ const TOOLS = [
     settings: [
       { id: "name", label: "Name", description: "On every commit.", value: "git-name", read: "git config --global user.name", write: "x" },
       { id: "email", label: "Email", description: "On every commit.", value: "email", read: "git config --global user.email", write: "x" },
+      { id: "project-name", label: "Name", description: "This project's.", value: "git-name", read: "x", write: "x",
+        unset: "x", target: "project", overrides: "name" },
+      { id: "project-email", label: "Email", description: "This project's.", value: "email", read: "x", write: "x",
+        unset: "x", target: "project", overrides: "email" },
     ],
   },
   {
@@ -210,9 +214,11 @@ beforeEach(() => {
             : path.endsWith("/tools/git/settings")
               ? gitStatus === 423
                 ? { detail: "Loskai's key is locked — enter your password" }
-                : { values: { name: "Ola Nordmann", email: null } }
+                : { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": null } } } }
             : path.endsWith("/tools/git/settings/email")
-              ? { values: { name: "Ola Nordmann", email: "ola@example.no" } }
+              ? { values: { name: "Ola Nordmann", email: "ola@example.no" }, targets: { project: {} } }
+            : path.endsWith("/tools/git/settings/project-email")
+              ? { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": "ola@work.example" } } } }
             : path.endsWith("/facts")
               ? facts
             // As the backend says: automatic when the action is, and the sudo rule and an
@@ -893,6 +899,32 @@ test("the Git card reads the machine's commit name and email, and sets one", asy
   await vi.waitFor(() => expect(within(tools).getByLabelText("Email")).toHaveValue("ola@example.no"));
 });
 
+test("a project's cog sets its own commit email, the global one shown while it has none", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  const cog = await within(tools).findByRole("button", { name: "site's own settings" });
+  expect(cog).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(cog);
+  expect(await within(tools).findByLabelText("Name for site")).toHaveAttribute("placeholder", "Ola Nordmann");
+  const email = within(tools).getByLabelText("Email for site");
+  expect(email).toHaveAttribute("placeholder", "not set");
+  fireEvent.focus(email);
+  fireEvent.change(email, { target: { value: "ola@work.example" } });
+  fireEvent.blur(email);
+
+  await vi.waitFor(() =>
+    expect(calls.find((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual({
+      path: "/api/ssh/machines/nas/tools/git/settings/project-email", method: "PUT",
+      body: { value: "ola@work.example", target: "site" },
+    }),
+  );
+  // Set, its cog says so; the card's own Email is untouched.
+  await vi.waitFor(() => expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example"));
+  expect(within(tools).getByLabelText("Email")).toHaveValue("");
+});
+
 test("a setting changed is in the machine's log, with what it was set to", async () => {
   setUp();
   renderPage("/machines/nas/log");
@@ -1118,7 +1150,7 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(within(gitRow).queryByRole("button", { name: "Claude" })).toBeNull();
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
   expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
-  expect(row.title).toBe("Last commit: Add the header");
+  expect((row.firstElementChild as HTMLElement).title).toBe("Last commit: Add the header");
   // In ~ rather than ~/projects: not listed.
   expect(screen.queryByText("notes")).not.toBeInTheDocument();
   fireEvent.click(within(row).getByRole("button", { name: "Claude" }));

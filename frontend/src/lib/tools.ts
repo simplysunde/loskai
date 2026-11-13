@@ -21,7 +21,8 @@ export interface ToolAction {
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
-// A value on the machine a tool's card shows and sets (`settings:` in its file).
+// A value on the machine a tool's card shows and sets (`settings:` in its file) — or, with a
+// `target`, one of each of those rows (a project's own commit name), set under the row.
 export interface ToolSetting {
   id: string;
   label: string;
@@ -29,6 +30,9 @@ export interface ToolSetting {
   value: string; // the kind of value it takes
   read: string;
   write: string;
+  unset?: string | null; // what taking it off runs: set to nothing. None: it needs a value
+  target?: ToolTarget | null;
+  overrides?: string | null; // the machine's setting it replaces where it is set
 }
 
 export interface Tool {
@@ -67,6 +71,11 @@ export function runQuery(run: ToolRun): string {
   if (run.target) q.set("target", run.target);
   if (run.install) q.set("install", "true");
   return q.toString();
+}
+
+// The settings a row of `kind` has of its own — a project's commit name and email.
+export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {
+  return (tool.settings ?? []).filter((s) => s.target === kind);
 }
 
 // The programs `tool` requires that a machine with `programs` lacks — none: it applies.

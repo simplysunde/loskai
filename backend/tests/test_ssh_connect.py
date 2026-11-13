@@ -72,7 +72,7 @@ def machine_net(monkeypatch):
         # A tool's settings: read back as the machine has them; a write is recorded.
         if "#loskai-setting" in command:
             return Done(state.get("settings_out", ""))
-        if "git config --global" in command:
+        if "git config --global" in command or "config --local" in command:
             state.setdefault("writes", []).append(command)
             return Done(exit_status=state.get("write_status", 0), stderr="error: could not lock config file\n")
         # sudo as the machine has it: "password" asks for `sudo_password`, "nopasswd" doesn't
@@ -995,7 +995,7 @@ def test_git_s_name_and_email_are_read_from_the_machine_with_the_main_key(api, m
     _ready(api, machine_net, GIT_FACTS)
     machine_net["settings_out"] = "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n"
 
-    assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None}}
+    assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None}, "targets": {"project": {}}}
     read = machine_net["logins"][-1]
     assert read["key"].get_comment() == "loskai" and read["command"].startswith("sh -c ")
     # The overview finds programs in ~/.local/bin, so the settings it offers look there too.
@@ -1013,6 +1013,35 @@ def test_setting_one_writes_it_as_1_then_reads_them_back_and_logs_it(api, machin
         status.USER_PATH + "sh -c 'git config --global user.email \"$1\"' loskai ola@example.no")]
     entry = api.get("/api/ssh/log").json()[0]
     assert entry["event"] == "setting" and entry["value"] == "ola@example.no" and entry["ok"] is True
+
+
+def test_a_project_s_own_name_is_set_in_its_folder_and_read_back(api, machine_net):
+    _ready(api, machine_net, GIT_FACTS)
+    api.put("/api/ssh/machines/nas/projects", json={"folder": "~/code"}, headers=ORIGIN)
+    machine_net["settings_out"] = (
+        "#loskai-setting name\nOla\n#loskai-setting email\n"
+        "#loskai-setting project-name site\nOla at work\n#loskai-setting project-email site\n"
+    )
+
+    r = api.put(SETTINGS + "/project-name", json={"value": "Ola at work", "target": "site"}, headers=ORIGIN)
+
+    assert r.status_code == 200
+    assert r.json()["targets"] == {"project": {"site": {"project-name": "Ola at work", "project-email": None}}}
+    assert machine_net["writes"][-1] == "sh -c " + shlex.quote(
+        status.USER_PATH + "PROJECTS=$HOME/code; export PROJECTS; "
+        + "sh -c 'git -C \"$PROJECTS/$1\" config --local user.name \"$2\"' loskai site 'Ola at work'")
+    # Read in the same folder, every project in one connection.
+    assert "PROJECTS=$HOME/code" in machine_net["logins"][-1]["command"]
+    entry = api.get("/api/ssh/log").json()[0]
+    assert entry["setting"] == "project-name" and entry["target"] == "site"
+    # Empty takes it off, which a project's setting can be.
+    assert api.put(SETTINGS + "/project-name", json={"value": "", "target": "site"}, headers=ORIGIN).status_code == 200
+    assert "--unset user.name" in machine_net["writes"][-1]
+    # Without its project, or with one that can't be, nothing runs.
+    count = len(machine_net["writes"])
+    assert api.put(SETTINGS + "/project-name", json={"value": "Ola"}, headers=ORIGIN).status_code == 409
+    assert api.put(SETTINGS + "/project-name", json={"value": "Ola", "target": "../x"}, headers=ORIGIN).status_code == 409
+    assert len(machine_net["writes"]) == count
 
 
 def test_a_setting_is_refused_before_anything_runs_when_it_can_t_be_set(api, machine_net):
