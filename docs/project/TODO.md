@@ -4,8 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 43** (below) — Route and name from a machine's running list; Phase 42's
-live check (42d) is half done. **Phase 41** — recipes for
+**Now:** **Phase 46** (below) — the second sweep. **Phase 41** — recipes for
 Forgejo and Immich, `make demo` recording the README's animations, the README — is done. **Phase 40**, the sweep, is done. Since it: account
 levels 1–4 replacing an admin and operators given tabs, a sign-in log, the logs on their own
 page (Settings › Logs), and every page laid out for a phone, checked by `make check-phone` —
@@ -893,6 +892,66 @@ work", without "a dumb shortcut now" that costs later.
       body), Sync then pushed only it, route → link was refused, and a new link left Caddy's
       ids alone. Found: the picker said "No unrouted containers" while still loading —
       fixed.
+
+## Phase 46 — The second sweep: decisions made twice again
+
+Asked 2026-11-13: a checkpoint (tag `checkpoint-2026-11-13`), then a refactor of the whole
+codebase. Three read-only reviews, as in Phase 40, found the code still lean — about 2–3%
+could go — and that the 157 commits since Phase 40 (the running list, tools, Tailscale,
+links, status lines up to v10) had brought back about a dozen decisions made in two or more
+places. Four bugs they found, each checked in the code, go first.
+
+**Decisions (2026-11-13, Sunde: "go ahead with the recommended changes, and drop the old code")**
+
+- Bugs first, then the backend, the frontend, the tests and the docs — a commit each, every
+  check run, each area checked live before the next.
+- **Old code dropped:** the unused `git_build`/`registry_pull` recipe modes (no recipe in
+  `loskai-recipes` uses them), the pre-accounts `admin_password_hash`, and the refusal of a
+  key from before Phase 38 (the live key is unencrypted). **Kept:** reading an account saved
+  before levels (`users._level`) — the live `users.json` still holds one, saved with
+  `role`/`tabs`, and dropping it would lock that account out; it can go once the file has
+  been saved since.
+- **Not done, on purpose:** splitting `recipes.py`, `ssh/logic.py` or `InstallWizard.tsx`
+  (tidier, simpler in no way); one style for the tab strips and an `IconButton` with
+  `disabled` (visible changes for no fix); compacting tests where nothing is decided
+  twice; the base domain's old rewrites left behind when it changes (decided 2026-09-20 —
+  Settings › Network › Clear); the STACKS_DIR comment repeated in the three compose files
+  (each is read alone, by someone installing from it).
+
+**Steps**
+
+- [ ] 46a A new stack whose `up` fails stays open on what Compose said
+- [ ] 46b Check for updates counts only the recipes it can update
+- [ ] 46c Each machine's SSH target comes from the server — the setup dialog showed
+      `user@undefined` for an entry without `HostName`
+- [ ] 46d The Dashboard's cards are keyed by id, not name
+- [ ] 46e The reviews' unchecked bugs — Tailscale's "approval" read two ways, a typed name
+      lost on Cancel, the wizard's silent failures — each checked, fixed where real
+- [ ] 46f Backend: AdGuard's expected rewrite and its conflict rule, once
+- [ ] 46g Backend: statuses decided where raised — `ToolError`, the base domain's refusal,
+      one `instances.require`
+- [ ] 46h Backend: the status line's version is a number, not three lists
+- [ ] 46i Backend: saving a machine leaves the HTTP handler (`assign.save_machine`)
+- [ ] 46j Backend: which recipe a stack came from, once; one git runner; the small
+      duplicates and stale comments
+- [ ] 46k Backend: the old code — `git_build`/`registry_pull`, `admin_password_hash`, the
+      pre-Phase-38 key's refusal
+- [ ] Backend live
+- [ ] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
+- [ ] 46m Frontend: the route forms' preview and follow toggle, once; the Assign form
+      decides its own pre-fill, like `LinkModal`
+- [ ] 46n Frontend: one key-unlock hook
+- [ ] 46o Frontend: one route invalidation, one recipes query, `SaveBanner` on Routing
+- [ ] 46p Frontend: leftovers — `kind` required, `retry: false`, dead helpers, the Users
+      remove dialog's pending state, Machines loaded lazily
+- [ ] Frontend live
+- [ ] 46q Tests: the effect, not the response; tests that couldn't fail
+- [ ] 46r Tests: one signed-in admin client; settings untouched by the environment
+- [ ] 46s Docs: stale facts, superseded notes, browser/server pairs registered
+- [ ] 46t Docs: finished phases to the archive; `check-docs` checks where each phase lives
+      and the instance schema; the HISTORY entry
+
+---
 
 ## Backlog / Future ideas
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
