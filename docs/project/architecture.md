@@ -357,8 +357,10 @@ stored password: `tool.allow_script` writes it in the machine's terminal, as an 
 run (below), naming the user and exactly System's update steps
 (`tool.update_commands`, read from the tool file) plus the rule's own removal, checked by
 `visudo` before it is moved into place. The overview says whether it is there (status line
-v5). It comes off first whenever Loskai's things do — deleting the machine or removing its
-SSH connection (`logic.UNINSTALL_SCRIPT`) — through the rule itself, so no password.
+v5). It comes off first whenever Loskai's things do — deleting the machine, removing its
+SSH connection, or changing its SSH user (`logic.UNINSTALL_SCRIPT`, as the old user: the
+rule is that user's, and the new one may not see it where `/etc/sudoers.d` is 0750) —
+through the rule itself, so no password.
 
 **An automatic run** (`automatic: true` in its tool file; adding a tool and the sudo rule
 always) asks for sudo's password before its terminal opens, and only when sudo would.

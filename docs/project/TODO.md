@@ -31,11 +31,6 @@ visible without unpacking a phase back out. The checklists stay in
   the install guide — so both repos must be pushed there before an install can work. Then
   the first `make release` (once per boot, QEMU for arm64: the script says how), and make
   both packages public on GitHub — the install guide's `docker compose pull` needs them.
-- **A sudo rule Loskai can't see may be left behind.** Taking a machine off checks for the rule
-  with `[ -e /etc/sudoers.d/loskai ]` when `sudo -n rm` fails. Where that folder is 0750 (it
-  is 0755 on Debian), a user other than the one the rule was made for sees nothing, and the
-  removal reports clean. Warning whenever the folder can't be read would warn on every such
-  machine; the fix needs a way to ask sudo itself. From the 2026-11-05 review.
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
   the tool schema that keeps its value out. From the 2026-11-05 review.
@@ -83,7 +78,11 @@ between today and a first release. The bugs are the ones under *Open, not in fli
 - [x] 48d Wrong passwords counted per account and client (Sunde: per account + client,
       over also keeping a looser account-wide limit): a guesser's waits are their own, the
       owner signs in from another device; one check at a time still bounds many addresses
-- [ ] 48e A sudo rule Loskai can't see is not reported as removed
+- [x] 48e A sudo rule Loskai can't see is not left behind (Sunde: take it off on a user
+      change). The rule is written for the SSH user of the time, and only a different user
+      failed to see it (in a 0750 /etc/sudoers.d); so a new SSH user takes Loskai's things
+      off the old one first, as removing the connection does, and keeps the host key. A
+      locked key doesn't stop the change: it warns what stayed
 
 ---
 

@@ -69,6 +69,29 @@ def prepare_removal(inst: Instance):
     return connect.removal(inst.id)
 
 
+def prepare_user_change(prev: Instance, ssh) -> tuple[object | None, str | None]:
+    """Before a machine's SSH user changes: where Loskai's lines are under the old user — its
+    key, and the sudo rule written for that user, which the new one may not see (where
+    /etc/sudoers.d is 0750) — to take off once the save has gone through, as removing the
+    connection does. `(None, None)` when the user stays. A locked key doesn't stop the
+    change: `(None, warning)`, saying what stayed."""
+    if ssh is KEEP or ssh is None:
+        return None, None
+    try:
+        old = connect.target(prev.id).user
+    except connect.SshError:
+        return None, None  # no SSH user before: nothing of Loskai's under one
+    if old == ssh.user:
+        return None, None
+    try:
+        return connect.removal(prev.id), None
+    except connect.SshError:
+        return None, (
+            f"Loskai's key was locked, so what it put on the machine for {old} stayed — "
+            f"remove its loskai lines from {old}'s ~/.ssh/authorized_keys, and as root: rm -f {logic.SUDO_RULE}"
+        )
+
+
 async def remove_keys(inst: Instance, removal) -> str | None:
     """Take what Loskai put on a machine — its sudo rule, its lines — off it, when the machine
     or its SSH connection goes. Best-effort: a machine that can't be reached goes anyway,

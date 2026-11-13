@@ -1086,3 +1086,48 @@ def test_a_machine_that_can_t_be_reached_loses_its_ssh_connection_with_a_warning
 
     assert r.status_code == 200 and "still on the machine" in r.json()["warning"]
     assert "nas" not in logic.hosts(ssh_client.read_config())
+
+
+# --- A machine's SSH user changed ---
+
+
+def _change_user(api, user, port=2222):
+    return api.post("/api/machines", json={
+        "hostname": "nas", "address": "192.168.10.50", "instance_id": "nas", "ssh": {"user": user, "port": port},
+    })
+
+
+def test_a_new_ssh_user_takes_loskai_s_things_off_the_old_one_first(api, machine_net):
+    """The sudo rule is the old user's: where /etc/sudoers.d is 0750 the new one can't see
+    it, and removing the machine later reported it gone while it stayed."""
+    _with_key(api)
+    _trust(api)
+
+    r = _change_user(api, "admin")
+
+    # Nothing about the machine's own things: AdGuard isn't configured here, that's all.
+    assert r.status_code == 200 and "loskai" not in (r.json()["warning"] or "")
+    assert [(login["user"], login["command"]) for login in machine_net["logins"]] == [("loskai", logic.UNINSTALL_SCRIPT)]
+    assert logic.hosts(ssh_client.read_config())["nas"]["user"] == "admin"
+    # The host key is the machine's, not the user's: still trusted.
+    assert logic.known_key(ssh_client.read_known_hosts(), "nas") is not None
+
+
+def test_the_same_user_or_another_port_reaches_nothing(api, machine_net):
+    _with_key(api)
+    _trust(api)
+
+    assert _change_user(api, "loskai", port=22).status_code == 200
+    assert machine_net["logins"] == []
+
+
+def test_a_locked_key_lets_the_user_change_and_says_what_stayed(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()
+
+    r = _change_user(api, "admin")
+
+    assert r.status_code == 200 and "for loskai stayed" in r.json()["warning"]
+    assert machine_net["logins"] == []
+    assert logic.hosts(ssh_client.read_config())["nas"]["user"] == "admin"

@@ -48,7 +48,8 @@ Everything so far:
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
 - **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key
   off it first, with your password if the key is locked; one that can't be reached
-  goes anyway, with a warning that they are still there.
+  goes anyway, with a warning that they are still there. Changing a machine's SSH user
+  takes them off the old user the same way.
 - **How long the SSH key stays unlocked** is a setting in Settings › SSH: 15 minutes, 1, 3,
   8 or 24 hours (`SSH_UNLOCK_MINUTES` too).
 - **Updates without a password** — a machine's SSH section can allow System's Update to run

@@ -60,7 +60,8 @@ your network. Read this before deciding where it runs and who can reach it.
   terminal, which opens with echo off, so it never shows. It is never stored, logged or put
   in a command line: in tmux it goes through a FIFO in a private folder, removed at once.
   Like everything typed in a terminal, it passes through Loskai on its way.
-- **Deleting a machine, or removing its SSH connection, takes Loskai's things off it** —
+- **Deleting a machine, removing its SSH connection, or changing its SSH user takes Loskai's
+  things off it** (off the old user, for a change) —
   the sudo rule first, then its two `authorized_keys` lines, and nothing else — before
   Loskai forgets it. A machine that can't be reached then goes anyway, and Loskai says what
   is still there to remove by hand.

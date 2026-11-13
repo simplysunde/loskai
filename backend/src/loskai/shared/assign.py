@@ -436,13 +436,15 @@ async def save_machine(
 
     Removing the connection takes off what Loskai put on the machine, as deleting it does:
     where that is, read first — a locked key stops it here, unchanged — and taken off only
-    once the save has gone through."""
+    once the save has gone through. A new SSH user does the same for the old one's
+    (`prepare_user_change`) — its sudo rule is that user's — but a locked key only warns."""
     prev = instances_store.get_instance(instance_id) if instance_id else None
     if prev is not None:  # before its SSH entry is read, below
         access.require_instance(acting, prev.kind)
     if refusal := ssh_machines.rename_refusal(prev, hostname):
         raise AssignError(refusal, 409)
     removal = ssh_machines.prepare_removal(prev) if prev is not None and ssh is None else None
+    user_change, user_warning = ssh_machines.prepare_user_change(prev, ssh) if prev is not None else (None, None)
     result = await name_machine(
         caddy_client, adguard_client,
         prefix=hostname, upstream=address, instance_id=instance_id,
@@ -450,10 +452,12 @@ async def save_machine(
     )
     inst = instances_store.get_instance(result["instance_id"])
     if inst is not None:
-        warnings = [result["warning"]]
+        warnings = [result["warning"], user_warning]
         if ssh is None and prev is not None:
             warnings.append(await ssh_machines.remove_keys(prev, removal))
             await asyncio.to_thread(ssh_machines.forget_trust, prev)
+        if user_change is not None:
+            warnings.append(await ssh_machines.remove_keys(prev, user_change))
         warnings.append(await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh))
         result["warning"] = " ".join(w for w in warnings if w) or None
     return result
