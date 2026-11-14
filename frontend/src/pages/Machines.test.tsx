@@ -1345,6 +1345,23 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
 
+test("Machine, in Projects, opens the machine's dialog over it; closing that comes back to Projects", async () => {
+  setUp();
+  renderPage();
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
+
+  fireEvent.click(within(nas).getByRole("link", { name: "Machine" }));
+  const machine = await screen.findByRole("dialog", { name: "Storage box" });
+  expect(screen.getByRole("dialog", { name: "Projects" })).toBeInTheDocument();
+  // On top: drawn after it.
+  expect(screen.getByRole("dialog", { name: "Projects" }).compareDocumentPosition(machine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  fireEvent.keyDown(document, { key: "Escape" });
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Storage box" })).toBeNull());
+  expect(screen.getByRole("dialog", { name: "Projects" })).toBeInTheDocument();
+});
+
 test("a project's buttons in Projects run in that machine's terminal", async () => {
   setUp();
   renderPage();

@@ -157,7 +157,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
             group: 0,
             // The search finds a machine by its projects and sessions too.
             words: [...r.rows, ...r.sessions].map((p) => p.name).join(" "),
-            action: <MachineLine machine={r.machine} facts={r.facts!} onClose={onClose} />,
+            action: <MachineLine machine={r.machine} facts={r.facts!} />,
             content: <MachineProjects machine={r.machine} />,
           }))}
         />
@@ -168,7 +168,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
 
 // Beside a machine's name: what it is in a line, and the way to its dialog. Its tmux
 // sessions are listed under its projects.
-function MachineLine({ machine, facts, onClose }: { machine: Machine; facts: Facts; onClose: () => void }) {
+function MachineLine({ machine, facts }: { machine: Machine; facts: Facts }) {
   const line = [
     machine.upstream,
     facts.programs?.includes("tailscale") ? `Tailscale ${tailscaleStatus(facts)}` : null,
@@ -176,10 +176,10 @@ function MachineLine({ machine, facts, onClose }: { machine: Machine; facts: Fac
   return (
     <span className="flex min-w-0 items-baseline gap-3">
       <span className="hidden truncate font-mono text-xs text-slate-500 sm:inline">{line.join(" · ")}</span>
+      {/* Over this dialog, which stays: closing the machine's comes back here. */}
       <Link
         to={`/machines/${machine.id}/tools`}
-        onClick={onClose}
-        title="Its dialog — its tools, and each project's settings"
+        title="Its dialog, over this one — its tools, and each project's settings"
         className="shrink-0 text-xs text-teal-400 hover:underline"
       >
         Machine
