@@ -147,9 +147,18 @@ commit, the full checks, `where-used.py --write`.
       `groupByStack.test.ts` stay: `stack` is already a parameter there, and the rename
       shadowed it (the checks caught it)
 - [x] 57o The Machines tab's components move to `components/machines/`
-- [ ] 57p Live: every tab on a scratch backend, a machine's dialog and a tool run, a route;
-      then `main` fast-forwarded on Sunde's word, `:8080` and its log checked; the HISTORY
-      entry with the whole `old → new` table
+- [ ] 57p Live, and the HISTORY entry with the whole `old → new` table — both done; left:
+      `main` fast-forwarded on Sunde's word, then `:8080` and its log checked, the worktree
+      removed.
+      live: a scratch Loskai on `:8010` with its own Caddy (`-p loskai-smoke`) and a
+      throwaway Debian machine. Through the API, 56 checks, the effect each time: the key's
+      two lines in the machine's `authorized_keys` with `from=`, test, facts, the projects
+      folder, git's name and a project's own in git's config, a row's action, an ask, an
+      automatic one, the sudo rule with a ticket spent once and the password in no log, a
+      recipe's container joined to its record, a route's proxied body, the route, stack and
+      machine taken off again. In the browser, every page, a machine's five categories, Keys,
+      Projects, Update all, a tmux session ended from its card, the wizard, the stack
+      editor and a route made in the picker and served by Caddy — no page error, no 5xx
 
 ---
 

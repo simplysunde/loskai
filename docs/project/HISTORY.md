@@ -4,6 +4,90 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — The rename pass: a name says what the thing is (Phase 57)
+
+Sunde ran `/rename`: make names say what things are, and change nothing else. Three
+read-only reviewers proposed about 140 renames; each was checked against its definition and
+uses, and about 130 were made in fifteen commits — the rest of the names, well over nine in
+ten, were fine and stay. Most of what changed is in `modules/ssh` and the Machines tab's
+components, the youngest code.
+
+**How it was kept a pure rename.** In a worktree, since `:8080` reloads on every save. Before
+the first commit, on `main`: the OpenAPI document (operation ids, summaries and docstrings
+out), every Pydantic model's fields and the settings keys, the status command, sudo rule and
+tool files, every string literal in the backend that isn't a docstring, and every string,
+JSX text and property name in the frontend. After each commit all of it was diffed: nothing
+differed but the props that were renamed on purpose. The Python renames were made by token,
+so no string could change; the TypeScript ones by the language service, which keeps a
+shorthand property as `old: new`. 1028 backend and 414 frontend tests before and after; then
+live, on a scratch Loskai with its own Caddy and a throwaway machine — 56 checks through the
+API (the machine's `authorized_keys` and sudo rule, a tool's setting in git's config, a
+ticket spent once, a recipe's container, the proxied body) and every page, a machine's
+dialog and a route made in the browser, with no page error.
+
+**What the checks caught**, each a way a rename changes behaviour while the build passes:
+
+- Four tests passed a prop through an untyped `overrides` object
+  (`renderModal({ mode: "docker" })`). One failed; three kept passing with the prop ignored.
+- `test_assign.py`'s helper `name_machine` had the name of `assign.name_machine`, which nine
+  tests in the file also call — renaming the helper took them with it.
+- `s` → `stack` in `groupByStack.test.ts` shadowed a parameter already named `stack`.
+  Afterwards oxlint's `no-shadow` was compared against `main`: nothing new.
+
+**The glossary it settled.** The frontend's type for an instance is `Instance`; "record"
+stays the docs' word. The address a proxied route's rewrite answers with is `answer_ip`.
+An SSH `Target` is held in `target`, a row's name in `target_name`, a kind of row is a
+`TargetKind`. Identifiers say *facts*, prose and the page say *overview*. Loskai's key is a
+`LoskaiKey`, a key on a machine a `MachineKey`. A helper that returns or raises is
+`require_…`; data is never named `on…`.
+
+**Old → new**, so an older entry's name can be followed to today's code:
+
+| Where | Old | New |
+|---|---|---|
+| `ssh/connect.py` | `target()` · `reach()` · `t` | `require_target()` · `target_of()` · `target` (a Target), `found` (a Tool) |
+| | `_trusted` · `_tool` · `_tool_here` · `_overview` | `_require_trusted_key` · `_require_tool` · `_require_usable_tool` · `_require_facts` |
+| | `lines()` · `from_ip` · `_host_key` · `_failed` · `_run_of` | `authorized_keys_lines()` · `from_patterns` · `_offered_host_key` · `_last_error_line` · `_run_identity` |
+| | `write_setting(row=)` · `f` | `write_setting(target_name=)` · `machine_facts` |
+| `ssh/tool.py` | `visible()` · `_place()` · `t` · `target` (a row's name) | `terminal_command()` · `_order_rank()` · `tool` · `target_name` |
+| | `PROJECTS` · `_FOLDER` · `parse_folder` · `show_folder` · `projects` | `DEFAULT_PROJECTS_FOLDER` · `_PROJECTS_FOLDER` · `parse_projects_folder` · `show_projects_folder` · `projects_folder` |
+| `ssh/status.py` | `STATUS_LINE` · `STATUS_VERSION` | `STATUS_LINE_VERSION` · `STATUS_HEAD` |
+| | `_guest_address` · `_base_service` · `_loopback` | `_is_guest_address` · `_is_base_service` · `_is_loopback` |
+| `ssh/machines.py` | `follow_machine()` | `update_config_entry()` |
+| `shared/assign.py`, `adguard/` | `current_ip` · `same_container()` | `answer_ip` · `require_same_container()` |
+| `adguard/service.py` | `expected()` · `foreign()` | `expected_rewrite()` · `foreign_answers()` |
+| `shared/settings.py` | `caddy_host()` | `caddy_admin_host()` |
+| `shared/instances.py` | `_owned()` | `_require_owned()` |
+| `docker/install.py` | `recipe_icon()` | `with_recipe_icon()` |
+| `docker/logic.py` | `link_instances()` · `_dial()` | `join_instances()` · `_dial_host_port()` |
+| `docker/recipes.py` | `_load_folder()` | `load_recipe_folder()` |
+| `docker/stackform.py` | `_base()` · `_disk()` | `_unsaved_text()` · `_saved_text()` |
+| imports | `config.settings` as `settings` · `settings_module` · bare `instances` | `env` · `settings_store` · `instances_store` |
+| `ServiceTable.tsx`, `lib/routes.ts` | `RouteRow` · `useRoutes` · `useRouteRows` | `Instance` · `useInstances` · `useInstanceRows` |
+| `lib/ssh.ts` | `SshKey` · `SshKeyInfo` · `sshHost()` | `LoskaiKey` · `MachineKey` · `remoteSshHost()` |
+| `lib/tools.ts`, the runner | `onCard` · `runQuery` · `ToolTarget` · `onEnded` | `isOnCard` · `runQueryString` · `TargetKind` · `onResult` |
+| `lib/recipes.ts` | `syncFailed` · `paths` · `pathWhere` | `syncFailureMessage` · `pathQuestions` · `mountLocation` |
+| components | `FillStep` · `ResultStep` · `PickStep` · `Ask` · `SettingsDialog` · `SettingsButton` · `Shell` | `ConfigureStep` · `DoneStep` · `ChooseStep` · `ToolAsk` · `ToolSettingsDialog` · `ToolSettingsButton` · `SectionDialog` |
+| route forms | `caddy`, `routing` · `mode` | `caddySetUp` · `upstreamMode` |
+| `SshKeys.tsx` | `onKey` · `onHost` · `onLabel` · `named` · `offWhy` · `off` | `keyActions` · `testAction` · `labelAction` · `inSshConfig` · `whyDisabled` · `disabledReason` |
+| `components/routing/` | the Machines tab's eighteen components | `components/machines/` |
+| tests | `test_caddy_logic.py` · `test_ssh_keys.py` | `test_caddy_service.py` · `test_ssh_unlock.py` |
+
+The locals — `m`, `c`, `t`, `h`, `f`, the test helpers — are in each commit's message.
+
+**Left alone on purpose.** `connect.removal`, `tool.allow_script`, `MACHINE_TOOL`,
+`ProjectsOverview`, `MachineService`; `record` for an Instance (the docs' word); `missing`
+in `lib/tools.ts`, which matches the backend's; the constants that mirror schema keys.
+`OptionList` (`RecipeOptions` would sit one letter from the type `RecipeOption`), `base` for
+the base domain (each lives two lines), `AssignResult` and `RouteResult` (making them
+`SaveResult` is a merge), `c` and `s` in `groupByStack.test.ts`. Test names are sentences
+in the app's words: three of 1250 changed.
+
+**Not names, so not touched:** `backend/pyproject.toml` says conftest lowers the bcrypt
+rounds, which it doesn't; `lib/tools.ts` carries `rowSettingsOf`'s comment above
+`cardSettingsOf`; `lib/routes.ts` imports its types from component files; three test files
+repeat conftest's isolation fixture.
+
 ## 2026-11-14 — A review of the day's SSH work, and what it fixed
 
 `/code-review` over the 49 commits found ten things; eight fixed, each with a test that
