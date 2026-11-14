@@ -12,31 +12,31 @@ from conftest import make_recipe
 # --- Which container an installed recipe links to (pure) ---
 
 
-def _c(service, name, published=False):
+def _container(service, name, published=False):
     return {"service": service, "name": name, "ports": {"80/tcp": [{"HostPort": "8080"}] if published else None}}
 
 
 def test_primary_container_single_service():
-    assert logic.primary_container([_c("app", "grafana-app-1")]) == "grafana-app-1"
+    assert logic.primary_container([_container("app", "grafana-app-1")]) == "grafana-app-1"
 
 
 def test_primary_container_prefers_the_declared_service():
-    containers = [_c("app", "immich-app-1"), _c("db", "immich-db-1")]
+    containers = [_container("app", "immich-app-1"), _container("db", "immich-db-1")]
     assert logic.primary_container(containers, "db") == "immich-db-1"
 
 
 def test_primary_container_ignores_a_declared_service_that_is_not_there():
-    containers = [_c("app", "immich-app-1", published=True), _c("db", "immich-db-1")]
+    containers = [_container("app", "immich-app-1", published=True), _container("db", "immich-db-1")]
     assert logic.primary_container(containers, "web") == "immich-app-1"
 
 
 def test_primary_container_prefers_the_published_service():
-    containers = [_c("db", "immich-db-1"), _c("web", "immich-web-1", published=True)]
+    containers = [_container("db", "immich-db-1"), _container("web", "immich-web-1", published=True)]
     assert logic.primary_container(containers) == "immich-web-1"
 
 
 def test_primary_container_falls_back_to_a_stable_order():
-    containers = [_c("web", "app-web-1", published=True), _c("api", "app-api-1", published=True)]
+    containers = [_container("web", "app-web-1", published=True), _container("api", "app-api-1", published=True)]
     assert logic.primary_container(containers) == "app-api-1"
 
 
@@ -72,7 +72,7 @@ def _fake_project(monkeypatch, containers):
 def test_install_links_the_instance_to_the_compose_container(installable, monkeypatch):
     """Compose names the container `<project>-<service>-1`, so the recipe id is not it —
     and the instance join in logic.py matches on the name."""
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     result = install.install_recipe("grafana", {"PORT": "3000"})
 
     assert result["ok"] and result["container"] == "grafana-app-1"
@@ -83,7 +83,7 @@ def test_install_links_the_instance_to_the_compose_container(installable, monkey
 
 
 def test_install_writes_the_generated_env(installable, monkeypatch):
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     install.install_recipe("grafana", {"PORT": "3000", "PW": "pa$word1"})
     stack = install.stacks.stacks_dir() / "grafana"
     assert (stack / ".env").read_text() == 'PORT="3000"\nPW="pa\\$word1"\n'
@@ -92,14 +92,14 @@ def test_install_writes_the_generated_env(installable, monkeypatch):
 
 
 def test_install_fills_defaults_for_missing_answers(installable, monkeypatch):
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     install.install_recipe("grafana", {})
     env = (install.stacks.stacks_dir() / "grafana" / ".env").read_text()
     assert env == 'PORT="3000"\nPW=""\n'
 
 
 def test_install_refuses_an_undeclared_answer_before_touching_disk(installable, monkeypatch):
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     with pytest.raises(manifest.RecipeError, match="not declared"):
         install.install_recipe("grafana", {"COMPOSE_PROJECT_NAME": "hijacked"})
     assert not (install.stacks.stacks_dir() / "grafana").exists()
@@ -133,7 +133,7 @@ def test_install_survives_a_daemon_that_went_away(installable, monkeypatch):
 
 
 def test_install_refuses_a_duplicate_stack(installable, monkeypatch):
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     install.install_recipe("grafana", {})
     with pytest.raises(install.stacks.StackError, match="already exists"):
         install.install_recipe("grafana", {})
@@ -144,7 +144,7 @@ def test_install_refuses_a_duplicate_stack(installable, monkeypatch):
 
 def test_install_reuses_the_folder_a_kept_delete_left(installable, monkeypatch):
     """Delete keeps a stack's data by default; installing it again picks the folder up."""
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     leftover = install.stacks.stacks_dir() / "grafana" / "data"
     leftover.mkdir(parents=True)
     (leftover / "grafana.db").write_text("dashboards")
@@ -157,7 +157,7 @@ def test_install_reuses_the_folder_a_kept_delete_left(installable, monkeypatch):
 
 
 def test_a_fresh_install_reports_no_reused_data(installable, monkeypatch):
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     assert install.install_recipe("grafana", {})["reused_data"] is False
 
 
@@ -171,7 +171,7 @@ def test_reinstall_keeps_the_route_record(installable, monkeypatch):
         subdomain="graf", upstream="192.168.10.220:3000", private=True, icon="grafana.png",
         follow_container=True,
     ))
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     install.install_recipe("grafana", {})
 
@@ -189,7 +189,7 @@ def test_a_change_made_during_a_reinstall_s_up_is_kept(installable, monkeypatch)
         id="grafana", name="Grafana", type="docker", container="grafana-old-1",
         subdomain="graf", upstream="192.168.10.220:3000", follow_container=True,
     ))
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     def up(directory, *args):
         instances_store.update_fields("grafana", upstream="192.168.10.220:3001", private=True)
@@ -208,7 +208,7 @@ def test_a_reinstalled_record_with_no_icon_gets_the_recipe_s(installable, monkey
 
     instances_store.upsert_instance(Instance(id="grafana", name="Grafana", type="docker", container="grafana-old-1"))
     (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     install.install_recipe("grafana", {})
 
@@ -223,7 +223,7 @@ def test_an_id_that_names_an_external_route_is_refused(installable, monkeypatch)
         id="grafana", name="grafana", type="external", subdomain="grafana",
         upstream="192.168.10.60:3000",
     ))
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     with pytest.raises(manifest.RecipeError, match="already the name of a route"):
         install.install_recipe("grafana", {})
@@ -345,7 +345,7 @@ def test_override_is_long_syntax_that_never_creates_a_folder():
 @pytest.fixture
 def jellyfin(installable, monkeypatch):
     make_recipe(installable / "recipes", "jellyfin", "Jellyfin", MEDIA)
-    _fake_project(monkeypatch, [_c("app", "jellyfin-app-1")])
+    _fake_project(monkeypatch, [_container("app", "jellyfin-app-1")])
     return install.stacks.stacks_dir() / "jellyfin"
 
 
@@ -499,7 +499,7 @@ def test_deploy_must_be_a_mapping():
 @pytest.fixture
 def gpu_recipe(installable, monkeypatch):
     make_recipe(installable / "recipes", "jellyfin", "Jellyfin", MEDIA + GPU)
-    _fake_project(monkeypatch, [_c("app", "jellyfin-app-1")])
+    _fake_project(monkeypatch, [_container("app", "jellyfin-app-1")])
     return install.stacks.stacks_dir() / "jellyfin"
 
 
@@ -562,7 +562,7 @@ def test_install_gives_the_route_the_recipe_icon(installable, monkeypatch):
     from loskai.shared import icons
 
     (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     install.install_recipe("grafana", {})
 
@@ -571,7 +571,7 @@ def test_install_gives_the_route_the_recipe_icon(installable, monkeypatch):
     assert icons.path_for(inst.icon).read_bytes() == PNG
 
 
-def _routed(container="grafana-app-1"):
+def _new_route_record(container="grafana-app-1"):
     from loskai.shared.instances import Instance
 
     return Instance(id="graf", name="graf", type="docker", container=container)
@@ -589,12 +589,12 @@ def test_a_new_route_for_an_installed_recipe_gets_its_icon(installable, monkeypa
     from loskai.shared import icons
 
     (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     install.install_recipe("grafana", {})
     instances_store.delete_instance("grafana")
     _ran_in(monkeypatch, install.stacks.stacks_dir() / "grafana")
 
-    inst = install.with_recipe_icon(_routed())
+    inst = install.with_recipe_icon(_new_route_record())
     assert inst.icon == "graf.png"
     assert icons.path_for(inst.icon).read_bytes() == PNG
 
@@ -609,8 +609,8 @@ def _moved_in(installable, name="grafana"):
 
 def test_a_stack_moved_in_by_hand_gets_its_recipes_icon_by_name(installable, monkeypatch):
     _ran_in(monkeypatch, _moved_in(installable))
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
-    assert install.with_recipe_icon(_routed()).icon == "graf.png"
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
+    assert install.with_recipe_icon(_new_route_record()).icon == "graf.png"
 
 
 def test_the_stack_is_found_by_its_folder_not_its_project_name(installable, monkeypatch):
@@ -618,15 +618,15 @@ def test_the_stack_is_found_by_its_folder_not_its_project_name(installable, monk
     stack = _moved_in(installable, "Graf.Ana")
     (stack / install.stacks.RECORD_NAME).write_text('{"recipe": "grafana"}')
     _ran_in(monkeypatch, stack, project="grafana")
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
-    assert install.with_recipe_icon(_routed()).icon == "graf.png"
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
+    assert install.with_recipe_icon(_new_route_record()).icon == "graf.png"
 
 
 def test_only_the_recipes_own_container_gets_its_icon(installable, monkeypatch):
     _ran_in(monkeypatch, _moved_in(installable))
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1", published=True), _c("db", "grafana-db-1")])
-    assert install.with_recipe_icon(_routed("grafana-app-1")).icon == "graf.png"
-    assert install.with_recipe_icon(_routed("grafana-db-1")).icon is None
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1", published=True), _container("db", "grafana-db-1")])
+    assert install.with_recipe_icon(_new_route_record("grafana-app-1")).icon == "graf.png"
+    assert install.with_recipe_icon(_new_route_record("grafana-db-1")).icon is None
 
 
 @pytest.mark.parametrize(
@@ -640,9 +640,9 @@ def test_only_the_recipes_own_container_gets_its_icon(installable, monkeypatch):
 )
 def test_no_icon_for_a_container_outside_a_recipe_stack(installable, monkeypatch, labels_of):
     _moved_in(installable)
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
     monkeypatch.setattr(install.docker_client, "labels_of", labels_of)
-    assert install.with_recipe_icon(_routed()).icon is None
+    assert install.with_recipe_icon(_new_route_record()).icon is None
 
 
 def test_reinstall_never_replaces_an_icon_chosen_by_hand(installable, monkeypatch):
@@ -655,7 +655,7 @@ def test_reinstall_never_replaces_an_icon_chosen_by_hand(installable, monkeypatc
         Instance(id="grafana", name="Grafana", type="docker", container="grafana-old-1", icon="grafana.png")
     )
     (installable / "recipes" / "grafana" / "icon.png").write_bytes(PNG)
-    _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
+    _fake_project(monkeypatch, [_container("app", "grafana-app-1")])
 
     install.install_recipe("grafana", {})
 

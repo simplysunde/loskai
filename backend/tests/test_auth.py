@@ -15,7 +15,7 @@ from loskai.main import app
 from loskai.modules.docker.client import docker_client
 from loskai.modules.docker.router import HANGUP_COMMAND
 from loskai.shared import auth, store, users
-from loskai.shared import settings as s
+from loskai.shared import settings as settings_store
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +64,7 @@ def test_an_empty_secret_is_never_signed_with(tmp_path):
 
 def test_a_session_ends_when_idle_for_longer_than_settings_say(monkeypatch):
     token = auth.make_session(_admin())
-    monkeypatch.setattr(s, "session_idle_seconds", lambda: -1)
+    monkeypatch.setattr(settings_store, "session_idle_seconds", lambda: -1)
 
     assert auth.session_user(token) is None
 
@@ -323,7 +323,7 @@ def test_a_terminal_outlasts_its_cookie_s_idle_time(monkeypatch):
     # It lives in an open page, which keeps its session; the cookie it was opened with is
     # never renewed, the browser's is.
     monkeypatch.setattr(auth, "SESSION_RECHECK", 0.05)
-    monkeypatch.setattr(s, "session_idle_seconds", lambda: 1)
+    monkeypatch.setattr(settings_store, "session_idle_seconds", lambda: 1)
     token = auth.make_session(_admin())
 
     assert not _ends_within(token, 2.5)

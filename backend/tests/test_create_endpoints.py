@@ -24,7 +24,7 @@ def client(admin):
     return admin
 
 
-def test_both_creation_endpoints_require_a_session():
+def test_the_machine_and_route_endpoints_require_a_session():
     with TestClient(app) as anon:
         anon.post("/api/auth/setup", json={"username": "admin", "password": PASSWORD})
         anon.cookies.clear()  # setup signs you in; this is the logged-out case

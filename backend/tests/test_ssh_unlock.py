@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from loskai.main import app
 from loskai.modules.ssh import client, unlock
 
-from conftest import ORIGIN, PASSWORD as ADMIN
+from conftest import ORIGIN, PASSWORD
 
 
 @pytest.fixture(autouse=True)
@@ -19,7 +19,7 @@ def fresh():
 @pytest.fixture
 def admin(admin):
     """The signed-in admin (conftest's), with a key made."""
-    admin.post("/api/ssh/key", json={"password": ADMIN}, headers=ORIGIN)
+    admin.post("/api/ssh/key", json={"password": PASSWORD}, headers=ORIGIN)
     return admin
 
 
@@ -70,7 +70,7 @@ def test_a_wrong_password_at_the_unlock_is_in_the_sign_in_log(admin):
 
 def test_anyone_with_machines_unlocks_with_no_one_else_unlocked(admin):
     admin.post("/api/logout", headers=ORIGIN)
-    ola = _add(_login("admin", ADMIN), "ola", 3)
+    ola = _add(_login("admin", PASSWORD), "ola", 3)
 
     assert _unlock(ola, "ola-password").status_code == 200
 
@@ -118,7 +118,7 @@ def test_a_refused_password_changes_nothing_else(admin):
 def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):
     first = client.public_key()
 
-    admin.post("/api/ssh/key", json={"password": ADMIN, "replace": True}, headers=ORIGIN)
+    admin.post("/api/ssh/key", json={"password": PASSWORD, "replace": True}, headers=ORIGIN)
 
     assert client.public_key() != first
     assert unlock.unlocked_key("admin").export_public_key("openssh").decode().strip() == client.public_key()
@@ -128,12 +128,12 @@ def test_a_new_key_replaces_the_old_and_stays_unlocked(admin):
 
 
 def test_an_unlock_is_kept_beside_the_key_owner_only_and_with_no_secret_in_it(admin):
-    assert _unlock(admin, ADMIN).status_code == 200
+    assert _unlock(admin, PASSWORD).status_code == 200
     path = client.ssh_dir() / "unlocks.json"
 
     assert path.stat().st_mode & 0o777 == 0o600
     text = path.read_text()
-    assert '"admin"' in text and ADMIN not in text and "PRIVATE KEY" not in text
+    assert '"admin"' in text and PASSWORD not in text and "PRIVATE KEY" not in text
     # A restart reads it back: nothing about it is held in the process.
     import importlib
     importlib.reload(unlock)
@@ -141,14 +141,14 @@ def test_an_unlock_is_kept_beside_the_key_owner_only_and_with_no_secret_in_it(ad
 
 
 def test_a_kept_unlock_still_ends_with_a_logout_or_a_new_password(admin):
-    _unlock(admin, ADMIN)
+    _unlock(admin, PASSWORD)
     admin.post("/api/logout", headers=ORIGIN)
     assert unlock.unlocked_key("admin") is None
     assert "admin" not in (client.ssh_dir() / "unlocks.json").read_text()
 
-    b = _add(_login("admin", ADMIN), "ola", 3)
+    b = _add(_login("admin", PASSWORD), "ola", 3)
     assert _unlock(b, "ola-password").status_code == 200
-    assert _login("admin", ADMIN).patch("/api/users/ola", json={"password": "a-new-password"}, headers=ORIGIN).status_code == 200
+    assert _login("admin", PASSWORD).patch("/api/users/ola", json={"password": "a-new-password"}, headers=ORIGIN).status_code == 200
     assert unlock.unlocked_key("ola") is None
 
 
@@ -156,7 +156,7 @@ def test_a_file_of_unlocks_that_doesn_t_parse_is_locked_until_the_next_unlock(ad
     (client.ssh_dir() / "unlocks.json").write_text("{not json")
 
     assert unlock.unlocked_key("admin") is None
-    assert _unlock(admin, ADMIN).status_code == 200
+    assert _unlock(admin, PASSWORD).status_code == 200
     assert unlock.unlocked_key("admin") is not None
 
 
@@ -183,7 +183,7 @@ def test_asking_is_on_unless_switched_off_and_takes_only_yes_or_no(admin):
 
 
 def test_an_unlock_ending_while_it_is_looked_up_is_locked_not_a_failure(admin, monkeypatch):
-    _unlock(admin, ADMIN)
+    _unlock(admin, PASSWORD)
     real = unlock._holders
     reads = []
 

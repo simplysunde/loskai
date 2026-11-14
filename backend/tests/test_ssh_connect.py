@@ -218,7 +218,7 @@ def test_a_new_key_starts_unlocked_and_logout_locks_it(api, machine_net):
     assert unlock.unlocked_key("admin") is None
 
 
-def test_unlock_takes_the_admin_password(api, machine_net):
+def test_unlock_takes_your_own_password(api, machine_net):
     _with_key(api)
     unlock.lock()
 

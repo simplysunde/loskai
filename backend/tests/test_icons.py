@@ -7,7 +7,7 @@ import pytest
 
 from loskai import config
 from loskai.shared import icons
-from loskai.shared import instances as store
+from loskai.shared import instances as instances_store
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 JPEG = b"\xff\xd8\xff" + b"\x00" * 64
@@ -22,8 +22,8 @@ def base_domain(monkeypatch):
 
 @pytest.fixture
 def client(admin):
-    store.upsert_instance(
-        store.Instance(id="grafana", name="Grafana", type="external",
+    instances_store.upsert_instance(
+        instances_store.Instance(id="grafana", name="Grafana", type="external",
                        subdomain="grafana", upstream="192.168.10.50:3000")
     )
     return admin
@@ -99,7 +99,7 @@ def test_an_oversized_upload_is_refused_before_it_is_stored(client):
     r = client.post("/api/instances/grafana/icon", content=PNG + b"\x00" * icons.MAX_BYTES)
 
     assert r.status_code == 413
-    assert store.get_instance("grafana").icon is None
+    assert instances_store.get_instance("grafana").icon is None
 
 
 def test_serving_an_icon_needs_no_session_but_uploading_does(client):
@@ -122,8 +122,8 @@ def test_the_launcher_needs_a_session_and_the_dashboard_does_not(client):
 
 
 def test_the_launcher_lists_private_routes_and_the_dashboard_hides_them(client):
-    store.upsert_instance(
-        store.Instance(id="secret", name="Secret", type="external", subdomain="secret",
+    instances_store.upsert_instance(
+        instances_store.Instance(id="secret", name="Secret", type="external", subdomain="secret",
                        upstream="192.168.10.50:9000", private=True)
     )
 
@@ -135,8 +135,8 @@ def test_the_launcher_lists_private_routes_and_the_dashboard_hides_them(client):
 
 
 def test_neither_lists_machines(client):
-    store.upsert_instance(
-        store.Instance(id="nas", name="NAS", type="external", kind="machine",
+    instances_store.upsert_instance(
+        instances_store.Instance(id="nas", name="NAS", type="external", kind="machine",
                        subdomain="nas", upstream="192.168.10.50", route_mode="dns_only")
     )
 
@@ -165,13 +165,13 @@ def test_a_change_made_while_an_icon_uploads_is_kept(client, monkeypatch):
     save = icons.save
 
     def save_while_repointed(instance_id, data):
-        store.upsert_instance(store.get_instance(instance_id).model_copy(update={"upstream": "192.168.10.50:3001"}))
+        instances_store.upsert_instance(instances_store.get_instance(instance_id).model_copy(update={"upstream": "192.168.10.50:3001"}))
         return save(instance_id, data)
 
     monkeypatch.setattr(icons, "save", save_while_repointed)
     assert client.post("/api/instances/grafana/icon", content=PNG).status_code == 200
 
-    stored = store.get_instance("grafana")
+    stored = instances_store.get_instance("grafana")
     assert (stored.icon, stored.upstream) == ("grafana.png", "192.168.10.50:3001")
 
 
@@ -179,27 +179,27 @@ def test_an_icon_for_a_record_deleted_while_it_uploaded_is_not_kept(client, data
     save = icons.save
 
     def save_while_deleted(instance_id, data):
-        store.delete_instance(instance_id)
+        instances_store.delete_instance(instance_id)
         return save(instance_id, data)
 
     monkeypatch.setattr(icons, "save", save_while_deleted)
     assert client.post("/api/instances/grafana/icon", content=PNG).status_code == 404
-    assert store.get_instance("grafana") is None
+    assert instances_store.get_instance("grafana") is None
     assert list((data_dir / "icons").iterdir()) == []
 
 
 def test_renaming_changes_only_the_name(client):
     assert client.patch("/api/instances/grafana", json={"name": "Graphs"}).status_code == 200
-    stored = store.get_instance("grafana")
+    stored = instances_store.get_instance("grafana")
     assert (stored.name, stored.private, stored.upstream) == ("Graphs", False, "192.168.10.50:3000")
 
 
 def test_a_machine_is_renamed_by_its_hostname_only(client):
-    store.upsert_instance(store.Instance(id="nas", name="nas", type="external", kind="machine",
+    instances_store.upsert_instance(instances_store.Instance(id="nas", name="nas", type="external", kind="machine",
                                          subdomain="nas", route_mode="dns_only", upstream="192.168.10.60"))
 
     r = client.patch("/api/instances/nas", json={"name": "NAS box"})
 
     assert r.status_code == 409 and "hostname" in r.json()["detail"]
-    assert store.get_instance("nas").name == "nas"
+    assert instances_store.get_instance("nas").name == "nas"
     assert client.patch("/api/instances/nas", json={"private": True}).status_code == 200

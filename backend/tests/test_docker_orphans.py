@@ -9,7 +9,7 @@ from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
 
-def _link(container):
+def _unrouted_record(container):
     # A docker instance with no route (subdomain cleared) — purge is a pure record delete.
     instances_store.upsert_instance(
         Instance(id="grafana", name="Grafana", type="docker", container=container)
@@ -17,7 +17,7 @@ def _link(container):
 
 
 async def test_delete_orphan_removes_record_when_container_gone(monkeypatch):
-    _link("grafana")
+    _unrouted_record("grafana")
     monkeypatch.setattr(docker_router.docker_client, "container_names", lambda: {"other"})
 
     result = await docker_router.delete_orphan("grafana")
@@ -27,7 +27,7 @@ async def test_delete_orphan_removes_record_when_container_gone(monkeypatch):
 
 
 async def test_delete_orphan_refuses_when_container_still_exists(monkeypatch):
-    _link("grafana")
+    _unrouted_record("grafana")
     monkeypatch.setattr(docker_router.docker_client, "container_names", lambda: {"grafana"})
 
     with pytest.raises(HTTPException) as exc:

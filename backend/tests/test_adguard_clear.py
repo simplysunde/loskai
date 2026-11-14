@@ -11,15 +11,15 @@ from loskai.shared import instances as instances_store
 from loskai.shared.errors import LoskaiError
 from loskai.shared.instances import Instance
 
-BASE = "example.no"
-IP = "192.168.10.101"
+BASE_DOMAIN = "example.no"
+ANSWER_IP = "192.168.10.101"
 
 
 def inst(id_, sub, **kw):
     return Instance(id=id_, name=id_, type="docker", subdomain=sub, **kw)
 
 
-class FakeClient:
+class FakeAdGuard:
     """Mutates its own list, so `reconcile` sees what the clear actually did."""
 
     def __init__(self, existing, fail_deletes=()):
@@ -49,15 +49,15 @@ class FakeClient:
 async def test_clears_hand_added_rewrites_too(data_dir):
     # The whole point: a foreign rewrite the orphan sweep would never touch is removed.
     instances_store.upsert_instance(inst("grafana", "grafana"))
-    client = FakeClient(
+    client = FakeAdGuard(
         [
-            {"domain": "grafana.example.no", "answer": IP},
+            {"domain": "grafana.example.no", "answer": ANSWER_IP},
             {"domain": "nas.old-domain.lan", "answer": "192.168.10.50"},
             {"domain": "printer.example.no", "answer": "10.0.0.9"},
         ]
     )
 
-    result = await service.clear_and_restore(client, BASE, IP)
+    result = await service.clear_and_restore(client, BASE_DOMAIN, ANSWER_IP)
 
     assert sorted(result["cleared"]) == [
         "grafana.example.no",
@@ -70,32 +70,32 @@ async def test_clears_hand_added_rewrites_too(data_dir):
 
 async def test_restore_leaves_exactly_one_rewrite_per_routed_name(data_dir):
     # Duplicate safety: reconcile runs against an emptied list, so each name is added once.
-    instances_store.upsert_instance(inst("grafana", "grafana", dns_answer=IP))
+    instances_store.upsert_instance(inst("grafana", "grafana", dns_answer=ANSWER_IP))
     instances_store.upsert_instance(
         inst("nas", "nas", route_mode="dns_only", upstream="192.168.10.50")
     )
-    client = FakeClient(
+    client = FakeAdGuard(
         [
-            {"domain": "grafana.example.no", "answer": IP},
+            {"domain": "grafana.example.no", "answer": ANSWER_IP},
             {"domain": "nas.example.no", "answer": "192.168.10.50"},
         ]
     )
 
-    await service.clear_and_restore(client, BASE, IP)
+    await service.clear_and_restore(client, BASE_DOMAIN, ANSWER_IP)
 
     pairs = sorted((e["domain"], e["answer"]) for e in client.existing)
-    assert pairs == [("grafana.example.no", IP), ("nas.example.no", "192.168.10.50")]
-    assert client.added == [("grafana.example.no", IP), ("nas.example.no", "192.168.10.50")]
+    assert pairs == [("grafana.example.no", ANSWER_IP), ("nas.example.no", "192.168.10.50")]
+    assert client.added == [("grafana.example.no", ANSWER_IP), ("nas.example.no", "192.168.10.50")]
 
 
 async def test_refuses_before_deleting_when_restore_would_fail(data_dir):
     # A proxy instance with no derivable answer IP: reconcile would raise *after* the
     # wipe, leaving the LAN with no rewrites at all. Nothing may be deleted.
     instances_store.upsert_instance(inst("grafana", "grafana"))
-    client = FakeClient([{"domain": "grafana.example.no", "answer": IP}])
+    client = FakeAdGuard([{"domain": "grafana.example.no", "answer": ANSWER_IP}])
 
     with pytest.raises(LoskaiError, match="CADDY_HOST_IP") as refused:
-        await service.clear_and_restore(client, BASE, None)
+        await service.clear_and_restore(client, BASE_DOMAIN, None)
     assert refused.value.status_code == 400
 
     assert client.deleted == []
@@ -103,10 +103,10 @@ async def test_refuses_before_deleting_when_restore_would_fail(data_dir):
 
 
 async def test_refuses_when_base_domain_unset(data_dir):
-    client = FakeClient([{"domain": "grafana.example.no", "answer": IP}])
+    client = FakeAdGuard([{"domain": "grafana.example.no", "answer": ANSWER_IP}])
 
     with pytest.raises(LoskaiError, match="base_domain is not set") as refused:
-        await service.clear_and_restore(client, None, IP)
+        await service.clear_and_restore(client, None, ANSWER_IP)
     assert refused.value.status_code == 400
 
     assert client.deleted == []
@@ -114,15 +114,15 @@ async def test_refuses_when_base_domain_unset(data_dir):
 
 async def test_failed_delete_is_reported_and_restore_still_runs(data_dir):
     instances_store.upsert_instance(inst("grafana", "grafana"))
-    client = FakeClient(
+    client = FakeAdGuard(
         [
-            {"domain": "grafana.example.no", "answer": IP},
+            {"domain": "grafana.example.no", "answer": ANSWER_IP},
             {"domain": "stubborn.example.no", "answer": "10.0.0.9"},
         ],
         fail_deletes={"stubborn.example.no"},
     )
 
-    result = await service.clear_and_restore(client, BASE, IP)
+    result = await service.clear_and_restore(client, BASE_DOMAIN, ANSWER_IP)
 
     assert result["cleared"] == ["grafana.example.no"]
     assert [e["domain"] for e in result["errors"]] == ["stubborn.example.no"]
@@ -138,13 +138,13 @@ def test_annotate_marks_managed_and_foreign_entries():
         inst("nas", "nas", route_mode="dns_only", upstream="192.168.10.50"),
     ]
     rewrites = [
-        {"domain": "grafana.example.no", "answer": IP},  # ours, proxy
+        {"domain": "grafana.example.no", "answer": ANSWER_IP},  # ours, proxy
         {"domain": "nas.example.no", "answer": "192.168.10.50"},  # ours, dns_only
         {"domain": "printer.example.no", "answer": "10.0.0.9"},  # hand-added
         {"domain": "nas.previous.lan", "answer": "192.168.10.50"},  # old base domain
     ]
 
-    rows = service.annotate_rewrites(rewrites, routed, BASE, IP)
+    rows = service.annotate_rewrites(rewrites, routed, BASE_DOMAIN, ANSWER_IP)
 
     assert [(r["domain"], r["managed"]) for r in rows] == [
         ("grafana.example.no", True),
@@ -160,8 +160,8 @@ def test_annotate_same_domain_wrong_answer_is_not_managed():
     rows = service.annotate_rewrites(
         [{"domain": "grafana.example.no", "answer": "10.0.0.9"}],
         [inst("grafana", "grafana")],
-        BASE,
-        IP,
+        BASE_DOMAIN,
+        ANSWER_IP,
     )
 
     assert rows[0]["managed"] is False
@@ -169,7 +169,7 @@ def test_annotate_same_domain_wrong_answer_is_not_managed():
 
 def test_annotate_without_base_domain_marks_nothing_managed():
     rows = service.annotate_rewrites(
-        [{"domain": "grafana.example.no", "answer": IP}], [inst("grafana", "grafana")], None, IP
+        [{"domain": "grafana.example.no", "answer": ANSWER_IP}], [inst("grafana", "grafana")], None, ANSWER_IP
     )
 
     assert rows[0]["managed"] is False
@@ -177,16 +177,16 @@ def test_annotate_without_base_domain_marks_nothing_managed():
 
 async def test_list_rewrites_annotates_live_list(data_dir):
     instances_store.upsert_instance(inst("grafana", "grafana"))
-    client = FakeClient(
+    client = FakeAdGuard(
         [
-            {"domain": "grafana.example.no", "answer": IP},
+            {"domain": "grafana.example.no", "answer": ANSWER_IP},
             {"domain": "printer.example.no", "answer": "10.0.0.9"},
         ]
     )
 
-    result = await service.list_rewrites(client, BASE, IP)
+    result = await service.list_rewrites(client, BASE_DOMAIN, ANSWER_IP)
 
     assert result["rewrites"] == [
-        {"domain": "grafana.example.no", "answer": IP, "managed": True},
+        {"domain": "grafana.example.no", "answer": ANSWER_IP, "managed": True},
         {"domain": "printer.example.no", "answer": "10.0.0.9", "managed": False},
     ]

@@ -139,8 +139,10 @@ commit, the full checks, `where-used.py --write`.
       `RouteResult` (one is an alias, the other its own interface — making them
       `SaveResult` is a merge, not a rename), `Act`, `Fact`, `LINK`, `SourceTab`,
       `OwnButtons`, `here`
-- [ ] 57m Tests, backend: helpers that mislead, the aliases, the fakes, the four test
-      names, the two files
+- [x] 57m Tests, backend: helpers that mislead, the aliases, the fakes, three test
+      names, the two files. The fourth name (`…still_prefills_host_and_prefix`) stays: the
+      record's id is the prefix it asserts. Left: `_operator`/`_add`, `Done`, `_use`, the
+      `env` fixture, the `inst`/`rw`/`svc` factories — each read in place
 - [ ] 57n Tests, frontend: `setUp` → `sshSetUp`, `open` → `openCategory`, `c`/`s`
 - [ ] 57o The Machines tab's components move to `components/machines/`
 - [ ] 57p Live: every tab on a scratch backend, a machine's dialog and a tool run, a route;

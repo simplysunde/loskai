@@ -13,8 +13,8 @@ import time
 import pytest
 
 from loskai import config
-from loskai.shared import instances as inst
-from loskai.shared import settings as s
+from loskai.shared import instances as instances_store
+from loskai.shared import settings as settings_store
 from loskai.shared import store
 
 
@@ -22,7 +22,7 @@ from loskai.shared import store
 def no_env_settings(monkeypatch):
     # Stored-only keys have no attribute to clear (see STORED_ONLY_KEYS), and
     # monkeypatch refuses to set one that doesn't exist.
-    for key in set(s.CONFIGURABLE_KEYS) - s.STORED_ONLY_KEYS:
+    for key in set(settings_store.CONFIGURABLE_KEYS) - settings_store.STORED_ONLY_KEYS:
         monkeypatch.setattr(config.settings, key, None)
 
 
@@ -52,28 +52,28 @@ def test_concurrent_settings_saves_keep_both_keys(slow_write):
     # Two fields committing on blur at once: each used to write back a dict read before
     # the other's save landed, so one value silently reverted in the UI.
     run_concurrently(
-        lambda: s.update({"base_domain": "example.no"}),
-        lambda: s.update({"host_ip": "192.168.10.50"}),
+        lambda: settings_store.update({"base_domain": "example.no"}),
+        lambda: settings_store.update({"host_ip": "192.168.10.50"}),
     )
-    assert s.value("base_domain") == "example.no"
-    assert s.value("host_ip") == "192.168.10.50"
+    assert settings_store.value("base_domain") == "example.no"
+    assert settings_store.value("host_ip") == "192.168.10.50"
 
 
 def test_concurrent_instance_writes_keep_both_records(slow_write):
     # The costly one: a dropped instance leaves its Caddy route and DNS rewrite live but
     # unmanageable, since instances.json is the spine both are rebuilt from.
     run_concurrently(
-        lambda: inst.upsert_instance(inst.Instance(id="a", name="A", type="docker")),
-        lambda: inst.upsert_instance(inst.Instance(id="b", name="B", type="external")),
+        lambda: instances_store.upsert_instance(instances_store.Instance(id="a", name="A", type="docker")),
+        lambda: instances_store.upsert_instance(instances_store.Instance(id="b", name="B", type="external")),
     )
-    assert sorted(i.id for i in inst.list_instances()) == ["a", "b"]
+    assert sorted(i.id for i in instances_store.list_instances()) == ["a", "b"]
 
 
 def test_delete_racing_an_upsert_leaves_the_survivor(slow_write):
-    inst.upsert_instance(inst.Instance(id="old", name="Old", type="external"))
+    instances_store.upsert_instance(instances_store.Instance(id="old", name="Old", type="external"))
     # Serialised, either order ends the same way: "old" is gone and "new" is kept.
     run_concurrently(
-        lambda: inst.delete_instance("old"),
-        lambda: inst.upsert_instance(inst.Instance(id="new", name="New", type="docker")),
+        lambda: instances_store.delete_instance("old"),
+        lambda: instances_store.upsert_instance(instances_store.Instance(id="new", name="New", type="docker")),
     )
-    assert [i.id for i in inst.list_instances()] == ["new"]
+    assert [i.id for i in instances_store.list_instances()] == ["new"]

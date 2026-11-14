@@ -11,16 +11,16 @@ import pytest
 
 from loskai.modules.caddy.client import CaddyClient, CaddyError
 
-BASE = "http://caddy.test:2019"
+BASE_URL = "http://caddy.test:2019"
 
 
 def _client() -> CaddyClient:
-    return CaddyClient(base_url=BASE)
+    return CaddyClient(base_url=BASE_URL)
 
 
 async def test_server_name_discovered_not_hardcoded(httpx_mock):
     httpx_mock.add_response(
-        method="GET", url=f"{BASE}/config/apps/http/servers", json={"srv0": {}}
+        method="GET", url=f"{BASE_URL}/config/apps/http/servers", json={"srv0": {}}
     )
     assert await _client().server_name() == "srv0"
 
@@ -29,7 +29,7 @@ async def test_push_route_puts_to_discovered_server_with_id(httpx_mock):
     client = _client()
     client._server_name = "srv0"  # skip discovery for an isolated assertion
     httpx_mock.add_response(
-        method="PUT", url=f"{BASE}/config/apps/http/servers/srv0/routes/0"
+        method="PUT", url=f"{BASE_URL}/config/apps/http/servers/srv0/routes/0"
     )
     route = {"@id": "grafana", "match": [{"host": ["grafana.example.no"]}]}
     await client.push_route(route)
@@ -47,7 +47,7 @@ async def test_push_route_inserts_at_head_not_appends(httpx_mock):
     client = _client()
     client._server_name = "srv0"
     httpx_mock.add_response(
-        method="PUT", url=f"{BASE}/config/apps/http/servers/srv0/routes/0"
+        method="PUT", url=f"{BASE_URL}/config/apps/http/servers/srv0/routes/0"
     )
     await client.push_route({"@id": "grafana"})
 
@@ -59,7 +59,7 @@ async def test_local_ca_reads_the_internal_authority(httpx_mock):
     Caddy's, not ours, and `local` is what `tls internal` issues from."""
     httpx_mock.add_response(
         method="GET",
-        url=f"{BASE}/pki/ca/local",
+        url=f"{BASE_URL}/pki/ca/local",
         json={"id": "local", "root_certificate": "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----"},
     )
     ca = await _client().local_ca()
@@ -69,19 +69,19 @@ async def test_local_ca_reads_the_internal_authority(httpx_mock):
 
 
 async def test_delete_route_ignores_404(httpx_mock):
-    httpx_mock.add_response(method="DELETE", url=f"{BASE}/id/grafana", status_code=404)
+    httpx_mock.add_response(method="DELETE", url=f"{BASE_URL}/id/grafana", status_code=404)
     await _client().delete_route("grafana")  # must not raise
 
 
 async def test_delete_route_raises_on_500(httpx_mock):
-    httpx_mock.add_response(method="DELETE", url=f"{BASE}/id/grafana", status_code=500)
+    httpx_mock.add_response(method="DELETE", url=f"{BASE_URL}/id/grafana", status_code=500)
     with pytest.raises(httpx.HTTPStatusError):
         await _client().delete_route("grafana")
 
 
 async def test_health_healthy(httpx_mock):
     httpx_mock.add_response(
-        method="GET", url=f"{BASE}/config/apps/http/servers", json={"srv0": {}}
+        method="GET", url=f"{BASE_URL}/config/apps/http/servers", json={"srv0": {}}
     )
     result = await _client().health()
     assert result == {"status": "healthy", "server": "srv0"}
@@ -91,7 +91,7 @@ async def test_health_unreachable(httpx_mock):
     httpx_mock.add_exception(
         httpx.ConnectError("connection refused"),
         method="GET",
-        url=f"{BASE}/config/apps/http/servers",
+        url=f"{BASE_URL}/config/apps/http/servers",
     )
     result = await _client().health()
     assert result["status"] == "unreachable"
@@ -110,7 +110,7 @@ def test_health_unconfigured_without_base():
 async def test_http_server_is_discovered_separately_from_the_routing_one(httpx_mock):
     httpx_mock.add_response(
         method="GET",
-        url=f"{BASE}/config/apps/http/servers",
+        url=f"{BASE_URL}/config/apps/http/servers",
         json={"srv0": {"listen": [":443"]}, "srv1": {"listen": [":80"]}},
     )
     client = _client()
@@ -125,7 +125,7 @@ async def test_push_http_route_inserts_at_head_of_the_80_server(httpx_mock):
     client = _client()
     client._http_server_name = "srv1"
     httpx_mock.add_response(
-        method="PUT", url=f"{BASE}/config/apps/http/servers/srv1/routes/0"
+        method="PUT", url=f"{BASE_URL}/config/apps/http/servers/srv1/routes/0"
     )
 
     await client.push_route({"@id": "tv-http"}, http=True)
@@ -139,7 +139,7 @@ async def test_push_http_route_inserts_at_head_of_the_80_server(httpx_mock):
 async def test_push_http_route_without_an_80_server_raises(httpx_mock):
     httpx_mock.add_response(
         method="GET",
-        url=f"{BASE}/config/apps/http/servers",
+        url=f"{BASE_URL}/config/apps/http/servers",
         json={"srv0": {"listen": [":443"]}},
     )
     client = _client()

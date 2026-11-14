@@ -57,7 +57,7 @@ def _route(id="whoami", container=CONTAINER, upstream=OLD, follows=True, **kw) -
     return instances_store.upsert_instance(inst)
 
 
-def _stored(id="whoami") -> str | None:
+def _stored_upstream(id="whoami") -> str | None:
     return instances_store.get_instance(id).upstream
 
 
@@ -69,7 +69,7 @@ async def test_a_moved_port_repoints_the_route_and_pushes_it(monkeypatch, pushed
     _docker_says(monkeypatch, {CONTAINER: NEW})
 
     assert await follow.reconcile(None, CONTAINER) == NEW
-    assert _stored() == NEW
+    assert _stored_upstream() == NEW
     assert pushed == [("whoami", NEW)]
 
 
@@ -88,7 +88,7 @@ async def test_a_route_set_by_hand_is_never_touched(monkeypatch, pushed):
     asked = _docker_says(monkeypatch, {CONTAINER: NEW})
 
     assert await follow.reconcile(None, CONTAINER) is None
-    assert _stored() == OLD
+    assert _stored_upstream() == OLD
     assert pushed == [] and asked == []  # not even worth asking Docker
 
 
@@ -119,7 +119,7 @@ async def test_a_port_that_can_no_longer_be_derived_leaves_the_route_alone(monke
     _docker_says(monkeypatch, {CONTAINER: None})
 
     assert await follow.reconcile(None, CONTAINER) is None
-    assert _stored() == OLD
+    assert _stored_upstream() == OLD
     assert pushed == []
 
 
@@ -134,7 +134,7 @@ async def test_a_failed_caddy_push_still_stores_the_new_upstream(monkeypatch, pu
     monkeypatch.setattr(follow.caddy_service, "upsert_route", caddy_down)
 
     assert await follow.reconcile(None, CONTAINER) == NEW
-    assert _stored() == NEW
+    assert _stored_upstream() == NEW
 
 
 async def test_an_edit_made_while_docker_was_asked_wins(monkeypatch, pushed):
@@ -149,7 +149,7 @@ async def test_an_edit_made_while_docker_was_asked_wins(monkeypatch, pushed):
     monkeypatch.setattr(follow, "derived_upstreams", docker_slow_while_user_edits)
 
     assert await follow.reconcile(None, CONTAINER) is None
-    assert _stored() == "10.0.0.9:9000"
+    assert _stored_upstream() == "10.0.0.9:9000"
     assert pushed == []
 
 
@@ -165,7 +165,7 @@ async def test_a_route_unassigned_while_docker_was_asked_stays_gone(monkeypatch,
     monkeypatch.setattr(follow, "derived_upstreams", docker_slow_while_user_unassigns)
 
     assert await follow.reconcile(None, CONTAINER) is None
-    assert _stored() == OLD
+    assert _stored_upstream() == OLD
     assert pushed == []
 
 
@@ -183,7 +183,7 @@ async def test_catch_up_moves_every_following_route_from_one_listing(monkeypatch
 
     assert sorted(await follow.reconcile_all(None)) == sorted([CONTAINER, "pair-web-1"])
     assert len(asked) == 1
-    assert _stored("manual") == OLD
+    assert _stored_upstream("manual") == OLD
 
 
 async def test_catch_up_with_nothing_following_never_asks_docker(monkeypatch, pushed):
@@ -241,7 +241,7 @@ async def test_a_start_event_repoints_the_route(monkeypatch, pushed):
     monkeypatch.setattr(follow.docker_client, "container_events", lambda: stream)
 
     task = asyncio.create_task(WATCH(None))
-    await _until(lambda: _stored() == NEW)
+    await _until(lambda: _stored_upstream() == NEW)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -268,7 +268,7 @@ async def test_the_daemon_going_away_is_retried_and_caught_up(monkeypatch, pushe
     monkeypatch.setattr(follow.docker_client, "container_events", flaky)
 
     task = asyncio.create_task(WATCH(None))
-    await _until(lambda: _stored() == NEW)
+    await _until(lambda: _stored_upstream() == NEW)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task

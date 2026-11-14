@@ -8,8 +8,8 @@ from loskai.shared import instances as instances_store
 from loskai.shared.assign import AssignError
 from loskai.shared.instances import Instance
 
-BASE = "example.no"
-IP = "192.168.10.101"
+BASE_DOMAIN = "example.no"
+ANSWER_IP = "192.168.10.101"
 
 
 class FakeCaddy:
@@ -103,30 +103,30 @@ def test_validate_upstream_rejects_scheme_path_and_bad_port():
 
 
 async def test_assign_rejects_url_upstream():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            caddy, ag, prefix="proxmox",
-            upstream="https://192.168.10.202:8006/", base_domain=BASE, answer_ip=IP,
+            caddy, adguard, prefix="proxmox",
+            upstream="https://192.168.10.202:8006/", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
     assert exc.value.status_code == 422
     # Refused before anything was written.
-    assert instances_store.list_instances() == [] and caddy.pushed == [] and ag.added == []
+    assert instances_store.list_instances() == [] and caddy.pushed == [] and adguard.added == []
 
 
 async def test_assign_rejects_duplicate_subdomain():
     instances_store.upsert_instance(
         Instance(id="other", name="Other", type="external", subdomain="grafana")
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            caddy, ag, prefix="grafana", upstream="1.2.3.4:80",
-            base_domain=BASE, answer_ip=IP,
+            caddy, adguard, prefix="grafana", upstream="1.2.3.4:80",
+            base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
     assert exc.value.status_code == 409
     assert [i.id for i in instances_store.list_instances()] == ["other"]
-    assert caddy.pushed == [] and ag.added == []
+    assert caddy.pushed == [] and adguard.added == []
 
 
 # --- Happy path (new external instance) ---
@@ -136,7 +136,7 @@ async def test_assign_sets_upstream_tls():
     caddy = FakeCaddy()
     await assign.assign(
         caddy, FakeAdGuard(), prefix="proxmox", upstream="192.168.10.202:8006",
-        base_domain=BASE, answer_ip=IP, upstream_tls=True,
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, upstream_tls=True,
     )
     inst = instances_store.get_instance("proxmox")
     assert inst.upstream_tls is True
@@ -146,7 +146,7 @@ async def test_assign_with_container_creates_docker_instance():
     caddy = FakeCaddy()
     result = await assign.assign(
         caddy, FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana",
     )
     assert result["caddy"] == "ok" and caddy.pushed == ["grafana"]
     inst = instances_store.get_instance("grafana")
@@ -159,7 +159,7 @@ async def test_a_new_container_route_gets_its_recipes_icon(monkeypatch):
     )
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana-app-1",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana-app-1",
     )
     assert instances_store.get_instance("grafana").icon == "grafana.png"
 
@@ -173,10 +173,10 @@ async def test_a_failed_icon_lookup_never_fails_the_route(monkeypatch):
     caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
         caddy, adguard, prefix="grafana", upstream="192.168.10.100:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana-app-1",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana-app-1",
     )
     assert result["caddy"] == "ok" and caddy.pushed == ["grafana"]
-    assert adguard.added == [(f"grafana.{BASE}", IP)]
+    assert adguard.added == [(f"grafana.{BASE_DOMAIN}", ANSWER_IP)]
     assert instances_store.get_instance("grafana").icon is None
 
 
@@ -189,7 +189,7 @@ async def test_the_icon_keeps_a_change_made_while_it_was_looked_up(monkeypatch):
     monkeypatch.setattr(assign.install, "with_recipe_icon", slow)
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="grafana", upstream="192.168.10.100:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana-app-1", follow_container=True,
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana-app-1", follow_container=True,
     )
     inst = instances_store.get_instance("grafana")
     assert inst.icon == "grafana.png" and inst.upstream == "192.168.10.100:3001"
@@ -205,7 +205,7 @@ async def test_an_existing_record_keeps_no_icon_once_removed(monkeypatch):
     )
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="dashboards", upstream="192.168.10.100:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana-app-1",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana-app-1",
     )
     assert instances_store.get_instance("grafana").icon is None
 
@@ -214,11 +214,11 @@ async def test_container_assign_is_idempotent_no_duplicate():
     # Assign a URL to a container, then change it — must reuse the same instance.
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="graf", upstream="graf:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana",
     )
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="dashboards", upstream="graf:3000",
-        base_domain=BASE, answer_ip=IP, container="grafana",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, container="grafana",
     )
     docker_instances = [i for i in instances_store.list_instances() if i.container == "grafana"]
     assert len(docker_instances) == 1  # no duplicate
@@ -230,50 +230,50 @@ async def test_assign_with_origin_creates_external_and_is_idempotent():
     # re-assigning it changes the URL on the same instance (no duplicate).
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="adguard", upstream="adguard:3000",
-        base_domain=BASE, answer_ip=IP, origin="adguard", name="AdGuard",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, origin="adguard", name="AdGuard",
     )
     inst = instances_store.get_by_origin("adguard")
     assert inst is not None and inst.type == "external" and inst.subdomain == "adguard"
 
     await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="dns", upstream="adguard:3000",
-        base_domain=BASE, answer_ip=IP, origin="adguard", name="AdGuard",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, origin="adguard", name="AdGuard",
     )
     linked = [i for i in instances_store.list_instances() if i.origin == "adguard"]
     assert len(linked) == 1 and linked[0].subdomain == "dns"
 
 
 async def test_assign_creates_external_routes_and_rewrites():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, prefix="nas", upstream="192.168.10.50:5000",
-        base_domain=BASE, answer_ip=IP, name="NAS",
+        caddy, adguard, prefix="nas", upstream="192.168.10.50:5000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, name="NAS",
     )
     assert result == {
         "caddy": "ok", "adguard": "ok",
         "url": "https://nas.example.no", "instance_id": "nas", "moved": [], "warning": None,
     }
     assert caddy.pushed == ["nas"]
-    assert ag.added == [("nas.example.no", IP)]
+    assert adguard.added == [("nas.example.no", ANSWER_IP)]
     inst = instances_store.get_instance("nas")
     assert inst.type == "external" and inst.subdomain == "nas"
-    assert inst.upstream == "192.168.10.50:5000" and inst.dns_answer == IP
+    assert inst.upstream == "192.168.10.50:5000" and inst.dns_answer == ANSWER_IP
 
 
 # --- Caddy required: rollback ---
 
 
 async def test_caddy_failure_rolls_back_new_instance():
-    caddy, ag = FakeCaddy(fail=True), FakeAdGuard()
+    caddy, adguard = FakeCaddy(fail=True), FakeAdGuard()
     with pytest.raises(AssignError) as exc:
         await assign.assign(
-            caddy, ag, prefix="nas", upstream="192.168.10.50:5000",
-            base_domain=BASE, answer_ip=IP,
+            caddy, adguard, prefix="nas", upstream="192.168.10.50:5000",
+            base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
     assert exc.value.status_code == 502
     # The instance created in Step 0 was rolled back, and AdGuard never asked.
     assert instances_store.get_instance("nas") is None
-    assert ag.added == []
+    assert adguard.added == []
 
 
 async def test_caddy_failure_restores_existing_instance():
@@ -283,7 +283,7 @@ async def test_caddy_failure_restores_existing_instance():
     with pytest.raises(AssignError):
         await assign.assign(
             FakeCaddy(fail=True), FakeAdGuard(), instance_id="grafana",
-            prefix="graf", upstream="192.168.10.100:3000", base_domain=BASE, answer_ip=IP,
+            prefix="graf", upstream="192.168.10.100:3000", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
     restored = instances_store.get_instance("grafana")
     assert restored.subdomain is None and restored.upstream is None
@@ -296,7 +296,7 @@ async def test_adguard_failure_still_succeeds_with_warning():
     caddy = FakeCaddy()
     result = await assign.assign(
         caddy, FakeAdGuard(fail=True), prefix="nas", upstream="192.168.10.50:5000",
-        base_domain=BASE, answer_ip=IP,
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
     # The route is in Caddy — the effect, not the "ok" assign reports.
     assert caddy.pushed == ["nas"] and result["adguard"] == "error"
@@ -308,7 +308,7 @@ async def test_adguard_failure_still_succeeds_with_warning():
 async def test_adguard_skipped_when_unconfigured():
     result = await assign.assign(
         FakeCaddy(), FakeAdGuard(configured=False), prefix="nas",
-        upstream="192.168.10.50:5000", base_domain=BASE, answer_ip=IP,
+        upstream="192.168.10.50:5000", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
     assert result["adguard"] == "skipped"
 
@@ -316,7 +316,7 @@ async def test_adguard_skipped_when_unconfigured():
 async def test_no_answer_ip_skips_dns():
     result = await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="nas", upstream="192.168.10.50:5000",
-        base_domain=BASE, answer_ip=None,
+        base_domain=BASE_DOMAIN, answer_ip=None,
     )
     assert result["adguard"] == "skipped"
     assert "CADDY_HOST_IP" in result["warning"]
@@ -328,16 +328,16 @@ async def test_no_answer_ip_skips_dns():
 async def test_unassign_clears_and_deletes():
     instances_store.upsert_instance(
         Instance(id="nas", name="NAS", type="external", subdomain="nas",
-                 upstream="192.168.10.50:5000", dns_answer=IP)
+                 upstream="192.168.10.50:5000", dns_answer=ANSWER_IP)
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    result = await assign.unassign(caddy, ag, "nas", base_domain=BASE)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    result = await assign.unassign(caddy, adguard, "nas", base_domain=BASE_DOMAIN)
 
     assert result["cleared"] is True and result["adguard"] == "ok"
     # Both ids: a scheme:"both" instance has a plain-HTTP twin, and the teardown is
     # unconditional because the stored scheme may have changed since it was pushed.
     assert caddy.deleted == ["nas", "nas-http"]
-    assert ag.deleted == [("nas.example.no", IP)]  # exact-pair delete
+    assert adguard.deleted == [("nas.example.no", ANSWER_IP)]  # exact-pair delete
     inst = instances_store.get_instance("nas")
     assert inst.subdomain is None and inst.dns_answer is None  # instance survives
 
@@ -345,20 +345,20 @@ async def test_unassign_clears_and_deletes():
 async def test_delete_external_instance_removes_route_and_record():
     instances_store.upsert_instance(
         Instance(id="nas", name="NAS", type="external", subdomain="nas",
-                 upstream="192.168.10.50:5000", dns_answer=IP)
+                 upstream="192.168.10.50:5000", dns_answer=ANSWER_IP)
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    result = await assign.delete_instance(caddy, adguard, "nas", base_domain=BASE_DOMAIN)
 
     assert result["deleted"] is True
     assert caddy.deleted == ["nas", "nas-http"]  # both possible routes removed
-    assert ag.deleted == [("nas.example.no", IP)]  # rewrite removed
+    assert adguard.deleted == [("nas.example.no", ANSWER_IP)]  # rewrite removed
     assert instances_store.get_instance("nas") is None  # record gone
 
 
 async def test_delete_unrouted_external_instance():
     instances_store.upsert_instance(Instance(id="old", name="Old", type="external"))
-    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "old", base_domain=BASE)
+    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "old", base_domain=BASE_DOMAIN)
     assert result["deleted"] is True
     assert instances_store.get_instance("old") is None
 
@@ -369,20 +369,20 @@ async def test_delete_docker_instance_removes_record():
     instances_store.upsert_instance(
         Instance(id="grafana", name="Grafana", type="docker", container="grafana", subdomain="graf")
     )
-    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "grafana", base_domain=BASE)
+    result = await assign.delete_instance(FakeCaddy(), FakeAdGuard(), "grafana", base_domain=BASE_DOMAIN)
     assert result["deleted"] is True
     assert instances_store.get_instance("grafana") is None  # gone
 
 
 async def test_unassign_caddy_failure_rolls_back():
     instances_store.upsert_instance(
-        Instance(id="nas", name="NAS", type="external", subdomain="nas", dns_answer=IP)
+        Instance(id="nas", name="NAS", type="external", subdomain="nas", dns_answer=ANSWER_IP)
     )
-    ag = FakeAdGuard()
+    adguard = FakeAdGuard()
     with pytest.raises(AssignError):
-        await assign.unassign(FakeCaddy(fail=True), ag, "nas", base_domain=BASE)
+        await assign.unassign(FakeCaddy(fail=True), adguard, "nas", base_domain=BASE_DOMAIN)
     assert instances_store.get_instance("nas").subdomain == "nas"  # restored
-    assert ag.deleted == []  # its rewrite still answers
+    assert adguard.deleted == []  # its rewrite still answers
 
 
 # --- DNS-only mode: no Caddy, AdGuard answer = the instance's own IP ---
@@ -405,10 +405,10 @@ def test_validate_upstream_dns_only_requires_bare_ip():
 
 
 async def test_assign_dns_only_skips_caddy():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, prefix="vm1", upstream="192.168.10.55",
-        base_domain=BASE, answer_ip=IP, route_mode="dns_only",
+        caddy, adguard, prefix="vm1", upstream="192.168.10.55",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="dns_only",
     )
     assert result["caddy"] == "skipped"
     assert result["url"] == "vm1.example.no"  # no https:// — no TLS involved
@@ -416,13 +416,13 @@ async def test_assign_dns_only_skips_caddy():
 
 
 async def test_assign_dns_only_writes_own_ip_as_adguard_answer():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, prefix="vm1", upstream="192.168.10.55",
-        base_domain=BASE, answer_ip=IP, route_mode="dns_only",
+        caddy, adguard, prefix="vm1", upstream="192.168.10.55",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="dns_only",
     )
     assert result["adguard"] == "ok"
-    assert ag.added == [("vm1.example.no", "192.168.10.55")]  # own IP, not the shared answer_ip
+    assert adguard.added == [("vm1.example.no", "192.168.10.55")]  # own IP, not the shared answer_ip
     inst = instances_store.get_instance("vm1")
     assert inst.dns_answer == "192.168.10.55"
 
@@ -430,7 +430,7 @@ async def test_assign_dns_only_writes_own_ip_as_adguard_answer():
 async def test_assign_dns_only_allows_multi_label_prefix():
     result = await assign.assign(
         FakeCaddy(), FakeAdGuard(), prefix="rack1.vm3", upstream="192.168.10.60",
-        base_domain=BASE, answer_ip=IP, route_mode="dns_only",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="dns_only",
     )
     assert result["url"] == "rack1.vm3.example.no"
 
@@ -439,12 +439,12 @@ async def test_assign_proxy_still_rejects_multi_label_and_bare_ip():
     with pytest.raises(AssignError):
         await assign.assign(
             FakeCaddy(), FakeAdGuard(), prefix="rack1.vm3", upstream="192.168.10.60:80",
-            base_domain=BASE, answer_ip=IP,
+            base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
     with pytest.raises(AssignError):
         await assign.assign(
             FakeCaddy(), FakeAdGuard(), prefix="vm1", upstream="192.168.10.55",
-            base_domain=BASE, answer_ip=IP,
+            base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
 
 
@@ -453,31 +453,31 @@ async def test_unassign_dns_only_deletes_own_answer():
         Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
                  upstream="192.168.10.55", route_mode="dns_only", dns_answer="192.168.10.55")
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    result = await assign.unassign(caddy, ag, "vm1", base_domain=BASE)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    result = await assign.unassign(caddy, adguard, "vm1", base_domain=BASE_DOMAIN)
 
     assert result["cleared"] is True
     assert caddy.deleted == ["vm1", "vm1-http"]  # harmless no-op deletes, 404-safe
-    assert ag.deleted == [("vm1.example.no", "192.168.10.55")]
+    assert adguard.deleted == [("vm1.example.no", "192.168.10.55")]
 
 
 async def test_mode_switch_proxy_to_dns_only_tears_down_caddy_route():
     instances_store.upsert_instance(
         Instance(id="box", name="box", type="external", subdomain="box",
-                 upstream="192.168.10.70:80", route_mode="proxy", dns_answer=IP)
+                 upstream="192.168.10.70:80", route_mode="proxy", dns_answer=ANSWER_IP)
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, instance_id="box", prefix="box", upstream="192.168.10.70",
-        base_domain=BASE, answer_ip=IP, route_mode="dns_only",
+        caddy, adguard, instance_id="box", prefix="box", upstream="192.168.10.70",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="dns_only",
     )
     assert result["caddy"] == "skipped"
     assert caddy.deleted == ["box", "box-http"]  # stale proxy routes torn down
     assert caddy.pushed == []
-    assert ag.added == [("box.example.no", "192.168.10.70")]  # now answers with its own IP
+    assert adguard.added == [("box.example.no", "192.168.10.70")]  # now answers with its own IP
     # The old rewrite (same domain, shared Caddy IP) must be cleaned up too, or AdGuard
     # ends up with two answers for "box.example.no" — the bug this test now guards against.
-    assert ag.deleted == [("box.example.no", IP)]
+    assert adguard.deleted == [("box.example.no", ANSWER_IP)]
     inst = instances_store.get_instance("box")
     assert inst.route_mode == "dns_only" and inst.dns_answer == "192.168.10.70"
 
@@ -487,18 +487,18 @@ async def test_mode_switch_dns_only_to_proxy_creates_caddy_route():
         Instance(id="box", name="box", type="external", subdomain="box",
                  upstream="192.168.10.70", route_mode="dns_only", dns_answer="192.168.10.70")
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, instance_id="box", prefix="box", upstream="192.168.10.70:8080",
-        base_domain=BASE, answer_ip=IP, route_mode="proxy",
+        caddy, adguard, instance_id="box", prefix="box", upstream="192.168.10.70:8080",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="proxy",
     )
     assert result["caddy"] == "ok"
     assert caddy.pushed == ["box"]
-    assert ag.added == [("box.example.no", IP)]  # now answers with the shared Caddy IP
+    assert adguard.added == [("box.example.no", ANSWER_IP)]  # now answers with the shared Caddy IP
     # The old rewrite (same domain, the instance's own IP) must be cleaned up too.
-    assert ag.deleted == [("box.example.no", "192.168.10.70")]
+    assert adguard.deleted == [("box.example.no", "192.168.10.70")]
     inst = instances_store.get_instance("box")
-    assert inst.route_mode == "proxy" and inst.dns_answer == IP
+    assert inst.route_mode == "proxy" and inst.dns_answer == ANSWER_IP
 
 
 async def test_dns_only_reassign_to_new_ip_cleans_up_old_rewrite():
@@ -508,25 +508,25 @@ async def test_dns_only_reassign_to_new_ip_cleans_up_old_rewrite():
         Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
                  upstream="192.168.10.55", route_mode="dns_only", dns_answer="192.168.10.55")
     )
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     result = await assign.assign(
-        caddy, ag, instance_id="vm1", prefix="vm1", upstream="192.168.10.60",
-        base_domain=BASE, answer_ip=IP, route_mode="dns_only",
+        caddy, adguard, instance_id="vm1", prefix="vm1", upstream="192.168.10.60",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, route_mode="dns_only",
     )
     assert result["adguard"] == "ok"
-    assert ag.added == [("vm1.example.no", "192.168.10.60")]
-    assert ag.deleted == [("vm1.example.no", "192.168.10.55")]
+    assert adguard.added == [("vm1.example.no", "192.168.10.60")]
+    assert adguard.deleted == [("vm1.example.no", "192.168.10.55")]
     assert instances_store.get_instance("vm1").dns_answer == "192.168.10.60"
 
 
 # --- Machines as upstreams (Phase 21b) ---
 
 
-async def name_machine(caddy, ag, prefix="nas", ip="192.168.10.50", *, edit=False):
+async def _assign_machine(caddy, adguard, prefix="nas", ip="192.168.10.50", *, edit=False):
     """Name a machine, or move one — an edit passes `instance_id`, exactly as the Routing
     table's Change URL does."""
     return await assign.assign(
-        caddy, ag, prefix=prefix, upstream=ip, base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix=prefix, upstream=ip, base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         route_mode="dns_only", name=prefix,
         instance_id=prefix if edit else None,
     )
@@ -536,20 +536,20 @@ def test_move_upstream_keeps_the_port():
     assert assign.move_upstream("192.168.10.50:3000", "192.168.10.60") == "192.168.10.60:3000"
 
 
-async def route(caddy, ag, prefix, upstream, **kw):
+async def _assign_route(caddy, adguard, prefix, upstream, **kw):
     return await assign.assign(
-        caddy, ag, prefix=prefix, upstream=upstream, base_domain=BASE, answer_ip=IP, **kw
+        caddy, adguard, prefix=prefix, upstream=upstream, base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, **kw
     )
 
 
 async def test_moving_a_machine_moves_every_route_on_its_address():
     # A route is on a machine by its address alone — nothing was linked, and both move.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
     for svc, port in [("plex", "32400"), ("files", "5000")]:
-        await route(caddy, ag, svc, f"192.168.10.50:{port}")
+        await _assign_route(caddy, adguard, svc, f"192.168.10.50:{port}")
 
-    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)  # the NAS moves
+    result = await _assign_machine(caddy, adguard, ip="192.168.10.60", edit=True)  # the NAS moves
 
     assert sorted(result["moved"]) == ["files", "plex"]
     assert instances_store.get_instance("plex").upstream == "192.168.10.60:32400"
@@ -564,10 +564,10 @@ async def test_saving_a_machine_unchanged_keeps_one_rewrite():
     for _ in range(3):
         await assign.name_machine(
             FakeCaddy(), adguard, prefix="nas", upstream="192.168.10.50",
-            instance_id="nas" if adguard.added else None, base_domain=BASE, answer_ip=IP,
+            instance_id="nas" if adguard.added else None, base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
         )
 
-    assert adguard.held == [(f"nas.{BASE}", "192.168.10.50")]
+    assert adguard.held == [(f"nas.{BASE_DOMAIN}", "192.168.10.50")]
 
 
 async def test_a_change_made_while_adguard_answers_is_kept():
@@ -580,10 +580,10 @@ async def test_a_change_made_while_adguard_answers_is_kept():
             instances_store.update_fields("grafana", private=True)
             await super().add_rewrite(domain, answer)
 
-    await assign.assign_route(caddy, Slow(), prefix="grafana", upstream="192.168.10.50:3000", base_domain=BASE, answer_ip=IP)
+    await assign.assign_route(caddy, Slow(), prefix="grafana", upstream="192.168.10.50:3000", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP)
 
     stored = instances_store.get_instance("grafana")
-    assert (stored.private, stored.dns_answer) == (True, IP)
+    assert (stored.private, stored.dns_answer) == (True, ANSWER_IP)
 
 
 async def test_a_route_changed_while_its_machine_moves_keeps_the_change():
@@ -595,12 +595,12 @@ async def test_a_route_changed_while_its_machine_moves_keeps_the_change():
                 instances_store.update_fields("files", upstream="192.168.10.70:5000", private=True)
             await super().push_route(route, http)
 
-    caddy, ag = Slow(), FakeAdGuard()
-    await name_machine(caddy, ag)
+    caddy, adguard = Slow(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
     for svc, port in [("plex", "32400"), ("files", "5000")]:
-        await route(caddy, ag, svc, f"192.168.10.50:{port}")
+        await _assign_route(caddy, adguard, svc, f"192.168.10.50:{port}")
 
-    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+    result = await _assign_machine(caddy, adguard, ip="192.168.10.60", edit=True)
 
     files = instances_store.get_instance("files")
     assert (files.upstream, files.private) == ("192.168.10.70:5000", True)
@@ -609,12 +609,12 @@ async def test_a_route_changed_while_its_machine_moves_keeps_the_change():
 
 
 async def test_routes_on_other_addresses_are_left_alone_when_a_machine_moves():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "elsewhere", "192.168.10.99:8080")
-    await route(caddy, ag, "shorter", "192.168.10.5:8080")  # a prefix of the address, not it
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "elsewhere", "192.168.10.99:8080")
+    await _assign_route(caddy, adguard, "shorter", "192.168.10.5:8080")  # a prefix of the address, not it
 
-    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+    result = await _assign_machine(caddy, adguard, ip="192.168.10.60", edit=True)
 
     assert result["moved"] == []
     assert instances_store.get_instance("elsewhere").upstream == "192.168.10.99:8080"
@@ -623,11 +623,11 @@ async def test_routes_on_other_addresses_are_left_alone_when_a_machine_moves():
 
 async def test_a_route_following_its_container_stays_with_the_container():
     # Its address is the container's: the follower would only write the old one back.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "whoami", "192.168.10.50:8081", follow_container=True)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "whoami", "192.168.10.50:8081", follow_container=True)
 
-    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+    result = await _assign_machine(caddy, adguard, ip="192.168.10.60", edit=True)
 
     assert result["moved"] == []
     assert instances_store.get_instance("whoami").upstream == "192.168.10.50:8081"
@@ -635,12 +635,12 @@ async def test_a_route_following_its_container_stays_with_the_container():
 
 async def test_a_machine_assign_that_changes_nothing_repushes_nothing():
     # A no-op edit must not re-push half the estate.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "plex", "192.168.10.50:32400")
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "plex", "192.168.10.50:32400")
     before = list(caddy.pushed)
 
-    result = await name_machine(caddy, ag, edit=True)  # same IP again
+    result = await _assign_machine(caddy, adguard, edit=True)  # same IP again
 
     assert result["moved"] == []
     assert caddy.pushed == before
@@ -664,12 +664,12 @@ class PickyCaddy(FakeCaddy):
 
 async def test_a_failed_repush_warns_but_keeps_the_store_correct():
     # Sync repairs Caddy from the store, so the store must already hold the new address.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "plex", "192.168.10.50:32400")
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "plex", "192.168.10.50:32400")
     caddy = PickyCaddy({"plex"})
 
-    result = await name_machine(caddy, ag, ip="192.168.10.60", edit=True)
+    result = await _assign_machine(caddy, adguard, ip="192.168.10.60", edit=True)
 
     assert result["moved"] == ["plex"]
     assert "next Sync" in result["warning"]
@@ -678,23 +678,23 @@ async def test_a_failed_repush_warns_but_keeps_the_store_correct():
 
 async def test_two_machines_cannot_share_an_address():
     # A route's machine is the one at its address, so a second one there would be ambiguous.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
 
     with pytest.raises(AssignError) as exc:
-        await name_machine(caddy, ag, prefix="other")
+        await _assign_machine(caddy, adguard, prefix="other")
 
     assert exc.value.status_code == 409
     assert instances_store.get_instance("other") is None
-    await name_machine(caddy, ag, edit=True)  # the machine itself may keep its address
+    await _assign_machine(caddy, adguard, edit=True)  # the machine itself may keep its address
 
 
 async def test_deleting_a_machine_leaves_the_routes_on_its_address_as_they_are():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "plex", "192.168.10.50:32400")
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "plex", "192.168.10.50:32400")
 
-    result = await assign.delete_instance(caddy, ag, "nas", base_domain=BASE)
+    result = await assign.delete_instance(caddy, adguard, "nas", base_domain=BASE_DOMAIN)
 
     assert result == {"deleted": True, "instance_id": "nas", "warning": None}
     assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
@@ -702,20 +702,20 @@ async def test_deleting_a_machine_leaves_the_routes_on_its_address_as_they_are()
 
 async def test_a_rename_alone_moves_nothing():
     # Nothing to carry: the routes hold an IP, and the IP did not move.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await name_machine(caddy, ag)
-    await route(caddy, ag, "plex", "192.168.10.50:32400")
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await _assign_machine(caddy, adguard)
+    await _assign_route(caddy, adguard, "plex", "192.168.10.50:32400")
 
     result = await assign.assign(
-        caddy, ag, prefix="storage", upstream="192.168.10.50", base_domain=BASE,
-        answer_ip=IP, route_mode="dns_only", instance_id="nas",
+        caddy, adguard, prefix="storage", upstream="192.168.10.50", base_domain=BASE_DOMAIN,
+        answer_ip=ANSWER_IP, route_mode="dns_only", instance_id="nas",
     )
 
     assert result["moved"] == []
     assert instances_store.get_instance("plex").upstream == "192.168.10.50:32400"
 
 
-async def test_a_stored_machine_link_from_before_is_read_and_dropped(monkeypatch):
+async def test_a_stored_machine_field_from_before_is_read_and_dropped(monkeypatch):
     # Records written while routes linked to machines carry `machine`; it means nothing now,
     # so they load as they are and the next write leaves it out.
     from loskai.shared import store
@@ -737,22 +737,22 @@ async def test_a_stored_machine_link_from_before_is_read_and_dropped(monkeypatch
 
 
 async def test_a_machine_is_called_by_its_hostname_and_a_rename_renames_it():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
-    await assign.name_machine(caddy, ag, prefix="nas", upstream="192.168.10.50", name="Storage box",
-                              base_domain=BASE, answer_ip=IP)
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
+    await assign.name_machine(caddy, adguard, prefix="nas", upstream="192.168.10.50", name="Storage box",
+                              base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP)
     assert instances_store.get_instance("nas").name == "nas"
 
-    await assign.name_machine(caddy, ag, prefix="storage", upstream="192.168.10.50", instance_id="nas",
-                              base_domain=BASE, answer_ip=IP)
+    await assign.name_machine(caddy, adguard, prefix="storage", upstream="192.168.10.50", instance_id="nas",
+                              base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP)
 
     assert instances_store.get_instance("nas").name == "storage"
 
 
 async def test_name_machine_wrapper_makes_a_machine():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
 
     result = await assign.name_machine(
-        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="nas", upstream="192.168.10.50", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     assert result["caddy"] == "skipped" and caddy.pushed == []  # no reverse proxy involved
@@ -760,11 +760,11 @@ async def test_name_machine_wrapper_makes_a_machine():
 
 
 async def test_assign_route_wrapper_publishes_a_service():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
 
     result = await assign.assign_route(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     assert result["caddy"] == "ok"
@@ -773,14 +773,14 @@ async def test_assign_route_wrapper_publishes_a_service():
 
 
 async def test_the_verb_decides_the_kind():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
 
     await assign.name_machine(
-        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="nas", upstream="192.168.10.50", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
     await assign.assign_route(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     assert instances_store.get_instance("nas").kind == "machine"
@@ -789,14 +789,14 @@ async def test_the_verb_decides_the_kind():
 
 async def test_re_pointing_a_machine_at_a_port_makes_it_a_service():
     # `kind` is not frozen at creation: it follows what the instance was last assigned as.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     await assign.name_machine(
-        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="nas", upstream="192.168.10.50", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     await assign.assign_route(
-        caddy, ag, prefix="nas", upstream="192.168.10.50:5000", base_domain=BASE,
-        answer_ip=IP, instance_id="nas",
+        caddy, adguard, prefix="nas", upstream="192.168.10.50:5000", base_domain=BASE_DOMAIN,
+        answer_ip=ANSWER_IP, instance_id="nas",
     )
 
     nas = instances_store.get_instance("nas")
@@ -810,10 +810,10 @@ async def test_re_pointing_a_machine_at_a_port_makes_it_a_service():
 async def test_naming_a_machine_works_with_caddy_down():
     # A machine has no route, so there is nothing for Caddy to do. The teardown call used
     # to run unconditionally and take the whole operation down with it.
-    caddy, ag = FakeCaddy(fail=True), FakeAdGuard()
+    caddy, adguard = FakeCaddy(fail=True), FakeAdGuard()
 
     result = await assign.name_machine(
-        caddy, ag, prefix="nas", upstream="192.168.10.50", base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="nas", upstream="192.168.10.50", base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     assert result["caddy"] == "skipped"
@@ -823,17 +823,17 @@ async def test_naming_a_machine_works_with_caddy_down():
 async def test_converting_a_proxy_route_to_a_machine_still_needs_caddy():
     # The other half: this one *has* a route, and leaving it behind would keep Caddy
     # answering a name the instance no longer proxies. That must fail loudly and roll back.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     await assign.assign_route(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
     caddy.fail = True
 
     with pytest.raises(AssignError) as exc:
         await assign.name_machine(
-            caddy, ag, prefix="grafana", upstream="192.168.10.50", base_domain=BASE,
-            answer_ip=IP, instance_id="grafana",
+            caddy, adguard, prefix="grafana", upstream="192.168.10.50", base_domain=BASE_DOMAIN,
+            answer_ip=ANSWER_IP, instance_id="grafana",
         )
 
     assert exc.value.status_code == 502
@@ -842,15 +842,15 @@ async def test_converting_a_proxy_route_to_a_machine_still_needs_caddy():
 
 
 async def test_converting_tears_the_route_down_when_caddy_is_up():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
     await assign.assign_route(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     await assign.name_machine(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50", base_domain=BASE,
-        answer_ip=IP, instance_id="grafana",
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50", base_domain=BASE_DOMAIN,
+        answer_ip=ANSWER_IP, instance_id="grafana",
     )
 
     assert caddy.deleted[-2:] == ["grafana", "grafana-http"]
@@ -859,26 +859,26 @@ async def test_converting_tears_the_route_down_when_caddy_is_up():
 
 async def test_an_http_route_reports_an_http_url():
     # A card or banner linking https:// to a name with no certificate cannot connect.
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
 
     result = await assign.assign_route(
-        caddy, ag, prefix="tv", upstream="192.168.10.50:8080",
-        base_domain=BASE, answer_ip=IP, scheme="http",
+        caddy, adguard, prefix="tv", upstream="192.168.10.50:8080",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, scheme="http",
     )
 
     assert result["url"] == "http://tv.example.no"
 
 
 async def test_https_and_both_still_report_https():
-    caddy, ag = FakeCaddy(), FakeAdGuard()
+    caddy, adguard = FakeCaddy(), FakeAdGuard()
 
     both = await assign.assign_route(
-        caddy, ag, prefix="printer", upstream="192.168.10.50:80",
-        base_domain=BASE, answer_ip=IP, scheme="both",
+        caddy, adguard, prefix="printer", upstream="192.168.10.50:80",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP, scheme="both",
     )
     plain = await assign.assign_route(
-        caddy, ag, prefix="grafana", upstream="192.168.10.50:3000",
-        base_domain=BASE, answer_ip=IP,
+        caddy, adguard, prefix="grafana", upstream="192.168.10.50:3000",
+        base_domain=BASE_DOMAIN, answer_ip=ANSWER_IP,
     )
 
     assert both["url"] == "https://printer.example.no"

@@ -7,7 +7,7 @@ from loskai.modules.caddy.client import CaddyError
 from loskai.shared import instances as instances_store
 from loskai.shared.instances import Instance
 
-BASE = "example.no"
+BASE_DOMAIN = "example.no"
 
 
 def test_fqdn():
@@ -102,7 +102,7 @@ def test_select_server_raises_when_empty():
 # --- list_with_sync / push_all: dns_only instances are excluded from the Caddy projection ---
 
 
-class FakeClient:
+class FakeCaddy:
     """Two servers, because Caddy has two: `live_ids` are in the `:443` routing server and
     `http_live_ids` in the `:80` one. `has_http_server=False` models a Caddy with no `:80`
     site at all, where a plain-HTTP route has nowhere to go."""
@@ -132,7 +132,7 @@ async def test_list_with_sync_dns_only_row_is_na_for_route():
         Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
                  upstream="192.168.10.55", route_mode="dns_only")
     )
-    rows = await service.list_with_sync(FakeClient(live_ids=[]), BASE)
+    rows = await service.list_with_sync(FakeCaddy(live_ids=[]), BASE_DOMAIN)
     row = rows[0]
     assert row["route_mode"] == "dns_only"
     assert row["routed"] is True  # has a subdomain
@@ -145,7 +145,7 @@ async def test_list_with_sync_proxy_row_unaffected():
         Instance(id="grafana", name="Grafana", type="docker",
                  subdomain="grafana", upstream="192.168.10.100:3000")
     )
-    rows = await service.list_with_sync(FakeClient(live_ids=["grafana"]), BASE)
+    rows = await service.list_with_sync(FakeCaddy(live_ids=["grafana"]), BASE_DOMAIN)
     row = rows[0]
     assert row["route_mode"] == "proxy"
     assert row["synced"] is True
@@ -160,8 +160,8 @@ async def test_push_all_skips_dns_only_instances():
         Instance(id="vm1", name="vm1", type="external", subdomain="vm1",
                  upstream="192.168.10.55", route_mode="dns_only")
     )
-    client = FakeClient()
-    results = await service.push_all(client, BASE)
+    client = FakeCaddy()
+    results = await service.push_all(client, BASE_DOMAIN)
 
     assert client.pushed == ["grafana"]  # only the proxy instance is pushed
     assert [r["id"] for r in results] == ["grafana"]  # dns_only isn't even reported
@@ -235,8 +235,8 @@ def test_no_http_server_is_none_not_a_fallback():
 def test_the_http_twin_is_the_same_route_under_a_different_id():
     inst = svc("grafana", scheme="both")
 
-    https_route = service.build_route(inst, BASE)
-    http_route = service.build_route(inst, BASE, route_id=service.http_route_id("grafana"))
+    https_route = service.build_route(inst, BASE_DOMAIN)
+    http_route = service.build_route(inst, BASE_DOMAIN, route_id=service.http_route_id("grafana"))
 
     assert https_route["@id"] == "grafana"
     assert http_route["@id"] == "grafana-http"
@@ -253,9 +253,9 @@ def test_expected_ids_per_scheme():
 
 
 async def test_https_pushes_only_to_443_and_clears_any_http_twin():
-    client = FakeClient()
+    client = FakeCaddy()
 
-    await service.upsert_route(client, svc("grafana", scheme="https"), BASE)
+    await service.upsert_route(client, svc("grafana", scheme="https"), BASE_DOMAIN)
 
     assert client.pushed == ["grafana"]
     assert client.http_pushed == []
@@ -264,9 +264,9 @@ async def test_https_pushes_only_to_443_and_clears_any_http_twin():
 
 async def test_http_only_never_lands_in_the_443_server():
     # Absence there is what stops Caddy trying to issue a certificate for the name.
-    client = FakeClient()
+    client = FakeCaddy()
 
-    await service.upsert_route(client, svc("tv", scheme="http"), BASE)
+    await service.upsert_route(client, svc("tv", scheme="http"), BASE_DOMAIN)
 
     assert client.pushed == []
     assert client.http_pushed == ["tv-http"]
@@ -274,20 +274,20 @@ async def test_http_only_never_lands_in_the_443_server():
 
 
 async def test_both_pushes_one_route_into_each_server():
-    client = FakeClient()
+    client = FakeCaddy()
 
-    await service.upsert_route(client, svc("printer", scheme="both"), BASE)
+    await service.upsert_route(client, svc("printer", scheme="both"), BASE_DOMAIN)
 
     assert client.pushed == ["printer"]
     assert client.http_pushed == ["printer-http"]
 
 
 async def test_switching_scheme_converges_without_a_migration():
-    client = FakeClient()
-    await service.upsert_route(client, svc("x", scheme="both"), BASE)
+    client = FakeCaddy()
+    await service.upsert_route(client, svc("x", scheme="both"), BASE_DOMAIN)
     client.pushed.clear(); client.http_pushed.clear(); client.deleted.clear()
 
-    await service.upsert_route(client, svc("x", scheme="https"), BASE)
+    await service.upsert_route(client, svc("x", scheme="https"), BASE_DOMAIN)
 
     assert client.pushed == ["x"]
     assert client.http_pushed == []
@@ -295,18 +295,18 @@ async def test_switching_scheme_converges_without_a_migration():
 
 
 async def test_plain_http_without_an_80_server_fails_loudly():
-    client = FakeClient(has_http_server=False)
+    client = FakeCaddy(has_http_server=False)
 
     with pytest.raises(CaddyError):
-        await service.upsert_route(client, svc("tv", scheme="http"), BASE)
+        await service.upsert_route(client, svc("tv", scheme="http"), BASE_DOMAIN)
 
 
 async def test_both_is_synced_only_when_both_routes_are_live(data_dir):
     instances_store.upsert_instance(svc("printer", scheme="both"))
 
-    half = await service.list_with_sync(FakeClient(live_ids=["printer"]), BASE)
+    half = await service.list_with_sync(FakeCaddy(live_ids=["printer"]), BASE_DOMAIN)
     full = await service.list_with_sync(
-        FakeClient(live_ids=["printer"], http_live_ids=["printer-http"]), BASE
+        FakeCaddy(live_ids=["printer"], http_live_ids=["printer-http"]), BASE_DOMAIN
     )
 
     assert half[0]["synced"] is False  # the :80 half is missing
@@ -317,7 +317,7 @@ async def test_an_http_only_row_syncs_on_its_own_id(data_dir):
     instances_store.upsert_instance(svc("tv", scheme="http"))
 
     rows = await service.list_with_sync(
-        FakeClient(live_ids=[], http_live_ids=["tv-http"]), BASE
+        FakeCaddy(live_ids=[], http_live_ids=["tv-http"]), BASE_DOMAIN
     )
 
     assert rows[0]["synced"] is True
