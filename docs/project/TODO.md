@@ -62,7 +62,7 @@ Asked 2026-11-14 (Sunde): "since its about managing sessions we should make the 
 reflect that, with instead of claude button, we should have start and stop session, attach
 terminal so we can see what is going on if needed etc. more commands to manage and
 administer". One session per project stays (two Claudes in one working tree overwrite each
-other; a worktree per session would be a project of its own — backlog). A button that
+other; a worktree per extra session is in the backlog). A button that
 doesn't fit the session's state is hidden, not greyed (Sunde agreed) — then, seen, Attach
 greyed instead so every row has the same places (54d).
 
@@ -329,6 +329,13 @@ avoided when possible")**
 ---
 
 ## Backlog / Future ideas
+- **More than one Claude session on a project** (Sunde, 2026-11-14: for now one session's
+  own parallel agents — `claude agents` — are the way) — safely, a git worktree per extra
+  session: `claude --worktree <name>` makes one and starts in it. On the card, a **+ Session**
+  on a project, each worktree's session under it with Attach and Stop, and Remove once
+  merged. Blocker: the status line lists a project only where `.git` is a folder, and a
+  worktree's is a file — so it needs a status line version, and Install again on each
+  machine. Not several sessions in one folder: they overwrite each other's changes
 - **A one-line install, `curl … | sh`** (Sunde, 2026-11-14: for when the build is public and
   the release is a pulled image) — what the README's *Run it* does in three lines now (make
   `data` and `stacks` as the user, fetch `compose.yml`, `docker compose up -d`), as one
