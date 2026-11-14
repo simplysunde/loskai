@@ -39,7 +39,7 @@ export function ToolSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
   const locked = values.error instanceof ApiError && values.error.status === 423;
 
   return (
-    <div className="mt-1">
+    <div className="mt-1 divide-y divide-slate-800">
       {tool.id === "git" && (
         <SettingRow label="Projects folder" description="Where Claude Code finds its projects: ~ or one folder in it.">
           <InlineText
