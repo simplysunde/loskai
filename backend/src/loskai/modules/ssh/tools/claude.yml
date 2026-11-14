@@ -1,36 +1,62 @@
 # Claude Code in the machine's projects — the git repos in its projects folder ($PROJECTS) —
 # each in the tmux session claude-<project>, with Remote Control on, so a session carries on
-# in the Claude app or on another computer after the tab closes. Pulling, pushing and a
+# in the Claude app or on another computer after the tab closes. One session per project: two
+# in one working tree would overwrite each other. A project's buttons follow its session
+# (`when`): Start while it is stopped, Attach and Stop while it runs. Pulling, pushing and a
 # shell in a project are the Git tool's.
 # docs/reference/tool-schema.md is the format.
 name: Claude Code
 description: Manage your Claude sessions here, one per project.
 requires: [claude, tmux, git]
 actions:
-  open:
-    label: Claude
+  start:
+    label: Start
     description: >-
-      Open Claude in this project: its running session, else its last conversation
-      continued, else a new one — with Remote Control on.
+      Start Claude in this project in the background, with Remote Control on: its last
+      conversation continued, else a new one. Attach to watch it.
     target: project
-    session: claude
-    # Claude Code keeps a folder's conversations in ~/.claude/projects/<its path, every
-    # other character a ->; --continue fails where there are none.
-    run: >-
-      cd "$PROJECTS/$1" &&
-      if ls ~/.claude/projects/"$(pwd | sed 's,[^A-Za-z0-9],-,g')"/*.jsonl >/dev/null 2>&1;
-      then claude --continue --remote-control "$(hostname): $1";
-      else claude --remote-control "$(hostname): $1"; fi
-  end:
-    label: End
-    description: End Claude's session in this project.
-    target: project
+    when: stopped
     session: false
-    confirm: Claude stops; its conversation stays, and Claude continues it next time.
+    automatic: true
+    # Claude Code keeps a folder's conversations in ~/.claude/projects/<its path, every
+    # other character a ->; --continue fails where there are none. Claude's own path is
+    # looked up here: a tmux server started elsewhere may have another PATH. In a folder
+    # never trusted, Claude stops at its question, unseen — so it is looked for.
+    run: >-
+      cd "$PROJECTS/$1" && s="claude-$(printf %s "$1" | tr . _)" &&
+      if tmux has-session -t "=$s" 2>/dev/null; then echo "Claude already runs in $1."; exit 0; fi &&
+      c=$(command -v claude) &&
+      if ls ~/.claude/projects/"$(pwd | sed 's,[^A-Za-z0-9],-,g')"/*.jsonl >/dev/null 2>&1;
+      then tmux new-session -d -s "$s" -c "$PWD" "$c" --continue --remote-control "$(hostname): $1";
+      else tmux new-session -d -s "$s" -c "$PWD" "$c" --remote-control "$(hostname): $1"; fi &&
+      sleep 3 &&
+      if ! tmux has-session -t "=$s" 2>/dev/null; then
+      echo "Claude stopped at once. Open a Terminal in $1 (Git) and run claude to see why."; exit 1;
+      elif tmux capture-pane -p -t "=$s:" | grep -q "trust this folder"; then
+      echo "Claude asks whether to trust $1 first: Attach to answer it."; exit 1;
+      else echo "Claude runs in $1, with Remote Control on."; fi
+  attach:
+    label: Attach
+    description: >-
+      Watch Claude's session in this project, or take it over. Detach (Ctrl+B, then D) and it
+      keeps running.
+    target: project
+    when: running
+    session: claude
+    # Attaching is the shared session's: this runs only when it ended since the page last looked.
+    run: echo "Claude's session in $1 has ended. Start runs it again."
+  stop:
+    label: Stop
+    description: Stop Claude's session in this project.
+    target: project
+    when: running
+    session: false
+    automatic: true
+    confirm: Claude stops; its conversation stays, and Start continues it.
     # The session is claude-<project>, with the characters tmux won't take as _ (tool.session_name).
     run: >-
-      tmux kill-session -t "=claude-$(printf %s "$1" | tr . _)" 2>/dev/null ||
-      echo "No Claude session runs in $1."
+      tmux kill-session -t "=claude-$(printf %s "$1" | tr . _)" 2>/dev/null &&
+      echo "Claude stopped in $1." || echo "No Claude session runs in $1."
   new:
     label: New project
     description: Make the folder in the projects folder, start a git repository in it, and open Claude there.
@@ -39,3 +65,21 @@ actions:
     run: >-
       mkdir -p "$PROJECTS" && cd "$PROJECTS" && mkdir "$1" && cd "$1" && git init -q &&
       claude --remote-control "$(hostname): $1"
+  update:
+    label: Update Claude
+    description: >-
+      Update Claude Code to its latest version. A running session keeps the one it started
+      with until it is stopped and started again.
+    automatic: true
+    run: claude update
+  stop-all:
+    label: Stop all
+    description: Stop every project's Claude session. Their conversations stay.
+    automatic: true
+    confirm: Every Claude session here stops; Start continues each one.
+    # Only the projects' sessions: a tmux session of your own named claude-… is left alone.
+    run: >-
+      n=0; for d in "$PROJECTS"/*/; do
+      [ -d "$d.git" ] || continue; s="claude-$(basename "$d" | tr . _)";
+      tmux kill-session -t "=$s" 2>/dev/null && n=$((n+1)); done;
+      echo "Stopped $n Claude $( [ $n = 1 ] && echo session || echo sessions)."

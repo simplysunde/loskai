@@ -180,12 +180,12 @@ nothing to switch on, each as a card under its **Tools** — except **System**, 
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it; hovering a button shows the command. One that runs by itself — System's, Services,
-Proxmox, ending a tmux session, Tailscale's switches, adding a tool — asks first for
+Proxmox, ending a tmux session, Claude's Start and Stop, Tailscale's switches, adding a tool — asks first for
 sudo's password in a dialog when sudo would, checks it on the machine, and runs in a small
 terminal that drops down from the top of the page instead of a dialog. Done, it stays three
 seconds so you can see what ran (hover to hold it, **Keep open** to keep it) and slides
 away; a failure stays, with its exit code. The others (a shell,
-tmux, Claude, connecting Tailscale) answer sudo in the terminal as usual. With
+tmux, attaching to Claude, connecting Tailscale) answer sudo in the terminal as usual. With
 `tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
 back up.
 
@@ -235,12 +235,19 @@ and Add.
 - **Claude Code** lists the git projects in the machine's projects folder, set on the Git
   card (a tool's dialog has a **Settings** button there), with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
-  worked there. **Claude**
-  opens it: the session already running there, else the last conversation continued,
-  else a new one. It runs in tmux with **Remote Control** on, so after you close the tab
-  you can carry on from the Claude app or claude.ai/code. **End** stops its Claude — the
-  conversation stays. Pulling, pushing and a shell in the project are on the Git card.
-  **New project** makes the folder, starts a git repository and opens Claude in it.
+  worked there. One Claude session per project, and its buttons follow it — only what can
+  be done now shows:
+  - stopped: **Start** runs Claude in the background, the last conversation continued,
+    else a new one, in tmux with **Remote Control** on, so you carry on from the Claude
+    app or claude.ai/code. In a folder Claude was never told to trust, it stops at that
+    question; Start says so, and **Attach** is where you answer it;
+  - running: **Attach** shows the session, to watch it or take over (Ctrl+B, then D, leaves
+    it running), and **Stop** ends it — the conversation stays, and Start continues it.
+
+  At the card's foot, **New project** makes the folder, starts a git repository and opens
+  Claude in it; **Update Claude** updates Claude Code (a running session keeps its version
+  until stopped and started again); **Stop all** stops every project's session — not a
+  tmux session of your own. Pulling, pushing and a shell in a project are on the Git card.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.
 

@@ -788,11 +788,11 @@ def test_a_project_action_runs_in_its_claude_session_in_the_machine_s_folder(api
     _ready(api, machine_net, APT_FACTS + "tmux\nclaude\ngit\n")
     api.put("/api/ssh/machines/nas/projects", json={"folder": "~/code"})
 
-    with api.websocket_connect(TERMINAL + "&tool=claude&action=open&target=site", headers=ORIGIN) as ws:
+    with api.websocket_connect(TERMINAL + "&tool=claude&action=attach&target=site", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
     assert shell["command"].startswith("tmux new-session -A -s claude-site ")
-    assert "PROJECTS=$HOME/code;" in shell["command"] and "claude --remote-control" in shell["command"]
+    assert "PROJECTS=$HOME/code;" in shell["command"] and "has ended" in shell["command"]
     assert _closed_with(api, TERMINAL + "&tool=claude&action=new&target=..")[1] == "Not a project: '..'"
 
 

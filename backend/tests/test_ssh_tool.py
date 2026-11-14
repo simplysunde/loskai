@@ -2,6 +2,8 @@
 built from the file — the target only ever an argument."""
 
 import os
+import re
+import shutil
 import subprocess
 
 import pytest
@@ -14,9 +16,11 @@ def test_every_shipped_tool_is_valid():
     tools = tool.load()
 
     assert {"system", "services", "proxmox", "tmux", "tailscale", "claude"} <= set(tools)
-    assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["open"].session == "claude"
-    # Claude Code is its sessions; the project's git is the Git tool's.
-    assert set(tools["claude"].actions) == {"open", "end", "new"}
+    assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["attach"].session == "claude"
+    # Claude Code is its sessions — a project's buttons follow its own; its git is the Git tool's.
+    assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
+    assert {a.id: a.when for a in tools["claude"].actions.values() if a.when} == {
+        "start": "stopped", "attach": "running", "stop": "running"}
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo"
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
@@ -222,6 +226,64 @@ def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_sess
     assert 'mkfifo "$d/p"' in command and 'rm -rf "$d"' in command
     assert "tmux new-session -d -s loskai-system-update" in command
     assert command.endswith("exec tmux attach-session -t =loskai-system-update")
+
+
+_STUB_CLAUDE = """#!/bin/sh
+echo "$(basename "$PWD") $*" >> "$HOME/args"
+case "$(basename "$PWD")" in
+  dies) exit 1 ;;
+  my.blog) echo "Is this a project you created or one you trust?"; echo "  Yes, I trust this folder"; sleep 60 ;;
+  *) sleep 60 ;;
+esac
+"""
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="needs tmux")
+def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all_keeps_your_own(tmp_path):
+    """Claude's Start and Stop all as a machine runs them, on a tmux server of the test's own,
+    with a stand-in claude: one that asks to trust its folder (as Claude does in one it was
+    never told to trust — found on a real machine), one that exits at once."""
+    home = tmp_path / "h"
+    (home / "bin").mkdir(parents=True)
+    for project in ("site", "my.blog", "dies"):
+        (home / "projects" / project / ".git").mkdir(parents=True)
+    stub = home / "bin" / "claude"
+    stub.write_text(_STUB_CLAUDE)
+    stub.chmod(0o755)
+    # A conversation in site, so it is continued.
+    site = str(home / "projects" / "site")
+    conversations = home / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", site)
+    conversations.mkdir(parents=True)
+    (conversations / "a.jsonl").touch()
+    env = {"HOME": str(home), "PATH": f"{home / 'bin'}:/usr/bin:/bin", "TMUX_TMPDIR": str(tmp_path)}
+    claude = tool.load()["claude"]
+
+    def run(action, target=None):
+        command = tool.visible(tool.action_script(claude, action, "apt"), target, None, "projects", automatic=True)
+        return subprocess.Popen(["sh", "-c", command], env=env, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+    def tmux(*args):
+        return subprocess.run(["tmux", *args], env=env, capture_output=True, text=True)
+
+    try:
+        started = {p: run("start", p) for p in ("site", "my.blog", "dies")}
+        said = {p: proc.communicate(timeout=30)[0] for p, proc in started.items()}
+        assert said["site"].startswith("Claude runs in site, with Remote Control on.")
+        assert "Claude asks whether to trust my.blog first: Attach to answer it." in said["my.blog"]
+        assert "[failed, exit 1]" in said["my.blog"]
+        assert "Claude stopped at once." in said["dies"] and "[failed, exit 1]" in said["dies"]
+        args = sorted((home / "args").read_text().splitlines())
+        assert f"site --continue --remote-control {os.uname().nodename}: site" in args
+        assert f"my.blog --remote-control {os.uname().nodename}: my.blog" in args
+        assert run("start", "site").communicate(timeout=30)[0].startswith("Claude already runs in site.")
+
+        # A session of your own whose name starts like Claude's isn't a project's.
+        tmux("new-session", "-d", "-s", "claude-notes", "sleep 60")
+        assert run("stop-all").communicate(timeout=30)[0].startswith("Stopped 2 Claude sessions.")
+        assert tmux("ls", "-F", "#S").stdout.split() == ["claude-notes"]
+    finally:
+        tmux("kill-server")
 
 
 def _pane(tmp_path, job):

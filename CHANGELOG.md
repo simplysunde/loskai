@@ -39,9 +39,10 @@ Everything so far:
   git projects in the machine's projects folder (`~/projects`, changeable per machine on the
   Git card), each
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude
-  conversation; **Claude**
-  opens its running session, else continues the last conversation, else starts one — in
-  tmux, with Remote Control, so it carries on in the Claude app; **End** on each project;
+  conversation; one Claude session per project, its buttons following it — **Start** (in
+  the background, continuing the last conversation, in tmux with Remote Control, so it
+  carries on in the Claude app; it says when Claude waits to be told to trust the folder),
+  then **Attach** and **Stop**; **Update Claude** and **Stop all** on the card;
   **New project** makes the folder, `git init`, and starts Claude in it. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.

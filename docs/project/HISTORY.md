@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Claude Code's card manages sessions (Phase 54)
+
+Its one button, **Claude**, attached to a project's session or started one — which of the
+two you couldn't tell — and End stopped it. Sunde asked for buttons that manage sessions:
+start, stop, attach. So a project's buttons now follow its session, through a new `when` on
+an action: **Start** while stopped, **Attach** and **Stop** while it runs. Hidden, not
+greyed, when they don't fit (Sunde agreed): a row shows what can be done now.
+
+Start runs Claude detached, so nobody sees it if Claude stops to ask something. Tried on
+this VM: in a folder never trusted it stops at "do you trust this folder?". Start looks for
+that question, says so and leaves the session for Attach. **Restart** was proposed and
+dropped: it would write the launch — continue the last conversation, else a new one — a
+second time; Stop then Start does it. One session per project stays: two Claudes in one
+working tree overwrite each other's changes, and the safe way to run several (a git
+worktree each) would make each a project of its own.
+
 ## 2026-11-14 — System's buttons are on General
 
 Update, Reboot and Shut down are done to the machine itself, so Sunde asked for them beside

@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** Phase 54 — Claude Code's card manages sessions. **Phase 49** (below) gave a project's git to the Git tool; Phase 48
+**Now:** nothing in flight. **Phase 54** (below) gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -70,14 +70,20 @@ trust stops at its trust question, unseen. So Start looks for it and says to Att
 
 **Steps**
 
-- [ ] 54a The schema: an action's `when: running | stopped`, shown only while its row's
+- [x] 54a The schema: an action's `when: running | stopped`, shown only while its row's
       shared session is (or isn't) running — the page decides, from the overview's `live`
-- [ ] 54b Claude Code: **Start** (in the background, Remote Control on, continuing the last
+- [x] 54b Claude Code: **Start** (in the background, Remote Control on, continuing the last
       conversation), **Attach**, **Stop** on a project by its state; **Update Claude** and
       **Stop all** at the card's foot; **New project** as it was. No Restart: Stop then
       Start, so the launch is written once
-- [ ] 54c Live: on this VM's own tmux (a private socket) — Start in a trusted and an untrusted
+- [x] 54c Live: on this VM's own tmux (a private socket) — Start in a trusted and an untrusted
       folder, Stop, Stop all leaving a tmux session of the user's named `claude-…` alone
+      — live: real Claude 2.1.325 stopped at its trust question in a new folder, run detached;
+      the shipped commands, through `tool.visible`, against a stand-in claude on a tmux
+      server of their own: continued where a conversation was, the trust question and an
+      exit at once each said, a second Start "already runs", Stop twice, Stop all 2 of 2 with
+      `claude-notes` kept — and the same as a test (`test_claude_starts_in_the_background…`).
+      Not yet: Remote Control and the buttons on a real machine through the page
 
 ---
 
