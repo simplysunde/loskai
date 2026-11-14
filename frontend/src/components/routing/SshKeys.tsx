@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ExternalLink, KeyRound, Tag, X } from "lucide-react";
+import { Check, ExternalLink, KeyRound, Tag, X } from "lucide-react";
 
 import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
@@ -243,14 +243,6 @@ function KeyRow({
               ~/.ssh/config
             </span>
           )}
-          {tested && (
-            <span
-              title={tested.ok ? `Its Test just now: it gets in on ${tested.host}` : `Its Test just now: ${tested.host} refused it`}
-              className={`rounded px-1.5 py-0.5 text-[10px] ${tested.ok ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"}`}
-            >
-              {tested.ok ? "✓" : "✗"} {tested.host}
-            </span>
-          )}
         </div>
         {git && <UsedBy uses={uses} named={named} account={group === "account"} ssh={keyKind(info.name) === "account"} facts={facts} />}
         {/* Its comment says what it is for and travels with the key; its fingerprint is the
@@ -278,7 +270,15 @@ function KeyRow({
       <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
         <CopyKey info={info} page={page} />
         {test && (
-          <KeyTest tool={tool} action={test} name={info.name} start={keyHost(info, uses) ?? ""} onRun={onRun} onTested={onTested} />
+          <KeyTest
+            tool={tool}
+            action={test}
+            name={info.name}
+            start={keyHost(info, uses) ?? ""}
+            tested={tested}
+            onRun={onRun}
+            onTested={onTested}
+          />
         )}
         {label && (
           <button
@@ -473,6 +473,7 @@ function KeyTest({
   action,
   name,
   start,
+  tested,
   onRun,
   onTested,
 }: {
@@ -480,26 +481,47 @@ function KeyTest({
   action: ToolAction;
   name: string;
   start: string;
+  tested?: Tested;
   onRun: ToolStart;
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const [host, setHost] = useState(start);
+  // Once it got in, the field is done with: the answer in its place, until clicked to test again.
+  const [again, setAgain] = useState(false);
+  const refused = tested && !tested.ok;
   const { remember } = useRecentHosts();
   const h = host.trim();
   const go = () => {
     if (!h) return;
+    setAgain(false);
     remember(h);
     onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action, (ok) => onTested(name, h, ok));
   };
+  if (tested?.ok && !again) {
+    return (
+      <button
+        type="button"
+        aria-label={`Tested ${name}: it gets in on ${tested.host} — test again`}
+        title={`It got in on ${tested.host} just now — click to test it again, or on another host`}
+        onClick={() => setAgain(true)}
+        className="flex w-[9.75rem] items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-500/20"
+      >
+        <Check className="h-3 w-3 shrink-0" />
+        <span className="truncate font-mono">{tested.host}</span>
+      </button>
+    );
+  }
   return (
-    <span className="flex items-center">
+    <span className="flex items-center" title={refused ? `${tested.host} refused it just now` : undefined}>
       <HostInput
         label={`Host to test ${name} on`}
         value={host}
         onChange={setHost}
         onEnter={go}
         placeholder="host"
-        className="w-28 min-w-0 rounded-l-md border border-r-0 border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-[11px] text-slate-200 placeholder:text-slate-600"
+        className={`w-28 min-w-0 rounded-l-md border border-r-0 bg-slate-950 px-1.5 py-0.5 font-mono text-[11px] text-slate-200 placeholder:text-slate-600 ${
+          refused ? "border-rose-500/60" : "border-slate-700"
+        }`}
       />
       <button
         type="button"

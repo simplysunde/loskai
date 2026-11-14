@@ -1434,7 +1434,7 @@ test("a key's Test drops down over Keys, which stays — its answer the drop-dow
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 
-test("a key's Test, while Keys is open: ✓ in its row, and no Add to … once it gets in; ✗ keeps it", async () => {
+test("a key's Test, while Keys is open: a ✓ in its field's place, and no Add to …; a ✗ keeps both", async () => {
   setUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
@@ -1443,14 +1443,22 @@ test("a key's Test, while Keys is open: ✓ in its row, and no Add to … once i
 
   fireEvent.click(within(row("deploy_blog")).getByRole("button", { name: "Test deploy_blog" }));
   fireEvent.click(await screen.findByRole("button", { name: "end: done" }));
-  await vi.waitFor(() => expect(row("deploy_blog")).toHaveTextContent("✓ forgejo.lan"));
+  // It got in: the field and its Test give way to the answer, in their place.
+  const passed = await within(row("deploy_blog")).findByRole("button", { name: "Tested deploy_blog: it gets in on forgejo.lan — test again" });
+  expect(passed).toHaveTextContent("forgejo.lan");
+  expect(within(row("deploy_blog")).queryByLabelText("Host to test deploy_blog on")).toBeNull();
   expect(within(row("deploy_blog")).queryByRole("link", { name: /Add to/ })).toBeNull();
   fireEvent.click(within(screen.getByRole("region", { name: /Test: deploy_blog/ })).getByRole("button", { name: "Close" }));
   await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: deploy_blog/ })).toBeNull());
+  // Clicked: the field again, to test once more or elsewhere.
+  fireEvent.click(passed);
+  expect(within(row("deploy_blog")).getByLabelText("Host to test deploy_blog on")).toHaveValue("forgejo.lan");
 
   fireEvent.click(within(row("id_ed25519")).getByRole("button", { name: "Test id_ed25519" }));
   fireEvent.click(await screen.findByRole("button", { name: "end: failed" }));
-  await vi.waitFor(() => expect(row("id_ed25519")).toHaveTextContent("✗ github.com"));
+  // Refused: the field stays — another host, or adding it, comes next — and so does Add to.
+  await vi.waitFor(() => expect(within(row("id_ed25519")).getByTitle("github.com refused it just now")).toBeInTheDocument());
+  expect(within(row("id_ed25519")).getByLabelText("Host to test id_ed25519 on")).toBeInTheDocument();
   expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toBeInTheDocument();
 });
 

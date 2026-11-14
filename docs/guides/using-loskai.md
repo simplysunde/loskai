@@ -272,8 +272,9 @@ and Add.
   comment's "for <host>"). Then a host and **Test**: the host is where the key came from —
   filled in with that platform when it can be told, yours to type when not, `:port` for a
   Forgejo whose SSH isn't on 22 — and Test tries that key alone there, dropping down with
-  ✓ and whom it gets in as, or ✗. While Keys is open, the answer stays beside the key —
-  "✓ github.com", "✗ github.com" — and once it gets in, Add to … goes: it is there already.
+  ✓ and whom it gets in as, or ✗. While Keys is open, the answer stays: a key that got in
+  shows "✓ github.com" in its field's place — click it to test again — and its Add to …
+  goes, being there already; one refused keeps its field, outlined, and its Add to ….
   Only a test can tell that: what the machine says is which key a remote would use, not
   whether the platform has it. Nothing is kept once Keys closes — except, in this browser,
   the hosts you tested on: clicking into a host field offers them, newest first, each with

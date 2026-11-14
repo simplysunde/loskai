@@ -44,7 +44,8 @@ can't see a key used only by a script running `ssh -i`, or for logging in elsewh
 **Testing a key is a connection a key, asked for.** A key's Test tries it alone on a host
 you name — filled with the platform it is for — and the drop-down says ✓ and as whom (a
 forge's greeting names the account, or a deploy key's repository) or ✗; while the dialog is
-open the answer stays beside the key, and Add to … goes once it gets in. Test key tries
+open the answer stays — a key that got in shows ✓ and the host in its field's place, and
+its Add to … goes; one refused keeps its field and the link. Test key tries
 only the keys meant for a host; Try every key tries them all, at most 10. A refused key is
 a failed login there — a self-hosted forge's fail2ban counts them — so the sweep is asked
 for by name and stops when a host stops answering; a first connection refused is a wrong
