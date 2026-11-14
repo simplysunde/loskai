@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Test key tries the keys meant for a host; nothing about a key is stored
+
+Test key tried every key on a host, a connection each. Asked whether that is reasonable:
+for a public forge, yes — but a refused key is a failed login, and a self-hosted forge
+behind sshd with fail2ban (5 in 10 minutes, by default) could ban the machine. Sunde then
+asked whether Loskai should keep track of where each key it made goes. No: Loskai can't
+see GitHub or Forgejo, so a record would drift as keys are added or removed there, and
+would know nothing of a key made by hand — the reason container state and a recipe's
+options are read, never stored. Instead each kind of fact has its own source: what a key
+is for travels with it, in its comment (Loskai writes "… for github.com", a deploy key's
+project), shown on its row; where ssh uses it is read from the config; whether a host
+takes it is a test, run when asked. Test key now tries only the keys meant for a host —
+what ssh offers it, and any whose comment names it — usually one connection. **Try
+every key** is the sweep, asked for by name: at most 10, and it stops when the host stops
+answering. Both try a key the same way, word for word, which a test checks.
+
 ## 2026-11-14 — One key per platform, and which key gets in where
 
 Asked by Sunde: a key for GitHub and another for Forgejo, and how Test validates them.

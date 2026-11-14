@@ -3,10 +3,9 @@ import { KeyRound } from "lucide-react";
 
 import { keyKind, keyUses, type KeyUse } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
-import { hasKeys, type Tool, type ToolAction } from "../../lib/tools";
+import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
-import { Ask } from "./ToolAsk";
 import { ActionIcon } from "./ToolIcon";
 
 const KIND_TITLE = {
@@ -87,7 +86,10 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                     <span title={KIND_TITLE[kind]} className="ml-2 cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
                       {kind}
                     </span>
-                    <span title={`${k.type} ${k.bits} · ${k.comment}`} className="block truncate font-mono text-[11px] text-slate-500">
+                    {/* Its comment says what it is for — "for github.com", a deploy key's project —
+                        and travels with the key: nothing about it is kept in Loskai. */}
+                    {k.comment && <span className="block truncate text-[11px] text-slate-400">{k.comment}</span>}
+                    <span title={`${k.type} ${k.bits}`} className="block truncate font-mono text-[11px] text-slate-500">
                       {k.fingerprint}
                     </span>
                   </span>
@@ -114,10 +116,13 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
       </div>
       {beside.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {/* What asks for the same kind of value shares one field: a host, for New key for a
+              host, Test key and Try every key. */}
+          {[...new Set(beside.flatMap((a) => (a.ask ? [a.ask] : [])))].map((kind) => (
+            <AskGroup key={kind} tool={tool} actions={beside.filter((a) => a.ask === kind)} onRun={run} />
+          ))}
           {beside.map((a) =>
-            a.ask ? (
-              <Ask key={a.id} tool={tool} action={a} onRun={run} />
-            ) : (
+            a.ask ? null : (
               <button
                 key={a.id}
                 type="button"
@@ -207,5 +212,36 @@ function KeyButton({
     >
       <ActionIcon tool={tool.id} action={action.id} /> {action.label}
     </button>
+  );
+}
+
+// One field for the actions that ask for the same kind of value, a button each — Enter
+// runs none, since which is meant only its button says.
+function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[]; onRun: ToolStart }) {
+  const [value, setValue] = useState("");
+  const asked = askedOf(actions[0].ask);
+  const v = value.trim();
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <input
+        aria-label={asked.what.replace(/^./, (c) => c.toUpperCase())}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={asked.placeholder}
+        className={`${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`}
+      />
+      {actions.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          disabled={!v}
+          title={a.description}
+          onClick={() => onRun({ tool: tool.id, action: a.id, target: v, title: `${a.label}: ${v}` }, a)}
+          className={TOOL_BUTTON}
+        >
+          <ActionIcon tool={tool.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
+        </button>
+      ))}
+    </div>
   );
 }

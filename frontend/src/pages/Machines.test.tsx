@@ -156,6 +156,7 @@ const TOOLS = [
       { id: "ssh-key", label: "New account key", description: "Make one.", target: null, ask: null, confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
+      { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
       { id: "show-key", label: "Show", description: "Its public half.", target: "key", ask: null, confirm: null, session: false, run: "cat" },
       { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, run: "git ls-remote" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
@@ -1273,7 +1274,7 @@ test("Clone asks for a repository's address and runs on it; Git's card has the p
 async function gitKeys() {
   const tools = await screen.findByRole("region", { name: "Tools" });
   expect(within(tools).queryByRole("button", { name: "Show id_ed25519" })).toBeNull();
-  expect(within(tools).queryByLabelText("Test key — host")).toBeNull();
+  expect(within(tools).queryByRole("button", { name: "Test key" })).toBeNull();
   fireEvent.click(await within(tools).findByRole("button", { name: "Keys" }));
   return screen.findByRole("dialog", { name: "SSH keys" });
 }
@@ -1292,6 +1293,8 @@ test("Keys lists each SSH key: what it is, which projects use it, its fingerprin
   expect(row("id_ed25519")).toHaveTextContent("account");
   expect(row("id_ed25519")).toHaveTextContent(/projects\/site — fetch and push Show/);
   expect(row("id_ed25519")).toHaveTextContent("SHA256:mach");
+  // Its comment — what it is for — in view: it travels with the key.
+  expect(row("deploy_blog")).toHaveTextContent("loskai@nas blog");
   expect(row("deploy_blog")).toHaveTextContent("projects/blog — fetch and push");
   expect(row("work")).toHaveTextContent("projects/site › public/page — push · via gh-page");
   expect(row("work")).toHaveTextContent("named in ~/.ssh/config");
@@ -1327,13 +1330,18 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   const tools = await screen.findByRole("region", { name: "Tools" });
   fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
   const settings = await screen.findByRole("dialog", { name: "Git settings" });
-  expect(within(settings).queryByLabelText("Test key — host")).toBeNull();
+  expect(within(settings).queryByRole("button", { name: "Test key" })).toBeNull();
   fireEvent.click(within(settings).getByRole("button", { name: "Cancel" }));
 
   const dialog = await gitKeys();
-  const host = within(dialog).getByLabelText("Test key — host");
+  // One host field, for each action that asks for a host — none runs until one is typed.
+  expect(within(dialog).getAllByRole("textbox")).toHaveLength(1);
+  const host = within(dialog).getByLabelText("Host");
   expect(host).toHaveAttribute("placeholder", "github.com");
   const button = within(dialog).getByRole("button", { name: "Test key" });
+  for (const name of ["New key for a host", "Test key", "Try every key"]) {
+    expect(within(dialog).getByRole("button", { name })).toBeDisabled();
+  }
   expect(button.querySelector("svg")).toHaveClass("lucide-plug-zap");
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.click(button);
@@ -1344,7 +1352,7 @@ test("New key for a host, in Keys, makes one for the host typed", async () => {
   setUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  fireEvent.change(within(dialog).getByLabelText("New key for a host — host"), { target: { value: "github.com" } });
+  fireEvent.change(within(dialog).getByLabelText("Host"), { target: { value: "github.com" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "New key for a host" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=host-key&target=github.com")).toBeInTheDocument();
 });

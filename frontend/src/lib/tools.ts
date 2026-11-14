@@ -144,3 +144,14 @@ export function commandFor(action: ToolAction, manager: string | null | undefine
   if (typeof action.run === "string") return action.run;
   return manager ? (action.run[manager] ?? null) : null;
 }
+
+// What an asked-for value looks like, in its field: a name, a repository's address (Clone),
+// or a host (Test key).
+const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; what: string }>> = {
+  repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
+  host: { placeholder: "github.com", width: "w-36", what: "host" },
+};
+
+export function askedOf(kind: ToolTarget | null | undefined) {
+  return (kind && ASKED[kind]) || { placeholder: "name", width: "w-32", what: "name" };
+}

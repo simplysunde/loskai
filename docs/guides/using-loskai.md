@@ -256,14 +256,22 @@ and Add.
   project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never
-  leaves the machine). **Test key** takes any host — `github.com`, `codeberg.org`, an
-  alias, or `host:port` for a Forgejo whose SSH isn't on 22 — and tries each key there on
-  its own, saying which get in and as whom ("gets in as sunde"; a deploy key as its
-  repository); a key with a passphrase isn't tried. One key per platform is a `Host` block
-  each in `~/.ssh/config`: **New key for a host** makes `~/.ssh/<host>` and prints the
-  block to paste there — Loskai doesn't edit that file. Where ssh tries several keys on a
-  host (no `IdentitiesOnly`), each shows as **offered** there: Test key on that host says
-  which one gets in. A project's cog says which key it uses;
+  leaves the machine). Each key shows its comment, which says what it is for — Loskai's
+  keys are made with one ("vm@codebox for github.com"; a deploy key's project) — and
+  Loskai keeps nothing about a key itself: what it is for travels with it, where ssh uses
+  it is read from your config, and whether a host takes it is a test you run. Under the
+  list, one host field — `github.com`, `codeberg.org`, an alias, or `host:port` for a
+  Forgejo whose SSH isn't on 22 — has three buttons. **Test key** tries the keys meant for
+  that host, each on its own: the ones ssh offers it, and any whose comment says it is for
+  it — a connection or two, saying which get in and as whom ("gets in as sunde"; a deploy
+  key as its repository). **Try every key** tries every key, at most 10, to find which one
+  a host takes when nothing says; each refused key is a failed login there, so on a
+  self-hosted forge with fail2ban a few can get the machine banned for a while, and it
+  stops as soon as the host stops answering. A key with a passphrase isn't tried. One key
+  per platform is a `Host` block each in `~/.ssh/config`: **New key for a host** makes
+  `~/.ssh/<host>` and prints the block to paste there — Loskai doesn't edit that file.
+  Where ssh tries several keys on a host (no `IdentitiesOnly`), each shows as **offered**
+  there. A project's cog says which key it uses;
   **Own key** there gives it a deploy key (set as its `core.sshCommand`, so git uses that
   key alone for it), its cog teal like its own name, and **Machine's key** goes back,
   keeping the file, so Own key takes the same key up again. On a machine Claude works on by

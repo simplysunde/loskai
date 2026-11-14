@@ -2,22 +2,16 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 
 import type { ToolStart } from "../../lib/toolRows";
-import type { Tool, ToolAction, ToolTarget } from "../../lib/tools";
+import { askedOf, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { ActionIcon } from "./ToolIcon";
 
-// What an asked-for value looks like, in its field: a name, a repository's address (Clone),
-// or a host (Test key).
-const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; what: string }>> = {
-  repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
-  host: { placeholder: "github.com", width: "w-36", what: "host" },
-};
 
 // An action that runs on a name typed for it — a new session, a new project. The server
 // checks the name; it reaches the command as `$1`.
 export function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
   const [name, setName] = useState("");
-  const asked = (action.ask && ASKED[action.ask]) || { placeholder: "name", width: "w-32", what: "name" };
+  const asked = askedOf(action.ask);
   return (
     <form
       className="flex items-center gap-1.5"

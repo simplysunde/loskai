@@ -25,7 +25,7 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "own-key",
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
             "machine-key", "show-key", "try-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # Their terminals stay open: a key to copy, a host's key to trust.
@@ -85,51 +85,119 @@ def test_ssh_key_makes_one_once_and_shows_the_public_half(tmp_path):
     assert back.returncode == 0 and pub.split()[1] in back.stdout
 
 
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_test_key_tries_each_key_alone_and_says_which_get_in_and_as_whom(tmp_path):
-    """One key for GitHub, one deploy key, one that gets in nowhere, one with a passphrase —
-    each tried alone on the host an alias names, after a first connection offering none."""
+def _forge(tmp_path, keys: dict[str, tuple[str, str]], config: str, greetings: dict[str, str]):
+    """A home with `keys` (name → passphrase, comment) and `config`, and an `ssh` that logs
+    each call and greets a key in `greetings` as the forge would, refuses any other — or,
+    once `tmp_path/blocked` exists, refuses the connection itself."""
     home = tmp_path / "home"
     (home / ".ssh").mkdir(parents=True)
-    for name, passphrase in (("github.com", ""), ("deploy_site", ""), ("old", ""), ("locked", "secret")):
-        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", passphrase, "-f", str(home / ".ssh" / name)], check=True)
-    (home / ".ssh" / "config").write_text("Host gh\n  HostName github.com\n  Port 2222\n")
+    for name, (passphrase, comment) in keys.items():
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", passphrase, "-C", comment,
+                        "-f", str(home / ".ssh" / name)], check=True)
+    (home / ".ssh" / "config").write_text(config)
     greet = tmp_path / "greet"
     greet.mkdir()
-    (greet / "github.com").write_text("Hi sunde! You've successfully authenticated, but GitHub does not provide shell access.\n")
-    (greet / "deploy_site").write_text("Hi sunde/site! You've successfully authenticated, but GitHub does not provide shell access.\n")
+    for name, text in greetings.items():
+        (greet / name).write_text(text + "\n")
     bin_ = tmp_path / "bin"
     bin_.mkdir()
     (bin_ / "ssh").write_text(
         f"#!/bin/sh\n[ \"$1\" = -G ] && exec {shutil.which('ssh')} -F $HOME/.ssh/config \"$@\"\n"
         f'echo "$*" >> {tmp_path}/ssh.log\n'
+        f'[ -e {tmp_path}/blocked ] && {{ echo "ssh: connect to host github.com port 22: Connection refused" >&2; exit 255; }}\n'
         'k=; prev=; for a; do [ "$prev" = -i ] && k=${a##*/}; prev=$a; done\n'
         f'[ -n "$k" ] && [ -f {greet}/$k ] && {{ cat {greet}/$k >&2; exit 1; }}\n'
         'echo "git@github.com: Permission denied (publickey)." >&2; exit 255\n')
     (bin_ / "ssh").chmod(0o755)
     env = {**os.environ, "HOME": str(home), "PATH": f"{bin_}:{os.environ['PATH']}"}
-    run = tool.load()["git"].actions["test-key"].run
 
-    out = subprocess.run(["sh", "-c", run, "sh", "gh"], capture_output=True, text=True, env=env, timeout=60)
+    def run(action, host):
+        script = tool.load()["git"].actions[action].run
+        out = subprocess.run(["sh", "-c", script, "sh", host], capture_output=True, text=True, env=env, timeout=60)
+        calls = (tmp_path / "ssh.log").read_text().splitlines() if (tmp_path / "ssh.log").exists() else []
+        (tmp_path / "ssh.log").unlink(missing_ok=True)
+        return out, [line.split() for line in out.stdout.splitlines()], calls
+    return run
+
+
+GREETINGS = {
+    "github.com": "Hi sunde! You've successfully authenticated, but GitHub does not provide shell access.",
+    "deploy_site": "Hi sunde/site! You've successfully authenticated, but GitHub does not provide shell access.",
+}
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_test_key_tries_only_the_keys_meant_for_the_host_each_alone(tmp_path):
+    run = _forge(tmp_path, {
+        "github.com": ("", "vm@box for github.com"),  # made for it (New key for a host)
+        "deploy_site": ("", "vm@box site"), "old": ("", "vm@box"), "locked": ("secret", "vm@box"),
+    }, "Host gh\n  HostName github.com\n  Port 2222\n", GREETINGS)
+
+    out, lines, calls = run("test-key", "gh")
 
     assert out.returncode == 0, out.stdout + out.stderr
-    lines = [line.split() for line in out.stdout.splitlines()]
-    assert lines[0] == ["gh", "(github.com,", "port", "2222):"]
+    assert lines[0][:4] == ["gh", "(github.com,", "port", "2222)"]
+    # ssh offers gh its defaults — none of them here — and one key is made for github.com:
+    # that one alone is tried. Not deploy_site, which a forge may count as a failed login.
+    assert lines[1:] == [["github.com", "gets", "in", "as", "sunde"]]
+    assert "PubkeyAuthentication=no" in calls[0] and "git@github.com" in calls[0]
+    assert len(calls) == 2 and "-F /dev/null" in calls[1] and "IdentitiesOnly=yes" in calls[1] and "-p 2222" in calls[1]
+
+    # A host none is meant for says so, and tries nothing.
+    none, _, calls = run("test-key", "codeberg.org")
+    assert none.returncode == 1 and "None here" in none.stdout and "Try every key" in none.stdout
+    assert all("-i" not in c.split() for c in calls)
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_test_key_tries_the_key_ssh_config_names_for_an_alias(tmp_path):
+    run = _forge(tmp_path, {"site-key": ("", "vm@box"), "old": ("", "vm@box")},
+                 "Host gh-site\n  HostName github.com\n  IdentityFile ~/.ssh/site-key\n  IdentitiesOnly yes\n",
+                 {"site-key": GREETINGS["deploy_site"]})
+    out, lines, _ = run("test-key", "gh-site")
+    assert out.returncode == 0 and lines[1:] == [["site-key", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"]]
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_try_every_key_tries_each_says_which_get_in_and_stops_where_the_host_does(tmp_path):
+    run = _forge(tmp_path, {
+        "github.com": ("", "vm@box for github.com"), "deploy_site": ("", "vm@box site"),
+        "old": ("", "vm@box"), "locked": ("secret", "vm@box"),
+    }, "Host gh\n  HostName github.com\n  Port 2222\n", GREETINGS)
+
+    out, lines, calls = run("every-key", "gh")
+
+    assert out.returncode == 0, out.stdout + out.stderr
     assert ["deploy_site", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"] in lines
     assert ["github.com", "gets", "in", "as", "sunde"] in lines
     assert ["old", "refused"] in lines
     assert ["locked", "has", "a", "passphrase:", "not", "tried"] in lines
-    calls = (tmp_path / "ssh.log").read_text().splitlines()
-    # First a connection offering no key, where ssh may ask to trust the host; then each
-    # key alone, on the alias's host and port, with nothing from the config added.
-    assert "PubkeyAuthentication=no" in calls[0] and "git@github.com" in calls[0]
-    assert all("-F /dev/null" in c and "IdentitiesOnly=yes" in c and "-p 2222" in c for c in calls[1:])
-    assert len(calls) == 4  # the passphrase key isn't tried
+    assert len(calls) == 4  # a first connection with no key; the passphrase key isn't tried
 
-    (greet / "github.com").unlink()
-    (greet / "deploy_site").unlink()
-    none = subprocess.run(["sh", "-c", run, "sh", "gh"], capture_output=True, text=True, env=env, timeout=60)
-    assert none.returncode == 1 and "No key here gets in" in none.stdout
+    # A host that stops answering ends it: the rest aren't tried.
+    (tmp_path / "blocked").touch()
+    stopped, _, calls = run("every-key", "gh")
+    assert stopped.returncode == 1 and "stopped answering after 1" in stopped.stdout
+    assert len(calls) == 2
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_try_every_key_stops_at_ten(tmp_path):
+    run = _forge(tmp_path, {f"k{i:02}": ("", "vm@box") for i in range(12)}, "", {})
+    out, lines, calls = run("every-key", "github.com")
+    assert ["Stopped", "at", "10", "keys."] in lines and len(calls) == 11
+
+
+def test_test_key_and_try_every_key_try_a_key_the_same_way():
+    """They differ in which keys; the part that tries one is the same, word for word."""
+    a = tool.load()["git"].actions
+
+    def one_key(run):
+        start = run.index("name=${k##*/}")
+        return run[start:run.index("esac; done", start)]
+
+    assert one_key(a["test-key"].run) == one_key(a["every-key"].run)
+    assert "Connection refused" in one_key(a["test-key"].run)
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
@@ -644,7 +712,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     git = tool.load()["git"].actions
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
-        "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"),
+        "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
         "show-key": ("key", "card"), "try-key": ("key", "card"), "delete-key": ("key", "card")}
 
 
