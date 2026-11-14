@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A project's own SSH key: a deploy key, like its own name and email
+
+Asked by Sunde after the account key: deploy keys, "the same concept of the override
+settings". A project can now have its own key in place of the machine's, the way its own
+commit name and email override the global ones — its cog teal while it does, its dialog
+showing the machine's greyed while it doesn't. Deploy keys aren't GitHub's alone: Forgejo
+and GitLab have them too, GitHub just takes a key on one repository only — so one key per
+project, always. Git is pointed at it with the project's `core.sshCommand`
+(`ssh -i … -o IdentitiesOnly=yes`), not `~/.ssh/config` aliases: nothing outside the
+repository changes and the remote's address stays as it is. Worth it where Claude works
+alone (lab-dev with Remote Control): an account key reaches every repository you own, a
+deploy key that one. **Machine's key** goes back but keeps the key file, so Own key takes
+the same one up — already on the repository's Deploy keys — rather than a new one to add
+again.
+
+Two small additions to the tool format made it: a setting may be **shown only** (a `read`
+and no `write`), since a key is made by running something, not typed; and `place: settings`
+now also works on a project's action, putting it in that project's dialog.
+
 ## 2026-11-14 — Git's SSH key and Test key
 
 Clone, Pull and Push over SSH use the machine user's own key, and nothing helped get one

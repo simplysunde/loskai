@@ -51,7 +51,7 @@ export function RowButtons({
     !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts));
   return here.flatMap((t) =>
     t.actions
-      .filter((a) => a.target === kind && (fits(t, a) || a.otherwise === "disabled"))
+      .filter((a) => a.target === kind && a.place !== "settings" && (fits(t, a) || a.otherwise === "disabled"))
       .map((a) => (
         <button
           key={`${t.id}-${a.id}`}

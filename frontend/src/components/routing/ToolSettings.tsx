@@ -128,7 +128,10 @@ export function SettingsDialog({
 }) {
   const qc = useQueryClient();
   const { key, url, values } = useToolSettings(tool, ctx.machineId);
-  const settings = row ? rowSettingsOf(tool, row.kind) : cardSettingsOf(tool);
+  const all = row ? rowSettingsOf(tool, row.kind) : cardSettingsOf(tool);
+  // Those typed in; the rest are shown only, made by an action (Git's SSH key).
+  const settings = all.filter((s) => s.write != null);
+  const shownOnly = all.filter((s) => s.write == null);
   const have: Record<string, string | null> = (row ? values.data?.targets?.[row.kind]?.[row.name] : values.data?.values) ?? {};
   // Git's card: the projects folder first — Loskai's, not the machine's, saved on its own.
   const folder = !row && tool.id === "git";
@@ -161,10 +164,11 @@ export function SettingsDialog({
   });
   const label = row ? `Settings for ${row.name}` : `${tool.name} settings`;
   const formId = useId();
-  const actions = row ? [] : settingsActionsOf(tool);
+  const actions = settingsActionsOf(tool, row?.kind ?? null);
+  // Each in the machine's terminal, this dialog closing first; a row's on that row.
   const run: ToolStart = (r, a) => {
     onClose();
-    ctx.onRun(r, a);
+    ctx.onRun(row ? { ...r, target: row.name, title: `${r.title}: ${row.name}` } : r, a);
   };
 
   return (
@@ -209,6 +213,21 @@ export function SettingsDialog({
             </label>
           ))}
         </div>
+        {/* Shown only: what the machine has — for a row, the card's greyed while it has none
+            of its own. */}
+        {shownOnly.map((s) => {
+          const own = have[s.id];
+          const card = row && s.overrides ? values.data?.values[s.overrides] : null;
+          return (
+            <div key={s.id} className="mt-3">
+              <span className="text-sm text-slate-200">{s.label}</span>
+              <span className="mb-1 block text-xs text-slate-500">{s.description}</span>
+              <span aria-label={s.label} className={`block break-all font-mono text-xs ${own ? "text-slate-200" : "text-slate-500"}`}>
+                {own ?? (card ? `the machine's: ${card}` : values.data ? "none yet" : "…")}
+              </span>
+            </div>
+          );
+        })}
         {values.isLoading && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-500" />}
         {(save.error || values.error) && (
           <p className="mt-3 text-sm text-rose-400">

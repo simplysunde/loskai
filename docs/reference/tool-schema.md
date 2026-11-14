@@ -208,6 +208,12 @@ A setting may also have:
   same kind: its value is what an empty field shows, greyed. Only shown — what applies is
   the program's own rule (git's `--local` over `--global`).
 
+A setting with only a `read` — no `write`, no `value`, no `unset` — is **shown only**: a
+value an action makes rather than one typed, such as Git's **SSH key** (the machine's key
+file and fingerprint) and a project's own deploy key, which overrides it. Its dialog shows
+it as text, with no field and nothing to save; it still turns a project's cog teal while
+set. Writing one is refused (`409`).
+
 Refused: `404` no such tool or setting, `409` the tool doesn't apply on the machine (or its
 overview can't be read), or a project missing or given where it doesn't belong, `422` a
 value its kind refuses, `423` while the key is locked, and `502` when the `write` fails,
@@ -245,11 +251,13 @@ running, Stop that none is.
 
 ### `place`
 
-`card` (the default) or `settings`: where an action on no row is offered — on its card,
-or in the dialog its card's **Settings** button opens, for one set up once and rarely run
-again (Git's **SSH key** and **Test key**). The dialog closes as it runs. A tool with such
-an action has that button even without settings of its own. An action on a row is on its
-row: `place` with a `target` is refused.
+`card` (the default) or `settings`: where an action is offered — on its card or its row,
+or in a settings dialog, for one set up once and rarely run again. On no row, the dialog
+its card's **Settings** button opens (Git's **SSH key** and **Test key**); a tool with such
+an action has that button even without settings of its own. On a project, that project's
+own dialog, from its cog (Git's **Own key** and **Machine's key**) — only a kind of row
+with settings has one (`tool.SETTING_TARGETS`), so `place: settings` with another
+`target` is refused. The dialog closes as it runs.
 
 ### `automatic`
 

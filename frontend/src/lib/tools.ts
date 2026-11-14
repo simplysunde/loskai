@@ -33,9 +33,9 @@ export interface ToolSetting {
   id: string;
   label: string;
   description: string;
-  value: string; // the kind of value it takes
+  value: string | null; // the kind of value it takes — null, with `write`: shown only
   read: string;
-  write: string;
+  write: string | null; // null: shown only — an action makes it (Git's SSH key)
   unset?: string | null; // what taking it off runs: set to nothing. None: it needs a value
   target?: ToolTarget | null;
   overrides?: string | null; // the machine's setting it replaces where it is set
@@ -91,9 +91,10 @@ export function hasCardSettings(tool: Tool): boolean {
   return tool.id === "git" || cardSettingsOf(tool).length > 0 || settingsActionsOf(tool).length > 0;
 }
 
-// The machine's actions its settings dialog offers, not its card.
-export function settingsActionsOf(tool: Tool): ToolAction[] {
-  return tool.actions.filter((a) => a.place === "settings");
+// The actions a settings dialog offers, not its card: the card's (on no row), or a kind of
+// row's.
+export function settingsActionsOf(tool: Tool, kind: ToolTarget | null = null): ToolAction[] {
+  return tool.actions.filter((a) => a.place === "settings" && (a.target ?? null) === kind);
 }
 
 export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {

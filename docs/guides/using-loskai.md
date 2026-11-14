@@ -244,8 +244,15 @@ and Add.
   and pushes run unattended; its private half never leaves the machine). Add it to your
   **account** — GitHub: Settings › SSH and GPG keys; Forgejo: Settings › SSH / GPG keys —
   so it reaches every repository you can; a repository's *deploy key* reaches that one
-  only, for a server that pulls one repository. **Test key** takes a host — `github.com`, `codeberg.org`, or `host:port` for a Forgejo
-  whose SSH isn't on 22 — and says whether it lets the key in.
+  only, for a server that pulls one repository. **Test key** takes a host — `github.com`,
+  `codeberg.org`, or `host:port` for a Forgejo whose SSH isn't on 22 — and says whether it
+  lets the key in. The key in use shows above them, with the fingerprint GitHub and Forgejo
+  list beside it. A project can have its own in place of it, like its own name and email:
+  **Own key**, in its cog's dialog, makes it a deploy key (`~/.ssh/deploy_<project>`, set
+  as the project's `core.sshCommand`, so git uses that key alone for it) and shows it to add
+  under the repository's Deploy keys — with write access to push. On a machine Claude works
+  on by itself, that keeps it to the one repository. **Machine's key** goes back, keeping
+  the file, so Own key takes the same key up again.
 - **Claude Code** lists the git projects in the machine's projects folder, set in the Git
   card's **Settings**, with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last

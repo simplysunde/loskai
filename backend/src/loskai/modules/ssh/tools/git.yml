@@ -23,6 +23,14 @@ settings:
     value: email
     read: git config --global user.email
     write: git config --global user.email "$1"
+  # The key git uses over SSH: shown, not typed — SSH key, below, makes it. Its fingerprint
+  # is the one GitHub and Forgejo list beside a key.
+  ssh-key:
+    label: SSH key
+    description: This machine's key for its user — add it to your GitHub or Forgejo account.
+    read: >-
+      for t in ed25519 ecdsa rsa; do f=~/.ssh/id_$t.pub;
+      [ -f "$f" ] && { echo "~/.ssh/id_$t · $(ssh-keygen -lf "$f" | cut -d' ' -f2)"; exit 0; }; done
   # A project's own, in place of the global ones; taking it off leaves the global one. Git
   # says 5 when there was nothing to take off.
   project-name:
@@ -43,6 +51,19 @@ settings:
     read: git -C "$PROJECTS/$1" config --local user.email
     write: git -C "$PROJECTS/$1" config --local user.email "$2"
     unset: git -C "$PROJECTS/$1" config --local --unset user.email; s=$?; [ $s = 0 ] || [ $s = 5 ]
+  # A project's own key — a deploy key, for its repository alone — in its core.sshCommand,
+  # which Own key sets and Machine's key takes off. Any other core.sshCommand is shown as
+  # it is.
+  project-ssh-key:
+    label: SSH key
+    description: Its own deploy key, for this repository only — empty, the machine's.
+    target: project
+    overrides: ssh-key
+    read: >-
+      c=$(git -C "$PROJECTS/$1" config --local core.sshCommand) || exit 0;
+      k=$(printf %s "$c" | sed -n "s/.*-i '\{0,1\}\([^' ]*\).*/\1/p");
+      if [ -n "$k" ] && [ -f "$k.pub" ]; then echo "~/.ssh/${k##*/} · $(ssh-keygen -lf "$k.pub" | cut -d' ' -f2)";
+      else echo "$c"; fi
 actions:
   pull:
     label: Pull
@@ -60,6 +81,42 @@ actions:
     target: project
     session: false
     run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
+  # A project's own key, in its settings: Machine's key takes it off again and keeps the
+  # file, so Own key takes the same one up — a key already on the repository's Deploy keys.
+  own-key:
+    label: Own key
+    description: >-
+      Give this project its own SSH key — a deploy key, for its repository alone — in place
+      of the machine's, made first when there is none, and shown to add to the repository.
+    target: project
+    session: false
+    place: settings
+    run: >-
+      cd "$PROJECTS/$1" || exit 1;
+      command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
+      k="$HOME/.ssh/deploy_$1";
+      if [ -f "$k" ]; then [ -f "$k.pub" ] || ssh-keygen -y -f "$k" > "$k.pub" || exit 1;
+      echo "$1's own key, kept from before:";
+      else mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) $1" -f "$k" </dev/null || exit 1;
+      echo "Made $1 its own key, with no passphrase:"; fi;
+      git config --local core.sshCommand "ssh -i '$k' -o IdentitiesOnly=yes" || exit 1;
+      echo; cat "$k.pub"; echo;
+      echo "Add it to the repository's Deploy keys (its Settings › Deploy keys), with write";
+      echo "access to push. From now on git uses only this key for $1.";
+      case "$(git remote get-url origin 2>/dev/null)" in http*) echo;
+      echo "Its remote is over HTTPS, where no key is used: git remote set-url origin git@host:owner/repo.git";; esac
+  machine-key:
+    label: Machine's key
+    description: Use the machine's SSH key for this project again; its own stays in ~/.ssh.
+    target: project
+    session: false
+    place: settings
+    run: >-
+      git -C "$PROJECTS/$1" config --local --unset core.sshCommand; s=$?;
+      if [ $s = 5 ]; then echo "$1 already uses the machine's key."; exit 0; fi; [ $s = 0 ] || exit $s;
+      echo "$1 uses the machine's key again.";
+      [ -f ~/.ssh/deploy_$1 ] && echo "Its own key stays in ~/.ssh/deploy_$1: Own key takes it up again. Done with it? Take it off the repository's Deploy keys, and delete the file."; exit 0
   pull-all:
     label: Pull all
     description: Pull every project that has a remote — each only when it fast-forwards.
