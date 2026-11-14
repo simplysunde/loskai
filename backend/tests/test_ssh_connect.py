@@ -995,7 +995,7 @@ def test_git_s_name_and_email_are_read_from_the_machine_with_the_main_key(api, m
     _ready(api, machine_net, GIT_FACTS)
     machine_net["settings_out"] = "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n"
 
-    assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None, "ssh-key": None}, "targets": {"project": {}}}
+    assert api.get(SETTINGS).json() == {"values": {"name": "Ola Nordmann", "email": None}, "targets": {"project": {}}}
     read = machine_net["logins"][-1]
     assert read["key"].get_comment() == "loskai" and read["command"].startswith("sh -c ")
     # The overview finds programs in ~/.local/bin, so the settings it offers look there too.
@@ -1026,7 +1026,7 @@ def test_a_project_s_own_name_is_set_in_its_folder_and_read_back(api, machine_ne
     r = api.put(SETTINGS + "/project-name", json={"value": "Ola at work", "target": "site"}, headers=ORIGIN)
 
     assert r.status_code == 200
-    assert r.json()["targets"] == {"project": {"site": {"project-name": "Ola at work", "project-email": None, "project-ssh-key": None}}}
+    assert r.json()["targets"] == {"project": {"site": {"project-name": "Ola at work", "project-email": None}}}
     assert machine_net["writes"][-1] == "sh -c " + shlex.quote(
         status.USER_PATH + "PROJECTS=$HOME/code; export PROJECTS; "
         + "sh -c 'git -C \"$PROJECTS/$1\" config --local user.name \"$2\"' loskai site 'Ola at work'")

@@ -2,6 +2,7 @@
 parsers of what it answers."""
 
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -279,10 +280,13 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     ]
     assert out["projects"] == [
         {"path": "projects/loskai", "folder": "projects", "name": "loskai", "branch": "main", "dirty": True,
-         "claude": 1793212000, "ahead": 2, "committed": 1793211000, "subject": "Tools: tmux | and Tailscale"},
+         "claude": 1793212000, "ahead": 2, "committed": 1793211000, "subject": "Tools: tmux | and Tailscale",
+         "key": None},
         {"path": "loskai", "folder": "", "name": "loskai", "branch": None, "dirty": False,
-         "claude": 0, "ahead": None, "committed": 0, "subject": ""},
+         "claude": 0, "ahead": None, "committed": 0, "subject": "", "key": None},
     ]
+    # A line before v11 can't say which keys there are.
+    assert out["ssh_keys"] is None
 
 
 def test_an_overview_from_an_older_line_is_read_and_says_so():
@@ -528,8 +532,37 @@ def test_the_projects_are_the_git_repos_in_the_home_folder_read_without_the_shel
     assert projects["projects/site"]["branch"] == "main" and projects["projects/site"]["dirty"] is True
     assert projects["projects/site"]["committed"] > 0 and projects["projects/site"]["claude"] > 0
     assert projects["empty"] == {"path": "empty", "folder": "", "name": "empty", "branch": "trunk", "dirty": False,
-                                 "claude": 0, "ahead": None, "committed": 0, "subject": ""}
+                                 "claude": 0, "ahead": None, "committed": 0, "subject": "", "key": None}
     assert not (tmp_path / "pwned").exists()
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_the_overview_lists_the_users_keys_and_which_one_each_project_uses(tmp_path):
+    home = tmp_path / "home"
+    (home / ".ssh").mkdir(parents=True)
+    for name in ("site", "blog", "odd"):
+        subprocess.run(["git", "init", "-q", str(home / "projects" / name)], check=True)
+    for key, comment in (("id_ed25519", "vm@box"), ("deploy_site", "vm@box site")):
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", comment, "-f", str(home / ".ssh" / key)], check=True)
+    (home / ".ssh" / "with space.pub").write_text((home / ".ssh" / "id_ed25519.pub").read_text())
+
+    def git_config(project, value):
+        subprocess.run(["git", "-C", str(home / "projects" / project), "config", "core.sshCommand", value], check=True)
+
+    git_config("site", f"ssh -i '{home}/.ssh/deploy_site' -o IdentitiesOnly=yes")  # as Own key sets it
+    git_config("odd", "ssh -o ProxyJump=x")  # a command of its own, naming no key
+
+    env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
+    out = status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
+                                            env=env, cwd=tmp_path, timeout=30).stdout)
+
+    assert {p["name"]: p["key"] for p in out["projects"]} == {"site": "deploy_site", "blog": None, "odd": ""}
+    keys = {k["name"]: k for k in out["ssh_keys"]}
+    assert set(keys) == {"id_ed25519", "deploy_site"}  # "with space" is skipped
+    assert keys["deploy_site"]["comment"] == "vm@box site" and keys["deploy_site"]["type"] == "ED25519"
+    assert keys["id_ed25519"]["fingerprint"].startswith("SHA256:") and keys["id_ed25519"]["bits"] == 256
+    # Only the public halves are read: nothing private in what is served.
+    assert "PRIVATE" not in str(out)
 
 
 def test_the_overview_says_whether_loskai_s_sudo_rule_is_there():

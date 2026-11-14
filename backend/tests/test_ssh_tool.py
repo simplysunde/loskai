@@ -25,7 +25,8 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "test-key", "own-key", "machine-key"} == set(tools["git"].actions)
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "test-key", "own-key",
+            "machine-key", "show-key", "try-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # Their terminals stay open: a key to copy, a host's key to trust.
     assert not tools["git"].actions["ssh-key"].automatic and not tools["git"].actions["test-key"].automatic
@@ -105,40 +106,58 @@ def test_test_key_goes_by_the_hosts_greeting_not_sshs_exit(tmp_path, says, code,
     assert (tmp_path / "args").read_text().split() == ["-T", "-p", "2222", "-o", "ConnectTimeout=10", "git@git.home.lan"]
 
 
-@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_a_project_gets_its_own_key_git_uses_it_alone_and_gives_it_back(tmp_path):
-    git_tool = tool.load()["git"]
+def _home_with_projects(tmp_path, remotes: dict[str, str]):
+    """A home folder with a project per remote, and an `ssh` on the PATH that logs how it
+    was called and serves each repository from `tmp_path/remotes` as the forge would — or,
+    given REFUSE, refuses any call naming it."""
     home, projects = tmp_path / "home", tmp_path / "home" / "projects"
-    (projects / "site").mkdir(parents=True)
-    subprocess.run(["git", "init", "-q", str(projects / "site")], check=True)
-    subprocess.run(["git", "-C", str(projects / "site"), "remote", "add", "origin", "https://example.invalid/a/site.git"], check=True)
+    for name, url in remotes.items():
+        subprocess.run(["git", "init", "-q", str(projects / name)], check=True)
+        subprocess.run(["git", "-C", str(projects / name), "remote", "add", "origin", url], check=True)
+        path = url.split(":", 1)[1] if url.startswith("git@") else "/" + url.split("/", 3)[3]
+        subprocess.run(["git", "init", "-q", "--bare", str(tmp_path / "remotes" / path.lstrip("/"))], check=True)
     bin_ = tmp_path / "bin"
     bin_.mkdir()
-    (bin_ / "ssh").write_text(f"#!/bin/sh\necho \"$*\" > {tmp_path}/args\nexit 1\n")
+    (bin_ / "ssh").write_text(
+        f"#!/bin/sh\necho \"$*\" >> {tmp_path}/ssh.log\n"
+        '[ -n "$REFUSE" ] && case "$*" in *"$REFUSE"*) echo "Permission denied (publickey)." >&2; exit 255;; esac\n'
+        f'for a; do last=$a; done\ncd {tmp_path}/remotes || exit 1\neval "set -- $last"\nexec "$1" "${{2#/}}"\n')
     (bin_ / "ssh").chmod(0o755)
     env = {**os.environ, "HOME": str(home), "PROJECTS": str(projects), "PATH": f"{bin_}:{os.environ['PATH']}"}
 
-    def run(script, *args):
-        return subprocess.run(["sh", "-c", script, "sh", *args], capture_output=True, text=True, env=env, timeout=30)
+    def run(script, *args, **extra):
+        return subprocess.run(["sh", "-c", script, "sh", *args], capture_output=True, text=True,
+                              env={**env, **extra}, timeout=30)
+    return home, projects, run
 
-    def shown():
-        return run(git_tool.settings["project-ssh-key"].read, "site").stdout.strip()
 
-    assert shown() == ""
+def _key_of(home, name):
+    """Which key the overview says a project uses."""
+    env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
+    out = subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True, env=env, timeout=30).stdout
+    return next(p["key"] for p in status.parse_facts(out)["projects"] if p["name"] == name)
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_a_project_gets_its_own_key_git_uses_it_alone_and_gives_it_back(tmp_path):
+    git_tool = tool.load()["git"]
+    home, projects, run = _home_with_projects(tmp_path, {"site": "https://example.invalid/a/site.git"})
+
+    assert _key_of(home, "site") is None
     made = run(git_tool.actions["own-key"].run, "site")
     assert made.returncode == 0, made.stderr
     pub = (home / ".ssh" / "deploy_site.pub").read_text().strip()
     assert pub in made.stdout and "Made site its own key" in made.stdout
     assert "Its remote is over HTTPS" in made.stdout
-    assert re.fullmatch(r"~/\.ssh/deploy_site · SHA256:\S+", shown())
+    # The overview reads back what Own key set.
+    assert _key_of(home, "site") == "deploy_site"
     # git hands ssh this key, and only it.
-    subprocess.run(["git", "-C", str(projects / "site"), "ls-remote", "git@example.invalid:a/site.git"],
-                   capture_output=True, env=env, timeout=30)
-    assert f"-i {home}/.ssh/deploy_site -o IdentitiesOnly=yes" in (tmp_path / "args").read_text()
+    run('git -C "$PROJECTS/site" ls-remote git@example.invalid:a/site.git')
+    assert f"-i {home}/.ssh/deploy_site -o IdentitiesOnly=yes" in (tmp_path / "ssh.log").read_text()
 
     back = run(git_tool.actions["machine-key"].run, "site")
-    assert back.returncode == 0 and "uses the machine's key again" in back.stdout and "stays in" in back.stdout
-    assert shown() == ""
+    assert back.returncode == 0 and "uses the machine's key again" in back.stdout and "Its own key stays" in back.stdout
+    assert _key_of(home, "site") is None
     assert run(git_tool.actions["machine-key"].run, "site").stdout.strip() == "site already uses the machine's key."
     # Taken up again: the same key, already on the repository's deploy keys.
     again = run(git_tool.actions["own-key"].run, "site")
@@ -146,14 +165,37 @@ def test_a_project_gets_its_own_key_git_uses_it_alone_and_gives_it_back(tmp_path
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_the_machines_key_is_shown_by_its_file_and_fingerprint(tmp_path):
+def test_keys_show_where_they_go_test_each_project_they_are_for_and_delete(tmp_path):
     git_tool = tool.load()["git"]
-    env = {**os.environ, "HOME": str(tmp_path)}
-    read = git_tool.settings["ssh-key"].read
-    assert subprocess.run(["sh", "-c", f"({read})"], capture_output=True, text=True, env=env).stdout == ""
-    subprocess.run(["sh", "-c", git_tool.actions["ssh-key"].run], capture_output=True, env=env, timeout=30, check=True)
-    out = subprocess.run(["sh", "-c", f"({read})"], capture_output=True, text=True, env=env).stdout.strip()
-    assert re.fullmatch(r"~/\.ssh/id_ed25519 · SHA256:\S+", out)
+    a = git_tool.actions
+    home, projects, run = _home_with_projects(tmp_path, {
+        "site": "ssh://git@forgejo.lan:2222/sunde/site.git", "blog": "git@github.com:sunde/blog.git"})
+    assert run(a["ssh-key"].run).returncode == 0
+    assert run(a["own-key"].run, "site").returncode == 0
+
+    # Show: the public half, and where it goes — a deploy key's own repository's page.
+    shown = run(a["show-key"].run, "deploy_site").stdout
+    assert (home / ".ssh" / "deploy_site.pub").read_text().strip() in shown
+    assert "https://forgejo.lan/sunde/site/settings/keys" in shown
+    assert "github.com/settings/ssh/new" in run(a["show-key"].run, "id_ed25519").stdout
+
+    # Test: each project it is for, with that key alone — site's own, the account key the rest.
+    deploy = run(a["try-key"].run, "deploy_site")
+    assert deploy.returncode == 0, deploy.stdout + deploy.stderr
+    assert "site — ssh://git@forgejo.lan:2222/sunde/site.git: gets in" in deploy.stdout and "blog" not in deploy.stdout
+    assert f"-i {home}/.ssh/deploy_site -o IdentitiesOnly=yes" in (tmp_path / "ssh.log").read_text()
+    account = run(a["try-key"].run, "id_ed25519")
+    assert "blog — git@github.com:sunde/blog.git: gets in" in account.stdout and "site" not in account.stdout
+    refused = run(a["try-key"].run, "id_ed25519", REFUSE="id_ed25519")
+    assert refused.returncode == 1 and "blog — git@github.com:sunde/blog.git: refused" in refused.stdout
+
+    # Delete: the files go, and site goes back to the machine's key.
+    gone = run(a["delete-key"].run, "deploy_site")
+    assert gone.returncode == 0 and "site uses the machine's key again" in gone.stdout and "still lists it" in gone.stdout
+    assert not list((home / ".ssh").glob("deploy_site*"))
+    assert _key_of(home, "site") is None
+    assert run(a["delete-key"].run, "deploy_site").returncode == 1  # nothing left to delete
+    assert (home / ".ssh" / "id_ed25519").exists()
 
 
 def test_pull_all_pulls_each_project_with_a_remote_and_says_which_failed(tmp_path):
@@ -513,39 +555,37 @@ def test_when_is_running_or_stopped_and_needs_a_target_whose_rows_share_a_sessio
     assert "`actions.e.otherwise` needs a `when`" in message
 
 
-def test_an_action_is_on_its_card_or_in_its_settings_never_a_rows_in_settings():
+def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     doc = {"name": "X", "description": "d", "actions": {
         "a": {"label": "A", "description": "d", "run": "true", "place": "settings"},
         "b": {"label": "B", "description": "d", "run": "true", "place": "menu"},
         "c": {"label": "C", "description": "d", "run": "true", "target": "service", "place": "settings"},
         "d": {"label": "D", "description": "d", "run": "true", "target": "project", "place": "settings"},
+        "e": {"label": "E", "description": "d", "run": "true", "target": "key", "place": "keys"},
+        "f": {"label": "F", "description": "d", "run": "true", "place": "keys"},
     }}
     with pytest.raises(ToolError) as err:
         tool.parse("x", doc)
-    assert "`actions.b.place` must be one of card, settings" in str(err.value)
-    assert "`actions.c.place`: only a project has a settings dialog" in str(err.value)
-    assert "actions.a" not in str(err.value) and "actions.d" not in str(err.value)
+    message = str(err.value)
+    assert "`actions.b.place` must be one of card, settings, keys" in message
+    assert "`actions.c.place`: only a project has a settings dialog" in message
+    assert "`actions.e.place`: a key's own actions are on its row in Keys" in message
+    assert not any(f"actions.{x}" in message for x in "adf")
     git = tool.load()["git"].actions
-    assert {a.id: a.target for a in git.values() if a.place == "settings"} == {
-        "ssh-key": None, "test-key": None, "own-key": "project", "machine-key": "project"}
+    assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
+        "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
+        "ssh-key": (None, "keys"), "test-key": (None, "keys"),
+        "show-key": ("key", "card"), "try-key": ("key", "card"), "delete-key": ("key", "card")}
 
 
-def test_a_setting_shown_only_has_no_write_and_cant_be_set():
-    doc = {"name": "X", "description": "d", "settings": {
-        "a": {"label": "A", "description": "d", "read": "true"},
-        "b": {"label": "B", "description": "d", "read": "true", "write": "true"},
-        "c": {"label": "C", "description": "d", "read": "true", "unset": "true"},
-    }}
-    with pytest.raises(ToolError) as err:
-        tool.parse("x", doc)
-    assert "`settings.b.value` must be one of" in str(err.value)
-    assert "`settings.c.unset` needs a `write`" in str(err.value)
-    assert "settings.a" not in str(err.value)
-    git = tool.load()["git"]
-    assert git.settings["ssh-key"].write is None and git.settings["project-ssh-key"].overrides == "ssh-key"
-    with pytest.raises(ToolError) as refused:
-        tool.write_setting_script(git, "project-ssh-key", "x", target="site")
-    assert refused.value.status_code == 409
+@pytest.mark.parametrize("name", ["id_ed25519", "deploy_site", "deploy_my.site", "work-laptop"])
+def test_a_key_is_a_file_name_in_ssh(name):
+    assert tool.TARGETS["key"].fullmatch(name)
+
+
+@pytest.mark.parametrize("name", ["-oProxyCommand=x", "../id_rsa", "a/b", ".hidden", "a b", ""])
+def test_a_key_is_never_a_path_or_an_option(name):
+    assert not tool.TARGETS["key"].fullmatch(name)
 
 
 def test_a_script_installer_gets_curl_first_where_it_is_missing():
@@ -640,7 +680,7 @@ def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
 def test_git_s_settings_are_its_name_and_email():
     git = tool.load()["git"]
 
-    assert list(git.settings) == ["name", "email", "ssh-key", "project-name", "project-email", "project-ssh-key"]
+    assert list(git.settings) == ["name", "email", "project-name", "project-email"]
     assert git.settings["email"].write == 'git config --global user.email "$1"'
     assert git.settings["project-email"].target == "project" and git.settings["project-email"].overrides == "email"
 
@@ -659,7 +699,7 @@ def test_settings_are_read_in_one_script_and_unset_ones_are_none():
 
     assert script.count("git config --global user.") == 2
     assert tool.parse_settings(git, "#loskai-setting name\nOla Nordmann\n#loskai-setting email\n") == {
-        "values": {"name": "Ola Nordmann", "email": None, "ssh-key": None}, "targets": {"project": {}}}
+        "values": {"name": "Ola Nordmann", "email": None}, "targets": {"project": {}}}
 
 
 def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path):
@@ -683,13 +723,13 @@ def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path)
     assert read["values"]["name"] == "Ola Nordmann"
     # A folder no project can be named (`-x`) isn't read; one with nothing set reads None.
     assert read["targets"] == {"project": {
-        "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example", "project-ssh-key": None},
-        "notes": {"project-name": None, "project-email": None, "project-ssh-key": None}}}
+        "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example"},
+        "notes": {"project-name": None, "project-email": None}}}
     # Taking one off leaves the global one, and taking off what isn't there is no failure.
     sh(tool.write_setting_script(git, "project-name", "", target="site"))
     sh(tool.write_setting_script(git, "project-name", "", target="site"))
     assert tool.parse_settings(git, sh(tool.read_settings_script(git)))["targets"]["project"]["site"] == {
-        "project-name": None, "project-email": "ola@work.example", "project-ssh-key": None}
+        "project-name": None, "project-email": "ola@work.example"}
     who = subprocess.run(["git", "-C", str(projects / "site"), "config", "user.name"], env=env,
                          capture_output=True, text=True).stdout.strip()
     assert who == "Ola Nordmann"

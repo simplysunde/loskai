@@ -5,7 +5,7 @@ import { api } from "./api";
 // What a machine's page can run, from the tool files in the image
 // (docs/reference/tool-schema.md). The commands come along so what runs can be read.
 // `repo` is only asked for (Clone's address), never a row.
-export type ToolTarget = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host";
+export type ToolTarget = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host" | "key";
 
 export interface ToolAction {
   id: string;
@@ -22,8 +22,9 @@ export interface ToolAction {
   when?: "running" | "stopped" | null;
   // The rest of the time: hidden, or there but greyed out.
   otherwise?: "hidden" | "disabled";
-  // On the card (the default), or in its settings dialog — one set up once (Git's SSH key).
-  place?: "card" | "settings";
+  // On the card or its row (the default); in a settings dialog — one set up once (a
+  // project's Own key); or in Keys, beside the list of SSH keys (New account key).
+  place?: "card" | "settings" | "keys";
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
@@ -33,9 +34,9 @@ export interface ToolSetting {
   id: string;
   label: string;
   description: string;
-  value: string | null; // the kind of value it takes — null, with `write`: shown only
+  value: string; // the kind of value it takes
   read: string;
-  write: string | null; // null: shown only — an action makes it (Git's SSH key)
+  write: string;
   unset?: string | null; // what taking it off runs: set to nothing. None: it needs a value
   target?: ToolTarget | null;
   overrides?: string | null; // the machine's setting it replaces where it is set
@@ -95,6 +96,17 @@ export function hasCardSettings(tool: Tool): boolean {
 // row's.
 export function settingsActionsOf(tool: Tool, kind: ToolTarget | null = null): ToolAction[] {
   return tool.actions.filter((a) => a.place === "settings" && (a.target ?? null) === kind);
+}
+
+// Whether an action is on its card (or its row) — not in a dialog: Settings, Keys.
+export function onCard(action: ToolAction): boolean {
+  return (action.place ?? "card") === "card";
+}
+
+// Whether a tool keeps the SSH user's keys (Git): its Keys dialog lists them, with its
+// actions on a key and those placed beside the list.
+export function hasKeys(tool: Tool): boolean {
+  return tool.actions.some((a) => a.target === "key" || a.place === "keys");
 }
 
 export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {

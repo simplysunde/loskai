@@ -24,6 +24,13 @@ export const COLUMNS: Partial<Record<ToolTarget, string[]>> = {
   project: ["Branch", "Changes", "Last commit", "Claude"],
 };
 
+// The projects in the machine's projects folder (`~/projects`, `~`), as the overview lists
+// every git repo one and two folders into the home folder.
+export function projectsIn(facts: Facts, folder: string) {
+  const relative = folder === "~" ? "" : folder.replace(/^~\//, "");
+  return (facts.projects ?? []).filter((p) => p.folder === relative);
+}
+
 // The rows of each kind a card lists, from the overview: the sessions no tool claims — a
 // session `claude-site` is the Claude Code tool's, on its project, as the server says — and
 // the projects in the machine's projects folder (`~/projects`, `~`). The Running list's
@@ -45,23 +52,20 @@ function rowsOf(kind: ToolTarget, facts: Facts, folder: string): Row[] | null {
       });
   }
   if (kind === "project") {
-    const relative = folder === "~" ? "" : folder.replace(/^~\//, "");
-    return (facts.projects ?? [])
-      .filter((p) => p.folder === relative)
-      .map((p) => {
-        const branch = p.branch ?? "no branch";
-        const changes = [p.ahead ? `${p.ahead} to push` : null, p.dirty ? "uncommitted changes" : null].filter(Boolean);
-        const committed = p.committed ? formatAgo(p.committed) : null;
-        const claude = p.claude ? formatAgo(p.claude) : null;
-        return {
-          name: p.name,
-          detail: [branch, ...changes, committed ? `committed ${committed}` : "no commits", claude && `Claude ${claude}`]
-            .filter(Boolean)
-            .join(" · "),
-          title: p.subject ? `Last commit: ${p.subject}` : undefined,
-          cells: [branch, changes.join(", "), committed ?? "no commits", claude ?? ""],
-        };
-      });
+    return projectsIn(facts, folder).map((p) => {
+      const branch = p.branch ?? "no branch";
+      const changes = [p.ahead ? `${p.ahead} to push` : null, p.dirty ? "uncommitted changes" : null].filter(Boolean);
+      const committed = p.committed ? formatAgo(p.committed) : null;
+      const claude = p.claude ? formatAgo(p.claude) : null;
+      return {
+        name: p.name,
+        detail: [branch, ...changes, committed ? `committed ${committed}` : "no commits", claude && `Claude ${claude}`]
+          .filter(Boolean)
+          .join(" · "),
+        title: p.subject ? `Last commit: ${p.subject}` : undefined,
+        cells: [branch, changes.join(", "), committed ?? "no commits", claude ?? ""],
+      };
+    });
   }
   return null;
 }

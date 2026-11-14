@@ -12,6 +12,7 @@ import {
   isStandard,
   MACHINE_TOOL,
   missing,
+  onCard,
   rowSettingsOf,
   type Tool,
   type ToolAction,
@@ -21,6 +22,7 @@ import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
 import { CardSettings, GitIdentity, SettingsButton, SettingsDialog } from "./ToolSettings";
 import { Ask } from "./ToolAsk";
+import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
 
 const BUTTON = TOOL_BUTTON;
@@ -51,7 +53,7 @@ export function RowButtons({
     !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts));
   return here.flatMap((t) =>
     t.actions
-      .filter((a) => a.target === kind && a.place !== "settings" && (fits(t, a) || a.otherwise === "disabled"))
+      .filter((a) => a.target === kind && onCard(a) && (fits(t, a) || a.otherwise === "disabled"))
       .map((a) => (
         <button
           key={`${t.id}-${a.id}`}
@@ -78,7 +80,7 @@ export function RowButtons({
 export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: ToolContext; small?: boolean }) {
   const manager = ctx.facts.updates?.manager ?? null;
   return t.actions
-    .filter((a) => !a.target && !a.ask && a.place !== "settings")
+    .filter((a) => !a.target && !a.ask && onCard(a))
     .map((a) => {
       const command = commandFor(a, manager);
       return (
@@ -99,9 +101,9 @@ export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: T
 // actions that ask for a name. Null when it has nothing to show here — Services' buttons
 // are all on the Running list's rows.
 export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: ToolContext; titled?: boolean }) {
-  // What its settings dialog offers instead (Git's SSH key) isn't on the card.
-  const own = t.actions.filter((a) => !a.target && !a.ask && a.place !== "settings");
-  const asks = t.actions.filter((a) => a.ask && a.place !== "settings");
+  // What a dialog offers instead — its Settings, its Keys — isn't on the card.
+  const own = t.actions.filter((a) => !a.target && !a.ask && onCard(a));
+  const asks = t.actions.filter((a) => a.ask && onCard(a));
   const lists = listsOf(t, ctx);
   // The row whose own settings are open in a dialog.
   const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
@@ -123,7 +125,10 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
               </span>
             )}
           </div>
-          <CardSettings tool={t} ctx={ctx} />
+          <span className="flex shrink-0 items-center gap-1.5">
+            <CardKeys tool={t} ctx={ctx} />
+            <CardSettings tool={t} ctx={ctx} />
+          </span>
         </div>
       )}
       {tailscale && <TailscaleSettings tool={t} ctx={ctx} />}

@@ -4,6 +4,7 @@ import {
   ArrowUp,
   ArrowUpFromLine,
   Download,
+  Eye,
   KeyRound,
   LogIn,
   Play,
@@ -12,6 +13,8 @@ import {
   RotateCw,
   Square,
   Terminal,
+  Trash2,
+  Undo2,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -69,6 +72,11 @@ const SYMBOLS: Record<string, LucideIcon> = {
   "git.push-all": ArrowUpFromLine,
   "git.ssh-key": KeyRound,
   "git.test-key": PlugZap,
+  "git.show-key": Eye,
+  "git.try-key": PlugZap,
+  "git.delete-key": Trash2,
+  "git.own-key": KeyRound,
+  "git.machine-key": Undo2,
 };
 
 // `fallback`: for an action with no symbol of its own — a play button, or a plus for one

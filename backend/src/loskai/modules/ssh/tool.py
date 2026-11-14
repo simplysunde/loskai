@@ -77,6 +77,9 @@ TARGETS = {
     # A git host to reach over SSH (Git's Test key): a name or an address, and a port when
     # its SSH isn't on 22 — never an option to ssh.
     "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
+    # A key in the SSH user's ~/.ssh, by its file's name — as the overview lists them (Git's
+    # Keys): never a path, never an option.
+    "key": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),
@@ -98,10 +101,11 @@ class ToolError(LoskaiError, ValueError):
 # the rest of the time: hidden, or there but greyed out (`OTHERWISE`).
 WHEN = ("running", "stopped")
 OTHERWISE = ("hidden", "disabled")
-# Where an action is offered: on its tool's card (or its row), or in the settings dialog —
-# the card's, or a row's for an action on one — for one set up once and rarely run again
-# (Git's SSH key, Test key; a project's own key).
-PLACES = ("card", "settings")
+# Where an action is offered: on its tool's card (or its row); in the settings dialog — the
+# card's, or a row's for an action on one — for one set up once and rarely run again (a
+# project's own key); or in Keys, beside the list of the user's SSH keys (`key` rows, never
+# on the card) — Git's New account key and Test key.
+PLACES = ("card", "settings", "keys")
 
 
 @dataclass(frozen=True)
@@ -124,8 +128,8 @@ class Action:
     when: str | None = None
     # The rest of the time: hidden (Start and Stop, sharing one place), or greyed (Attach).
     otherwise: str = "hidden"
-    # `PLACES`: on the card or its row, or in the settings dialog — the row's, for a kind of
-    # row that has settings (`SETTING_TARGETS`).
+    # `PLACES`: on the card or its row; in a settings dialog — the row's, for a kind of row
+    # that has settings (`SETTING_TARGETS`); or in Keys, for one on no row.
     place: str = "card"
 
 
@@ -139,11 +143,9 @@ class Setting:
     id: str
     label: str
     description: str
-    # A kind in TARGETS: what it may be set to. None, with `write`: shown only — a value an
-    # action makes rather than one typed (Git's SSH key, a project's deploy key).
-    value: str | None
+    value: str  # a kind in TARGETS: what it may be set to
     read: str  # prints the value; nothing (or failing) when it isn't set
-    write: str | None  # sets it to "$1" ("$2" with a target)
+    write: str  # sets it to "$1" ("$2" with a target)
     unset: str | None = None  # takes it off — set to nothing; None: it can't be
     target: str | None = None  # `SETTING_TARGETS`: a value of each row of it, not the machine's
     overrides: str | None = None  # the machine's setting this one replaces where it is set
@@ -239,8 +241,10 @@ def parse(tool_id: str, doc: object) -> Tool:
         place = raw.get("place", "card")
         if place not in PLACES:
             problems.append(f"`{where}.place` must be one of {', '.join(PLACES)}")
-        elif place != "card" and target is not None and target not in SETTING_TARGETS:
+        elif place == "settings" and target is not None and target not in SETTING_TARGETS:
             problems.append(f"`{where}.place`: only a {', '.join(SETTING_TARGETS)} has a settings dialog")
+        elif place == "keys" and target is not None:
+            problems.append(f"`{where}.place`: a key's own actions are on its row in Keys")
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
             run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
@@ -285,33 +289,27 @@ def _settings(raw: object) -> tuple[dict[str, Setting], list[str]]:
         extra = set(spec) - {"label", "description", "value", "read", "write", "unset", "target", "overrides"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
-        # Shown only: neither `write` nor `value` — nor `unset`.
-        shown = "write" not in spec and "value" not in spec
-        for key in ("label", "description", "read", *(() if shown else ("write",))):
+        for key in ("label", "description", "read", "write"):
             if not isinstance(spec.get(key), str) or not spec[key].strip():
                 problems.append(f"`{where}.{key}` is required")
-        if not shown and spec.get("value") not in TARGETS:
+        if spec.get("value") not in TARGETS:
             problems.append(f"`{where}.value` must be one of {', '.join(TARGETS)}")
         if "unset" in spec and (not isinstance(spec["unset"], str) or not spec["unset"].strip()):
             problems.append(f"`{where}.unset` must be a command")
-        elif "unset" in spec and shown:
-            problems.append(f"`{where}.unset` needs a `write`")
         if "target" in spec and spec["target"] not in SETTING_TARGETS:
             problems.append(f"`{where}.target` must be one of {', '.join(SETTING_TARGETS)}")
         if "overrides" in spec and "target" not in spec:
             problems.append(f"`{where}.overrides` is only for a setting with a `target`")
         out[setting_id] = Setting(
             id=setting_id, label=str(spec.get("label", "")), description=str(spec.get("description", "")),
-            value=None if shown else str(spec.get("value", "")), read=str(spec.get("read", "")),
-            write=None if shown else str(spec.get("write", "")),
+            value=str(spec.get("value", "")), read=str(spec.get("read", "")), write=str(spec.get("write", "")),
             unset=spec.get("unset"), target=spec.get("target"),
             overrides=str(spec["overrides"]) if "overrides" in spec else None,
         )
     for s in out.values():
         o = out.get(s.overrides or "")
         if s.overrides is not None and (o is None or o.target is not None or o.value != s.value):
-            takes = f"takes a {s.value}" if s.value else "is shown only"
-            problems.append(f"`settings.{s.id}.overrides` must name a setting of the machine's that {takes}")
+            problems.append(f"`settings.{s.id}.overrides` must name a setting of the machine's that takes a {s.value}")
     return out, problems
 
 
@@ -441,8 +439,6 @@ def write_setting_script(
     s = t.settings.get(setting_id)
     if s is None:
         raise ToolError(f"{t.name} has no setting {setting_id!r}", 404)
-    if s.write is None or s.value is None:
-        raise ToolError(f"{s.label} is shown here, not set: an action makes it", 409)
     check_target(s.target, target)
     if not value and s.unset:
         command, args = s.unset, []

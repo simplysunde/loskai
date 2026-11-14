@@ -86,6 +86,22 @@ export function runningCount(r: Running): number {
 }
 
 // A machine's overview, read with the status key (works while the main key is locked).
+// One of the SSH user's keys, as ssh-keygen -l describes its public half.
+export interface SshKeyInfo {
+  name: string; // its file in ~/.ssh, without .pub
+  bits: number;
+  fingerprint: string; // SHA256:… — as GitHub and Forgejo list it
+  comment: string;
+  type: string; // ED25519, RSA, …
+}
+
+// What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever
+// no other is named; Git's Own key makes `deploy_<project>`; anything else git doesn't use
+// unless ~/.ssh/config names it.
+export function keyKind(name: string): "account" | "deploy" | "other" {
+  return name.startsWith("id_") ? "account" : name.startsWith("deploy_") ? "deploy" : "other";
+}
+
 export interface Facts {
   ok: boolean;
   error?: string;
@@ -127,7 +143,12 @@ export interface Facts {
     ahead: number | null; // commits not on its upstream yet; null without one
     committed: number;
     subject: string;
+    // The SSH key git uses for it: null the machine's, a key's name its own (Git's Own key),
+    // "" a core.sshCommand naming none.
+    key?: string | null;
   }[];
+  // The SSH user's keys in ~/.ssh, by their public halves; null from a line before v11.
+  ssh_keys?: SshKeyInfo[] | null;
   // Loskai's sudo rule — updates without a password; null where the machine won't say.
   sudo_rule?: "on" | "off" | null;
 }

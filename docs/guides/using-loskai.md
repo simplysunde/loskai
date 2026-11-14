@@ -239,20 +239,24 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-  In Git's **Settings**, beside the values, **SSH key** shows that user's key, in the
-  terminal to copy — making one first when there is none (ed25519, no passphrase, so pulls
-  and pushes run unattended; its private half never leaves the machine). Add it to your
-  **account** — GitHub: Settings › SSH and GPG keys; Forgejo: Settings › SSH / GPG keys —
-  so it reaches every repository you can; a repository's *deploy key* reaches that one
-  only, for a server that pulls one repository. **Test key** takes a host — `github.com`,
-  `codeberg.org`, or `host:port` for a Forgejo whose SSH isn't on 22 — and says whether it
-  lets the key in. The key in use shows above them, with the fingerprint GitHub and Forgejo
-  list beside it. A project can have its own in place of it, like its own name and email:
-  **Own key**, in its cog's dialog, makes it a deploy key (`~/.ssh/deploy_<project>`, set
-  as the project's `core.sshCommand`, so git uses that key alone for it) and shows it to add
-  under the repository's Deploy keys — with write access to push. On a machine Claude works
-  on by itself, that keeps it to the one repository. **Machine's key** goes back, keeping
-  the file, so Own key takes the same key up again.
+  **Keys**, beside Settings in Git's header, lists that user's SSH keys (`~/.ssh`, read by
+  their public halves only): each one's kind, which projects use it, and its fingerprint —
+  the one GitHub and Forgejo list beside a key. An **account** key (`id_…`) goes on your
+  GitHub or Forgejo account and reaches every repository you can; it is what a project
+  without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
+  reaches only it. Each key has **Show** — its public line to copy, and where it goes: your
+  account's SSH keys page, or the repository's own Deploy keys page, worked out from its
+  remote — **Test**, which asks each project the key is for for its remote with that key
+  alone, as a pull would, and **Delete**, which asks first, removes the file and puts a
+  project that used it back on the machine's key (GitHub or Forgejo still lists it until
+  you take it off there). While there is no account key, **New account key** makes one
+  (ed25519, no passphrase, so pulls and pushes run unattended; its private half never
+  leaves the machine). **Test key** takes any host — `github.com`, `codeberg.org`, or
+  `host:port` for a Forgejo whose SSH isn't on 22. A project's cog says which key it uses;
+  **Own key** there gives it a deploy key (set as its `core.sshCommand`, so git uses that
+  key alone for it), its cog teal like its own name, and **Machine's key** goes back,
+  keeping the file, so Own key takes the same key up again. On a machine Claude works on by
+  itself, a deploy key keeps it to the one repository.
 - **Claude Code** lists the git projects in the machine's projects folder, set in the Git
   card's **Settings**, with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last

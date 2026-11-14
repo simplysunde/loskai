@@ -71,11 +71,12 @@ actions:                          # required — at least one, unless it has `se
     ask: session                  # optional — a name typed on the page, checked like a target
     session: false                # optional — no tmux session around it: it is tmux itself
     run: tmux new-session -A -s "$1"
-  ssh-key:                        # (from Git's file, shortened)
-    label: SSH key
-    description: This machine's SSH key, to add to GitHub or Forgejo.
-    place: settings               # optional — in the card's settings dialog (below)
-    run: cat ~/.ssh/id_ed25519.pub
+  own-key:                        # (from Git's file, shortened)
+    label: Own key
+    description: Give this project its own SSH key.
+    target: project
+    place: settings               # optional — in the project's settings dialog (below)
+    run: ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/deploy_$1
   stop:                           # (from Claude Code's file, shortened)
     label: Stop
     description: Stop Claude's session in this project.
@@ -137,6 +138,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `vm` | each running VM (Proxmox) | its id, `200` |
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
+| `key` | each SSH key in the user's `~/.ssh`, in Git's Keys dialog — never on the card | its file's name without `.pub`, `id_ed25519`, `deploy_site`: a letter or digit, then letters, digits, `.`, `_` and `-` — never a path |
 | `host` | only with `ask` (Git's Test key): a field for a host to reach over SSH | a name or an address starting with a letter or digit, then letters, digits, `.` and `-`, and `:port` optionally — `github.com`, `git.home.lan:2222`; never a user or an option |
 | `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a user and a host that each start with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
 
@@ -208,12 +210,6 @@ A setting may also have:
   same kind: its value is what an empty field shows, greyed. Only shown — what applies is
   the program's own rule (git's `--local` over `--global`).
 
-A setting with only a `read` — no `write`, no `value`, no `unset` — is **shown only**: a
-value an action makes rather than one typed, such as Git's **SSH key** (the machine's key
-file and fingerprint) and a project's own deploy key, which overrides it. Its dialog shows
-it as text, with no field and nothing to save; it still turns a project's cog teal while
-set. Writing one is refused (`409`).
-
 Refused: `404` no such tool or setting, `409` the tool doesn't apply on the machine (or its
 overview can't be read), or a project missing or given where it doesn't belong, `422` a
 value its kind refuses, `423` while the key is locked, and `502` when the `write` fails,
@@ -251,13 +247,18 @@ running, Stop that none is.
 
 ### `place`
 
-`card` (the default) or `settings`: where an action is offered — on its card or its row,
-or in a settings dialog, for one set up once and rarely run again. On no row, the dialog
-its card's **Settings** button opens (Git's **SSH key** and **Test key**); a tool with such
-an action has that button even without settings of its own. On a project, that project's
-own dialog, from its cog (Git's **Own key** and **Machine's key**) — only a kind of row
-with settings has one (`tool.SETTING_TARGETS`), so `place: settings` with another
-`target` is refused. The dialog closes as it runs.
+Where an action is offered, and the dialog closes as it runs:
+
+- **`card`** (the default) — on its card, or on its row.
+- **`settings`** — in a settings dialog, for one set up once and rarely run again. On no
+  row, the dialog its card's **Settings** button opens (a tool with such an action has that
+  button even without settings of its own); on a project, that project's own dialog, from
+  its cog (Git's **Own key** and **Machine's key**). Only a kind of row with settings has
+  one (`tool.SETTING_TARGETS`), so `place: settings` with another `target` is refused.
+- **`keys`** — on no row, beside the list in **Keys**: the dialog of the SSH user's keys,
+  from the card's header, for a tool with an action on a `key` (Git's **New account key**,
+  shown only while there is no account key, and **Test key**). An action on a `key` is on
+  that key's row there; `place: keys` with a `target` is refused.
 
 ### `automatic`
 

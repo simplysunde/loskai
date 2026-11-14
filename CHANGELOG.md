@@ -69,10 +69,11 @@ Everything so far:
   pulls every project with a remote, **Push all** pushes every one with commits to push,
   and **Clone** takes a repository's address
   (`https://…`, `ssh://…` or `git@host:path`) into the projects folder. They run in the
-  terminal as the machine's SSH user: over SSH with that user's own key — in Git's Settings,
-  **SSH key** shows it to add to GitHub or Forgejo, making one first, and **Test key** tries
-  it on a host; a project can have its own deploy key in place of it (**Own key**) —
-  over HTTPS asking for a login there when the remote needs one.
+  terminal as the machine's SSH user: over SSH with that user's own keys — **Keys** lists
+  them, which project uses which and their fingerprints, each with Show (where it goes),
+  Test and Delete, and makes an account key; a project can have its own deploy key in place
+  of the machine's (**Own key**) — over HTTPS asking for a login there when the remote needs
+  one.
 - **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,
   Tailscale's switches, adding a tool — ask for sudo's password in a dialog first, only
   when sudo would, check it on the machine, and run in a small terminal that drops down from

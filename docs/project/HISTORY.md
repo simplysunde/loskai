@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Git's SSH keys in a dialog of their own
+
+Sunde, seeing the machine's key in Git's Settings and a project's in its cog: "a better
+way to organize the keys, and where they go and what they do? deleting and such". **Keys**,
+beside Settings in Git's header (chosen over a section in Settings), lists every key in the
+SSH user's `~/.ssh`: its kind, which projects use it, its fingerprint, and Show (where it
+goes — the repository's own Deploy keys page, from its remote), Test and Delete. Settings
+went back to values; a project's cog keeps only its choice of key.
+
+The list needed the machine to say which keys there are and which project uses which, so
+the status line went to v11 (`#=keys`, and a project's `key`) — read with the status key,
+so the list shows while the main key is locked, and only the public halves. The "shown
+only" setting added hours earlier to show the keys went again: the overview reads them now,
+in one place, rather than a setting and the overview each parsing `core.sshCommand`. Test
+on a key asks each project it is for for its remote's HEAD with that key alone
+(`GIT_SSH_COMMAND … IdentitiesOnly`), which proves what a pull needs, rather than a
+greeting from a host. Delete keeps nothing — the forge still lists the key, which Loskai
+can't change, and says so. A new place for an action, `keys`, puts one beside the list.
+
 ## 2026-11-14 — A project's own SSH key: a deploy key, like its own name and email
 
 Asked by Sunde after the account key: deploy keys, "the same concept of the override

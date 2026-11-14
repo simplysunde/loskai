@@ -61,10 +61,16 @@ const FACTS = {
     { name: "claude-site", created: 1793212547, attached: false, windows: 1, tool: "claude" },
   ],
   live: { claude: { project: ["site"] } },
+  ssh_keys: [
+    { name: "id_ed25519", bits: 256, fingerprint: "SHA256:mach", comment: "loskai@nas", type: "ED25519" },
+    { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519" },
+    { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519" },
+  ],
   projects: [
     { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
       ahead: 2, committed: 1793211000, subject: "Add the header" },
-    { path: "projects/blog", folder: "projects", name: "blog", branch: "main", dirty: false, claude: 0, committed: 1793210000, subject: "Start" },
+    { path: "projects/blog", folder: "projects", name: "blog", branch: "main", dirty: false, claude: 0, committed: 1793210000, subject: "Start",
+      key: "deploy_blog" },
     { path: "notes", folder: "", name: "notes", branch: "main", dirty: false, claude: 0, committed: 1793211000, subject: "x" },
   ],
 };
@@ -134,8 +140,11 @@ const TOOLS = [
       { id: "pull-all", label: "Pull all", description: "Pull each.", target: null, ask: null, confirm: null, run: "git pull" },
       { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
-      { id: "ssh-key", label: "SSH key", description: "This machine's key.", target: null, ask: null, confirm: null, session: false, place: "settings", run: "cat ~/.ssh/id_ed25519.pub" },
-      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "settings", run: "ssh -T \"git@$1\"" },
+      { id: "ssh-key", label: "New account key", description: "Make one.", target: null, ask: null, confirm: null, session: false, place: "keys", run: "ssh-keygen" },
+      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
+      { id: "show-key", label: "Show", description: "Its public half.", target: "key", ask: null, confirm: null, session: false, run: "cat" },
+      { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, run: "git ls-remote" },
+      { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
       { id: "own-key", label: "Own key", description: "Its own key.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "ssh-keygen" },
       { id: "machine-key", label: "Machine's key", description: "The machine's again.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "git config --unset core.sshCommand" },
     ],
@@ -147,10 +156,6 @@ const TOOLS = [
         target: "project", overrides: "name" },
       { id: "project-email", label: "Email", description: "This project's.", value: "email", read: "x", write: "x",
         unset: "x", target: "project", overrides: "email" },
-      // Shown only: an action makes them.
-      { id: "ssh-key", label: "SSH key", description: "This machine's key.", value: null, read: "x", write: null },
-      { id: "project-ssh-key", label: "SSH key", description: "Its own deploy key.", value: null, read: "x", write: null,
-        target: "project", overrides: "ssh-key" },
     ],
   },
   {
@@ -232,11 +237,7 @@ beforeEach(() => {
             : path.endsWith("/tools/git/settings")
               ? gitStatus === 423
                 ? { detail: "Loskai's key is locked — enter your password" }
-                : { values: { name: "Ola Nordmann", email: null, "ssh-key": "~/.ssh/id_ed25519 · SHA256:mach" },
-                    targets: { project: {
-                      site: { "project-name": null, "project-email": null, "project-ssh-key": null },
-                      blog: { "project-name": null, "project-email": null, "project-ssh-key": "~/.ssh/deploy_blog · SHA256:blog" },
-                    } } }
+                : { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": null } } } }
             : path.endsWith("/tools/git/settings/email")
               ? { values: { name: "Ola Nordmann", email: "ola@example.no" }, targets: { project: {} } }
             : path.endsWith("/tools/git/settings/project-email")
@@ -1254,32 +1255,62 @@ test("Clone asks for a repository's address and runs on it; Git's card has the p
   ).toBeInTheDocument();
 });
 
-// Set up once: in Git's Settings, not on its card. Each closes the dialog and runs in the
-// machine's terminal.
-async function gitSettings() {
+// Git's keys, in a dialog of their own from Keys in its header — not on the card, nor in Settings.
+async function gitKeys() {
   const tools = await screen.findByRole("region", { name: "Tools" });
-  expect(within(tools).queryByRole("button", { name: "SSH key" })).toBeNull();
+  expect(within(tools).queryByRole("button", { name: "Show id_ed25519" })).toBeNull();
   expect(within(tools).queryByLabelText("Test key — host")).toBeNull();
-  fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
-  return screen.findByRole("dialog", { name: "Git settings" });
+  fireEvent.click(await within(tools).findByRole("button", { name: "Keys" }));
+  return screen.findByRole("dialog", { name: "SSH keys" });
 }
 
-test("Git's Settings show this machine's SSH key in its terminal", async () => {
+test("Keys lists each SSH key: what it is, which projects use it, its fingerprint — and Show runs on it", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  fireEvent.click(within(await gitSettings()).getByRole("button", { name: "SSH key" }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=ssh-key")).toBeInTheDocument();
-  expect(screen.queryByRole("dialog", { name: "Git settings" })).toBeNull();
-  // Not automatic: a dialog that stays, to copy the key from.
-  expect(screen.getByRole("dialog", { name: /SSH key — Storage box/ })).toBeInTheDocument();
+  const dialog = await gitKeys();
+  const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+  expect(within(dialog).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(
+    ["id_ed25519", "deploy_blog", "work"],
+  );
+  // The account key: every project without its own (site); blog's own deploy key; one git doesn't use.
+  expect(row("id_ed25519")).toHaveTextContent("account");
+  expect(row("id_ed25519")).toHaveTextContent("1 project without their own");
+  expect(row("id_ed25519")).toHaveTextContent("SHA256:mach");
+  expect(row("deploy_blog")).toHaveTextContent(/deploy.*blog/);
+  expect(row("work")).toHaveTextContent("not used by git here");
+  // An account key exists: no New account key.
+  expect(within(dialog).queryByRole("button", { name: "New account key" })).toBeNull();
+
+  fireEvent.click(within(row("deploy_blog")).getByRole("button", { name: "Show deploy_blog" }));
+  expect(screen.queryByRole("dialog", { name: "SSH keys" })).toBeNull();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=show-key&target=deploy_blog")).toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: /Show: deploy_blog — Storage box/ })).toBeInTheDocument();
 });
 
-test("Test key, in Git's Settings, asks for a host — a plug, not a plus — and runs on it", async () => {
+test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  const dialog = await gitSettings();
+  const dialog = await gitKeys();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete work" }));
+  expect(await screen.findByText("Its file goes for good.")).toBeInTheDocument();
+  expect(screen.queryByText(/shell at .*delete-key/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=work")).toBeInTheDocument();
+});
+
+test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on it; Settings has neither", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
+  const settings = await screen.findByRole("dialog", { name: "Git settings" });
+  expect(within(settings).queryByLabelText("Test key — host")).toBeNull();
+  fireEvent.click(within(settings).getByRole("button", { name: "Cancel" }));
+
+  const dialog = await gitKeys();
   const host = within(dialog).getByLabelText("Test key — host");
   expect(host).toHaveAttribute("placeholder", "github.com");
   const button = within(dialog).getByRole("button", { name: "Test key" });
@@ -1287,31 +1318,45 @@ test("Test key, in Git's Settings, asks for a host — a plug, not a plus — an
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.click(button);
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
-  // Its field is a form of its own: the settings weren't saved.
-  expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
-test("Git's Settings show the machine's key; a project's, its own in place of it — Own key and Machine's key run there", async () => {
+test("Keys offers New account key while there is none, and says when the status line can't list them", async () => {
+  setUp();
+  facts = { ...FACTS, ssh_keys: [] };
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  expect(within(dialog).getByText("No SSH key here yet.")).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("button", { name: "New account key" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=ssh-key")).toBeInTheDocument();
+});
+
+test("an older status line: Keys says to install it again", async () => {
+  setUp();
+  facts = { ...FACTS, ssh_keys: null };
+  renderPage("/machines/nas/tools");
+  expect(within(await gitKeys()).getByText(/status line is older than this Loskai/)).toBeInTheDocument();
+});
+
+test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  const card = await gitSettings();
-  expect(await within(card).findByLabelText("SSH key")).toHaveTextContent("~/.ssh/id_ed25519 · SHA256:mach");
-  // Shown, not typed into: nothing to save.
-  expect(within(card).queryByRole("textbox", { name: "SSH key" })).toBeNull();
-  // A project's key actions are in its own dialog, not the card's.
-  expect(within(card).queryByRole("button", { name: "Own key" })).toBeNull();
-  fireEvent.click(within(card).getByRole("button", { name: "Cancel" }));
-
-  const tools = screen.getByRole("region", { name: "Tools" });
-  // Not on the project's row either.
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  // Not on the project's row.
   const siteRow = within(tools).getAllByText("site").map((el) => el.closest("li") as HTMLElement).find((li) => within(li).queryByRole("button", { name: "Pull" }))!;
   expect(within(siteRow).queryByRole("button", { name: "Own key" })).toBeNull();
-  // blog has its own: its cog is teal, its dialog shows it; site's shows the machine's, greyed.
-  expect(within(tools).getByRole("button", { name: "Settings for blog" })).toHaveClass("text-teal-300");
+  // blog has its own key: its cog is teal, and says so.
+  const blogCog = await within(tools).findByRole("button", { name: "Settings for blog" });
+  await vi.waitFor(() => expect(blogCog).toHaveClass("text-teal-300"));
+  expect(blogCog.title).toContain("SSH key deploy_blog");
+  fireEvent.click(blogCog);
+  const blog = await screen.findByRole("dialog", { name: "Settings for blog" });
+  expect(within(blog).getByLabelText("SSH key")).toHaveTextContent("deploy_blog · SHA256:blog");
+  fireEvent.click(within(blog).getByRole("button", { name: "Cancel" }));
+
   fireEvent.click(within(tools).getByRole("button", { name: "Settings for site" }));
   const site = await screen.findByRole("dialog", { name: "Settings for site" });
-  expect(within(site).getByLabelText("SSH key")).toHaveTextContent("the machine's: ~/.ssh/id_ed25519 · SHA256:mach");
+  expect(within(site).getByLabelText("SSH key")).toHaveTextContent("the machine's");
   fireEvent.click(within(site).getByRole("button", { name: "Own key" }));
   expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull();
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=own-key&target=site")).toBeInTheDocument();

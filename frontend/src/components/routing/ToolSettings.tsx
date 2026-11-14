@@ -4,8 +4,8 @@ import { Loader2, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { requestUnlock } from "../../lib/unlock";
-import type { ToolContext, ToolStart } from "../../lib/toolRows";
-import { cardSettingsOf, hasCardSettings, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
+import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Ask } from "./ToolAsk";
 import { ActionIcon } from "./ToolIcon";
@@ -53,9 +53,12 @@ export function SettingsButton({
   let own = false;
   if (row) {
     const mine = values.data?.targets?.[row.kind]?.[row.name] ?? {};
-    const set = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]);
+    const set = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]).map((s) => `${s.label} ${mine[s.id]}`);
+    // Its own SSH key counts as its own setting: one in place of the machine's.
+    const key = row.kind === "project" && hasKeys(tool) ? projectKeyOf(ctx, row.name) : null;
+    if (key != null) set.push(`SSH key ${key || "its own command"}`);
     own = set.length > 0;
-    title = own ? `Its own: ${set.map((s) => `${s.label} ${mine[s.id]}`).join(", ")}` : "Its own settings, in place of the card's";
+    title = own ? `Its own: ${set.join(", ")}` : "Its own settings, in place of the card's";
   } else {
     const shown = [
       ...(tool.id === "git" ? [`Projects folder ${ctx.folder}`] : []),
@@ -128,10 +131,7 @@ export function SettingsDialog({
 }) {
   const qc = useQueryClient();
   const { key, url, values } = useToolSettings(tool, ctx.machineId);
-  const all = row ? rowSettingsOf(tool, row.kind) : cardSettingsOf(tool);
-  // Those typed in; the rest are shown only, made by an action (Git's SSH key).
-  const settings = all.filter((s) => s.write != null);
-  const shownOnly = all.filter((s) => s.write == null);
+  const settings = row ? rowSettingsOf(tool, row.kind) : cardSettingsOf(tool);
   const have: Record<string, string | null> = (row ? values.data?.targets?.[row.kind]?.[row.name] : values.data?.values) ?? {};
   // Git's card: the projects folder first — Loskai's, not the machine's, saved on its own.
   const folder = !row && tool.id === "git";
@@ -213,21 +213,8 @@ export function SettingsDialog({
             </label>
           ))}
         </div>
-        {/* Shown only: what the machine has — for a row, the card's greyed while it has none
-            of its own. */}
-        {shownOnly.map((s) => {
-          const own = have[s.id];
-          const card = row && s.overrides ? values.data?.values[s.overrides] : null;
-          return (
-            <div key={s.id} className="mt-3">
-              <span className="text-sm text-slate-200">{s.label}</span>
-              <span className="mb-1 block text-xs text-slate-500">{s.description}</span>
-              <span aria-label={s.label} className={`block break-all font-mono text-xs ${own ? "text-slate-200" : "text-slate-500"}`}>
-                {own ?? (card ? `the machine's: ${card}` : values.data ? "none yet" : "…")}
-              </span>
-            </div>
-          );
-        })}
+        {/* A project's key: the machine's, or its own — Own key and Machine's key, below. */}
+        {row?.kind === "project" && hasKeys(tool) && <ProjectKey ctx={ctx} name={row.name} />}
         {values.isLoading && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-500" />}
         {(save.error || values.error) && (
           <p className="mt-3 text-sm text-rose-400">
@@ -277,5 +264,35 @@ export function SettingsDialog({
         </button>
       </div>
     </Overlay>
+  );
+}
+
+// The SSH key git uses for a project: null the machine's, a key's name its own, "" a
+// core.sshCommand of its own naming no key — as the overview read it.
+function projectKeyOf(ctx: ToolContext, name: string): string | null {
+  return projectsIn(ctx.facts, ctx.folder).find((p) => p.name === name)?.key ?? null;
+}
+
+// Which key a project's git uses, in its dialog: the machine's, greyed, or its own.
+function ProjectKey({ ctx, name }: { ctx: ToolContext; name: string }) {
+  const key = projectKeyOf(ctx, name);
+  const known = ctx.facts.ssh_keys;
+  const info = key ? known?.find((k) => k.name === key) : null;
+  return (
+    <div className="mt-3">
+      <span className="text-sm text-slate-200">SSH key</span>
+      <span className="mb-1 block text-xs text-slate-500">
+        Its own — a deploy key, for its repository alone — in place of the machine's. Every key is in Keys.
+      </span>
+      <span aria-label="SSH key" className={`block break-all font-mono text-xs ${key != null ? "text-slate-200" : "text-slate-500"}`}>
+        {known === undefined || known === null
+          ? "the machine's status line is older — install it again to see"
+          : key == null
+            ? "the machine's"
+            : key === ""
+              ? "its own ssh command"
+              : `${key}${info ? ` · ${info.fingerprint}` : ""}`}
+      </span>
+    </div>
   );
 }

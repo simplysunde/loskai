@@ -2,10 +2,10 @@
 # its projects folder ($PROJECTS), which Claude Code finds its projects in too: clone one,
 # pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
 # user, so a remote over SSH uses that user's own key and asks to trust a new host there,
-# and one over HTTPS asks for its login there when it needs one — SSH key shows that user's
-# key to add to GitHub or Forgejo (made first when there is none), and Test key tries it. A
-# project can have its own commit name and email, in its .git/config, in place of the
-# global ones.
+# and one over HTTPS asks for its login there when it needs one. That user's keys are in
+# Keys: each one's Show, Test and Delete, a new account key, and a test on any host. A
+# project can have its own commit name, email and key — a deploy key — in place of the
+# machine's.
 # docs/reference/tool-schema.md is the format.
 name: Git
 description: Your projects' git — clone, pull, push — and who commits made on it are by.
@@ -23,14 +23,6 @@ settings:
     value: email
     read: git config --global user.email
     write: git config --global user.email "$1"
-  # The key git uses over SSH: shown, not typed — SSH key, below, makes it. Its fingerprint
-  # is the one GitHub and Forgejo list beside a key.
-  ssh-key:
-    label: SSH key
-    description: This machine's key for its user — add it to your GitHub or Forgejo account.
-    read: >-
-      for t in ed25519 ecdsa rsa; do f=~/.ssh/id_$t.pub;
-      [ -f "$f" ] && { echo "~/.ssh/id_$t · $(ssh-keygen -lf "$f" | cut -d' ' -f2)"; exit 0; }; done
   # A project's own, in place of the global ones; taking it off leaves the global one. Git
   # says 5 when there was nothing to take off.
   project-name:
@@ -51,19 +43,6 @@ settings:
     read: git -C "$PROJECTS/$1" config --local user.email
     write: git -C "$PROJECTS/$1" config --local user.email "$2"
     unset: git -C "$PROJECTS/$1" config --local --unset user.email; s=$?; [ $s = 0 ] || [ $s = 5 ]
-  # A project's own key — a deploy key, for its repository alone — in its core.sshCommand,
-  # which Own key sets and Machine's key takes off. Any other core.sshCommand is shown as
-  # it is.
-  project-ssh-key:
-    label: SSH key
-    description: Its own deploy key, for this repository only — empty, the machine's.
-    target: project
-    overrides: ssh-key
-    read: >-
-      c=$(git -C "$PROJECTS/$1" config --local core.sshCommand) || exit 0;
-      k=$(printf %s "$c" | sed -n "s/.*-i '\{0,1\}\([^' ]*\).*/\1/p");
-      if [ -n "$k" ] && [ -f "$k.pub" ]; then echo "~/.ssh/${k##*/} · $(ssh-keygen -lf "$k.pub" | cut -d' ' -f2)";
-      else echo "$c"; fi
 actions:
   pull:
     label: Pull
@@ -116,7 +95,7 @@ actions:
       git -C "$PROJECTS/$1" config --local --unset core.sshCommand; s=$?;
       if [ $s = 5 ]; then echo "$1 already uses the machine's key."; exit 0; fi; [ $s = 0 ] || exit $s;
       echo "$1 uses the machine's key again.";
-      [ -f ~/.ssh/deploy_$1 ] && echo "Its own key stays in ~/.ssh/deploy_$1: Own key takes it up again. Done with it? Take it off the repository's Deploy keys, and delete the file."; exit 0
+      [ -f ~/.ssh/deploy_$1 ] && echo "Its own key stays, in Keys: Own key takes it up again; Delete there when done with it."; exit 0
   pull-all:
     label: Pull all
     description: Pull every project that has a remote — each only when it fast-forwards.
@@ -144,18 +123,19 @@ actions:
       Over SSH it uses this machine's own key for its user.
     ask: repo
     run: mkdir -p "$PROJECTS" && cd "$PROJECTS" && git clone -- "$1"
-  # The user's own key, never Loskai's: an account key, added to your GitHub or Forgejo
-  # account, reaches every repo you can (a deploy key, one repo's, isn't for a machine you
-  # work on). Made without a passphrase, so a pull or push from the page or by Claude never
-  # stops to ask; its private half never leaves the machine. Not automatic: its terminal
-  # stays open to copy the line from.
+  # The user's own keys, never Loskai's — in Keys, a dialog of their own: each key in
+  # ~/.ssh (the overview lists them, by their public halves), and what makes or tests one.
+  # An account key, added to your GitHub or Forgejo account, reaches every repo you can; a
+  # deploy key (a project's Own key, deploy_<project>) its repository alone. Made without a
+  # passphrase, so a pull or push from the page or by Claude never stops to ask; a private
+  # half never leaves the machine. None is automatic: each terminal stays open to read.
   ssh-key:
-    label: SSH key
+    label: New account key
     description: >-
-      This machine's SSH key for its user, to add to your GitHub or Forgejo account — made
-      first when there is none (ed25519, no passphrase, so pulls and pushes run unattended).
+      Make this machine's account key for its user — ed25519, no passphrase, so pulls and
+      pushes run unattended — and show it, to add to your GitHub or Forgejo account.
     session: false
-    place: settings
+    place: keys
     run: >-
       command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
       k=; for t in ed25519 ecdsa rsa; do if [ -f ~/.ssh/id_$t ]; then k=~/.ssh/id_$t;
@@ -165,21 +145,76 @@ actions:
       echo "Made a new key for $(id -un) on $(hostname), with no passphrase:";
       else echo "$(id -un)'s key on $(hostname), $k.pub:"; fi;
       echo; cat "$k.pub"; echo;
-      echo "Add this line to your account — GitHub: Settings › SSH and GPG keys › New SSH key;";
-      echo "Forgejo: Settings › SSH / GPG keys › Add key. Then Test key."
+      echo "Add this line to your account — GitHub: https://github.com/settings/ssh/new";
+      echo "Forgejo: <your Forgejo>/user/settings/keys"
   # GitHub, Forgejo and GitLab each answer an SSH login with a greeting and no shell, and
   # ssh exits 1 even then — so the greeting is what says it got in. The first time, ssh
   # asks to trust the host's key, here in the terminal.
   test-key:
     label: Test key
     description: >-
-      Try this machine's SSH key on a git host — github.com, codeberg.org or your Forgejo
+      Try this machine's keys on a git host — github.com, codeberg.org or your Forgejo
       (host:port when its SSH isn't on 22).
     ask: host
     session: false
-    place: settings
+    place: keys
     run: >-
       h=${1%:*}; p=22; case "$1" in *:*) p=${1##*:};; esac;
       out=$(ssh -T -p "$p" -o ConnectTimeout=10 "git@$h" 2>&1); echo "$out"; echo;
       case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) echo "This machine's key gets into $h.";;
-      *) echo "$h didn't take this machine's key. Add it to your account there (SSH key shows it)."; exit 1;; esac
+      *) echo "$h didn't take this machine's key. Add it to your account there (Show, on its row)."; exit 1;; esac
+  # A key's public half, and where it goes: a deploy key to its project's repository — the
+  # page's address worked out from the remote, the same path on GitHub and Forgejo.
+  show-key:
+    label: Show
+    description: This key's public half, to copy — and where to add it.
+    target: key
+    session: false
+    run: >-
+      f="$HOME/.ssh/$1.pub"; [ -f "$f" ] || { echo "No key $1 here."; exit 1; };
+      echo "$1:"; echo; cat "$f"; echo;
+      case "$1" in deploy_*) p=${1#deploy_};
+      u=$(git -C "$PROJECTS/$p" remote get-url origin 2>/dev/null);
+      w=$(printf %s "$u" | sed -E -n -e 's,^(https?)://([^/@]*@)?([^/]+)/(.+)$,\1://\3/\4,p'
+      -e 's,^(ssh://)?[^@/]+@([^:/]+)(:[0-9]+)?[:/](.+)$,https://\2/\4,p' | sed 's,[.]git$,,' | head -n 1);
+      echo "A deploy key: add it to $p's repository, under Settings › Deploy keys, with write access to push.";
+      [ -n "$w" ] && echo "$w/settings/keys";;
+      *) echo "An account key: add it to your account — GitHub: https://github.com/settings/ssh/new";
+      echo "Forgejo: <your Forgejo>/user/settings/keys";; esac
+  # Each project the key is for — its own, for a deploy key; those with none of their own,
+  # for any other — asked for its remote's HEAD with that key alone: what a pull does first.
+  try-key:
+    label: Test
+    description: Try this key on the remote of each project it is for — read access, as a pull needs.
+    target: key
+    session: false
+    run: >-
+      k="$HOME/.ssh/$1"; [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
+      cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
+      n=0; s=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
+      u=$(git -C "$d" remote get-url origin 2>/dev/null) || continue;
+      case "$u" in http://*|https://*|/*|file:*) continue;; esac;
+      c=$(git -C "$d" config --local core.sshCommand);
+      case "$1" in deploy_*) case "$c" in *"/$1'"*|*"/$1 "*) ;; *) continue;; esac;; *) [ -z "$c" ] || continue;; esac;
+      n=$((n+1)); printf '%s — %s: ' "$d" "$u";
+      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes" git -C "$d" ls-remote -q origin HEAD >/dev/null;
+      then echo gets in; else echo refused; s=1; fi; done;
+      [ $n = 0 ] && echo "No project here uses $1 with an SSH remote. Test key, under the list, takes a host.";
+      exit $s
+  # The key's file goes; a project using it goes back to the machine's key. The forge still
+  # lists it — Loskai can't take it off there.
+  delete-key:
+    label: Delete
+    description: Delete this key's file; a project using it goes back to the machine's key.
+    target: key
+    session: false
+    confirm: >-
+      Its file goes for good, and a project using it goes back to the machine's key. GitHub
+      or Forgejo still lists it until you take it off there.
+    run: >-
+      k="$HOME/.ssh/$1"; [ -f "$k.pub" ] || [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
+      if cd "$PROJECTS" 2>/dev/null; then for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
+      case "$(git -C "$d" config --local core.sshCommand)" in *"/$1'"*|*"/$1 "*)
+      git -C "$d" config --local --unset core.sshCommand && echo "$d uses the machine's key again.";; esac; done; fi;
+      rm -f "$k" "$k.pub" && echo "Deleted $1." &&
+      echo "GitHub or Forgejo still lists it: take it off there too — an account key under your account's SSH keys, a deploy key under its repository's Deploy keys."

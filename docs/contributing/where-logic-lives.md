@@ -109,6 +109,8 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | How a missing program is installed | `modules/ssh/tool.py` `INSTALLERS` `install_script` | `modules/ssh/connect.py` |
 | What the sudo rule for updates allows | `modules/ssh/tool.py` `update_commands` `allow_script` | `modules/ssh/connect.py` |
 | sudo's password for an automatic run: checked, held for one run | `modules/ssh/connect.py` `prepare` `take_password` | `modules/ssh/router.py` |
+| Which SSH keys a machine's user has, and which key git uses for each project | `modules/ssh/status.py` `_FACTS` (`#=keys`, a project's `key`) `parse_facts` | |
+| What a key is (account, deploy, other), by its name | `lib/ssh.ts` `keyKind` | `components/routing/SshKeys.tsx` |
 | Whether a machine's updates-without-a-password switch applies, and what it runs | `components/routing/SudoRuleSwitch.tsx` `SudoRuleSwitch` | `components/routing/MachineDialog.tsx` `components/routing/UpdateAll.tsx` |
 | What Tailscale is doing on a machine, and in a few words | `lib/ssh.ts` `tailscaleState` `tailscaleStatus` | `components/routing/MachineOverview.tsx` `components/routing/MachineTools.tsx` `components/routing/ProjectsOverview.tsx` `lib/toolRows.ts` |
 | What a tool's card lists, and its one-line summary | `lib/toolRows.ts` `toolSummary` `listsOf` `toolContext` | `components/routing/MachineDialog.tsx` `components/routing/MachineTools.tsx` `components/routing/ProjectsOverview.tsx` `components/routing/ToolDialog.tsx` |

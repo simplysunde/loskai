@@ -27,11 +27,14 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 10
+STATUS_LINE = 11
 STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
 FACTS_SINCE = 5
+# From v11, a project's row says which key git uses for it (`key`), and `#=keys` lists the
+# user's SSH keys.
+KEYS_SINCE = 11
 LISTEN_SINCE = 6
 
 
@@ -174,9 +177,20 @@ _FACTS = (
     "t=$(stat -c %Y $k 2>/dev/null || echo 0); "
     # Commits not on its upstream yet, as of the last fetch; - without an upstream.
     "a=$(git -C $d rev-list --count @{u}..HEAD 2>/dev/null || echo -); "
-    "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c$a%x7c%ct%x7c%s 2>/dev/null "
-    "|| echo $p'|'$b'|'$w'|'$t'|'$a'|0|'; "
+    # The key git uses for it: its core.sshCommand's -i file, by name (Git's Own key sets
+    # it); - for none — the machine's keys — and + for a command naming no file this way.
+    # (A case, not a test: unquoted, an empty one would still pass `[ -n ]`.)
+    "c=$(git -C $d config --local core.sshCommand 2>/dev/null); s=-; "
+    "case $c in ?*) s=$(echo $c | sed -n 's,.* -i *,,p' | cut -d' ' -f1 | tr -dc A-Za-z0-9._/~-); "
+    "s=${s##*/}; case $s in ''|*[!A-Za-z0-9._-]*) s=+;; esac;; esac; "
+    "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c$a%x7c$s%x7c%ct%x7c%s 2>/dev/null "
+    "|| echo $p'|'$b'|'$w'|'$t'|'$a'|'$s'|0|'; "
     "done | head -n 200; "
+    # The user's SSH keys, by their public halves only — name, then ssh-keygen's line: its
+    # size, fingerprint, comment and type. A name with any other character is skipped.
+    "echo '#=keys'; if command -v ssh-keygen >/dev/null; then for f in $HOME/.ssh/*.pub; do "
+    "[ -f $f ] || continue; n=${f##*/}; n=${n%.pub}; case $n in [!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) continue;; esac; "
+    "echo $n'|'$(ssh-keygen -lf $f 2>/dev/null | head -n 1); done | head -n 50; fi; "
     "true"
 )
 STATUS_COMMAND = (
@@ -391,7 +405,7 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    tailnet, tailscale_self, projects, sudo_rule, outdated}`.
+    tailnet, tailscale_self, projects, ssh_keys, sudo_rule, outdated}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
@@ -406,7 +420,10 @@ def parse_facts(output: str) -> dict:
     the home folder, `{path, folder, name, branch, dirty, claude, ahead, committed,
     subject}` — `folder` relative to home ("" for home itself), `claude` and `committed`
     seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
-    without one); `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
+    without one), `key` the SSH key git uses for it — None for the machine's, a key's name
+    (its own, Git's Own key), "" for a `core.sshCommand` naming none; `ssh_keys` the user's
+    keys in ~/.ssh, by their public halves, `{name, bits, fingerprint, comment, type}` — None
+    from a line before v11; `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
     where the machine won't say; `outdated` true on a line older than this Loskai's — still
     read, but a fix since (v10's quiet sudo) reaches it only when it is installed again.
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
@@ -440,7 +457,8 @@ def parse_facts(output: str) -> dict:
         "tailscale": next(iter(sections.get("tailscale", [])), None),
         "tailnet": _tailnet(sections.get("tailnet", [])),
         "tailscale_self": _tailscale_self(sections.get("tsself")),
-        "projects": [p for p in map(_project, sections.get("projects", [])) if p],
+        "projects": [p for p in (_project(line, version) for line in sections.get("projects", [])) if p],
+        "ssh_keys": [k for k in map(_ssh_key, sections.get("keys", [])) if k] if version >= KEYS_SINCE else None,
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
         "outdated": version != STATUS_LINE,
     }
@@ -498,9 +516,14 @@ def _updates(lines: list[str]) -> dict | None:
     return None
 
 
-def _project(line: str) -> dict | None:
-    parts = line.split("|", 6)
-    if len(parts) != 7 or not all(_number(n) is not None for n in (parts[2], parts[3], parts[5])):
+def _project(line: str, version: int) -> dict | None:
+    # From v11 the key git uses for it comes before the commit time; the subject stays last.
+    fields = 8 if version >= KEYS_SINCE else 7
+    parts = line.split("|", fields - 1)
+    if len(parts) != fields:
+        return None
+    key = parts.pop(5) if fields == 8 else "-"
+    if not all(_number(n) is not None for n in (parts[2], parts[3], parts[5])):
         return None
     folder, _, name = parts[0].rpartition("/")
     return {
@@ -509,7 +532,20 @@ def _project(line: str) -> dict | None:
         "dirty": parts[2] == "1",
         "claude": _number(parts[3]), "ahead": _number(parts[4]), "committed": _number(parts[5]),
         "subject": parts[6],
+        "key": None if key == "-" else "" if key == "+" else key,
     }
+
+
+_KEY_LINE = re.compile(r"^([A-Za-z0-9._-]+)\|(\d+) (SHA256:\S+) (.*?) ?\((\w+)\)$")
+
+
+def _ssh_key(line: str) -> dict | None:
+    """`name|<ssh-keygen -l line>` → `{name, bits, fingerprint, comment, type}`."""
+    m = _KEY_LINE.match(line)
+    if not m:
+        return None
+    return {"name": m.group(1), "bits": int(m.group(2)), "fingerprint": m.group(3),
+            "comment": m.group(4), "type": m.group(5)}
 
 
 _TAILNET_IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$|^[0-9a-f:]+:[0-9a-f:]*$")
