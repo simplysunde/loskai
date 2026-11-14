@@ -92,7 +92,8 @@ Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.s
 `sync-recipe-schema.sh`, `check-phone.sh`, `record-demo.sh`, the LXC scripts,
 `container-entrypoint.sh`), `demo/` (`make demo`'s machine image, setup, flows and conversion). `data/` and
 `stacks/` are a running Loskai's state — tracked only as `.gitkeep`. `.claude/skills/` holds how
-recurring work is done here — `sweep`, a whole-project simplification pass.
+recurring work is done here — `sweep`, a whole-project simplification pass, and `naming`, a
+whole-project rename pass that changes no contract.
 
 **The recipes live in a sibling repo, `../loskai-recipes`**, with its own `CLAUDE.md`. Its
 commit messages are user-facing — Check for updates shows them as "What changed".
