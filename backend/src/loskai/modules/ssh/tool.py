@@ -98,6 +98,9 @@ class ToolError(LoskaiError, ValueError):
 # the rest of the time: hidden, or there but greyed out (`OTHERWISE`).
 WHEN = ("running", "stopped")
 OTHERWISE = ("hidden", "disabled")
+# Where a machine's action is offered: on its tool's card, or in the card's settings
+# dialog — for one set up once and rarely run again (Git's SSH key, Test key).
+PLACES = ("card", "settings")
 
 
 @dataclass(frozen=True)
@@ -120,6 +123,8 @@ class Action:
     when: str | None = None
     # The rest of the time: hidden (Start and Stop, sharing one place), or greyed (Attach).
     otherwise: str = "hidden"
+    # `PLACES`: on the card, or in its settings dialog — only an action on no row.
+    place: str = "card"
 
 
 @dataclass(frozen=True)
@@ -191,7 +196,7 @@ def parse(tool_id: str, doc: object) -> Tool:
             continue
         # `on:` would be YAML 1.1's `true`, hence `target`.
         extra = set(raw) - {
-            "label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when", "otherwise"}
+            "label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when", "otherwise", "place"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description"):
@@ -227,11 +232,17 @@ def parse(tool_id: str, doc: object) -> Tool:
             problems.append(f"`{where}.otherwise` must be one of {', '.join(OTHERWISE)}")
         elif "otherwise" in raw and when is None:
             problems.append(f"`{where}.otherwise` needs a `when`")
+        place = raw.get("place", "card")
+        if place not in PLACES:
+            problems.append(f"`{where}.place` must be one of {', '.join(PLACES)}")
+        elif place != "card" and target is not None:
+            problems.append(f"`{where}.place`: an action on a row is on its row")
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
             run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
             session=session, automatic=automatic is True, when=when if when in WHEN else None,
             otherwise=otherwise if otherwise in OTHERWISE else "hidden",
+            place=place if place in PLACES else "card",
         )
     # A row's session is running when an action of its kind shares one (`claim_sessions`):
     # without one, `when` could never be told.
@@ -342,7 +353,7 @@ def view(t: Tool) -> dict:
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
              "ask": a.ask, "confirm": a.confirm, "session": a.session, "automatic": a.automatic,
-             "when": a.when, "otherwise": a.otherwise, "run": a.run}
+             "when": a.when, "otherwise": a.otherwise, "place": a.place, "run": a.run}
             for a in t.actions.values()
         ],
         "settings": [

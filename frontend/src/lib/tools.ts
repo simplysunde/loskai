@@ -22,6 +22,8 @@ export interface ToolAction {
   when?: "running" | "stopped" | null;
   // The rest of the time: hidden, or there but greyed out.
   otherwise?: "hidden" | "disabled";
+  // On the card (the default), or in its settings dialog — one set up once (Git's SSH key).
+  place?: "card" | "settings";
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
@@ -86,7 +88,12 @@ export function cardSettingsOf(tool: Tool): ToolSetting[] {
 // Whether a card has a settings cog: settings of its own, or (Git's) the machine's projects
 // folder — Loskai's own, on its record, where Claude Code finds its projects.
 export function hasCardSettings(tool: Tool): boolean {
-  return tool.id === "git" || cardSettingsOf(tool).length > 0;
+  return tool.id === "git" || cardSettingsOf(tool).length > 0 || settingsActionsOf(tool).length > 0;
+}
+
+// The machine's actions its settings dialog offers, not its card.
+export function settingsActionsOf(tool: Tool): ToolAction[] {
+  return tool.actions.filter((a) => a.place === "settings");
 }
 
 export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {

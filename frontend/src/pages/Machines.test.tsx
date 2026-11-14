@@ -134,8 +134,8 @@ const TOOLS = [
       { id: "pull-all", label: "Pull all", description: "Pull each.", target: null, ask: null, confirm: null, run: "git pull" },
       { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
-      { id: "ssh-key", label: "SSH key", description: "This machine's key.", target: null, ask: null, confirm: null, session: false, run: "cat ~/.ssh/id_ed25519.pub" },
-      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, run: "ssh -T \"git@$1\"" },
+      { id: "ssh-key", label: "SSH key", description: "This machine's key.", target: null, ask: null, confirm: null, session: false, place: "settings", run: "cat ~/.ssh/id_ed25519.pub" },
+      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "settings", run: "ssh -T \"git@$1\"" },
     ],
     settings: [
       { id: "name", label: "Name", description: "On every commit.", value: "git-name", read: "git config --global user.name", write: "x" },
@@ -1244,27 +1244,41 @@ test("Clone asks for a repository's address and runs on it; Git's card has the p
   ).toBeInTheDocument();
 });
 
-test("Git's card shows this machine's SSH key in its terminal, and tests it on a host", async () => {
+// Set up once: in Git's Settings, not on its card. Each closes the dialog and runs in the
+// machine's terminal.
+async function gitSettings() {
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  expect(within(tools).queryByRole("button", { name: "SSH key" })).toBeNull();
+  expect(within(tools).queryByLabelText("Test key — host")).toBeNull();
+  fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
+  return screen.findByRole("dialog", { name: "Git settings" });
+}
+
+test("Git's Settings show this machine's SSH key in its terminal", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  fireEvent.click(await screen.findByRole("button", { name: "SSH key" }));
+  fireEvent.click(within(await gitSettings()).getByRole("button", { name: "SSH key" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=ssh-key")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog", { name: "Git settings" })).toBeNull();
   // Not automatic: a dialog that stays, to copy the key from.
   expect(screen.getByRole("dialog", { name: /SSH key — Storage box/ })).toBeInTheDocument();
 });
 
-test("Test key asks for a host — a plug, not a plus — and runs on it", async () => {
+test("Test key, in Git's Settings, asks for a host — a plug, not a plus — and runs on it", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  const host = await screen.findByLabelText("Test key — host");
+  const dialog = await gitSettings();
+  const host = within(dialog).getByLabelText("Test key — host");
   expect(host).toHaveAttribute("placeholder", "github.com");
-  const button = screen.getByRole("button", { name: "Test key" });
+  const button = within(dialog).getByRole("button", { name: "Test key" });
   expect(button.querySelector("svg")).toHaveClass("lucide-plug-zap");
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.click(button);
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
+  // Its field is a form of its own: the settings weren't saved.
+  expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
 test("a name typed for an action that asks first is kept when that is cancelled", async () => {

@@ -9,3 +9,7 @@ export const INPUT =
 // show (`max-sm:hidden` — the header row, a column only a wide screen has room for).
 export const CARD_TABLE =
   "max-sm:block max-sm:[&_tbody]:block max-sm:[&_tr]:flex max-sm:[&_tr]:flex-wrap max-sm:[&_tr]:items-center max-sm:[&_tr]:gap-x-3 max-sm:[&_tr]:gap-y-1 max-sm:[&_td]:p-0 max-sm:[&_th]:p-0";
+
+// A tool's button on its card (Pull all, Clone) and in its settings dialog (SSH key).
+export const TOOL_BUTTON =
+  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";

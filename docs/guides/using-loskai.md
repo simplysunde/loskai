@@ -239,12 +239,12 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-  **SSH key** shows that user's key, in the terminal to copy — making one first when there
-  is none (ed25519, no passphrase, so pulls and pushes run unattended; its private half
-  never leaves the machine). Add it to your **account** — GitHub: Settings › SSH and GPG
-  keys; Forgejo: Settings › SSH / GPG keys — so it reaches every repository you can; a
-  repository's *deploy key* reaches that one only, for a server that pulls one repository.
-  **Test key** takes a host — `github.com`, `codeberg.org`, or `host:port` for a Forgejo
+  In Git's **Settings**, beside the values, **SSH key** shows that user's key, in the
+  terminal to copy — making one first when there is none (ed25519, no passphrase, so pulls
+  and pushes run unattended; its private half never leaves the machine). Add it to your
+  **account** — GitHub: Settings › SSH and GPG keys; Forgejo: Settings › SSH / GPG keys —
+  so it reaches every repository you can; a repository's *deploy key* reaches that one
+  only, for a server that pulls one repository. **Test key** takes a host — `github.com`, `codeberg.org`, or `host:port` for a Forgejo
   whose SSH isn't on 22 — and says whether it lets the key in.
 - **Claude Code** lists the git projects in the machine's projects folder, set in the Git
   card's **Settings**, with each one's

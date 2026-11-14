@@ -71,6 +71,11 @@ actions:                          # required — at least one, unless it has `se
     ask: session                  # optional — a name typed on the page, checked like a target
     session: false                # optional — no tmux session around it: it is tmux itself
     run: tmux new-session -A -s "$1"
+  ssh-key:                        # (from Git's file, shortened)
+    label: SSH key
+    description: This machine's SSH key, to add to GitHub or Forgejo.
+    place: settings               # optional — in the card's settings dialog (below)
+    run: cat ~/.ssh/id_ed25519.pub
   stop:                           # (from Claude Code's file, shortened)
     label: Stop
     description: Stop Claude's session in this project.
@@ -237,6 +242,14 @@ The page decides, from the overview's `live` (`tool.claim_sessions`), which is r
 when an action's terminal closes. The server doesn't check it, so the command still copes
 with the other case — a session started or ended elsewhere since: Start says it is already
 running, Stop that none is.
+
+### `place`
+
+`card` (the default) or `settings`: where an action on no row is offered — on its card,
+or in the dialog its card's **Settings** button opens, for one set up once and rarely run
+again (Git's **SSH key** and **Test key**). The dialog closes as it runs. A tool with such
+an action has that button even without settings of its own. An action on a row is on its
+row: `place` with a `target` is refused.
 
 ### `automatic`
 

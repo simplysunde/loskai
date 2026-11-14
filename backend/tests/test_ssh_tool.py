@@ -462,6 +462,21 @@ def test_when_is_running_or_stopped_and_needs_a_target_whose_rows_share_a_sessio
     assert "`actions.e.otherwise` needs a `when`" in message
 
 
+def test_an_action_is_on_its_card_or_in_its_settings_never_a_rows_in_settings():
+    doc = {"name": "X", "description": "d", "actions": {
+        "a": {"label": "A", "description": "d", "run": "true", "place": "settings"},
+        "b": {"label": "B", "description": "d", "run": "true", "place": "menu"},
+        "c": {"label": "C", "description": "d", "run": "true", "target": "project", "place": "settings"},
+    }}
+    with pytest.raises(ToolError) as err:
+        tool.parse("x", doc)
+    assert "`actions.b.place` must be one of card, settings" in str(err.value)
+    assert "`actions.c.place`: an action on a row is on its row" in str(err.value)
+    assert "actions.a" not in str(err.value)
+    git = tool.load()["git"].actions
+    assert {a.id for a in git.values() if a.place == "settings"} == {"ssh-key", "test-key"}
+
+
 def test_a_script_installer_gets_curl_first_where_it_is_missing():
     tailscale = tool.load()["tailscale"]
 

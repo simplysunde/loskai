@@ -98,6 +98,7 @@ actions:
       This machine's SSH key for its user, to add to your GitHub or Forgejo account — made
       first when there is none (ed25519, no passphrase, so pulls and pushes run unattended).
     session: false
+    place: settings
     run: >-
       command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
       k=; for t in ed25519 ecdsa rsa; do if [ -f ~/.ssh/id_$t ]; then k=~/.ssh/id_$t;
@@ -119,6 +120,7 @@ actions:
       (host:port when its SSH isn't on 22).
     ask: host
     session: false
+    place: settings
     run: >-
       h=${1%:*}; p=22; case "$1" in *:*) p=${1##*:};; esac;
       out=$(ssh -T -p "$p" -o ConnectTimeout=10 "git@$h" 2>&1); echo "$out"; echo;

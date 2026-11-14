@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { requestUnlock } from "../../lib/unlock";
-import type { ToolContext } from "../../lib/toolRows";
-import { cardSettingsOf, hasCardSettings, rowSettingsOf, type Tool, type ToolTarget } from "../../lib/tools";
+import type { ToolContext, ToolStart } from "../../lib/toolRows";
+import { cardSettingsOf, hasCardSettings, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
+import { TOOL_BUTTON } from "../../lib/ui";
+import { Ask } from "./ToolAsk";
+import { ActionIcon } from "./ToolIcon";
 import { Overlay } from "../shared/Modal";
 
 // The machine's settings by id, and each row's by kind and row: `targets.project.site`.
@@ -157,10 +160,17 @@ export function SettingsDialog({
     onSuccess: onClose,
   });
   const label = row ? `Settings for ${row.name}` : `${tool.name} settings`;
+  const formId = useId();
+  const actions = row ? [] : settingsActionsOf(tool);
+  const run: ToolStart = (r, a) => {
+    onClose();
+    ctx.onRun(r, a);
+  };
 
   return (
     <Overlay onClose={onClose} label={label}>
       <form
+        id={formId}
         onSubmit={(e) => {
           e.preventDefault();
           if (changed.length && !empty) save.mutate();
@@ -206,20 +216,47 @@ export function SettingsDialog({
           </p>
         )}
         {empty && <p className="mt-3 text-sm text-rose-400">{empty.label} needs a value.</p>}
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!changed.length || Boolean(empty) || save.isPending}
-            className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-          >
-            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save
-          </button>
-        </div>
       </form>
+      {/* Beside the values, what is set up once and rarely run (Git's SSH key): each runs in
+          the machine's terminal, this dialog closing first. A form of its own, so outside
+          the one above. */}
+      {actions.length > 0 && (
+        <div className="mt-4 border-t border-slate-800 pt-3">
+          <span className="text-sm text-slate-200">Actions</span>
+          <span className="mb-2 block text-xs text-slate-500">Run in the machine's terminal.</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {actions.map((a) =>
+              a.ask ? (
+                <Ask key={a.id} tool={tool} action={a} onRun={run} />
+              ) : (
+                <button
+                  key={a.id}
+                  type="button"
+                  title={a.description}
+                  onClick={() => run({ tool: tool.id, action: a.id, title: a.label }, a)}
+                  className={TOOL_BUTTON}
+                >
+                  <ActionIcon tool={tool.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      )}
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          form={formId}
+          disabled={!changed.length || Boolean(empty) || save.isPending}
+          className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+        >
+          {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Save
+        </button>
+      </div>
     </Overlay>
   );
 }

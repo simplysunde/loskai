@@ -21,6 +21,10 @@ authenticated", GitLab's "Welcome to GitLab"), since `ssh -T` exits 1 even when 
 in; its host is a new `ask` kind, `host`, a name and an optional port, never a user or an
 option.
 
+Then, asked by Sunde, both moved into Git's **Settings** dialog: set up once, like the name
+and email beside them, not used day to day like Pull all. A new `place: settings` on an
+action says so in the tool file, so the page decides nothing by a tool's id.
+
 ## 2026-11-14 — Update all has each machine's no-password switch
 
 Seen running: Update all stops at each machine whose sudo asks for a password. The switch

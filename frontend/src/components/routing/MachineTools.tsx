@@ -20,9 +20,10 @@ import {
 import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
 import { CardSettings, GitIdentity, SettingsButton, SettingsDialog } from "./ToolSettings";
+import { Ask } from "./ToolAsk";
+import { TOOL_BUTTON } from "../../lib/ui";
 
-const BUTTON =
-  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
+const BUTTON = TOOL_BUTTON;
 
 // A row's button — and, under a list, the tool's own (Pull all), so they line up as one column.
 const ROW_BUTTON =
@@ -77,7 +78,7 @@ export function RowButtons({
 export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: ToolContext; small?: boolean }) {
   const manager = ctx.facts.updates?.manager ?? null;
   return t.actions
-    .filter((a) => !a.target && !a.ask)
+    .filter((a) => !a.target && !a.ask && a.place !== "settings")
     .map((a) => {
       const command = commandFor(a, manager);
       return (
@@ -98,8 +99,9 @@ export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: T
 // actions that ask for a name. Null when it has nothing to show here — Services' buttons
 // are all on the Running list's rows.
 export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: ToolContext; titled?: boolean }) {
-  const own = t.actions.filter((a) => !a.target && !a.ask);
-  const asks = t.actions.filter((a) => a.ask);
+  // What its settings dialog offers instead (Git's SSH key) isn't on the card.
+  const own = t.actions.filter((a) => !a.target && !a.ask && a.place !== "settings");
+  const asks = t.actions.filter((a) => a.ask && a.place !== "settings");
   const lists = listsOf(t, ctx);
   // The row whose own settings are open in a dialog.
   const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
@@ -392,37 +394,3 @@ export function ToolsMenu({
   );
 }
 
-// An action that runs on a name typed for it — a new session, a new project. The server
-// checks the name; it reaches the command as `$1`.
-// What an asked-for value looks like, in its field: a name, or (Clone) a repository's address.
-const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; what: string }>> = {
-  repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
-  host: { placeholder: "github.com", width: "w-36", what: "host" },
-};
-
-function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
-  const [name, setName] = useState("");
-  const asked = (action.ask && ASKED[action.ask]) || { placeholder: "name", width: "w-32", what: "name" };
-  return (
-    <form
-      className="flex items-center gap-1.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onRun({ tool: tool.id, action: action.id, target: name.trim(), title: `${action.label}: ${name.trim()}` }, action);
-        // One that asks first keeps the name, so a Cancel there loses nothing.
-        if (!action.confirm) setName("");
-      }}
-    >
-      <input
-        aria-label={`${action.label} — ${asked.what}`}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={asked.placeholder}
-        className={`${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`}
-      />
-      <button type="submit" disabled={!name.trim()} title={`${action.description}\n$ ${typeof action.run === "string" ? action.run : ""}`} className={BUTTON}>
-        <ActionIcon tool={tool.id} action={action.id} className="h-3.5 w-3.5" fallback={Plus} /> {action.label}
-      </button>
-    </form>
-  );
-}
