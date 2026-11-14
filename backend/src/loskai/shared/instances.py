@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError, model_validator
 
-from ..config import settings
+from ..config import settings as env
 from . import access, auth, icons, store
 from .errors import LoskaiError
 
@@ -66,7 +66,7 @@ class Instance(BaseModel):
 
 
 def _path() -> Path:
-    return Path(settings.data_dir) / "instances.json"
+    return Path(env.data_dir) / "instances.json"
 
 
 def _records(raw: Any) -> list[Instance]:

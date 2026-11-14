@@ -13,7 +13,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ...config import settings
+from ...config import settings as env
 from ...shared import store
 from ...shared.errors import LoskaiError
 from . import logic
@@ -38,7 +38,7 @@ class StackError(LoskaiError):
 
 
 def stacks_dir() -> Path:
-    return Path(settings.stacks_dir)
+    return Path(env.stacks_dir)
 
 
 def stacks_dir_ok() -> bool:
@@ -65,8 +65,8 @@ def override_path(directory: Path) -> Path | None:
 
 def env_text(directory: Path) -> str:
     """A stack's `.env` as written — "" when it has none."""
-    env = directory / ".env"
-    return env.read_text(encoding="utf-8") if env.is_file() else ""
+    env_file = directory / ".env"
+    return env_file.read_text(encoding="utf-8") if env_file.is_file() else ""
 
 
 def stack_path(name: str) -> Path:

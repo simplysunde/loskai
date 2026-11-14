@@ -12,7 +12,7 @@ not among them — an SVG is a script container, and these are served from Loska
 
 from pathlib import Path
 
-from ..config import settings
+from ..config import settings as env
 from .errors import LoskaiError
 
 # (magic bytes, extension, content type). Raster formats only, on purpose.
@@ -50,7 +50,7 @@ def sniff(data: bytes) -> tuple[str, str]:
 
 
 def icons_dir() -> Path:
-    return Path(settings.data_dir) / "icons"
+    return Path(env.data_dir) / "icons"
 
 
 def path_for(filename: str) -> Path:

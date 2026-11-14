@@ -11,7 +11,7 @@ endpoint itself is public in every mode (see `modules/caddy/router.root_certific
 
 from fastapi import APIRouter
 
-from . import instances
+from . import instances as instances_store
 from . import settings as settings_store
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
@@ -23,8 +23,8 @@ def _card(inst, base: str | None) -> dict:
     return {
         "id": inst.id,
         "name": inst.name,
-        "url": instances.open_url(inst, base),
-        "icon": instances.icon_url(inst),
+        "url": instances_store.open_url(inst, base),
+        "icon": instances_store.icon_url(inst),
     }
 
 
@@ -37,8 +37,8 @@ def _entries() -> list:
     links nowhere useful or has to be told separately. A launcher entry that lands on a dead
     port is worse than no entry. A service on a machine is a route or a link of its own."""
     return [
-        inst for inst in instances.list_instances()
-        if not instances.is_machine(inst) and (inst.subdomain or instances.is_link(inst))
+        inst for inst in instances_store.list_instances()
+        if not instances_store.is_machine(inst) and (inst.subdomain or instances_store.is_link(inst))
     ]
 
 

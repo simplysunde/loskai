@@ -16,7 +16,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
-from .config import settings
+from .config import settings as env
 from .modules.adguard import router as adguard_router
 from .modules.caddy import router as caddy_router
 from .modules.caddy.client import caddy
@@ -24,7 +24,7 @@ from .modules.docker import router as docker_router
 from .modules.ssh import router as ssh_router
 from .modules.wireguard import router as wireguard_router
 from .shared import assign, auth, dashboard, export, follow, health, instances
-from .shared import settings as settings_module
+from .shared import settings as settings_store
 from .shared import users as users_module
 from .shared.errors import LoskaiError
 from .shared.store import CorruptStoreError
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     # A settings.json that exists but doesn't parse aborts startup here rather than
     # booting on defaults — an empty dict would mean "no admin password set", which
     # re-opens the public first-run setup route. See settings.verify_readable.
-    settings_module.verify_readable()
+    settings_store.verify_readable()
     # The same for users.json: read as empty, it would re-open first-run setup.
     users_module.verify_readable()
     # The first account: an older install's admin password, or LOSKAI_PASSWORD.
@@ -95,7 +95,7 @@ async def corrupt_store(request: Request, exc: CorruptStoreError) -> JSONRespons
 # Shared routers first, then the five module routers.
 app.include_router(auth.router)
 app.include_router(users_module.router)
-app.include_router(settings_module.router)
+app.include_router(settings_store.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(instances.router)
@@ -111,7 +111,7 @@ app.include_router(ssh_router.router)
 # --- Static SPA (production only) ---
 # Registered last so /api routes always win. In dev the bundle doesn't exist and Vite
 # serves the UI on :5173, so this whole block is skipped.
-_static = Path(settings.static_dir)
+_static = Path(env.static_dir)
 if _static.is_dir():
 
     @app.get("/{full_path:path}")

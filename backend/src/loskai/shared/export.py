@@ -11,7 +11,7 @@ import httpx
 from fastapi import APIRouter
 
 from ..modules.adguard.client import AdGuardError, adguard, describe_error
-from . import instances
+from . import instances as instances_store
 from . import settings as settings_store
 
 router = APIRouter(prefix="/api", tags=["export"])
@@ -33,7 +33,7 @@ async def export_snapshot() -> dict:
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "base_domain": settings_store.value("base_domain"),
-        "instances": [i.model_dump() for i in instances.list_instances()],
+        "instances": [i.model_dump() for i in instances_store.list_instances()],
         "adguard_rewrites": rewrites,
         "warning": warning,
     }

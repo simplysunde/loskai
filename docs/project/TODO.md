@@ -122,7 +122,7 @@ commit, the full checks, `where-used.py --write`.
       `STATUS_LINE`/`STATUS_VERSION`, `machines.follow_machine`
 - [x] 57e Backend, Docker and AdGuard: `install.recipe_icon`, `logic.link_instances`,
       `_dial`, `recipes._load_folder`, `adguard.service.expected`/`foreign`, the locals
-- [ ] 57f Backend, one alias per module: `env`, `settings_store`, `instances_store`
+- [x] 57f Backend, one alias per module: `env`, `settings_store`, `instances_store`
 - [ ] 57g Frontend, `RouteRow` → `Instance`, `useRoutes` → `useInstances`, `useRouteRows` →
       `useInstanceRows`
 - [ ] 57h Frontend, the keys: `SshKey` → `LoskaiKey`, `SshKeyInfo` → `MachineKey`,

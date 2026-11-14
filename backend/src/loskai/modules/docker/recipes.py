@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from ...config import settings
+from ...config import settings as env
 from ...shared import icons
 from ...shared import settings as settings_store
 from . import logic
@@ -61,7 +61,7 @@ def source_labels(sources: list[dict]) -> dict[str, str]:
 
 
 def _cache_root() -> Path:
-    return Path(settings.data_dir) / "recipes-cache"
+    return Path(env.data_dir) / "recipes-cache"
 
 
 def repo_cache(url: str) -> Path:
@@ -69,7 +69,7 @@ def repo_cache(url: str) -> Path:
 
 
 def _local_dir() -> Path:
-    return Path(settings.data_dir) / "recipes"
+    return Path(env.data_dir) / "recipes"
 
 
 def enabled_sources() -> list[dict]:
