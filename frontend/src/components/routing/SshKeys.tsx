@@ -17,8 +17,6 @@ type Tested = { host: string; ok: boolean };
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
   { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
-  { id: "login", title: "Login keys", hint: "for logging in to other computers" },
-  { id: "other", title: "Other keys", hint: "not labelled — Label says what one is for" },
 ] as const;
 
 
@@ -55,6 +53,27 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
+  const notGit = (keys ?? []).filter((k) => !GROUPS.some((g) => g.id === keyGroup(k, usesOf(k)).group));
+  const list = (ks: SshKeyInfo[]) => (
+    <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
+      {ks.map((k) => (
+        <KeyRow
+          key={k.name}
+          info={k}
+          uses={usesOf(k)}
+          named={named.has(k.name)}
+          facts={ctx.facts}
+          actions={onKey}
+          tool={tool}
+          onRun={run}
+          test={onHost}
+          label={onLabel}
+          tested={tested[k.name]}
+          onTested={onTested}
+        />
+      ))}
+    </ul>
+  );
   // A key's own Test: that key on a host typed on its row (`<key>@<host>`). Its answer, while
   // this is open — kept nowhere else, so it never outlives what it saw.
   const onHost = tool.actions.find((a) => a.ask === "key-host");
@@ -90,37 +109,26 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
           <div className="space-y-4">
             {GROUPS.map((g) => {
               const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
-              if (inIt.length === 0 && (g.id === "other" || g.id === "login")) return null;
               return (
                 <section key={g.id} aria-label={g.title}>
                   <h3 className="text-xs font-medium text-slate-200">
                     {g.title} <span className="font-normal text-slate-500">— {g.hint}</span>
                   </h3>
-                  {inIt.length === 0 ? (
-                    <p className="mt-1 text-xs text-slate-500">None.</p>
-                  ) : (
-                    <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
-                      {inIt.map((k) => (
-                        <KeyRow
-                          key={k.name}
-                          info={k}
-                          uses={usesOf(k)}
-                          named={named.has(k.name)}
-                          facts={ctx.facts}
-                          actions={onKey}
-                          tool={tool}
-                          onRun={run}
-                          test={onHost}
-                          label={onLabel}
-                          tested={tested[k.name]}
-                          onTested={onTested}
-                        />
-                      ))}
-                    </ul>
-                  )}
+                  {inIt.length === 0 ? <p className="mt-1 text-xs text-slate-500">None.</p> : list(inIt)}
                 </section>
               );
             })}
+            {/* The rest — keys for logins, and ones no remote uses and nothing says are git's —
+                folded away, there to label or delete. */}
+            {notGit.length > 0 && (
+              <details aria-label="Not used by git" className="group">
+                <summary className="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200">
+                  Not used by git ({notGit.length}){" "}
+                  <span className="font-normal text-slate-500">— logins, or not labelled: Label says what one is for</span>
+                </summary>
+                {list(notGit)}
+              </details>
+            )}
           </div>
         )}
       </div>
@@ -282,7 +290,7 @@ function UsedBy({
     const ssh = (facts.remotes ?? []).some((r) => sshHost(r.url));
     const why = named
       ? "~/.ssh/config names it for a host no project here uses."
-      : !account
+      : !account && !own
         ? "No remote here names it."
         : ssh
           ? "The remotes here over SSH each use a key of their own; the rest are over HTTP(S), which needs none."

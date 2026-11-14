@@ -174,7 +174,10 @@ export function keyGroup(
     return { group: "deploy", tag: repo ?? (label?.kind === "deploy" ? label.project : null) };
   }
   const host = keyHost(key, uses) ?? null;
-  return label || keyKind(key.name) === "account" || host ? { group: "account", tag: host } : { group: "other", tag: null };
+  // ssh's own, unlabelled, is git's only where a remote uses it (or the line is too old to
+  // say): otherwise it is anyone's — a login, as likely as not.
+  const gits = keyKind(key.name) === "account" && (uses == null || uses.length > 0);
+  return label || host || gits ? { group: "account", tag: host } : { group: "other", tag: null };
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever

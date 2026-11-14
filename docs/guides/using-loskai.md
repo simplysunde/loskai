@@ -242,8 +242,9 @@ and Add.
   **Keys**, beside Settings in Git's header, lists the SSH keys of the user Loskai logs in
   as (`~/.ssh`, public halves only), in lists: **Account keys** — on your account, reaching
   every repository you can: ssh's own (`id_…`), and a key for one platform, its platform
-  beside it — and **Deploy keys**, on one repository each, its repository beside it; and,
-  when there are any, **Login keys** (for logging in to other computers) and **Other keys**.
+  beside it — and **Deploy keys**, on one repository each, its repository beside it. The rest
+  — keys labelled for logins, and ones no remote uses and nothing says are git's, `id_…`
+  unused included — are folded away under **Not used by git**, there to label or delete.
   What a key is for is written on it: every key Loskai makes ends its comment with
   `(loskai: account)`, `(loskai: for github.com)` or `(loskai: deploy site)`, and **Label**
   puts that mark on any other — account (for a platform, or not), deploy (for a project), or

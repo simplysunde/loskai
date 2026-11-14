@@ -4,6 +4,14 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Keys shows git's keys; the rest folded away
+
+Sunde: a key that has nothing to do with git shouldn't be in Git's Keys. The lists now hold
+what is git's — a key labelled an account, platform or deploy key, or one a remote uses —
+and everything else — login keys, and unlabelled keys no remote uses, `id_…` included — is
+folded under "Not used by git (n)", closed, there to label or delete. ssh's own `id_…`
+counts as git's only where a remote uses it, or the status line is too old to say.
+
 ## 2026-11-14 — A project's key, in a line, with the one button that applies
 
 Sunde, of "SSH key: the machine's" above "Actions — Own key, Machine's key": what does it

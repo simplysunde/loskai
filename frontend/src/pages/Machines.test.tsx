@@ -1302,9 +1302,11 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(within(section("Deploy keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
     .toEqual(["deploy_blog"]);
   expect(within(dialog).queryByRole("region", { name: "Other keys" })).toBeNull();
-  // A key labelled for logins: a list of its own, its comment without the mark.
-  expect(within(section("Login keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
-    .toEqual(["server"]);
+  // A key labelled for logins: folded away under Not used by git, its comment without the mark.
+  const notGit = within(dialog).getByRole("group", { name: "Not used by git" });
+  expect(notGit).toHaveTextContent("Not used by git (1)");
+  expect(within(notGit).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(["server"]);
+  expect(notGit).not.toHaveAttribute("open");
   expect(row("server")).toHaveTextContent("admin@nas ·");
   expect(row("server")).not.toHaveTextContent("(loskai:");
   // What each does, in a line a remote.
@@ -1346,6 +1348,9 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
+  // ssh's own, unlabelled, that no remote uses: folded under Not used by git — Label moves it up.
+  expect(within(dialog).getByRole("group", { name: "Not used by git" })).toContainElement(row);
+  expect(within(within(dialog).getByRole("region", { name: "Account keys" })).queryByText("id_ed25519")).toBeNull();
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
   // ssh's own: what logs in to other computers, as far as anyone here can tell — said, not hidden.
   expect(row).toHaveTextContent("ssh's default — it may log in to other computers");
