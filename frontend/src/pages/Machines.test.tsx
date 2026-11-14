@@ -64,7 +64,7 @@ const FACTS = {
   ssh_keys: [
     { name: "id_ed25519", bits: 256, fingerprint: "SHA256:mach", comment: "loskai@nas", type: "ED25519", public: "ssh-ed25519 AAAAmach" },
     { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519", public: "ssh-ed25519 AAAAblog" },
-    { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519" },
+    { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519", public: "ssh-ed25519 AAAAwork" },
   ],
   // site's submodule pushes through a ~/.ssh/config alias, gh-page, which names `work`.
   remotes: [
@@ -1301,6 +1301,14 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(row("work")).not.toHaveTextContent("Fetches");
   // The fingerprint, shortened; whole in its tooltip.
   expect(within(row("id_ed25519")).getByTitle("ED25519 256: SHA256:mach")).toBeInTheDocument();
+  // Every row has the same buttons, in the same order, so they line up; where to add a key
+  // is a link with its text, not one more button on some rows.
+  for (const li of within(dialog).getAllByRole("listitem")) {
+    const name = li.querySelector(".font-mono")?.textContent;
+    const buttons = within(li).getAllByRole("button");
+    expect(buttons).toHaveLength(3);
+    ["Copy", "Test", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
+  }
   // That one is yours: Delete leaves it alone.
   expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
   expect(within(row("deploy_blog")).getByRole("button", { name: "Delete deploy_blog" })).toBeEnabled();
@@ -1312,8 +1320,8 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   await vi.waitFor(() => expect(vi.mocked(copyText)).toHaveBeenLastCalledWith("ssh-ed25519 AAAAblog loskai@nas blog"));
   expect(screen.queryByText(/shell at/)).toBeNull();
   // Add it: a deploy key's repository, from its remote; the account key's platform.
-  expect(within(row("deploy_blog")).getByRole("link", { name: "Add to repository" })).toHaveAttribute("href", "https://forgejo.lan/me/blog/settings/keys");
-  expect(within(row("id_ed25519")).getByRole("link", { name: "Add to GitHub" })).toHaveAttribute("href", "https://github.com/settings/ssh/new");
+  expect(within(row("deploy_blog")).getByRole("link", { name: /Add to repository/ })).toHaveAttribute("href", "https://forgejo.lan/me/blog/settings/keys");
+  expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toHaveAttribute("href", "https://github.com/settings/ssh/new");
 });
 
 test("an account key no remote uses says why: the remotes there are over HTTP", async () => {

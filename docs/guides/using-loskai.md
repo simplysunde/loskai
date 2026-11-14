@@ -255,7 +255,7 @@ and Add.
   GitHub or Forgejo account and reaches every repository you can; it is what a project
   without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
   reaches only it. Each key has **Copy** — its public line, with its comment, onto the
-  clipboard, ready to paste — and **Add to …** (GitHub, a host, repository), which opens where it goes: a deploy key's
+  clipboard, ready to paste — and a link, **Add to …** (GitHub, a host, repository), that opens where it goes: a deploy key's
   repository's Deploy keys page, worked out from its remote, or your account's SSH keys
   page on the platform its remotes are on (or its comment's "for <host>"). Then **Test**,
   which asks each remote the key is for for its HEAD with that key alone, as a pull would

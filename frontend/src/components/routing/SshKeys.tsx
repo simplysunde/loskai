@@ -139,8 +139,9 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   );
 }
 
-// A key: its name, the word beside it (its platform, or a deploy key's repository) and
-// buttons; then what it does; then its comment and fingerprint.
+// A key, in two columns: on the left its name and tags, what it does, and its comment,
+// fingerprint and where to add it; on the right, top-aligned, the same buttons on every row
+// — Copy, Test, Delete — so they line up down the list.
 function KeyRow({
   info,
   uses,
@@ -159,32 +160,48 @@ function KeyRow({
   onRun: ToolStart;
 }) {
   const { group, tag } = keyGroup(info, uses);
+  const page = info.public ? keyPage(info, uses) : null;
   return (
-    <li className="px-3 py-2 text-xs">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        <span className="font-mono text-sm text-slate-100">{info.name}</span>
-        {tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
-        {named && (
-          <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-            ~/.ssh/config
+    <li className="flex gap-3 px-3 py-2 text-xs max-sm:flex-col">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-mono text-sm text-slate-100">{info.name}</span>
+          {tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
+          {named && (
+            <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+              ~/.ssh/config
+            </span>
+          )}
+        </div>
+        <UsedBy uses={uses} named={named} account={group === "account"} facts={facts} />
+        {/* Its comment says what it is for and travels with the key; its fingerprint is the
+            one GitHub and Forgejo list beside a key; then where to paste it. */}
+        <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
+          <span className="min-w-0 truncate">
+            {info.comment && `${info.comment} · `}
+            <span title={`${info.type} ${info.bits}: ${info.fingerprint}`} className="cursor-help font-mono">
+              {info.fingerprint.slice(0, 19)}…
+            </span>
           </span>
-        )}
-        <span className="ml-auto flex flex-wrap items-center gap-1">
-          <CopyKey info={info} uses={uses} />
-          {actions.map((a) => (
-            <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} kept={a.id === "delete-key" && named} />
-          ))}
-        </span>
+          {page && (
+            <a
+              href={page.url}
+              target="_blank"
+              rel="noreferrer"
+              title={`Open ${page.where}: ${page.url}`}
+              className="flex shrink-0 items-center gap-0.5 text-teal-400 hover:underline"
+            >
+              · {page.label} <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+        </p>
       </div>
-      <UsedBy uses={uses} named={named} account={group === "account"} facts={facts} />
-      {/* Its comment says what it is for and travels with the key; its fingerprint is the one
-          GitHub and Forgejo list beside a key. */}
-      <p className="mt-0.5 truncate text-[11px] text-slate-500">
-        {info.comment && <span>{info.comment} · </span>}
-        <span title={`${info.type} ${info.bits}: ${info.fingerprint}`} className="cursor-help font-mono">
-          {info.fingerprint.slice(0, 19)}…
-        </span>
-      </p>
+      <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
+        <CopyKey info={info} page={page} />
+        {actions.map((a) => (
+          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} kept={a.id === "delete-key" && named} />
+        ))}
+      </div>
     </li>
   );
 }
@@ -205,7 +222,7 @@ function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named:
   return (
     <div className="mt-0.5 text-slate-300">
       {uses.map((u) => (
-        <p key={`${u.repo}|${u.module}|${u.way}|${u.url}`} title={u.url} className="truncate">
+        <p key={`${u.repo}|${u.module}|${u.way}|${u.url}`} title={u.url} className="break-words">
           {verb[u.way]} <span className="font-mono">{u.repo}{u.module && ` › ${u.module}`}</span>
           <span className="text-slate-500">
             {" · "}
@@ -285,39 +302,24 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
   );
 }
 
-// Copy, then Add it: the key's public line on the clipboard, ready to paste where it goes —
-// read from the overview, so nothing runs on the machine. Its comment goes with it:
-// Forgejo names a key by it.
-function CopyKey({ info, uses }: { info: SshKeyInfo; uses: KeyUse[] | null }) {
+// Copy: the key's public line on the clipboard, ready to paste where it goes — read from the
+// overview, so nothing runs on the machine. Its comment goes with it: Forgejo names a key by
+// it.
+function CopyKey({ info, page }: { info: SshKeyInfo; page: { where: string } | null }) {
   if (!info.public) {
     return (
-      <span title="The status line is older: install it again to copy keys from here" className="cursor-help text-[11px] text-slate-600">
-        copy —
+      <span title="The status line is older: install it again to copy keys from here" className="cursor-help px-1.5 py-0.5 text-[11px] text-slate-600">
+        Copy —
       </span>
     );
   }
-  const page = keyPage(info, uses);
-  const text = info.comment ? `${info.public} ${info.comment}` : info.public;
   return (
-    <>
-      <CopyButton
-        text={text}
-        title={`Copy ${info.name}'s public key${page ? ` — then paste it into ${page.where}` : ""}`}
-        label={`Copy ${info.name}`}
-        shown="Copy"
-        className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 [&_svg]:h-2.5 [&_svg]:w-2.5"
-      />
-      {page && (
-        <a
-          href={page.url}
-          target="_blank"
-          rel="noreferrer"
-          title={`Open ${page.where}: ${page.url}`}
-          className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-teal-300 hover:bg-slate-800"
-        >
-          {page.label} <ExternalLink className="h-2.5 w-2.5" />
-        </a>
-      )}
-    </>
+    <CopyButton
+      text={info.comment ? `${info.public} ${info.comment}` : info.public}
+      title={`Copy ${info.name}'s public key${page ? ` — then paste it into ${page.where}` : ""}`}
+      label={`Copy ${info.name}`}
+      shown="Copy"
+      className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 [&_svg]:h-2.5 [&_svg]:w-2.5"
+    />
   );
 }
