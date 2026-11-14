@@ -201,7 +201,7 @@ function KeyRow({
             </span>
           )}
         </div>
-        <UsedBy uses={uses} named={named} account={group === "account"} facts={facts} />
+        <UsedBy uses={uses} named={named} account={group === "account"} ssh={keyKind(info.name) === "account"} facts={facts} />
         {/* Its comment says what it is for and travels with the key; its fingerprint is the
             one GitHub and Forgejo list beside a key; then where to paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
@@ -239,7 +239,20 @@ function KeyRow({
 
 // What a key does, in a line a remote: fetches or pushes which repository (› submodule), on
 // which platform, through which ~/.ssh/config alias. Unused, a word on why.
-function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named: boolean; account: boolean; facts: Facts }) {
+function UsedBy({
+  uses,
+  named,
+  account,
+  ssh: own,
+  facts,
+}: {
+  uses: KeyUse[] | null;
+  named: boolean;
+  account: boolean;
+  // ssh's own (`id_…`): offered wherever no other key is named — logins to other computers too.
+  ssh: boolean;
+  facts: Facts;
+}) {
   if (!uses) return <p className="mt-0.5 text-slate-500">Install the status line again to see where it's used.</p>;
   if (uses.length === 0) {
     // Only git's use of it is seen: it may be on an account, or log in elsewhere — so the
@@ -255,6 +268,12 @@ function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named:
     return (
       <p title={`${why} It may still be on your account, or log in elsewhere: Loskai sees only git here.`} className="mt-0.5 w-fit cursor-help text-slate-500">
         No git remote here uses it
+        {own && (
+          <span className="text-amber-300/80" title="ssh offers it to any computer this machine logs in to without naming a key — deleting it can lock those logins out">
+            {" "}
+            · ssh's default — it may log in to other computers
+          </span>
+        )}
       </p>
     );
   }

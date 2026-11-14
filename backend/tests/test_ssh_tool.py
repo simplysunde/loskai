@@ -106,6 +106,9 @@ def _forge(tmp_path, keys: dict[str, tuple[str, str]], config: str, greetings: d
         f"#!/bin/sh\n[ \"$1\" = -G ] && exec {shutil.which('ssh')} -F $HOME/.ssh/config \"$@\"\n"
         f'echo "$*" >> {tmp_path}/ssh.log\n'
         f'[ -e {tmp_path}/blocked ] && {{ echo "ssh: connect to host github.com port 22: Connection refused" >&2; exit 255; }}\n'
+        # After as many calls as blocked-after says, a host that stops answering — a ban.
+        f'[ -e {tmp_path}/blocked-after ] && [ $(wc -l < {tmp_path}/ssh.log) -gt $(cat {tmp_path}/blocked-after) ] && '
+        f'{{ echo "ssh: connect to host github.com port 22: Connection refused" >&2; exit 255; }}\n'
         'k=; prev=; for a; do [ "$prev" = -i ] && k=${a##*/}; prev=$a; done\n'
         f'[ -n "$k" ] && [ -f {greet}/$k ] && {{ cat {greet}/$k >&2; exit 1; }}\n'
         'echo "git@github.com: Permission denied (publickey)." >&2; exit 255\n')
@@ -181,8 +184,15 @@ def test_try_every_key_tries_each_says_which_get_in_and_stops_where_the_host_doe
     # A host that stops answering ends it: the rest aren't tried.
     (tmp_path / "blocked").touch()
     stopped, _, calls = run("every-key", "gh")
-    assert stopped.returncode == 1 and "stopped answering after 1" in stopped.stdout
-    assert len(calls) == 1
+    # The first one refused: nothing answers there — the port, not a ban.
+    assert stopped.returncode == 1 and "Nothing answers SSH on github.com, port 2222" in stopped.stdout
+    assert "fail2ban" not in stopped.stdout and len(calls) == 1
+    # One answered, then it stopped: that may be a ban, and the rest aren't tried.
+    (tmp_path / "blocked").unlink()
+    (tmp_path / "blocked-after").write_text("1")
+    banned, _, calls = run("every-key", "gh")
+    assert banned.returncode == 1 and "stopped answering after 2" in banned.stdout and "fail2ban" in banned.stdout
+    assert len(calls) == 2
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")

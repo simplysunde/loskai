@@ -267,7 +267,11 @@ and Add.
   Only a test can tell that: what the machine says is which key a remote would use, not
   whether the platform has it. Nothing is kept once Keys closes — except, in this browser,
   the hosts you tested on: clicking into a host field offers them, newest first, each with
-  ✕ to forget one that was wrong or is no longer used. Then **Delete**, which asks first, removes the file and
+  ✕ to forget one that was wrong or is no longer used. A test whose first connection is
+  refused says nothing answers SSH on that port — check it against a repository's Clone ›
+  SSH address — rather than suspecting a ban. Keys sees a key's use by git only: `id_…`,
+  ssh's default, is also what this machine logs in to other computers with, which its row
+  says, and Delete's question warns of. Then **Delete**, which asks first, removes the file and
   puts a project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never

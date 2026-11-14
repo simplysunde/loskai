@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A wrong port isn't a ban; ssh's default key may log in elsewhere
+
+Sunde tested `id_ed25519` on the Forgejo at port 2222 and was told the host "stopped
+answering after 1 — fail2ban?": the first connection was refused because nothing listens
+there. A test now says so when the first connection is refused or times out ("Nothing
+answers SSH on … — is that the right port?"), and keeps the fail2ban warning for a host
+that stops answering after some did. Asked how Loskai treats keys used to log in to other
+computers: it can't see that use — only git's — and `id_…`, ssh's default, is offered to
+every host, so it is likely such a key. Its row now says so when no git remote uses it,
+and Delete's question warns that whatever logs in with a key — another computer too —
+stops.
+
 ## 2026-11-14 — The hosts keys were tested on, offered again
 
 Sunde: the hosts typed into a key's Test should be remembered and offered when the field is

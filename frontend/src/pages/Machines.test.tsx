@@ -1339,6 +1339,9 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
+  // ssh's own: what logs in to other computers, as far as anyone here can tell — said, not hidden.
+  expect(row).toHaveTextContent("ssh's default — it may log in to other computers");
+  expect(within(dialog).getByText("deploy_blog").closest("li")).not.toHaveTextContent("ssh's default");
   // Nothing says which platform it is for: its host field is empty, its Test waits for one —
   // where it came from, typed here, on this key's row alone.
   const host = within(row).getByLabelText("Host to test id_ed25519 on");

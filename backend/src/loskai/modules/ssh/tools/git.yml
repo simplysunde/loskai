@@ -217,7 +217,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
+      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  None here: ssh offers it no key in ~/.ssh, and none is made for it."; echo;
@@ -254,7 +255,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
+      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
@@ -288,7 +290,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
+      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $ok -gt 0 ] || exit 1
@@ -303,8 +306,9 @@ actions:
     target: key
     session: false
     confirm: >-
-      Its file goes for good, and a project using it as its own goes back to the machine's
-      key. GitHub or Forgejo still lists it until you take it off there.
+      Its file goes for good. A project using it as its own goes back to the machine's key,
+      and whatever logs in with it — a git platform, another computer — stops until it has
+      another. GitHub or Forgejo still lists it until you take it off there.
     run: >-
       k="$HOME/.ssh/$1"; [ -f "$k.pub" ] || [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
       hosts=$(awk -v k="/$1" 'tolower($1)=="host"{h=$2} tolower($1)=="identityfile" && substr($2, length($2)-length(k)+1)==k {print h}' ~/.ssh/config 2>/dev/null | sort -u | tr '\n' ' ');
