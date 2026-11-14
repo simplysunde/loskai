@@ -61,6 +61,7 @@ const FACTS = {
   projects: [
     { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
       ahead: 2, committed: 1793211000, subject: "Add the header" },
+    { path: "projects/blog", folder: "projects", name: "blog", branch: "main", dirty: false, claude: 0, committed: 1793210000, subject: "Start" },
     { path: "notes", folder: "", name: "notes", branch: "main", dirty: false, claude: 0, committed: 1793211000, subject: "x" },
   ],
 };
@@ -105,7 +106,9 @@ const TOOLS = [
   {
     id: "claude", name: "Claude Code", description: "Claude in projects.", requires: ["claude", "tmux", "git"], installable: ["claude", "tmux", "git"],
     actions: [
-      { id: "open", label: "Claude", description: "Open it.", target: "project", ask: null, confirm: null, session: "claude", run: "claude" },
+      { id: "start", label: "Start", description: "Start it.", target: "project", ask: null, confirm: null, session: false, automatic: true, when: "stopped", run: "tmux new-session -d claude" },
+      { id: "attach", label: "Attach", description: "Watch it.", target: "project", ask: null, confirm: null, session: "claude", when: "running", run: "true" },
+      { id: "stop", label: "Stop", description: "Stop it.", target: "project", ask: null, confirm: "Claude stops.", session: false, automatic: true, when: "running", run: "tmux kill-session" },
       { id: "new", label: "New project", description: "Make one.", target: null, ask: "project", confirm: null, session: "claude", run: "git init" },
     ],
   },
@@ -681,7 +684,7 @@ test("a set-up machine's dialog, one scroll: its overview under General, tools, 
   expect(await within(tools).findByText("build")).toBeInTheDocument();
   expect(within(tools).queryByText("claude-site")).not.toBeInTheDocument();
   expect(within(tools).getByText("1 session")).toBeInTheDocument();
-  expect(within(tools).getByText("1 project, 1 running")).toBeInTheDocument();
+  expect(within(tools).getByText("2 projects, 1 running")).toBeInTheDocument();
   expect(await within(category("Running")).findByText("plex-1")).toBeInTheDocument();
   // Only this machine's entries, asked of the server: the newest of every machine's may not hold one.
   expect(await within(category("Log")).findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
@@ -855,7 +858,7 @@ test("a set-up machine's row has a Tools menu: each added tool, how it stands, i
 
   fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
   // The machine's overview is read once the menu is open.
-  expect(await screen.findByRole("menuitem", { name: /Claude Code.*1 project, 1 running/ })).toBeInTheDocument();
+  expect(await screen.findByRole("menuitem", { name: /Claude Code.*2 projects, 1 running/ })).toBeInTheDocument();
   expect(screen.getByRole("menuitem", { name: /Versions.*not added/ })).toBeInTheDocument();
   // System is standard: on the machine's page, not in the menu.
   expect(screen.queryByRole("menuitem", { name: /System/ })).not.toBeInTheDocument();
@@ -1227,26 +1230,39 @@ test("a name typed for an action that asks first is kept when that is cancelled"
   expect(screen.getByLabelText("New session — name")).toHaveValue("work");
 });
 
-test("a project lists in its machine's projects folder, says its Claude session runs, and opens it", async () => {
+test("a project lists in its machine's projects folder, says its Claude session runs, and attaches to it", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
   // On Claude Code's card and on Git's, each with its own buttons.
   const rows = (await screen.findAllByText("site")).map((el) => el.closest("li") as HTMLElement);
-  const row = rows.find((r) => within(r).queryByRole("button", { name: "Claude" }))!;
+  const row = rows.find((r) => within(r).queryByRole("button", { name: "Attach" }))!;
   const gitRow = rows.find((r) => within(r).queryByRole("button", { name: "Pull" }))!;
   expect(rows).toHaveLength(2);
   expect(within(row).queryByRole("button", { name: "Pull" })).toBeNull();
-  expect(within(gitRow).queryByRole("button", { name: "Claude" })).toBeNull();
+  expect(within(gitRow).queryByRole("button", { name: "Attach" })).toBeNull();
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
   expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
   expect(within(row).getByTitle("Last commit: Add the header")).toHaveTextContent("site");
   expect(row.title).toBe("");
   // In ~ rather than ~/projects: not listed.
   expect(screen.queryByText("notes")).not.toBeInTheDocument();
-  fireEvent.click(within(row).getByRole("button", { name: "Claude" }));
+  fireEvent.click(within(row).getByRole("button", { name: "Attach" }));
 
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=open&target=site")).toBeInTheDocument();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
+});
+
+test("a project's buttons follow its session: Start while stopped, Attach and Stop while it runs — the rest hidden", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+
+  await screen.findAllByText("blog");
+  // Each project is on Git's card too, by its Pull.
+  const claude = (name: string) =>
+    screen.getAllByText(name).map((el) => el.closest("li") as HTMLElement).find((li) => !within(li).queryByRole("button", { name: "Pull" }))!;
+  const buttons = (name: string) => within(claude(name)).getAllByRole("button").map((b) => b.textContent?.trim());
+  expect(buttons("site")).toEqual(["Attach", "Stop"]);
+  expect(buttons("blog")).toEqual(["Start"]);
 });
 
 test("the projects folder is set on the Git card, not under General", async () => {

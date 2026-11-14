@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 49** (below) gave a project's git to the Git tool; Phase 48
+**Now:** Phase 54 — Claude Code's card manages sessions. **Phase 49** (below) gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -53,6 +53,31 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 54 — Claude Code's card manages sessions
+
+Asked 2026-11-14 (Sunde): "since its about managing sessions we should make the button better
+reflect that, with instead of claude button, we should have start and stop session, attach
+terminal so we can see what is going on if needed etc. more commands to manage and
+administer". One session per project stays (two Claudes in one working tree overwrite each
+other; a worktree per session would be a project of its own — backlog). A button that
+doesn't fit the session's state is hidden, not greyed (Sunde agreed).
+
+Found first, on this VM: Claude started in the background in a folder it was never told to
+trust stops at its trust question, unseen. So Start looks for it and says to Attach.
+
+**Steps**
+
+- [ ] 54a The schema: an action's `when: running | stopped`, shown only while its row's
+      shared session is (or isn't) running — the page decides, from the overview's `live`
+- [ ] 54b Claude Code: **Start** (in the background, Remote Control on, continuing the last
+      conversation), **Attach**, **Stop** on a project by its state; **Update Claude** and
+      **Stop all** at the card's foot; **New project** as it was. No Restart: Stop then
+      Start, so the launch is written once
+- [ ] 54c Live: on this VM's own tmux (a private socket) — Start in a trusted and an untrusted
+      folder, Stop, Stop all leaving a tmux session of the user's named `claude-…` alone
 
 ---
 

@@ -71,6 +71,12 @@ actions:                          # required — at least one, unless it has `se
     ask: session                  # optional — a name typed on the page, checked like a target
     session: false                # optional — no tmux session around it: it is tmux itself
     run: tmux new-session -A -s "$1"
+  stop:                           # (from Claude Code's file, shortened)
+    label: Stop
+    description: Stop Claude's session in this project.
+    target: project
+    when: running                 # optional — only while the row's session runs (below)
+    run: tmux kill-session -t "=claude-$1"
 ```
 
 Unknown keys are refused. The validator names every problem at once.
@@ -212,6 +218,19 @@ Which tmux session the action runs in, where the machine has tmux:
 
 Any character but letters, digits, `_` and `-` in the name (a target's `.` or `@`) becomes
 `_`.
+
+### `when`
+
+`running` or `stopped`: the button is on a row only while that row's shared session is
+running, or only while it isn't — Claude Code's **Attach** and **Stop**, and its **Start**.
+Left out, it is always there. A button that doesn't fit is hidden, not greyed: what a row
+shows is what can be done now. It needs a `target` some action of the same tool shares a
+`session` for, since that session is what running means; the file is refused otherwise.
+
+The page decides, from the overview's `live` (`tool.claim_sessions`), which is read again
+when an action's terminal closes. The server doesn't check it, so the command still copes
+with the other case — a session started or ended elsewhere since: Start says it is already
+running, Stop that none is.
 
 ### `automatic`
 

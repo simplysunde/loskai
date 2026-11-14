@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Plus, Wrench } from "lucide-react";
 
-import { tailscaleState, useFacts, useSsh } from "../../lib/ssh";
+import { tailscaleState, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
 import { isLive, listsOf, toolContext, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
@@ -28,21 +28,26 @@ const ROW_BUTTON =
   "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40";
 
 // The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's:
-// small bordered ones, in rose for those that ask first (End, Stop).
+// small bordered ones, in rose for those that ask first (Stop). One with a `when` shows only
+// while the row's session is running (Attach, Stop) or only while it isn't (Start), as
+// `facts` says — hidden, not greyed: what is on a row is what can be done now.
 export function RowButtons({
   here,
   kind,
   name,
   onRun,
+  facts,
 }: {
   here: Tool[];
   kind: ToolTarget;
   name: string;
   onRun: ToolStart;
+  facts?: Facts;
 }) {
   return here.flatMap((t) =>
     t.actions
       .filter((a) => a.target === kind)
+      .filter((a) => !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts)))
       .map((a) => (
         <button
           key={`${t.id}-${a.id}`}
@@ -120,7 +125,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
                 <span className="flex flex-wrap items-center gap-1">
-                  <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} />
+                  <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
                   {rowSettingsOf(t, kind).length > 0 && (
                     <RowSettingsButton tool={t} ctx={ctx} kind={kind} name={r.name} onOpen={() => setOpen({ kind, name: r.name })} />
                   )}

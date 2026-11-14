@@ -696,7 +696,7 @@ def test_the_tools_are_listed_with_their_commands(api):
     reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
                       "ask": None, "confirm": "Everything on it stops until it is back up.", "session": None,
-                      "automatic": True, "run": "sudo reboot"}
+                      "automatic": True, "when": None, "run": "sudo reboot"}
     assert tools["proxmox"]["installable"] == []
     assert tools["tailscale"]["installable"] == ["tailscale"]
 

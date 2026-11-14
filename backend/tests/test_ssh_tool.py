@@ -312,6 +312,30 @@ def test_ask_and_session_are_checked():
         assert part in message
 
 
+def test_when_is_running_or_stopped_and_needs_a_target_whose_rows_share_a_session():
+    def actions(**extra):
+        return {"name": "T", "description": "d", "actions": {
+            "attach": {"label": "A", "description": "d", "target": "project", "session": "claude", "run": "true"},
+            **extra}}
+
+    t = tool.parse("t", actions(stop={"label": "S", "description": "d", "target": "project", "when": "running",
+                                      "session": False, "run": "true"}))
+    assert t.actions["stop"].when == "running" and t.actions["attach"].when is None
+    assert tool.view(t)["actions"][1]["when"] == "running"
+
+    with pytest.raises(ToolError) as err:
+        tool.parse("t", actions(
+            a={"label": "A", "description": "d", "target": "project", "when": "idle", "run": "true"},
+            # No action of `session` rows shares a session: running could never be told.
+            b={"label": "B", "description": "d", "target": "session", "when": "running", "run": "true"},
+            c={"label": "C", "description": "d", "when": "stopped", "run": "true"},
+        ))
+    message = str(err.value)
+    assert "`actions.a.when` must be one of running, stopped" in message
+    assert "`actions.b.when`: needs a `target` whose rows share a `session`" in message
+    assert "`actions.c.when`: needs a `target`" in message
+
+
 def test_a_script_installer_gets_curl_first_where_it_is_missing():
     tailscale = tool.load()["tailscale"]
 

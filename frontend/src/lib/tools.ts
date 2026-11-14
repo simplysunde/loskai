@@ -18,6 +18,8 @@ export interface ToolAction {
   session: string | false | null;
   // Runs to the end by itself: sudo's password is asked for first, and its terminal closes.
   automatic?: boolean;
+  // On a row only while its shared session is running, or only while it isn't.
+  when?: "running" | "stopped" | null;
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
