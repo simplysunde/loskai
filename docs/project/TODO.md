@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 54** (below) gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** nothing in flight. **Phase 55** (below) put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -53,6 +53,27 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 55 — Every machine's projects in one place
+
+Asked 2026-11-14 (Sunde): "an overview from the machine overview tab, that is a dialog that
+displays all the machine tools for all the machines, like a card or row for each machine so
+that i can keep track of multiple claude or git projects between multiple machines". Chosen
+over every tool card per machine: each project once, its git and Claude together — what is
+followed is projects, not tools. Asked with it, and done before it: the tools in one order
+(Git, Claude Code, Tailscale, tmux), over sorting or pinning per machine, which would store
+what nothing about a tool stores.
+
+**Steps**
+
+- [x] 55a **Projects** in the Machines tab's header, once a machine has SSH set up: a card for
+      each such machine — its address, Tailscale, its own tmux sessions — and each project
+      with its git, its Claude session, and Git's and Claude Code's buttons, run in that
+      machine's terminal; each machine's overview read while it is open, none holding up
+      another (`ProjectsOverview`)
+- [ ] 55b Live: on Sunde's machines, through the page
 
 ---
 

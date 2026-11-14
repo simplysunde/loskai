@@ -1278,6 +1278,33 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
   expect(idle.title).toBe("Not running — Start it first");
 });
 
+test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {
+  setUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const dialog = await screen.findByRole("dialog", { name: "Projects" });
+  const nas = await within(dialog).findByRole("region", { name: "Storage box" });
+  // Without SSH set up, pve isn't listed.
+  expect(within(dialog).queryByRole("region", { name: "pve" })).toBeNull();
+  // What the machine is, in a line: its address, Tailscale, its own tmux sessions.
+  expect(within(nas).getByText(/192\.168\.10\.50 · Tailscale 100\.64\.0\.7 · 1 tmux session$/)).toBeInTheDocument();
+
+  // Each project once, with Git's buttons and Claude Code's by its session.
+  const row = (name: string) => within(nas).getByText(name).closest("li") as HTMLElement;
+  const buttons = (name: string) => within(row(name)).getAllByRole("button").map((b) => b.textContent?.trim()).sort();
+  expect(await within(nas).findByText("running")).toBeInTheDocument();
+  expect(row("site").textContent).toContain("main · 2 to push · uncommitted changes");
+  expect(buttons("site")).toEqual(["Attach", "Pull", "Stop"]);
+  expect(buttons("blog")).toEqual(["Attach", "Pull", "Start"]);
+  expect(within(row("blog")).getByRole("button", { name: "Attach" })).toBeDisabled();
+
+  // Run in that machine's terminal.
+  fireEvent.click(within(row("site")).getByRole("button", { name: "Attach" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
+});
+
 test("the projects folder is set under the Git card's cog, not under General", async () => {
   setUp();
   renderPage("/machines/nas");

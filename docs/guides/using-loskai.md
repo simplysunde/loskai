@@ -251,6 +251,17 @@ and Add.
   Claude Code has to be logged in on the machine — the first time, do that in the
   terminal. Loskai holds no Claude login.
 
+The tool cards come in one order on every machine: Git, Claude Code, Tailscale, tmux, then
+any other.
+
+**Projects**, in the Machines tab's header once a machine has SSH set up, follows work
+across machines: a card for each such machine — its address, Tailscale, how many tmux
+sessions of your own — with each project once, its git (branch, commits not pushed,
+uncommitted changes, last commit) and its Claude session together, and the buttons both
+cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
+A machine that can't be read says why in its card. Its name opens its dialog, where a
+project's own settings are.
+
 A machine set up before a tool's facts existed asks you to **Install again** in its dialog —
 one click, and its overview comes back with them.
 

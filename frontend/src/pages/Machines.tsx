@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { HardDrive, Loader2 } from "lucide-react";
+import { FolderGit2, HardDrive, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
 import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
@@ -16,6 +16,7 @@ import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/ma
 import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SaveBanner } from "../components/routing/SaveBanner";
+import { ProjectsOverview } from "../components/routing/ProjectsOverview";
 import { ToolDialog } from "../components/routing/ToolDialog";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
@@ -50,6 +51,8 @@ export function Machines() {
   const [terminalFor, setTerminalFor] = useState<{ machine: RouteRow; run?: ToolRun } | null>(null);
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
+  // Every machine's projects, from the header.
+  const [projects, setProjects] = useState(false);
 
   const { routes, rows } = useRouteRows();
   const settings = useSettings();
@@ -114,15 +117,27 @@ export function Machines() {
             Machines on your network, each with its DNS name and the routes it hosts.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setError(null);
-            setNaming({});
-          }}
-          className="flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
-        >
-          <HardDrive className="h-4 w-4" /> Name a machine
-        </button>
+        <div className="flex shrink-0 items-center gap-2 self-start">
+          {/* Once a machine can be read over SSH: what its projects are doing, all in one place. */}
+          {Object.values(trusted).some(Boolean) && (
+            <button
+              onClick={() => setProjects(true)}
+              title="Every machine's projects — their git, their Claude session — in one place"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              <FolderGit2 className="h-4 w-4" /> Projects
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setError(null);
+              setNaming({});
+            }}
+            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+          >
+            <HardDrive className="h-4 w-4" /> Name a machine
+          </button>
+        </div>
       </header>
 
       {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
@@ -205,6 +220,7 @@ export function Machines() {
         onClose={() => setRouteOn(null)}
       />
 
+      {projects && <ProjectsOverview machines={machines} onClose={() => setProjects(false)} />}
       {toolFor && (
         <ToolDialog
           machine={{ id: toolFor.machine.id, name: toolFor.machine.name }}

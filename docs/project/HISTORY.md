@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Every machine's projects in one place (Phase 55)
+
+Sunde works on projects across several machines and wanted to follow them without opening
+each machine. **Projects**, on the Machines tab, is a card per machine with SSH set up, and
+in it each project once: its git and its Claude session together, with both cards'
+buttons. Projects rather than every tool card per machine, because what is followed is the
+work, and a project shows on both the Git and the Claude Code card. No new endpoint: each
+machine's overview, read while the dialog is open.
+
+Asked at the same time: the order of the tool cards. One fixed order (`tool.ORDER`: Git,
+Claude Code, Tailscale, tmux), rather than a sort or a pin per machine — either would store
+something, and nothing about a tool is stored.
+
 ## 2026-11-14 — Git's card settings behind a Settings button
 
 Projects folder, Name and Email are set once and rarely touched, yet took the top of the
