@@ -152,6 +152,13 @@ export function SshKeys({
           </div>
         )}
       </div>
+      {/* The machine's view: these log in from here. Loskai's own key is the other way —
+          it logs in to this machine, from Loskai — and is SSH setup's. */}
+      {!git && (
+        <p className="mt-3 text-xs text-slate-500">
+          Loskai's own key isn't here: it logs in to this machine, from Loskai — see SSH setup.
+        </p>
+      )}
       {beside.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {/* What asks for the same kind of value shares one field: a host, for New key for a

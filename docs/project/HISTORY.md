@@ -4,279 +4,62 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
-## 2026-11-14 — Keys: a plain list on the machine, git's side in Git
+## 2026-11-14 — SSH keys: what a machine has, what each is for, and git's side in Git (Phase 56)
 
-Then Sunde: keep a simple overview of the keys, with no extra features, and keep git's
-configuration and tests in the Git tool. The usual uses of a key are logging in to another
-computer, a git account key, a git deploy key — and signing, automation and the host key,
-which aren't a user's `~/.ssh` concern here — so a key's label is Account, Deploy or Login.
-The one dialog now has two views, each where it belongs. The machine's SSH settings list
-every key plainly: what it is for, its fingerprint, Copy, Label, Delete. Git's card has its
-Keys back, for git's keys only: the remotes each is for, Test on a host, Add to …, and what
-makes or tests a key for a host; Label and Delete aren't there. Not the same dialog twice
-any more: the same list, two different jobs.
+Started as one button on Git's card (show this machine's key to add to GitHub or Forgejo)
+and grew, a request at a time, into a feature of its own — written down afterwards as
+Phase 56. What it is now, and why:
 
-## 2026-11-14 — One Keys, in the machine's SSH settings; Delete names the fingerprint
+**Two views of one list.** A machine's SSH settings have a **Keys** row: SSH setup —
+Loskai's way in, its host key and Loskai's key on it — and **Keys (n)**, every key of the
+user Loskai logs in as, in `~/.ssh`, one line each: what it is for, its fingerprint, Copy,
+Label, Delete. Git's card has its own **Keys**, git's side only: the account and deploy
+keys, the remotes each is for, Test on a host, Add to …, and what makes or tests a key for
+a host. Sunde asked for a plain overview on the machine and git's configuration and tests
+in the Git tool; the turns before it were one dialog in Git's card, then one in the
+machine's settings, then the two "basically the same". Loskai's own key is in neither: it
+logs in *to* the machine, from Loskai, and is SSH setup's.
 
-Sunde: the two keys dialogs — Git's, and the machine's — were basically the same. They
-were: one dialog, filtered to git's keys from Git's header. Git's Keys button went, and
-with it the filter and its "1 more key" line; the machine's SSH settings are the one place,
-every key in its lists. A project's overrides still say which key it uses. Delete's
-message said a platform "still lists it" without saying how to find it there: it now gives
-the key's fingerprint, the one GitHub and Forgejo list beside a key, and says to remove it
-there only if it was added.
-
-## 2026-11-14 — A machine's own keys, all of them, in its SSH settings
-
-Keys not used by git had been folded under Git's Keys; Sunde: their place is the machine's
-own SSH settings, and its Setup row could be the one. It is now **Keys**: SSH setup, as
-before — Loskai's way in, its host key and Loskai's key on it — and **Keys (n)**, every key
-of the user it logs in as, in the same dialog Git's Keys opens, with Login and Other lists
-beside Account and Deploy. Git's Keys shows git's keys, and a line for the rest with the
-way to them. One dialog, two ways in, nothing kept twice. Their buttons are Git's tool's
-actions, so on a machine without git the keys are listed without them — moving them to a
-tool of their own is left until a machine needs it.
-
-## 2026-11-14 — Keys shows git's keys; the rest folded away
-
-Sunde: a key that has nothing to do with git shouldn't be in Git's Keys. The lists now hold
-what is git's — a key labelled an account, platform or deploy key, or one a remote uses —
-and everything else — login keys, and unlabelled keys no remote uses, `id_…` included — is
-folded under "Not used by git (n)", closed, there to label or delete. ssh's own `id_…`
-counts as git's only where a remote uses it, or the status line is too old to say.
-
-## 2026-11-14 — A project's key, in a line, with the one button that applies
-
-Sunde, of "SSH key: the machine's" above "Actions — Own key, Machine's key": what does it
-actually do? The section now says it in a line — "Uses the machine's key" or "Uses its own
-key, deploy_…" — with only the button that changes it, named for what it does: Give it its
-own key, Back to the machine's key. A project whose remote is over HTTP(S) uses no SSH key
-at all, which is every project on codebox: it says so, and Give it its own key is greyed
-until the remote goes over SSH. A core.sshCommand set by hand gets no button — it is
-whoever set it's to change.
-
-## 2026-11-14 — What a key is for, written on the key: Loskai's mark, and Label
-
-codebox's `id_ed25519` was made by Loskai the same day, yet nothing said so: its comment,
-`vm@codebox`, is what any key gets. Sunde: a key Loskai makes should carry an identifier,
-whatever it is used for. Every key Loskai makes now ends its comment with
+**What a key is for is written on the key.** Every key Loskai makes ends its comment with
 `(loskai: account)`, `(loskai: for <host>)` or `(loskai: deploy <project>)`, and **Label**
-puts that mark — or `(loskai: login)`, for logging in to other computers — on any key,
-one made by hand included. On the key, not in Loskai: the comment travels with the key
-file, Forgejo names a key by it, and `ssh-keygen -c` changes only the comment, so the key
-and its fingerprint stay what GitHub, Forgejo and other computers already have. The mark
-decides a key's list before any guess from its name, comment or remotes; a login key has
-a list of its own. A key with a passphrase can't be relabelled without it, and says how
-to by hand.
+puts that mark — or `(loskai: login)` — on any key, by `ssh-keygen -c`: only the comment
+changes, so the key and its fingerprint stay what platforms and other computers have. A
+key's use is account (a platform account: every repository), deploy (one repository) or
+login (another computer); signing, automation and host keys aren't a user's `~/.ssh` here.
+Without a mark, a key is placed as far as its name (`id_…`, `deploy_…`), comment and remotes
+say. Nothing about a key is stored in Loskai — Sunde asked whether it should keep track of
+where each key goes; it can't see GitHub or Forgejo, so a record would drift, and would know
+nothing of a key made by hand.
 
-## 2026-11-14 — A wrong port isn't a ban; ssh's default key may log in elsewhere
+**Where a key is used is read, not guessed.** The status line (v11–v13) lists the keys by
+their public halves — the public key itself, to copy — every remote of each project and
+submodule (any `user:token@` taken out on the machine), and what `ssh -G` resolves for each
+SSH host they name: aliases, `Host *`, `Include` and `Match` as a connection would. A
+submodule pushing through a `~/.ssh/config` alias with its own key shows under that key; a
+key that file names is never deleted — Loskai doesn't edit the file. Several keys ssh
+offers one host are each "offered", not "used": only a test can say which gets in. It
+can't see a key used only by a script running `ssh -i`, or for logging in elsewhere —
+`id_…`, ssh's default, says it may be.
 
-Sunde tested `id_ed25519` on the Forgejo at port 2222 and was told the host "stopped
-answering after 1 — fail2ban?": the first connection was refused because nothing listens
-there. A test now says so when the first connection is refused or times out ("Nothing
-answers SSH on … — is that the right port?"), and keeps the fail2ban warning for a host
-that stops answering after some did. Asked how Loskai treats keys used to log in to other
-computers: it can't see that use — only git's — and `id_…`, ssh's default, is offered to
-every host, so it is likely such a key. Its row now says so when no git remote uses it,
-and Delete's question warns that whatever logs in with a key — another computer too —
-stops.
+**Testing a key is a connection a key, asked for.** A key's Test tries it alone on a host
+you name — filled with the platform it is for — and the drop-down says ✓ and as whom (a
+forge's greeting names the account, or a deploy key's repository) or ✗; while the dialog is
+open the answer stays beside the key, and Add to … goes once it gets in. Test key tries
+only the keys meant for a host; Try every key tries them all, at most 10. A refused key is
+a failed login there — a self-hosted forge's fail2ban counts them — so the sweep is asked
+for by name and stops when a host stops answering; a first connection refused is a wrong
+port, and said so. Nothing in them prompts: a new host is trusted as first seen
+(`accept-new`). The hosts tested on are offered again, from the browser.
 
-## 2026-11-14 — The hosts keys were tested on, offered again
+**A project's own key** is in its **Project overrides** (the cog, renamed from "Settings
+for <project>"): "Uses the machine's key" or "Uses its own key, deploy_…", and the one
+button that changes it — its own key is set as the project's `core.sshCommand`, so git uses
+that key alone for it; over HTTP(S) no key is used, and it says so.
 
-Sunde: the hosts typed into a key's Test should be remembered and offered when the field is
-clicked, with a way to remove wrong ones. They are kept in the browser (`localStorage`),
-like the theme and the collapsed sidebar — a convenience of whoever is at the page, not a
-fact about a machine, so not on the server — one list for every machine, since GitHub and a
-Forgejo are the same wherever a key is: the last 10, newest first, each with ✕ to forget
-it. Every host field in Keys offers them, the one under the list too.
-
-## 2026-11-14 — A key's Test answer stays beside it while Keys is open
-
-Sunde, of a deploy key made by hand: shouldn't "Add to repository" go once the key is bound
-and works? The machine can't say that — it says which key a remote would use, not whether
-GitHub has it — but a Test can. Its answer now stays beside the key while Keys is open
-(✓ or ✗ and the host), and a key that got in loses its Add to …; one refused keeps it,
-being what comes next. This is the "confirmed by Test" label weighed earlier, and still
-nothing is stored: the answer lives as long as the dialog. The drop-down terminal tells
-whoever started a run how it ended (`useToolRunner`'s `start`, `onEnded`), which is how
-Keys hears it.
-
-## 2026-11-14 — Each key tested on a host you name
-
-A key's Test tried it on the remotes here that use it; for codebox's account key there are
-none, so it could say nothing, and pointing to the host field under the list didn't help.
-Sunde: the test should be each key's own, the host — where the key came from — put in by
-you. Each key now has a host field and Test: filled with the platform it is for when that
-can be told (its remotes, its comment's "for <host>"), yours to type when not, and Test
-tries that key alone there, as Test key tries each (the same part, word for word). The
-remotes test went: what a key's remotes are is in its row already, and a host's greeting
-says whether it gets in, and as whom — a deploy key as its repository. The tool format
-takes one typed value per action, so the page sends `<key>@<host>`, a kind of its own
-(`key-host`) whose halves are the `key` and `host` kinds. Test key and Try every key, under
-the list, stay: by host, not by key.
-
-## 2026-11-14 — The key tests drop down, their answer Done or Failed
-
-Sunde, after a key's Test opened a dialog saying there was nothing to try it on: should it
-be the drop-down, and is it working or not? A test answers one question, so Test, Test key
-and Try every key are automatic now: the drop-down's ✓ Done means it gets in, ✗ Failed that
-it doesn't, and a failure stays. Nothing in them may prompt, so a host ssh hasn't met is
-trusted as first seen (`StrictHostKeyChecking=accept-new` — a changed key still fails, and
-says so); the extra connection offering no key, there only so ssh could ask, went with it,
-one login attempt fewer for a forge's fail2ban to count. A key's Test is greyed where no
-remote here uses it, pointing to Test key with a platform's host: a "done" that answers
-nothing is gone. What makes or deletes a key still opens a terminal that stays, to read.
-
-## 2026-11-14 — Keys stays open under a key's terminal
-
-Running Test on a key closed Keys, so closing the terminal left Sunde on the machine's page
-with the list gone. The terminal now opens over Keys, which stays — as the machine's dialog
-opens over Projects — and the list reflects what it did, the overview being read again as
-the terminal closes. A key's Test with no SSH remote to try now says how to check it on a
-platform: Test key, with its host.
-
-## 2026-11-14 — A project's cog opens its Project overrides
-
-"Settings for site" became **Project overrides for site** (Sunde): what it holds is the
-project's own name, email and key in place of Git's, and the name says so. The Keys
-dialog and Git's Settings point to it by that name.
-
-## 2026-11-14 — Keys: account keys and deploy keys apart, in fewer words
-
-Sunde: too much text, and account keys should stand apart from deploy keys. Keys is now
-two lists, each with one line saying what its keys are — Account keys (ssh's own, and a
-key for one platform), Deploy keys (one repository each) — and Other keys only when one is
-neither. A card says its platform or repository beside its name rather than a role, and
-what it does in a line a remote ("Pushes … · github.com via alias"); the reasons, and
-`~/.ssh/config` naming it, are a few words or a tag, the rest in tooltips.
-
-## 2026-11-14 — Keys made readable: what a key is and does, in words
-
-Seen on codebox: the line that mattered — where a key is used — was cut off, "other" said
-nothing of a key that is a deploy key used through `~/.ssh/config`, "no remote here" on the
-account key didn't say that every remote there is over HTTP, and "Add it" didn't say where.
-Each key is now a card: its role in words (Account key, Deploy key, Key for <host> — from
-its name, its comment and where its remotes go), what it does written out and wrapped, never
-cut ("Pushes … on github.com through ~/.ssh/config (…)"), why nothing uses it when nothing
-does, and "Add to GitHub" / "Add to repository" saying where. The fingerprint, needed only
-to match a key on a forge, is shortened, whole in its tooltip.
-
-## 2026-11-14 — A key's Copy, and Add it, in place of Show
-
-Show opened a terminal to print a key's public line and where it goes; Sunde asked for a
-button that copies it, ready to paste into the platform. A public key is public, so the
-status line carries it (v13) and the page copies it with its comment — Forgejo names a key
-by it — without running anything on the machine. Where it goes became **Add it**, a link:
-a deploy key's repository's Deploy keys page (by its name, or a comment that says
-"deploy"), from its remote; any other key's account page on the platform its remotes are
-on, or its comment's "for <host>". Where that isn't one place — two platforms, two
-repositories — there is no link rather than a guess.
-
-## 2026-11-14 — Test key tries the keys meant for a host; nothing about a key is stored
-
-Test key tried every key on a host, a connection each. Asked whether that is reasonable:
-for a public forge, yes — but a refused key is a failed login, and a self-hosted forge
-behind sshd with fail2ban (5 in 10 minutes, by default) could ban the machine. Sunde then
-asked whether Loskai should keep track of where each key it made goes. No: Loskai can't
-see GitHub or Forgejo, so a record would drift as keys are added or removed there, and
-would know nothing of a key made by hand — the reason container state and a recipe's
-options are read, never stored. Instead each kind of fact has its own source: what a key
-is for travels with it, in its comment (Loskai writes "… for github.com", a deploy key's
-project), shown on its row; where ssh uses it is read from the config; whether a host
-takes it is a test, run when asked. Test key now tries only the keys meant for a host —
-what ssh offers it, and any whose comment names it — usually one connection. **Try
-every key** is the sweep, asked for by name: at most 10, and it stops when the host stops
-answering. Both try a key the same way, word for word, which a test checks.
-
-## 2026-11-14 — One key per platform, and which key gets in where
-
-Asked by Sunde: a key for GitHub and another for Forgejo, and how Test validates them.
-Per-platform keys are `Host` blocks in `~/.ssh/config`, which Keys already followed
-through `ssh -G`; what was missing was knowing which key a host *accepts*. Without
-`IdentitiesOnly`, ssh tries every default key on every host, so a key there is now marked
-**offered**, not claimed as used. **Test key** on a host tries each key in `~/.ssh` alone
-(`-F /dev/null -i … IdentitiesOnly`, on the host and port an alias resolves to) and reads
-the forge's greeting for whom it got in as — GitHub's "Hi sunde!", a deploy key's
-"Hi owner/repo!", Forgejo's and GitLab's. A first connection offering no key lets ssh ask
-to trust the host; after it nothing may prompt, so a key with a passphrase is left out
-rather than stopping the run. **New key for a host** makes `~/.ssh/<host>` and prints the
-`Host` block to paste — still never writing `~/.ssh/config`. Loskai keeps no test result:
-the answer is the terminal's, at the time it ran.
-
-## 2026-11-14 — Where a key is used: every remote, through ~/.ssh/config too
-
-Sunde's workspace has a submodule whose push address goes through a `~/.ssh/config` alias
-naming its own key; Keys listed that key as "not used by git here", and Delete would have
-removed it. Asked whether to manage such setups or keep track of them: keep track. Loskai
-doesn't rewrite `~/.ssh/config` or a remote's push address — hand-made, and the user's —
-but sees them: status line v12 reads every remote of each project and submodule, and
-which keys ssh offers each SSH host they name. That is asked of `ssh -G`, not a parser of
-ours, so aliases, `Host *`, `Include` and `Match` resolve as a connection would. A key's
-uses are each remote it is for (fetch, push), Test tries each of them, and Delete refuses
-a key `~/.ssh/config` names, saying for which Host. On security: only public material —
-keys by their `.pub`, addresses with any `user:token@` removed on the machine, of
-`~/.ssh/config` only its `IdentityFile`s — and Test reaches out only to SSH addresses
-from the machine's own config (`ext::` would run a command). What it can't see: a key used
-only by a script that runs `ssh -i` itself.
-
-## 2026-11-14 — Git's SSH keys in a dialog of their own
-
-Sunde, seeing the machine's key in Git's Settings and a project's in its cog: "a better
-way to organize the keys, and where they go and what they do? deleting and such". **Keys**,
-beside Settings in Git's header (chosen over a section in Settings), lists every key in the
-SSH user's `~/.ssh`: its kind, which projects use it, its fingerprint, and Show (where it
-goes — the repository's own Deploy keys page, from its remote), Test and Delete. Settings
-went back to values; a project's cog keeps only its choice of key.
-
-The list needed the machine to say which keys there are and which project uses which, so
-the status line went to v11 (`#=keys`, and a project's `key`) — read with the status key,
-so the list shows while the main key is locked, and only the public halves. The "shown
-only" setting added hours earlier to show the keys went again: the overview reads them now,
-in one place, rather than a setting and the overview each parsing `core.sshCommand`. Test
-on a key asks each project it is for for its remote's HEAD with that key alone
-(`GIT_SSH_COMMAND … IdentitiesOnly`), which proves what a pull needs, rather than a
-greeting from a host. Delete keeps nothing — the forge still lists the key, which Loskai
-can't change, and says so. A new place for an action, `keys`, puts one beside the list.
-
-## 2026-11-14 — A project's own SSH key: a deploy key, like its own name and email
-
-Asked by Sunde after the account key: deploy keys, "the same concept of the override
-settings". A project can now have its own key in place of the machine's, the way its own
-commit name and email override the global ones — its cog teal while it does, its dialog
-showing the machine's greyed while it doesn't. Deploy keys aren't GitHub's alone: Forgejo
-and GitLab have them too, GitHub just takes a key on one repository only — so one key per
-project, always. Git is pointed at it with the project's `core.sshCommand`
-(`ssh -i … -o IdentitiesOnly=yes`), not `~/.ssh/config` aliases: nothing outside the
-repository changes and the remote's address stays as it is. Worth it where Claude works
-alone (lab-dev with Remote Control): an account key reaches every repository you own, a
-deploy key that one. **Machine's key** goes back but keeps the key file, so Own key takes
-the same one up — already on the repository's Deploy keys — rather than a new one to add
-again.
-
-Two small additions to the tool format made it: a setting may be **shown only** (a `read`
-and no `write`), since a key is made by running something, not typed; and `place: settings`
-now also works on a project's action, putting it in that project's dialog.
-
-## 2026-11-14 — Git's SSH key and Test key
-
-Clone, Pull and Push over SSH use the machine user's own key, and nothing helped get one
-onto GitHub or Forgejo. **SSH key** shows it — making an ed25519 one first when there is
-none — and **Test key** tries it on a host. An **account** key, not a deploy key: a deploy
-key reaches one repository and GitHub takes a key on one repository only, so a machine
-worked on across projects would need a key and an `~/.ssh/config` alias per repository; an
-account key per machine reaches all of them. No passphrase: pulls and pushes from the page,
-and Claude's, run unattended, and an ssh-agent on every machine is more than it is worth —
-whoever can read that user's home could use it, which the page says. Both live in Git's
-tool file: the key is printed in the terminal, which stays open to copy it, rather than a
-new field in the status line. Loskai never adds a key to the forge itself — that would
-need an API token, which it doesn't hold. Test key goes by the forge's greeting ("successfully
-authenticated", GitLab's "Welcome to GitLab"), since `ssh -T` exits 1 even when it got
-in; its host is a new `ask` kind, `host`, a name and an optional port, never a user or an
-option.
-
-Then, asked by Sunde, both moved into Git's **Settings** dialog: set up once, like the name
-and email beside them, not used day to day like Pull all. A new `place: settings` on an
-action says so in the tool file, so the page decides nothing by a tool's id.
+**The tool format** grew for it: `place` (`settings`, `keys`) for where an action is
+offered; the ask kinds `host`, `key-host` and `key-label`; the target kind `key`; and the
+drop-down terminal telling whoever started a run how it ended. A setting "shown only" came
+and went the same day, once the status line could say what it showed.
 
 ## 2026-11-14 — Update all has each machine's no-password switch
 

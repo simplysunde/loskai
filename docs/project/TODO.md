@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 55** (below) put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** nothing in flight. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -53,6 +53,40 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 56 — SSH keys: what a machine has, what each is for, git's side in Git
+
+Asked 2026-11-14 (Sunde), one request at a time, starting from "should we add an option for
+creating the ssh key needed for github, or forgejo?" and ending with "keep a simple overview
+over the keys and list them simply … and keep git configurations and test to the git tool".
+Not planned as a phase — it grew in the day and is written down here after the fact;
+`HISTORY.md` has the reasons in one entry. Loskai stores nothing about a key: what it is for
+is written on it (its comment's `(loskai: …)`), where it is used is read from the machine,
+whether a platform takes it is a test.
+
+**Steps**
+
+- [x] 56a The status line reads the keys (v11), every remote of each project and submodule
+      and what `ssh -G` offers each SSH host (v12), and each key's public half (v13) —
+      public material only, any `user:token@` taken out on the machine
+- [x] 56b The machine's **Keys** row in its SSH settings: SSH setup, and Keys (n) — every key,
+      one line each, what it is for, its fingerprint; Copy, Label, Delete (never one
+      `~/.ssh/config` names)
+- [x] 56c Git's **Keys**: account and deploy keys, the remotes each is for, Test on a host
+      (one connection, that key alone), Add to …, New account key, New key for a host, Test
+      key, Try every key (at most 10, stopping when a host stops answering)
+- [x] 56d What a key is for, written on it: Loskai's mark on every key it makes, and Label for
+      any other — `ssh-keygen -c`, the key and its fingerprint unchanged
+- [x] 56e A project's own key — a deploy key — in its **Project overrides**: which key it uses
+      in a line, and the one button that changes it
+- [ ] 56f Live: on Sunde's machines, through the page — codebox's keys checked (its
+      `simplysunde-site` gets in on GitHub; `id_ed25519`, made the same day and unused,
+      deleted). Left: lab-dev and proxmox; Own key on a project with an SSH remote, and Add
+      to repository from there
+- [ ] 56g The key buttons are Git's tool's actions, so a machine without git lists its keys
+      without them — a tool of their own when a machine needs it, not before
 
 ---
 

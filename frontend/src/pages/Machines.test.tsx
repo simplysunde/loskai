@@ -1349,6 +1349,8 @@ test("the machine's SSH settings: Keys beside SSH setup lists every key plainly 
   fireEvent.click(keys);
   const dialog = await screen.findByRole("dialog", { name: "SSH keys" });
   expect(dialog).toHaveTextContent("Every key of the user Loskai logs in as");
+  // Not Loskai's own, which logs in the other way: said, and where it is.
+  expect(dialog).toHaveTextContent("Loskai's own key isn't here: it logs in to this machine, from Loskai — see SSH setup.");
   const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
   // One plain list, git's first: what each is for, in a word or two.
   expect(names(dialog)).toEqual(["id_ed25519", "work", "deploy_blog", "server"]);
