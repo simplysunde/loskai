@@ -1458,6 +1458,7 @@ test("Update all has each machine's switch for updates without a password; root 
   expect(rule).toHaveAttribute("aria-checked", "false");
   expect(within(row("pve")).queryByRole("switch")).toBeNull();
   expect(row("pve")).toHaveTextContent("root — no password asked");
+  expect(within(row("pve")).queryByText("No password")).toBeNull();
 
   // Not while Update all runs: its run would hand the turn on.
   await vi.waitFor(() => expect(within(dialog).getByRole("button", { name: "Update all" })).toBeEnabled());
