@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A review of the day's SSH work, and what it fixed
+
+`/code-review` over the 49 commits found ten things; eight fixed, each with a test that
+failed first. The serious one: the `key` kind took any file name in `~/.ssh`, so Delete
+named `authorized_keys` would have removed it — Loskai locked out — and New key for a host
+named `config` would have written a private key there; the kind now refuses ssh's own
+files (`status.SSH_FILES`), Delete acts only where a public key is, and New key for a host
+refuses those names. Test key didn't find the keys New key for a host makes (their mark ends
+in `)`, it looked for a space); a skipped passphrase key counted as tried, so a wrong port
+read as fail2ban. Status line v15: each remote's name, so a pushurl is its own remote's;
+`Match exec` looked for in `Include`d files too (one level; deeper isn't asked); a key with
+no comment, and a security key (`ED25519-SK`), read right. A host may hold `_`, as an ssh
+alias may. Projects and Update all read each machine's overview once, not every minute.
+
+Left: the per-key part of the key tests is in three scripts, word for word, kept so by a
+test. Sharing it would need either a way for tool files to share script, or the kind of
+test squeezed into its value (`@host`, `+@host`) — more machinery than three copies a test
+keeps identical.
+
 ## 2026-11-14 — asyncssh logs only its warnings
 
 Reading the dev container's log for diagnostics (Sunde asked for it to be looked at now and
