@@ -78,7 +78,7 @@ def enabled_sources() -> list[dict]:
     return [s for s in sources if s.get("enabled", True)]
 
 
-def _load_folder(folder: Path, source: str, source_url: str | None) -> dict:
+def load_recipe_folder(folder: Path, source: str, source_url: str | None) -> dict:
     manifest = folder / "recipe.yml"
     if not manifest.is_file():
         raise RecipeError("recipe.yml missing")
@@ -186,7 +186,7 @@ def _scan(base: Path, source: str, source_url: str | None) -> tuple[dict[str, di
     # A synced source is a git clone, so `.git` sits beside the recipes.
     for folder in sorted(p for p in base.iterdir() if p.is_dir() and not p.name.startswith(".")):
         try:
-            valid[folder.name] = _load_folder(folder, source, source_url)
+            valid[folder.name] = load_recipe_folder(folder, source, source_url)
         except RecipeError as exc:
             invalid.append({"id": folder.name, "source": source, "error": str(exc)})
     return valid, invalid

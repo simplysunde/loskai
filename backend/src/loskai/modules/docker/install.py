@@ -55,13 +55,13 @@ def install_recipe(
     # Also before any side effect: whose record this install will register under its id.
     slot = _instance_slot(recipe_id)
 
-    target, reused = stacks.claim_dir(recipe_id)
+    stack_dir, reused = stacks.claim_dir(recipe_id)
 
     compose_text = compose_src.read_text(encoding="utf-8")
-    (target / "compose.yml").write_text(compose_text, encoding="utf-8")
-    write_record(target, recipe, compose_text)
-    store.write_private(target / ".env", dotenv.render_env(values))
-    override_file = target / stacks.OVERRIDE_NAME
+    (stack_dir / "compose.yml").write_text(compose_text, encoding="utf-8")
+    write_record(stack_dir, recipe, compose_text)
+    store.write_private(stack_dir / ".env", dotenv.render_env(values))
+    override_file = stack_dir / stacks.OVERRIDE_NAME
     spec = recipe["mounts"]
     override_text = override.render_override(spec["service"], pairs, spec["read_only"]) if pairs else ""
     override_text = override.set_options(override_text, recipe["options"], chosen)
@@ -70,7 +70,7 @@ def install_recipe(
     else:
         override_file.unlink(missing_ok=True)
 
-    result = stacks.run_compose(target, "up", "-d")
+    result = stacks.run_compose(stack_dir, "up", "-d")
     if not result["ok"]:
         # Nothing came up, so there is nothing to register. An instance whose `container`
         # names no container joins to nothing — it would show as a permanently orphaned
@@ -146,7 +146,7 @@ def stack_recipe(directory: Path) -> dict | None:
         return None
 
 
-def recipe_icon(record: Instance) -> Instance:
+def with_recipe_icon(record: Instance) -> Instance:
     """A new route record for a container in a recipe's stack, given the recipe's icon as
     the install would have — for a route deleted and added again, or a stack the wizard
     didn't install. The stack is the one compose ran it from (`stacks.stack_of`). As at

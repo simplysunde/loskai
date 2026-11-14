@@ -120,7 +120,7 @@ commit, the full checks, `where-used.py --write`.
 - [x] 57d Backend, SSH's small ones: `connect.lines`, `from_ip`, `_host_key`, `_failed`,
       `_run_of`, `tool._place`, `tool.visible`, the status booleans, the projects folder,
       `STATUS_LINE`/`STATUS_VERSION`, `machines.follow_machine`
-- [ ] 57e Backend, Docker and AdGuard: `install.recipe_icon`, `logic.link_instances`,
+- [x] 57e Backend, Docker and AdGuard: `install.recipe_icon`, `logic.link_instances`,
       `_dial`, `recipes._load_folder`, `adguard.service.expected`/`foreign`, the locals
 - [ ] 57f Backend, one alias per module: `env`, `settings_store`, `instances_store`
 - [ ] 57g Frontend, `RouteRow` → `Instance`, `useRoutes` → `useInstances`, `useRouteRows` →

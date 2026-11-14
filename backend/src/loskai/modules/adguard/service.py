@@ -33,7 +33,7 @@ def target_answer(instance: Instance, answer_ip: str | None) -> str | None:
     return answer_ip
 
 
-def expected(instance: Instance, base_domain: str, answer_ip: str | None) -> tuple[str, str] | None:
+def expected_rewrite(instance: Instance, base_domain: str, answer_ip: str | None) -> tuple[str, str] | None:
     """The `(domain, answer)` rewrite a routed instance should have — what reconcile writes,
     the DNS column checks and the clear dialog calls managed. None when its answer can't be
     determined (`target_answer`)."""
@@ -43,7 +43,7 @@ def expected(instance: Instance, base_domain: str, answer_ip: str | None) -> tup
     return instances_store.fqdn(instance.subdomain, base_domain), target
 
 
-def foreign(answers: set[str], target: str, stored: str | None) -> list[str]:
+def foreign_answers(answers: set[str], target: str, stored: str | None) -> list[str]:
     """The answers on an instance's domain that Loskai didn't write — neither its target nor
     the answer it last wrote (`dns_answer`): a hand-added entry, reported, never touched."""
     return sorted(a for a in answers if a != target and a != stored)
@@ -113,7 +113,7 @@ def plan_reconcile(
     }
 
     for inst in instances:
-        found = expected(inst, base_domain, answer_ip)
+        found = expected_rewrite(inst, base_domain, answer_ip)
         if not found:
             continue
         domain, target = found
@@ -128,7 +128,7 @@ def plan_reconcile(
         if stored and stored != target and stored in answers:
             plan.deletes.append((domain, stored))
 
-        if hand_added := foreign(answers, target, stored):
+        if hand_added := foreign_answers(answers, target, stored):
             plan.conflicts.append({"id": inst.id, "domain": domain, "answers": hand_added})
 
     known_answers = {answer_ip} if answer_ip else set()
@@ -156,7 +156,7 @@ def dns_status_rows(
     for inst in instances:
         if not inst.subdomain:
             continue
-        found = expected(inst, base_domain, answer_ip) if base_domain else None
+        found = expected_rewrite(inst, base_domain, answer_ip) if base_domain else None
         if by_domain is None or found is None:
             domain = instances_store.fqdn(inst.subdomain, base_domain) if base_domain else inst.subdomain
             rows.append({
@@ -170,7 +170,7 @@ def dns_status_rows(
             "id": inst.id,
             "domain": domain,
             "present": target in answers,
-            "conflict": bool(foreign(answers, target, inst.dns_answer)),
+            "conflict": bool(foreign_answers(answers, target, inst.dns_answer)),
             "target": target,
         })
     return rows
@@ -229,9 +229,9 @@ def annotate_rewrites(
 
     The distinction is the whole point of showing the list before a clear — a managed entry
     is restored seconds later, an unmanaged one is gone for good. Pure, so the "would it
-    come back" question is answered by the same `expected` the
+    come back" question is answered by the same `expected_rewrite` the
     restore itself uses, not by a second guess at the rule."""
-    managed = {found for inst in routed if base_domain and (found := expected(inst, base_domain, answer_ip))}
+    managed = {found for inst in routed if base_domain and (found := expected_rewrite(inst, base_domain, answer_ip))}
     return [
         {
             "domain": entry.get("domain", ""),
@@ -337,7 +337,7 @@ async def reconcile(
     # Persist dns_answer for instances whose name now resolves to their target: already
     # in sync, or just added.
     for inst in routed:
-        found = expected(inst, base_domain, answer_ip)
+        found = expected_rewrite(inst, base_domain, answer_ip)
         if not found:
             continue
         domain, target = found

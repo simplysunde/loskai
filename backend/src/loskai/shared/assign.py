@@ -337,7 +337,7 @@ async def _recipe_icon(inst: Instance) -> Instance:
     if not inst.container:
         return inst
     try:
-        iconed = await asyncio.to_thread(install.recipe_icon, inst)
+        iconed = await asyncio.to_thread(install.with_recipe_icon, inst)
     except Exception:
         logger.exception("recipe icon for '%s' not applied", inst.container)
         return inst

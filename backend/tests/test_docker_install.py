@@ -594,7 +594,7 @@ def test_a_new_route_for_an_installed_recipe_gets_its_icon(installable, monkeypa
     instances_store.delete_instance("grafana")
     _ran_in(monkeypatch, install.stacks.stacks_dir() / "grafana")
 
-    inst = install.recipe_icon(_routed())
+    inst = install.with_recipe_icon(_routed())
     assert inst.icon == "graf.png"
     assert icons.path_for(inst.icon).read_bytes() == PNG
 
@@ -610,7 +610,7 @@ def _moved_in(installable, name="grafana"):
 def test_a_stack_moved_in_by_hand_gets_its_recipes_icon_by_name(installable, monkeypatch):
     _ran_in(monkeypatch, _moved_in(installable))
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
-    assert install.recipe_icon(_routed()).icon == "graf.png"
+    assert install.with_recipe_icon(_routed()).icon == "graf.png"
 
 
 def test_the_stack_is_found_by_its_folder_not_its_project_name(installable, monkeypatch):
@@ -619,14 +619,14 @@ def test_the_stack_is_found_by_its_folder_not_its_project_name(installable, monk
     (stack / install.stacks.RECORD_NAME).write_text('{"recipe": "grafana"}')
     _ran_in(monkeypatch, stack, project="grafana")
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
-    assert install.recipe_icon(_routed()).icon == "graf.png"
+    assert install.with_recipe_icon(_routed()).icon == "graf.png"
 
 
 def test_only_the_recipes_own_container_gets_its_icon(installable, monkeypatch):
     _ran_in(monkeypatch, _moved_in(installable))
     _fake_project(monkeypatch, [_c("app", "grafana-app-1", published=True), _c("db", "grafana-db-1")])
-    assert install.recipe_icon(_routed("grafana-app-1")).icon == "graf.png"
-    assert install.recipe_icon(_routed("grafana-db-1")).icon is None
+    assert install.with_recipe_icon(_routed("grafana-app-1")).icon == "graf.png"
+    assert install.with_recipe_icon(_routed("grafana-db-1")).icon is None
 
 
 @pytest.mark.parametrize(
@@ -642,7 +642,7 @@ def test_no_icon_for_a_container_outside_a_recipe_stack(installable, monkeypatch
     _moved_in(installable)
     _fake_project(monkeypatch, [_c("app", "grafana-app-1")])
     monkeypatch.setattr(install.docker_client, "labels_of", labels_of)
-    assert install.recipe_icon(_routed()).icon is None
+    assert install.with_recipe_icon(_routed()).icon is None
 
 
 def test_reinstall_never_replaces_an_icon_chosen_by_hand(installable, monkeypatch):

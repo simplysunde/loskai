@@ -133,7 +133,7 @@ def folders_problem(folders: list[dict], services: set[str]) -> str | None:
 # --- I/O ---
 
 
-def _base(base: object) -> tuple[str, str] | None:
+def _unsaved_text(base: object) -> tuple[str, str] | None:
     """Unsaved `.env` and override text from the text view, or None for the files on disk."""
     if base is None:
         return None
@@ -148,7 +148,7 @@ def _options(recipe: dict | None, declared: set[str]) -> list[dict]:
     return [o for o in (recipe or {}).get("options") or [] if o["service"] in declared]
 
 
-def _disk(directory) -> tuple[str, str]:
+def _saved_text(directory) -> tuple[str, str]:
     override_file = stacks.override_path(directory)
     return (
         stacks.env_text(directory),
@@ -165,7 +165,7 @@ def get_form(name: str, base: dict | None = None) -> dict:
         doc = yaml.safe_load(compose_text)
     except yaml.YAMLError:
         raise StackError(f"{compose.name} doesn't load — use Edit as text")
-    env_text, override_text = _base(base) or _disk(directory)
+    env_text, override_text = _unsaved_text(base) or _saved_text(directory)
     problem = override_text.strip() and logic.yaml_problem(override_text)
     if problem:
         raise StackError(f"compose.override.yml {problem}")
@@ -231,8 +231,8 @@ def save_form(
     anything is written. `preview` writes nothing and returns the `.env` and override the
     save would leave, for the text view to open with."""
     directory, compose = stacks.require_stack(name)
-    disk_env, disk_override = _disk(directory)
-    env_text, override_text = _base(base) or (disk_env, disk_override)
+    disk_env, disk_override = _saved_text(directory)
+    env_text, override_text = _unsaved_text(base) or (disk_env, disk_override)
     declared = logic.declared_services(compose.read_text(encoding="utf-8"))
     # Looked up once: it scans every recipe source.
     recipe = install.stack_recipe(directory) if options or settings else None

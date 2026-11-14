@@ -287,7 +287,7 @@ def _concrete_ip(host_ip: str | None) -> str | None:
     return None if host_ip in (None, "", "0.0.0.0", "::") else host_ip
 
 
-def _dial(
+def _dial_host_port(
     container_name: str,
     service: str | None,
     ports: dict | None,
@@ -336,7 +336,7 @@ def suggested_host(
     None only in `lan` mode with no `host_ip` configured — a bridged Loskai cannot detect
     its own host's LAN IP.
     """
-    return _dial(container_name, service, ports, mode, host_ip, labels, host_network)[0]
+    return _dial_host_port(container_name, service, ports, mode, host_ip, labels, host_network)[0]
 
 
 def suggested_upstream(
@@ -361,7 +361,7 @@ def suggested_upstream(
     A `loskai.port` label names the port when Docker can't (host networking) or can't choose
     (several published), and is resolved to whatever Caddy dials. `mode` unset falls back to
     the docker-name form (co-located default)."""
-    host, port = _dial(container_name, service, ports, mode, host_ip, labels, host_network)
+    host, port = _dial_host_port(container_name, service, ports, mode, host_ip, labels, host_network)
     return f"{host}:{port}" if host and port else None
 
 
@@ -377,7 +377,7 @@ def published_upstream(
     `lan` dial, the Docker host and the published port, never a Docker service name. None
     for a port published only on loopback: that address opens on the viewer's own device,
     and the port isn't reachable at the Docker host's LAN IP either."""
-    host, port = _dial(container_name, service, ports, "lan", host_ip, labels, host_network)
+    host, port = _dial_host_port(container_name, service, ports, "lan", host_ip, labels, host_network)
     if not host or not port:
         return None
     try:
@@ -418,7 +418,7 @@ def primary_container(containers: list[dict], declared: str | None = None) -> st
     return min(pool, key=lambda c: c["service"])["name"]
 
 
-def link_instances(rows: list[dict], instances: list, url_of=lambda inst: None) -> list[dict]:
+def join_instances(rows: list[dict], instances: list, url_of=lambda inst: None) -> list[dict]:
     """Each container row joined to the instance linked to it by `container` (one per
     container): its `instance_id`, routed or not — a recipe install links one before any
     route exists, named for the recipe, a better route prefix than the generated

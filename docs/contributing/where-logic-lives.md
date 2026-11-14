@@ -76,7 +76,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Pushing and removing a route | `modules/caddy/service.py` `upsert_route` `teardown_route` | `shared/assign.py` `shared/follow.py` |
 | Which of Caddy's servers is `:443` and which `:80` | `modules/caddy/service.py` `select_server_name` `select_http_server_name` | `modules/caddy/client.py` |
 | The address a DNS rewrite answers with | `modules/adguard/service.py` `target_answer` | `shared/assign.py` |
-| The rewrite a routed instance should have, and which answers on its name are hand-added | `modules/adguard/service.py` `expected` `foreign` | only its own file |
+| The rewrite a routed instance should have, and which answers on its name are hand-added | `modules/adguard/service.py` `expected_rewrite` `foreign_answers` | only its own file |
 | Which rewrites to add and remove: Loskai's own, by `(domain, answer)` | `modules/adguard/service.py` `reconcile` `plan_reconcile` `is_loskai_domain` | `modules/adguard/router.py` |
 
 ## Access and secrets

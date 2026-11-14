@@ -89,7 +89,7 @@ def list_stacks() -> list[dict]:
     base = stacks_dir()
     if not base.is_dir():
         return []
-    compose = _compose_state()
+    compose_state = _compose_state()
 
     stacks: list[dict] = []
     for directory in sorted(p for p in base.iterdir() if p.is_dir()):
@@ -100,7 +100,7 @@ def list_stacks() -> list[dict]:
         stacks.append({
             "name": directory.name,
             "services": sorted(declared),
-            "status": _status(declared, directory, compose),
+            "status": _status(declared, directory, compose_state),
             "data": stack_data(directory),
         })
     return stacks
@@ -127,12 +127,12 @@ def _compose_state() -> dict[Path, dict] | None:
     return {Path(folder).resolve(): entry for folder, entry in found.items()}
 
 
-def _status(declared: set[str], directory: Path, compose: dict[Path, dict] | None) -> str:
+def _status(declared: set[str], directory: Path, compose_state: dict[Path, dict] | None) -> str:
     """A stack's up/down status, from the containers run from its folder — unknown while the
     daemon is down."""
-    if compose is None:
+    if compose_state is None:
         return "unknown"
-    entry = compose.get(directory.resolve())
+    entry = compose_state.get(directory.resolve())
     return logic.compute_stack_status(declared, entry["running"] if entry else set())
 
 

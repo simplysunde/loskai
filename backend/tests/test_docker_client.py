@@ -76,7 +76,7 @@ def test_list_containers(monkeypatch, data_dir):
     row = rows[0]
     assert row["name"] == "grafana"
     assert row["image"] == "grafana/img:latest"
-    assert "subdomain" not in row  # the router joins the instance (logic.link_instances)
+    assert "subdomain" not in row  # the router joins the instance (logic.join_instances)
     assert row["ports"] == ["8080->80/tcp"]
     # No caddy_admin_host, so Caddy is not identifiable and the name form is never guessed. The
     # published port binds to no concrete IP and host_ip is unset, so there is nothing to
@@ -163,7 +163,7 @@ def test_a_host_networked_recipe_install_still_prefills_host_and_prefix(monkeypa
     _use(monkeypatch, FakeDocker([bambuddy]))
 
     rows = DockerClient().list_containers(host_ip="192.168.10.220")
-    row = logic.link_instances(rows, instances_store.list_instances())[0]
+    row = logic.join_instances(rows, instances_store.list_instances())[0]
     assert row["upstream_mode"] == "lan"
     assert row["suggested_upstream"] is None
     assert row["suggested_host"] == "192.168.10.220"

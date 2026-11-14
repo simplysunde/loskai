@@ -1,7 +1,7 @@
 """Docker Engine client — docker-py I/O over the mounted socket.
 
 Thin wrapper: it fetches raw data and calls `logic` for all computation (stats math);
-joining a container to its instance is the router's (`logic.link_instances`). Requires the socket mounted at /var/run/docker.sock.
+joining a container to its instance is the router's (`logic.join_instances`). Requires the socket mounted at /var/run/docker.sock.
 """
 
 import logging

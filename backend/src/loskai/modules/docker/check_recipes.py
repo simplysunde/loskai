@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from .manifest import RecipeError
-from .recipes import _load_folder
+from .recipes import load_recipe_folder
 
 
 def check(paths: list[Path]) -> list[tuple[str, str | None]]:
@@ -25,7 +25,7 @@ def check(paths: list[Path]) -> list[tuple[str, str | None]]:
             folders = sorted(p for p in path.iterdir() if p.is_dir() and not p.name.startswith("."))
         for folder in folders:
             try:
-                _load_folder(folder, "check", None)
+                load_recipe_folder(folder, "check", None)
                 results.append((folder.name, None))
             except RecipeError as exc:
                 results.append((folder.name, str(exc)))
