@@ -147,22 +147,64 @@ actions:
       echo; cat "$k.pub"; echo;
       echo "Add this line to your account — GitHub: https://github.com/settings/ssh/new";
       echo "Forgejo: <your Forgejo>/user/settings/keys"
-  # GitHub, Forgejo and GitLab each answer an SSH login with a greeting and no shell, and
-  # ssh exits 1 even then — so the greeting is what says it got in. The first time, ssh
-  # asks to trust the host's key, here in the terminal.
-  test-key:
-    label: Test key
+  # A key for one host — the usual way to keep one per platform: made as ~/.ssh/<host>, and
+  # the Host block that has ssh use it printed, to paste into ~/.ssh/config yourself —
+  # Loskai doesn't edit that file. Keys sees it once it is there.
+  host-key:
+    label: New key for a host
     description: >-
-      Try this machine's keys on a git host — github.com, codeberg.org or your Forgejo
-      (host:port when its SSH isn't on 22).
+      Make a key for one host — github.com, your Forgejo (host:port when its SSH isn't on
+      22) — and show it, with the lines to add to ~/.ssh/config so ssh uses it there.
     ask: host
     session: false
     place: keys
     run: >-
-      h=${1%:*}; p=22; case "$1" in *:*) p=${1##*:};; esac;
-      out=$(ssh -T -p "$p" -o ConnectTimeout=10 "git@$h" 2>&1); echo "$out"; echo;
-      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) echo "This machine's key gets into $h.";;
-      *) echo "$h didn't take this machine's key. Add it to your account there (Show, on its row)."; exit 1;; esac
+      command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
+      h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac; k="$HOME/.ssh/$h";
+      if [ -e "$k" ]; then echo "There is a key named $h already: Show, on its row in Keys."; exit 1; fi;
+      mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) for $h" -f "$k" </dev/null || exit 1;
+      echo "Made a key for $h, with no passphrase:"; echo; cat "$k.pub"; echo;
+      echo "1. Add it to your account on $h — GitHub: https://github.com/settings/ssh/new;";
+      echo "   Forgejo: https://$h/user/settings/keys";
+      echo "2. Add these lines to ~/.ssh/config, above any Host * block — Loskai doesn't edit it:"; echo;
+      printf 'Host %s\n  IdentityFile ~/.ssh/%s\n  IdentitiesOnly yes\n' "$h" "$h"; [ -n "$p" ] && printf '  Port %s\n' "$p";
+      echo; echo "3. Test key, in Keys, with $1: this key should get in there."
+  # Each key in ~/.ssh tried alone on the host — which get in, and as whom: GitHub, Forgejo
+  # and GitLab name the account (or, for a deploy key, its repository) in the greeting they
+  # answer an SSH login with, and ssh exits 1 even then. The host is resolved once (`ssh -G`:
+  # an alias's HostName, its Port), then each key goes on its own (-F /dev/null, so the
+  # config adds none). First, a connection that offers no key, so ssh can ask to trust the
+  # host's key here; after it, nothing may prompt (BatchMode), and a key with a passphrase is
+  # left out.
+  test-key:
+    label: Test key
+    description: >-
+      Try each key on a git host, one at a time — github.com, codeberg.org or your Forgejo
+      (host:port when its SSH isn't on 22) — and see which get in, and as whom.
+    ask: host
+    session: false
+    place: keys
+    run: >-
+      h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac;
+      g=$(ssh -G ${p:+-p "$p"} "$h" 2>/dev/null </dev/null);
+      H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
+      H=${H:-$h}; P=${P:-${p:-22}}; [ "$H" = "$h" ] && echo "$h, port $P:" || echo "$h ($H, port $P):";
+      ssh -T -p "$P" -o PubkeyAuthentication=no -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
+      -o ConnectTimeout=10 "git@$H" >/dev/null 2>&1;
+      n=0; ok=0; for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue; k=${f%.pub}; [ -f "$k" ] || continue;
+      name=${k##*/}; n=$((n+1));
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
+      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
+      who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
+      -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
+      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
+      case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
+      printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
+      *"Host key verification failed"*) echo "  ssh doesn't trust $H's host key, so nothing was tried."; exit 1;;
+      *) printf '  %-24s refused\n' "$name";; esac; done;
+      [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
+      [ $ok -gt 0 ] || { echo; echo "No key here gets in: add one to your account there (Show, on its row)."; exit 1; }
   # A key's public half, and where it goes: a deploy key to its project's repository — the
   # page's address worked out from the remote, the same path on GitHub and Forgejo.
   show-key:

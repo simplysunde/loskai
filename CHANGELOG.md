@@ -72,7 +72,8 @@ Everything so far:
   terminal as the machine's SSH user: over SSH with that user's own keys — **Keys** lists
   them, where each is used (every remote of every project and submodule, through
   `~/.ssh/config` aliases too) and their fingerprints, each with Show (where it goes), Test
-  and Delete (never one `~/.ssh/config` names), and makes an account key; a project can have its own deploy key in place
+  and Delete (never one `~/.ssh/config` names); Test key on a host tries each key alone and
+  says which get in and as whom, and New key for a host makes one per platform, and makes an account key; a project can have its own deploy key in place
   of the machine's (**Own key**) — over HTTPS asking for a login there when the remote needs
   one.
 - **Actions that run by themselves** — System's, Services, Proxmox, ending a tmux session,

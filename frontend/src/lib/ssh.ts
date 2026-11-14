@@ -119,6 +119,9 @@ export interface KeyUse {
   url: string;
   host: string;
   hostname: string; // where the host goes: an alias's HostName
+  // One of several keys ssh tries on that host (no IdentitiesOnly, no project key of its
+  // own): which gets in, only Test key on the host can say.
+  offered: boolean;
 }
 
 export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
@@ -126,15 +129,18 @@ export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
   const uses = new Map<string, KeyUse[]>();
   const own = new Map((facts.projects ?? []).map((p) => [p.path, p.key]));
   const pushes = new Set(facts.remotes.filter((r) => r.kind === "pushurl").map((r) => `${r.path}|${r.module}`));
+  // ssh names its default files whether they exist or not: only the keys there count.
+  const here = new Set((facts.ssh_keys ?? []).map((k) => k.name));
   for (const r of facts.remotes) {
     const host = sshHost(r.url);
     if (!host) continue;
     const mine = r.module === "" ? own.get(r.path) : null;
     // A project's own command naming no key ("") says nothing of which key it uses.
-    const keys = mine === "" ? [] : mine ? [mine] : (facts.ssh_hosts[host]?.keys ?? []);
+    const keys = mine === "" ? [] : mine ? [mine] : (facts.ssh_hosts[host]?.keys ?? []).filter((k) => here.has(k));
+    const offered = !mine && !facts.ssh_hosts[host]?.identities_only && keys.length > 1;
     const way = r.kind === "pushurl" ? "push" : pushes.has(`${r.path}|${r.module}`) ? "fetch" : "fetch and push";
     for (const k of keys) {
-      const use = { repo: r.path, module: r.module, way, url: r.url, host, hostname: facts.ssh_hosts[host]?.hostname ?? host } as const;
+      const use = { repo: r.path, module: r.module, way, url: r.url, host, hostname: facts.ssh_hosts[host]?.hostname ?? host, offered } as const;
       uses.set(k, [...(uses.get(k) ?? []), use]);
     }
   }

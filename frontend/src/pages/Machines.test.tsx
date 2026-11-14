@@ -154,6 +154,7 @@ const TOOLS = [
       { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
       { id: "ssh-key", label: "New account key", description: "Make one.", target: null, ask: null, confirm: null, session: false, place: "keys", run: "ssh-keygen" },
+      { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
       { id: "show-key", label: "Show", description: "Its public half.", target: "key", ask: null, confirm: null, session: false, run: "cat" },
       { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, run: "git ls-remote" },
@@ -1337,6 +1338,15 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.click(button);
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
+});
+
+test("New key for a host, in Keys, makes one for the host typed", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  fireEvent.change(within(dialog).getByLabelText("New key for a host — host"), { target: { value: "github.com" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "New key for a host" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=host-key&target=github.com")).toBeInTheDocument();
 });
 
 test("Keys offers New account key while there is none, and says when the status line can't list them", async () => {

@@ -44,9 +44,11 @@ test("a key is used where its project names it, else where ssh offers it the rem
       { path: "blog", module: "page", kind: "pushurl", url: "git@gh-page:me/page.git" },
     ],
     ssh_hosts: {
-      "github.com": { hostname: "github.com", identities_only: false, keys: ["id_ed25519", "id_rsa"] },
+      // ssh's defaults, whether there or not: id_ecdsa isn't.
+      "github.com": { hostname: "github.com", identities_only: false, keys: ["id_ecdsa", "id_ed25519", "id_rsa"] },
       "gh-page": { hostname: "github.com", identities_only: true, keys: ["page"] },
     },
+    ssh_keys: ["id_ed25519", "id_rsa", "deploy_blog", "page"].map((name) => ({ name })),
   } as unknown as Facts;
   const uses = keyUses(facts)!;
   const where = (k: string) => (uses.get(k) ?? []).map((u) => `${u.repo}${u.module ? `/${u.module}` : ""} ${u.way}`);
@@ -54,6 +56,14 @@ test("a key is used where its project names it, else where ssh offers it the rem
   expect(where("id_rsa")).toEqual(["site fetch and push"]);
   expect(where("deploy_blog")).toEqual(["blog fetch and push"]);
   expect(where("page")).toEqual(["blog/page push"]);
-  expect(uses.get("page")![0]).toMatchObject({ host: "gh-page", hostname: "github.com" });
+  expect(uses.has("id_ecdsa")).toBe(false);
+  // Two keys tried on github.com: each only offered there. One of a project's own, or one
+  // IdentitiesOnly picks, is used.
+  expect(uses.get("id_ed25519")![0].offered).toBe(true);
+  expect(uses.get("deploy_blog")![0].offered).toBe(false);
+  expect(uses.get("page")![0]).toMatchObject({ host: "gh-page", hostname: "github.com", offered: false });
+  // With one account key, it is the one.
+  const one = keyUses({ ...facts, ssh_keys: [{ name: "id_ed25519" }] } as unknown as Facts)!;
+  expect(one.get("id_ed25519")![0].offered).toBe(false);
   expect(keyUses({ ...facts, remotes: null } as Facts)).toBeNull();
 });

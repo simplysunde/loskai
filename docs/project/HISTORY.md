@@ -4,6 +4,21 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — One key per platform, and which key gets in where
+
+Asked by Sunde: a key for GitHub and another for Forgejo, and how Test validates them.
+Per-platform keys are `Host` blocks in `~/.ssh/config`, which Keys already followed
+through `ssh -G`; what was missing was knowing which key a host *accepts*. Without
+`IdentitiesOnly`, ssh tries every default key on every host, so a key there is now marked
+**offered**, not claimed as used. **Test key** on a host tries each key in `~/.ssh` alone
+(`-F /dev/null -i … IdentitiesOnly`, on the host and port an alias resolves to) and reads
+the forge's greeting for whom it got in as — GitHub's "Hi sunde!", a deploy key's
+"Hi owner/repo!", Forgejo's and GitLab's. A first connection offering no key lets ssh ask
+to trust the host; after it nothing may prompt, so a key with a passphrase is left out
+rather than stopping the run. **New key for a host** makes `~/.ssh/<host>` and prints the
+`Host` block to paste — still never writing `~/.ssh/config`. Loskai keeps no test result:
+the answer is the terminal's, at the time it ran.
+
 ## 2026-11-14 — Where a key is used: every remote, through ~/.ssh/config too
 
 Sunde's workspace has a submodule whose push address goes through a `~/.ssh/config` alias

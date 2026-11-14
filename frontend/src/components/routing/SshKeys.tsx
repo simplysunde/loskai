@@ -145,7 +145,8 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
 function UsedBy({ uses, named }: { uses: KeyUse[] | null; named: boolean }) {
   if (!uses) return <span className="text-slate-500">install the status line again to see where it is used</span>;
   const line = (u: KeyUse) => `${u.repo}${u.module ? ` › ${u.module}` : ""} — ${u.way}`;
-  const via = (u: KeyUse) => `${line(u)}: ${u.url}${u.hostname !== u.host ? ` (${u.host} → ${u.hostname})` : ""}`;
+  const via = (u: KeyUse) =>
+    `${line(u)}: ${u.url}${u.hostname !== u.host ? ` (${u.host} → ${u.hostname})` : ""}${u.offered ? " — offered, among others" : ""}`;
   const shown = uses.slice(0, 3);
   return (
     <span title={uses.map(via).join("\n") || undefined} className="block">
@@ -153,6 +154,15 @@ function UsedBy({ uses, named }: { uses: KeyUse[] | null; named: boolean }) {
         <span key={`${u.repo}|${u.module}|${u.way}|${u.url}`} className="block truncate">
           {line(u)}
           {u.hostname !== u.host && <span className="text-slate-500"> · via {u.host}</span>}
+          {u.offered && (
+            <span
+              title={`ssh tries it there among other keys — Test key with ${u.host} says which gets in`}
+              className="cursor-help text-amber-300/80"
+            >
+              {" "}
+              · offered
+            </span>
+          )}
         </span>
       ))}
       {uses.length > shown.length && <span className="block text-slate-500">and {uses.length - shown.length} more</span>}

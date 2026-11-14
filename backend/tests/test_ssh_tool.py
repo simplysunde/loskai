@@ -25,7 +25,7 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "test-key", "own-key",
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "own-key",
             "machine-key", "show-key", "try-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # Their terminals stay open: a key to copy, a host's key to trust.
@@ -85,25 +85,66 @@ def test_ssh_key_makes_one_once_and_shows_the_public_half(tmp_path):
     assert back.returncode == 0 and pub.split()[1] in back.stdout
 
 
-@pytest.mark.parametrize(("says", "code", "ok"), [
-    ("Hi sunde! You've successfully authenticated, but GitHub does not provide shell access.", 1, True),
-    ("Hi there, sunde! You've successfully authenticated with the key named codebox, but Forgejo does not provide shell access.", 0, True),
-    ("git@github.com: Permission denied (publickey).", 255, False),
-])
-def test_test_key_goes_by_the_hosts_greeting_not_sshs_exit(tmp_path, says, code, ok):
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_test_key_tries_each_key_alone_and_says_which_get_in_and_as_whom(tmp_path):
+    """One key for GitHub, one deploy key, one that gets in nowhere, one with a passphrase —
+    each tried alone on the host an alias names, after a first connection offering none."""
+    home = tmp_path / "home"
+    (home / ".ssh").mkdir(parents=True)
+    for name, passphrase in (("github.com", ""), ("deploy_site", ""), ("old", ""), ("locked", "secret")):
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", passphrase, "-f", str(home / ".ssh" / name)], check=True)
+    (home / ".ssh" / "config").write_text("Host gh\n  HostName github.com\n  Port 2222\n")
+    greet = tmp_path / "greet"
+    greet.mkdir()
+    (greet / "github.com").write_text("Hi sunde! You've successfully authenticated, but GitHub does not provide shell access.\n")
+    (greet / "deploy_site").write_text("Hi sunde/site! You've successfully authenticated, but GitHub does not provide shell access.\n")
     bin_ = tmp_path / "bin"
     bin_.mkdir()
-    (tmp_path / "says").write_text(says + "\n")
-    (bin_ / "ssh").write_text(f"#!/bin/sh\necho \"$*\" > {tmp_path}/args\ncat {tmp_path}/says >&2\nexit {code}\n")
+    (bin_ / "ssh").write_text(
+        f"#!/bin/sh\n[ \"$1\" = -G ] && exec {shutil.which('ssh')} -F $HOME/.ssh/config \"$@\"\n"
+        f'echo "$*" >> {tmp_path}/ssh.log\n'
+        'k=; prev=; for a; do [ "$prev" = -i ] && k=${a##*/}; prev=$a; done\n'
+        f'[ -n "$k" ] && [ -f {greet}/$k ] && {{ cat {greet}/$k >&2; exit 1; }}\n'
+        'echo "git@github.com: Permission denied (publickey)." >&2; exit 255\n')
     (bin_ / "ssh").chmod(0o755)
+    env = {**os.environ, "HOME": str(home), "PATH": f"{bin_}:{os.environ['PATH']}"}
     run = tool.load()["git"].actions["test-key"].run
-    env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"}
 
-    out = subprocess.run(["sh", "-c", run, "sh", "git.home.lan:2222"], capture_output=True, text=True, env=env, timeout=30)
+    out = subprocess.run(["sh", "-c", run, "sh", "gh"], capture_output=True, text=True, env=env, timeout=60)
 
-    assert (out.returncode == 0) is ok
-    assert ("gets into git.home.lan" in out.stdout) is ok
-    assert (tmp_path / "args").read_text().split() == ["-T", "-p", "2222", "-o", "ConnectTimeout=10", "git@git.home.lan"]
+    assert out.returncode == 0, out.stdout + out.stderr
+    lines = [line.split() for line in out.stdout.splitlines()]
+    assert lines[0] == ["gh", "(github.com,", "port", "2222):"]
+    assert ["deploy_site", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"] in lines
+    assert ["github.com", "gets", "in", "as", "sunde"] in lines
+    assert ["old", "refused"] in lines
+    assert ["locked", "has", "a", "passphrase:", "not", "tried"] in lines
+    calls = (tmp_path / "ssh.log").read_text().splitlines()
+    # First a connection offering no key, where ssh may ask to trust the host; then each
+    # key alone, on the alias's host and port, with nothing from the config added.
+    assert "PubkeyAuthentication=no" in calls[0] and "git@github.com" in calls[0]
+    assert all("-F /dev/null" in c and "IdentitiesOnly=yes" in c and "-p 2222" in c for c in calls[1:])
+    assert len(calls) == 4  # the passphrase key isn't tried
+
+    (greet / "github.com").unlink()
+    (greet / "deploy_site").unlink()
+    none = subprocess.run(["sh", "-c", run, "sh", "gh"], capture_output=True, text=True, env=env, timeout=60)
+    assert none.returncode == 1 and "No key here gets in" in none.stdout
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_a_key_for_a_host_is_made_once_with_the_lines_to_add_to_ssh_config(tmp_path):
+    run = tool.load()["git"].actions["host-key"].run
+    env = {**os.environ, "HOME": str(tmp_path)}
+
+    made = subprocess.run(["sh", "-c", run, "sh", "git.home.lan:2222"], capture_output=True, text=True, env=env, timeout=30)
+
+    assert made.returncode == 0, made.stderr
+    assert (tmp_path / ".ssh" / "git.home.lan.pub").read_text().strip() in made.stdout
+    assert "Host git.home.lan\n  IdentityFile ~/.ssh/git.home.lan\n  IdentitiesOnly yes\n  Port 2222\n" in made.stdout
+    assert not (tmp_path / ".ssh" / "config").exists()  # printed, never written
+    again = subprocess.run(["sh", "-c", run, "sh", "git.home.lan"], capture_output=True, text=True, env=env, timeout=30)
+    assert again.returncode == 1 and "already" in again.stdout
 
 
 def _home_with_projects(tmp_path, remotes: dict[str, str]):
@@ -603,7 +644,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     git = tool.load()["git"].actions
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
-        "ssh-key": (None, "keys"), "test-key": (None, "keys"),
+        "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"),
         "show-key": ("key", "card"), "try-key": ("key", "card"), "delete-key": ("key", "card")}
 
 
