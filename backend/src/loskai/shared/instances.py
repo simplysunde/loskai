@@ -287,7 +287,7 @@ def list_routed() -> list[Instance]:
 router = APIRouter(prefix="/api", tags=["instances"])
 
 
-def _owned(instance_id: str) -> Instance:
+def _require_owned(instance_id: str) -> Instance:
     """The record, for a change by the current account — 404 when there is none, 403 when
     it is another tab's (`access.require_instance`)."""
     inst = require(instance_id)
@@ -327,7 +327,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
 
     Read with a cap rather than `await request.body()`, so an oversized upload is refused
     after one chunk instead of being buffered in full first."""
-    _owned(instance_id)
+    _require_owned(instance_id)
 
     data = bytearray()
     async for chunk in request.stream():
@@ -348,7 +348,7 @@ async def put_icon(instance_id: str, request: Request) -> Instance:
 @router.delete("/instances/{instance_id}/icon")
 def delete_icon(instance_id: str) -> Instance:
     """Drop the icon; the card falls back to its generic glyph."""
-    inst = _owned(instance_id)
+    inst = _require_owned(instance_id)
     icons.remove_all(instance_id)
     return update_fields(instance_id, icon=None) or inst
 
@@ -358,7 +358,7 @@ def patch_instance(instance_id: str, body: InstancePatch) -> Instance:
     """Update mutable display fields (private flag, display name). Subdomain/upstream
     are changed through the assign flow, never here — and so is a machine's name, which is
     its hostname (`assign.name_machine`)."""
-    inst = _owned(instance_id)
+    inst = _require_owned(instance_id)
     if body.name is not None and is_machine(inst) and body.name != inst.name:
         raise HTTPException(status_code=409, detail="A machine's name is its hostname — rename it in its dialog")
     return update_fields(instance_id, **body.model_dump(exclude_none=True)) or inst

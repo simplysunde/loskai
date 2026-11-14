@@ -112,7 +112,7 @@ commit, the full checks, `where-used.py --write`.
 - [x] 57a Backend, the SSH target: `connect.target` → `require_target`, `reach` →
       `target_of`, `t` → `target`; a `Tool` is `tool` (`found` in `connect.py`); a row's
       name is `target_name`
-- [ ] 57b Backend, return-or-raise helpers are `require_…`: `_trusted`, `_tool`,
+- [x] 57b Backend, return-or-raise helpers are `require_…`: `_trusted`, `_tool`,
       `_tool_here`, `_overview`, `assign.same_container`, `instances._owned`
 - [ ] 57c Backend, the answer IP: `current_ip` → `answer_ip`, `settings.caddy_host` →
       `caddy_admin_host`, `base` → `base_domain`

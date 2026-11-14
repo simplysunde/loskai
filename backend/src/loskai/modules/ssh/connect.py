@@ -80,7 +80,7 @@ def require_target(machine_id: str) -> Target:
     return found
 
 
-def _trusted(target: Target) -> str:
+def _require_trusted_key(target: Target) -> str:
     key = logic.known_key(client.read_known_hosts(), target.id)
     if key is None:
         raise SshError("Trust the machine's host key first", 409)
@@ -104,7 +104,7 @@ async def _run(
     """`command` on the machine, trusting only its trusted host key, logged in with the
     machine's `password` when given, else the main key (locked: 423). Not getting there is a
     502, in words."""
-    host_key = host_key or _trusted(target)
+    host_key = host_key or _require_trusted_key(target)
     key = None if password else _main_key()
     try:
         return await client.run(
@@ -240,7 +240,7 @@ def removal(machine_id: str) -> tuple[Target, str] | None:
     the key is locked, so the page asks for your password before anything changes."""
     try:
         target = require_target(machine_id)
-        host_key = _trusted(target)
+        host_key = _require_trusted_key(target)
     except SshError:
         return None
     if client.public_key() is None:
@@ -263,7 +263,7 @@ async def uninstall(target: Target, host_key: str) -> bool:
 async def test(machine_id: str) -> dict:
     """Log in with the main key, then read what runs with the status key."""
     target = require_target(machine_id)
-    host_key = _trusted(target)
+    host_key = _require_trusted_key(target)
     result = await _run(target, "true", host_key)
     if result.exit_status != 0:
         raise SshError(f"Logged in to {target.host}, but a command there failed", 502)
@@ -284,7 +284,7 @@ async def open_terminal(
     (`tool.visible`). Returns the target, connection and process; the caller closes the
     connection."""
     target = require_target(machine_id)
-    host_key = _trusted(target)
+    host_key = _require_trusted_key(target)
     key = _main_key()
     try:
         conn, process = await asyncio.wait_for(
@@ -376,7 +376,7 @@ async def facts(machine_id: str) -> dict:
     `error` — and `old` when its status line is older than this Loskai, so the page offers the
     reinstall."""
     target = require_target(machine_id)
-    host_key = _trusted(target)
+    host_key = _require_trusted_key(target)
     cached = _facts.get(target.id)
     if cached and time.monotonic() - cached[0] < FACTS_TTL:
         return cached[1]
@@ -387,15 +387,15 @@ async def facts(machine_id: str) -> dict:
     return view
 
 
-async def _overview(machine_id: str) -> dict:
+async def _require_facts(machine_id: str) -> dict:
     """The machine's overview, which a tool's command is worked out from — or 409."""
-    f = await facts(machine_id)
-    if not f.get("ok"):
-        raise SshError(f"Its overview is needed first: {f.get('error')}", 409)
-    return f
+    machine_facts = await facts(machine_id)
+    if not machine_facts.get("ok"):
+        raise SshError(f"Its overview is needed first: {machine_facts.get('error')}", 409)
+    return machine_facts
 
 
-def _tool(tool_id: str) -> tool.Tool:
+def _require_tool(tool_id: str) -> tool.Tool:
     found = tool.load().get(tool_id)
     if found is None:
         raise SshError(f"No tool {tool_id!r}", 404)
@@ -415,11 +415,11 @@ async def plan(
     package manager, its programs), never from the request; with `password` it reads
     sudo's first (`tool.visible`). Raises SshError or ToolError: 404 no such tool or action,
     409 it can't run here as asked."""
-    found = _tool(tool_id)
+    found = _require_tool(tool_id)
     require_target(machine_id)  # an SSH user, or 409
-    f = await _overview(machine_id)
-    manager = (f.get("updates") or {}).get("manager")
-    programs = set(f.get("programs") or [])
+    machine_facts = await _require_facts(machine_id)
+    manager = (machine_facts.get("updates") or {}).get("manager")
+    programs = set(machine_facts.get("programs") or [])
     if install:
         script = tool.install_script(found, programs, manager)
         # Never in tmux: it may be tmux that is missing.
@@ -444,7 +444,7 @@ async def plan(
         "command": script, "tmux": session,
     }
     # The sudo rule lets this one run without a password — once it is on the machine.
-    if (found.id, action.id) == tool.RULE_ACTION and f.get("sudo_rule") == "on":
+    if (found.id, action.id) == tool.RULE_ACTION and machine_facts.get("sudo_rule") == "on":
         details["covered"] = True
     return command, details, action.automatic
 
@@ -456,8 +456,8 @@ async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tup
     409 when System's update there isn't plain sudo steps."""
     require_target(machine_id)  # an SSH user, or 409
     if allow:
-        f = await _overview(machine_id)
-        script = tool.allow_script((f.get("updates") or {}).get("manager"))
+        machine_facts = await _require_facts(machine_id)
+        script = tool.allow_script((machine_facts.get("updates") or {}).get("manager"))
     else:
         script = tool.REMOVE_RULE_SCRIPT
     command = tool.visible(script, None, None, automatic=True, password=password)
@@ -540,11 +540,11 @@ def take_password(ticket: str, machine_id: str, details: dict) -> str:
 # --- A tool's settings ---
 
 
-async def _tool_here(machine_id: str, tool_id: str) -> tool.Tool:
+async def _require_usable_tool(machine_id: str, tool_id: str) -> tool.Tool:
     """The tool, applying on this machine — it has every program it requires."""
-    found = _tool(tool_id)
-    f = await _overview(machine_id)
-    lacking = tool.missing(found, set(f.get("programs") or []))
+    found = _require_tool(tool_id)
+    machine_facts = await _require_facts(machine_id)
+    lacking = tool.missing(found, set(machine_facts.get("programs") or []))
     if lacking:
         raise SshError(f"{found.name} needs {', '.join(lacking)} — add it first", 409)
     return found
@@ -560,7 +560,7 @@ async def read_settings(machine_id: str, tool_id: str) -> dict:
     id, and each project's (`tool.parse_settings`), None where unset. Read with the main key,
     so the key must be unlocked (423)."""
     target = require_target(machine_id)
-    found = await _tool_here(machine_id, tool_id)
+    found = await _require_usable_tool(machine_id, tool_id)
     script = tool.read_settings_script(found, _projects_folder(machine_id))
     result = await _run(target, f"sh -c {shlex.quote(status.USER_PATH + script)}")
     return tool.parse_settings(found, str(result.stdout or ""))
@@ -575,7 +575,7 @@ async def write_setting(
     Logged, with the value. Raises ToolError 404/409/422 for no such setting, a row it isn't
     for, or a value it can't take, SshError 502 when the machine says no."""
     target = require_target(machine_id)
-    found = await _tool_here(machine_id, tool_id)
+    found = await _require_usable_tool(machine_id, tool_id)
     script = tool.write_setting_script(found, setting_id, value, target_name, _projects_folder(machine_id))
     result = await _run(target, f"sh -c {shlex.quote(status.USER_PATH + script)}")
     log("setting", machine_id, peer, tool=found.id, setting=setting_id, target=target_name, value=value,

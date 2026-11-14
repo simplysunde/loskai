@@ -132,7 +132,7 @@ def validate_container(container: str) -> None:
         raise AssignError(f"no container named '{container}'", 404)
 
 
-def same_container(instance_id: str | None, container: str) -> None:
+def require_same_container(instance_id: str | None, container: str) -> None:
     """Editing a record by id never moves it to another container. The page never asks; a
     request that did would have its container ignored while a following record took the new
     one's address — until the follower wrote the old one's back."""
@@ -741,7 +741,7 @@ async def post_route(body: RouteCreate) -> dict:
     base, current_ip = settings_store.dns_context()
     if body.container:
         validate_container(body.container)
-        same_container(body.instance_id, body.container)
+        require_same_container(body.instance_id, body.container)
     upstream = (
         await _followed_upstream(body.container, body.instance_id)
         if body.follow_container else body.upstream
@@ -761,7 +761,7 @@ async def post_link(body: LinkCreate) -> dict:
     """Create or edit a link (`instance_id` to edit one). No Caddy route, no DNS rewrite."""
     if body.container:
         validate_container(body.container)
-        same_container(body.instance_id, body.container)
+        require_same_container(body.instance_id, body.container)
     upstream = (
         await _followed_upstream(body.container, body.instance_id, link=True)
         if body.follow_container else body.upstream
