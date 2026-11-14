@@ -289,7 +289,7 @@ const nasRow = () => screen.getByText("Storage box").closest("tr") as HTMLElemen
 // The machine's dialog: its side menu, and the category shown.
 const dialog = () => screen.getByRole("dialog", { name: "Storage box" });
 const category = (name: string) => screen.getByRole("region", { name });
-const open = (name: string) =>
+const openCategory = (name: string) =>
   fireEvent.click(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name }));
 
 // The routes as App has them, so the cog and naming a machine go where they really do.
@@ -401,7 +401,7 @@ async function unlockInPrompt(password = "pw") {
 }
 
 test("deleting a set-up machine with the key locked asks for your password in the one dialog, then deletes", async () => {
-  setUp();
+  sshSetUp();
   sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
   renderPage();
   await screen.findByText("Storage box");
@@ -424,7 +424,7 @@ test("deleting a set-up machine with the key locked asks for your password in th
 });
 
 test("turning SSH off with the key locked asks for your password in the one dialog, then turns it off", async () => {
-  setUp();
+  sshSetUp();
   sshKey = { ...UNLOCKED_KEY, unlocked_until: null };
   renderPage("/machines/nas/ssh");
 
@@ -445,7 +445,7 @@ test("turning SSH off with the key locked asks for your password in the one dial
 });
 
 test("turning SSH off when the key locked meanwhile asks for your password then", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/ssh");
   fireEvent.click(await screen.findByRole("switch", { name: "SSH" }));
   // Unlocked when the dialog opened: no field.
@@ -466,7 +466,7 @@ test("turning SSH off when the key locked meanwhile asks for your password then"
 });
 
 test("a machine deleted with Loskai's key still on it says so", async () => {
-  setUp();
+  sshSetUp();
   deleteReply = { deleted: true, instance_id: "nas", warning: "Loskai's key is still on the machine: No route to host" };
   renderPage();
   await screen.findByText("Storage box");
@@ -481,7 +481,7 @@ test("a machine deleted with Loskai's key still on it says so", async () => {
 });
 
 test("a delete warning is shown as said — not told to remove lines that are already off", async () => {
-  setUp();
+  sshSetUp();
   deleteReply = { deleted: true, instance_id: "nas", warning: "Loskai's key is off, but its sudo rule stayed — as root: rm -f /etc/sudoers.d/loskai" };
   renderPage();
   await screen.findByText("Storage box");
@@ -566,7 +566,7 @@ test("SSH is turned on from its heading, in a dialog that says what comes next, 
 });
 
 test("a set-up machine's login is one row, the user and the port each saving itself", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/ssh");
 
   const port = await screen.findByLabelText("SSH port");
@@ -583,7 +583,7 @@ test("a set-up machine's login is one row, the user and the port each saving its
 });
 
 test("turning SSH off is confirmed first, saying what comes off the machine", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/ssh");
 
   const toggle = await screen.findByRole("switch", { name: "SSH" });
@@ -599,7 +599,7 @@ test("turning SSH off is confirmed first, saying what comes off the machine", as
 });
 
 test("the search finds a section by what is in it, and shows only those", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas");
 
   const search = await screen.findByLabelText("Search");
@@ -701,7 +701,7 @@ test("a machine's dialog sets up its SSH from there", async () => {
   renderPage("/machines/nas/running");
 
   expect(await screen.findByText(/Set up SSH to see what runs here./)).toBeInTheDocument();
-  open("SSH");
+  openCategory("SSH");
   expect(await screen.findByText("not set up")).toBeInTheDocument();
   fireEvent.click(within(category("SSH")).getByRole("button", { name: "Set up SSH" }));
   expect(await screen.findByText("SHA256:abc")).toBeInTheDocument();
@@ -746,7 +746,7 @@ test("a set-up machine's dialog, one scroll: its overview under General, tools, 
   expect(await within(category("Log")).findByText("Terminal opened (loskai@192.168.10.50)")).toBeInTheDocument();
   expect(vi.mocked(fetch).mock.calls.some(([path]) => path === "/api/ssh/log?machine=nas")).toBe(true);
   // The side menu marks the section picked.
-  open("Running");
+  openCategory("Running");
   expect(within(screen.getByRole("navigation", { name: "Categories" })).getByRole("button", { name: "Running" }))
     .toHaveAttribute("aria-current", "location");
   expect(screen.queryByText(/root@192.168.10.10/)).not.toBeInTheDocument();
@@ -788,14 +788,14 @@ test("an overview read from an older status line says so, and offers the reinsta
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
-function setUp() {
+function sshSetUp() {
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
   sshTrusted = { nas: true };
   sshKey = UNLOCKED_KEY;
 }
 
 test("a tool's action runs in the terminal, named — never as a command", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const update = await screen.findByRole("button", { name: "Update" });
@@ -812,7 +812,7 @@ test("a tool's action runs in the terminal, named — never as a command", async
 });
 
 test("an action that is hard to undo asks first", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   fireEvent.click(await screen.findByRole("button", { name: "Reboot" }));
@@ -825,7 +825,7 @@ test("an action that is hard to undo asks first", async () => {
 });
 
 test("a row of the Running list gets the buttons of the tools that apply", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/running");
 
   const row = (await screen.findByText("plex-1")).closest("tr") as HTMLElement;
@@ -840,7 +840,7 @@ test("a row of the Running list gets the buttons of the tools that apply", async
 // --- The running list's buttons (Phase 43) ---
 
 test("a port on the running list adds a route there, already picked; a routed one shows its name", async () => {
-  setUp();
+  sshSetUp();
   runningReply = {
     nas: {
       ok: true, checked: 0, services: [], guests: [], listening: [], denied: [],
@@ -865,7 +865,7 @@ test("a port on the running list adds a route there, already picked; a routed on
 });
 
 test("a Proxmox guest on the running list is named from there, or shows the machine it is", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
   sshTrusted = { nas: true, pve: true };
   runningReply = {
@@ -892,7 +892,7 @@ test("a Proxmox guest on the running list is named from there, or shows the mach
 });
 
 test("a tool the machine lacks is offered to add, when Loskai can install what it needs", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   await screen.findByRole("button", { name: "Update" });
@@ -908,7 +908,7 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
 });
 
 test("a set-up machine's row has a Tools menu: each added tool, how it stands, in a dialog", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -929,7 +929,7 @@ test("a set-up machine's row has a Tools menu: each added tool, how it stands, i
 });
 
 test("a tool's dialog has a Settings button to the machine's page; Claude Code's says where the projects are", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -946,7 +946,7 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
 });
 
 test("the Git card's cog opens its settings — the machine's commit name and email — and sets one", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -971,7 +971,7 @@ test("the Git card's cog opens its settings — the machine's commit name and em
 });
 
 test("a project's cog opens a dialog that sets its own commit email, the global one shown while it has none", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -1001,7 +1001,7 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
 });
 
 test("Git's Pull all and Push all are together at its list's foot, ahead of Clone", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -1018,7 +1018,7 @@ test("Git's Pull all and Push all are together at its list's foot, ahead of Clon
 });
 
 test("a project's settings dialog cancelled writes nothing", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   fireEvent.click(await screen.findByRole("button", { name: "Project overrides for site" }));
@@ -1031,14 +1031,14 @@ test("a project's settings dialog cancelled writes nothing", async () => {
 });
 
 test("a setting changed is in the machine's log, with what it was set to", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/log");
 
   expect(await within(await screen.findByRole("region", { name: "Log" })).findByText("Set git › email to ola@example.no")).toBeInTheDocument();
 });
 
 test("with Loskai's key locked, the Git card's cog asks for your password, then opens its settings", async () => {
-  setUp();
+  sshSetUp();
   gitStatus = 423;
   renderPage("/machines/nas/tools");
 
@@ -1061,7 +1061,7 @@ test("with Loskai's key locked, the Git card's cog asks for your password, then 
 });
 
 test("with Loskai's key locked, a project's cog asks for your password, then opens its settings", async () => {
-  setUp();
+  sshSetUp();
   gitStatus = 423;
   renderPage("/machines/nas/tools");
 
@@ -1080,7 +1080,7 @@ test("with Loskai's key locked, a project's cog asks for your password, then ope
 });
 
 test("a change refused because the key locked meanwhile asks for your password, then is sent again", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const tools = await screen.findByRole("region", { name: "Tools" });
   fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
@@ -1105,7 +1105,7 @@ test("a change refused because the key locked meanwhile asks for your password, 
 });
 
 test("Tailscale is two switches — connected, and sharing — with the tailnet folded under them", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, tailscale_self: { state: "on", shared: [], approved: [] } };
   renderPage();
   await screen.findByText("Storage box");
@@ -1131,7 +1131,7 @@ test("Tailscale is two switches — connected, and sharing — with the tailnet 
 });
 
 test("on a status line before v9, sharing has no switch, only how to see it", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -1144,7 +1144,7 @@ test("on a status line before v9, sharing has no switch, only how to see it", as
 });
 
 test("Tailscale waiting for approval reads the same in the overview as on its card", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, tailscale_self: { state: "approval", shared: [], approved: [] } };
   renderPage("/machines/nas");
 
@@ -1155,7 +1155,7 @@ test("Tailscale waiting for approval reads the same in the overview as on its ca
 });
 
 test("Tailscale off, or logged out, offers only to connect", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, tailscale: null, tailscale_self: { state: "login", shared: [], approved: [] } };
   try {
     renderPage();
@@ -1180,7 +1180,7 @@ test("Tailscale off, or logged out, offers only to connect", async () => {
 });
 
 test("Tailscale says which networks it shares, and which wait for approval", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, tailscale_self: { state: "on", shared: ["192.168.10.0/24", "10.0.0.0/24"], approved: ["192.168.10.0/24"] } };
   try {
     renderPage();
@@ -1201,7 +1201,7 @@ test("Tailscale says which networks it shares, and which wait for approval", asy
 });
 
 test("a tool's dialog on an older status line goes straight to installing it again", async () => {
-  setUp();
+  sshSetUp();
   facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };
   renderPage();
   await screen.findByText("Storage box");
@@ -1215,7 +1215,7 @@ test("a tool's dialog on an older status line goes straight to installing it aga
 });
 
 test("a tool's dialog whose request fails says why, and links to the machine's settings", async () => {
-  setUp();
+  sshSetUp();
   factsStatus = 409;
   facts = { detail: "Storage box has no SSH user" };
   renderPage();
@@ -1231,7 +1231,7 @@ test("a tool's dialog whose request fails says why, and links to the machine's s
 });
 
 test("a tool the machine lacks opens to what it needs, and adds it", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -1245,7 +1245,7 @@ test("a tool the machine lacks opens to what it needs, and adds it", async () =>
 });
 
 test("a tool's card lists its rows, each with its buttons — not another tool's sessions", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const row = (await screen.findByText("build")).closest("li") as HTMLElement;
@@ -1256,7 +1256,7 @@ test("a tool's card lists its rows, each with its buttons — not another tool's
 });
 
 test("an action that asks for a name runs on what is typed", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const name = await screen.findByLabelText("New session — name");
@@ -1267,7 +1267,7 @@ test("an action that asks for a name runs on what is typed", async () => {
 });
 
 test("Clone asks for a repository's address and runs on it; Git's card has the projects too", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const address = await screen.findByLabelText("Clone — repository");
@@ -1296,7 +1296,7 @@ async function machineKeys() {
 const names = (el: HTMLElement) => within(el).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent);
 
 test("Git's Keys: git's keys — the remotes each is for, a Test, where to add it — Copy puts one on the clipboard", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const dialog = await gitKeys();
@@ -1340,7 +1340,7 @@ test("Git's Keys: git's keys — the remotes each is for, a Test, where to add i
 });
 
 test("the machine's SSH settings: Keys beside SSH setup lists every key plainly — what for, Copy, Label, Delete", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/ssh");
   const ssh = await screen.findByRole("region", { name: "SSH" });
   const keys = await within(ssh).findByRole("button", { name: /Keys \(4\)/ });
@@ -1376,7 +1376,7 @@ test("the machine's SSH settings: Keys beside SSH setup lists every key plainly 
 });
 
 test("an account key no remote uses says why: the remotes there are over HTTP", async () => {
-  setUp();
+  sshSetUp();
   // Labelled an account key, so git's — though no remote here uses it.
   const labelled = FACTS.ssh_keys.map((k) => (k.name === "id_ed25519" ? { ...k, comment: "loskai@nas (loskai: account)" } : k));
   facts = { ...FACTS, ssh_keys: labelled, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }],
@@ -1402,7 +1402,7 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
 });
 
 test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
-  setUp();
+  sshSetUp();
   // codebox: its one SSH address, a submodule's push, goes through an alias with its own key.
   const labelled = FACTS.ssh_keys.map((k) => (k.name === "id_ed25519" ? { ...k, comment: "loskai@nas (loskai: account)" } : k));
   facts = { ...FACTS, ssh_keys: labelled, remotes: [
@@ -1416,7 +1416,7 @@ test("an account key no remote uses, where the SSH ones each have their own, say
 });
 
 test("a key's Test drops down over Keys, which stays — its answer the drop-down's Done or Failed", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   // Its own host field, filled with the platform its remotes go to.
@@ -1435,7 +1435,7 @@ test("a key's Test drops down over Keys, which stays — its answer the drop-dow
 });
 
 test("a key's Test, while Keys is open: a ✓ in its field's place, and no Add to …; a ✗ keeps both", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
@@ -1466,7 +1466,7 @@ test("a key's Test, while Keys is open: a ✓ in its field's place, and no Add t
 
 test("a host tested before is offered in every host field, newest first, and forgotten with its ✕", async () => {
   localStorage.removeItem("loskai-recent-hosts");
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const field = (name: string) => within(dialog).getByLabelText(`Host to test ${name} on`);
@@ -1500,7 +1500,7 @@ test("a host tested before is offered in every host field, newest first, and for
 });
 
 test("Label, on a key: what it is for, picked in a dialog and written on the key", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await machineKeys();
   fireEvent.click(within(dialog).getByRole("button", { name: "Label id_ed25519" }));
@@ -1518,14 +1518,14 @@ test("Label, on a key: what it is for, picked in a dialog and written on the key
 });
 
 test("a machine whose ssh config has Match exec: Git's Keys says which remotes use which key wasn't asked", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, ssh_hosts: {}, ssh_match_exec: true };
   renderPage("/machines/nas/tools");
   expect(await gitKeys()).toHaveTextContent("This machine's ssh config may run a command to choose keys (Match exec");
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const dialog = await machineKeys();
@@ -1537,7 +1537,7 @@ test("Delete, in Keys, asks first and then runs on the key", async () => {
 });
 
 test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on it; Settings has neither", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -1562,7 +1562,7 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
 });
 
 test("New key for a host, in Keys, makes one for the host typed", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   fireEvent.change(within(dialog).getByLabelText("Host"), { target: { value: "github.com" } });
@@ -1571,7 +1571,7 @@ test("New key for a host, in Keys, makes one for the host typed", async () => {
 });
 
 test("Keys offers New account key while there is none, and says when the status line can't list them", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, ssh_keys: [] };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
@@ -1581,14 +1581,14 @@ test("Keys offers New account key while there is none, and says when the status 
 });
 
 test("an older status line: Keys says to install it again — for the keys, or for where they are used", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, ssh_keys: null };
   renderPage("/machines/nas/tools");
   expect(within(await gitKeys()).getByText(/status line is older than this Loskai/)).toBeInTheDocument();
 });
 
 test("a line with the keys but not the remotes lists them, and says where they're used needs it installed again", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
@@ -1597,7 +1597,7 @@ test("a line with the keys but not the remotes lists them, and says where they'r
 });
 
 test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -1627,7 +1627,7 @@ test("a project's cog says which key it uses — its own teal like its own name 
 });
 
 test("a project whose remote is over HTTP: no SSH key is used, which its overrides say, the button greyed", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }] };
   renderPage("/machines/nas/tools");
   const tools = await screen.findByRole("region", { name: "Tools" });
@@ -1638,7 +1638,7 @@ test("a project whose remote is over HTTP: no SSH key is used, which its overrid
 });
 
 test("a name typed for an action that asks first is kept when that is cancelled", async () => {
-  setUp();
+  sshSetUp();
   toolsReply = TOOLS.map((t) => ({
     ...t,
     actions: t.actions.map((a) => ("ask" in a && a.ask === "session" ? { ...a, confirm: "Start it?" } : a)),
@@ -1654,7 +1654,7 @@ test("a name typed for an action that asks first is kept when that is cancelled"
 });
 
 test("a project lists in its machine's projects folder, says its Claude session runs, and attaches to it", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   // On Claude Code's card and on Git's, each with its own buttons.
@@ -1676,7 +1676,7 @@ test("a project lists in its machine's projects folder, says its Claude session 
 });
 
 test("a project's buttons follow its session in the same places: Attach, greyed while stopped; Start or Stop", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas/tools");
 
   await screen.findAllByText("blog");
@@ -1693,7 +1693,7 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
 });
 
 test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -1741,7 +1741,7 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
 });
 
 test("Machine, in Projects, opens the machine's dialog over it; closing that comes back to Projects", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
   const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
@@ -1758,7 +1758,7 @@ test("Machine, in Projects, opens the machine's dialog over it; closing that com
 });
 
 test("a project's buttons in Projects run in that machine's terminal", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
   const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
@@ -1768,7 +1768,7 @@ test("a project's buttons in Projects run in that machine's terminal", async () 
 });
 
 test("Projects lists only the machines with projects, beside a menu of them, and makes one on any machine", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
   sshTrusted = { nas: true, pve: true };
   // pve has git and Claude Code, and no project yet.
@@ -1809,7 +1809,7 @@ test("Projects lists only the machines with projects, beside a menu of them, and
 });
 
 test("Update all, from the row above the table: each set-up machine updated in turn, the next once the last ends", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
   sshTrusted = { nas: true, pve: true };
   renderPage();
@@ -1840,7 +1840,7 @@ test("Update all, from the row above the table: each set-up machine updated in t
 });
 
 test("Update all has each machine's switch for updates without a password; root needs none", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
   sshTrusted = { nas: true, pve: true };
   facts = { ...FACTS, sudo_rule: "off" };
@@ -1871,7 +1871,7 @@ test("Update all has each machine's switch for updates without a password; root 
 });
 
 test("Update all can stop after the machine updating now", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
   sshTrusted = { nas: true, pve: true };
   renderPage();
@@ -1889,7 +1889,7 @@ test("Update all can stop after the machine updating now", async () => {
 });
 
 test("the projects folder is set under the Git card's cog, not under General", async () => {
-  setUp();
+  sshSetUp();
   renderPage("/machines/nas");
 
   fireEvent.click(await within(await screen.findByRole("region", { name: "Tools" })).findByRole("button", { name: "Git settings" }));
@@ -1910,7 +1910,7 @@ test("the projects folder is set under the Git card's cog, not under General", a
 });
 
 test("a set-up machine's row updates its system in its terminal; the plain one has no Update", async () => {
-  setUp();
+  sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
@@ -1941,7 +1941,7 @@ test("a machine that doesn't exist says so", async () => {
   expect(await screen.findByText("No such machine.")).toBeInTheDocument();
 });
 test("updates without a password are allowed in the machine's terminal, and taken off there", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, sudo_rule: "off" };
   renderPage("/machines/nas/ssh");
 
@@ -1954,7 +1954,7 @@ test("updates without a password are allowed in the machine's terminal, and take
 });
 
 test("a machine with the rule on offers to take it off", async () => {
-  setUp();
+  sshSetUp();
   facts = { ...FACTS, sudo_rule: "on" };
   renderPage("/machines/nas/ssh");
 
@@ -1965,7 +1965,7 @@ test("a machine with the rule on offers to take it off", async () => {
 });
 
 test("a machine logged into as root needs no rule", async () => {
-  setUp();
+  sshSetUp();
   sshHosts = { nas: { hostname: "192.168.10.50", user: "root", port: 22 } };
   renderPage("/machines/nas/ssh");
 
