@@ -1284,19 +1284,20 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
 
   const dialog = await gitKeys();
   const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
-  expect(within(dialog).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(
-    ["id_ed25519", "deploy_blog", "work"],
-  );
-  // Each says what it is, in words, and what it does, written out: the account key site's
-  // (blog has its own); blog's deploy key; `work`, which site's submodule pushes with through
-  // ~/.ssh/config's gh-page.
-  expect(row("id_ed25519")).toHaveTextContent("Account key");
-  expect(row("id_ed25519")).toHaveTextContent("Fetches and pushes projects/site on github.com");
-  expect(row("deploy_blog")).toHaveTextContent("Deploy key");
-  expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog on forgejo.lan");
-  expect(row("work")).toHaveTextContent("Key for github.com");
-  expect(row("work")).toHaveTextContent("Pushes projects/site › public/page on github.com through ~/.ssh/config (gh-page)");
-  expect(row("work")).toHaveTextContent("Named in ~/.ssh/config — Delete leaves it alone.");
+  // Account keys and deploy keys apart: the account key, and `work` — a key for github.com,
+  // which site's submodule pushes with through ~/.ssh/config's gh-page; blog's deploy key.
+  const section = (name: string) => within(dialog).getByRole("region", { name });
+  expect(within(section("Account keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
+    .toEqual(["id_ed25519", "work"]);
+  expect(within(section("Deploy keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
+    .toEqual(["deploy_blog"]);
+  expect(within(dialog).queryByRole("region", { name: "Other keys" })).toBeNull();
+  // What each does, in a line a remote.
+  expect(row("id_ed25519")).toHaveTextContent("Fetches and pushes projects/site · github.com");
+  expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog · forgejo.lan");
+  expect(row("deploy_blog")).toHaveTextContent("me/blog");
+  expect(row("work")).toHaveTextContent("Pushes projects/site › public/page · github.com via gh-page");
+  expect(within(row("work")).getByText("~/.ssh/config")).toBeInTheDocument();
   expect(row("work")).not.toHaveTextContent("Fetches");
   // The fingerprint, shortened; whole in its tooltip.
   expect(within(row("id_ed25519")).getByTitle("ED25519 256: SHA256:mach")).toBeInTheDocument();
@@ -1322,8 +1323,8 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(row).toHaveTextContent("No remote here uses it: they are over HTTP(S), not SSH.");
-  expect(within(dialog).getByText("deploy_blog").closest("li")).toHaveTextContent("No remote here uses it yet.");
+  expect(row).toHaveTextContent("Unused here — remotes are HTTP(S)");
+  expect(within(dialog).getByText("deploy_blog").closest("li")).toHaveTextContent(/Unused here(?! —)/);
 });
 
 test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
@@ -1335,7 +1336,7 @@ test("an account key no remote uses, where the SSH ones each have their own, say
   ], ssh_hosts: { "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] } }, ssh_config_keys: ["work"] };
   renderPage("/machines/nas/tools");
   const row = within(await gitKeys()).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(row).toHaveTextContent("No remote here uses it: the ones over SSH each use a key of their own.");
+  expect(row).toHaveTextContent("Unused here — SSH remotes use their own keys");
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {
@@ -1406,7 +1407,7 @@ test("a line with the keys but not the remotes lists them, and says where they'r
   facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  expect(within(dialog).getAllByText("Install the status line again to see where it is used.")).toHaveLength(3);
+  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(3);
 });
 
 test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {

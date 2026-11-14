@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Keys: account keys and deploy keys apart, in fewer words
+
+Sunde: too much text, and account keys should stand apart from deploy keys. Keys is now
+two lists, each with one line saying what its keys are — Account keys (ssh's own, and a
+key for one platform), Deploy keys (one repository each) — and Other keys only when one is
+neither. A card says its platform or repository beside its name rather than a role, and
+what it does in a line a remote ("Pushes … · github.com via alias"); the reasons, and
+`~/.ssh/config` naming it, are a few words or a tag, the rest in tooltips.
+
 ## 2026-11-14 — Keys made readable: what a key is and does, in words
 
 Seen on codebox: the line that mattered — where a key is used — was cut off, "other" said

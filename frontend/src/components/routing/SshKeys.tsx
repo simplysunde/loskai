@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ExternalLink, KeyRound } from "lucide-react";
 
-import { keyKind, keyPage, keyRole, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
+import { keyGroup, keyKind, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
@@ -9,11 +9,12 @@ import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
 
-const KIND_TITLE = {
-  account: "On your GitHub or Forgejo account: reaches every repository you can. ssh offers it wherever no other key is named.",
-  deploy: "On one repository only, for one project — its Own key, in its cog.",
-  other: "A key of your own: used where ~/.ssh/config names it for a host.",
-};
+// The lists, each with a line saying what its keys are.
+const GROUPS = [
+  { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
+  { id: "deploy", title: "Deploy keys", hint: "on one repository each — a project's cog makes one" },
+  { id: "other", title: "Other keys", hint: "neither, as far as Loskai can tell" },
+] as const;
 
 
 // Keys, in the card's header beside Settings, where a tool keeps the SSH user's keys (Git).
@@ -48,6 +49,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
   const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
+  const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
   const beside = tool.actions.filter((a) => a.place === "keys" && !(a.id === "ssh-key" && hasAccount));
@@ -63,14 +65,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
       className="flex max-h-full w-full max-w-3xl flex-col rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:max-h-[85vh]"
     >
       <h2 className="text-base font-semibold text-slate-100">SSH keys</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        Every SSH key the user Loskai logs in as has on this machine, in ~/.ssh — read by their public halves only.
-        Copy one and add it where it goes; Test checks that it gets in. An{" "}
-        <span title={KIND_TITLE.account} className="cursor-help text-slate-200 underline decoration-dotted">account key</span>{" "}
-        reaches every repository your account can; a{" "}
-        <span title={KIND_TITLE.deploy} className="cursor-help text-slate-200 underline decoration-dotted">deploy key</span>,
-        one repository — a project's cog makes one.
-      </p>
+      <p className="mt-1 text-sm text-slate-400">The keys of the user Loskai logs in as, in ~/.ssh — public halves only.</p>
       <div className="mt-4 min-h-0 overflow-auto">
         {keys == null ? (
           <p className="text-sm text-amber-300">
@@ -79,42 +74,37 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
         ) : keys.length === 0 ? (
           <p className="text-sm text-slate-500">No SSH key here yet.</p>
         ) : (
-          <ul aria-label="Keys" className="divide-y divide-slate-800 rounded-lg border border-slate-800">
-            {keys.map((k) => {
-              const mine = uses ? (uses.get(k.name) ?? []) : null;
+          <div className="space-y-4">
+            {GROUPS.map((g) => {
+              const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
+              if (inIt.length === 0 && g.id === "other") return null;
               return (
-                <li key={k.name} className="px-3 py-2.5 text-xs">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <span className="font-mono text-sm text-slate-100">{k.name}</span>
-                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{keyRole(k, mine)}</span>
-                    <span className="ml-auto flex flex-wrap items-center gap-1">
-                      <CopyKey info={k} uses={mine} />
-                      {onKey.map((a) => (
-                        <KeyButton
-                          key={a.id}
+                <section key={g.id} aria-label={g.title}>
+                  <h3 className="text-xs font-medium text-slate-200">
+                    {g.title} <span className="font-normal text-slate-500">— {g.hint}</span>
+                  </h3>
+                  {inIt.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">None.</p>
+                  ) : (
+                    <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
+                      {inIt.map((k) => (
+                        <KeyRow
+                          key={k.name}
+                          info={k}
+                          uses={usesOf(k)}
+                          named={named.has(k.name)}
+                          facts={ctx.facts}
+                          actions={onKey}
                           tool={tool}
-                          action={a}
-                          name={k.name}
                           onRun={run}
-                          kept={a.id === "delete-key" && named.has(k.name)}
                         />
                       ))}
-                    </span>
-                  </div>
-                  <UsedBy uses={mine} named={named.has(k.name)} account={keyKind(k.name) === "account"} facts={ctx.facts} />
-                  {/* Its comment says what it is for — "for github.com", a deploy key's project —
-                      and travels with the key: nothing about it is kept in Loskai. Its
-                      fingerprint is the one GitHub and Forgejo list beside a key. */}
-                  <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                    {k.comment && <span>{k.comment} · </span>}
-                    <span title={`${k.type} ${k.bits}: ${k.fingerprint}`} className="cursor-help font-mono">
-                      {k.fingerprint.slice(0, 19)}…
-                    </span>
-                  </p>
-                </li>
+                    </ul>
+                  )}
+                </section>
               );
             })}
-          </ul>
+          </div>
         )}
       </div>
       {beside.length > 0 && (
@@ -149,62 +139,86 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   );
 }
 
-// What a key does, in words that wrap rather than cut off: each remote it is for — a
-// project's, or a submodule's — fetching, pushing, on which platform, through which
-// ~/.ssh/config alias; whether that file names it; and, used nowhere, why.
-function UsedBy({
+// A key: its name, the word beside it (its platform, or a deploy key's repository) and
+// buttons; then what it does; then its comment and fingerprint.
+function KeyRow({
+  info,
   uses,
   named,
-  account,
   facts,
+  actions,
+  tool,
+  onRun,
 }: {
+  info: SshKeyInfo;
   uses: KeyUse[] | null;
   named: boolean;
-  account: boolean;
   facts: Facts;
+  actions: ToolAction[];
+  tool: Tool;
+  onRun: ToolStart;
 }) {
-  if (!uses) return <p className="mt-1 text-slate-500">Install the status line again to see where it is used.</p>;
-  const verb = { "fetch and push": "Fetches and pushes", fetch: "Fetches", push: "Pushes" } as const;
-  const sshRemotes = (facts.remotes ?? []).some((r) => sshHost(r.url));
-  // Why the account key goes unused: every remote over HTTP(S), or the SSH ones each with
-  // a key of their own (an alias's IdentitiesOnly, a project's Own key).
-  const unused = !sshRemotes
-    ? "No remote here uses it: they are over HTTP(S), not SSH. An account key reaches every repository your account can, once a remote here goes over SSH."
-    : "No remote here uses it: the ones over SSH each use a key of their own. An account key reaches every repository your account can, once a remote here goes over SSH without one.";
+  const { group, tag } = keyGroup(info, uses);
   return (
-    <div className="mt-1 space-y-0.5 text-slate-300">
+    <li className="px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className="font-mono text-sm text-slate-100">{info.name}</span>
+        {tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
+        {named && (
+          <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+            ~/.ssh/config
+          </span>
+        )}
+        <span className="ml-auto flex flex-wrap items-center gap-1">
+          <CopyKey info={info} uses={uses} />
+          {actions.map((a) => (
+            <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} kept={a.id === "delete-key" && named} />
+          ))}
+        </span>
+      </div>
+      <UsedBy uses={uses} named={named} account={group === "account"} facts={facts} />
+      {/* Its comment says what it is for and travels with the key; its fingerprint is the one
+          GitHub and Forgejo list beside a key. */}
+      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+        {info.comment && <span>{info.comment} · </span>}
+        <span title={`${info.type} ${info.bits}: ${info.fingerprint}`} className="cursor-help font-mono">
+          {info.fingerprint.slice(0, 19)}…
+        </span>
+      </p>
+    </li>
+  );
+}
+
+// What a key does, in a line a remote: fetches or pushes which repository (› submodule), on
+// which platform, through which ~/.ssh/config alias. Unused, a word on why.
+function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named: boolean; account: boolean; facts: Facts }) {
+  if (!uses) return <p className="mt-0.5 text-slate-500">Install the status line again to see where it's used.</p>;
+  if (uses.length === 0) {
+    const ssh = (facts.remotes ?? []).some((r) => sshHost(r.url));
+    return (
+      <p className="mt-0.5 text-slate-500">
+        {named ? "Used by no remote here" : account ? (ssh ? "Unused here — SSH remotes use their own keys" : "Unused here — remotes are HTTP(S)") : "Unused here"}
+      </p>
+    );
+  }
+  const verb = { "fetch and push": "Fetches and pushes", fetch: "Fetches", push: "Pushes" } as const;
+  return (
+    <div className="mt-0.5 text-slate-300">
       {uses.map((u) => (
-        <p key={`${u.repo}|${u.module}|${u.way}|${u.url}`} title={u.url}>
-          {verb[u.way]} <span className="font-mono">{u.repo}</span>
-          {u.module && (
-            <>
-              {" › "}
-              <span className="font-mono">{u.module}</span>
-            </>
-          )}
+        <p key={`${u.repo}|${u.module}|${u.way}|${u.url}`} title={u.url} className="truncate">
+          {verb[u.way]} <span className="font-mono">{u.repo}{u.module && ` › ${u.module}`}</span>
           <span className="text-slate-500">
-            {" "}
-            on {u.hostname}
-            {u.hostname !== u.host && <> through ~/.ssh/config ({u.host})</>}
+            {" · "}
+            {u.hostname}
+            {u.hostname !== u.host && ` via ${u.host}`}
           </span>
           {u.offered && (
-            <span title={`ssh tries it there among other keys — Test key with ${u.host} says which gets in`} className="cursor-help text-amber-300/80">
-              {" "}
-              — one of several keys ssh offers there
+            <span title={`One of several keys ssh offers there — Test key with ${u.host} says which gets in`} className="cursor-help text-amber-300/80">
+              {" · offered"}
             </span>
           )}
         </p>
       ))}
-      {uses.length === 0 && (
-        <p className="text-slate-500">
-          {named
-            ? "~/.ssh/config names it for a host no project here uses — a login elsewhere, perhaps."
-            : account
-              ? unused
-              : "No remote here uses it yet."}
-        </p>
-      )}
-      {named && uses.length > 0 && <p className="text-slate-500">Named in ~/.ssh/config — Delete leaves it alone.</p>}
     </div>
   );
 }

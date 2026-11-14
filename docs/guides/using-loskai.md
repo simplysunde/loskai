@@ -239,16 +239,14 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-  **Keys**, beside Settings in Git's header, lists every SSH key the user Loskai logs in as
-  has on that machine (`~/.ssh`, read by their public halves only — not other users', not a
-  key kept elsewhere, not a private key without its `.pub`), a card each: its name and what
-  it is in words — Account key, Deploy key, Key for github.com — what it does, written out
-  ("Pushes projects › public/simplysunde.github.io on github.com through
-  ~/.ssh/config (github-blog)"), or why nothing uses it — an account key belongs to
-  your account, not a repository, so it shows the remotes here git would use it for, and
-  says when none would: all over HTTP(S), or the SSH ones each with a key of their own —
-  and its comment and fingerprint, the one GitHub and Forgejo list beside a key, shortened,
-  whole in its tooltip. Where it is used is every remote it is for, in
+  **Keys**, beside Settings in Git's header, lists the SSH keys of the user Loskai logs in
+  as (`~/.ssh`, public halves only), in two lists: **Account keys** — on your account,
+  reaching every repository you can: ssh's own (`id_…`), and a key for one platform, its
+  platform beside it — and **Deploy keys**, on one repository each, its repository beside
+  it (**Other keys**, when one is neither). Each says in a line a remote what it does —
+  "Pushes projects › public/simplysunde.github.io · github.com via
+  github-blog" — or why it is unused, and its comment and fingerprint
+  (shortened; whole in its tooltip). Where it is used is every remote it is for, in
   every project and submodule — fetch, push, or both — by the project's own key, else by
   what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
   pushes through `git@github-site:…`, an alias naming its own key, shows under that key,

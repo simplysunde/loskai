@@ -137,13 +137,16 @@ function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
   return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
 }
 
-// What a key is, in a few words, for its row: a deploy key, the account key (ssh's own, which
-// it offers wherever no other is named), a key for one platform, or one git doesn't use.
-export function keyRole(key: SshKeyInfo, uses: KeyUse[] | null): string {
-  if (isDeploy(key)) return "Deploy key";
-  if (keyKind(key.name) === "account") return "Account key";
-  const host = keyHost(key, uses);
-  return host ? `Key for ${host}` : "Key";
+// Which list a key is in, and the word beside its name: a deploy key, on one repository
+// (that repository); an account key — ssh's own, which it offers wherever no other is
+// named, or one for a platform — on your account (the platform, when one); or neither.
+export function keyGroup(key: SshKeyInfo, uses: KeyUse[] | null): { group: "account" | "deploy" | "other"; tag: string | null } {
+  if (isDeploy(key)) {
+    const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)?.replace(/^https?:\/\/[^/]+\//, "")))];
+    return { group: "deploy", tag: repos.length === 1 ? (repos[0] ?? null) : null };
+  }
+  const host = keyHost(key, uses) ?? null;
+  return keyKind(key.name) === "account" || host ? { group: "account", tag: host } : { group: "other", tag: null };
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever
