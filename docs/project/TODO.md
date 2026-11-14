@@ -73,7 +73,10 @@ what nothing about a tool stores.
       own tmux sessions — and each project with its git, its Claude session, and Git's and
       Claude Code's buttons, run in that machine's terminal; each machine's overview read
       while it is open, none holding up another (`ProjectsOverview`)
-- [ ] 55b Live: on Sunde's machines, through the page — Projects and Update all
+- [ ] 55b Live: on Sunde's machines, through the page — Projects and Update all. So far
+      (2026-11-14): Update all on four apt machines, root's and the rule's; New project on
+      codebox (folder, `git init`, Claude's conversation started). Left: Clone, and Projects'
+      own buttons
 - [x] 55c Asked after 55a (Sunde): Projects in a row above the table rather than beside Name a
       machine, with **Update all** — System's Update on every set-up machine, one after
       another (`UpdateAll`)
