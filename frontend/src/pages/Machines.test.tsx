@@ -106,8 +106,8 @@ const TOOLS = [
   {
     id: "claude", name: "Claude Code", description: "Claude in projects.", requires: ["claude", "tmux", "git"], installable: ["claude", "tmux", "git"],
     actions: [
+      { id: "attach", label: "Attach", description: "Watch it.", target: "project", ask: null, confirm: null, session: "claude", when: "running", otherwise: "disabled", run: "true" },
       { id: "start", label: "Start", description: "Start it.", target: "project", ask: null, confirm: null, session: false, automatic: true, when: "stopped", run: "tmux new-session -d claude" },
-      { id: "attach", label: "Attach", description: "Watch it.", target: "project", ask: null, confirm: null, session: "claude", when: "running", run: "true" },
       { id: "stop", label: "Stop", description: "Stop it.", target: "project", ask: null, confirm: "Claude stops.", session: false, automatic: true, when: "running", run: "tmux kill-session" },
       { id: "new", label: "New project", description: "Make one.", target: null, ask: "project", confirm: null, session: "claude", run: "git init" },
     ],
@@ -1252,7 +1252,7 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
 });
 
-test("a project's buttons follow its session: Start while stopped, Attach and Stop while it runs — the rest hidden", async () => {
+test("a project's buttons follow its session in the same places: Attach, greyed while stopped; Start or Stop", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
@@ -1262,7 +1262,11 @@ test("a project's buttons follow its session: Start while stopped, Attach and St
     screen.getAllByText(name).map((el) => el.closest("li") as HTMLElement).find((li) => !within(li).queryByRole("button", { name: "Pull" }))!;
   const buttons = (name: string) => within(claude(name)).getAllByRole("button").map((b) => b.textContent?.trim());
   expect(buttons("site")).toEqual(["Attach", "Stop"]);
-  expect(buttons("blog")).toEqual(["Start"]);
+  expect(buttons("blog")).toEqual(["Attach", "Start"]);
+  expect(within(claude("site")).getByRole("button", { name: "Attach" })).toBeEnabled();
+  const idle = within(claude("blog")).getByRole("button", { name: "Attach" });
+  expect(idle).toBeDisabled();
+  expect(idle.title).toBe("Not running — Start it first");
 });
 
 test("the projects folder is set on the Git card, not under General", async () => {

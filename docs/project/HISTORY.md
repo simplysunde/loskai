@@ -9,8 +9,10 @@
 Its one button, **Claude**, attached to a project's session or started one — which of the
 two you couldn't tell — and End stopped it. Sunde asked for buttons that manage sessions:
 start, stop, attach. So a project's buttons now follow its session, through a new `when` on
-an action: **Start** while stopped, **Attach** and **Stop** while it runs. Hidden, not
-greyed, when they don't fit (Sunde agreed): a row shows what can be done now.
+an action: **Start** while stopped, **Attach** and **Stop** while it runs. First hidden when
+they didn't fit (Sunde agreed); seen on the page it looked "empty and unfinished" — rows of
+one button and rows of two. So every row now has the same two places: **Attach**, greyed
+while stopped (`otherwise: disabled`), then **Start** or **Stop**, taking turns.
 
 Start runs Claude detached, so nobody sees it if Claude stops to ask something. Tried on
 this VM: in a folder never trusted it stops at "do you trust this folder?". Start looks for

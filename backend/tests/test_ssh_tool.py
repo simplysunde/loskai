@@ -19,8 +19,8 @@ def test_every_shipped_tool_is_valid():
     assert tools["claude"].requires == ("claude", "tmux", "git") and tools["claude"].actions["attach"].session == "claude"
     # Claude Code is its sessions — a project's buttons follow its own; its git is the Git tool's.
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
-    assert {a.id: a.when for a in tools["claude"].actions.values() if a.when} == {
-        "start": "stopped", "attach": "running", "stop": "running"}
+    assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
+        "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo"
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
@@ -381,9 +381,10 @@ def test_when_is_running_or_stopped_and_needs_a_target_whose_rows_share_a_sessio
             **extra}}
 
     t = tool.parse("t", actions(stop={"label": "S", "description": "d", "target": "project", "when": "running",
-                                      "session": False, "run": "true"}))
+                                      "otherwise": "disabled", "session": False, "run": "true"}))
     assert t.actions["stop"].when == "running" and t.actions["attach"].when is None
-    assert tool.view(t)["actions"][1]["when"] == "running"
+    assert t.actions["stop"].otherwise == "disabled" and t.actions["attach"].otherwise == "hidden"
+    assert {k: tool.view(t)["actions"][1][k] for k in ("when", "otherwise")} == {"when": "running", "otherwise": "disabled"}
 
     with pytest.raises(ToolError) as err:
         tool.parse("t", actions(
@@ -391,11 +392,15 @@ def test_when_is_running_or_stopped_and_needs_a_target_whose_rows_share_a_sessio
             # No action of `session` rows shares a session: running could never be told.
             b={"label": "B", "description": "d", "target": "session", "when": "running", "run": "true"},
             c={"label": "C", "description": "d", "when": "stopped", "run": "true"},
+            d={"label": "D", "description": "d", "target": "project", "when": "running", "otherwise": "grey", "run": "true"},
+            e={"label": "E", "description": "d", "target": "project", "otherwise": "disabled", "run": "true"},
         ))
     message = str(err.value)
     assert "`actions.a.when` must be one of running, stopped" in message
     assert "`actions.b.when`: needs a `target` whose rows share a `session`" in message
     assert "`actions.c.when`: needs a `target`" in message
+    assert "`actions.d.otherwise` must be one of hidden, disabled" in message
+    assert "`actions.e.otherwise` needs a `when`" in message
 
 
 def test_a_script_installer_gets_curl_first_where_it_is_missing():

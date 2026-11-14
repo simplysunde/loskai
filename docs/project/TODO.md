@@ -63,7 +63,8 @@ reflect that, with instead of claude button, we should have start and stop sessi
 terminal so we can see what is going on if needed etc. more commands to manage and
 administer". One session per project stays (two Claudes in one working tree overwrite each
 other; a worktree per session would be a project of its own — backlog). A button that
-doesn't fit the session's state is hidden, not greyed (Sunde agreed).
+doesn't fit the session's state is hidden, not greyed (Sunde agreed) — then, seen, Attach
+greyed instead so every row has the same places (54d).
 
 Found first, on this VM: Claude started in the background in a folder it was never told to
 trust stops at its trust question, unseen. So Start looks for it and says to Attach.
@@ -84,6 +85,9 @@ trust stops at its trust question, unseen. So Start looks for it and says to Att
       exit at once each said, a second Start "already runs", Stop twice, Stop all 2 of 2 with
       `claude-notes` kept — and the same as a test (`test_claude_starts_in_the_background…`).
       Not yet: Remote Control and the buttons on a real machine through the page
+- [x] 54d Seen on the page, rows of one button looked "empty and unfinished" (Sunde): the
+      same places on every row — Attach, greyed while stopped (`otherwise: disabled`), then
+      Start or Stop in one place
 
 ---
 

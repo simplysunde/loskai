@@ -235,9 +235,9 @@ and Add.
 - **Claude Code** lists the git projects in the machine's projects folder, set on the Git
   card (a tool's dialog has a **Settings** button there), with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
-  worked there. One Claude session per project, and its buttons follow it — only what can
-  be done now shows:
-  - stopped: **Start** runs Claude in the background, the last conversation continued,
+  worked there. One Claude session per project, and its buttons follow it, in the same
+  places on every row — **Attach**, then **Start** or **Stop**:
+  - stopped: **Attach** is greyed; **Start** runs Claude in the background, the last conversation continued,
     else a new one, in tmux with **Remote Control** on, so you carry on from the Claude
     app or claude.ai/code. In a folder Claude was never told to trust, it stops at that
     question; Start says so, and **Attach** is where you answer it;

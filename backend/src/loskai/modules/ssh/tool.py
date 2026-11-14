@@ -91,8 +91,10 @@ class ToolError(LoskaiError, ValueError):
     status_code = 422
 
 
-# What an action's `when` may be: its row's shared session running, or not.
+# What an action's `when` may be: its row's shared session running, or not. And what it is
+# the rest of the time: hidden, or there but greyed out (`OTHERWISE`).
 WHEN = ("running", "stopped")
+OTHERWISE = ("hidden", "disabled")
 
 
 @dataclass(frozen=True)
@@ -113,6 +115,8 @@ class Action:
     # On a row only while its shared session is running, or only while it isn't (`WHEN`):
     # Claude's Attach and Stop, its Start. What it shows is the page's; the command copes.
     when: str | None = None
+    # The rest of the time: hidden (Start and Stop, sharing one place), or greyed (Attach).
+    otherwise: str = "hidden"
 
 
 @dataclass(frozen=True)
@@ -183,7 +187,8 @@ def parse(tool_id: str, doc: object) -> Tool:
             problems.append(f"`{where}` must be a mapping")
             continue
         # `on:` would be YAML 1.1's `true`, hence `target`.
-        extra = set(raw) - {"label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when"}
+        extra = set(raw) - {
+            "label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when", "otherwise"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description"):
@@ -214,10 +219,16 @@ def parse(tool_id: str, doc: object) -> Tool:
         when = raw.get("when")
         if when is not None and when not in WHEN:
             problems.append(f"`{where}.when` must be one of {', '.join(WHEN)}")
+        otherwise = raw.get("otherwise", "hidden")
+        if otherwise not in OTHERWISE:
+            problems.append(f"`{where}.otherwise` must be one of {', '.join(OTHERWISE)}")
+        elif "otherwise" in raw and when is None:
+            problems.append(f"`{where}.otherwise` needs a `when`")
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
             run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
             session=session, automatic=automatic is True, when=when if when in WHEN else None,
+            otherwise=otherwise if otherwise in OTHERWISE else "hidden",
         )
     # A row's session is running when an action of its kind shares one (`claim_sessions`):
     # without one, `when` could never be told.
@@ -319,7 +330,7 @@ def view(t: Tool) -> dict:
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
              "ask": a.ask, "confirm": a.confirm, "session": a.session, "automatic": a.automatic,
-             "when": a.when, "run": a.run}
+             "when": a.when, "otherwise": a.otherwise, "run": a.run}
             for a in t.actions.values()
         ],
         "settings": [

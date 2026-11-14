@@ -20,6 +20,8 @@ export interface ToolAction {
   automatic?: boolean;
   // On a row only while its shared session is running, or only while it isn't.
   when?: "running" | "stopped" | null;
+  // The rest of the time: hidden, or there but greyed out.
+  otherwise?: "hidden" | "disabled";
   run: string | Record<string, string>; // one command, or one per package manager
 }
 

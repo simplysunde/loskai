@@ -28,9 +28,10 @@ const ROW_BUTTON =
   "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40";
 
 // The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's:
-// small bordered ones, in rose for those that ask first (Stop). One with a `when` shows only
-// while the row's session is running (Attach, Stop) or only while it isn't (Start), as
-// `facts` says — hidden, not greyed: what is on a row is what can be done now.
+// small bordered ones, in rose for those that ask first (Stop). One with a `when` is there
+// only while the row's session is running, or only while it isn't, as `facts` says — the
+// rest of the time hidden (Start and Stop, taking turns in one place) or, with `otherwise:
+// disabled`, greyed (Attach), so every row keeps the same buttons in the same places.
 export function RowButtons({
   here,
   kind,
@@ -44,16 +45,22 @@ export function RowButtons({
   onRun: ToolStart;
   facts?: Facts;
 }) {
+  const fits = (t: Tool, a: ToolAction) =>
+    !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts));
   return here.flatMap((t) =>
     t.actions
-      .filter((a) => a.target === kind)
-      .filter((a) => !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts)))
+      .filter((a) => a.target === kind && (fits(t, a) || a.otherwise === "disabled"))
       .map((a) => (
         <button
           key={`${t.id}-${a.id}`}
-          title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
+          disabled={!fits(t, a)}
+          title={
+            fits(t, a)
+              ? `${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()
+              : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"
+          }
           onClick={() => onRun({ tool: t.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 ${
+          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent ${
             a.confirm ? "text-rose-300" : "text-slate-200"
           }`}
         >
