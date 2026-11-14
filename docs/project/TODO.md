@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** nothing in flight. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** **Phase 57** (below) — the rename pass: names only, in the worktree `../loskai-rename`, each step a commit. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -53,6 +53,94 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 57 — The rename pass: a name says what the thing is
+
+Asked 2026-11-14 (Sunde: `/rename`, then "GO!" on the inventory). A **pure rename**: every
+commit changes names and nothing else — no behaviour, no wording on the page, no API, no
+stored format, nothing a machine has installed. The inventory (three read-only reviewers,
+each finding checked against the definition and its uses) found about 130 names worth
+changing — on the backend about 42 of roughly 820 top-level names — and the rest fine as they
+are. How the pass is run is `.claude/skills/rename/SKILL.md`: a worktree
+(`../loskai-rename`, branch `rename`), the five guards diffed against `main` after every
+commit, the full checks, `where-used.py --write`.
+
+**Decisions (2026-11-14, Sunde: "GO!" — taken to cover the inventory's recommendations)**
+
+- **The glossary.** The frontend's type for an instance is `Instance` (was `RouteRow`: a
+  machine and a link were "route rows"); "record" stays the docs' word. The address every
+  rewrite answers with is `answer_ip`, the API's word (was `current_ip`). "target" keeps its
+  API senses, and the code separates them: an SSH `Target` in a variable `target`, a row's
+  name `target_name`, a kind of row `TargetKind`. Identifiers say **facts**, prose and the
+  page say **overview** — kept. Loskai's key is `LoskaiKey`, a key on a machine
+  `MachineKey`. "Caddy is set up" is `caddySetUp`. A machine's projects *folder* is
+  `projects_folder`. `config.settings` is imported as `env`, `shared.settings` as
+  `settings_store`, `shared.instances` as `instances_store`.
+- **The convention.** The languages' own. Functions are verbs or say what they return;
+  booleans read as a question; one-letter names only in a scope of a few lines;
+  abbreviations only where universal. A helper that returns or raises is `require_…`. Data
+  is never named `on…`. Kept: `…_of`/`…Of`, short names read with their module
+  (`connect.scan`), `_path()`, handlers named after the resource, `inst`, a component file
+  named after its main export.
+- **Off-limits** (the skill's contracts; beside these renames): the fields `answer_ip`,
+  `target`/`targets`, `lines`, `from`, the stack form's `base`, `prefix`/`subdomain`/
+  `hostname`, `projects_folder`, `upstream_mode`, the `/facts` path; `$PROJECTS`,
+  `STATUS_COMMAND` and its output, `modules/ssh/tools/`; every constant's value
+  (`MACHINE_TOOL`'s `"system"`, `STATUS_LINE`'s number), the query keys, the
+  `localStorage` values.
+- **Sunde's calls, as recommended:** `RouteRow` → `Instance`; `tool.visible` →
+  `terminal_command`; `STATUS_LINE` → `STATUS_LINE_VERSION` and `STATUS_VERSION` →
+  `STATUS_HEAD` (values untouched); the Machines tab's components move to
+  `components/machines/`, last; the four test names that no longer say what they assert,
+  and `test_caddy_logic.py` → `test_caddy_service.py`, `test_ssh_keys.py` →
+  `test_ssh_unlock.py`.
+- **Left alone on purpose:** `connect.removal`, `tool.allow_script`, `MACHINE_TOOL`,
+  `ProjectsOverview`, `MachineService`; `record` for an Instance in `install.py` (the docs'
+  word); `missing` in `lib/tools.ts` (the backend's `tool.missing`); `machines.KEEP`,
+  `tool.DIR`/`WHEN`/`OTHERWISE`/`PLACES`/`TARGETS` (they mirror schema keys); `Facts`,
+  `Running`, `InfraStatusPill`, `networkServices.ts`. Test names are sentences in the app's
+  words and stay, the four above apart.
+- **Found on the way, not fixed** (not names): `backend/pyproject.toml` says conftest lowers
+  the bcrypt rounds, which it doesn't; `lib/tools.ts` carries `rowSettingsOf`'s comment above
+  `cardSettingsOf`; `lib/routes.ts` imports its types from component files; three test files
+  repeat conftest's isolation fixture.
+
+**Steps** — one commit each, `Rename: <area>`
+
+- [ ] 57a Backend, the SSH target: `connect.target` → `require_target`, `reach` →
+      `target_of`, `t` → `target`; a `Tool` is `tool` (`found` in `connect.py`); a row's
+      name is `target_name`
+- [ ] 57b Backend, return-or-raise helpers are `require_…`: `_trusted`, `_tool`,
+      `_tool_here`, `_overview`, `assign.same_container`, `instances._owned`
+- [ ] 57c Backend, the answer IP: `current_ip` → `answer_ip`, `settings.caddy_host` →
+      `caddy_admin_host`, `base` → `base_domain`
+- [ ] 57d Backend, SSH's small ones: `connect.lines`, `from_ip`, `_host_key`, `_failed`,
+      `_run_of`, `tool._place`, `tool.visible`, the status booleans, the projects folder,
+      `STATUS_LINE`/`STATUS_VERSION`, `machines.follow_machine`
+- [ ] 57e Backend, Docker and AdGuard: `install.recipe_icon`, `logic.link_instances`,
+      `_dial`, `recipes._load_folder`, `adguard.service.expected`/`foreign`, the locals
+- [ ] 57f Backend, one alias per module: `env`, `settings_store`, `instances_store`
+- [ ] 57g Frontend, `RouteRow` → `Instance`, `useRoutes` → `useInstances`, `useRouteRows` →
+      `useInstanceRows`
+- [ ] 57h Frontend, the keys: `SshKey` → `LoskaiKey`, `SshKeyInfo` → `MachineKey`,
+      `sshHost` → `remoteSshHost`, `SshKeys.tsx`'s locals
+- [ ] 57i Frontend, tools: `onCard` → `isOnCard`, `runQuery` → `runQueryString`,
+      `ToolTarget` → `TargetKind`, the runner's `onEnded` → `onResult`
+- [ ] 57j Frontend, an export is named after its file or step: `FillStep`, `ResultStep`,
+      `PickStep`, `OptionList`, `Ask`, `SettingsDialog`/`SettingsButton`, `Shell`
+- [ ] 57k Frontend, `caddySetUp`, `upstreamMode`, what `ssh` and `host` hold, the recipes
+      helpers
+- [ ] 57l Frontend, long-lived short names and old terms: `m`, `c`, `t`, `h`, `f`,
+      `GATEWAY_FIELDS`, `dockerHost`, `chosen`/`picked`, the result types
+- [ ] 57m Tests, backend: helpers that mislead, the aliases, the fakes, the four test
+      names, the two files
+- [ ] 57n Tests, frontend: `setUp` → `sshSetUp`, `open` → `openCategory`, `c`/`s`
+- [ ] 57o The Machines tab's components move to `components/machines/`
+- [ ] 57p Live: every tab on a scratch backend, a machine's dialog and a tool run, a route;
+      then `main` fast-forwarded on Sunde's word, `:8080` and its log checked; the HISTORY
+      entry with the whole `old → new` table
 
 ---
 
