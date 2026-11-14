@@ -357,7 +357,7 @@ def _usable_answer_ip(candidate: str, source: str) -> str | None:
     return candidate
 
 
-def caddy_host() -> str | None:
+def caddy_admin_host() -> str | None:
     """CADDY_ADMIN_URL's hostname — how Caddy's own container is found among Docker's, to
     decide how it dials each container (`docker/logic.upstream_mode`). An IP host matches
     no container, which is right: Caddy is then off-box."""
@@ -390,7 +390,7 @@ def derive_caddy_host_ip() -> str | None:
     explicit = value("caddy_host_ip")
     if explicit:
         return _usable_answer_ip(explicit, "CADDY_HOST_IP")
-    host = caddy_host()
+    host = caddy_admin_host()
     if not host:
         return None
     try:

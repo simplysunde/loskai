@@ -78,7 +78,7 @@ def test_list_containers(monkeypatch, data_dir):
     assert row["image"] == "grafana/img:latest"
     assert "subdomain" not in row  # the router joins the instance (logic.link_instances)
     assert row["ports"] == ["8080->80/tcp"]
-    # No caddy_host, so Caddy is not identifiable and the name form is never guessed. The
+    # No caddy_admin_host, so Caddy is not identifiable and the name form is never guessed. The
     # published port binds to no concrete IP and host_ip is unset, so there is nothing to
     # pre-fill — the user types it. See test_upstream_* below for the decided cases.
     assert row["upstream_mode"] == "lan"
@@ -115,7 +115,7 @@ def test_upstream_uses_the_name_form_only_on_a_shared_network(monkeypatch, data_
     ])
     _use(monkeypatch, fake)
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_host="caddy")}
+    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_admin_host="caddy")}
 
     assert rows["grafana"]["suggested_upstream"] == "grafana:80"
     assert rows["grafana"]["upstream_mode"] == "docker"
@@ -134,7 +134,7 @@ def test_caddy_is_matched_by_network_alias_not_just_container_name(monkeypatch, 
     ])
     _use(monkeypatch, fake)
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_host="caddy")}
+    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_admin_host="caddy")}
     assert rows["grafana"]["upstream_mode"] == "docker"
 
 
@@ -147,7 +147,7 @@ def test_host_networking_never_yields_the_name_form(monkeypatch, data_dir):
     ])
     _use(monkeypatch, fake)
 
-    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_host="caddy")}
+    rows = {r["name"]: r for r in DockerClient().list_containers(caddy_admin_host="caddy")}
     assert rows["grafana"]["upstream_mode"] == "lan"
 
 
@@ -176,7 +176,7 @@ def test_unmatched_caddy_host_falls_back_to_lan(monkeypatch, data_dir):
     fake = FakeDocker([FakeContainer("grafana", networks={"media_default": []})])
     _use(monkeypatch, fake)
 
-    row = DockerClient().list_containers(caddy_host="192.168.10.101")[0]
+    row = DockerClient().list_containers(caddy_admin_host="192.168.10.101")[0]
     assert row["upstream_mode"] == "lan"
 
 
@@ -189,7 +189,7 @@ def test_caddy_is_resolved_once_per_request_not_per_container(monkeypatch, data_
     ])
     _use(monkeypatch, fake)
 
-    DockerClient().list_containers(caddy_host="caddy")
+    DockerClient().list_containers(caddy_admin_host="caddy")
     assert fake.list_calls == 1
 
 

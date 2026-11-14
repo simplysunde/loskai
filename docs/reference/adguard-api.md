@@ -180,7 +180,7 @@ name being edited.
 
 **Read-only status** (the default view): Loskai pulls `GET /control/rewrite/list` and,
 for each instance that has a subdomain, checks whether a matching `(domain, target)`
-rewrite is present — `target` being the shared Caddy IP (`currentIP`) for `proxy`, the
+rewrite is present — `target` being the shared Caddy IP (`answer_ip`) for `proxy`, the
 instance's own address for `dns_only` (`target_answer`). Present = in sync; missing = the
 name does not resolve locally until the rewrite is added. This is a **display-only
 comparison** — it never auto-corrects, matching the Caddy module's synced-status behavior.
@@ -196,7 +196,7 @@ manual rewrite: reconcile leaves it and reports a conflict, never overwrites it.
 **Orphan sweep** (part of reconcile): a rewrite that sits in the `{BASE_DOMAIN}` namespace
 and is owned by **no** routed instance is a Loskai leftover — typically from a
 remove/delete whose best-effort DNS delete failed while AdGuard was down — *if* its answer
-is one Loskai is known to have written: either the shared `currentIP` (proxy instances), or
+is one Loskai is known to have written: either the shared `answer_ip` (proxy instances), or
 any currently-routed instance's own `dns_answer` (covers `dns_only` leftovers too, since
 those don't share one IP). Reconcile deletes these. Reported as `swept`.
 

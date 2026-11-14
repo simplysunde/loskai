@@ -204,7 +204,7 @@ def peer(conn: Request | WebSocket) -> str | None:
 def _caddy_addresses() -> set[str]:
     """The addresses Caddy's requests come from: CADDY_ADMIN_URL's host, resolved (`caddy`
     is a container's name), and the answer IP."""
-    names = {settings_store.caddy_host(), settings_store.derive_caddy_host_ip()} - {None}
+    names = {settings_store.caddy_admin_host(), settings_store.derive_caddy_host_ip()} - {None}
     found: set[str] = set()
     for name in names:
         try:

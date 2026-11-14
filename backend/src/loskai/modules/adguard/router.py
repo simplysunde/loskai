@@ -34,13 +34,13 @@ health_registry.register("adguard", _health_payload)
 
 async def _consistency() -> list[dict]:
     """DNS drift warnings for /api/health. Self-degrading: AdGuard unreachable -> []."""
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     try:
         rewrites = await adguard.list_rewrites()
     except _UNREACHABLE:
         return []  # can't determine drift while AdGuard is down
     return service.consistency_warnings(
-        instances_store.list_routed(), rewrites, base, current_ip
+        instances_store.list_routed(), rewrites, base, answer_ip
     )
 
 
@@ -49,17 +49,17 @@ health_registry.register_consistency(_consistency)
 
 @router.get("/status")
 async def status() -> dict:
-    base, current_ip = settings_store.dns_context()
-    return await service.get_status(adguard, base, current_ip)
+    base, answer_ip = settings_store.dns_context()
+    return await service.get_status(adguard, base, answer_ip)
 
 
 @router.get("/rewrites")
 async def rewrites() -> dict:
     """Every rewrite AdGuard holds, each flagged `managed` (Loskai would write it back).
     Read-only; it backs the clear dialog's list of what is about to be removed."""
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     try:
-        return await service.list_rewrites(adguard, base, current_ip)
+        return await service.list_rewrites(adguard, base, answer_ip)
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))
 
@@ -68,17 +68,17 @@ async def rewrites() -> dict:
 async def clear_rewrites() -> dict:
     """Wipe every rewrite AdGuard holds, then reconcile Loskai's back in. Destructive and
     user-initiated only — see `service.clear_and_restore`."""
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     try:
-        return await service.clear_and_restore(adguard, base, current_ip)
+        return await service.clear_and_restore(adguard, base, answer_ip)
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))
 
 
 @router.post("/reconcile")
 async def reconcile() -> dict:
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     try:
-        return await service.reconcile(adguard, base, current_ip)
+        return await service.reconcile(adguard, base, answer_ip)
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))

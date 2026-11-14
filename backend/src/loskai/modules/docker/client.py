@@ -47,7 +47,7 @@ class DockerClient:
 
     def list_containers(
         self,
-        caddy_host: str | None = None,
+        caddy_admin_host: str | None = None,
         host_ip: str | None = None,
     ) -> list[dict]:
         """Every container, from one list call — no stats: those take ~2s from Docker, so
@@ -55,9 +55,9 @@ class DockerClient:
         client = self._get()
         containers = client.containers.list(all=True)
         # Find Caddy in the list we already have — one API call for the whole request, not
-        # a lookup per container. `caddy_host` is CADDY_ADMIN_URL's hostname; None when
+        # a lookup per container. `caddy_admin_host` is CADDY_ADMIN_URL's hostname; None when
         # Caddy is addressed by IP (it is off-box, so there is nothing here to match).
-        caddy_nets = self._caddy_networks(containers, caddy_host)
+        caddy_nets = self._caddy_networks(containers, caddy_admin_host)
         own_host = socket.gethostname()
         out: list[dict] = []
         for c in containers:
@@ -132,17 +132,17 @@ class DockerClient:
         return logic.compute_cpu_percent(stats), logic.compute_memory(stats)
 
     @staticmethod
-    def _caddy_networks(containers: list, caddy_host: str | None) -> set[str] | None:
-        """Caddy's attached networks, or None when no container answers to `caddy_host`.
+    def _caddy_networks(containers: list, caddy_admin_host: str | None) -> set[str] | None:
+        """Caddy's attached networks, or None when no container answers to `caddy_admin_host`.
 
         None is the honest answer for layout A (Caddy on its own LXC) and for any hostname
         pointing off-box — logic.upstream_mode reads it as "not reachable by name".
         """
-        if not caddy_host:
+        if not caddy_admin_host:
             return None
         for c in containers:
             service = (c.labels or {}).get("com.docker.compose.service")
-            if logic.matches_hostname(caddy_host, c.name, service, c.attrs):
+            if logic.matches_hostname(caddy_admin_host, c.name, service, c.attrs):
                 return logic.container_networks(c.attrs)
         return None
 

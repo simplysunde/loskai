@@ -36,7 +36,7 @@ def _listed(field: str) -> dict[str, str | None]:
     """`{container name: its <field>}` for every container, from one Docker listing. None
     where it can't be derived (no port, or several, and no label). Raises the Docker
     client's errors — callers decide what "unreachable" means to them."""
-    rows = docker_client.list_containers(settings_store.caddy_host(), settings_store.value("host_ip"))
+    rows = docker_client.list_containers(settings_store.caddy_admin_host(), settings_store.value("host_ip"))
     return {row["name"]: row[field] for row in rows}
 
 

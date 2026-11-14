@@ -161,7 +161,7 @@ async def assign(
     prefix: str,
     upstream: str,
     base_domain: str | None,
-    current_ip: str | None,
+    answer_ip: str | None,
     instance_id: str | None = None,
     name: str | None = None,
     container: str | None = None,
@@ -262,7 +262,7 @@ async def assign(
 
     # Step 2 — AdGuard rewrite (best effort). Answer is the shared Caddy IP for proxy,
     # or the instance's own upstream IP for dns_only.
-    answer = target_answer(inst, current_ip)
+    answer = target_answer(inst, answer_ip)
     adguard_status = "skipped"
     warning: str | None = None
     if not answer:
@@ -429,7 +429,7 @@ async def name_machine(caddy_client, adguard_client, **kwargs) -> dict:
 
 async def save_machine(
     caddy_client, adguard_client, *, hostname: str, address: str, instance_id: str | None,
-    ssh, base_domain: str | None, current_ip: str | None, acting: User | None,
+    ssh, base_domain: str | None, answer_ip: str | None, acting: User | None,
 ) -> dict:
     """Name a machine, or re-point one, and keep its SSH entry in step: `ssh` is its login
     (`ssh_machines.follow_machine`), None to remove its SSH connection, or `KEEP`.
@@ -448,7 +448,7 @@ async def save_machine(
     result = await name_machine(
         caddy_client, adguard_client,
         prefix=hostname, upstream=address, instance_id=instance_id,
-        base_domain=base_domain, current_ip=current_ip, acting=acting,
+        base_domain=base_domain, answer_ip=answer_ip, acting=acting,
     )
     inst = instances_store.get_instance(result["instance_id"])
     if inst is not None:
@@ -726,19 +726,19 @@ class LinkCreate(BaseModel):
 @router.post("/machines")
 async def post_machine(body: MachineCreate) -> dict:
     """Create or re-point a machine (`instance_id` to edit one). No Caddy route, no TLS."""
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     return await save_machine(
         caddy, adguard,
         hostname=body.hostname, address=body.address, instance_id=body.instance_id,
         ssh=body.ssh if "ssh" in body.model_fields_set else ssh_machines.KEEP,
-        base_domain=base, current_ip=current_ip, acting=auth.current_user(),
+        base_domain=base, answer_ip=answer_ip, acting=auth.current_user(),
     )
 
 
 @router.post("/routes")
 async def post_route(body: RouteCreate) -> dict:
     """Create or re-point a proxied service (`instance_id` to edit one)."""
-    base, current_ip = settings_store.dns_context()
+    base, answer_ip = settings_store.dns_context()
     if body.container:
         validate_container(body.container)
         require_same_container(body.instance_id, body.container)
@@ -751,7 +751,7 @@ async def post_route(body: RouteCreate) -> dict:
         prefix=body.prefix, upstream=upstream,
         instance_id=body.instance_id, name=body.name, container=body.container,
         origin=body.origin, upstream_tls=body.upstream_tls,
-        scheme=body.scheme, base_domain=base, current_ip=current_ip,
+        scheme=body.scheme, base_domain=base, answer_ip=answer_ip,
         follow_container=body.follow_container, acting=auth.current_user(),
     )
 

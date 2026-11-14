@@ -24,20 +24,20 @@ from .client import AdGuardClient, AdGuardError, describe_error
 logger = logging.getLogger(__name__)
 
 
-def target_answer(instance: Instance, current_ip: str | None) -> str | None:
+def target_answer(instance: Instance, answer_ip: str | None) -> str | None:
     """The AdGuard answer this instance's rewrite should resolve to: its own bare upstream
     IP for `dns_only` (no Caddy involved — the upstream IS the answer), or the shared Caddy
     LAN IP for `proxy`. None if undeterminable (a `proxy` instance with no answer IP set)."""
     if instance.route_mode == "dns_only":
         return instance.upstream
-    return current_ip
+    return answer_ip
 
 
-def expected(instance: Instance, base_domain: str, current_ip: str | None) -> tuple[str, str] | None:
+def expected(instance: Instance, base_domain: str, answer_ip: str | None) -> tuple[str, str] | None:
     """The `(domain, answer)` rewrite a routed instance should have — what reconcile writes,
     the DNS column checks and the clear dialog calls managed. None when its answer can't be
     determined (`target_answer`)."""
-    target = target_answer(instance, current_ip)
+    target = target_answer(instance, answer_ip)
     if not instance.subdomain or not target:
         return None
     return instances_store.fqdn(instance.subdomain, base_domain), target
@@ -87,7 +87,7 @@ def plan_reconcile(
     instances: list[Instance],
     rewrites: list[dict],
     base_domain: str,
-    current_ip: str | None,
+    answer_ip: str | None,
 ) -> ReconcilePlan:
     """Diff routed instances against AdGuard's rewrite list. Pure — no I/O.
 
@@ -97,7 +97,7 @@ def plan_reconcile(
     delete it (orphan migration — a Caddy-IP change, or a proxy/dns_only mode switch); any
     same-domain answer that is neither `target` nor the stored `dns_answer` is a manual
     entry — reported as a conflict, never touched. A `proxy` instance with no derivable
-    `current_ip` is skipped entirely (nothing to reconcile it against).
+    `answer_ip` is skipped entirely (nothing to reconcile it against).
 
     Orphan sweep: a rewrite in Loskai's `<label(s)>.<base>` namespace, pointing at the
     shared Caddy IP or at any currently-routed instance's own recorded `dns_answer`, that
@@ -113,7 +113,7 @@ def plan_reconcile(
     }
 
     for inst in instances:
-        found = expected(inst, base_domain, current_ip)
+        found = expected(inst, base_domain, answer_ip)
         if not found:
             continue
         domain, target = found
@@ -131,7 +131,7 @@ def plan_reconcile(
         if hand_added := foreign(answers, target, stored):
             plan.conflicts.append({"id": inst.id, "domain": domain, "answers": hand_added})
 
-    known_answers = {current_ip} if current_ip else set()
+    known_answers = {answer_ip} if answer_ip else set()
     known_answers |= {inst.dns_answer for inst in instances if inst.dns_answer}
     for domain, answers in by_domain.items():
         if domain in routed_domains or not is_loskai_domain(domain, base_domain):
@@ -146,7 +146,7 @@ def dns_status_rows(
     instances: list[Instance],
     rewrites: list[dict] | None,
     base_domain: str | None,
-    current_ip: str | None,
+    answer_ip: str | None,
 ) -> list[dict]:
     """Display-only per-instance DNS status for the routing table's DNS column. `present`
     is None when it can't be determined (AdGuard down, no base domain, or — for a `proxy`
@@ -156,12 +156,12 @@ def dns_status_rows(
     for inst in instances:
         if not inst.subdomain:
             continue
-        found = expected(inst, base_domain, current_ip) if base_domain else None
+        found = expected(inst, base_domain, answer_ip) if base_domain else None
         if by_domain is None or found is None:
             domain = instances_store.fqdn(inst.subdomain, base_domain) if base_domain else inst.subdomain
             rows.append({
                 "id": inst.id, "domain": domain, "present": None, "conflict": False,
-                "target": target_answer(inst, current_ip),
+                "target": target_answer(inst, answer_ip),
             })
             continue
         domain, target = found
@@ -180,7 +180,7 @@ def consistency_warnings(
     instances: list[Instance],
     rewrites: list[dict] | None,
     base_domain: str | None,
-    current_ip: str | None,
+    answer_ip: str | None,
 ) -> list[dict]:
     """Cross-module drift warnings for `/api/health`. Pure.
 
@@ -191,7 +191,7 @@ def consistency_warnings(
     tab the instance is on, so each sidebar entry can flag only its own."""
     machines = {i.id for i in instances if instances_store.is_machine(i)}
     warnings: list[dict] = []
-    for row in dns_status_rows(instances, rewrites, base_domain, current_ip):
+    for row in dns_status_rows(instances, rewrites, base_domain, answer_ip):
         if row["present"] is None:
             continue  # undeterminable — say nothing rather than cry wolf
         if not row["present"]:
@@ -222,7 +222,7 @@ def annotate_rewrites(
     rewrites: list[dict],
     routed: list[Instance],
     base_domain: str | None,
-    current_ip: str | None,
+    answer_ip: str | None,
 ) -> list[dict]:
     """Every rewrite AdGuard holds, each marked `managed`: true when the exact
     `(domain, answer)` pair is one a routed instance would have reconcile write back.
@@ -231,7 +231,7 @@ def annotate_rewrites(
     is restored seconds later, an unmanaged one is gone for good. Pure, so the "would it
     come back" question is answered by the same `expected` the
     restore itself uses, not by a second guess at the rule."""
-    managed = {found for inst in routed if base_domain and (found := expected(inst, base_domain, current_ip))}
+    managed = {found for inst in routed if base_domain and (found := expected(inst, base_domain, answer_ip))}
     return [
         {
             "domain": entry.get("domain", ""),
@@ -243,19 +243,19 @@ def annotate_rewrites(
 
 
 async def list_rewrites(
-    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+    client: AdGuardClient, base_domain: str | None, answer_ip: str | None
 ) -> dict:
     """The raw rewrite list, annotated. Read-only — it is what the clear dialog shows."""
     rewrites = await client.list_rewrites()
     return {
         "rewrites": annotate_rewrites(
-            rewrites, instances_store.list_routed(), base_domain, current_ip
+            rewrites, instances_store.list_routed(), base_domain, answer_ip
         )
     }
 
 
 async def get_status(
-    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+    client: AdGuardClient, base_domain: str | None, answer_ip: str | None
 ) -> dict:
     routed = instances_store.list_routed()
     rewrites: list[dict] | None
@@ -264,30 +264,30 @@ async def get_status(
     except (httpx.HTTPError, AdGuardError):
         rewrites = None  # AdGuard unreachable — status unknown, not "missing"
     return {
-        "answer_ip": current_ip,
-        "instances": dns_status_rows(routed, rewrites, base_domain, current_ip),
+        "answer_ip": answer_ip,
+        "instances": dns_status_rows(routed, rewrites, base_domain, answer_ip),
     }
 
 
 def _check_reconcilable(
-    base_domain: str | None, current_ip: str | None
+    base_domain: str | None, answer_ip: str | None
 ) -> list[Instance]:
     """Preconditions for writing rewrites, shared by `reconcile` and `clear_and_restore`,
     returning the routed instances. Raising *before* any write is the point: it is what
     lets the clear refuse a run that would delete every rewrite and then fail to put
     Loskai's own back.
 
-    `current_ip` is only required when at least one routed instance is `proxy` — a LAN made
+    `answer_ip` is only required when at least one routed instance is `proxy` — a LAN made
     entirely of `dns_only` instances needs no `CADDY_HOST_IP` configured at all."""
     instances_store.require_base(base_domain)
     routed = instances_store.list_routed()
-    if any(inst.route_mode == "proxy" for inst in routed) and not current_ip:
+    if any(inst.route_mode == "proxy" for inst in routed) and not answer_ip:
         raise LoskaiError("Caddy answer IP is not derivable — set CADDY_HOST_IP", 400)
     return routed
 
 
 async def reconcile(
-    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+    client: AdGuardClient, base_domain: str | None, answer_ip: str | None
 ) -> dict:
     """Apply the plan best-effort and persist `dns_answer` for every domain that now
     resolves to its target. Only ever deletes answers Loskai itself wrote: a stale pair
@@ -295,10 +295,10 @@ async def reconcile(
     no live route owns (`sweeps`).
 
     Preconditions — base domain set, answer IP derivable — are `_check_reconcilable`."""
-    routed = _check_reconcilable(base_domain, current_ip)
+    routed = _check_reconcilable(base_domain, answer_ip)
 
     rewrites = await client.list_rewrites()
-    plan = plan_reconcile(routed, rewrites, base_domain, current_ip)
+    plan = plan_reconcile(routed, rewrites, base_domain, answer_ip)
     added: list[str] = []
     deleted: list[str] = []
     swept: list[str] = []
@@ -337,7 +337,7 @@ async def reconcile(
     # Persist dns_answer for instances whose name now resolves to their target: already
     # in sync, or just added.
     for inst in routed:
-        found = expected(inst, base_domain, current_ip)
+        found = expected(inst, base_domain, answer_ip)
         if not found:
             continue
         domain, target = found
@@ -354,7 +354,7 @@ async def reconcile(
 
 
 async def clear_and_restore(
-    client: AdGuardClient, base_domain: str | None, current_ip: str | None
+    client: AdGuardClient, base_domain: str | None, answer_ip: str | None
 ) -> dict:
     """Delete **every** rewrite AdGuard holds — hand-added ones included — then reconcile,
     so the list ends up as exactly what the instance list says it should be.
@@ -371,7 +371,7 @@ async def clear_and_restore(
     we just emptied is what makes duplicates impossible, since every routed name is missing
     and so is added exactly once.
     """
-    _check_reconcilable(base_domain, current_ip)  # refuse before deleting, not after
+    _check_reconcilable(base_domain, answer_ip)  # refuse before deleting, not after
 
     cleared: list[str] = []
     errors: list[dict] = []
@@ -390,7 +390,7 @@ async def clear_and_restore(
 
     # Re-lists from AdGuard, so anything a failed delete left behind is still accounted
     # for — as a conflict if it shadows one of ours, rather than silently.
-    restored = await reconcile(client, base_domain, current_ip)
+    restored = await reconcile(client, base_domain, answer_ip)
     return {
         "cleared": cleared,
         "restored": restored["added"],
