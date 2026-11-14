@@ -1,44 +1,45 @@
-# Local dev rig: Caddy + AdGuard as containers to point a dev Loskai at (Loskai itself
-# runs on the host via uv + vite, NOT here). Uses Caddy's internal CA — no domain or
-# ACME/DNS token needed.
+# Development, layered on compose.yml — the same settings, .env and ./data, nothing
+# repeated. It replaces the `loskai` container in place with one running the working tree:
+# the backend restarts when a .py file is saved, and Vite serves the frontend on the same
+# :8080, updating the open page as you edit — no rebuild, no reload.
 #
-#   docker compose -f compose.dev.yml up -d
+#   make dev           (docker compose -f compose.yml -f compose.build.yml -f compose.dev.yml up -d --build)
 #
-# Then set on the dev backend:  CADDY_ADMIN_URL=http://127.0.0.1:2019
-#                               ADGUARD_URL=http://127.0.0.1:3000
-# See docs/contributing/dev-testing.md for the full walkthrough.
+# Back to the built image: bash scripts/deploy.sh. A changed pyproject.toml needs `make dev`
+# again (it rebuilds the image); a changed package.json, a restart of `web`, whose start runs
+# `npm ci` (docker compose -f compose.yml -f compose.build.yml -f compose.dev.yml restart web).
 
 services:
-  caddy:
-    image: caddy:2
-    container_name: loskai-dev-caddy
-    ports:
-      - "2019:2019" # admin API — the dev backend reaches Caddy here (required)
-      - "8081:80" # http  (optional — only to browse routed services)
-      - "8443:443" # https (optional — Caddy serves an internal cert)
+  loskai:
+    ports: !reset [] # :8080 is Vite's now; it proxies /api here
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # the same Caddyfile as production
-      - ./caddy/setup:/srv/setup:ro # cert-onboarding page served on :80 (Phase 10a)
-      - caddy-data:/data # the internal CA and its certificates — routes don't survive a restart
-        # here (no --resume, unlike caddy/Dockerfile): Sync puts them back
-    restart: unless-stopped
+      - ./backend/src:/app/src:ro # the image installs loskai editable from /app/src
+    command:
+      - uv
+      - run
+      - --no-sync
+      - uvicorn
+      - loskai.main:app
+      - --host=0.0.0.0
+      - --port=8080
+      - --reload
+      - --reload-dir=/app/src
+      - --reload-include=*.yml # the tool files, which Loskai reads once
 
-  adguard:
-    image: adguard/adguardhome:latest
-    container_name: loskai-dev-adguard
+  web:
+    image: node:20-alpine # the same Node as the Dockerfile's frontend stage
+    working_dir: /app
+    # The host's node_modules is built for the host; the container keeps its own.
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      - LOSKAI_API=http://loskai:8080
+      - LOSKAI_DEV=1 # any name reaches it, as an install: vite.config.ts
     ports:
-      - "3000:3000" # web UI + REST API — the dev backend reaches AdGuard here (required)
-      # DNS is NOT published — Loskai only uses the REST API. AdGuard still binds :53
-      # inside the container. Only publish it if you want real DNS resolution, and pick a
-      # free host port (5353 is often taken by mDNS/avahi):
-      # - "5354:53/udp"
-      # - "5354:53/tcp"
+      - "8080:5173"
     volumes:
-      - adguard-work:/opt/adguardhome/work
-      - adguard-conf:/opt/adguardhome/conf
+      - ./frontend:/app
+      - node_modules:/app/node_modules
     restart: unless-stopped
 
 volumes:
-  caddy-data:
-  adguard-work:
-  adguard-conf:
+  node_modules:

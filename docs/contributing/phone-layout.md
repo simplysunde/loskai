@@ -63,7 +63,7 @@ of its own, inline, or hidden. Left alone it still works, but wraps wherever it 
 ## Checking it
 
 ```bash
-LOSKAI_USER=admin LOSKAI_PASSWORD=… make check-phone                       # :8080, make live
+LOSKAI_USER=admin LOSKAI_PASSWORD=… make check-phone                       # :8080, make dev
 LOSKAI_USER=admin LOSKAI_PASSWORD=… make check-phone URL=http://127.0.0.1:8000
 ```
 

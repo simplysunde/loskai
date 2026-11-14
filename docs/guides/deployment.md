@@ -38,7 +38,7 @@ Caddyfile). Both are built for `amd64` and `arm64`, tagged with the version and 
   a folder Docker creates for a missing mount is root's, and Loskai would then run as root.
 - **From a checkout** — `main`, or your own changes — `bash scripts/deploy.sh` pulls the
   source and builds the images from it (`compose.build.yml`), tagged like the released ones;
-  `docker compose pull` puts the released ones back. `make live` builds the same way.
+  `docker compose pull` puts the released ones back. `make dev` builds the same way.
 - **Releasing** is `make release VERSION=x.y.z` from a clean checkout: it builds both images
   for both platforms, pushes them to `LOSKAI_REGISTRY` (`ghcr.io/simplysunde` unless set —
   your forge's registry works too), and tags the commit `v<version>`. It needs

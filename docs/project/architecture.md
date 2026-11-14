@@ -476,7 +476,7 @@ and limits what the next one loses:
   cookie then reaches the Docker tab, not the machines — not directly: the Docker tab can
   mount `data/`, so it is a speed bump for a session thief, not a wall. Who holds an unlock
   is kept in `data/ssh/unlocks.json` (names, times and session generations — no secret), so
-  a restart of Loskai, every save under `make live` included, doesn't lock it. An admin can
+  a restart of Loskai, every save under `make dev` included, doesn't lock it. An admin can
   switch the asking off (`ssh_ask_password: no`, `settings.ssh_asks_password`): then
   `unlock._holds` is only the Machines tab, and the key view says `asks_password: false`.
 - **The key only works from the Docker host.** Each `authorized_keys` line a machine's SSH

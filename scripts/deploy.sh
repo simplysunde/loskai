@@ -58,7 +58,7 @@ if [ -n "$caddy_image" ]; then
 fi
 
 log "Building + deploying ($COMPOSE_FILE)"
-# --remove-orphans: after `make live`, its Vite container still holds :8080.
+# --remove-orphans: after `make dev`, its Vite container still holds :8080.
 "${compose[@]}" up -d --build --remove-orphans
 
 log "Done — Loskai is up on :8080"

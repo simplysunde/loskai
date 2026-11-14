@@ -9,9 +9,9 @@ point it at. No domain, ACME token, or Proxmox needed — Caddy uses its interna
 
 **Prereqs:** Docker + Compose, [uv], Node 20.19+ or 22.12+ (Vite's minimum).
 
-> **Already running Loskai from this checkout?** `make live` runs the working tree in its
+> **Already running Loskai from this checkout?** `make dev` runs the working tree in its
 > container instead of the built image — the same `compose.yml`, `.env` and `./data`, with
-> `compose.build.yml` (build from this checkout) and `compose.live.yml` on top. The backend restarts when a `.py` file is saved and the page
+> `compose.build.yml` (build from this checkout) and `compose.dev.yml` on top. The backend restarts when a `.py` file is saved and the page
 > on `:8080` updates as the frontend is edited, with no rebuild. A backend restart closes
 > open terminals and locks the SSH key again. `bash scripts/deploy.sh` goes back to the
 > built image. The rest of this page is for a Loskai of its own, beside test containers.
@@ -19,11 +19,11 @@ point it at. No domain, ACME token, or Proxmox needed — Caddy uses its interna
 ## 1. Start the Caddy + AdGuard rig
 
 ```bash
-docker compose -f compose.dev.yml up -d
+docker compose -f compose.rig.yml up -d
 ```
 
 This publishes Caddy's admin API on **:2019** and AdGuard on **:3000** (see
-`compose.dev.yml` for the port map).
+`compose.rig.yml` for the port map).
 
 ## 2. Finish AdGuard's first-run setup
 
@@ -95,8 +95,8 @@ Open <http://localhost:5173> and log in as `admin` (or `LOSKAI_USERNAME`) with `
 ## 6. Tear down
 
 ```bash
-docker compose -f compose.dev.yml down       # keep AdGuard config + Caddy certs
-docker compose -f compose.dev.yml down -v     # wipe them too
+docker compose -f compose.rig.yml down       # keep AdGuard config + Caddy certs
+docker compose -f compose.rig.yml down -v     # wipe them too
 ```
 
 ## Notes

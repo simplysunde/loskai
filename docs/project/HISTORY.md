@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — `make live` is `make dev`
+
+Sunde runs their homelab on the Loskai this checkout's working tree serves, and keeps
+developing it there. "Live" read as production, though, and the mode is development, so
+`make live` became `make dev`, its overlay `compose.dev.yml`, and its env var `LOSKAI_DEV`.
+The Caddy + AdGuard test rig had that file name and is now `compose.rig.yml`, matching what
+`dev-testing.md` already called it. So in older entries, `compose.dev.yml` means the rig and
+`compose.live.yml` means the overlay. A one-line `curl … | sh` install went in the backlog,
+for once the release is public.
+
 ## 2026-11-13 — A review's findings (Phase 53)
 
 A code review of Phases 48–52 found eight things worth fixing; each is a commit. Two were

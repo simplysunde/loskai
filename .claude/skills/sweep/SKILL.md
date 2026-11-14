@@ -113,7 +113,7 @@ asserting the effect, not the response. Never against the repo's `data/` (live s
   — dialogs and Escape, forms that submit, a failing action that says why. `make
   check-phone` covers every page and the main dialogs at phone widths
   (`docs/contributing/phone-layout.md`).
-- **Sunde's `:8080`** runs `make live` from the working tree, so it reloads with every
+- **Sunde's `:8080`** runs `make dev` from the working tree, so it reloads with every
   change: check it still renders at the end. A white page there is Vite holding an empty
   module after a rewrite — touch the file.
 

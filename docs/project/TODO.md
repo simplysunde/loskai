@@ -297,7 +297,7 @@ avoided when possible")**
 - **A one-line install, `curl … | sh`** (Sunde, 2026-11-14: for when the build is public and
   the release is a pulled image) — what the README's *Run it* does in three lines now (make
   `data` and `stacks` as the user, fetch `compose.yml`, `docker compose up -d`), as one
-  script. `deploy.sh` and `make live` stay what they are: running a checkout's own code
+  script. `deploy.sh` and `make dev` stay what they are: running a checkout's own code
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
   login factor (TOTP) once Loskai holds keys.
   [`architecture.md`](architecture.md#direction--managing-the-machines-over-ssh)

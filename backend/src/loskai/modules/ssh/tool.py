@@ -280,7 +280,7 @@ def load(directory: Path | None = None) -> dict[str, Tool]:
 
 
 # Once per folder: the files never change while Loskai runs, and every plan, settings read
-# and tool list asks for them (`make live` restarts on an edited one).
+# and tool list asks for them (`make dev` restarts on an edited one).
 @cache
 def _read(directory: Path) -> dict[str, Tool]:
     return {

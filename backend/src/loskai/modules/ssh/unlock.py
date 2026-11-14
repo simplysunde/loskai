@@ -8,7 +8,7 @@ sessions' generation moves on) or you lose the Machines tab.
 An admin can switch the asking off (`ssh_ask_password`): then the Machines tab is enough.
 
 Who holds an unlock is kept in a file beside the key, so a restart of Loskai — a deploy, or
-every save under `make live` — doesn't lock it. The file holds no secret: names, times and
+every save under `make dev` — doesn't lock it. The file holds no secret: names, times and
 generations. Whoever could write it could read the key itself.
 """
 

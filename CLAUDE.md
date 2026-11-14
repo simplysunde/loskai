@@ -84,9 +84,10 @@ Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (o
 hooks, `docs.ts` — the repo's address, for links to the docs).
 
 Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
-(C), `compose.dev.yml` (Caddy + AdGuard for a dev Loskai on the host), `compose.build.yml` (on
-top of any of them: build Loskai from the checkout instead of pulling it), `compose.live.yml`
-(on top of those: the working tree, live-reloading — `make live`), `caddy/` (the
+(C), `compose.rig.yml` (Caddy + AdGuard for a dev Loskai on the host — `compose.dev.yml` in older
+`HISTORY.md`/`TODO.md` entries, until 2026-11-14, when `make live` became `make dev`), `compose.build.yml` (on
+top of any of them: build Loskai from the checkout instead of pulling it), `compose.dev.yml`
+(on top of those: the working tree, live-reloading — `make dev`), `caddy/` (the
 Caddy image and Caddyfile), `scripts/` (`deploy.sh`, `release.sh`, `check-docs.sh`, `where-used.py`,
 `sync-recipe-schema.sh`, `check-phone.sh`, `record-demo.sh`, the LXC scripts,
 `container-entrypoint.sh`), `demo/` (`make demo`'s machine image, setup, flows and conversion). `data/` and
@@ -112,7 +113,7 @@ commit messages are user-facing — Check for updates shows them as "What change
 - Recipes: `uv run python -m loskai.modules.docker.check_recipes <path>` (in `backend/`) —
   the wizard's own validator over a recipe folder or a whole recipes repo.
 - A compose file: `docker compose -f <file> config` — renders it without a daemon.
-- `make live` swaps the `loskai` container for the working tree, reloading on save, on the
+- `make dev` swaps the `loskai` container for the working tree, reloading on save, on the
   same `:8080` (`bash scripts/deploy.sh` swaps back).
 - Production serves on `:8080`: one FastAPI process serves the API *and* the built React
   bundle. Dev is two servers; prod is one. An install runs the published images

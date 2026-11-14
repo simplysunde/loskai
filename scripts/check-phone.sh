@@ -6,7 +6,7 @@
 #
 #   LOSKAI_USER=admin LOSKAI_PASSWORD=… bash scripts/check-phone.sh [URL]
 #
-# URL defaults to http://127.0.0.1:8080 — `make live`, or a deployed Loskai. It opens pages
+# URL defaults to http://127.0.0.1:8080 — `make dev`, or a deployed Loskai. It opens pages
 # and dialogs, never confirms or saves anything, so it is safe against a real one; its logins
 # show in the sign-in log.
 # Needs Docker: Playwright and its browser run in Playwright's own image, so nothing is
