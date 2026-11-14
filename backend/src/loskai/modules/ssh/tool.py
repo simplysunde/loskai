@@ -303,10 +303,15 @@ def _by_manager(where: str, value: object) -> list[str]:
     return out
 
 
+# The order the tools come in — their cards on a machine, the Tools menu: these first, the
+# rest by id after them. Decided here only; the page keeps the order it is sent.
+ORDER = ("git", "claude", "tailscale", "tmux")
+
+
 def load(directory: Path | None = None) -> dict[str, Tool]:
-    """Every tool file in `directory` (default `DIR`), by id (the file name). Raises
-    ToolError for the first that isn't valid — they ship in the image, and the test suite
-    loads them all."""
+    """Every tool file in `directory` (default `DIR`), by id (the file name), in `ORDER`.
+    Raises ToolError for the first that isn't valid — they ship in the image, and the test
+    suite loads them all."""
     return _read(directory or DIR)
 
 
@@ -316,8 +321,12 @@ def load(directory: Path | None = None) -> dict[str, Tool]:
 def _read(directory: Path) -> dict[str, Tool]:
     return {
         path.stem: parse(path.stem, yaml.safe_load(path.read_text(encoding="utf-8")))
-        for path in sorted(directory.glob("*.yml"))
+        for path in sorted(directory.glob("*.yml"), key=lambda p: (_place(p.stem), p.stem))
     }
+
+
+def _place(tool_id: str) -> int:
+    return ORDER.index(tool_id) if tool_id in ORDER else len(ORDER)
 
 
 def view(t: Tool) -> dict:

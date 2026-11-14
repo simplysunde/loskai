@@ -12,6 +12,10 @@ from loskai.modules.ssh import status, tool
 from loskai.modules.ssh.tool import ToolError
 
 
+def test_the_tools_come_git_claude_tailscale_tmux_then_the_rest_by_id():
+    assert list(tool.load()) == ["git", "claude", "tailscale", "tmux", "proxmox", "services", "system"]
+
+
 def test_every_shipped_tool_is_valid():
     tools = tool.load()
 
