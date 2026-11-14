@@ -74,19 +74,19 @@ TARGETS = {
         r"|[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*:[A-Za-z0-9._~][A-Za-z0-9._~/+-]*"
         r")$"
     ),
-    # A git host to reach over SSH (Git's Test key): a name or an address, and a port when
-    # its SSH isn't on 22 — never an option to ssh.
-    "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
+    # A git host to reach over SSH (Git's Test key): a name, an address or an ssh alias (which
+    # may hold `_`), and a port when its SSH isn't on 22 — never an option to ssh.
+    "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}(?::\d{1,5})?$"),
     # A key in the SSH user's ~/.ssh, as the overview lists them (Git's Keys).
     "key": KEY_NAME,
     # One key, and a host to try it on — `<key>@<host>[:port]`: a key's own Test in Keys,
     # its row's field the host. The two halves held to the `key` and `host` kinds.
-    "key-host": re.compile("^" + KEY_PART + r"@[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
+    "key-host": re.compile("^" + KEY_PART + r"@[A-Za-z0-9][A-Za-z0-9._-]{0,252}(?::\d{1,5})?$"),
     # One key, and what it is for — `<key>@account`, `@login`, `@for:<host>` or
     # `@deploy:<project>`: a key's Label in Keys. The parts held to the `key`, `host` and
     # `project` kinds.
     "key-label": re.compile(
-        "^" + KEY_PART + r"@(?:account|login|for:[A-Za-z0-9][A-Za-z0-9.-]{0,252}"
+        "^" + KEY_PART + r"@(?:account|login|for:[A-Za-z0-9][A-Za-z0-9._-]{0,252}"
         r"|deploy:[A-Za-z0-9][A-Za-z0-9._-]{0,99})$"
     ),
     # A setting's values: a person's name as git writes it on a commit, and an address.

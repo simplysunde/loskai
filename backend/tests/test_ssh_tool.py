@@ -326,6 +326,14 @@ def test_delete_and_new_key_for_a_host_touch_only_key_pairs(tmp_path):
     assert (ssh / "authorized_keys").read_text() == "ssh-ed25519 AAAA loskai\n"
 
 
+def test_an_ssh_alias_with_an_underscore_is_a_host_too():
+    """`Host gitea_lan` in ~/.ssh/config: the page fills a key's Test with it."""
+    assert tool.TARGETS["host"].fullmatch("gitea_lan:2222")
+    assert tool.TARGETS["key-host"].fullmatch("id_ed25519@gitea_lan")
+    assert tool.TARGETS["key-label"].fullmatch("id_ed25519@for:gitea_lan")
+    assert not tool.TARGETS["host"].fullmatch("_lan")
+
+
 @pytest.mark.parametrize("value", ["id_ed25519@github.com", "deploy_my.site@git.home.lan:2222"])
 def test_a_key_and_a_host_are_taken_together(value):
     assert tool.TARGETS["key-host"].fullmatch(value)

@@ -131,7 +131,7 @@ export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; 
 export type KeyLabel = { kind: "account" } | { kind: "login" } | { kind: "for"; host: string } | { kind: "deploy"; project: string };
 
 export function keyLabel(comment: string): KeyLabel | null {
-  const m = /\(loskai: (account|login|for ([A-Za-z0-9.-]+)|deploy ([A-Za-z0-9._-]+))\)$/.exec(comment);
+  const m = /\(loskai: (account|login|for ([A-Za-z0-9._-]+)|deploy ([A-Za-z0-9._-]+))\)$/.exec(comment);
   if (!m) return null;
   return m[2] ? { kind: "for", host: m[2] } : m[3] ? { kind: "deploy", project: m[3] } : { kind: m[1] as "account" | "login" };
 }
@@ -154,7 +154,7 @@ export function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefi
   const label = keyLabel(key.comment);
   if (label?.kind === "for") return label.host;
   const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
-  return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
+  return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9._-]+)$/.exec(key.comment)?.[1];
 }
 
 // Which list a key is in, and the word beside its name — by its mark when it has one, else
