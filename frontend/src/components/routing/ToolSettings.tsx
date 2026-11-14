@@ -4,6 +4,7 @@ import { Loader2, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { requestUnlock } from "../../lib/unlock";
+import { sshHost } from "../../lib/ssh";
 import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
@@ -169,7 +170,9 @@ export function SettingsDialog({
   });
   const label = row ? `${overridesOf(row)} for ${row.name}` : `${tool.name} settings`;
   const formId = useId();
-  const actions = settingsActionsOf(tool, row?.kind ?? null);
+  // A project's own key and back are its key section's buttons, not the list's.
+  const keyed = row?.kind === "project" && hasKeys(tool);
+  const actions = settingsActionsOf(tool, row?.kind ?? null).filter((a) => !(keyed && KEY_ACTIONS.includes(a.id)));
   // Each in the machine's terminal, this dialog closing first; a row's on that row.
   const run: ToolStart = (r, a) => {
     onClose();
@@ -219,7 +222,7 @@ export function SettingsDialog({
           ))}
         </div>
         {/* A project's key: the machine's, or its own — Own key and Machine's key, below. */}
-        {row?.kind === "project" && hasKeys(tool) && <ProjectKey ctx={ctx} name={row.name} />}
+        {keyed && row && <ProjectKey tool={tool} ctx={ctx} name={row.name} onRun={run} />}
         {values.isLoading && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-500" />}
         {(save.error || values.error) && (
           <p className="mt-3 text-sm text-rose-400">
@@ -278,26 +281,56 @@ function projectKeyOf(ctx: ToolContext, name: string): string | null {
   return projectsIn(ctx.facts, ctx.folder).find((p) => p.name === name)?.key ?? null;
 }
 
-// Which key a project's git uses, in its dialog: the machine's, greyed, or its own.
-function ProjectKey({ ctx, name }: { ctx: ToolContext; name: string }) {
+// A project's key buttons — Own key, Machine's key — kept in its key section.
+const KEY_ACTIONS = ["own-key", "machine-key"];
+
+// Which key a project's git uses, in its overrides, in a line — and the one button that
+// changes it: its own key while it uses the machine's, back to the machine's while it has
+// its own. Over HTTP(S) no SSH key is used at all, which it says, the button greyed; a
+// core.sshCommand set by hand is left to whoever set it.
+function ProjectKey({ tool, ctx, name, onRun }: { tool: Tool; ctx: ToolContext; name: string; onRun: ToolStart }) {
+  const project = projectsIn(ctx.facts, ctx.folder).find((p) => p.name === name);
   const key = projectKeyOf(ctx, name);
-  const known = ctx.facts.ssh_keys;
-  const info = key ? known?.find((k) => k.name === key) : null;
+  const info = key ? ctx.facts.ssh_keys?.find((k) => k.name === key) : null;
+  // Its own remotes (not a submodule's): none over SSH, and no key is used.
+  const remotes = ctx.facts.remotes?.filter((r) => r.path === project?.path && r.module === "");
+  const noSsh = remotes != null && !remotes.some((r) => sshHost(r.url));
+  const action = tool.actions.find((a) => a.id === (key == null ? "own-key" : "machine-key"));
+  const line =
+    ctx.facts.ssh_keys == null
+      ? "The machine's status line is older — install it again to see."
+      : key == null
+        ? "Uses the machine's key."
+        : key === ""
+          ? "Uses an ssh command of its own (core.sshCommand), set by hand."
+          : `Uses its own key, ${key}${info ? ` · ${info.fingerprint.slice(0, 19)}…` : ""}`;
+  const why = noSsh
+    ? remotes.length === 0
+      ? "It has no remote yet: a key is used once one goes over SSH."
+      : "Its remote is over HTTP(S), which uses no SSH key — switch it to its SSH address first."
+    : null;
   return (
     <div className="mt-3">
       <span className="text-sm text-slate-200">SSH key</span>
-      <span className="mb-1 block text-xs text-slate-500">
-        Its own — a deploy key, for its repository alone — in place of the machine's. Every key is in Keys.
-      </span>
-      <span aria-label="SSH key" className={`block break-all font-mono text-xs ${key != null ? "text-slate-200" : "text-slate-500"}`}>
-        {known === undefined || known === null
-          ? "the machine's status line is older — install it again to see"
-          : key == null
-            ? "the machine's"
-            : key === ""
-              ? "its own ssh command"
-              : `${key}${info ? ` · ${info.fingerprint}` : ""}`}
-      </span>
+      <span className="mb-1 block text-xs text-slate-500">Its own is a deploy key: it reaches this repository alone.</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span aria-label="SSH key" className={`text-xs ${key != null ? "text-slate-200" : "text-slate-400"}`}>
+          {line}
+        </span>
+        {action && key !== "" && (
+          <button
+            type="button"
+            disabled={why != null && key == null}
+            title={why && key == null ? why : action.description}
+            onClick={() => onRun({ tool: tool.id, action: action.id, title: action.label }, action)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <ActionIcon tool={tool.id} action={action.id} className="h-3.5 w-3.5" />
+            {key == null ? "Give it its own key" : "Back to the machine's key"}
+          </button>
+        )}
+      </div>
+      {why && <p className="mt-1 text-xs text-slate-500">{why}</p>}
     </div>
   );
 }

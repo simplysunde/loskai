@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A project's key, in a line, with the one button that applies
+
+Sunde, of "SSH key: the machine's" above "Actions — Own key, Machine's key": what does it
+actually do? The section now says it in a line — "Uses the machine's key" or "Uses its own
+key, deploy_…" — with only the button that changes it, named for what it does: Give it its
+own key, Back to the machine's key. A project whose remote is over HTTP(S) uses no SSH key
+at all, which is every project on codebox: it says so, and Give it its own key is greyed
+until the remote goes over SSH. A core.sshCommand set by hand gets no button — it is
+whoever set it's to change.
+
 ## 2026-11-14 — What a key is for, written on the key: Loskai's mark, and Label
 
 codebox's `id_ed25519` was made by Loskai the same day, yet nothing said so: its comment,

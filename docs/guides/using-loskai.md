@@ -298,10 +298,13 @@ and Add.
   per platform is a `Host` block each in `~/.ssh/config`: **New key for a host** makes
   `~/.ssh/<host>` and prints the block to paste there — Loskai doesn't edit that file.
   Where ssh tries several keys on a host (no `IdentitiesOnly`), each shows as **offered**
-  there. A project's **Project overrides** say which key it uses;
-  **Own key** there gives it a deploy key (set as its `core.sshCommand`, so git uses that
-  key alone for it), its cog teal like its own name, and **Machine's key** goes back,
-  keeping the file, so Own key takes the same key up again. On a machine Claude works on by
+  there. A project's **Project overrides** say in a line which key it uses — "Uses the machine's
+  key", or "Uses its own key, deploy_<project>" — with the one button that changes it:
+  **Give it its own key** makes a deploy key (set as its `core.sshCommand`, so git uses that
+  key alone for this repository), shows it to add under the repository's Deploy keys, and
+  turns the cog teal like its own name; **Back to the machine's key** takes that line off,
+  keeping the file, so its own key can be taken up again. Over HTTP(S) no SSH key is used at
+  all: it says so, and the button waits for the remote to go over SSH. On a machine Claude works on by
   itself, a deploy key keeps it to the one repository.
 - **Claude Code** lists the git projects in the machine's projects folder, set in the Git
   card's **Settings**, with each one's

@@ -1551,16 +1551,31 @@ test("a project's cog says which key it uses — its own teal like its own name 
   expect(blogCog.title).toContain("SSH key deploy_blog");
   fireEvent.click(blogCog);
   const blog = await screen.findByRole("dialog", { name: "Project overrides for blog" });
-  expect(within(blog).getByLabelText("SSH key")).toHaveTextContent("deploy_blog · SHA256:blog");
+  expect(within(blog).getByLabelText("SSH key")).toHaveTextContent("Uses its own key, deploy_blog · SHA256:blog");
+  // The one button that applies: back to the machine's — no list of actions beside it.
+  expect(within(blog).getByRole("button", { name: /Back to the machine's key/ })).toBeEnabled();
+  expect(within(blog).queryByRole("button", { name: /Give it its own key/ })).toBeNull();
+  expect(within(blog).queryByText("Actions")).toBeNull();
   fireEvent.click(within(blog).getByRole("button", { name: "Cancel" }));
 
   fireEvent.click(within(tools).getByRole("button", { name: "Project overrides for site" }));
   const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
-  expect(within(site).getByLabelText("SSH key")).toHaveTextContent("the machine's");
-  fireEvent.click(within(site).getByRole("button", { name: "Own key" }));
+  expect(within(site).getByLabelText("SSH key")).toHaveTextContent("Uses the machine's key.");
+  fireEvent.click(within(site).getByRole("button", { name: /Give it its own key/ }));
   expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull();
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=own-key&target=site")).toBeInTheDocument();
   expect(screen.getByRole("dialog", { name: /Own key: site — Storage box/ })).toBeInTheDocument();
+});
+
+test("a project whose remote is over HTTP: no SSH key is used, which its overrides say, the button greyed", async () => {
+  setUp();
+  facts = { ...FACTS, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }] };
+  renderPage("/machines/nas/tools");
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  fireEvent.click(await within(tools).findByRole("button", { name: "Project overrides for site" }));
+  const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  expect(within(site).getByRole("button", { name: /Give it its own key/ })).toBeDisabled();
+  expect(site).toHaveTextContent("Its remote is over HTTP(S), which uses no SSH key — switch it to its SSH address first.");
 });
 
 test("a name typed for an action that asks first is kept when that is cancelled", async () => {
