@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Check, ExternalLink, KeyRound, Tag, X } from "lucide-react";
+import { Check, ExternalLink, KeyRound, RotateCw, Tag, X } from "lucide-react";
 
 import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
@@ -512,7 +512,9 @@ function KeyTest({
         className="flex w-[9.75rem] items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-500/20"
       >
         <Check className="h-3 w-3 shrink-0" />
-        <span className="truncate font-mono">{tested.host}</span>
+        <span className="min-w-0 flex-1 truncate text-left font-mono">{tested.host}</span>
+        {/* Clicked, it tests again: said by the arrow at its end. */}
+        <RotateCw aria-hidden className="h-3 w-3 shrink-0 opacity-70" />
       </button>
     );
   }

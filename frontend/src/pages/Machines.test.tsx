@@ -1446,6 +1446,8 @@ test("a key's Test, while Keys is open: a ✓ in its field's place, and no Add t
   // It got in: the field and its Test give way to the answer, in their place.
   const passed = await within(row("deploy_blog")).findByRole("button", { name: "Tested deploy_blog: it gets in on forgejo.lan — test again" });
   expect(passed).toHaveTextContent("forgejo.lan");
+  // An arrow at its end: clicked, it tests again.
+  expect(passed.querySelector("svg.lucide-rotate-cw")).not.toBeNull();
   expect(within(row("deploy_blog")).queryByLabelText("Host to test deploy_blog on")).toBeNull();
   expect(within(row("deploy_blog")).queryByRole("link", { name: /Add to/ })).toBeNull();
   fireEvent.click(within(screen.getByRole("region", { name: /Test: deploy_blog/ })).getByRole("button", { name: "Close" }));
