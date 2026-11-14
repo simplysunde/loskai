@@ -27,7 +27,8 @@ Everything so far:
   settings window — one scroll, a side menu to jump around, a search — General (with its
   overview: system, memory, disks, updates waiting) and SSH, each field saving as you edit
   it, then its tools, what runs there, its log. **Tools** — found from what the machine has, nothing to
-  enable: System (update, reboot, shut down — on General, by the overview), Services (restart or stop a service or
+  enable: System (update, reboot, shut down — on General, by the overview; **Update all**,
+  above the Machines tab's table, updates every machine one after another), Services (restart or stop a service or
   container), Proxmox (reboot or shut down a guest); a tool the machine lacks is offered to
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:
@@ -43,8 +44,8 @@ Everything so far:
   the background, continuing the last conversation, in tmux with Remote Control, so it
   carries on in the Claude app; it says when Claude waits to be told to trust the folder),
   then **Attach** and **Stop**; **Update Claude** and **Stop all** on the card;
-  **New project** makes the folder, `git init`, and starts Claude in it. **Projects**, on the
-  Machines tab, shows every machine's projects in one place — each one's git and Claude
+  **New project** makes the folder, `git init`, and starts Claude in it. **Projects**, above
+  the Machines tab's table, shows every machine's projects in one place — each one's git and Claude
   session together, with their buttons. Tool cards come Git, Claude Code, Tailscale, tmux. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.

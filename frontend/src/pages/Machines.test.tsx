@@ -1312,6 +1312,55 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
 });
 
+test("Update all, from the row above the table: each set-up machine updated in turn, the next once the last ends", async () => {
+  setUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  // Projects and Update all sit together above the table, not in the header.
+  const across = await screen.findByRole("toolbar", { name: "Across machines" });
+  expect(within(across).getByRole("button", { name: "Projects" })).toBeInTheDocument();
+  fireEvent.click(within(across).getByRole("button", { name: "Update all" }));
+  const dialog = await screen.findByRole("dialog", { name: "Update all" });
+  const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+  await vi.waitFor(() => expect(row("Storage box")).toHaveTextContent("12 waiting (apt)"));
+  await vi.waitFor(() => expect(within(row("pve")).getByRole("button", { name: "Update pve" })).toBeEnabled());
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Update all" }));
+  // The first, in its terminal; the other waits for it.
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update")).toBeInTheDocument();
+  expect(row("pve")).toHaveTextContent("Queued");
+  expect(screen.queryByText("shell at /api/ssh/machines/pve/terminal?tool=system&action=update")).toBeNull();
+  expect(within(dialog).getByRole("button", { name: "Update all" })).toBeDisabled();
+
+  // It ends: the next starts, and what waits on the first is read again.
+  const reads = () => calls.filter((c) => c.path === "/api/ssh/machines/nas/facts").length;
+  const before = reads();
+  fireEvent.click(within(screen.getByRole("region", { name: "Update — Storage box" })).getByRole("button", { name: "Close" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/pve/terminal?tool=system&action=update")).toBeInTheDocument();
+  await vi.waitFor(() => expect(reads()).toBeGreaterThan(before));
+});
+
+test("Update all can stop after the machine updating now", async () => {
+  setUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
+  const dialog = await screen.findByRole("dialog", { name: "Update all" });
+  await vi.waitFor(() => expect(within(dialog).getByRole("button", { name: "Update pve" })).toBeEnabled());
+  fireEvent.click(within(dialog).getByRole("button", { name: "Update all" }));
+  await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update");
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Stop after this one" }));
+  fireEvent.click(within(screen.getByRole("region", { name: "Update — Storage box" })).getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(within(dialog).getByRole("button", { name: "Update all" })).toBeEnabled());
+  expect(screen.queryByText("shell at /api/ssh/machines/pve/terminal?tool=system&action=update")).toBeNull();
+});
+
 test("the projects folder is set under the Git card's cog, not under General", async () => {
   setUp();
   renderPage("/machines/nas");

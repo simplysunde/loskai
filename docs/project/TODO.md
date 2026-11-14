@@ -68,12 +68,15 @@ what nothing about a tool stores.
 
 **Steps**
 
-- [x] 55a **Projects** in the Machines tab's header, once a machine has SSH set up: a card for
-      each such machine — its address, Tailscale, its own tmux sessions — and each project
-      with its git, its Claude session, and Git's and Claude Code's buttons, run in that
-      machine's terminal; each machine's overview read while it is open, none holding up
-      another (`ProjectsOverview`)
-- [ ] 55b Live: on Sunde's machines, through the page
+- [x] 55a **Projects** in the Machines tab's header (since 55c, above its table), once a
+      machine has SSH set up: a card for each such machine — its address, Tailscale, its
+      own tmux sessions — and each project with its git, its Claude session, and Git's and
+      Claude Code's buttons, run in that machine's terminal; each machine's overview read
+      while it is open, none holding up another (`ProjectsOverview`)
+- [ ] 55b Live: on Sunde's machines, through the page — Projects and Update all
+- [x] 55c Asked after 55a (Sunde): Projects in a row above the table rather than beside Name a
+      machine, with **Update all** — System's Update on every set-up machine, one after
+      another (`UpdateAll`)
 
 ---
 

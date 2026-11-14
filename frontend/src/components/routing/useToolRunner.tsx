@@ -8,7 +8,12 @@ import { MachineTerminal } from "./MachineTerminal";
 
 // Runs a machine's shell or a tool's action in its terminal, asking first for an action
 // with `confirm` — for the machine's page and each tool's page. `ui` is what to render.
-export function useToolRunner(machine: { id: string; name: string } | undefined, sshKey: SshKey | null) {
+// `onEnd`: what `start` began is over — its terminal closed, or its confirm turned down.
+export function useToolRunner(
+  machine: { id: string; name: string } | undefined,
+  sshKey: SshKey | null,
+  onEnd?: () => void,
+) {
   const [run, setRun] = useState<ToolRun | "shell" | null>(null);
   // An automatic run — the action says so; the sudo rule and adding a tool always are —
   // drops down rather than opening a dialog.
@@ -38,6 +43,7 @@ export function useToolRunner(machine: { id: string; name: string } | undefined,
             // What it ran may have changed what runs there, and what the machine has.
             qc.invalidateQueries({ queryKey: ["ssh-facts"] });
             qc.invalidateQueries({ queryKey: ["ssh-running"] });
+            onEnd?.();
           }}
         />
       )}
@@ -46,7 +52,10 @@ export function useToolRunner(machine: { id: string; name: string } | undefined,
         title={`${confirming?.run.title ?? ""} — ${machine.name}`}
         destructive
         confirmLabel={confirming?.action.label}
-        onCancel={() => setConfirming(null)}
+        onCancel={() => {
+          setConfirming(null);
+          onEnd?.();
+        }}
         onConfirm={() => {
           if (confirming) begin(confirming.run, confirming.action);
           setConfirming(null);

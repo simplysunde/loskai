@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { FolderGit2, HardDrive, Loader2 } from "lucide-react";
+import { Download, FolderGit2, HardDrive, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
 import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
@@ -17,6 +17,7 @@ import { MachineTable } from "../components/routing/MachineTable";
 import { MachineTerminal } from "../components/routing/MachineTerminal";
 import { SaveBanner } from "../components/routing/SaveBanner";
 import { ProjectsOverview } from "../components/routing/ProjectsOverview";
+import { UpdateAll } from "../components/routing/UpdateAll";
 import { ToolDialog } from "../components/routing/ToolDialog";
 import type { RouteRow } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
@@ -51,8 +52,9 @@ export function Machines() {
   const [terminalFor, setTerminalFor] = useState<{ machine: RouteRow; run?: ToolRun } | null>(null);
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
-  // Every machine's projects, from the header.
+  // Every machine's projects, and every machine's updates, from the row above the table.
   const [projects, setProjects] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const { routes, rows } = useRouteRows();
   const settings = useSettings();
@@ -62,6 +64,8 @@ export function Machines() {
   const sshHosts = ssh.data?.hosts ?? {};
   const trusted = ssh.data?.trusted ?? {};
   const running = useRunning(Object.keys(trusted).length > 0);
+
+  const canUpdate = Boolean(tools.data?.some((t) => t.id === MACHINE_TOOL && t.actions.some((a) => a.id === "update")));
 
   const named = rows.filter(isMachine);
   const dockerHost = unnamedDockerHost(settings.data?.host_ip?.value, named);
@@ -117,28 +121,38 @@ export function Machines() {
             Machines on your network, each with its DNS name and the routes it hosts.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 self-start">
-          {/* Once a machine can be read over SSH: what its projects are doing, all in one place. */}
-          {Object.values(trusted).some(Boolean) && (
+        <button
+          onClick={() => {
+            setError(null);
+            setNaming({});
+          }}
+          className="flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+        >
+          <HardDrive className="h-4 w-4" /> Name a machine
+        </button>
+      </header>
+
+      {/* What is done across machines, above them — once one can be read over SSH. */}
+      {Object.values(trusted).some(Boolean) && (
+        <div role="toolbar" aria-label="Across machines" className="mb-3 flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setProjects(true)}
+            title="Every machine's projects — their git, their Claude session — in one place"
+            className={ACROSS_BUTTON}
+          >
+            <FolderGit2 className="h-3.5 w-3.5" /> Projects
+          </button>
+          {canUpdate && (
             <button
-              onClick={() => setProjects(true)}
-              title="Every machine's projects — their git, their Claude session — in one place"
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+              onClick={() => setUpdating(true)}
+              title="Bring every machine up to date, one after another — what waits on each first"
+              className={ACROSS_BUTTON}
             >
-              <FolderGit2 className="h-4 w-4" /> Projects
+              <Download className="h-3.5 w-3.5" /> Update all
             </button>
           )}
-          <button
-            onClick={() => {
-              setError(null);
-              setNaming({});
-            }}
-            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
-          >
-            <HardDrive className="h-4 w-4" /> Name a machine
-          </button>
         </div>
-      </header>
+      )}
 
       {/* AdGuard's status is Routing's to show, beside Caddy's; each machine's own DNS
           state is in its row. */}
@@ -166,7 +180,7 @@ export function Machines() {
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
           onTerminal={(machine) => setTerminalFor({ machine })}
           onUpdate={
-            tools.data?.some((t) => t.id === MACHINE_TOOL && t.actions.some((a) => a.id === "update"))
+            canUpdate
               ? (machine) => setTerminalFor({ machine, run: { tool: MACHINE_TOOL, action: "update", title: "Update" } })
               : undefined
           }
@@ -221,6 +235,7 @@ export function Machines() {
       />
 
       {projects && <ProjectsOverview machines={machines} onClose={() => setProjects(false)} />}
+      {updating && <UpdateAll machines={machines} onClose={() => setUpdating(false)} />}
       {toolFor && (
         <ToolDialog
           machine={{ id: toolFor.machine.id, name: toolFor.machine.name }}
@@ -279,3 +294,6 @@ export function Machines() {
     </div>
   );
 }
+
+const ACROSS_BUTTON =
+  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800";

@@ -258,7 +258,16 @@ and Add.
 The tool cards come in one order on every machine: Git, Claude Code, Tailscale, tmux, then
 any other.
 
-**Projects**, in the Machines tab's header once a machine has SSH set up, follows work
+Once a machine has SSH set up, a row above the machines holds what is done across them:
+**Projects** and **Update all**.
+
+**Update all** lists each such machine with the updates waiting on it and its own
+**Update**, and updates them all one after another — System's Update on each, the next
+starting once the last ends, each asking for its `sudo` password where it needs one
+(without, under *Updates without a password*). **Stop after this one** leaves the rest.
+What waits on a machine is read again as its run ends.
+
+**Projects** follows work
 across machines: a card for each such machine — its address, Tailscale, how many tmux
 sessions of your own — with each project once, its git (branch, commits not pushed,
 uncommitted changes, last commit) and its Claude session together, and the buttons both

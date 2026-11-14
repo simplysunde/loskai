@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A row above the machines: Projects and Update all
+
+Projects sat beside Name a machine in the header; Sunde would rather have a row of quick
+actions above the table, with an update-all. The header keeps what makes a machine; the row
+holds what is done across machines. **Update all** runs System's Update on each set-up
+machine **one after another**, not at once: an automatic run's terminal drops down from the
+top of the page and two would cover each other, and each may ask for its own `sudo`
+password. It is a dialog first — what waits on each machine, each with its own Update —
+because the counts are the machine's package lists as last refreshed, so it updates every
+machine rather than only those counted as behind. No new endpoint: each run is System's Update as on a machine's
+General, chained by when its terminal closes (`useToolRunner`'s `onEnd`).
+
 ## 2026-11-14 — A machine's DNS state beside its name
 
 The Machines table had a URL column and a DNS column, and on a healthy homelab the DNS one
