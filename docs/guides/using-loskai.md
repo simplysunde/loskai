@@ -268,7 +268,7 @@ Once a machine has SSH set up, a row above the machines holds what is done acros
 **Update**, and updates them all one after another — System's Update on each, the next
 starting once the last ends, each asking for its `sudo` password where it needs one
 (without, under *Updates without a password* — its switch is beside each machine there
-too, so Update all can go by without asking). **Stop after this one** leaves the rest.
+too, as **Passwordless sudo**, so Update all can go by without asking). **Stop after this one** leaves the rest.
 What waits on a machine is read again as its run ends.
 
 **Projects** follows work across machines: each machine with projects — its address and

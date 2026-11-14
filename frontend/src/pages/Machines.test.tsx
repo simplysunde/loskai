@@ -1456,9 +1456,10 @@ test("Update all has each machine's switch for updates without a password; root 
   const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
   const rule = await within(row("Storage box")).findByRole("switch", { name: "Updates without a password" });
   expect(rule).toHaveAttribute("aria-checked", "false");
+  expect(within(row("Storage box")).getByText("Passwordless sudo")).toBeInTheDocument();
   expect(within(row("pve")).queryByRole("switch")).toBeNull();
-  expect(row("pve")).toHaveTextContent("root — no password asked");
-  expect(within(row("pve")).queryByText("No password")).toBeNull();
+  expect(row("pve")).toHaveTextContent("root — no sudo needed");
+  expect(within(row("pve")).queryByText("Passwordless sudo")).toBeNull();
 
   // Not while Update all runs: its run would hand the turn on.
   await vi.waitFor(() => expect(within(dialog).getByRole("button", { name: "Update all" })).toBeEnabled());

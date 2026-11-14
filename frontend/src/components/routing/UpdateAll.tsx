@@ -130,9 +130,9 @@ function MachineUpdate({
       </span>
       <span className="ml-auto flex items-center gap-3 text-xs text-slate-500">
         {user && command && (
-          <span title="Updates without a password — on, Update goes by without asking for sudo's" className="flex items-center gap-1.5">
+          <span title="Passwordless sudo, for exactly the update commands — on, Update runs without asking for sudo's password" className="flex items-center gap-1.5">
             {/* Root's note says it alone. */}
-            {user !== "root" && <span className="max-sm:hidden">No password</span>}
+            {user !== "root" && <span className="max-sm:hidden">Passwordless sudo</span>}
             <SudoRuleSwitch user={user} facts={f} onRun={runner.start} disabled={busy} short />
           </span>
         )}

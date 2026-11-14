@@ -22,7 +22,7 @@ export function SudoRuleSwitch({
   short?: boolean;
 }) {
   if (user === "root") {
-    return <span className="text-xs text-slate-500">{short ? "root — no password asked" : "not needed — it logs in as root"}</span>;
+    return <span className="text-xs text-slate-500">{short ? "root — no sudo needed" : "not needed — it logs in as root"}</span>;
   }
   if (!facts?.ok) {
     return short ? null : <span className="text-xs text-slate-500">needs its overview — see General</span>;
