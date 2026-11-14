@@ -157,7 +157,7 @@ const TOOLS = [
       { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
-      { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, automatic: true, run: "git ls-remote" },
+      { id: "key-on-host", label: "Test", description: "Try it there.", target: null, ask: "key-host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
       { id: "own-key", label: "Own key", description: "Its own key.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "ssh-keygen" },
       { id: "machine-key", label: "Machine's key", description: "The machine's again.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "git config --unset core.sshCommand" },
@@ -1332,9 +1332,14 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
-  // Nothing here to test it on: Test is greyed, pointing to Test key.
+  // Nothing says which platform it is for: its host field is empty, its Test waits for one —
+  // where it came from, typed here, on this key's row alone.
+  const host = within(row).getByLabelText("Host to test id_ed25519 on");
+  expect(host).toHaveValue("");
   expect(within(row).getByRole("button", { name: "Test id_ed25519" })).toBeDisabled();
-  expect(within(row).getByRole("button", { name: "Test id_ed25519" })).toHaveAttribute("title", expect.stringMatching(/Test key, under the list/));
+  fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
+  fireEvent.keyDown(host, { key: "Enter" });
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40git.home.lan%3A2222")).toBeInTheDocument();
   expect(within(within(dialog).getByText("deploy_blog").closest("li") as HTMLElement).getByText("No git remote here uses it"))
     .toHaveAttribute("title", expect.stringMatching(/^No remote here names it\./));
 });
@@ -1355,10 +1360,13 @@ test("a key's Test drops down over Keys, which stays — its answer the drop-dow
   setUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
+  // Its own host field, filled with the platform its remotes go to.
+  expect(within(dialog).getByLabelText("Host to test id_ed25519 on")).toHaveValue("github.com");
+  expect(within(dialog).getByLabelText("Host to test deploy_blog on")).toHaveValue("forgejo.lan");
   fireEvent.click(within(dialog).getByRole("button", { name: "Test id_ed25519" }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=try-key&target=id_ed25519")).toBeInTheDocument();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40github.com")).toBeInTheDocument();
   // Automatic: the drop-down, not a dialog of its own.
-  const terminal = screen.getByRole("region", { name: "Test: id_ed25519 — Storage box" });
+  const terminal = screen.getByRole("region", { name: "Test: id_ed25519 on github.com — Storage box" });
   expect(screen.queryByRole("dialog", { name: /Test: id_ed25519/ })).toBeNull();
   // Keys is still there, under it; closing the drop-down comes back to it.
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBe(dialog);
@@ -1391,7 +1399,7 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
 
   const dialog = await gitKeys();
   // One host field, for each action that asks for a host — none runs until one is typed.
-  expect(within(dialog).getAllByRole("textbox")).toHaveLength(1);
+  expect(within(dialog).getAllByLabelText("Host")).toHaveLength(1);
   const host = within(dialog).getByLabelText("Host");
   expect(host).toHaveAttribute("placeholder", "github.com");
   const button = within(dialog).getByRole("button", { name: "Test key" });

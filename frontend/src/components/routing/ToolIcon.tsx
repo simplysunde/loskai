@@ -72,7 +72,7 @@ const SYMBOLS: Record<string, LucideIcon> = {
   "git.push-all": ArrowUpFromLine,
   "git.ssh-key": KeyRound,
   "git.test-key": PlugZap,
-  "git.try-key": PlugZap,
+  "git.key-on-host": PlugZap,
   "git.every-key": ListChecks,
   "git.host-key": KeyRound,
   "git.delete-key": Trash2,

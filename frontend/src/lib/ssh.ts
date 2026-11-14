@@ -131,8 +131,9 @@ function isDeploy(key: SshKeyInfo): boolean {
   return key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
 }
 
-// The one platform a key is for: where its remotes all go, else its comment's "for <host>".
-function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
+// The one platform a key is for: where its remotes all go, else its comment's "for <host>" —
+// what its own Test starts with.
+export function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
   const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
   return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
 }

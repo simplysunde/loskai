@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Each key tested on a host you name
+
+A key's Test tried it on the remotes here that use it; for codebox's account key there are
+none, so it could say nothing, and pointing to the host field under the list didn't help.
+Sunde: the test should be each key's own, the host — where the key came from — put in by
+you. Each key now has a host field and Test: filled with the platform it is for when that
+can be told (its remotes, its comment's "for <host>"), yours to type when not, and Test
+tries that key alone there, as Test key tries each (the same part, word for word). The
+remotes test went: what a key's remotes are is in its row already, and a host's greeting
+says whether it gets in, and as whom — a deploy key as its repository. The tool format
+takes one typed value per action, so the page sends `<key>@<host>`, a kind of its own
+(`key-host`) whose halves are the `key` and `host` kinds. Test key and Try every key, under
+the list, stay: by host, not by key.
+
 ## 2026-11-14 — The key tests drop down, their answer Done or Failed
 
 Sunde, after a key's Test opened a dialog saying there was nothing to try it on: should it

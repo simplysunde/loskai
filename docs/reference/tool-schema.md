@@ -139,6 +139,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
 | `key` | each SSH key in the user's `~/.ssh`, in Git's Keys dialog — never on the card | its file's name without `.pub`, `id_ed25519`, `deploy_site`: a letter or digit, then letters, digits, `.`, `_` and `-` — never a path |
+| `key-host` | only with `ask` (a key's own Test, in Git's Keys): a key and a host to try it on, `<key>@<host>`, the page joining the key's name and the host typed on its row | each half held to the `key` and `host` kinds — `deploy_site@github.com`, `id_ed25519@git.home.lan:2222` |
 | `host` | only with `ask` (Git's Test key): a field for a host to reach over SSH | a name or an address starting with a letter or digit, then letters, digits, `.` and `-`, and `:port` optionally — `github.com`, `git.home.lan:2222`; never a user or an option |
 | `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a user and a host that each start with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
 

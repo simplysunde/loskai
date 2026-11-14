@@ -79,6 +79,9 @@ TARGETS = {
     "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
     # A key in the SSH user's ~/.ssh, as the overview lists them (Git's Keys).
     "key": KEY_NAME,
+    # One key, and a host to try it on — `<key>@<host>[:port]`: a key's own Test in Keys,
+    # its row's field the host. The two halves held to the `key` and `host` kinds.
+    "key-host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}@[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),

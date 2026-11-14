@@ -259,39 +259,39 @@ actions:
       done;
       [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
       [ $ok -gt 0 ] || { echo; echo "No key here gets in: add one to your account there (Copy, on its row)."; exit 1; }
-  # Each remote the key is for, as the list shows it: in every repo in the home folder and
-  # its submodules, a remote over SSH whose key is this one — the project's own (its
-  # core.sshCommand), else what ssh offers its host (`ssh -G`: aliases, Host *, Include) —
-  # asked for its HEAD with this key alone: the read a pull or push does first. Only SSH
-  # addresses: another transport (git's ext::) could run a command.
-  try-key:
+  # One key on a host you name — where it came from: its row's Test in Keys, the host field
+  # beside it filled with the platform its remotes go to, or that its comment names. The
+  # page sends `<key>@<host>[:port]`; the key is tried alone, as Test key tries each.
+  key-on-host:
     label: Test
-    description: >-
-      Try this key on each remote it is for — in every project and submodule, through
-      ~/.ssh/config too — with read access, as a pull needs.
-    target: key
+    description: Try this key alone on a host — does it get in there, and as whom.
+    ask: key-host
     automatic: true
     session: false
+    place: keys
     run: >-
-      k="$HOME/.ssh/$1"; [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
-      n=0; s=0;
-      for g in "$HOME"/*/.git "$HOME"/*/*/.git; do [ -d "$g" ] || continue; d=${g%/.git};
-      own=$(git -C "$d" config --local core.sshCommand);
-      for c in "$g/config" "$g"/modules/*/config "$g"/modules/*/*/config "$g"/modules/*/*/*/config; do
-      [ -f "$c" ] || continue; m=${c#"$g"/}; m=${m#modules/}; m=${m%config}; m=${m%/};
-      for line in $(git config -f "$c" --get-regexp '^remote[.].*[.](url|pushurl)$' | tr ' ' '|'); do
-      what=${line%%|*}; u=${line#*|};
-      case "$u" in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac;
-      if [ -z "$m" ] && [ -n "$own" ]; then case "$own" in *"/$1'"*|*"/$1 "*) ;; *) continue;; esac;
-      else ssh -G "$h" 2>/dev/null </dev/null | grep -qi "^identityfile .*/$1\$" || continue; fi;
-      n=$((n+1)); case "$what" in *pushurl) way=push;; *) way=fetch;; esac;
-      printf '%s%s — %s %s: ' "${d#"$HOME"/}" "${m:+ › $m}" "$way" "$u";
-      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-      git ls-remote -q "$u" HEAD >/dev/null </dev/null;
-      then echo gets in; else echo refused; s=1; fi; done; done; done;
-      [ $n = 0 ] && { echo "No remote here goes over SSH with $1, so there is nothing here to try it on."; echo;
-      echo "To check it on a platform: Test key, under the list, with its host — github.com, or your Forgejo's."; exit 1; };
-      exit $s
+      k="$HOME/.ssh/${1%%@*}"; hp=${1#*@}; h=${hp%:*}; p=; case "$hp" in *:*) p=${hp##*:};; esac;
+      [ -f "$k" ] && [ -f "$k.pub" ] || { echo "No key ${1%%@*} here."; exit 1; };
+      g=$(ssh -G ${p:+-p "$p"} "$h" 2>/dev/null </dev/null);
+      H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
+      H=${H:-$h}; P=${P:-${p:-22}};
+      [ "$H" = "$h" ] && echo "$h, port $P:" || echo "$h ($H, port $P):";
+      n=0; ok=0; for k in "$k"; do
+      name=${k##*/}; n=$((n+1));
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
+      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
+      -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
+      who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
+      -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
+      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
+      case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
+      printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
+      *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
+      *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
+      echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
+      *) printf '  %-24s refused\n' "$name";; esac;
+      done;
+      [ $ok -gt 0 ] || exit 1
   # The key's file goes; a project using it as its own goes back to the machine's key. One
   # ~/.ssh/config names is left alone — that file is yours, and Loskai doesn't edit it. The
   # forge still lists the key: Loskai can't take it off there.

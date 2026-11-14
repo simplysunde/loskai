@@ -26,10 +26,10 @@ def test_every_shipped_tool_is_valid():
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
-            "machine-key", "try-key", "delete-key"} == set(tools["git"].actions)
+            "machine-key", "key-on-host", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # The tests drop down, their answer Done or Failed; what makes a key stays open to read.
-    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "try-key"))
+    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "key-on-host"))
     assert not any(tools["git"].actions[a].automatic for a in ("ssh-key", "host-key", "delete-key"))
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
@@ -186,6 +186,35 @@ def test_try_every_key_tries_each_says_which_get_in_and_stops_where_the_host_doe
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_a_keys_own_test_tries_it_alone_on_the_host_named(tmp_path):
+    run = _forge(tmp_path, {"deploy_site": ("", "vm@box site"), "github.com": ("", "vm@box for github.com"),
+                            "old": ("", "vm@box")}, "Host gh\n  HostName github.com\n  Port 2222\n", GREETINGS)
+
+    out, lines, calls = run("key-on-host", "deploy_site@gh")
+
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert lines == [["gh", "(github.com,", "port", "2222):"], ["deploy_site", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"]]
+    # That key alone, once — not the one made for github.com.
+    assert len(calls) == 1 and "/deploy_site" in calls[0] and "-p 2222" in calls[0] and "IdentitiesOnly=yes" in calls[0]
+
+    refused, lines, calls = run("key-on-host", "old@codeberg.org:2222")
+    assert refused.returncode == 1 and lines == [["codeberg.org,", "port", "2222:"], ["old", "refused"]]
+    assert "-p 2222" in calls[0] and "git@codeberg.org" in calls[0]
+    missing, _, calls = run("key-on-host", "nope@github.com")
+    assert missing.returncode == 1 and "No key nope here." in missing.stdout and calls == []
+
+
+@pytest.mark.parametrize("value", ["id_ed25519@github.com", "deploy_my.site@git.home.lan:2222"])
+def test_a_key_and_a_host_are_taken_together(value):
+    assert tool.TARGETS["key-host"].fullmatch(value)
+
+
+@pytest.mark.parametrize("value", ["github.com", "id@-oProxyCommand=x", "-x@github.com", "../id@github.com", "id@a b", "id@h@h"])
+def test_a_key_and_a_host_refuse_an_option_a_path_or_anything_else(value):
+    assert not tool.TARGETS["key-host"].fullmatch(value)
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
 def test_try_every_key_stops_at_ten(tmp_path):
     run = _forge(tmp_path, {f"k{i:02}": ("", "vm@box") for i in range(12)}, "", {})
     out, lines, calls = run("every-key", "github.com")
@@ -200,7 +229,7 @@ def test_test_key_and_try_every_key_try_a_key_the_same_way():
         start = run.index("name=${k##*/}")
         return run[start:run.index("esac; done", start)]
 
-    assert one_key(a["test-key"].run) == one_key(a["every-key"].run)
+    assert one_key(a["test-key"].run) == one_key(a["every-key"].run) == one_key(a["key-on-host"].run)
     assert "Connection refused" in one_key(a["test-key"].run)
 
 
@@ -281,24 +310,13 @@ def test_a_project_gets_its_own_key_git_uses_it_alone_and_gives_it_back(tmp_path
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_keys_test_each_remote_they_are_for_and_delete(tmp_path):
+def test_delete_takes_the_key_off_and_its_project_back_to_the_machines(tmp_path):
     git_tool = tool.load()["git"]
     a = git_tool.actions
     home, projects, run = _home_with_projects(tmp_path, {
         "site": "ssh://git@forgejo.lan:2222/sunde/site.git", "blog": "git@github.com:sunde/blog.git"})
     assert run(a["ssh-key"].run).returncode == 0
     assert run(a["own-key"].run, "site").returncode == 0
-
-    # Test: each project it is for, with that key alone — site's own, the account key the rest.
-    deploy = run(a["try-key"].run, "deploy_site")
-    assert deploy.returncode == 0, deploy.stdout + deploy.stderr
-    assert "projects/site — fetch ssh://git@forgejo.lan:2222/sunde/site.git: gets in" in deploy.stdout
-    assert "blog" not in deploy.stdout
-    assert f"-i {home}/.ssh/deploy_site -o IdentitiesOnly=yes" in (tmp_path / "ssh.log").read_text()
-    account = run(a["try-key"].run, "id_ed25519")
-    assert "projects/blog — fetch git@github.com:sunde/blog.git: gets in" in account.stdout and "site" not in account.stdout
-    refused = run(a["try-key"].run, "id_ed25519", REFUSE="id_ed25519")
-    assert refused.returncode == 1 and "projects/blog — fetch git@github.com:sunde/blog.git: refused" in refused.stdout
 
     # Delete: the files go, and site goes back to the machine's key.
     gone = run(a["delete-key"].run, "deploy_site")
@@ -310,7 +328,7 @@ def test_keys_test_each_remote_they_are_for_and_delete(tmp_path):
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_a_key_through_ssh_config_is_tested_on_the_submodule_that_pushes_with_it_and_never_deleted(tmp_path):
+def test_a_key_ssh_config_names_is_never_deleted(tmp_path):
     """A workspace whose submodule pushes through a ~/.ssh/config alias naming its own key."""
     a = tool.load()["git"].actions
     home, projects, run = _home_with_projects(tmp_path, {"workspace": "git@github.com:sunde/workspace.git"})
@@ -322,12 +340,6 @@ def test_a_key_through_ssh_config_is_tested_on_the_submodule_that_pushes_with_it
     subprocess.run(["git", "init", "-q", "--bare", str(tmp_path / "remotes" / "sunde" / "site.git")], check=True)
     (module / "config").write_text('[remote "origin"]\n\turl = https://github.com/sunde/site.git\n'
                                    "\tpushurl = git@gh-site:sunde/site.git\n")
-
-    tested = run(a["try-key"].run, "site-key")
-    assert tested.returncode == 0, tested.stdout + tested.stderr
-    # Only the push address goes through the alias; the fetch is over HTTPS, the workspace's own
-    # remote uses the machine's default keys.
-    assert tested.stdout.strip() == "projects/workspace › public/site — push git@gh-site:sunde/site.git: gets in"
 
     kept = run(a["delete-key"].run, "site-key")
     assert kept.returncode == 1 and "~/.ssh/config names site-key, for Host gh-site" in kept.stdout
@@ -711,7 +723,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
         "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
-        "try-key": ("key", "card"), "delete-key": ("key", "card")}
+        "key-on-host": (None, "keys"), "delete-key": ("key", "card")}
 
 
 @pytest.mark.parametrize("name", ["id_ed25519", "deploy_site", "deploy_my.site", "work-laptop"])

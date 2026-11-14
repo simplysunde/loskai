@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ExternalLink, KeyRound } from "lucide-react";
 
-import { keyGroup, keyKind, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
+import { keyGroup, keyHost, keyKind, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
@@ -50,9 +50,13 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
+  // A key's own Test: that key on a host typed on its row (`<key>@<host>`).
+  const onHost = tool.actions.find((a) => a.ask === "key-host");
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
-  const beside = tool.actions.filter((a) => a.place === "keys" && !(a.id === "ssh-key" && hasAccount));
+  const beside = tool.actions.filter(
+    (a) => a.place === "keys" && a.ask !== "key-host" && !(a.id === "ssh-key" && hasAccount),
+  );
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
   const run = ctx.onRun;
@@ -96,6 +100,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                           actions={onKey}
                           tool={tool}
                           onRun={run}
+                          test={onHost}
                         />
                       ))}
                     </ul>
@@ -149,6 +154,7 @@ function KeyRow({
   actions,
   tool,
   onRun,
+  test,
 }: {
   info: SshKeyInfo;
   uses: KeyUse[] | null;
@@ -157,6 +163,7 @@ function KeyRow({
   actions: ToolAction[];
   tool: Tool;
   onRun: ToolStart;
+  test?: ToolAction;
 }) {
   const { group, tag } = keyGroup(info, uses);
   const page = info.public ? keyPage(info, uses) : null;
@@ -197,8 +204,9 @@ function KeyRow({
       </div>
       <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
         <CopyKey info={info} page={page} />
+        {test && <KeyTest tool={tool} action={test} name={info.name} start={keyHost(info, uses) ?? ""} onRun={onRun} />}
         {actions.map((a) => (
-          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named, uses)} />
+          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named)} />
         ))}
       </div>
     </li>
@@ -248,12 +256,10 @@ function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named:
   );
 }
 
-// Why a key's button is greyed, or null: Delete of a key ~/.ssh/config names (that file is
-// yours); Test of one no remote here uses — there is nothing to try it on, and Test key, under
-// the list, tries it on a platform instead.
-function offWhy(action: ToolAction, named: boolean, uses: KeyUse[] | null): string | null {
+// Why a key's button is greyed, or null: Delete of a key ~/.ssh/config names — that file is
+// yours.
+function offWhy(action: ToolAction, named: boolean): string | null {
   if (action.id === "delete-key" && named) return "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file";
-  if (action.id === "try-key" && uses?.length === 0) return "No remote here uses it — Test key, under the list, tries it on a platform's host";
   return null;
 }
 
@@ -337,5 +343,47 @@ function CopyKey({ info, page }: { info: SshKeyInfo; page: { where: string } | n
       shown="Copy"
       className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 [&_svg]:h-2.5 [&_svg]:w-2.5"
     />
+  );
+}
+
+// A key's own Test: a host — filled with the platform it is for, when that can be told — and
+// the button that tries the key alone there. The host is yours to change: where it came from.
+function KeyTest({
+  tool,
+  action,
+  name,
+  start,
+  onRun,
+}: {
+  tool: Tool;
+  action: ToolAction;
+  name: string;
+  start: string;
+  onRun: ToolStart;
+}) {
+  const [host, setHost] = useState(start);
+  const h = host.trim();
+  const go = () => h && onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action);
+  return (
+    <span className="flex items-center">
+      <input
+        aria-label={`Host to test ${name} on`}
+        value={host}
+        onChange={(e) => setHost(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        placeholder="host"
+        className="w-28 min-w-0 rounded-l-md border border-r-0 border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-[11px] text-slate-200 placeholder:text-slate-600"
+      />
+      <button
+        type="button"
+        aria-label={`Test ${name}`}
+        disabled={!h}
+        title={h ? `Try ${name} alone on ${h}` : "Type the host it is for — github.com, your Forgejo's"}
+        onClick={go}
+        className="flex items-center gap-1 rounded-r-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+      >
+        <ActionIcon tool={tool.id} action={action.id} /> {action.label}
+      </button>
+    </span>
   );
 }
