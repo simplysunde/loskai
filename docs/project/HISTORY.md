@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — What a key is for, written on the key: Loskai's mark, and Label
+
+codebox's `id_ed25519` was made by Loskai the same day, yet nothing said so: its comment,
+`vm@codebox`, is what any key gets. Sunde: a key Loskai makes should carry an identifier,
+whatever it is used for. Every key Loskai makes now ends its comment with
+`(loskai: account)`, `(loskai: for <host>)` or `(loskai: deploy <project>)`, and **Label**
+puts that mark — or `(loskai: login)`, for logging in to other computers — on any key,
+one made by hand included. On the key, not in Loskai: the comment travels with the key
+file, Forgejo names a key by it, and `ssh-keygen -c` changes only the comment, so the key
+and its fingerprint stay what GitHub, Forgejo and other computers already have. The mark
+decides a key's list before any guess from its name, comment or remotes; a login key has
+a list of its own. A key with a passphrase can't be relabelled without it, and says how
+to by hand.
+
 ## 2026-11-14 — A wrong port isn't a ban; ssh's default key may log in elsewhere
 
 Sunde tested `id_ed25519` on the Forgejo at port 2222 and was told the host "stopped

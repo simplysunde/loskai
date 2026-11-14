@@ -72,6 +72,8 @@ const FACTS = {
     { name: "id_ed25519", bits: 256, fingerprint: "SHA256:mach", comment: "loskai@nas", type: "ED25519", public: "ssh-ed25519 AAAAmach" },
     { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519", public: "ssh-ed25519 AAAAblog" },
     { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519", public: "ssh-ed25519 AAAAwork" },
+    // Labelled: what it is for, written on it.
+    { name: "server", bits: 256, fingerprint: "SHA256:serv", comment: "admin@nas (loskai: login)", type: "ED25519", public: "ssh-ed25519 AAAAserv" },
   ],
   // site's submodule pushes through a ~/.ssh/config alias, gh-page, which names `work`.
   remotes: [
@@ -165,6 +167,7 @@ const TOOLS = [
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "key-on-host", label: "Test", description: "Try it there.", target: null, ask: "key-host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T" },
+      { id: "label-key", label: "Label", description: "What it is for.", target: null, ask: "key-label", confirm: null, session: false, place: "keys", automatic: true, run: "ssh-keygen -c" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
       { id: "own-key", label: "Own key", description: "Its own key.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "ssh-keygen" },
       { id: "machine-key", label: "Machine's key", description: "The machine's again.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "git config --unset core.sshCommand" },
@@ -1299,6 +1302,11 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(within(section("Deploy keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
     .toEqual(["deploy_blog"]);
   expect(within(dialog).queryByRole("region", { name: "Other keys" })).toBeNull();
+  // A key labelled for logins: a list of its own, its comment without the mark.
+  expect(within(section("Login keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
+    .toEqual(["server"]);
+  expect(row("server")).toHaveTextContent("admin@nas ·");
+  expect(row("server")).not.toHaveTextContent("(loskai:");
   // What each does, in a line a remote.
   expect(row("id_ed25519")).toHaveTextContent("Fetches and pushes projects/site · github.com");
   expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog · forgejo.lan");
@@ -1313,8 +1321,8 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   for (const li of within(dialog).getAllByRole("listitem")) {
     const name = li.querySelector(".font-mono")?.textContent;
     const buttons = within(li).getAllByRole("button");
-    expect(buttons).toHaveLength(3);
-    ["Copy", "Test", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
+    expect(buttons).toHaveLength(4);
+    ["Copy", "Test", "Label", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
   // That one is yours: Delete leaves it alone.
   expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
@@ -1440,6 +1448,24 @@ test("a host tested before is offered in every host field, newest first, and for
   expect(JSON.parse(localStorage.getItem("loskai-recent-hosts")!)).toEqual(["git.home.lan:2222"]);
 });
 
+test("Label, on a key: what it is for, picked in a dialog and written on the key", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Label id_ed25519" }));
+  const label = await screen.findByRole("dialog", { name: "Label id_ed25519" });
+  // An account key, for a platform: its field; a deploy key, a project — needed before Label.
+  fireEvent.change(within(label).getByLabelText("Platform"), { target: { value: "github.com" } });
+  fireEvent.click(within(label).getByLabelText(/^Deploy key/));
+  expect(within(label).getByRole("button", { name: "Label" })).toBeDisabled();
+  fireEvent.click(within(label).getByLabelText(/^Account key/));
+  fireEvent.click(within(label).getByRole("button", { name: "Label" }));
+  expect(screen.queryByRole("dialog", { name: "Label id_ed25519" })).toBeNull();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=label-key&target=id_ed25519%40for%3Agithub.com")).toBeInTheDocument();
+  // Keys stays, under it.
+  expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
+});
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
@@ -1508,7 +1534,7 @@ test("a line with the keys but not the remotes lists them, and says where they'r
   facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(3);
+  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(4);
 });
 
 test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {

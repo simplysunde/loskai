@@ -78,7 +78,7 @@ actions:
       if [ -f "$k" ]; then [ -f "$k.pub" ] || ssh-keygen -y -f "$k" > "$k.pub" || exit 1;
       echo "$1's own key, kept from before:";
       else mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
-      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) $1" -f "$k" </dev/null || exit 1;
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: deploy $1)" -f "$k" </dev/null || exit 1;
       echo "Made $1 its own key, with no passphrase:"; fi;
       git config --local core.sshCommand "ssh -i '$k' -o IdentitiesOnly=yes" || exit 1;
       echo; cat "$k.pub"; echo;
@@ -145,7 +145,7 @@ actions:
       k=; for t in ed25519 ecdsa rsa; do if [ -f ~/.ssh/id_$t ]; then k=~/.ssh/id_$t;
       [ -f "$k.pub" ] || ssh-keygen -y -f "$k" > "$k.pub" || exit 1; break; fi; done;
       if [ -z "$k" ]; then k=~/.ssh/id_ed25519; mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
-      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname)" -f "$k" </dev/null || exit 1;
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: account)" -f "$k" </dev/null || exit 1;
       echo "Made a new key for $(id -un) on $(hostname), with no passphrase:";
       else echo "$(id -un)'s key on $(hostname), $k.pub:"; fi;
       echo; cat "$k.pub"; echo;
@@ -167,7 +167,7 @@ actions:
       h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac; k="$HOME/.ssh/$h";
       if [ -e "$k" ]; then echo "There is a key named $h already: Copy, on its row in Keys."; exit 1; fi;
       mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
-      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) for $h" -f "$k" </dev/null || exit 1;
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: for $h)" -f "$k" </dev/null || exit 1;
       echo "Made a key for $h, with no passphrase:"; echo; cat "$k.pub"; echo;
       echo "1. Add it to your account on $h — GitHub: https://github.com/settings/ssh/new;";
       echo "   Forgejo: https://$h/user/settings/keys";
@@ -295,6 +295,26 @@ actions:
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $ok -gt 0 ] || exit 1
+  # What a key is for, written on it: its comment's `(loskai: …)` — account, for <host>,
+  # deploy <project>, login — the mark every key Loskai makes carries, and Label puts on any
+  # other. Only the comment changes (`ssh-keygen -c`): the key, and its fingerprint, stay as
+  # they are, so it goes on working wherever it was added. Whatever came before the mark is
+  # kept. The page sends `<key>@<what>` — `account`, `login`, `for:<host>`, `deploy:<project>`.
+  label-key:
+    label: Label
+    description: Say what this key is for — written on the key itself, its comment; the key stays the same.
+    ask: key-label
+    automatic: true
+    session: false
+    place: keys
+    run: >-
+      n=${1%%@*}; k="$HOME/.ssh/$n"; what=${1#*@};
+      [ -f "$k" ] && [ -f "$k.pub" ] || { echo "No key $n here."; exit 1; };
+      case "$what" in for:*) l="for ${what#for:}";; deploy:*) l="deploy ${what#deploy:}";; *) l=$what;; esac;
+      base=$(cut -d' ' -f3- "$k.pub" | sed 's/ *(loskai: [^)]*)$//'); [ -n "$base" ] || base="$(id -un)@$(hostname)";
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then echo "$n has a passphrase: label it in a Terminal, with ssh-keygen -c -f ~/.ssh/$n"; exit 1; fi;
+      ssh-keygen -q -c -P '' -C "$base (loskai: $l)" -f "$k" >/dev/null || exit 1;
+      echo "$n: $(cut -d' ' -f3- "$k.pub")"
   # The key's file goes; a project using it as its own goes back to the machine's key. One
   # ~/.ssh/config names is left alone — that file is yours, and Loskai doesn't edit it. The
   # forge still lists the key: Loskai can't take it off there.

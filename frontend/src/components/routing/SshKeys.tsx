@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { ExternalLink, KeyRound, X } from "lucide-react";
+import { ExternalLink, KeyRound, Tag, X } from "lucide-react";
 
-import { keyGroup, keyHost, keyKind, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
+import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
@@ -17,7 +17,8 @@ type Tested = { host: string; ok: boolean };
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
   { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
-  { id: "other", title: "Other keys", hint: "neither, as far as Loskai can tell" },
+  { id: "login", title: "Login keys", hint: "for logging in to other computers" },
+  { id: "other", title: "Other keys", hint: "not labelled — Label says what one is for" },
 ] as const;
 
 
@@ -57,12 +58,14 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   // A key's own Test: that key on a host typed on its row (`<key>@<host>`). Its answer, while
   // this is open — kept nowhere else, so it never outlives what it saw.
   const onHost = tool.actions.find((a) => a.ask === "key-host");
+  // A key's Label: what it is for, written on it (`<key>@<what>`).
+  const onLabel = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
   const beside = tool.actions.filter(
-    (a) => a.place === "keys" && a.ask !== "key-host" && !(a.id === "ssh-key" && hasAccount),
+    (a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && !(a.id === "ssh-key" && hasAccount),
   );
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
@@ -87,7 +90,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
           <div className="space-y-4">
             {GROUPS.map((g) => {
               const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
-              if (inIt.length === 0 && g.id === "other") return null;
+              if (inIt.length === 0 && (g.id === "other" || g.id === "login")) return null;
               return (
                 <section key={g.id} aria-label={g.title}>
                   <h3 className="text-xs font-medium text-slate-200">
@@ -108,6 +111,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                           tool={tool}
                           onRun={run}
                           test={onHost}
+                          label={onLabel}
                           tested={tested[k.name]}
                           onTested={onTested}
                         />
@@ -164,6 +168,7 @@ function KeyRow({
   tool,
   onRun,
   test,
+  label,
   tested,
   onTested,
 }: {
@@ -175,10 +180,12 @@ function KeyRow({
   tool: Tool;
   onRun: ToolStart;
   test?: ToolAction;
+  label?: ToolAction;
   tested?: Tested;
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const { group, tag } = keyGroup(info, uses);
+  const [labelling, setLabelling] = useState(false);
   // Where to add it — until a Test has seen it get in.
   const page = info.public && !tested?.ok ? keyPage(info, uses) : null;
   return (
@@ -206,7 +213,7 @@ function KeyRow({
             one GitHub and Forgejo list beside a key; then where to paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
           <span className="min-w-0 truncate">
-            {info.comment && `${info.comment} · `}
+            {commentText(info.comment) && `${commentText(info.comment)} · `}
             <span title={`${info.type} ${info.bits}: ${info.fingerprint}`} className="cursor-help font-mono">
               {info.fingerprint.slice(0, 19)}…
             </span>
@@ -229,10 +236,25 @@ function KeyRow({
         {test && (
           <KeyTest tool={tool} action={test} name={info.name} start={keyHost(info, uses) ?? ""} onRun={onRun} onTested={onTested} />
         )}
+        {label && (
+          <button
+            type="button"
+            aria-label={`Label ${info.name}`}
+            aria-haspopup="dialog"
+            title={keyLabel(info.comment) ? "Change what it is for — written on the key" : "Say what it is for — written on the key; the key stays the same"}
+            onClick={() => setLabelling(true)}
+            className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
+          >
+            <Tag className="h-2.5 w-2.5" /> Label
+          </button>
+        )}
         {actions.map((a) => (
           <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named)} />
         ))}
       </div>
+      {labelling && label && (
+        <LabelKey tool={tool} action={label} info={info} facts={facts} onRun={onRun} onClose={() => setLabelling(false)} />
+      )}
     </li>
   );
 }
@@ -534,5 +556,95 @@ function HostInput({
         </ul>
       )}
     </>
+  );
+}
+
+// Label: what a key is for, picked here and written on the key — its comment's
+// `(loskai: …)`, what was before it kept. An account key, for a platform or not; a deploy key,
+// for a project; a login key, for other computers. The key and its fingerprint stay the same.
+function LabelKey({
+  tool,
+  action,
+  info,
+  facts,
+  onRun,
+  onClose,
+}: {
+  tool: Tool;
+  action: ToolAction;
+  info: SshKeyInfo;
+  facts: Facts;
+  onRun: ToolStart;
+  onClose: () => void;
+}) {
+  const now = keyLabel(info.comment);
+  const [kind, setKind] = useState<"account" | "deploy" | "login">(now?.kind === "for" ? "account" : (now?.kind ?? "account"));
+  const [host, setHost] = useState(now?.kind === "for" ? now.host : "");
+  const [project, setProject] = useState(now?.kind === "deploy" ? now.project : "");
+  const projects = [...new Set((facts.projects ?? []).map((p) => p.name))].sort();
+  const what =
+    kind === "login" ? "login" : kind === "deploy" ? (project.trim() ? `deploy:${project.trim()}` : null) : host.trim() ? `for:${host.trim()}` : "account";
+  const FIELD = "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 font-mono text-sm text-slate-100 outline-none focus:border-teal-500";
+  return (
+    <Overlay onClose={onClose} label={`Label ${info.name}`}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!what) return;
+          onClose();
+          onRun({ tool: tool.id, action: action.id, target: `${info.name}@${what}`, title: `Label: ${info.name}` }, action);
+        }}
+      >
+        <h2 className="text-base font-semibold text-slate-100">
+          Label <span className="font-mono">{info.name}</span>
+        </h2>
+        <p className="mt-1 text-sm text-slate-400">What it is for — written on the key. It goes on working as it is.</p>
+        <fieldset className="mt-4 space-y-3">
+          <legend className="sr-only">What it is for</legend>
+          <label className="flex items-start gap-2 text-sm text-slate-200">
+            <input type="radio" name="kind" checked={kind === "account"} onChange={() => setKind("account")} className="mt-1 accent-teal-500" />
+            <span className="flex-1">
+              Account key
+              <span className="block text-xs text-slate-500">On your account on a platform — every repository you can reach.</span>
+              {kind === "account" && (
+                <input aria-label="Platform" value={host} onChange={(e) => setHost(e.target.value)} placeholder="github.com — or empty" className={`mt-1.5 ${FIELD}`} />
+              )}
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-slate-200">
+            <input type="radio" name="kind" checked={kind === "deploy"} onChange={() => setKind("deploy")} className="mt-1 accent-teal-500" />
+            <span className="flex-1">
+              Deploy key
+              <span className="block text-xs text-slate-500">On one repository, for one project.</span>
+              {kind === "deploy" && (
+                <>
+                  <input aria-label="Project" list={`projects-${info.name}`} value={project} onChange={(e) => setProject(e.target.value)} placeholder="its project" className={`mt-1.5 ${FIELD}`} />
+                  <datalist id={`projects-${info.name}`}>
+                    {projects.map((p) => (
+                      <option key={p} value={p} />
+                    ))}
+                  </datalist>
+                </>
+              )}
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-slate-200">
+            <input type="radio" name="kind" checked={kind === "login"} onChange={() => setKind("login")} className="mt-1 accent-teal-500" />
+            <span>
+              Login key
+              <span className="block text-xs text-slate-500">For logging in to other computers.</span>
+            </span>
+          </label>
+        </fieldset>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+            Cancel
+          </button>
+          <button type="submit" disabled={!what} className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50">
+            Label
+          </button>
+        </div>
+      </form>
+    </Overlay>
   );
 }

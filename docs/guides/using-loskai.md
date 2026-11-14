@@ -240,10 +240,16 @@ and Add.
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
   **Keys**, beside Settings in Git's header, lists the SSH keys of the user Loskai logs in
-  as (`~/.ssh`, public halves only), in two lists: **Account keys** — on your account,
-  reaching every repository you can: ssh's own (`id_…`), and a key for one platform, its
-  platform beside it — and **Deploy keys**, on one repository each, its repository beside
-  it (**Other keys**, when one is neither). Each says in a line a remote what it does —
+  as (`~/.ssh`, public halves only), in lists: **Account keys** — on your account, reaching
+  every repository you can: ssh's own (`id_…`), and a key for one platform, its platform
+  beside it — and **Deploy keys**, on one repository each, its repository beside it; and,
+  when there are any, **Login keys** (for logging in to other computers) and **Other keys**.
+  What a key is for is written on it: every key Loskai makes ends its comment with
+  `(loskai: account)`, `(loskai: for github.com)` or `(loskai: deploy site)`, and **Label**
+  puts that mark on any other — account (for a platform, or not), deploy (for a project), or
+  login. Only the comment changes (`ssh-keygen -c`); the key and its fingerprint stay the
+  same, so it goes on working wherever it was added. A key with no mark is placed as far
+  as its name, comment and remotes say. Each says in a line a remote what it does —
   "Pushes projects › public/simplysunde.github.io · github.com via
   github-blog" — or "No git remote here uses it", the reason in its tooltip
   (it may still be on an account, or log in elsewhere: only git's use is seen), and its comment and fingerprint

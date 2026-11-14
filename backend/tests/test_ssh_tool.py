@@ -26,7 +26,7 @@ def test_every_shipped_tool_is_valid():
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
-            "machine-key", "key-on-host", "delete-key"} == set(tools["git"].actions)
+            "machine-key", "key-on-host", "label-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # The tests drop down, their answer Done or Failed; what makes a key stays open to read.
     assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "key-on-host"))
@@ -212,6 +212,57 @@ def test_a_keys_own_test_tries_it_alone_on_the_host_named(tmp_path):
     assert "-p 2222" in calls[0] and "git@codeberg.org" in calls[0]
     missing, _, calls = run("key-on-host", "nope@github.com")
     assert missing.returncode == 1 and "No key nope here." in missing.stdout and calls == []
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_every_key_loskai_makes_says_what_it_is_for(tmp_path):
+    a = tool.load()["git"].actions
+    home, projects, run = _home_with_projects(tmp_path, {"site": "git@github.com:me/site.git"})
+    for script, args in ((a["ssh-key"].run, ()), (a["host-key"].run, ("git.home.lan:2222",)), (a["own-key"].run, ("site",))):
+        assert run(script, *args).returncode == 0
+    comment = lambda name: (home / ".ssh" / f"{name}.pub").read_text().split(" ", 2)[2].strip()  # noqa: E731
+    assert comment("id_ed25519").endswith("(loskai: account)")
+    assert comment("git.home.lan").endswith("(loskai: for git.home.lan)")
+    assert comment("deploy_site").endswith("(loskai: deploy site)")
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_label_writes_what_a_key_is_for_on_it_and_the_key_stays_the_same(tmp_path):
+    (tmp_path / ".ssh").mkdir()
+    for name, passphrase in (("work", ""), ("locked", "secret")):
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", passphrase, "-C", "me@laptop",
+                        "-f", str(tmp_path / ".ssh" / name)], check=True)
+    env = {**os.environ, "HOME": str(tmp_path)}
+    run = tool.load()["git"].actions["label-key"].run
+
+    def label(value):
+        return subprocess.run(["sh", "-c", run, "sh", value], capture_output=True, text=True, env=env, timeout=30)
+
+    def key(name):
+        return (tmp_path / ".ssh" / f"{name}.pub").read_text().split()
+
+    before = key("work")
+    assert label("work@for:github.com").returncode == 0
+    assert key("work")[:2] == before[:2]  # the same key: its type and data
+    assert " ".join(key("work")[2:]) == "me@laptop (loskai: for github.com)"
+    # Again: the old mark replaced, what came before it kept.
+    assert label("work@deploy:site").stdout.strip() == "work: me@laptop (loskai: deploy site)"
+    assert label("work@login").returncode == 0 and " ".join(key("work")[2:]) == "me@laptop (loskai: login)"
+    # A key with a passphrase can't be written without it: said, and left as it was.
+    locked = label("locked@account")
+    assert locked.returncode == 1 and "has a passphrase" in locked.stdout and key("locked")[2:] == ["me@laptop"]
+    assert label("nope@login").returncode == 1
+
+
+@pytest.mark.parametrize("value", ["work@account", "work@login", "work@for:git.home.lan", "id_ed25519@deploy:my.site"])
+def test_a_key_label_is_one_of_four(value):
+    assert tool.TARGETS["key-label"].fullmatch(value)
+
+
+@pytest.mark.parametrize("value", ["work", "work@", "work@other", "work@for:", "work@for:-x", "work@deploy:a/b",
+                                   "-x@login", "work@login@login", "work@for:a b"])
+def test_a_key_label_refuses_anything_else(value):
+    assert not tool.TARGETS["key-label"].fullmatch(value)
 
 
 @pytest.mark.parametrize("value", ["id_ed25519@github.com", "deploy_my.site@git.home.lan:2222"])
@@ -733,7 +784,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
         "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
-        "key-on-host": (None, "keys"), "delete-key": ("key", "card")}
+        "key-on-host": (None, "keys"), "label-key": (None, "keys"), "delete-key": ("key", "card")}
 
 
 @pytest.mark.parametrize("name", ["id_ed25519", "deploy_site", "deploy_my.site", "work-laptop"])

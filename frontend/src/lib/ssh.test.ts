@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
+import { commentText, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
 const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
@@ -94,5 +94,21 @@ test("where a key goes: a deploy key to its repository, another to the account o
   expect(keyPage(key("id_ed25519"), [])).toBeNull();
   // On two platforms, or a deploy key on two repositories: no single place.
   expect(keyPage(key("id_ed25519"), [use("git@github.com:a/b", "github.com"), use("git@forgejo.lan:a/b", "forgejo.lan")])).toBeNull();
+});
+
+test("what a key is for, written on it, comes before any guess", () => {
+  expect(keyLabel("vm@box (loskai: for github.com)")).toEqual({ kind: "for", host: "github.com" });
+  expect(keyLabel("vm@box (loskai: deploy site)")).toEqual({ kind: "deploy", project: "site" });
+  expect(keyLabel("vm@box (loskai: login)")).toEqual({ kind: "login" });
+  expect(keyLabel("vm@box deploy key")).toBeNull();
+  expect(commentText("vm@box (loskai: account)")).toBe("vm@box");
+  const key = (name: string, comment: string) => ({ name, comment }) as SshKeyInfo;
+  // Named deploy_, labelled for a platform: the label wins.
+  expect(keyGroup(key("deploy_site", "vm@box (loskai: for github.com)"), [])).toEqual({ group: "account", tag: "github.com" });
+  // An odd name, labelled a deploy key: its project, with no remote to say its repository.
+  expect(keyGroup(key("odd", "vm@box (loskai: deploy site)"), [])).toEqual({ group: "deploy", tag: "site" });
+  expect(keyGroup(key("id_ed25519", "vm@box (loskai: login)"), [])).toEqual({ group: "login", tag: null });
+  // Unlabelled, nothing to go on: other.
+  expect(keyGroup(key("work", "me@laptop"), [])).toEqual({ group: "other", tag: null });
 });
 

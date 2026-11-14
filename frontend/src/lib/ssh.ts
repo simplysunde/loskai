@@ -126,28 +126,55 @@ export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; 
   return { url: `https://${host}/user/settings/keys`, where: `your account's SSH keys on ${host}`, label: `Add to ${host}` };
 }
 
-// A deploy key: by its name (Own key's), or its comment.
+// What a key is for, as written on it: its comment's `(loskai: …)` — every key Loskai makes
+// carries one, and Label puts one on any other. Null for a key without.
+export type KeyLabel = { kind: "account" } | { kind: "login" } | { kind: "for"; host: string } | { kind: "deploy"; project: string };
+
+export function keyLabel(comment: string): KeyLabel | null {
+  const m = /\(loskai: (account|login|for ([A-Za-z0-9.-]+)|deploy ([A-Za-z0-9._-]+))\)$/.exec(comment);
+  if (!m) return null;
+  return m[2] ? { kind: "for", host: m[2] } : m[3] ? { kind: "deploy", project: m[3] } : { kind: m[1] as "account" | "login" };
+}
+
+// A key's comment without the mark: what was there before it.
+export function commentText(comment: string): string {
+  return comment.replace(/\s*\(loskai: [^)]*\)$/, "");
+}
+
+// A deploy key: by its mark, else by its name (Own key's) or a comment that says so.
 function isDeploy(key: SshKeyInfo): boolean {
+  const label = keyLabel(key.comment);
+  if (label) return label.kind === "deploy";
   return key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
 }
 
-// The one platform a key is for: where its remotes all go, else its comment's "for <host>" —
-// what its own Test starts with.
+// The one platform a key is for: its mark's "for <host>", else where its remotes all go, else
+// a comment ending "for <host>" — what its own Test starts with.
 export function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
+  const label = keyLabel(key.comment);
+  if (label?.kind === "for") return label.host;
   const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
   return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
 }
 
-// Which list a key is in, and the word beside its name: a deploy key, on one repository
-// (that repository); an account key — ssh's own, which it offers wherever no other is
-// named, or one for a platform — on your account (the platform, when one); or neither.
-export function keyGroup(key: SshKeyInfo, uses: KeyUse[] | null): { group: "account" | "deploy" | "other"; tag: string | null } {
+// Which list a key is in, and the word beside its name — by its mark when it has one, else
+// as far as its name, comment and remotes say: a deploy key, on one repository (that
+// repository, or the project its mark names); an account key — ssh's own, which it offers
+// wherever no other is named, or one for a platform — on your account (the platform, when
+// one); a key for logging in to other computers; or none of these.
+export function keyGroup(
+  key: SshKeyInfo,
+  uses: KeyUse[] | null,
+): { group: "account" | "deploy" | "login" | "other"; tag: string | null } {
+  const label = keyLabel(key.comment);
+  if (label?.kind === "login") return { group: "login", tag: null };
   if (isDeploy(key)) {
     const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)?.replace(/^https?:\/\/[^/]+\//, "")))];
-    return { group: "deploy", tag: repos.length === 1 ? (repos[0] ?? null) : null };
+    const repo = repos.length === 1 ? (repos[0] ?? null) : null;
+    return { group: "deploy", tag: repo ?? (label?.kind === "deploy" ? label.project : null) };
   }
   const host = keyHost(key, uses) ?? null;
-  return keyKind(key.name) === "account" || host ? { group: "account", tag: host } : { group: "other", tag: null };
+  return label || keyKind(key.name) === "account" || host ? { group: "account", tag: host } : { group: "other", tag: null };
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever
