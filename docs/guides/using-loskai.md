@@ -31,7 +31,9 @@ out 2 hours after you close the last one (an admin changes that in Settings › 
 Your name at the bottom of the sidebar opens a menu: your level, **Change
 password**, and **Log out**, which signs you out on every device and back to the
 Dashboard; **Log in** is in its place then. **Light mode** / **Dark mode** above it switches
-the theme. On a phone the sidebar is a drawer, opened with the menu button at the top.
+the theme, and **Collapse** above that narrows the sidebar to its icons — each tab named
+when you point at it — until you expand it again; the browser remembers which. On a phone
+the sidebar is a drawer, opened with the menu button at the top.
 
 ## Dashboard
 

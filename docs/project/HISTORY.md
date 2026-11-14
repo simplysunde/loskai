@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — The sidebar collapses to its icons
+
+Sunde asked for an adjustable sidebar, perhaps a collapsed mode with only the icons. One
+toggle, **Collapse**, between the two widths; a width dragged by hand was left out — two
+states cover it, and a drag handle is one more control to get wrong on a touch screen.
+Kept in the browser's storage, like the theme: it is how this screen is used, not
+something about the account. Collapsed, a tab's name and its module's state are in its
+tooltip, the state's dot on the icon's corner; your name moves into the account menu's
+first line. The phone's drawer is always wide.
+
 ## 2026-11-14 — A row above the machines: Projects and Update all
 
 Projects sat beside Name a machine in the header; Sunde would rather have a row of quick

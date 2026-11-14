@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -127,6 +127,35 @@ test("on a phone, the menu opens the sidebar as a drawer, and a pick closes it",
 
   fireEvent.click(screen.getByRole("link", { name: "Routing" }));
   expect(sidebar).toHaveClass("hidden");
+});
+
+// Narrowed, each tab is its icon, named in its tooltip; the next page load remembers it.
+test("the sidebar collapses to its icons, and stays so", async () => {
+  localStorage.removeItem("loskai-sidebar");
+  renderAt("/");
+  // Once the account is read: the tabs are its own.
+  await screen.findByText("admin");
+  const routing = screen.getByRole("link", { name: "Routing" });
+  const sidebar = routing.closest("aside")!;
+  expect(sidebar).toHaveClass("md:w-56");
+  expect(within(routing).getByText("Routing")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Collapse the sidebar" }));
+  expect(sidebar).toHaveClass("md:w-14");
+  expect(within(routing).queryByText("Routing")).toBeNull();
+  expect(routing).toHaveAttribute("title", expect.stringMatching(/^Routing/));
+  expect(within(sidebar).queryByText("homelab control")).toBeNull();
+  expect(within(sidebar).queryByText("admin")).toBeNull();
+  fireEvent.click(screen.getByTitle("Your account"));
+  expect(screen.getByText(/^admin · Level/)).toBeInTheDocument();
+  expect(localStorage.getItem("loskai-sidebar")).toBe("slim");
+
+  cleanup();
+  renderAt("/");
+  expect((await screen.findByRole("link", { name: "Routing" })).closest("aside")).toHaveClass("md:w-14");
+  fireEvent.click(screen.getByRole("button", { name: "Expand the sidebar" }));
+  expect(screen.getByText("homelab control")).toBeInTheDocument();
+  expect(localStorage.getItem("loskai-sidebar")).toBeNull();
 });
 
 test("signed out, the sidebar offers Log in where your name would be", async () => {

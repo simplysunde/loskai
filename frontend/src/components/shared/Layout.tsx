@@ -10,6 +10,8 @@ import {
   LogOut,
   Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Route as RouteIcon,
   Server,
   Settings as SettingsIcon,
@@ -42,6 +44,25 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: SettingsIcon, end: false, tab: "admin" },
 ] as const;
 
+// Narrowed to its icons, as this browser last left it — a convenience, so storage that
+// can't be read or written leaves it wide.
+const SLIM_KEY = "loskai-sidebar";
+function storedSlim(): boolean {
+  try {
+    return localStorage.getItem(SLIM_KEY) === "slim";
+  } catch {
+    return false;
+  }
+}
+function storeSlim(slim: boolean) {
+  try {
+    if (slim) localStorage.setItem(SLIM_KEY, "slim");
+    else localStorage.removeItem(SLIM_KEY);
+  } catch {
+    // Not kept past this page, then.
+  }
+}
+
 const DOT: Record<ModuleState, string> = {
   healthy: "bg-emerald-400",
   degraded: "bg-amber-400",
@@ -52,7 +73,8 @@ const DOT: Record<ModuleState, string> = {
 // The persistent left-sidebar shell (Lutris-inspired): brand, nav, and a main content
 // area rendered via <Outlet/>. Always visible — the API is the real gate, so showing
 // admin links to a logged-out visitor just prompts login on click. On a phone it is a
-// drawer, opened from a bar at the top, so the page gets the whole width.
+// drawer, opened from a bar at the top, so the page gets the whole width. On a wider screen
+// it narrows to its icons (`slim`), each named in its tooltip; the drawer is always wide.
 export function Layout() {
   const { data: auth } = useAuthStatus();
   const authed = !!auth?.authed;
@@ -62,6 +84,13 @@ export function Layout() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [collapsed, setCollapsed] = useState(storedSlim);
+  // Only while the drawer is shut: on a phone the sidebar is then hidden anyway.
+  const slim = collapsed && !drawer;
+  const toggleSlim = () => {
+    storeSlim(!collapsed);
+    setCollapsed(!collapsed);
+  };
   const { me, may } = useMe();
   // An operator sees the tabs it was given; Settings is an admin's. A logged-out visitor
   // still sees them all — clicking one asks them to log in.
@@ -118,51 +147,69 @@ export function Layout() {
 
       {drawer && <div onClick={() => setDrawer(false)} className="fixed inset-0 z-40 bg-black/60 md:hidden" />}
       <aside
-        className={`${drawer ? "fixed inset-y-0 left-0 z-50 flex w-64 bg-slate-900" : "hidden"} shrink-0 flex-col border-r border-slate-800 md:static md:z-auto md:flex md:w-56 md:bg-slate-900/40`}
+        className={`${drawer ? "fixed inset-y-0 left-0 z-50 flex w-64 bg-slate-900" : "hidden"} shrink-0 flex-col border-r border-slate-800 md:static md:z-auto md:flex ${slim ? "md:w-14" : "md:w-56"} md:bg-slate-900/40`}
       >
-        <div className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
+        <div className={`flex items-center gap-2 py-5 ${slim ? "justify-center" : "px-5"}`}>
+          <div title={slim ? "Loskai — homelab control" : undefined} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
             <Anchor className="h-5 w-5" />
           </div>
-          <div>
-            <div className="text-sm font-semibold text-slate-100">Loskai</div>
-            <div className="text-[10px] text-slate-500">homelab control</div>
-          </div>
+          {!slim && (
+            <div>
+              <div className="text-sm font-semibold text-slate-100">Loskai</div>
+              <div className="text-[10px] text-slate-500">homelab control</div>
+            </div>
+          )}
         </div>
 
         {/* A pick closes the drawer; on a wide screen there is none to close. */}
-        <nav onClick={() => setDrawer(false)} className="flex-1 space-y-0.5 overflow-y-auto px-3">
+        <nav onClick={() => setDrawer(false)} className={`flex-1 space-y-0.5 overflow-y-auto ${slim ? "px-2" : "px-3"}`}>
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
+              aria-label={slim ? label : undefined}
+              title={slim ? [label, authed && dotFor[to]?.title].filter(Boolean).join(" — ") : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                `relative flex items-center gap-3 rounded-lg py-2 text-sm transition ${slim ? "justify-center" : "px-3"} ${
                   isActive
                     ? "bg-teal-500/10 text-teal-200"
                     : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
                 }`
               }
             >
-              <Icon className="h-4 w-4" />
-              <span className="flex-1">{label}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              {!slim && <span className="flex-1">{label}</span>}
+              {/* Slim, on the icon's corner. */}
               {authed && dotFor[to] && (
                 <span
-                  title={dotFor[to]!.title}
-                  className={`h-1.5 w-1.5 rounded-full ${DOT[dotFor[to]!.state]}`}
+                  title={slim ? undefined : dotFor[to]!.title}
+                  className={`h-1.5 w-1.5 rounded-full ${DOT[dotFor[to]!.state]} ${slim ? "absolute right-2 top-1.5" : ""}`}
                 />
               )}
             </NavLink>
           ))}
         </nav>
 
+        {/* No drawer on a wide screen: there, it narrows to its icons and back. */}
+        <button
+          onClick={toggleSlim}
+          aria-label={slim ? "Expand the sidebar" : "Collapse the sidebar"}
+          title={slim ? "Expand the sidebar" : "Collapse the sidebar to its icons"}
+          className={`${FOOT(slim)} mt-3 hidden md:flex`}
+        >
+          {slim ? <PanelLeftOpen className="h-4 w-4 shrink-0" /> : <PanelLeftClose className="h-4 w-4 shrink-0" />}
+          {!slim && "Collapse"}
+        </button>
+
         <button
           onClick={toggleTheme}
-          className="mx-3 mt-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+          aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
+          title={slim ? (theme === "dark" ? "Light mode" : "Dark mode") : undefined}
+          className={`${FOOT(slim)} mt-0.5 flex max-md:mt-3`}
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {theme === "dark" ? "Light mode" : "Dark mode"}
+          {theme === "dark" ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+          {!slim && (theme === "dark" ? "Light mode" : "Dark mode")}
         </button>
 
         {/* Signed out (the Dashboard and Certificate are public): where your name would be. */}
@@ -170,29 +217,36 @@ export function Layout() {
           <Link
             to="/login"
             onClick={() => setDrawer(false)}
-            className="mx-3 mb-3 mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+            aria-label="Log in"
+            title={slim ? "Log in" : undefined}
+            className={`${FOOT(slim)} mb-3 mt-0.5 flex`}
           >
-            <LogIn className="h-4 w-4" /> Log in
+            <LogIn className="h-4 w-4 shrink-0" />
+            {!slim && "Log in"}
           </Link>
         )}
 
         {/* You: your name opens what you do as yourself — a menu above it, like Claude's. */}
         {me && (
-          <div className="mx-3 mb-3 mt-0.5">
+          <div className={`mb-3 mt-0.5 ${slim ? "mx-2" : "mx-3"}`}>
             <RowMenu
               label="Your account"
               up
-              heading={`Level ${levelName(me.level)}`}
-              triggerClass="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+              heading={`${slim ? `${me.username} · ` : ""}Level ${levelName(me.level)}`}
+              triggerClass={`flex w-full items-center gap-3 rounded-lg py-2 text-left text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 ${slim ? "justify-center" : "px-3"}`}
               trigger={
-                <>
+                slim ? (
                   <CircleUser className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-slate-300">{me.username}</span>
-                    <span className="block text-[10px] text-slate-500">level {me.level}</span>
-                  </span>
-                  <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                </>
+                ) : (
+                  <>
+                    <CircleUser className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-slate-300">{me.username}</span>
+                      <span className="block text-[10px] text-slate-500">level {me.level}</span>
+                    </span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  </>
+                )
               }
               items={[
                 { label: "Change password", icon: <KeyRound className="h-3.5 w-3.5" />, onClick: () => setChangingPassword(true) },
@@ -213,3 +267,9 @@ export function Layout() {
     </div>
   );
 }
+
+// A button at the sidebar's foot — slim, its icon alone, centred.
+const FOOT = (slim: boolean) =>
+  `items-center gap-3 rounded-lg py-2 text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 ${
+    slim ? "mx-2 justify-center" : "mx-3 px-3"
+  }`;
