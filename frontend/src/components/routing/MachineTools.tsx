@@ -20,8 +20,8 @@ import {
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
-import { CardSettings, GitIdentity, SettingsButton, SettingsDialog } from "./ToolSettings";
-import { Ask } from "./ToolAsk";
+import { CardSettings, GitIdentity, ToolSettingsButton, ToolSettingsDialog } from "./ToolSettings";
+import { ToolAsk } from "./ToolAsk";
 import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
 
@@ -109,7 +109,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const [open, setOpen] = useState<{ kind: TargetKind; name: string } | null>(null);
   if (own.length + asks.length + lists.length === 0 && !hasCardSettings(t)) return null;
   const tailscale = t.id === "tailscale";
-  const askFields = asks.map((a) => <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />);
+  const askFields = asks.map((a) => <ToolAsk key={a.id} tool={t} action={a} onRun={ctx.onRun} />);
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {/* Its settings (Git's name, email and projects folder) behind the cog on the right. */}
@@ -148,7 +148,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                 <span className="flex flex-wrap items-center gap-1">
                   <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
                   {rowSettingsOf(t, kind).length > 0 && (
-                    <SettingsButton tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ kind, name: r.name })} />
+                    <ToolSettingsButton tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ kind, name: r.name })} />
                   )}
                 </span>
               </li>
@@ -164,7 +164,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           </ul>
         </div>
       ))}
-      {open && <SettingsDialog tool={t} ctx={ctx} row={open} onClose={() => setOpen(null)} />}
+      {open && <ToolSettingsDialog tool={t} ctx={ctx} row={open} onClose={() => setOpen(null)} />}
       {lists.length === 0 && !tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <OwnButtons tool={t} ctx={ctx} />

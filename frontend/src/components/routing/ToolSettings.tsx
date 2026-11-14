@@ -8,7 +8,7 @@ import { remoteSshHost } from "../../lib/ssh";
 import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type TargetKind } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
-import { Ask } from "./ToolAsk";
+import { ToolAsk } from "./ToolAsk";
 import { ActionIcon } from "./ToolIcon";
 import { Overlay } from "../shared/Modal";
 
@@ -42,7 +42,7 @@ function overridesOf(row: Row): string {
 // Opens the card's settings — a Settings button in its header — or, given a `row`, that
 // row's own, from a cog on it, in a dialog. Read with Loskai's key: while it is locked, your
 // password first. A row's cog is teal while any of its own is set.
-export function SettingsButton({
+export function ToolSettingsButton({
   tool,
   ctx,
   row,
@@ -101,8 +101,8 @@ export function CardSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
   if (!hasCardSettings(tool)) return null;
   return (
     <>
-      <SettingsButton tool={tool} ctx={ctx} onOpen={() => setOpen(true)} />
-      {open && <SettingsDialog tool={tool} ctx={ctx} onClose={() => setOpen(false)} />}
+      <ToolSettingsButton tool={tool} ctx={ctx} onOpen={() => setOpen(true)} />
+      {open && <ToolSettingsDialog tool={tool} ctx={ctx} onClose={() => setOpen(false)} />}
     </>
   );
 }
@@ -124,7 +124,7 @@ const FIELD =
 // Settings in a dialog: the card's — the machine's own values — or, given a `row`, that
 // row's, each empty while the card's applies (its value shown greyed) and emptied to take it
 // off again. Save writes the ones changed, each read back; Cancel leaves them as they were.
-export function SettingsDialog({
+export function ToolSettingsDialog({
   tool,
   ctx,
   row,
@@ -241,7 +241,7 @@ export function SettingsDialog({
           <div className="flex flex-wrap items-center gap-2">
             {actions.map((a) =>
               a.ask ? (
-                <Ask key={a.id} tool={tool} action={a} onRun={run} />
+                <ToolAsk key={a.id} tool={tool} action={a} onRun={run} />
               ) : (
                 <button
                   key={a.id}

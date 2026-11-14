@@ -25,7 +25,7 @@ export interface InstallResult {
   reused_data?: boolean;
 }
 
-export function ResultStep({
+export function DoneStep({
   result,
   recipe,
   onClose,

@@ -8,7 +8,7 @@ import { INPUT } from "../../lib/ui";
 // The install wizard's Configure step: the recipe's questions, the folders to mount and the
 // options, each checked as it is typed, as the server checks it again on Deploy.
 
-export function FillStep({
+export function ConfigureStep({
   recipe,
   answers,
   setAnswers,

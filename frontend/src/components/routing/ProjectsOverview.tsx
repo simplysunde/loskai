@@ -8,7 +8,7 @@ import { COLUMNS, isLive, listsOf, toolContext, type ToolContext } from "../../l
 import { CARD_TABLE } from "../../lib/ui";
 import { applies, useTools, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
-import { Shell } from "./MachineDialog";
+import { SectionDialog } from "./MachineDialog";
 import { RowButtons } from "./MachineTools";
 import { Overlay } from "../shared/Modal";
 import { useToolRunner } from "./useToolRunner";
@@ -107,7 +107,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
   const makers = read.filter((r) => r.makers.length > 0);
 
   return (
-    <Shell
+    <SectionDialog
       label="Projects"
       wide
       title={
@@ -162,7 +162,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
           }))}
         />
       )}
-    </Shell>
+    </SectionDialog>
   );
 }
 

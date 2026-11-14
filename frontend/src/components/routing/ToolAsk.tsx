@@ -9,7 +9,7 @@ import { ActionIcon } from "./ToolIcon";
 
 // An action that runs on a name typed for it — a new session, a new project. The server
 // checks the name; it reaches the command as `$1`.
-export function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
+export function ToolAsk({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
   const [name, setName] = useState("");
   const asked = askedOf(action.ask);
   return (

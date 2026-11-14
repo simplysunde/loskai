@@ -129,8 +129,9 @@ commit, the full checks, `where-used.py --write`.
       `sshHost` → `remoteSshHost`, `SshKeys.tsx`'s locals
 - [x] 57i Frontend, tools: `onCard` → `isOnCard`, `runQuery` → `runQueryString`,
       `ToolTarget` → `TargetKind`, the runner's `onEnded` → `onResult`
-- [ ] 57j Frontend, an export is named after its file or step: `FillStep`, `ResultStep`,
-      `PickStep`, `OptionList`, `Ask`, `SettingsDialog`/`SettingsButton`, `Shell`
+- [x] 57j Frontend, an export is named after its file or step: `FillStep`, `ResultStep`,
+      `PickStep`, `Ask`, `SettingsDialog`/`SettingsButton`, `Shell`. `OptionList` stays:
+      `RecipeOptions` would sit one letter from the type `RecipeOption` in the same file
 - [ ] 57k Frontend, `caddySetUp`, `upstreamMode`, what `ssh` and `host` hold, the recipes
       helpers
 - [ ] 57l Frontend, long-lived short names and old terms: `m`, `c`, `t`, `h`, `f`,

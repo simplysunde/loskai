@@ -115,7 +115,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
   if (!machine) {
     return (
-      <Shell label="Machine" title="Machine" onClose={close}>
+      <SectionDialog label="Machine" title="Machine" onClose={close}>
         <div className="p-6">
           {routes.isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
@@ -123,7 +123,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             <p className="text-sm text-slate-500">No such machine.</p>
           )}
         </div>
-      </Shell>
+      </SectionDialog>
     );
   }
 
@@ -320,7 +320,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 
   return (
     <>
-      <Shell
+      <SectionDialog
         label={machine.name}
         title={
           <span className="flex min-w-0 items-center gap-2">
@@ -352,7 +352,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           ready={ready}
           top={result && <div className="pt-4"><SaveBanner result={result} /></div>}
         />
-      </Shell>
+      </SectionDialog>
 
       <ConfirmDialog
         open={removing}
@@ -416,7 +416,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
 }
 
 // A dialog with a side menu (SectionPane) under its title — this one's, and Projects'.
-export function Shell({
+export function SectionDialog({
   label,
   title,
   action,

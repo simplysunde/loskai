@@ -6,8 +6,8 @@ import { api, apiMessage } from "../../lib/api";
 import { pathWhere, paths, syncFailed, useRecipes, type Recipe, type RecipeList, type SyncResult } from "../../lib/recipes";
 import { Modal } from "../shared/Modal";
 import { refreshRecords } from "../../lib/routes";
-import { FillStep } from "./InstallConfigure";
-import { ResultStep, type InstallResult } from "./InstallDone";
+import { ConfigureStep } from "./InstallConfigure";
+import { DoneStep, type InstallResult } from "./InstallDone";
 
 // Multi-step wizard: choose a recipe -> review what it will do -> configure the manifest's
 // env form -> deploy, and route it from the last step. Recipes are the merged set from every
@@ -70,9 +70,9 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     <Modal title={title} onClose={onClose} wide>
       <Steps current={step} onGo={goTo} locked={result !== null} />
       {result ? (
-        <ResultStep result={result} recipe={selected} onClose={onClose} />
+        <DoneStep result={result} recipe={selected} onClose={onClose} />
       ) : selected && reviewed ? (
-        <FillStep
+        <ConfigureStep
           recipe={selected}
           answers={answers}
           setAnswers={setAnswers}
@@ -92,7 +92,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           onContinue={() => setReviewed(true)}
         />
       ) : (
-        <PickStep
+        <ChooseStep
           data={data}
           loading={isLoading}
           refreshing={refresh.isPending}
@@ -175,7 +175,7 @@ function Steps({
   );
 }
 
-function PickStep({
+function ChooseStep({
   data,
   loading,
   refreshing,
