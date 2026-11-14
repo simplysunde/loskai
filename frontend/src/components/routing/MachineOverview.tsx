@@ -42,7 +42,7 @@ export function MachineOverview({
       <dl className="grid min-w-0 grid-cols-[7rem_1fr] gap-y-1.5">
         <dt className="text-slate-500">System</dt>
         <dd className="text-slate-300">
-          {facts.os ?? "—"} <span className="text-xs text-slate-500">{facts.kernel}</span>
+          {facts.os ?? "—"} <span className="whitespace-nowrap text-xs text-slate-500">{facts.kernel}</span>
         </dd>
         <dt className="text-slate-500">Up</dt>
         <dd className="text-slate-300">{formatUptime(facts.uptime)}</dd>
@@ -71,7 +71,8 @@ export function MachineOverview({
           </>
         )}
       </dl>
-      {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
+      {/* A column of one width beside the facts, about as tall as they are; on a phone a row. */}
+      {actions && <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:gap-1.5">{actions}</div>}
       </div>
 
       <div className="space-y-1.5">
