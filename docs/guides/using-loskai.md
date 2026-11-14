@@ -239,9 +239,14 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-  **Keys**, beside Settings in Git's header, lists that user's SSH keys (`~/.ssh`, read by
-  their public halves only): each one's kind, where it is used, and its fingerprint — the
-  one GitHub and Forgejo list beside a key. Where it is used is every remote it is for, in
+  **Keys**, beside Settings in Git's header, lists every SSH key the user Loskai logs in as
+  has on that machine (`~/.ssh`, read by their public halves only — not other users', not a
+  key kept elsewhere, not a private key without its `.pub`), a card each: its name and what
+  it is in words — Account key, Deploy key, Key for github.com — what it does, written out
+  ("Pushes projects › public/simplysunde.github.io on github.com through
+  ~/.ssh/config (github-blog)"), or why nothing uses it ("their remotes are over
+  HTTP(S), not SSH"), and its comment and fingerprint — the one GitHub and Forgejo list
+  beside a key, shortened, whole in its tooltip. Where it is used is every remote it is for, in
   every project and submodule — fetch, push, or both — by the project's own key, else by
   what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
   pushes through `git@github-site:…`, an alias naming its own key, shows under that key,
@@ -250,7 +255,7 @@ and Add.
   GitHub or Forgejo account and reaches every repository you can; it is what a project
   without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
   reaches only it. Each key has **Copy** — its public line, with its comment, onto the
-  clipboard, ready to paste — and **Add it**, which opens where it goes: a deploy key's
+  clipboard, ready to paste — and **Add to …** (GitHub, a host, repository), which opens where it goes: a deploy key's
   repository's Deploy keys page, worked out from its remote, or your account's SSH keys
   page on the platform its remotes are on (or its comment's "for <host>"). Then **Test**,
   which asks each remote the key is for for its HEAD with that key alone, as a pull would

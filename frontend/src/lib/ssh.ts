@@ -112,18 +112,38 @@ export function webOf(url: string, hostname?: string): string | null {
 // repository it is used for (its Deploy keys page, the same path on GitHub and Forgejo);
 // any other on your account, on the platform its remotes are on (or its comment's "for
 // <host>"). Null where that can't be told.
-export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; where: string } | null {
-  const deploy = key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
+export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; where: string; label: string } | null {
   const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)).filter(Boolean))] as string[];
-  if (deploy) {
-    return repos.length === 1 ? { url: `${repos[0]}/settings/keys`, where: "its repository's Deploy keys" } : null;
+  if (isDeploy(key)) {
+    return repos.length === 1
+      ? { url: `${repos[0]}/settings/keys`, where: "its repository's Deploy keys", label: "Add to repository" }
+      : null;
   }
-  const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
-  const host = hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
+  const host = keyHost(key, uses);
   if (!host) return null;
-  if (host === "github.com") return { url: "https://github.com/settings/ssh/new", where: "your GitHub account's SSH keys" };
-  if (host === "gitlab.com") return { url: "https://gitlab.com/-/user_settings/ssh_keys", where: "your GitLab account's SSH keys" };
-  return { url: `https://${host}/user/settings/keys`, where: `your account's SSH keys on ${host}` };
+  if (host === "github.com") return { url: "https://github.com/settings/ssh/new", where: "your GitHub account's SSH keys", label: "Add to GitHub" };
+  if (host === "gitlab.com") return { url: "https://gitlab.com/-/user_settings/ssh_keys", where: "your GitLab account's SSH keys", label: "Add to GitLab" };
+  return { url: `https://${host}/user/settings/keys`, where: `your account's SSH keys on ${host}`, label: `Add to ${host}` };
+}
+
+// A deploy key: by its name (Own key's), or its comment.
+function isDeploy(key: SshKeyInfo): boolean {
+  return key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
+}
+
+// The one platform a key is for: where its remotes all go, else its comment's "for <host>".
+function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
+  const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
+  return hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
+}
+
+// What a key is, in a few words, for its row: a deploy key, the account key (ssh's own, which
+// it offers wherever no other is named), a key for one platform, or one git doesn't use.
+export function keyRole(key: SshKeyInfo, uses: KeyUse[] | null): string {
+  if (isDeploy(key)) return "Deploy key";
+  if (keyKind(key.name) === "account") return "Account key";
+  const host = keyHost(key, uses);
+  return host ? `Key for ${host}` : "Key";
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever

@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Keys made readable: what a key is and does, in words
+
+Seen on codebox: the line that mattered — where a key is used — was cut off, "other" said
+nothing of a key that is a deploy key used through `~/.ssh/config`, "no remote here" on the
+account key didn't say that every remote there is over HTTP, and "Add it" didn't say where.
+Each key is now a card: its role in words (Account key, Deploy key, Key for <host> — from
+its name, its comment and where its remotes go), what it does written out and wrapped, never
+cut ("Pushes … on github.com through ~/.ssh/config (…)"), why nothing uses it when nothing
+does, and "Add to GitHub" / "Add to repository" saying where. The fingerprint, needed only
+to match a key on a forge, is shortened, whole in its tooltip.
+
 ## 2026-11-14 — A key's Copy, and Add it, in place of Show
 
 Show opened a terminal to print a key's public line and where it goes; Sunde asked for a
