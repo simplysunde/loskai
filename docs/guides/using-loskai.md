@@ -215,11 +215,11 @@ and Add.
   the container to have `/dev/net/tun`.
 
 - **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
-  git's global `user.name` and `user.email`, read from the machine and set there as you
-  edit them (with Loskai's key: while it is locked they show **Locked**, which asks for your
-  password when clicked) —
-  and the machine's **projects folder**, `~/projects` unless you change it (`~` or one
-  folder in it). It lists the git projects there, each with **Pull** (only when it
+  git's global `user.name` and `user.email` — and the machine's **projects folder**,
+  `~/projects` unless you change it (`~` or one folder in it), behind **Settings** in its
+  header: a dialog, read from the machine with Loskai's key (while it is locked, your
+  password first), whose Save writes what you changed. Beside the card's summary, who the
+  commits are by: `as Sunde`. It lists the git projects there, each with **Pull** (only when it
   fast-forwards), **Push** and **Terminal** (a shell in it), and a cog for the project's
   own **Name** and **Email** — set in its `.git/config`, in place of the global ones for
   that project only; empty, the global one applies (shown greyed), and the cog is teal
@@ -232,8 +232,8 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-- **Claude Code** lists the git projects in the machine's projects folder, set on the Git
-  card (a tool's dialog has a **Settings** button there), with each one's
+- **Claude Code** lists the git projects in the machine's projects folder, set in the Git
+  card's **Settings**, with each one's
   branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
   worked there. One Claude session per project, and its buttons follow it, in the same
   places on every row — **Attach**, then **Start** or **Stop**:

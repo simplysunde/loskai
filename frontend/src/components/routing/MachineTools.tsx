@@ -8,6 +8,7 @@ import {
   addable,
   applies,
   commandFor,
+  hasCardSettings,
   isStandard,
   MACHINE_TOOL,
   missing,
@@ -18,7 +19,7 @@ import {
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
-import { RowSettingsButton, RowSettingsDialog, ToolSettings } from "./ToolSettings";
+import { CardSettings, GitIdentity, SettingsButton, SettingsDialog } from "./ToolSettings";
 
 const BUTTON =
   "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
@@ -102,21 +103,27 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   const lists = listsOf(t, ctx);
   // The row whose own settings are open in a dialog.
   const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
-  // Git's card holds the projects folder even without settings of its own.
-  const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
-  if (own.length + asks.length + lists.length === 0 && !settings) return null;
+  if (own.length + asks.length + lists.length === 0 && !hasCardSettings(t)) return null;
   const tailscale = t.id === "tailscale";
   const askFields = asks.map((a) => <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />);
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
+      {/* Its settings (Git's name, email and projects folder) behind the cog on the right. */}
       {titled && (
-        <div title={t.description} className="flex w-fit items-center gap-2 text-sm text-slate-100">
-          <ToolIcon id={t.id} className="h-3.5 w-3.5 text-slate-400" />
-          {t.name}
-          {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
+        <div className="flex items-center justify-between gap-2">
+          <div title={t.description} className="flex w-fit min-w-0 items-center gap-2 text-sm text-slate-100">
+            <ToolIcon id={t.id} className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {t.name}
+            {!isStandard(t) && (
+              <span className="truncate text-xs text-slate-500">
+                {toolSummary(t, ctx)}
+                <GitIdentity tool={t} ctx={ctx} />
+              </span>
+            )}
+          </div>
+          <CardSettings tool={t} ctx={ctx} />
         </div>
       )}
-      {settings && <ToolSettings tool={t} ctx={ctx} />}
       {tailscale && <TailscaleSettings tool={t} ctx={ctx} />}
       {lists.map(({ kind, rows }, i) => (
         <div key={kind} className="mt-2">
@@ -134,7 +141,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                 <span className="flex flex-wrap items-center gap-1">
                   <RowButtons here={[t]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
                   {rowSettingsOf(t, kind).length > 0 && (
-                    <RowSettingsButton tool={t} ctx={ctx} kind={kind} name={r.name} onOpen={() => setOpen({ kind, name: r.name })} />
+                    <SettingsButton tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ kind, name: r.name })} />
                   )}
                 </span>
               </li>
@@ -150,7 +157,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           </ul>
         </div>
       ))}
-      {open && <RowSettingsDialog tool={t} ctx={ctx} kind={open.kind} name={open.name} onClose={() => setOpen(null)} />}
+      {open && <SettingsDialog tool={t} ctx={ctx} row={open} onClose={() => setOpen(null)} />}
       {lists.length === 0 && !tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <OwnButtons tool={t} ctx={ctx} />

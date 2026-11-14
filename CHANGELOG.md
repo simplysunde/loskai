@@ -36,8 +36,8 @@ Everything so far:
   this network**, which makes the machine a subnet router and says whether Tailscale has
   approved it yet — with the rest of the tailnet folded under them; the machine's Tailscale
   address in its overview. **Claude Code**: the
-  git projects in the machine's projects folder (`~/projects`, changeable per machine on the
-  Git card), each
+  git projects in the machine's projects folder (`~/projects`, changeable per machine in the
+  Git card's Settings), each
   with its branch, commits not pushed, uncommitted changes, last commit and last Claude
   conversation; one Claude session per project, its buttons following it — **Start** (in
   the background, continuing the last conversation, in tmux with Remote Control, so it
@@ -59,8 +59,8 @@ Everything so far:
   without sudo asking: a sudo rule for exactly its update commands, switched on (with the
   password once) and off in its SSH section, and taken off with the machine.
 - **Git** — a tool for a machine's git: its commit name and email (`git config --global`),
-  read and set from its card — and, under a project's cog, that project's own — and the
-  projects folder Claude Code finds its projects in.
+  read and set in a dialog from **Settings** in its card's header — and, under a project's
+  cog, that project's own — and the projects folder Claude Code finds its projects in.
   Its projects have **Pull** (fast-forward only), **Push** and **Terminal**; **Pull all**
   pulls every project with a remote, **Push all** pushes every one with commits to push,
   and **Clone** takes a repository's address

@@ -389,7 +389,7 @@ to add, which installs them. The machine's dialog has a card for each tool that 
 tool but the standard ones is also in the Tools menu on the machine's row, with how it stands
 there — what it shows, `not added`, or what it needs — and opens in a dialog
 (`MachineTools.tsx`). The one thing stored is a machine's **projects folder**
-(`projects_folder`, `~/projects` unless changed, set on the Git tool's card), where the
+(`projects_folder`, `~/projects` unless changed, set in the Git card's **Settings**), where the
 Claude Code tool's projects are. A tool's **settings** are the machine's own values, never
 stored: its card reads them with the main key (`connect.read_settings`, every `read` in one
 command) and writes one as `$1` through its `write` (`connect.write_setting`), reading them

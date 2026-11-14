@@ -881,31 +881,37 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   fireEvent.click(await screen.findByRole("menuitem", { name: /Claude Code/ }));
   expect(await screen.findByText("site")).toBeInTheDocument();
   expect(screen.getByText("~/projects/")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("link", { name: "Settings" }));
+  fireEvent.click(screen.getByRole("link", { name: "Machine" }));
 
-  // The machine's dialog, where the folder is set on Git's card — the tool's own dialog closed.
-  expect(await screen.findByLabelText("Projects folder")).toHaveValue("~/projects");
+  // The machine's dialog, where the folder is set under Git's cog — the tool's own dialog closed.
+  fireEvent.click(await within(await screen.findByRole("region", { name: "Tools" })).findByRole("button", { name: "Git settings" }));
+  expect(await within(await screen.findByRole("dialog", { name: "Git settings" })).findByLabelText("Projects folder")).toHaveValue("~/projects");
   expect(screen.queryByText("~/projects/")).not.toBeInTheDocument();
 });
 
-test("the Git card reads the machine's commit name and email, and sets one", async () => {
+test("the Git card's cog opens its settings — the machine's commit name and email — and sets one", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  expect(await within(tools).findByLabelText("Name")).toHaveValue("Ola Nordmann");
-  const email = within(tools).getByLabelText("Email");
+  // Not on the card itself: who commits are by is beside its summary.
+  expect(within(tools).queryByLabelText("Name")).toBeNull();
+  expect(await within(tools).findByText(/as Ola Nordmann/)).toBeInTheDocument();
+  fireEvent.click(within(tools).getByRole("button", { name: "Git settings" }));
+  const dialog = await screen.findByRole("dialog", { name: "Git settings" });
+  expect(within(dialog).getByLabelText("Projects folder")).toHaveValue("~/projects");
+  expect(within(dialog).getByLabelText("Name")).toHaveValue("Ola Nordmann");
+  const email = within(dialog).getByLabelText("Email");
   expect(email).toHaveValue("");
-  fireEvent.focus(email);
   fireEvent.change(email, { target: { value: "ola@example.no" } });
-  fireEvent.blur(email);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-  await vi.waitFor(() =>
-    expect(calls.find((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual({
-      path: "/api/ssh/machines/nas/tools/git/settings/email", method: "PUT", body: { value: "ola@example.no" },
-    }),
-  );
-  await vi.waitFor(() => expect(within(tools).getByLabelText("Email")).toHaveValue("ola@example.no"));
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Git settings" })).toBeNull());
+  // Only what changed is written.
+  expect(calls.filter((c) => c.method === "PUT")).toEqual([{
+    path: "/api/ssh/machines/nas/tools/git/settings/email", method: "PUT", body: { value: "ola@example.no" },
+  }]);
+  expect(within(tools).getByRole("button", { name: "Git settings" }).title).toContain("Email ola@example.no");
 });
 
 test("a project's cog opens a dialog that sets its own commit email, the global one shown while it has none", async () => {
@@ -935,7 +941,7 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   }]);
   // Set, its cog says so; the card's own Email is untouched.
   expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example");
-  expect(within(tools).getByLabelText("Email")).toHaveValue("");
+  expect(within(tools).getByRole("button", { name: "Git settings" }).title).toContain("Email not set");
 });
 
 test("Git's Pull all and Push all are together at its list's foot, ahead of Clone", async () => {
@@ -975,23 +981,25 @@ test("a setting changed is in the machine's log, with what it was set to", async
   expect(await within(await screen.findByRole("region", { name: "Log" })).findByText("Set git › email to ola@example.no")).toBeInTheDocument();
 });
 
-test("with Loskai's key locked, the Git card only says so, and asks for your password when clicked", async () => {
+test("with Loskai's key locked, the Git card's cog asks for your password, then opens its settings", async () => {
   setUp();
   gitStatus = 423;
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  const locked = await within(tools).findByRole("button", { name: "Name — unlock to read it" });
+  const cog = await within(tools).findByRole("button", { name: "Git settings" });
+  await vi.waitFor(() => expect(cog.title).toContain("Name (locked)"));
   // Opening the card asks nothing.
   expect(screen.queryByRole("dialog", { name: "Unlock Loskai's key" })).toBeNull();
-  fireEvent.click(locked);
+  fireEvent.click(cog);
   const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
   fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
   gitStatus = 200;
   fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
-  // What was read while it was locked is read again.
-  await vi.waitFor(() => expect(within(tools).getByLabelText("Name")).toHaveValue("Ola Nordmann"));
+  // Opened once what was read while it was locked is read again.
+  const dialog = await screen.findByRole("dialog", { name: "Git settings" });
+  expect(within(dialog).getByLabelText("Name")).toHaveValue("Ola Nordmann");
   expect(calls.find((c) => c.path === "/api/ssh/unlock")?.body).toEqual({ password: "admin-pw" });
   expect(screen.queryByRole("dialog", { name: "Unlock Loskai's key" })).toBeNull();
 });
@@ -1001,7 +1009,7 @@ test("with Loskai's key locked, a project's cog asks for your password, then ope
   gitStatus = 423;
   renderPage("/machines/nas/tools");
 
-  await screen.findByRole("button", { name: "Name — unlock to read it" });
+  await vi.waitFor(() => expect(screen.getByRole("button", { name: "Git settings" }).title).toContain("(locked)"));
   fireEvent.click(screen.getByRole("button", { name: "Settings for site" }));
   const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
   fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
@@ -1019,7 +1027,9 @@ test("a change refused because the key locked meanwhile asks for your password, 
   setUp();
   renderPage("/machines/nas/tools");
   const tools = await screen.findByRole("region", { name: "Tools" });
-  const email = await within(tools).findByLabelText("Email");
+  fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
+  const dialog = await screen.findByRole("dialog", { name: "Git settings" });
+  const email = within(dialog).getByLabelText("Email");
   let refused = false;
   const real = globalThis.fetch;
   vi.stubGlobal("fetch", (path: string, init?: RequestInit) =>
@@ -1027,9 +1037,8 @@ test("a change refused because the key locked meanwhile asks for your password, 
       ? ((refused = true), Promise.resolve(json({ detail: "Loskai's key is locked — enter your password" }, 423)))
       : real(path, init),
   );
-  fireEvent.focus(email);
   fireEvent.change(email, { target: { value: "ola@example.no" } });
-  fireEvent.blur(email);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
   const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
   fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
@@ -1269,16 +1278,19 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
   expect(idle.title).toBe("Not running — Start it first");
 });
 
-test("the projects folder is set on the Git card, not under General", async () => {
+test("the projects folder is set under the Git card's cog, not under General", async () => {
   setUp();
   renderPage("/machines/nas");
 
-  const folder = await within(await screen.findByRole("region", { name: "Tools" })).findByLabelText("Projects folder");
+  fireEvent.click(await within(await screen.findByRole("region", { name: "Tools" })).findByRole("button", { name: "Git settings" }));
+  const folder = within(await screen.findByRole("dialog", { name: "Git settings" })).getByLabelText("Projects folder");
   expect(within(category("General")).queryByLabelText("Projects folder")).toBeNull();
-  fireEvent.focus(folder);
+  // Empty is the default, ~/projects — not a value it needs.
+  fireEvent.change(folder, { target: { value: "" } });
+  expect(screen.queryByText("Projects folder needs a value.")).toBeNull();
   fireEvent.change(folder, { target: { value: "~" } });
   fireEvent.keyDown(folder, { key: "Enter" });
-  fireEvent.blur(folder);
+  fireEvent.submit(folder);
 
   await vi.waitFor(() =>
     expect(calls.find((c) => c.method === "PUT")).toEqual({

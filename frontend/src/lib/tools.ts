@@ -78,6 +78,17 @@ export function runQuery(run: ToolRun): string {
 }
 
 // The settings a row of `kind` has of its own — a project's commit name and email.
+// The card's own settings: the machine's values, not a row's.
+export function cardSettingsOf(tool: Tool): ToolSetting[] {
+  return (tool.settings ?? []).filter((s) => !s.target);
+}
+
+// Whether a card has a settings cog: settings of its own, or (Git's) the machine's projects
+// folder — Loskai's own, on its record, where Claude Code finds its projects.
+export function hasCardSettings(tool: Tool): boolean {
+  return tool.id === "git" || cardSettingsOf(tool).length > 0;
+}
+
 export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {
   return (tool.settings ?? []).filter((s) => s.target === kind);
 }

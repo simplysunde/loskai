@@ -116,8 +116,8 @@ A command for POSIX `sh`, run as the machine's SSH user:
 - **System's `update` must stay plain `sudo <program> <args>` steps joined by `&&`**: the
   sudo rule for updates without a password allows exactly those steps
   (`tool.update_commands`), so a change there needs the rule allowed again on each machine.
-- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed on
-  the Git tool's card (`~` or one folder in it), as an absolute path.
+- **`$PROJECTS`** is the machine's projects folder — `~/projects` unless it was changed in
+  the Git card's **Settings** (`~` or one folder in it), as an absolute path.
 
 ### `target` and `ask`
 
@@ -196,6 +196,8 @@ A setting may also have:
   every git repo in the projects folder and reads each one's after the machine's, so the
   card still makes one connection. The card shows a cog on each project's row, teal while
   any of its settings is set, that opens them in a dialog; Save writes the fields changed.
+  The machine's own — the settings without a `target` — are behind **Settings** in the
+  card's header, in the same dialog.
 - **`overrides`** names the machine's setting this one replaces where it is set, of the
   same kind: its value is what an empty field shows, greyed. Only shown — what applies is
   the program's own rule (git's `--local` over `--global`).

@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Git's card settings behind a Settings button
+
+Projects folder, Name and Email are set once and rarely touched, yet took the top of the
+card above the projects used every day. They are now in a dialog from **Settings** in the
+card's header — the dialog a project's cog already opened, for the card's own values, with
+text on it rather than a bare cog (Sunde: more distinct). Who the commits are by stays in
+view beside the summary (`as Sunde`). In a tool's own dialog the link to the machine's
+dialog, also labelled Settings, became **Machine**.
+
 ## 2026-11-14 — Claude Code's card manages sessions (Phase 54)
 
 Its one button, **Claude**, attached to a project's session or started one — which of the

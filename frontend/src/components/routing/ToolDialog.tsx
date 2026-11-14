@@ -1,4 +1,4 @@
-import { Check, Loader2, Plus, Settings, X } from "lucide-react";
+import { Check, HardDrive, Loader2, Plus, Settings, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { apiMessage } from "../../lib/api";
@@ -7,6 +7,7 @@ import { toolContext, toolSummary } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
+import { CardSettings, GitIdentity } from "./ToolSettings";
 import { ToolIcon } from "./ToolIcon";
 import { useToolRunner } from "./useToolRunner";
 import type { MachineState } from "./MachineDialog";
@@ -64,17 +65,28 @@ export function ToolDialog({
         <div className="flex items-start justify-between gap-4">
           <p className="text-sm text-slate-400">
             {tool.description}
-            {summary && <span className="text-slate-500"> · {summary}</span>}
+            {summary && (
+              <span className="text-slate-500">
+                {" "}
+                · {summary}
+                <GitIdentity tool={tool} ctx={ctx} />
+              </span>
+            )}
           </p>
-          {/* The machine's own settings — its projects folder is on the Git tool's card. */}
-          <Link
-            to={`/machines/${machine.id}/tools`}
-            onClick={onClose}
-            title="The machine's settings — its projects folder is on the Git tool's card"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
-          >
-            <Settings className="h-3.5 w-3.5" /> Settings
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The card's Settings, as in its header there (Git's). */}
+            {applies(tool, programs) && <CardSettings tool={tool} ctx={ctx} />}
+            {/* The machine's own dialog — its name, SSH, every tool (the projects folder is in
+                the Git card's settings). */}
+            <Link
+              to={`/machines/${machine.id}/tools`}
+              onClick={onClose}
+              title="This machine's dialog — its name, SSH and every tool; the projects folder is in Git's settings"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+            >
+              <HardDrive className="h-3.5 w-3.5" /> Machine
+            </Link>
+          </div>
         </div>
         {tool.actions.some((a) => a.target === "project" || a.ask === "project") && (
           <p className="flex items-center gap-1.5 text-xs text-slate-500">
