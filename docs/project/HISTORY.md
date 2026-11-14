@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — The hosts keys were tested on, offered again
+
+Sunde: the hosts typed into a key's Test should be remembered and offered when the field is
+clicked, with a way to remove wrong ones. They are kept in the browser (`localStorage`),
+like the theme and the collapsed sidebar — a convenience of whoever is at the page, not a
+fact about a machine, so not on the server — one list for every machine, since GitHub and a
+Forgejo are the same wherever a key is: the last 10, newest first, each with ✕ to forget
+it. Every host field in Keys offers them, the one under the list too.
+
 ## 2026-11-14 — A key's Test answer stays beside it while Keys is open
 
 Sunde, of a deploy key made by hand: shouldn't "Add to repository" go once the key is bound

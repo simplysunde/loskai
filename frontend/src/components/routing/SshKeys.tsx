@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { ExternalLink, KeyRound } from "lucide-react";
+import { useRef, useState } from "react";
+import { ExternalLink, KeyRound, X } from "lucide-react";
 
 import { keyGroup, keyHost, keyKind, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
+import { useRecentHosts } from "../../lib/recentHosts";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
@@ -320,24 +321,35 @@ function KeyButton({
 // runs none, since which is meant only its button says.
 function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[]; onRun: ToolStart }) {
   const [value, setValue] = useState("");
+  const { remember } = useRecentHosts();
   const asked = askedOf(actions[0].ask);
   const v = value.trim();
+  const host = actions[0].ask === "host";
+  const field = {
+    label: asked.what.replace(/^./, (c) => c.toUpperCase()),
+    value,
+    placeholder: asked.placeholder,
+    className: `${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`,
+  };
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <input
-        aria-label={asked.what.replace(/^./, (c) => c.toUpperCase())}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={asked.placeholder}
-        className={`${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`}
-      />
+      {/* A host is offered from the ones tested before; Enter runs none — which, only its
+          button says. */}
+      {host ? (
+        <HostInput {...field} onChange={setValue} onEnter={() => {}} />
+      ) : (
+        <input aria-label={field.label} value={value} onChange={(e) => setValue(e.target.value)} placeholder={field.placeholder} className={field.className} />
+      )}
       {actions.map((a) => (
         <button
           key={a.id}
           type="button"
           disabled={!v}
           title={a.description}
-          onClick={() => onRun({ tool: tool.id, action: a.id, target: v, title: `${a.label}: ${v}` }, a)}
+          onClick={() => {
+            if (host) remember(v);
+            onRun({ tool: tool.id, action: a.id, target: v, title: `${a.label}: ${v}` }, a);
+          }}
           className={TOOL_BUTTON}
         >
           <ActionIcon tool={tool.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
@@ -387,16 +399,20 @@ function KeyTest({
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const [host, setHost] = useState(start);
+  const { remember } = useRecentHosts();
   const h = host.trim();
-  const go = () =>
-    h && onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action, (ok) => onTested(name, h, ok));
+  const go = () => {
+    if (!h) return;
+    remember(h);
+    onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action, (ok) => onTested(name, h, ok));
+  };
   return (
     <span className="flex items-center">
-      <input
-        aria-label={`Host to test ${name} on`}
+      <HostInput
+        label={`Host to test ${name} on`}
         value={host}
-        onChange={(e) => setHost(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && go()}
+        onChange={setHost}
+        onEnter={go}
         placeholder="host"
         className="w-28 min-w-0 rounded-l-md border border-r-0 border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-[11px] text-slate-200 placeholder:text-slate-600"
       />
@@ -411,5 +427,93 @@ function KeyTest({
         <ActionIcon tool={tool.id} action={action.id} /> {action.label}
       </button>
     </span>
+  );
+}
+
+// A host field that offers the hosts keys were tested on before, newest first — in this
+// browser — once it is clicked into: a click on one fills it in, ✕ forgets it. The list
+// is placed from the field, fixed, so a scrolling list of keys can't cut it off.
+function HostInput({
+  label,
+  value,
+  onChange,
+  onEnter,
+  placeholder,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (host: string) => void;
+  onEnter: () => void;
+  placeholder: string;
+  className: string;
+}) {
+  const { hosts, forget, refresh } = useRecentHosts();
+  const field = useRef<HTMLInputElement>(null);
+  const [at, setAt] = useState<{ top: number; left: number; width: number } | null>(null);
+  const typed = value.trim();
+  const shown = hosts.filter((h) => h !== typed && h.includes(typed));
+  const open = () => {
+    refresh();
+    const r = field.current?.getBoundingClientRect();
+    if (r) setAt({ top: r.bottom + 4, left: r.left, width: r.width });
+  };
+  return (
+    <>
+      <input
+        ref={field}
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={open}
+        onBlur={() => setAt(null)}
+        onKeyDown={(e) => {
+          // Escape closes the list, not the dialog under it.
+          if (e.key === "Escape" && at && shown.length > 0) {
+            e.preventDefault();
+            setAt(null);
+          } else if (e.key === "Enter") {
+            setAt(null);
+            onEnter();
+          }
+        }}
+        placeholder={placeholder}
+        className={className}
+      />
+      {at && shown.length > 0 && (
+        <ul
+          aria-label="Hosts tested before"
+          style={{ top: at.top, left: at.left, minWidth: Math.max(at.width, 160) }}
+          className="fixed z-[55] max-h-48 overflow-auto rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl"
+        >
+          {shown.map((h) => (
+            <li key={h} className="flex items-center hover:bg-slate-800">
+              {/* mousedown kept from the field, so it stays open and focused */}
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(h);
+                  setAt(null);
+                }}
+                className="min-w-0 flex-1 truncate px-2 py-1 text-left font-mono text-[11px] text-slate-200"
+              >
+                {h}
+              </button>
+              <button
+                type="button"
+                aria-label={`Forget ${h}`}
+                title="Forget it — wrong, or no longer used"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => forget(h)}
+                className="px-1.5 py-1 text-slate-500 hover:text-rose-300"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

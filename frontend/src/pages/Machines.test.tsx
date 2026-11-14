@@ -1402,6 +1402,41 @@ test("a key's Test, while Keys is open: ✓ in its row, and no Add to … once i
   expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toBeInTheDocument();
 });
 
+test("a host tested before is offered in every host field, newest first, and forgotten with its ✕", async () => {
+  localStorage.removeItem("loskai-recent-hosts");
+  setUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  const field = (name: string) => within(dialog).getByLabelText(`Host to test ${name} on`);
+
+  // Tested on two hosts: id_ed25519's row, then the field under the list.
+  fireEvent.change(field("id_ed25519"), { target: { value: "git.home.lan:2222" } });
+  fireEvent.keyDown(field("id_ed25519"), { key: "Enter" });
+  fireEvent.click(within(await screen.findByRole("region", { name: /Test: id_ed25519/ })).getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: id_ed25519/ })).toBeNull());
+  fireEvent.change(within(dialog).getByLabelText("Host"), { target: { value: "codeberg.org" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Test key" }));
+  fireEvent.click(within(await screen.findByRole("region", { name: /Test key: codeberg.org/ })).getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test key/ })).toBeNull());
+
+  // Another key's field, clicked into: both, newest first.
+  fireEvent.change(field("deploy_blog"), { target: { value: "" } });
+  fireEvent.focus(field("deploy_blog"));
+  const offered = screen.getByRole("list", { name: "Hosts tested before" });
+  expect(within(offered).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["codeberg.org", "git.home.lan:2222"]);
+  fireEvent.click(within(offered).getByRole("button", { name: "git.home.lan:2222" }));
+  expect(field("deploy_blog")).toHaveValue("git.home.lan:2222");
+  expect(screen.queryByRole("list", { name: "Hosts tested before" })).toBeNull();
+
+  // One no longer wanted: forgotten, here and in the browser.
+  fireEvent.focus(field("id_ed25519"));
+  fireEvent.change(field("id_ed25519"), { target: { value: "" } });
+  fireEvent.click(within(screen.getByRole("list", { name: "Hosts tested before" })).getByRole("button", { name: "Forget codeberg.org" }));
+  expect(within(screen.getByRole("list", { name: "Hosts tested before" })).getAllByRole("listitem").map((li) => li.textContent))
+    .toEqual(["git.home.lan:2222"]);
+  expect(JSON.parse(localStorage.getItem("loskai-recent-hosts")!)).toEqual(["git.home.lan:2222"]);
+});
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
