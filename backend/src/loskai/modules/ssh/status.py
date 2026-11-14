@@ -578,8 +578,12 @@ def _project(line: str, version: int) -> dict | None:
 _SAFE = re.compile(r"^[A-Za-z0-9._/-]*$")
 _HOST = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
 # A key in ~/.ssh by its file's name — as the command lists them, and as Git's actions on
-# a key take one (tool.TARGETS["key"]): never a path, never an option.
-KEY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+# a key take one (tool.TARGETS["key"], within `key-host` and `key-label` too): never a path,
+# never an option, and never one of ssh's own files there, which no action on a key may
+# reach — deleting authorized_keys would lock Loskai out.
+SSH_FILES = ("config", "known_hosts", "known_hosts.old", "authorized_keys", "authorized_keys2", "environment", "rc")
+KEY_PART = r"(?!(?:" + "|".join(map(re.escape, SSH_FILES)) + r")(?:@|$))[A-Za-z0-9][A-Za-z0-9._-]{0,99}"
+KEY_NAME = re.compile(f"^{KEY_PART}$")
 
 
 def _key_name(path: str) -> str | None:

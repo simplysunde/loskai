@@ -22,7 +22,7 @@ import yaml
 
 from ...shared.errors import LoskaiError
 from .logic import SUDO_RULE, remove_sudo_rule
-from .status import KEY_NAME, PROGRAMS, USER_PATH
+from .status import KEY_NAME, KEY_PART, PROGRAMS, USER_PATH
 
 DIR = Path(__file__).parent / "tools"
 
@@ -81,12 +81,12 @@ TARGETS = {
     "key": KEY_NAME,
     # One key, and a host to try it on — `<key>@<host>[:port]`: a key's own Test in Keys,
     # its row's field the host. The two halves held to the `key` and `host` kinds.
-    "key-host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}@[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
+    "key-host": re.compile("^" + KEY_PART + r"@[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
     # One key, and what it is for — `<key>@account`, `@login`, `@for:<host>` or
     # `@deploy:<project>`: a key's Label in Keys. The parts held to the `key`, `host` and
     # `project` kinds.
     "key-label": re.compile(
-        r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}@(?:account|login|for:[A-Za-z0-9][A-Za-z0-9.-]{0,252}"
+        "^" + KEY_PART + r"@(?:account|login|for:[A-Za-z0-9][A-Za-z0-9.-]{0,252}"
         r"|deploy:[A-Za-z0-9][A-Za-z0-9._-]{0,99})$"
     ),
     # A setting's values: a person's name as git writes it on a commit, and an address.

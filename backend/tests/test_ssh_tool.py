@@ -265,6 +265,48 @@ def test_a_key_label_refuses_anything_else(value):
     assert not tool.TARGETS["key-label"].fullmatch(value)
 
 
+# ssh's own files in ~/.ssh: never a key's name, so no action on a key reaches one.
+SSH_FILES = ["authorized_keys", "authorized_keys2", "known_hosts", "known_hosts.old", "config", "environment", "rc"]
+
+
+def test_new_key_for_a_host_refuses_the_same_files_the_key_kind_does():
+    """One list, in two languages: status.SSH_FILES, and New key for a host's case."""
+    assert sorted(status.SSH_FILES) == sorted(SSH_FILES)
+    case = re.search(r'case "\$h" in ([^)]*)\)', tool.load()["git"].actions["host-key"].run).group(1)
+    assert sorted(case.split("|")) == sorted(SSH_FILES)
+
+
+@pytest.mark.parametrize("name", SSH_FILES)
+def test_a_key_is_never_one_of_sshs_own_files(name):
+    assert not tool.TARGETS["key"].fullmatch(name)
+    assert not tool.TARGETS["key-label"].fullmatch(f"{name}@login")
+    assert not tool.TARGETS["key-host"].fullmatch(f"{name}@github.com")
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_delete_and_new_key_for_a_host_touch_only_key_pairs(tmp_path):
+    """Delete acts on a key with its public half, never another file there; New key for a
+    host never writes over, or as, one of ssh's own files."""
+    a = tool.load()["git"].actions
+    ssh = tmp_path / ".ssh"
+    ssh.mkdir()
+    (ssh / "authorized_keys").write_text("ssh-ed25519 AAAA loskai\n")
+    (ssh / "notes").write_text("not a key\n")
+    env = {**os.environ, "HOME": str(tmp_path)}
+
+    def run(action, value):
+        return subprocess.run(["sh", "-c", a[action].run, "sh", value], capture_output=True, text=True, env=env, timeout=30)
+
+    # Past the page's checks — straight at the script.
+    for name in ("authorized_keys", "notes"):
+        out = run("delete-key", name)
+        assert out.returncode == 1 and "isn't a key" in out.stdout
+        assert (ssh / name).exists()
+    out = run("host-key", "config")
+    assert out.returncode == 1 and not (ssh / "config").exists()
+    assert (ssh / "authorized_keys").read_text() == "ssh-ed25519 AAAA loskai\n"
+
+
 @pytest.mark.parametrize("value", ["id_ed25519@github.com", "deploy_my.site@git.home.lan:2222"])
 def test_a_key_and_a_host_are_taken_together(value):
     assert tool.TARGETS["key-host"].fullmatch(value)

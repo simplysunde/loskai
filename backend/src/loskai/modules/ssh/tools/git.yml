@@ -165,7 +165,9 @@ actions:
     run: >-
       command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
       h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac; k="$HOME/.ssh/$h";
-      if [ -e "$k" ]; then echo "There is a key named $h already: Copy, on its row in Keys."; exit 1; fi;
+      case "$h" in config|known_hosts|known_hosts.old|authorized_keys|authorized_keys2|environment|rc)
+      echo "$h is one of ssh's own files in ~/.ssh, not a name for a key."; exit 1;; esac;
+      if [ -e "$k" ] || [ -e "$k.pub" ]; then echo "There is a key named $h already: Copy, on its row in Keys."; exit 1; fi;
       mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
       ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: for $h)" -f "$k" </dev/null || exit 1;
       echo "Made a key for $h, with no passphrase:"; echo; cat "$k.pub"; echo;
@@ -330,7 +332,8 @@ actions:
       and whatever logs in with it — a git platform, another computer — stops until it has
       another. GitHub or Forgejo still lists it until you take it off there.
     run: >-
-      k="$HOME/.ssh/$1"; [ -f "$k.pub" ] || [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
+      k="$HOME/.ssh/$1";
+      ssh-keygen -lf "$k.pub" >/dev/null 2>&1 || { echo "$1 isn't a key here: there is no public key ~/.ssh/$1.pub. Nothing deleted."; exit 1; };
       hosts=$(awk -v k="/$1" 'tolower($1)=="host"{h=$2} tolower($1)=="identityfile" && substr($2, length($2)-length(k)+1)==k {print h}' ~/.ssh/config 2>/dev/null | sort -u | tr '\n' ' ');
       if [ -n "$hosts" ]; then echo "~/.ssh/config names $1, for Host $hosts— take it out there first: Loskai doesn't edit that file. Nothing deleted."; exit 1; fi;
       for g in "$HOME"/*/.git "$HOME"/*/*/.git; do [ -d "$g" ] || continue; d=${g%/.git};
