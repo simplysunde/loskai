@@ -611,3 +611,46 @@ def test_a_keys_row_from_v13_carries_its_public_half_and_before_it_none():
     # Anything else where the key goes is no key.
     assert status.parse_facts(v13.replace("ssh-ed25519 AAAAC3Nza", "rm -rf"))["ssh_keys"] == []
 
+
+def test_a_key_without_a_comment_has_none_and_a_security_key_is_listed():
+    """ssh-keygen -l says "no comment" for a key without one, and (ED25519-SK) for a FIDO key."""
+    out = status.parse_facts(
+        "#loskai-status 13\n#=keys\n"
+        "plain|ssh-ed25519 AAAAC3Nza|256 SHA256:abc no comment (ED25519)\n"
+        "yubi|sk-ssh-ed25519@openssh.com AAAAGnNr|256 SHA256:def me@laptop (ED25519-SK)\n"
+    )
+    keys = {k["name"]: k for k in out["ssh_keys"]}
+    assert keys["plain"]["comment"] == ""
+    assert keys["yubi"]["type"] == "ED25519-SK" and keys["yubi"]["public"].startswith("sk-ssh-ed25519@openssh.com ")
+
+
+def _facts_in(home, tmp_path):
+    env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
+    return status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
+                                             env=env, cwd=tmp_path, timeout=30).stdout)
+
+
+@pytest.mark.skipif(not shutil.which("ssh"), reason="needs ssh")
+def test_match_exec_in_an_included_file_isnt_run_either(tmp_path):
+    home = tmp_path / "home"
+    (home / ".ssh" / "config.d").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(home / "projects" / "site")], check=True)
+    subprocess.run(["git", "-C", str(home / "projects" / "site"), "remote", "add", "origin", "git@example.invalid:me/site.git"], check=True)
+    (home / ".ssh" / "config").write_text("Include config.d/*\n")
+    (home / ".ssh" / "config.d" / "plain").write_text("Host example.invalid\n  User git\n")
+    # An Include without Match exec: asked, as before.
+    assert _facts_in(home, tmp_path)["ssh_match_exec"] is False
+    # One that has it — and one that includes yet another file, which isn't followed: not asked.
+    (home / ".ssh" / "config.d" / "work").write_text('Match host * exec "touch $HOME/ran"\n')
+    out = _facts_in(home, tmp_path)
+    assert out["ssh_match_exec"] is True and out["ssh_hosts"] == {} and not (home / "ran").exists()
+    (home / ".ssh" / "config.d" / "work").write_text("Include ~/elsewhere\n")
+    assert _facts_in(home, tmp_path)["ssh_match_exec"] is True
+
+
+def test_each_remote_says_its_name_from_v15():
+    out = status.parse_facts("#loskai-status 15\n#=remotes\nsite||origin.url|git@a:b\nsite||mirror.pushurl|git@c:d\n#=sshhosts\n")
+    assert [(r["remote"], r["kind"]) for r in out["remotes"]] == [("origin", "url"), ("mirror", "pushurl")]
+    older = status.parse_facts("#loskai-status 14\n#=remotes\nsite||url|git@a:b\n#=sshhosts\n")
+    assert older["remotes"][0]["remote"] == "" and older["remotes"][0]["kind"] == "url"
+

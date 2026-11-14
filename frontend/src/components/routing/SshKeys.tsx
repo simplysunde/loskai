@@ -123,7 +123,7 @@ export function SshKeys({
       </p>
       {git && ctx.facts.ssh_match_exec && (
         <p className="mt-1 text-xs text-amber-300/90">
-          This machine's ssh config runs a command to choose keys (Match exec), so Loskai doesn't ask ssh which key each remote uses: it only reads.
+          This machine's ssh config may run a command to choose keys (Match exec, or a file it includes that Loskai can't follow), so Loskai doesn't ask ssh which key each remote uses: it only reads.
         </p>
       )}
       <div className="mt-4 min-h-0 overflow-auto">

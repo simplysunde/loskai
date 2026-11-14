@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 14
+STATUS_LINE = 15
 STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -40,6 +40,9 @@ KEYS_SINCE = 11
 REMOTES_SINCE = 12
 # From v13, a key's row carries its public half too — to copy it, ready to paste.
 PUBLIC_SINCE = 13
+# From v15, a remote's row names the remote too (`origin.url`), so a pushurl is its own
+# remote's, not every remote's in that project.
+REMOTE_NAMES_SINCE = 15
 LISTEN_SINCE = 6
 
 
@@ -205,13 +208,19 @@ _FACTS = (
     "for c in $g/config $g/modules/*/config $g/modules/*/*/config $g/modules/*/*/*/config; do "
     "[ -f $c ] || continue; case $c in *[!A-Za-z0-9._/-]*) continue;; esac; m=${c#$g/}; m=${m#modules/}; m=${m%config}; m=${m%/}; "
     "git config -f $c --get-regexp '^remote[.].*[.](url|pushurl)$' 2>/dev/null | while read k u; do "
-    "echo $p'|'$m'|'${k##*.}'|'$u; done; done; done | sed 's,//[^/@]*@,//,' | head -n 300); "
+    "echo $p'|'$m'|'${k#remote.}'|'$u; done; done; done | sed 's,//[^/@]*@,//,' | head -n 300); "
     "for l in $r; do echo $l; done; "
     # For each SSH host those name, the keys ssh offers it — asked of ssh itself (`ssh -G`
     # resolves aliases, Host *, Include and Match as a connection would), without connecting:
     # `host|hostname|identitiesonly|file…`. Not where an ssh config has `Match exec`: there
     # ssh would run that command to answer, and this only reads — `!match-exec` says so (v14).
-    "echo '#=sshhosts'; if grep -qis '^[[:space:]]*match[^#]*exec' $HOME/.ssh/config /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*.conf; "
+    # The files the user's and the system's config `Include` are looked in too (v15), one
+    # level: a file they include that includes again isn't followed, so it isn't asked.
+    "echo '#=sshhosts'; i=; for c in $HOME/.ssh/config /etc/ssh/ssh_config; do [ -f $c ] || continue; d=${c%/*}; "
+    "for p in $(awk -v I=include 'tolower($1)==I{for(n=2;n<=NF;n++)print $n}' $c 2>/dev/null); do "
+    "case $p in /*) ;; [~]/*) p=$HOME/${p#??};; *) p=$d/$p;; esac; i=$i' '$p; done; done; "
+    "if grep -qis '^[[:space:]]*match[^#]*exec' $HOME/.ssh/config /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*.conf $i "
+    "|| { case $i in ?*) grep -qis '^[[:space:]]*include' $i;; *) false;; esac; }; "
     "then echo '!match-exec'; elif command -v ssh >/dev/null; then for l in $r; do u=${l##*|}; "
     "case $u in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac; "
     "case $h in ''|*[!A-Za-z0-9._-]*) continue;; esac; echo $h; done | sort -u | head -n 30 | while read h; do "
@@ -577,6 +586,8 @@ def _project(line: str, version: int) -> dict | None:
 # remote names it (an alias may hold `_`).
 _SAFE = re.compile(r"^[A-Za-z0-9._/-]*$")
 _HOST = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
+# A remote's name, as git keeps it — "" before v15, when it wasn't sent.
+_REMOTE = re.compile(r"^[A-Za-z0-9._/-]{0,100}$")
 # A key in ~/.ssh by its file's name — as the command lists them, and as Git's actions on
 # a key take one (tool.TARGETS["key"], within `key-host` and `key-label` too): never a path,
 # never an option, and never one of ssh's own files there, which no action on a key may
@@ -599,8 +610,12 @@ def _remotes(sections: dict[str, list[str]], version: int) -> dict:
     remotes = []
     for line in sections.get("remotes", []):
         parts = line.split("|", 3)
-        if len(parts) == 4 and _SAFE.fullmatch(parts[0]) and _SAFE.fullmatch(parts[1]) and parts[2] in ("url", "pushurl"):
-            remotes.append({"path": parts[0], "module": parts[1], "kind": parts[2], "url": parts[3]})
+        if len(parts) != 4 or not (_SAFE.fullmatch(parts[0]) and _SAFE.fullmatch(parts[1])):
+            continue
+        # From v15 `origin.url`: the remote, then which address; before, the address alone.
+        name, _, kind = parts[2].rpartition(".") if version >= REMOTE_NAMES_SINCE else ("", "", parts[2])
+        if kind in ("url", "pushurl") and _REMOTE.fullmatch(name):
+            remotes.append({"path": parts[0], "module": parts[1], "remote": name, "kind": kind, "url": parts[3]})
     hosts = {}
     # v14: an ssh config with `Match exec`, where ssh -G would run a command: not asked.
     skipped = "!match-exec" in sections.get("sshhosts", [])
@@ -615,7 +630,8 @@ def _remotes(sections: dict[str, list[str]], version: int) -> dict:
             "ssh_config_keys": sorted({k for k in map(_key_name, sections.get("sshconfig", [])) if k})}
 
 
-_KEY_LINE = re.compile(r"^([A-Za-z0-9._-]+)\|(\d+) (SHA256:\S+) (.*?) ?\((\w+)\)$")
+# The type, `(ED25519)` — or `(ED25519-SK)`, `(ECDSA-SK)`, a security key's.
+_KEY_LINE = re.compile(r"^([A-Za-z0-9._-]+)\|(\d+) (SHA256:\S+) (.*?) ?\(([\w-]+)\)$")
 _PUBLIC = re.compile(r"^(?:ssh|ecdsa|sk)-[A-Za-z0-9@.-]+ [A-Za-z0-9+/]+=*$")
 
 
@@ -632,8 +648,10 @@ def _ssh_key(line: str, version: int) -> dict | None:
     m = _KEY_LINE.match(line)
     if not m:
         return None
+    # A key without a comment: ssh-keygen says "no comment" in its place — none, here.
+    comment = "" if m.group(4) == "no comment" else m.group(4)
     return {"name": m.group(1), "bits": int(m.group(2)), "fingerprint": m.group(3),
-            "comment": m.group(4), "type": m.group(5), "public": public}
+            "comment": comment, "type": m.group(5), "public": public}
 
 
 _TAILNET_IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$|^[0-9a-f:]+:[0-9a-f:]*$")

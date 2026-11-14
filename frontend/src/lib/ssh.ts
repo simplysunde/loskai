@@ -213,7 +213,10 @@ export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
   if (!facts.remotes || !facts.ssh_hosts) return null;
   const uses = new Map<string, KeyUse[]>();
   const own = new Map((facts.projects ?? []).map((p) => [p.path, p.key]));
-  const pushes = new Set(facts.remotes.filter((r) => r.kind === "pushurl").map((r) => `${r.path}|${r.module}`));
+  // A remote with a pushurl fetches from its url and pushes to the other: that remote's
+  // alone (from v15; before, the name wasn't sent, so any in the repository).
+  const remoteOf = (r: { path: string; module: string; remote?: string }) => `${r.path}|${r.module}|${r.remote ?? ""}`;
+  const pushes = new Set(facts.remotes.filter((r) => r.kind === "pushurl").map(remoteOf));
   // ssh names its default files whether they exist or not: only the keys there count.
   const here = new Set((facts.ssh_keys ?? []).map((k) => k.name));
   for (const r of facts.remotes) {
@@ -223,7 +226,7 @@ export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
     // A project's own command naming no key ("") says nothing of which key it uses.
     const keys = mine === "" ? [] : mine ? [mine] : (facts.ssh_hosts[host]?.keys ?? []).filter((k) => here.has(k));
     const offered = !mine && !facts.ssh_hosts[host]?.identities_only && keys.length > 1;
-    const way = r.kind === "pushurl" ? "push" : pushes.has(`${r.path}|${r.module}`) ? "fetch" : "fetch and push";
+    const way = r.kind === "pushurl" ? "push" : pushes.has(remoteOf(r)) ? "fetch" : "fetch and push";
     for (const k of keys) {
       const use = { repo: r.path, module: r.module, way, url: r.url, host, hostname: facts.ssh_hosts[host]?.hostname ?? host, offered } as const;
       uses.set(k, [...(uses.get(k) ?? []), use]);
@@ -282,7 +285,8 @@ export interface Facts {
   // Every remote of each project and its submodules (`module` "" for the project itself),
   // no user or token in it; the keys ssh offers each SSH host they name; the keys
   // ~/.ssh/config names — the three null from a line before v12.
-  remotes?: { path: string; module: string; kind: "url" | "pushurl"; url: string }[] | null;
+  // `remote` its name (`origin`), "" from a line before v15.
+  remotes?: { path: string; module: string; remote?: string; kind: "url" | "pushurl"; url: string }[] | null;
   ssh_hosts?: Record<string, { hostname: string; identities_only: boolean; keys: string[] }> | null;
   ssh_config_keys?: string[] | null;
   // An ssh config with `Match exec`: ssh would run a command to answer, so ssh_hosts wasn't

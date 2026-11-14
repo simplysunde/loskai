@@ -112,3 +112,22 @@ test("what a key is for, written on it, comes before any guess", () => {
   expect(keyGroup(key("work", "me@laptop"), [])).toEqual({ group: "other", tag: null });
 });
 
+test("a remote's pushurl is its own: another remote in the project still fetches and pushes", () => {
+  const facts = {
+    ok: true,
+    projects: [{ path: "site", folder: "", name: "site", key: null }],
+    remotes: [
+      { path: "site", module: "", remote: "origin", kind: "url", url: "git@github.com:me/site.git" },
+      { path: "site", module: "", remote: "mirror", kind: "url", url: "git@github.com:me/mirror.git" },
+      { path: "site", module: "", remote: "mirror", kind: "pushurl", url: "git@github.com:me/mirror-push.git" },
+    ],
+    ssh_hosts: { "github.com": { hostname: "github.com", identities_only: false, keys: ["id_ed25519"] } },
+    ssh_keys: [{ name: "id_ed25519" }],
+  } as unknown as Facts;
+  expect(keyUses(facts)!.get("id_ed25519")!.map((u) => `${u.url} ${u.way}`)).toEqual([
+    "git@github.com:me/site.git fetch and push",
+    "git@github.com:me/mirror.git fetch",
+    "git@github.com:me/mirror-push.git push",
+  ]);
+});
+

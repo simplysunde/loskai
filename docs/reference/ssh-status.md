@@ -108,9 +108,9 @@ The Add route picker's Machines source offers these ports
 | `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
 | `#=tsself` | `state <BackendState>` (from `tailscale status --json --peers=false`), `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from the same status), only where `tailscale` is | `tailscale_self` — `{state, shared, approved}`: `state` `on` (Running), `off` (Stopped), `login` (NeedsLogin), `approval` (NeedsMachineAuth) or `null`; the networks without an exit node's `0.0.0.0/0` and `::/0`. `null` with no section (no Tailscale, or a line before v9) |
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|key\|committed\|subject` (`key` since v11) | `projects` — see below |
-| `#=keys` | `name\|<type data>\|<ssh-keygen -lf line>` for each `~/.ssh/*.pub`, at most 50 — the public halves only, never a private key; only where `ssh-keygen` is (`<type data>`, the key itself, since v13) | `ssh_keys` — `{name, bits, fingerprint, comment, type, public}`, `public` the key to paste (`null` before v13); `null` from a line before v11 |
-| `#=remotes` | `path\|module\|url or pushurl\|address` for every remote of each project and of its submodules (`.git/modules/<name>/config`, three deep), at most 300 — a `user:token@` taken out of the address on the machine, before it is printed | `remotes` — `{path, module, kind, url}`, `module` `""` for the project itself; `null` before v12 |
-| `#=sshhosts` | `host\|hostname\|identitiesonly\|file…` for each SSH host those remotes name (`git@host:…`, `ssh://…`), at most 30: what `ssh -G` resolves for it — aliases, `Host *`, `Include`, `Match`, as a connection would — without connecting. Since v14, only `!match-exec` where `~/.ssh/config` or the system's (`/etc/ssh/ssh_config`, `ssh_config.d/*.conf`) has a `Match exec`: ssh would run that command to answer, and the command only reads | `ssh_hosts` — `{host: {hostname, identities_only, keys}}`, `keys` the names of those files in `~/.ssh`; `null` before v12; `ssh_match_exec` true where it wasn't asked |
+| `#=keys` | `name\|<type data>\|<ssh-keygen -lf line>` for each `~/.ssh/*.pub`, at most 50 — the public halves only, never a private key; only where `ssh-keygen` is (`<type data>`, the key itself, since v13) | `ssh_keys` — `{name, bits, fingerprint, comment, type, public}`, `public` the key to paste (`null` before v13), `comment` `""` where ssh-keygen says "no comment", `type` a security key's too (`ED25519-SK`); `null` from a line before v11 |
+| `#=remotes` | `path\|module\|<remote>.url or <remote>.pushurl\|address` for every remote of each project and of its submodules (`.git/modules/<name>/config`, three deep), at most 300 — a `user:token@` taken out of the address on the machine, before it is printed; the remote's name since v15 | `remotes` — `{path, module, remote, kind, url}`, `module` `""` for the project itself, `remote` `""` before v15; `null` before v12 |
+| `#=sshhosts` | `host\|hostname\|identitiesonly\|file…` for each SSH host those remotes name (`git@host:…`, `ssh://…`), at most 30: what `ssh -G` resolves for it — aliases, `Host *`, `Include`, `Match`, as a connection would — without connecting. Since v14, only `!match-exec` where `~/.ssh/config` or the system's (`/etc/ssh/ssh_config`, `ssh_config.d/*.conf`) has a `Match exec`: ssh would run that command to answer, and the command only reads. Since v15 the files those two `Include` are looked in too, one level: one that includes again isn't followed, and isn't asked | `ssh_hosts` — `{host: {hostname, identities_only, keys}}`, `keys` the names of those files in `~/.ssh`; `null` before v12; `ssh_match_exec` true where it wasn't asked |
 | `#=sshconfig` | the `IdentityFile`s `~/.ssh/config` names — nothing else of that file | `ssh_config_keys` — their names, of those in `~/.ssh`; `null` before v12 |
 | `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 
@@ -169,7 +169,8 @@ number back. Changing what the command runs means each machine needs the new lin
    before v7, without guest addresses.
    `parse_facts` reads every line from v5 (`FACTS_SINCE`; before v9, without
    `tailscale_self`; before v11, `KEYS_SINCE`, without keys; before v12, `REMOTES_SINCE`,
-   without remotes; before v13, `PUBLIC_SINCE`, without a key's public half), and says `outdated` for any but the current one — the overview offers the reinstall. A page on an older line says so. A number newer than this Loskai's is
+   without remotes; before v13, `PUBLIC_SINCE`, without a key's public half; before v15,
+   `REMOTE_NAMES_SINCE`, without a remote's name), and says `outdated` for any but the current one — the overview offers the reinstall. A page on an older line says so. A number newer than this Loskai's is
    not read.
 3. A request an old line can't answer raises `status.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
@@ -190,6 +191,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 12 | `facts` adds `#=remotes`, `#=sshhosts` and `#=sshconfig`: every remote of each project and submodule, the keys ssh offers each SSH host they name, and the keys `~/.ssh/config` names — so a key used through an alias is seen (Git's Keys, Test, Delete) |
 | 13 | `#=keys` carries each key's public half, its type and data — public, to copy and paste into GitHub or Forgejo (Git's Keys) |
 | 14 | `#=sshhosts` isn't asked where an ssh config has `Match exec` — `ssh -G` would run that command — and says `!match-exec` instead |
+| 15 | `#=remotes` names each remote (`origin.url`), so a pushurl is its own remote's; `#=sshhosts` isn't asked where a file the ssh config `Include`s has `Match exec`, or includes again |
 
 ## Adding a fact
 

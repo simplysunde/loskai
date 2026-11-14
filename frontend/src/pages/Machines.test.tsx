@@ -1521,7 +1521,7 @@ test("a machine whose ssh config has Match exec: Git's Keys says which remotes u
   setUp();
   facts = { ...FACTS, ssh_hosts: {}, ssh_match_exec: true };
   renderPage("/machines/nas/tools");
-  expect(await gitKeys()).toHaveTextContent("This machine's ssh config runs a command to choose keys (Match exec)");
+  expect(await gitKeys()).toHaveTextContent("This machine's ssh config may run a command to choose keys (Match exec");
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {
