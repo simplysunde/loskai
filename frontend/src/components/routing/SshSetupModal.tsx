@@ -127,7 +127,7 @@ export function SshSetupModal({
         {scan.data && isTrusted && (
           <p
             title={`${scan.data.type} ${scan.data.fingerprint}`}
-            className="flex items-center gap-2 text-sm text-emerald-300"
+            className="flex w-fit items-center gap-2 text-sm text-emerald-300"
           >
             <ShieldCheck className="h-4 w-4" /> Host key trusted
           </p>

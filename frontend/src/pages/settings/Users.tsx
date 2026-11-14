@@ -78,7 +78,7 @@ export function Users() {
                 <td className="px-4 py-2 text-xs text-slate-400">{levelName(a.level)}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1.5">
-                    <button title="Level" aria-label={`Edit ${a.username}`} onClick={() => setEditing(a)} className={BUTTON}>
+                    <button title="Change their level" aria-label={`Edit ${a.username}`} onClick={() => setEditing(a)} className={BUTTON}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button title="Set a new password" aria-label={`New password for ${a.username}`} onClick={() => setResetting(a)} className={BUTTON}>

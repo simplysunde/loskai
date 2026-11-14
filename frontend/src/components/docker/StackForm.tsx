@@ -111,7 +111,7 @@ export function StackForm({
               <Panel title="Settings">
                 {form.settings.map((s) => (
                   <label key={s.key} className="block">
-                    <span className="mb-1 block text-xs text-slate-400" title={s.key}>
+                    <span className="mb-1 block w-fit text-xs text-slate-400" title={s.key}>
                       {s.label ?? <span className="font-mono">{s.key}</span>}
                     </span>
                     <input

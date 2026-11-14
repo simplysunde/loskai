@@ -130,7 +130,7 @@ export function RouteFields({
             ? "Open it with https:// — the browser shows its certificate warning if it is self-signed"
             : "Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
         }
-        className="mt-3 flex items-center gap-2 text-xs text-slate-400"
+        className="mt-3 flex w-fit items-center gap-2 text-xs text-slate-400"
       >
         <input
           type="checkbox"

@@ -111,8 +111,8 @@ export function RunningList({
   const guests = running.guests ?? [];
   const columns = actions ? 3 : 2;
   const row = (key: string, name: string, status: React.ReactNode, buttons: React.ReactNode, title?: string) => (
-    <tr key={key} title={title} className="border-t border-slate-800 hover:bg-slate-900/40">
-      <td className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">
+    <tr key={key} className="border-t border-slate-800 hover:bg-slate-900/40">
+      <td title={title} className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">
         {name}
         {/* On a phone the status goes under the name, leaving the name the room. */}
         {status && <span className="block truncate text-xs text-slate-500 sm:hidden">{status}</span>}

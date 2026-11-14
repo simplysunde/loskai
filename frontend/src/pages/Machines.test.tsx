@@ -1052,7 +1052,9 @@ test("Tailscale is two switches — connected, and sharing — with the tailnet 
   // The rest of the tailnet, folded: this machine isn't among the others.
   expect(screen.queryByText("phone")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Tailnet · 1 other device, 0 online/ }));
-  expect(screen.getByText("phone").closest("li")!.title).toBe("iOS · offline");
+  // On the name, not across the row.
+  expect(screen.getByText("phone").closest<HTMLElement>("[title]")!.title).toBe("iOS · offline");
+  expect(screen.getByText("phone").closest("li")!.title).toBe("");
 
   fireEvent.click(screen.getByRole("switch", { name: "Share this network" }));
   await vi.waitFor(() =>
@@ -1238,7 +1240,8 @@ test("a project lists in its machine's projects folder, says its Claude session 
   expect(within(gitRow).queryByRole("button", { name: "Claude" })).toBeNull();
   expect(within(row).getByText("running")).toBeInTheDocument(); // claude-site is a tmux session
   expect(row.textContent).toContain("main · 2 to push · uncommitted changes · committed");
-  expect(row.title).toBe("Last commit: Add the header");
+  expect(within(row).getByTitle("Last commit: Add the header")).toHaveTextContent("site");
+  expect(row.title).toBe("");
   // In ~ rather than ~/projects: not listed.
   expect(screen.queryByText("notes")).not.toBeInTheDocument();
   fireEvent.click(within(row).getByRole("button", { name: "Claude" }));

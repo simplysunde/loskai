@@ -58,7 +58,7 @@ export function ServiceCard({ card }: { card: DashboardCard }) {
       {body}
     </a>
   ) : (
-    <div className={`${base} opacity-60`} title="Set base_domain to enable the link">
+    <div className={`${base} opacity-60`} title="No link until a base domain is set, in Settings › General">
       {body}
     </div>
   );

@@ -158,7 +158,7 @@ export function ServiceTable({
                   {machine && (
                     <div
                       title={row.follow_container ? MACHINE_FOLLOWING : MACHINE_HINT}
-                      className="flex cursor-help items-center gap-1 text-[11px] text-slate-500"
+                      className="flex w-fit cursor-help items-center gap-1 text-[11px] text-slate-500"
                     >
                       <HardDrive className="h-3 w-3" />
                       {machineLabel(machine)}

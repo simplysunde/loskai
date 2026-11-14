@@ -10,7 +10,7 @@ const UNLOCK_FIELDS: FieldDef[] = [
     label: "Ask for your password",
     options: SSH_ASK_PASSWORD_CHOICES,
     below: (
-      <p className="mt-1 text-xs text-slate-500" title="Fine for one person reaching Loskai over HTTPS on a LAN or tailnet. Not for Loskai reachable from the internet, or a computer others use: a session left open or stolen then reaches your machines at once.">
+      <p className="mt-1 w-fit text-xs text-slate-500" title="Fine for one person reaching Loskai over HTTPS on a LAN or tailnet. Not for Loskai reachable from the internet, or a computer others use: a session left open or stolen then reaches your machines at once.">
         No: anyone signed in with the Machines tab uses the key without it.
       </p>
     ),

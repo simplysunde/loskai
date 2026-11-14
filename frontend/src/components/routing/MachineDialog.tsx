@@ -269,7 +269,11 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                     when the overview reads the rule back. */}
                 <Switch
                   label="Updates without a password"
-                  title="On asks for sudo's password once, for that run only; off needs none"
+                  title={
+                    facts.data.sudo_rule === "on"
+                      ? "Take the rule off: Update asks for sudo's password again"
+                      : "Add the rule: asks for sudo's password this once"
+                  }
                   checked={facts.data.sudo_rule === "on"}
                   onChange={() =>
                     facts.data?.ok && facts.data.sudo_rule === "on"

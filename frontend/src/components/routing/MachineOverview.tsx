@@ -47,16 +47,18 @@ export function MachineOverview({
         <dt className="text-slate-500">Up</dt>
         <dd className="text-slate-300">{formatUptime(facts.uptime)}</dd>
         <dt className="text-slate-500">Updates</dt>
-        <dd title={UPDATES_HINT} className="cursor-help text-slate-300">
-          {!updates ? (
-            "—"
-          ) : updates.count === 0 ? (
-            "up to date"
-          ) : (
-            <span className="text-amber-300">
-              {updates.count} waiting <span className="text-xs text-slate-500">({updates.manager})</span>
-            </span>
-          )}
+        <dd className="text-slate-300">
+          <span title={UPDATES_HINT} className="cursor-help">
+            {!updates ? (
+              "—"
+            ) : updates.count === 0 ? (
+              "up to date"
+            ) : (
+              <span className="text-amber-300">
+                {updates.count} waiting <span className="text-xs text-slate-500">({updates.manager})</span>
+              </span>
+            )}
+          </span>
         </dd>
         {facts.programs?.includes("tailscale") && (
           <>
@@ -86,8 +88,8 @@ export function MachineOverview({
 
       {facts.outdated && (
         <p
-          title="Read as before. Installing again brings what changed since — such as reading through sudo without a refusal in the machine's auth log every poll."
-          className="text-xs text-slate-500"
+          title="Still read as before. Installing again brings what changed since."
+          className="w-fit text-xs text-slate-500"
         >
           Its status line is older than this Loskai.
           <button onClick={onReinstall} className="ml-2 text-teal-400 hover:underline">
@@ -103,8 +105,8 @@ function Usage({ label, title, used, size }: { label: string; title?: string; us
   const pct = size > 0 ? Math.min(100, (used / size) * 100) : 0;
   const tone = pct >= 90 ? "bg-rose-500" : pct >= 75 ? "bg-amber-500" : "bg-teal-500";
   return (
-    <div title={title} className="grid grid-cols-[7rem_1fr_9rem] items-center gap-3 text-xs">
-      <span className="truncate font-mono text-slate-400">{label}</span>
+    <div className="grid grid-cols-[7rem_1fr_9rem] items-center gap-3 text-xs">
+      <span title={title} className="truncate font-mono text-slate-400">{label}</span>
       <div className="h-1.5 rounded bg-slate-800">
         <div className={`h-1.5 rounded ${tone}`} style={{ width: `${pct}%` }} />
       </div>

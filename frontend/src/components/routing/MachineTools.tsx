@@ -113,8 +113,8 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
           <ul className="space-y-1.5 text-xs text-slate-300 sm:grid sm:grid-flow-row-dense sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:space-y-0">
             {rows.length === 0 && <li className="text-slate-500 sm:col-span-2">None yet.</li>}
             {rows.map((r) => (
-              <li key={r.name} title={r.title} className="flex flex-col gap-1 sm:contents">
-                <span className="min-w-0">
+              <li key={r.name} className="flex flex-col gap-1 sm:contents">
+                <span title={r.title} className="min-w-0">
                   <span className="break-all font-mono">{r.name}</span>
                   {isLive(t, kind, r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
                   <span className="block truncate text-slate-500">{r.detail}</span>
@@ -272,8 +272,8 @@ function TailscaleSettings({ tool: t, ctx }: { tool: Tool; ctx: ToolContext }) {
           {open && (
             <ul className="mt-1.5 space-y-1 pl-5 text-xs text-slate-300">
               {others.map((d) => (
-                <li key={d.ip} title={`${d.os} · ${d.status}`} className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2">
+                <li key={d.ip} className="flex items-center justify-between gap-2">
+                  <span title={`${d.os} · ${d.status}`} className="flex min-w-0 items-center gap-2">
                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${d.online ? "bg-emerald-400" : "bg-slate-600"}`} />
                     <span className="truncate font-mono">{d.name}</span>
                   </span>
