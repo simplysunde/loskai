@@ -147,6 +147,10 @@ The computers on your network, by name — a name with no port.
 > for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
 > machine once and the route moves with it.
 
+A machine's row has its name on the network under **URL**; while AdGuard doesn't answer
+that name with its address, a **DNS missing** (or **DNS conflict**, **DNS unknown** while
+AdGuard can't be read) tag sits beside it — set, nothing more is said.
+
 Under each machine are the routes on its address — however they were made. A machine's
 row opens and closes like a stack on the Docker tab, showing how many it holds while
 closed. Moving the machine moves them all, except a container route that follows its

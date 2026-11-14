@@ -4,6 +4,15 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A machine's DNS state beside its name
+
+The Machines table had a URL column and a DNS column, and on a healthy homelab the DNS one
+said **set** on every row (Sunde: DNS is set whenever a URL exists). It is folded into the
+URL cell: a tag beside the name only while AdGuard doesn't answer it right — missing,
+conflict, or unknown while AdGuard can't be read — since that is the case worth a look, and
+it is Machines' own state (a route's DNS stays the Routing tab's). The Routing tab keeps
+its DNS column: there a route's two statuses, Route and DNS, are read side by side.
+
 ## 2026-11-14 — Every machine's projects in one place (Phase 55)
 
 Sunde works on projects across several machines and wanted to follow them without opening

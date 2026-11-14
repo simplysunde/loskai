@@ -33,6 +33,8 @@ import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineServ
 import { RunningPill } from "./RunningPill";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
 
+const URL_HINT = "Its name on your network. Beside it, only when wrong: whether AdGuard answers it with its address.";
+
 // Each machine, with the routes on its address beneath it — the reason a machine is named
 // at all. Like a stack on the Docker tab, a machine's row opens to show them. A route lists
 // only its port here: the host half is the machine above it. The Docker host — named or not —
@@ -165,10 +167,9 @@ export function MachineTable({
                 </button>
               </div>
             </th>
-            <th className="px-4 py-2.5 font-medium max-sm:hidden">URL</th>
+            <th title={URL_HINT} className="cursor-help px-4 py-2.5 font-medium max-sm:hidden">URL</th>
             <th className="px-4 py-2.5 font-medium max-sm:hidden">Address</th>
             <th className="px-4 py-2.5 font-medium max-sm:hidden">Running</th>
-            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium max-sm:hidden">DNS</th>
             <th className="px-4 py-2.5 font-medium text-right max-sm:hidden">Actions</th>
           </tr>
         </thead>
@@ -212,22 +213,27 @@ export function MachineTable({
                       </button>
                     </td>
                     {/* Plain text, not a link: a machine's name is DNS only, so nothing
-                        is promised to answer on it over https. A phone, with no column
+                        is promised to answer on it over https. Its DNS state beside it, only
+                        while AdGuard doesn't answer it right. A phone, with no column
                         headings, leaves out the empty cells. */}
-                    <td className={`px-4 py-2 text-xs text-slate-400 ${m.fqdn ? "" : "max-sm:hidden"}`}>{m.fqdn ?? "—"}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-400 ${m.fqdn ? "" : "max-sm:hidden"}`}>
+                      {m.fqdn ? (
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span title={dnsFine(m) ? `AdGuard answers it with ${m.upstream}` : DNS_HINT} className="w-fit">
+                            {m.fqdn}
+                          </span>
+                          {!dnsFine(m) && <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} beside />}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
                     <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
                       {running[m.id] ? (
                         <RunningPill running={running[m.id]} user={host?.user} actions={runningActions(m)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
-                      )}
-                    </td>
-                    <td className={`px-4 py-2 ${unnamed || dnsFine(m) ? "max-sm:hidden" : ""}`}>
-                      {unnamed ? (
-                        <span className="text-xs text-slate-600">—</span>
-                      ) : (
-                        <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} />
                       )}
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
@@ -296,7 +302,7 @@ export function MachineTable({
                   </tr>
                   {open && deps.length === 0 && (
                     <tr className="max-sm:pb-2 max-sm:pl-11">
-                      <td colSpan={6} className="px-4 pb-2 pl-11 text-xs text-slate-600">
+                      <td colSpan={5} className="px-4 pb-2 pl-11 text-xs text-slate-600">
                         No routes on this machine.
                       </td>
                     </tr>
@@ -322,7 +328,7 @@ export function MachineTable({
                         </td>
                         {/* No DNS state here: a route's own is the Routing tab's to show. These
                             rows say what the machine hosts; its DNS is the row above. */}
-                        <td colSpan={3} className="max-sm:hidden" />
+                        <td colSpan={2} className="max-sm:hidden" />
                       </tr>
                     ))}
                 </Fragment>

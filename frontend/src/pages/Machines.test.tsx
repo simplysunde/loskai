@@ -298,22 +298,29 @@ test("a machine starts collapsed, with its count; opening it shows its routes an
   expect(screen.getByText("No routes on this machine.")).toBeInTheDocument();
 });
 
-test("a hosted route links out under URL; DNS state is the machine's alone", async () => {
+test("a hosted route links out under URL; DNS state is the machine's alone, beside its name", async () => {
   renderPage();
   const plexRow = (await screen.findByText("plex")).closest("tr") as HTMLElement;
-  const [, url, address, dns] = within(plexRow).getAllByRole("cell");
+  const [, url, address, rest] = within(plexRow).getAllByRole("cell");
 
   expect(within(url).getByRole("link", { name: "plex.example.no" })).toHaveAttribute(
     "href",
     "https://plex.example.no",
   );
   expect(address).toHaveTextContent(":32400");
-  // plex's rewrite is missing, but that is Routing's to say; the machine's row says "set".
-  expect(dns).toBeEmptyDOMElement();
-  expect(within(nasRow()).getByText("set")).toBeInTheDocument();
-  // The machine's own name sits in the same URL column, on its row.
+  // plex's rewrite is missing, but that is Routing's to say.
+  expect(rest).toBeEmptyDOMElement();
+  expect(within(plexRow).queryByText(/DNS/)).not.toBeInTheDocument();
+  // The machine's own name sits in the same URL column, on its row, with no DNS column: set,
+  // nothing more is said (nas); not known to AdGuard, it says so beside the name (pve).
+  expect(screen.queryByRole("columnheader", { name: "DNS" })).not.toBeInTheDocument();
   const [, nasUrl] = within(nasRow()).getAllByRole("cell");
-  expect(nasUrl).toHaveTextContent("nas.example.no");
+  expect(nasUrl).toHaveTextContent(/^nas\.example\.no$/);
+  expect(within(nasUrl).getByText("nas.example.no")).toHaveAttribute("title", "AdGuard answers it with 192.168.10.50");
+  const pveRow = screen.getByText("pve").closest("tr") as HTMLElement;
+  const [, pveUrl] = within(pveRow).getAllByRole("cell");
+  expect(pveUrl).toHaveTextContent("pve.example.no");
+  expect(within(pveUrl).getByText("DNS unknown")).toBeInTheDocument();
 });
 
 test("deleting a machine names the routes on its address, which keep it", async () => {

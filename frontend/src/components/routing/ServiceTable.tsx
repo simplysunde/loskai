@@ -261,17 +261,28 @@ function OnPhone({ children }: { children: string }) {
   return <span className="sm:hidden">{children} </span>;
 }
 
-export function DnsCell({ present, conflict }: { present?: boolean | null; conflict?: boolean }) {
+// `beside` a name, with no DNS column over it: each badge says DNS, and while it is set there
+// is none — only what is wrong shows.
+export function DnsCell({
+  present,
+  conflict,
+  beside = false,
+}: {
+  present?: boolean | null;
+  conflict?: boolean;
+  beside?: boolean;
+}) {
+  const dns = beside ? "DNS " : <OnPhone>DNS</OnPhone>;
   return (
     <div className="flex items-center gap-1.5">
       {present === undefined || present === null ? (
-        <StatusBadge status="unknown" label={<><OnPhone>DNS</OnPhone>unknown</>} />
+        <StatusBadge status="unknown" label={<>{dns}unknown</>} />
       ) : present ? (
-        <StatusBadge status="synced" label="set" />
+        !beside && <StatusBadge status="synced" label="set" />
       ) : (
-        <StatusBadge status="unsynced" label={<><OnPhone>DNS</OnPhone>missing</>} />
+        <StatusBadge status="unsynced" label={<>{dns}missing</>} />
       )}
-      {conflict && <StatusBadge status="degraded" label={<><OnPhone>DNS</OnPhone>conflict</>} />}
+      {conflict && <StatusBadge status="degraded" label={<>{dns}conflict</>} />}
     </div>
   );
 }
