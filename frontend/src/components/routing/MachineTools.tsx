@@ -98,7 +98,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
       {titled && (
-        <div title={t.description} className="flex items-center gap-2 text-sm text-slate-100">
+        <div title={t.description} className="flex w-fit items-center gap-2 text-sm text-slate-100">
           <ToolIcon id={t.id} className="h-3.5 w-3.5 text-slate-400" />
           {t.name}
           {!isStandard(t) && <span className="text-xs text-slate-500">{toolSummary(t, ctx)}</span>}
