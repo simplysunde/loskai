@@ -6,7 +6,7 @@ import { api, ApiError, apiMessage } from "../../lib/api";
 import { requestUnlock } from "../../lib/unlock";
 import { remoteSshHost } from "../../lib/ssh";
 import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
-import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
+import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type TargetKind } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Ask } from "./ToolAsk";
 import { ActionIcon } from "./ToolIcon";
@@ -32,7 +32,7 @@ function useToolSettings(tool: Tool, machineId: string) {
 }
 
 // Where a dialog's settings are: the card's — the machine's own values — or a row's.
-type Row = { kind: ToolTarget; name: string };
+type Row = { kind: TargetKind; name: string };
 
 // A row's own settings, in place of the card's, are its overrides: "Project overrides".
 function overridesOf(row: Row): string {

@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type LoskaiKey } from "../../lib/ssh";
 import { COLUMNS, isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
 import { CARD_TABLE } from "../../lib/ui";
-import { applies, useTools, type Tool, type ToolAction, type ToolTarget } from "../../lib/tools";
+import { applies, useTools, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { Shell } from "./MachineDialog";
 import { RowButtons } from "./MachineTools";
@@ -23,14 +23,14 @@ const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Cla
 // up under the one heading. The buttons' column fits the most a row has (a project's five,
 // about 300px, with its padding), and they never wrap there: a wrapped one made rows of two
 // lines.
-const WIDTHS: Partial<Record<ToolTarget, string[]>> = {
+const WIDTHS: Partial<Record<TargetKind, string[]>> = {
   project: ["w-[22%]", "w-[15%]", "w-[17%]", "w-[11%]", "w-[10%]"],
   session: ["w-[37%]", "w-[17%]", "w-[21%]"],
 };
 const ACTIONS_WIDTH = "w-[21.5rem]";
 
 // A table's column widths (a wider screen's: a phone's rows are cards).
-function Columns({ kind }: { kind: ToolTarget }) {
+function Columns({ kind }: { kind: TargetKind }) {
   const widths = WIDTHS[kind] ?? [];
   return (
     <colgroup className="max-sm:hidden">
@@ -44,7 +44,7 @@ function Columns({ kind }: { kind: ToolTarget }) {
 
 // The projects' column headings: once, pinned above every machine — and, for a screen
 // reader, in each table.
-function Head({ kind, className = "" }: { kind: ToolTarget; className?: string }) {
+function Head({ kind, className = "" }: { kind: TargetKind; className?: string }) {
   return (
     <thead className={`text-[11px] uppercase text-slate-500 ${className}`}>
       <tr>
@@ -68,7 +68,7 @@ const MAKES = ["project", "repo"];
 
 // A machine's rows of a kind as its cards list them — the same on every tool that lists
 // them, so one is read.
-function rowsHere(here: Tool[], kind: ToolTarget, ctx: ToolContext) {
+function rowsHere(here: Tool[], kind: TargetKind, ctx: ToolContext) {
   const lister = here.find((t) => t.actions.some((a) => a.target === kind));
   return (lister && listsOf(lister, ctx).find((l) => l.kind === kind)?.rows) ?? [];
 }
@@ -323,7 +323,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
   // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a
   // card (CARD_TABLE): the name on a line of its own, the cells that say something, then
   // the buttons.
-  const table = (kind: ToolTarget, items: typeof rows, label: string) => (
+  const table = (kind: TargetKind, items: typeof rows, label: string) => (
     <div className="overflow-hidden rounded-lg border border-slate-800 max-sm:border-0">
       <table aria-label={label} className={`w-full text-left text-xs sm:table-fixed ${CARD_TABLE}`}>
         <Columns kind={kind} />

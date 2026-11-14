@@ -18,7 +18,7 @@ import { useInstances } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { keysSummary, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
-import { applies, MACHINE_TOOL, useTools, type ToolTarget } from "../../lib/tools";
+import { applies, MACHINE_TOOL, useTools, type TargetKind } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -137,7 +137,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const gitTool = tools.data?.find((t) => t.id === "git");
   // System's Update, Reboot and Shut down are the machine's own: on General, by its overview.
   const system = here.find((t) => t.id === MACHINE_TOOL);
-  const rowActions = (target: ToolTarget, name: string) => (
+  const rowActions = (target: TargetKind, name: string) => (
     <RowButtons here={here} kind={target} name={name} onRun={runner.start} />
   );
   const runningHere = running.data?.[id];

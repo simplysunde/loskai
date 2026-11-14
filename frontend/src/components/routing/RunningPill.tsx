@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { ToolTarget } from "../../lib/tools";
+import type { TargetKind } from "../../lib/tools";
 import { runningCount, type Running } from "../../lib/ssh";
 
 const DENIED: Record<string, string> = {
@@ -21,7 +21,7 @@ export function RunningPill({
 }: {
   running: Running;
   user?: string;
-  actions?: (target: ToolTarget, id: string) => React.ReactNode;
+  actions?: (target: TargetKind, id: string) => React.ReactNode;
 }) {
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   const pill = useRef<HTMLButtonElement>(null);
@@ -104,7 +104,7 @@ export function RunningList({
 }: {
   running: Running;
   user?: string;
-  actions?: (target: ToolTarget, id: string) => React.ReactNode;
+  actions?: (target: TargetKind, id: string) => React.ReactNode;
 }) {
   const containers = running.containers ?? [];
   const services = running.services ?? [];

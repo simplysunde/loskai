@@ -12,11 +12,11 @@ import {
   isStandard,
   MACHINE_TOOL,
   missing,
-  onCard,
+  isOnCard,
   rowSettingsOf,
   type Tool,
   type ToolAction,
-  type ToolTarget,
+  type TargetKind,
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
@@ -44,7 +44,7 @@ export function RowButtons({
   facts,
 }: {
   here: Tool[];
-  kind: ToolTarget;
+  kind: TargetKind;
   name: string;
   onRun: ToolStart;
   facts?: Facts;
@@ -53,7 +53,7 @@ export function RowButtons({
     !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts));
   return here.flatMap((t) =>
     t.actions
-      .filter((a) => a.target === kind && onCard(a) && (fits(t, a) || a.otherwise === "disabled"))
+      .filter((a) => a.target === kind && isOnCard(a) && (fits(t, a) || a.otherwise === "disabled"))
       .map((a) => (
         <button
           key={`${t.id}-${a.id}`}
@@ -80,7 +80,7 @@ export function RowButtons({
 export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: ToolContext; small?: boolean }) {
   const manager = ctx.facts.updates?.manager ?? null;
   return t.actions
-    .filter((a) => !a.target && !a.ask && onCard(a))
+    .filter((a) => !a.target && !a.ask && isOnCard(a))
     .map((a) => {
       const command = commandFor(a, manager);
       return (
@@ -102,11 +102,11 @@ export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: T
 // are all on the Running list's rows.
 export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: ToolContext; titled?: boolean }) {
   // What a dialog offers instead — its Settings, its Keys — isn't on the card.
-  const own = t.actions.filter((a) => !a.target && !a.ask && onCard(a));
-  const asks = t.actions.filter((a) => a.ask && onCard(a));
+  const own = t.actions.filter((a) => !a.target && !a.ask && isOnCard(a));
+  const asks = t.actions.filter((a) => a.ask && isOnCard(a));
   const lists = listsOf(t, ctx);
   // The row whose own settings are open in a dialog.
-  const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
+  const [open, setOpen] = useState<{ kind: TargetKind; name: string } | null>(null);
   if (own.length + asks.length + lists.length === 0 && !hasCardSettings(t)) return null;
   const tailscale = t.id === "tailscale";
   const askFields = asks.map((a) => <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />);

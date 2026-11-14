@@ -1,12 +1,12 @@
 import { formatAgo } from "./format";
 import { tailscaleStatus, type Facts, type SshStatus } from "./ssh";
-import type { Tool, ToolAction, ToolRun, ToolTarget } from "./tools";
+import type { Tool, ToolAction, ToolRun, TargetKind } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
 // target, and a tool in a few words.
 
-// `onEnded`, for an automatic run: how it ended — done, or failed.
-export type ToolStart = (run: ToolRun, action?: ToolAction, onEnded?: (ok: boolean) => void) => void;
+// `onResult`, for an automatic run: how it ended — done, or failed.
+export type ToolStart = (run: ToolRun, action?: ToolAction, onResult?: (ok: boolean) => void) => void;
 
 // A row a tool's card lists, for its actions on that kind of target: `detail` on a card,
 // under its name; `cells` in a table, under COLUMNS (an empty one says nothing); `tag`
@@ -21,7 +21,7 @@ interface Row {
 
 // A table's columns for each kind of row, after its name — Projects' tables. A kind with
 // none here has cells that say what they are.
-export const COLUMNS: Partial<Record<ToolTarget, string[]>> = {
+export const COLUMNS: Partial<Record<TargetKind, string[]>> = {
   project: ["Branch", "Changes", "Last commit", "Claude"],
 };
 
@@ -36,7 +36,7 @@ export function projectsIn(facts: Facts, folder: string) {
 // session `claude-site` is the Claude Code tool's, on its project, as the server says — and
 // the projects in the machine's projects folder (`~/projects`, `~`). The Running list's
 // kinds (service, container, lxc, vm) are on its own rows instead.
-function rowsOf(kind: ToolTarget, facts: Facts, folder: string): Row[] | null {
+function rowsOf(kind: TargetKind, facts: Facts, folder: string): Row[] | null {
   if (kind === "session") {
     return (facts.tmux ?? [])
       .filter((s) => !s.tool)
@@ -121,7 +121,7 @@ export function toolSummary(t: Tool, ctx: ToolContext): string {
 }
 
 // A row whose shared session is running, as the server says: opening it attaches.
-export function isLive(t: Tool, kind: ToolTarget, name: string, facts: Facts): boolean {
+export function isLive(t: Tool, kind: TargetKind, name: string, facts: Facts): boolean {
   return facts.live?.[t.id]?.[kind]?.includes(name) ?? false;
 }
 

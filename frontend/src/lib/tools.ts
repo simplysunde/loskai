@@ -5,14 +5,14 @@ import { api } from "./api";
 // What a machine's page can run, from the tool files in the image
 // (docs/reference/tool-schema.md). The commands come along so what runs can be read.
 // `repo` is only asked for (Clone's address), never a row.
-export type ToolTarget = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host" | "key" | "key-host" | "key-label";
+export type TargetKind = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host" | "key" | "key-host" | "key-label";
 
 export interface ToolAction {
   id: string;
   label: string;
   description: string;
-  target: ToolTarget | null; // null: the machine itself
-  ask: ToolTarget | null; // a name typed for it, checked like a target
+  target: TargetKind | null; // null: the machine itself
+  ask: TargetKind | null; // a name typed for it, checked like a target
   confirm: string | null;
   // The tmux session it runs in: null Loskai's own, a name shared per target, false none.
   session: string | false | null;
@@ -38,7 +38,7 @@ export interface ToolSetting {
   read: string;
   write: string;
   unset?: string | null; // what taking it off runs: set to nothing. None: it needs a value
-  target?: ToolTarget | null;
+  target?: TargetKind | null;
   overrides?: string | null; // the machine's setting it replaces where it is set
 }
 
@@ -71,7 +71,7 @@ export function useTools() {
   });
 }
 
-export function runQuery(run: ToolRun): string {
+export function runQueryString(run: ToolRun): string {
   if (run.sudo) return new URLSearchParams({ sudo: run.sudo }).toString();
   const q = new URLSearchParams({ tool: run.tool ?? "" });
   if (run.action) q.set("action", run.action);
@@ -94,12 +94,12 @@ export function hasCardSettings(tool: Tool): boolean {
 
 // The actions a settings dialog offers, not its card: the card's (on no row), or a kind of
 // row's.
-export function settingsActionsOf(tool: Tool, kind: ToolTarget | null = null): ToolAction[] {
+export function settingsActionsOf(tool: Tool, kind: TargetKind | null = null): ToolAction[] {
   return tool.actions.filter((a) => a.place === "settings" && (a.target ?? null) === kind);
 }
 
 // Whether an action is on its card (or its row) — not in a dialog: Settings, Keys.
-export function onCard(action: ToolAction): boolean {
+export function isOnCard(action: ToolAction): boolean {
   return (action.place ?? "card") === "card";
 }
 
@@ -110,7 +110,7 @@ export function hasKeys(tool: Tool): boolean {
   return tool.actions.some((a) => a.target === "key" || a.place === "keys");
 }
 
-export function rowSettingsOf(tool: Tool, kind: ToolTarget): ToolSetting[] {
+export function rowSettingsOf(tool: Tool, kind: TargetKind): ToolSetting[] {
   return (tool.settings ?? []).filter((s) => s.target === kind);
 }
 
@@ -148,11 +148,11 @@ export function commandFor(action: ToolAction, manager: string | null | undefine
 
 // What an asked-for value looks like, in its field: a name, a repository's address (Clone),
 // or a host (Test key).
-const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; what: string }>> = {
+const ASKED: Partial<Record<TargetKind, { placeholder: string; width: string; what: string }>> = {
   repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
   host: { placeholder: "github.com", width: "w-36", what: "host" },
 };
 
-export function askedOf(kind: ToolTarget | null | undefined) {
+export function askedOf(kind: TargetKind | null | undefined) {
   return (kind && ASKED[kind]) || { placeholder: "name", width: "w-32", what: "name" };
 }

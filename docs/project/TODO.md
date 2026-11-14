@@ -127,7 +127,7 @@ commit, the full checks, `where-used.py --write`.
       `useInstanceRows`
 - [x] 57h Frontend, the keys: `SshKey` → `LoskaiKey`, `SshKeyInfo` → `MachineKey`,
       `sshHost` → `remoteSshHost`, `SshKeys.tsx`'s locals
-- [ ] 57i Frontend, tools: `onCard` → `isOnCard`, `runQuery` → `runQueryString`,
+- [x] 57i Frontend, tools: `onCard` → `isOnCard`, `runQuery` → `runQueryString`,
       `ToolTarget` → `TargetKind`, the runner's `onEnded` → `onResult`
 - [ ] 57j Frontend, an export is named after its file or step: `FillStep`, `ResultStep`,
       `PickStep`, `OptionList`, `Ask`, `SettingsDialog`/`SettingsButton`, `Shell`

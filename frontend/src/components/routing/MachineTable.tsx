@@ -23,7 +23,7 @@ import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
-import type { Tool, ToolTarget } from "../../lib/tools";
+import type { Tool, TargetKind } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { splitUpstream } from "../../lib/validation";
@@ -116,7 +116,7 @@ export function MachineTable({
   const runningActions = (m: Instance) => {
     const r = running[m.id];
     const services = servicesOn(m, r, rows, dockerHost);
-    return (target: ToolTarget, id: string): React.ReactNode => {
+    return (target: TargetKind, id: string): React.ReactNode => {
       if (target === "lxc" || target === "vm") {
         const guest = r?.guests?.find((g) => g.id === id);
         if (!guest || !onNameGuest) return null;

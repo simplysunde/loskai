@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
-import { runQuery, type ToolRun } from "../../lib/tools";
+import { runQueryString, type ToolRun } from "../../lib/tools";
 import { keyUnlocked, type LoskaiKey } from "../../lib/ssh";
 import { requestUnlock } from "../../lib/unlock";
 import { Modal } from "../shared/Modal";
@@ -44,21 +44,21 @@ type Stage = "unlock" | "preparing" | "password" | "terminal";
 //
 // `quick`: the run is automatic, so it drops down from the top (QuickTerminal) rather than
 // opening a dialog — only the prompts, the key's and sudo's passwords, are dialogs.
-// `onEnded` hears how a quick run ended — done, or failed — once it has.
+// `onResult` hears how a quick run ended — done, or failed — once it has.
 export function MachineTerminal({
   machine,
   sshKey,
   run,
   quick = false,
   onClose,
-  onEnded,
+  onResult,
 }: {
   machine: { id: string; name: string };
   sshKey: LoskaiKey | null;
   run?: ToolRun;
   quick?: boolean;
   onClose: () => void;
-  onEnded?: (ok: boolean) => void;
+  onResult?: (ok: boolean) => void;
 }) {
   const unlocked = keyUnlocked(sshKey);
   const [stage, setStage] = useState<Stage>(!unlocked ? "unlock" : run ? "preparing" : "terminal");
@@ -68,9 +68,9 @@ export function MachineTerminal({
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   // How a quick run ended, and the last of what it printed, to find out.
   const [ended, setEnded] = useState<{ phase: "done" | "failed"; detail?: string } | null>(null);
-  const heard = useRef(onEnded);
+  const heard = useRef(onResult);
   useEffect(() => {
-    heard.current = onEnded;
+    heard.current = onResult;
   });
   useEffect(() => {
     if (ended) heard.current?.(ended.phase === "done");
@@ -117,7 +117,7 @@ export function MachineTerminal({
     });
   }, [stage, run, prepare, onClose]);
 
-  const query = run ? `?${runQuery(run)}${prepared?.ticket ? "&sudo_password=true" : ""}` : "";
+  const query = run ? `?${runQueryString(run)}${prepared?.ticket ? "&sudo_password=true" : ""}` : "";
   const ticket = prepared?.ticket ? JSON.stringify({ type: "ticket", ticket: prepared.ticket }) : undefined;
 
   if (run && quick && (stage === "preparing" || stage === "terminal") && (!prepared || prepared.automatic)) {
