@@ -1,12 +1,12 @@
 ---
-name: naming
-description: Loskai's whole-project naming audit, run by hand with /naming — a read-only inventory of the function, variable, constant and type names in the backend and frontend that don't say what they are, with a proposed convention and glossary; then, on the go-ahead, pure renames area by area as a TODO phase, in a separate worktree, each commit proven to change no behaviour, contract or stored format. It reads the whole codebase, so it is never started for one name.
+name: rename
+description: Loskai's whole-project naming audit, run by hand with /rename — a read-only inventory of the function, variable, constant and type names in the backend and frontend that don't say what they are, with a proposed convention and glossary; then, on the go-ahead, pure renames area by area as a TODO phase, in a separate worktree, each commit proven to change no behaviour, contract or stored format. It reads the whole codebase, so it is never started for one name.
 disable-model-invocation: true
 ---
 
-# Naming (Loskai)
+# Rename (Loskai)
 
-The naming pass makes a name say what the thing is, so a reader of either side of the app
+The rename pass makes a name say what the thing is, so a reader of either side of the app
 recognises it without opening the definition. It is a **pure rename**: every commit
 changes names and nothing else — no behaviour, no wording on the page, no API, no stored
 format, nothing a machine has installed. Sunde is happy with how the app works; the pass
@@ -92,17 +92,17 @@ outlives a context window; the phase is what a resumed session reads.
 reloads on every save, so a half-done rename there takes the live page and backend down.
 
 ```
-git worktree add ../loskai-naming -b naming
-cd ../loskai-naming/backend && uv sync
+git worktree add ../loskai-rename -b rename
+cd ../loskai-rename/backend && uv sync
 cd ../frontend && npm ci
 ```
 
 (`../loskai-recipes` is beside it there too, so the docs check still compares the schema.)
 All edits, checks and commits happen in the worktree. When a group of steps is done and
-Sunde says so, bring it to `main` with `git -C /home/vm/loskai merge --ff-only naming`,
+Sunde says so, bring it to `main` with `git -C /home/vm/loskai merge --ff-only rename`,
 check `:8080` renders and read the dev log (`sg docker -c "docker logs --since 5m
 loskai"`, asyncssh's command lines filtered out). Never restart the container. Remove the
-worktree at the end (`git worktree remove ../loskai-naming`, then `git branch -d naming`).
+worktree at the end (`git worktree remove ../loskai-rename`, then `git branch -d rename`).
 
 ### One commit at a time
 
@@ -178,7 +178,7 @@ READ-ONLY audit. Do not edit, create or commit any files in <repo>, and run noth
 changes state.
 
 Context: <repo> is Loskai, a homelab control panel. <AREA> is <path> (<N> lines). Read
-<repo>/CLAUDE.md and <repo>/.claude/skills/naming/SKILL.md first — the second lists the
+<repo>/CLAUDE.md and <repo>/.claude/skills/rename/SKILL.md first — the second lists the
 names that are contracts and must never be renamed, and the convention proposed so far:
 <convention>. Glossary so far: <glossary>.
 
