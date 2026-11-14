@@ -117,7 +117,7 @@ commit, the full checks, `where-used.py --write`.
 - [x] 57c Backend, the answer IP: `current_ip` → `answer_ip`, `settings.caddy_host` →
       `caddy_admin_host`. `base` for the base domain stays: each lives two lines, beside the
       `value("base_domain")` that says what it is
-- [ ] 57d Backend, SSH's small ones: `connect.lines`, `from_ip`, `_host_key`, `_failed`,
+- [x] 57d Backend, SSH's small ones: `connect.lines`, `from_ip`, `_host_key`, `_failed`,
       `_run_of`, `tool._place`, `tool.visible`, the status booleans, the projects folder,
       `STATUS_LINE`/`STATUS_VERSION`, `machines.follow_machine`
 - [ ] 57e Backend, Docker and AdGuard: `install.recipe_icon`, `logic.link_instances`,

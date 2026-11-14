@@ -132,7 +132,7 @@ explained.
    var set to a scratch value, never the repo's `.env`.
 2. **The frontend's API fields:** the sorted set of snake_case words in `frontend/src`.
 3. **What machines hold:** `git diff main -- backend/src/loskai/modules/ssh/tools/` is
-   empty, and the sha256 of `status.STATUS_COMMAND`, `status.STATUS_LINE`, the sudo rule's
+   empty, and the sha256 of `status.STATUS_COMMAND`, `status.STATUS_LINE_VERSION`, the sudo rule's
    text and the `#loskai-` marker strings is unchanged.
 4. **Stored names:** each Pydantic model's field list (`model_fields`), `config.py`'s
    settings, `STORED_ONLY_KEYS`, and every `"loskai-…"` string.

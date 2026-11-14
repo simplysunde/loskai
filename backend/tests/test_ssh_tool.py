@@ -613,7 +613,7 @@ def test_a_target_is_checked_against_its_kind(kind, target, ok):
 
 def test_the_target_reaches_the_command_as_an_argument_never_as_code():
     # Even a target that got past the check could only ever be $1.
-    command = tool.visible('printf "<%s>" "$1"', "x; touch /tmp/pwned", None)
+    command = tool.terminal_command('printf "<%s>" "$1"', "x; touch /tmp/pwned", None)
     out = subprocess.run(["sh", "-c", command], input="\n", capture_output=True, text=True, timeout=10).stdout
 
     assert out.startswith("<x; touch /tmp/pwned>")
@@ -621,16 +621,16 @@ def test_the_target_reaches_the_command_as_an_argument_never_as_code():
 
 
 def test_a_failing_action_says_its_exit_status():
-    out = subprocess.run(["sh", "-c", tool.visible("exit 3", None, None)], input="\n",
+    out = subprocess.run(["sh", "-c", tool.terminal_command("exit 3", None, None)], input="\n",
                          capture_output=True, text=True, timeout=10).stdout
 
     assert "[done, exit 3]" in out
 
 
 def test_an_automatic_action_ends_by_itself_when_it_succeeds_and_waits_when_it_fails():
-    ok = subprocess.run(["sh", "-c", tool.visible("echo ran", None, None, automatic=True) + "; echo after"],
+    ok = subprocess.run(["sh", "-c", tool.terminal_command("echo ran", None, None, automatic=True) + "; echo after"],
                         input="", capture_output=True, text=True, timeout=10).stdout
-    failed = subprocess.run(["sh", "-c", tool.visible("exit 3", None, None, automatic=True)], input="\n",
+    failed = subprocess.run(["sh", "-c", tool.terminal_command("exit 3", None, None, automatic=True)], input="\n",
                             capture_output=True, text=True, timeout=10).stdout
 
     assert ok == "ran\n"  # exited at once: nothing after it ran, nothing waited for Enter
@@ -642,7 +642,7 @@ def test_sudo_s_password_is_read_first_and_handed_to_sudo_never_put_in_a_command
     fake = tmp_path / "sudo"
     fake.write_text(f'#!/bin/sh\nif [ "$1" = -S ]; then cat > {tmp_path}/given; exit 0; fi\nexec "$@"\n')
     fake.chmod(0o755)
-    command = tool.visible("sudo echo ran", None, None, automatic=True, password=True)
+    command = tool.terminal_command("sudo echo ran", None, None, automatic=True, password=True)
 
     out = subprocess.run(["sh", "-c", command], input="hunter22 x\n", capture_output=True, text=True,
                          timeout=10, env={"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)})
@@ -652,7 +652,7 @@ def test_sudo_s_password_is_read_first_and_handed_to_sudo_never_put_in_a_command
 
 
 def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_session_is_attached():
-    command = tool.visible("true", None, "loskai-system-update", automatic=True, password=True)
+    command = tool.terminal_command("true", None, "loskai-system-update", automatic=True, password=True)
 
     assert command.startswith("IFS= read -r p; stty echo")
     assert 'mkfifo "$d/p"' in command and 'rm -rf "$d"' in command
@@ -691,7 +691,7 @@ def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all
     claude = tool.load()["claude"]
 
     def run(action, target=None):
-        command = tool.visible(tool.action_script(claude, action, "apt"), target, None, "projects", automatic=True)
+        command = tool.terminal_command(tool.action_script(claude, action, "apt"), target, None, "projects", automatic=True)
         return subprocess.Popen(["sh", "-c", command], env=env, stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
@@ -753,7 +753,7 @@ def test_automatic_must_be_true_or_false():
 def test_with_tmux_the_action_runs_in_a_session_named_after_it():
     services = tool.load()["services"]
     name = tool.session_name(services, services.actions["restart-container"], "jelly.fin:1")
-    command = tool.visible("true", None, name)
+    command = tool.terminal_command("true", None, name)
 
     assert name == "loskai-services-restart-container-jelly_fin_1"
     assert command.startswith("tmux new-session -A -s loskai-services-restart-container-jelly_fin_1 ")
@@ -896,19 +896,19 @@ def test_a_typed_name_is_checked_like_a_target(kind, name, ok):
     ("~", ""), ("~/", ""), ("~/projects", "projects"), ("~/code/", "code"), (" ~/my.work ", "my.work"),
 ])
 def test_a_projects_folder_is_home_or_one_folder_in_it(typed, stored):
-    assert tool.parse_folder(typed) == stored
-    assert tool.show_folder(stored) == (f"~/{stored}" if stored else "~")
+    assert tool.parse_projects_folder(typed) == stored
+    assert tool.show_projects_folder(stored) == (f"~/{stored}" if stored else "~")
 
 
 @pytest.mark.parametrize("typed", ["/srv/code", "~/a/b", "~/..", "~/.hidden", "code", "~/a b", ""])
 def test_a_projects_folder_elsewhere_is_refused(typed):
     with pytest.raises(ToolError, match="one folder in it"):
-        tool.parse_folder(typed)
+        tool.parse_projects_folder(typed)
 
 
 @pytest.mark.parametrize(("stored", "expected"), [(None, "/h/projects"), ("", "/h"), ("code", "/h/code")])
 def test_an_action_finds_the_projects_folder_as_PROJECTS(stored, expected):
-    command = tool.visible('printf "<%s>" "$PROJECTS"', None, None, stored)
+    command = tool.terminal_command('printf "<%s>" "$PROJECTS"', None, None, stored)
     out = subprocess.run(["sh", "-c", command], input="\n", capture_output=True, text=True, timeout=10,
                          env={"PATH": "/usr/bin:/bin", "HOME": "/h"}).stdout
 

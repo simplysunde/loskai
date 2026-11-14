@@ -165,12 +165,12 @@ def machine_options(address: str, user: str, port: int) -> dict[str, str | None]
     return {"HostName": address, "User": user, "Port": None if port == DEFAULT_PORT else str(port)}
 
 
-def authorized_keys_line(public_key: str, from_ip: str | None) -> str:
+def authorized_keys_line(public_key: str, from_patterns: str | None) -> str:
     """The line a machine's `authorized_keys` gets. `from=` makes the key work only from the
     Docker host: a copy of it is useless anywhere else, and the machine enforces that, not
-    Loskai. `from_ip` is an OpenSSH pattern list — one address, or several and subnets,
+    Loskai. `from_patterns` is an OpenSSH pattern list — one address, or several and subnets,
     comma-separated (the Docker host itself also needs Loskai's own networks)."""
-    return f'from="{from_ip}" {public_key}' if from_ip else public_key
+    return f'from="{from_patterns}" {public_key}' if from_patterns else public_key
 
 
 def fingerprint_of(public_key: str) -> str:

@@ -160,10 +160,10 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
 
 ## Versions
 
-`STATUS_VERSION` is the first line, `#loskai-status <STATUS_LINE>`; `line_version` reads the
+`STATUS_HEAD` is the first line, `#loskai-status <STATUS_LINE_VERSION>`; `line_version` reads the
 number back. Changing what the command runs means each machine needs the new line, so:
 
-1. Bump `STATUS_LINE`. Every earlier number stays readable on its own.
+1. Bump `STATUS_LINE_VERSION`. Every earlier number stays readable on its own.
 2. Keep every parser accepting the versions whose output it can still read.
    `parse_running` reads them all — from a line before v6 (`LISTEN_SINCE`), without ports;
    before v7, without guest addresses.

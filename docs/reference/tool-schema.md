@@ -271,7 +271,7 @@ when sudo would ask, and checked on the machine. Its terminal is not a dialog: i
 from the top of the page (`QuickTerminal`), which stays usable under it. When the command
 succeeds it stays three seconds — hovering holds it, **Keep open** keeps it — and slides
 away; a failure stays, saying its exit code, until closed or Enter is pressed in it. The
-page tells a failure by the `[failed, exit N]` line `tool.visible` prints: inside tmux, the
+page tells a failure by the `[failed, exit N]` line `tool.terminal_command` prints: inside tmux, the
 exit code never reaches the end of the session. Leave it out for anything whose
 output is the point (a status, a pull) or that you work in (a shell, an attach, Claude,
 a login link): those answer sudo in the terminal. Adding a tool, and the sudo rule, always
@@ -279,7 +279,7 @@ run this way.
 
 ## How an action runs
 
-`tool.visible` builds what the terminal runs:
+`tool.terminal_command` builds what the terminal runs:
 
 1. The command under `sh -c`, with the target as `$1`.
 2. Then `[done, exit N] Enter closes this.`, waiting for Enter, so the output stays on

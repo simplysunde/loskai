@@ -35,15 +35,15 @@ def _key_view() -> dict | None:
         return None
     # The Docker host's addresses are where Loskai's connections come from, so they are what
     # the key is limited to. Unset, the line has no `from=` and the Machines tab says so.
-    from_ip = connect.from_addresses()
+    from_patterns = connect.from_addresses()
     me = auth.current_user()
     until = unlock.unlocked_until(me.username if me else None)
     return {
         "public_key": public,
         "fingerprint": logic.fingerprint_of(public),
         # Both lines a machine gets — the main key's, then the status key's.
-        "lines": connect.lines(),
-        "from": from_ip,
+        "lines": connect.authorized_keys_lines(),
+        "from": from_patterns,
         "unlocked_until": datetime.fromtimestamp(until, UTC).isoformat() if until else None,
         # False: an admin switched off asking for the password — it is never locked.
         "asks_password": settings_store.ssh_asks_password(),
@@ -67,7 +67,7 @@ def ssh_status() -> dict:
         "hosts": hosts,
         "trusted": _known(),
         "targets": {i.id: t.shown() for i in machines if (t := connect.target_of(i, hosts))},
-        "projects": {i.id: tool.show_folder(i.projects_folder) for i in machines},
+        "projects": {i.id: tool.show_projects_folder(i.projects_folder) for i in machines},
     }
 
 
@@ -162,12 +162,12 @@ class ProjectsRequest(BaseModel):
 def set_projects(machine_id: str, body: ProjectsRequest) -> dict:
     """Set a machine's projects folder — `~` or one folder in it; null or empty for the
     default, `~/projects`. Its tools' actions find it as `$PROJECTS`."""
-    folder = tool.parse_folder(body.folder) if body.folder and body.folder.strip() else None
-    if folder == tool.PROJECTS:
+    folder = tool.parse_projects_folder(body.folder) if body.folder and body.folder.strip() else None
+    if folder == tool.DEFAULT_PROJECTS_FOLDER:
         folder = None
     if instances_store.set_projects_folder(machine_id, folder) is None:
         raise HTTPException(404, f"No machine '{machine_id}'")
-    return {"folder": tool.show_folder(folder)}
+    return {"folder": tool.show_projects_folder(folder)}
 
 
 class RunRequest(BaseModel):

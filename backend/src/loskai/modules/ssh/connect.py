@@ -134,7 +134,7 @@ def _describe(exc: BaseException, target: Target, credential: str) -> str:
 # --- The host key ---
 
 
-async def _host_key(target: Target) -> asyncssh.SSHKey:
+async def _offered_host_key(target: Target) -> asyncssh.SSHKey:
     """The host key the machine answers with now; SshError 502 when it can't be reached."""
     try:
         return await client.scan_host_key(target.host, target.port)
@@ -142,7 +142,7 @@ async def _host_key(target: Target) -> asyncssh.SSHKey:
         raise SshError(_describe(exc, target, "connection"), 502)
 
 
-def _failed(result: asyncssh.SSHCompletedProcess) -> str:
+def _last_error_line(result: asyncssh.SSHCompletedProcess) -> str:
     """The last line a failed command wrote to stderr — what it says went wrong."""
     return (str(result.stderr or "").strip().splitlines() or ["no error output"])[-1]
 
@@ -151,12 +151,12 @@ async def scan(machine_id: str) -> dict:
     """The machine's host key as it answers now, and how that compares with the trusted one:
     `new` (none trusted yet), `trusted`, or `changed`."""
     target = require_target(machine_id)
-    key = await _host_key(target)
+    key = await _offered_host_key(target)
     offered = key.export_public_key("openssh").decode().split()
     known = logic.known_key(client.read_known_hosts(), target.id)
     state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
     # The lines this machine gets, for "I'll add it myself" — null before Loskai has a key.
-    machine_lines = await asyncio.to_thread(lines, target) if client.public_key() else None
+    machine_lines = await asyncio.to_thread(authorized_keys_lines, target) if client.public_key() else None
     return {"fingerprint": key.get_fingerprint(), "type": offered[0], "state": state, "lines": machine_lines}
 
 
@@ -164,7 +164,7 @@ async def trust(machine_id: str, fingerprint: str) -> dict:
     """Trust the host key the machine answers with — only if it is the one that was shown
     (`fingerprint`), so what is trusted is what the person looked at."""
     target = require_target(machine_id)
-    key = await _host_key(target)
+    key = await _offered_host_key(target)
     if key.get_fingerprint() != fingerprint:
         raise SshError("The machine answered with a different host key than the one shown", 409)
     line = " ".join(key.export_public_key("openssh").decode().split()[:2])
@@ -204,17 +204,17 @@ def from_addresses(target: Target | None = None) -> str | None:
     return ",".join([*addresses, *subnets])
 
 
-def lines(target: Target | None = None) -> list[str]:
+def authorized_keys_lines(target: Target | None = None) -> list[str]:
     """Loskai's two `authorized_keys` lines — the main key's, then the status key's — for
     machine `target`, or as most machines get them. Asks Docker for `target` = the Docker host, so
     call it off the event loop then."""
     public = client.public_key()
     if public is None:
         raise SshError("Loskai has no key yet", 409)
-    from_ip = from_addresses(target)
+    from_patterns = from_addresses(target)
     return [
-        logic.authorized_keys_line(public, from_ip),
-        status.status_line(client.status_public_key(), from_ip),
+        logic.authorized_keys_line(public, from_patterns),
+        status.status_line(client.status_public_key(), from_patterns),
     ]
 
 
@@ -226,10 +226,10 @@ async def install(machine_id: str, password: str) -> dict:
     _main_key()  # locked → ask for your password before the machine's is used
     result = await _run(
         target, logic.INSTALL_SCRIPT,
-        password=password, stdin="\n".join(await asyncio.to_thread(lines, target)) + "\n",
+        password=password, stdin="\n".join(await asyncio.to_thread(authorized_keys_lines, target)) + "\n",
     )
     if result.exit_status != 0:
-        raise SshError(f"Adding Loskai's key on {target.host} failed: {_failed(result)}", 502)
+        raise SshError(f"Adding Loskai's key on {target.host} failed: {_last_error_line(result)}", 502)
     return await test(machine_id)
 
 
@@ -256,7 +256,7 @@ async def uninstall(target: Target, host_key: str) -> bool:
     refused."""
     result = await _run(target, logic.UNINSTALL_SCRIPT, host_key)
     if result.exit_status != 0:
-        raise SshError(f"Removing Loskai's key on {target.host} failed: {_failed(result)}", 502)
+        raise SshError(f"Removing Loskai's key on {target.host} failed: {_last_error_line(result)}", 502)
     return "!sudo-rule" in str(result.stdout or "").splitlines()
 
 
@@ -281,7 +281,7 @@ async def open_terminal(
     """A shell on the machine — or a tool's `command` (see `plan`) — with the main key,
     which must be unlocked, so a terminal is only opened within the unlock time of the
     user's password. Given sudo's `password`, it is the first line the command reads
-    (`tool.visible`). Returns the target, connection and process; the caller closes the
+    (`tool.terminal_command`). Returns the target, connection and process; the caller closes the
     connection."""
     target = require_target(machine_id)
     host_key = _require_trusted_key(target)
@@ -413,7 +413,7 @@ async def plan(
     this machine, what the log says about it, and whether it is automatic (`Action.automatic`;
     an install is). The command comes from the tool file and the machine's overview (its
     package manager, its programs), never from the request; with `password` it reads
-    sudo's first (`tool.visible`). Raises SshError or ToolError: 404 no such tool or action,
+    sudo's first (`tool.terminal_command`). Raises SshError or ToolError: 404 no such tool or action,
     409 it can't run here as asked."""
     found = _require_tool(tool_id)
     require_target(machine_id)  # an SSH user, or 409
@@ -423,7 +423,7 @@ async def plan(
     if install:
         script = tool.install_script(found, programs, manager)
         # Never in tmux: it may be tmux that is missing.
-        return tool.visible(script, None, None, automatic=True, password=password), {
+        return tool.terminal_command(script, None, None, automatic=True, password=password), {
             "event": "add-tool", "tool": found.id, "programs": tool.to_install(found, programs), "command": script,
         }, True
     lacking = tool.missing(found, programs)
@@ -435,7 +435,7 @@ async def plan(
     tool.check_target(action.target or action.ask, target_name)
     script = tool.action_script(found, action.id, manager)
     session = tool.session_name(found, action, target_name) if "tmux" in programs else None
-    command = tool.visible(
+    command = tool.terminal_command(
         script, target_name, session, _projects_folder(machine_id),
         automatic=action.automatic, password=password,
     )
@@ -460,7 +460,7 @@ async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tup
         script = tool.allow_script((machine_facts.get("updates") or {}).get("manager"))
     else:
         script = tool.REMOVE_RULE_SCRIPT
-    command = tool.visible(script, None, None, automatic=True, password=password)
+    command = tool.terminal_command(script, None, None, automatic=True, password=password)
     # Taking the rule off is the rule's own last line: it needs no password.
     details = {"event": "sudo-rule", "allow": allow, "command": script}
     if not allow:
@@ -477,7 +477,7 @@ PASSWORD_TTL = 60  # seconds a checked password waits for its terminal
 _passwords: dict[str, tuple[str | None, str, str, str, float]] = {}
 
 
-def _run_of(details: dict) -> str:
+def _run_identity(details: dict) -> str:
     """The run a password was given for — what the log says of it, which names the tool,
     action, target and command — so a ticket can't be spent on another."""
     return repr(sorted((k, repr(v)) for k, v in details.items() if k != "covered"))
@@ -515,7 +515,7 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
     me = auth.current_user()
     now = time.monotonic()
     ticket = secrets.token_urlsafe(24)
-    _passwords[ticket] = (me.username if me else None, machine_id, _run_of(details), password, now + PASSWORD_TTL)
+    _passwords[ticket] = (me.username if me else None, machine_id, _run_identity(details), password, now + PASSWORD_TTL)
     # Gone when its minute is up, taken or not — a dialog closed before its terminal opened
     # leaves nothing behind.
     asyncio.get_running_loop().call_later(PASSWORD_TTL, _passwords.pop, ticket, None)
@@ -531,7 +531,7 @@ def take_password(ticket: str, machine_id: str, details: dict) -> str:
     if (
         held is None
         or held[4] < time.monotonic()
-        or held[:3] != (me.username if me else None, machine_id, _run_of(details))
+        or held[:3] != (me.username if me else None, machine_id, _run_identity(details))
     ):
         raise SshError("That password is no longer held — run it again", 409)
     return held[3]

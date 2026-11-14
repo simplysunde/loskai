@@ -33,7 +33,7 @@ def rename_refusal(prev: Instance | None, alias: str) -> str | None:
     return None
 
 
-def follow_machine(prev: Instance | None, inst: Instance, ssh) -> str | None:
+def update_config_entry(prev: Instance | None, inst: Instance, ssh) -> str | None:
     """Carry a machine save to the config. `ssh` is KEEP, None (remove the entry), or an
     object with `user` and `port`. Returns a warning when the file couldn't be written —
     the machine itself is saved either way, like a DNS rewrite that fails."""

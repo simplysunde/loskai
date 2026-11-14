@@ -143,7 +143,7 @@ def test_a_machine_without_ss_says_so_instead_of_listing_nothing():
     ("[fe80::1]%eth0", False), ("0.0.0.0%eth0", False), ("127.example", False),
 ])
 def test_loopback_is_the_address_parsed_not_its_text(host, loopback):
-    assert status._loopback(host) is loopback
+    assert status._is_loopback(host) is loopback
 
 
 def test_a_listener_bound_to_an_interface_is_on_its_addresses():
@@ -293,7 +293,7 @@ def test_an_overview_from_an_older_line_is_read_and_says_so():
     """Read as before — but a fix since (v10: no logged sudo refusal) needs it installed again."""
     older = status.parse_facts(FACTS)
     assert older["os"] and older["outdated"] is True
-    assert status.parse_facts(FACTS.replace(FACTS.splitlines()[0], status.STATUS_VERSION, 1))["outdated"] is False
+    assert status.parse_facts(FACTS.replace(FACTS.splitlines()[0], status.STATUS_HEAD, 1))["outdated"] is False
 
 
 def test_an_older_status_line_has_no_overview():
@@ -307,8 +307,8 @@ def test_an_older_status_line_has_no_overview():
 
 @pytest.mark.parametrize("head, version", [
     ("#loskai-status 1", 1),
-    (status.STATUS_VERSION, status.STATUS_LINE),
-    (f"#loskai-status {status.STATUS_LINE + 1}", None),  # newer than this Loskai: not read
+    (status.STATUS_HEAD, status.STATUS_LINE_VERSION),
+    (f"#loskai-status {status.STATUS_LINE_VERSION + 1}", None),  # newer than this Loskai: not read
     ("#loskai-status 05", None),
     ("#loskai-status", None),
     ("Welcome to Ubuntu", None),
@@ -319,7 +319,7 @@ def test_a_status_line_s_version_is_its_number(head, version):
 
 def test_every_line_since_v5_gives_an_overview_and_every_one_since_v6_its_ports():
     # Nothing to bump when a version is added: each later line is read like the one before.
-    for n in range(status.FACTS_SINCE, status.STATUS_LINE + 1):
+    for n in range(status.FACTS_SINCE, status.STATUS_LINE_VERSION + 1):
         assert status.parse_facts(FACTS.replace("status 5", f"status {n}", 1))["os"]
         listening = status.parse_running(f"#loskai-status {n}\n#listen\n")["listening"]
         assert (listening is not None) == (n >= status.LISTEN_SINCE)

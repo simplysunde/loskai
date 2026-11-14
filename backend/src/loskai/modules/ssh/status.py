@@ -27,8 +27,8 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 15
-STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
+STATUS_LINE_VERSION = 15
+STATUS_HEAD = f"#loskai-status {STATUS_LINE_VERSION}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
 FACTS_SINCE = 5
@@ -50,7 +50,7 @@ def line_version(head: str) -> int | None:
     """The version a status line's answer starts with (`#loskai-status 7` → 7) — None for
     output that isn't one this Loskai knows: another program's, or a newer line."""
     m = re.fullmatch(r"#loskai-status ([1-9][0-9]*)", head)
-    return int(m.group(1)) if m and int(m.group(1)) <= STATUS_LINE else None
+    return int(m.group(1)) if m and int(m.group(1)) <= STATUS_LINE_VERSION else None
 
 _DOCKER_PS = "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}'"
 # Whether sudo may be used, asked so that sudo logs nothing: `sudo -n true` — any command
@@ -231,17 +231,17 @@ _FACTS = (
     "true"
 )
 STATUS_COMMAND = (
-    f"echo '{STATUS_VERSION}'; "
+    f"echo '{STATUS_HEAD}'; "
     f"case $SSH_ORIGINAL_COMMAND in facts) {_FACTS};; *) {_RUNNING};; esac"
 )
 STATUS_COMMENT = "loskai-status"
 
 
-def status_line(public_key: str, from_ip: str | None) -> str:
+def status_line(public_key: str, from_patterns: str | None) -> str:
     """The status key's `authorized_keys` line: limited to `STATUS_COMMAND` by the machine."""
     options = ["restrict"]
-    if from_ip:
-        options.append(f'from="{from_ip}"')
+    if from_patterns:
+        options.append(f'from="{from_patterns}"')
     options.append(f'command="{STATUS_COMMAND}"')
     return f"{','.join(options)} {public_key}"
 
@@ -261,7 +261,7 @@ BASE_SERVICES = {
 BASE_PREFIXES = ("systemd-", "getty@", "serial-getty@", "user@", "pve", "lxc", "zfs-")
 
 
-def _base_service(name: str) -> bool:
+def _is_base_service(name: str) -> bool:
     return name in BASE_SERVICES or name.startswith(BASE_PREFIXES)
 
 
@@ -313,13 +313,13 @@ def parse_running(output: str) -> dict:
             listen.append(line)
         elif section == "addr":
             guest_id, *found = line.split()
-            addresses[guest_id] = [a for a in found if _guest_address(a)]
+            addresses[guest_id] = [a for a in found if _is_guest_address(a)]
         elif section == "systemd":
             unit = line.split()[0]
             if not unit.endswith(".service"):
                 continue
             name = unit.removesuffix(".service")
-            if _base_service(name) and name not in LISTEN_ALSO:
+            if _is_base_service(name) and name not in LISTEN_ALSO:
                 out["hidden"] += 1
             else:
                 out["services"].append(name)
@@ -347,7 +347,7 @@ _PUBLISHED = re.compile(r"(?:(\[[^\]]*\]|[0-9.]+|::)?:)?(\d+)(?:-(\d+))?->[\d-]+
 _RANGE_LISTED = 16
 
 
-def _loopback(host: str) -> bool:
+def _is_loopback(host: str) -> bool:
     """A bound address only this machine reaches, as `docker ps` and `ss` print it:
     `127.0.0.1`, `[::1]`, `[::ffff:127.0.0.1]`, or anything bound to the loopback device
     (`127.0.0.53%lo`, `*%lo`). Parsed, as the rest of Loskai decides loopback, not matched."""
@@ -368,7 +368,7 @@ def _published(ports: str) -> list[int]:
     its ports, up to `_RANGE_LISTED`."""
     found: set[int] = set()
     for m in _PUBLISHED.finditer(ports):
-        if _loopback(m.group(1) or ""):
+        if _is_loopback(m.group(1) or ""):
             continue
         first = int(m.group(2))
         last = int(m.group(3) or first)
@@ -388,7 +388,7 @@ def _listeners(lines: list[str], published: set[int]) -> list[dict]:
         if line.startswith("@"):
             parts = line.split()
             unit = parts[1].removesuffix(".service") if len(parts) > 1 else ""
-            if current is None or not unit or (_base_service(unit) and unit not in LISTEN_ALSO):
+            if current is None or not unit or (_is_base_service(unit) and unit not in LISTEN_ALSO):
                 continue
             port, host = current
             if port not in published:
@@ -397,14 +397,14 @@ def _listeners(lines: list[str], published: set[int]) -> list[dict]:
         fields = line.split()
         address, _, port = fields[3].rpartition(":") if len(fields) > 3 else ("", "", "")
         current = None
-        if port.isdigit() and not _loopback(address):
+        if port.isdigit() and not _is_loopback(address):
             # `%eth0` binds to an interface, not an address: `0.0.0.0%eth0` is every address on it.
             host = address.split("%")[0].strip("[]")
             current = (int(port), "" if host in ("0.0.0.0", "::", "*", "") else host)
     return sorted(found.values(), key=lambda s: (s["service"], s["port"], s["host"]))
 
 
-def _guest_address(text: str) -> bool:
+def _is_guest_address(text: str) -> bool:
     """An IPv4 address a guest may be named by: not loopback, not link-local."""
     try:
         address = ipaddress.IPv4Address(text)
@@ -506,7 +506,7 @@ def parse_facts(output: str) -> dict:
         if version >= KEYS_SINCE else None,
         **_remotes(sections, version),
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
-        "outdated": version != STATUS_LINE,
+        "outdated": version != STATUS_LINE_VERSION,
     }
 
 

@@ -48,7 +48,7 @@ class Instance(BaseModel):
     private: bool = False  # hide from the public dashboard (still fully managed)
     icon: str | None = None  # launcher icon filename in <data_dir>/icons (see shared/icons.py)
     # A machine's projects folder, relative to its SSH user's home ("" for home itself);
-    # None for the default (modules/ssh/tool.py, `PROJECTS`).
+    # None for the default (modules/ssh/tool.py, `DEFAULT_PROJECTS_FOLDER`).
     projects_folder: str | None = None
 
 

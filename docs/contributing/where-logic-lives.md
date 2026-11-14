@@ -102,7 +102,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Reading what the status key answered, and which line it came from | `modules/ssh/status.py` `parse_facts` `parse_running` `line_version` | `modules/ssh/connect.py` |
 | Which programs the overview detects | `modules/ssh/status.py` `PROGRAMS` | `modules/ssh/tool.py` |
 | The `PATH` a command runs with: `~/.local/bin` added | `modules/ssh/status.py` `USER_PATH` | `modules/ssh/connect.py` `modules/ssh/tool.py` |
-| What a run looks like on the machine: sudo's password, tmux, `[done]` or `[failed]` | `modules/ssh/tool.py` `visible` | `modules/ssh/connect.py` |
+| What a run looks like on the machine: sudo's password, tmux, `[done]` or `[failed]` | `modules/ssh/tool.py` `terminal_command` | `modules/ssh/connect.py` |
 | Which tmux session an action runs in | `modules/ssh/tool.py` `session_name` | `modules/ssh/connect.py` |
 | Whose each tmux session is, and which rows' shared sessions are running | `modules/ssh/tool.py` `claim_sessions` | `modules/ssh/connect.py` |
 | Whether a target may reach a command as `$1` | `modules/ssh/tool.py` `check_target` | `modules/ssh/connect.py` |

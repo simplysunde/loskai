@@ -432,7 +432,7 @@ async def save_machine(
     ssh, base_domain: str | None, answer_ip: str | None, acting: User | None,
 ) -> dict:
     """Name a machine, or re-point one, and keep its SSH entry in step: `ssh` is its login
-    (`ssh_machines.follow_machine`), None to remove its SSH connection, or `KEEP`.
+    (`ssh_machines.update_config_entry`), None to remove its SSH connection, or `KEEP`.
 
     Removing the connection takes off what Loskai put on the machine, as deleting it does:
     where that is, read first — a locked key stops it here, unchanged — and taken off only
@@ -458,7 +458,7 @@ async def save_machine(
             await asyncio.to_thread(ssh_machines.forget_trust, prev)
         if user_change is not None:
             warnings.append(await ssh_machines.remove_keys(prev, user_change, user_changed=True))
-        warnings.append(await asyncio.to_thread(ssh_machines.follow_machine, prev, inst, ssh))
+        warnings.append(await asyncio.to_thread(ssh_machines.update_config_entry, prev, inst, ssh))
         result["warning"] = " ".join(w for w in warnings if w) or None
     return result
 

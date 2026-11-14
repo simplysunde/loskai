@@ -52,8 +52,8 @@ INSTALLERS: dict[str, dict] = {
 
 # A machine's projects folder: `~` or one folder in it — as deep as the overview looks for
 # projects (`status._FACTS`). Stored relative to home; an action finds it as `$PROJECTS`.
-PROJECTS = "projects"
-_FOLDER = re.compile(r"^~(/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?/?$")
+DEFAULT_PROJECTS_FOLDER = "projects"
+_PROJECTS_FOLDER = re.compile(r"^~(/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?/?$")
 
 # What an action can be on — a row of the Running list or of a tool's card, or a name typed
 # for it — and what that must look like: a systemd unit, a container name, a Proxmox guest
@@ -352,11 +352,11 @@ def load(directory: Path | None = None) -> dict[str, Tool]:
 def _read(directory: Path) -> dict[str, Tool]:
     return {
         path.stem: parse(path.stem, yaml.safe_load(path.read_text(encoding="utf-8")))
-        for path in sorted(directory.glob("*.yml"), key=lambda p: (_place(p.stem), p.stem))
+        for path in sorted(directory.glob("*.yml"), key=lambda p: (_order_rank(p.stem), p.stem))
     }
 
 
-def _place(tool_id: str) -> int:
+def _order_rank(tool_id: str) -> int:
     return ORDER.index(tool_id) if tool_id in ORDER else len(ORDER)
 
 
@@ -386,14 +386,14 @@ def view(tool: Tool) -> dict:
 _SETTING_MARK = "#loskai-setting "
 
 
-def _projects_env(projects: str | None) -> str:
-    """`$PROJECTS` set, and exported, to the machine's projects folder (`projects`, as stored;
+def _projects_env(projects_folder: str | None) -> str:
+    """`$PROJECTS` set, and exported, to the machine's projects folder (`projects_folder`, as stored;
     None: the default) — the one place it is worked out, for an action's run and a setting's."""
-    folder = PROJECTS if projects is None else projects
+    folder = DEFAULT_PROJECTS_FOLDER if projects_folder is None else projects_folder
     return "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; export PROJECTS; "
 
 
-def read_settings_script(tool: Tool, projects: str | None = None) -> str:
+def read_settings_script(tool: Tool, projects_folder: str | None = None) -> str:
     """One script reading each of the tool's settings, each after a line naming it — a
     project's for every git repo in the projects folder, after a line naming both. A folder
     whose name a project can't have is skipped, so a name never needs quoting or breaks a line."""
@@ -407,7 +407,7 @@ def read_settings_script(tool: Tool, projects: str | None = None) -> str:
     ]
     if rows:
         machine.append(
-            _projects_env(projects) + 'for g in "$PROJECTS"/*/.git; do d=${g%/.git}; n=${d##*/}; '
+            _projects_env(projects_folder) + 'for g in "$PROJECTS"/*/.git; do d=${g%/.git}; n=${d##*/}; '
             "case $n in [!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) continue;; esac; [ -d \"$g\" ] || continue; "
             + "; ".join(rows) + "; done"
         )
@@ -439,7 +439,7 @@ def parse_settings(tool: Tool, out: str) -> dict:
 
 
 def write_setting_script(
-    tool: Tool, setting_id: str, value: str, target_name: str | None = None, projects: str | None = None,
+    tool: Tool, setting_id: str, value: str, target_name: str | None = None, projects_folder: str | None = None,
 ) -> str:
     """What sets one of the tool's settings: its `write`, the value as `$1` — checked against
     its kind first — or, for a row's, the row as `$1` and the value as `$2`. Nothing, for a
@@ -457,19 +457,19 @@ def write_setting_script(
         raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
     args = ([target_name] if target_name else []) + args
     script = f"sh -c {shlex.quote(command)} loskai" + "".join(f" {shlex.quote(a)}" for a in args)
-    return _projects_env(projects) + script if s.target else script
+    return _projects_env(projects_folder) + script if s.target else script
 
 
-def parse_folder(text: str) -> str:
+def parse_projects_folder(text: str) -> str:
     """A projects folder as typed — `~`, `~/code` — to how it is stored: relative to home."""
-    if not _FOLDER.fullmatch(text.strip()):
+    if not _PROJECTS_FOLDER.fullmatch(text.strip()):
         raise ToolError("A projects folder is ~ or one folder in it, such as ~/projects")
     return text.strip().removeprefix("~").strip("/")
 
 
-def show_folder(folder: str | None) -> str:
+def show_projects_folder(folder: str | None) -> str:
     """A stored projects folder (None: the default) as it is shown: `~/projects`, `~`."""
-    folder = PROJECTS if folder is None else folder
+    folder = DEFAULT_PROJECTS_FOLDER if folder is None else folder
     return f"~/{folder}" if folder else "~"
 
 
@@ -622,8 +622,8 @@ def _pane_reads_password() -> str:
     )
 
 
-def visible(
-    script: str, target_name: str | None, session: str | None, projects: str | None = None,
+def terminal_command(
+    script: str, target_name: str | None, session: str | None, projects_folder: str | None = None,
     *, automatic: bool = False, password: bool = False,
 ) -> str:
     """The command a terminal runs for an action: `script` under `sh`, the target as `$1`;
@@ -631,7 +631,7 @@ def visible(
     `automatic`, ends at once if it succeeded. `sudo`
     is a plain call for root (Proxmox logs in as root, often without sudo), `~/.local/bin`
     is on the PATH, as the overview has it, and `$PROJECTS` is the machine's projects
-    folder (`projects`, as stored; None: the default). Given a tmux `session`, it runs
+    folder (`projects_folder`, as stored; None: the default). Given a tmux `session`, it runs
     inside it — closing the tab leaves it running, and running the same action again
     attaches to it rather than starting a second.
 
@@ -639,7 +639,7 @@ def visible(
     checked it). It is never in a command line: read into a shell variable, and handed to
     `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
     through a FIFO in a folder of its own, read once and removed; a pane sent nothing ends (`PASSWORD_WAIT`)."""
-    body = USER_PATH + _projects_env(projects) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
+    body = USER_PATH + _projects_env(projects_folder) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target_name)}" if target_name else "")
     if automatic:
         job += "; s=$?; [ $s = 0 ] && exit 0; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"

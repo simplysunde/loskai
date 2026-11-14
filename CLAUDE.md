@@ -280,7 +280,7 @@ command in `status.STATUS_COMMAND` — it only reads, and never gets any other u
 for an **automatic** action (`automatic: true` in its tool file): asked for in a dialog,
 checked with `sudo -S -v`, held in memory under a one-time ticket for that run, for a minute
 (`connect.prepare`), and read by the run as its first line, never in a command line or the
-log (`tool.visible`). Updates without any password are a sudo rule on the machine
+log (`tool.terminal_command`). Updates without any password are a sudo rule on the machine
 (`logic.SUDO_RULE`, allowing only System's update steps and its own removal), taken off
 with the machine or its SSH connection.
 

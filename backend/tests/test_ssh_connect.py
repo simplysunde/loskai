@@ -814,7 +814,7 @@ def test_the_sudo_rule_goes_on_in_the_terminal_for_the_machine_s_package_manager
         ws.receive_bytes()
 
     # The user types the password at sudo's prompt there; Loskai only wrote the script.
-    assert shell["command"] == tool_module.visible(tool_module.allow_script("apt"), None, None, automatic=True)
+    assert shell["command"] == tool_module.terminal_command(tool_module.allow_script("apt"), None, None, automatic=True)
     entry = api.get("/api/ssh/log").json()[1]
     assert entry["event"] == "sudo-rule" and entry["allow"] is True
 
@@ -825,7 +825,7 @@ def test_the_sudo_rule_comes_off_in_the_terminal(api, machine_net, shell):
     with api.websocket_connect(TERMINAL + "&sudo=remove", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
-    assert shell["command"] == tool_module.visible(tool_module.REMOVE_RULE_SCRIPT, None, None, automatic=True)
+    assert shell["command"] == tool_module.terminal_command(tool_module.REMOVE_RULE_SCRIPT, None, None, automatic=True)
 
 
 def test_the_sudo_rule_needs_the_overview_to_know_the_package_manager(api, machine_net):

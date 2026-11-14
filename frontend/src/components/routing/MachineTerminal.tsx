@@ -15,7 +15,7 @@ import { INPUT } from "../../lib/ui";
 // locked — the one case your password fixes. A session that ends by itself closes 1000.
 const LOCKED = 4423;
 const ENDED = 1000;
-// What a run prints before it waits for Enter (`tool.visible`): `[done, exit N]`, or for an
+// What a run prints before it waits for Enter (`tool.terminal_command`): `[done, exit N]`, or for an
 // automatic one `[failed, exit N]`. Inside tmux its exit code never reaches the session's
 // end, so the output is how it is told — and a session that ends once the prompt is up
 // ended by Enter, not by the connection dropping.

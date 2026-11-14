@@ -372,7 +372,7 @@ rule covers, or a user `sudo -n true` lets in. Given the password, it checks it 
 `sudo -S -v` over a connection of its own and holds it in memory under a one-time ticket
 for a minute, for that user and machine. The terminal takes the ticket as the socket's
 first message — never in its URL, which the access log keeps: its pty opens with
-echo off, the password is the first line, and `tool.visible` reads it and hands it to
+echo off, the password is the first line, and `tool.terminal_command` reads it and hands it to
 `sudo -S -v` in the run's own tty, so every `sudo` after it finds sudo's timestamp. A tmux
 pane is another tty, so there it goes through a FIFO in a `mktemp -d` folder; a pane sent
 nothing within 30 seconds (a connection cut off as it started) ends, so the next run of
