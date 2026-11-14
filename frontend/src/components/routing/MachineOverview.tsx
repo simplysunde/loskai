@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 import { formatBytes, formatUptime } from "../../lib/format";
@@ -6,12 +7,16 @@ import { tailscaleStatus, type Facts } from "../../lib/ssh";
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
 
 // A machine's overview: what it runs as, how full it is, what is waiting, its Tailscale
-// address. Its tmux sessions and projects are on the tools' cards. An older status line has none — then the reinstall is offered.
+// address — and beside it, `actions`: what is done to the machine itself (System's Update,
+// Reboot, Shut down). Its tmux sessions and projects are on the tools' cards. An older status
+// line has none — then the reinstall is offered.
 export function MachineOverview({
   facts,
+  actions,
   onReinstall,
 }: {
   facts: Facts | undefined;
+  actions?: ReactNode;
   onReinstall: () => void;
 }) {
   if (!facts) return <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
@@ -32,7 +37,9 @@ export function MachineOverview({
   const updates = facts.updates;
   return (
     <div className="space-y-3 text-sm">
-      <dl className="grid grid-cols-[7rem_1fr] gap-y-1.5">
+      {/* The actions in the room right of the facts; on a phone, under them. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <dl className="grid min-w-0 grid-cols-[7rem_1fr] gap-y-1.5">
         <dt className="text-slate-500">System</dt>
         <dd className="text-slate-300">
           {facts.os ?? "—"} <span className="text-xs text-slate-500">{facts.kernel}</span>
@@ -64,6 +71,8 @@ export function MachineOverview({
           </>
         )}
       </dl>
+      {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
+      </div>
 
       <div className="space-y-1.5">
         {memory?.available != null && (

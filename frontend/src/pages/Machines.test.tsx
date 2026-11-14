@@ -740,6 +740,10 @@ test("a tool's action runs in the terminal, named — never as a command", async
   renderPage("/machines/nas/tools");
 
   const update = await screen.findByRole("button", { name: "Update" });
+  // System's buttons are the machine's own: under General, by the overview — not a card.
+  expect(within(category("General")).getByRole("button", { name: "Update" })).toBe(update);
+  expect(within(category("General")).getByRole("button", { name: "Reboot" })).toBeInTheDocument();
+  expect(within(category("Tools")).queryByText("System")).not.toBeInTheDocument();
   // The machine's package manager decides the command, shown on hover.
   expect(update.title).toContain("$ sudo apt-get update && sudo apt-get -y dist-upgrade");
   fireEvent.click(update);

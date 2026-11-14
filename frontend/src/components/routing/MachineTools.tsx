@@ -9,6 +9,7 @@ import {
   applies,
   commandFor,
   isStandard,
+  MACHINE_TOOL,
   missing,
   rowSettingsOf,
   type Tool,
@@ -58,23 +59,13 @@ export function RowButtons({
   );
 }
 
-// One tool, as a card: its lists with their row buttons, its machine actions, and the
-// actions that ask for a name. Null when it has nothing to show here — Services' buttons
-// are all on the Running list's rows.
-export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: ToolContext; titled?: boolean }) {
+// A tool's actions on the machine itself (Update, Pull all): small like a row's buttons, at a
+// list's foot — else a card's size, as System's beside the overview.
+export function OwnButtons({ tool: t, ctx, small = false }: { tool: Tool; ctx: ToolContext; small?: boolean }) {
   const manager = ctx.facts.updates?.manager ?? null;
-  const own = t.actions.filter((a) => !a.target && !a.ask);
-  const asks = t.actions.filter((a) => a.ask);
-  const lists = listsOf(t, ctx);
-  // The row whose own settings are open in a dialog.
-  const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
-  // Git's card holds the projects folder even without settings of its own.
-  const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
-  if (own.length + asks.length + lists.length === 0 && !settings) return null;
-  const tailscale = t.id === "tailscale";
-  // The tool's own actions: at a list's foot, small like the rows' buttons; else the card's.
-  const ownButtons = (small: boolean) =>
-    own.map((a) => {
+  return t.actions
+    .filter((a) => !a.target && !a.ask)
+    .map((a) => {
       const command = commandFor(a, manager);
       return (
         <button
@@ -88,6 +79,21 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
         </button>
       );
     });
+}
+
+// One tool, as a card: its lists with their row buttons, its machine actions, and the
+// actions that ask for a name. Null when it has nothing to show here — Services' buttons
+// are all on the Running list's rows.
+export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: ToolContext; titled?: boolean }) {
+  const own = t.actions.filter((a) => !a.target && !a.ask);
+  const asks = t.actions.filter((a) => a.ask);
+  const lists = listsOf(t, ctx);
+  // The row whose own settings are open in a dialog.
+  const [open, setOpen] = useState<{ kind: ToolTarget; name: string } | null>(null);
+  // Git's card holds the projects folder even without settings of its own.
+  const settings = (t.settings?.length ?? 0) > 0 || t.id === "git";
+  if (own.length + asks.length + lists.length === 0 && !settings) return null;
+  const tailscale = t.id === "tailscale";
   const askFields = asks.map((a) => <Ask key={a.id} tool={t} action={a} onRun={ctx.onRun} />);
   return (
     <div className="rounded-lg border border-slate-800 px-3 py-2">
@@ -125,7 +131,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
                 for a name (Clone) beside them — on a phone, under them. */}
             {i === lists.length - 1 && !tailscale && (own.length > 0 || asks.length > 0) && (
               <li className="flex flex-col gap-2 pt-1 sm:contents">
-                {own.length > 0 && <span className="flex flex-wrap items-center gap-1 sm:col-start-2 sm:mt-1">{ownButtons(true)}</span>}
+                {own.length > 0 && <span className="flex flex-wrap items-center gap-1 sm:col-start-2 sm:mt-1"><OwnButtons tool={t} ctx={ctx} small /></span>}
                 {asks.length > 0 && <span className="flex flex-wrap items-center gap-2 sm:col-start-1 sm:mt-1">{askFields}</span>}
               </li>
             )}
@@ -135,7 +141,7 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
       {open && <RowSettingsDialog tool={t} ctx={ctx} kind={open.kind} name={open.name} onClose={() => setOpen(null)} />}
       {lists.length === 0 && !tailscale && (own.length > 0 || asks.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {ownButtons(false)}
+          <OwnButtons tool={t} ctx={ctx} />
           {askFields}
         </div>
       )}
@@ -289,7 +295,7 @@ export function MachineTools({ ctx }: { ctx: ToolContext }) {
   return (
     <div className="space-y-2">
       {ctx.tools
-        .filter((t) => applies(t, programs))
+        .filter((t) => applies(t, programs) && t.id !== MACHINE_TOOL)
         .map((t) => (
           <ToolCard key={t.id} tool={t} ctx={ctx} />
         ))}

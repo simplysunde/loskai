@@ -12,7 +12,8 @@ the image, so a new tool or a change to one comes with a new version of Loskai.
 **Nothing is enabled or stored.** A tool **applies** to a machine that has every program
 it `requires`, as the machine's overview found them:
 
-- **Standard tools** need nothing Loskai installs. System applies everywhere, Services puts
+- **Standard tools** need nothing Loskai installs. System applies everywhere, its buttons on
+  the machine's General beside the overview rather than a card (`MACHINE_TOOL`), Services puts
   its buttons on every service and container in the Running list, and Proxmox, which
   applies where `pct` and `qm` are, on each running LXC and VM.
 - **Added tools** need a program the machine may not have yet, such as tmux. One whose

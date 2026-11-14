@@ -27,7 +27,7 @@ Everything so far:
   settings window — one scroll, a side menu to jump around, a search — General (with its
   overview: system, memory, disks, updates waiting) and SSH, each field saving as you edit
   it, then its tools, what runs there, its log. **Tools** — found from what the machine has, nothing to
-  enable: System (update, reboot, shut down), Services (restart or stop a service or
+  enable: System (update, reboot, shut down — on General, by the overview), Services (restart or stop a service or
   container), Proxmox (reboot or shut down a guest); a tool the machine lacks is offered to
   add, installing what it needs. Each runs in the machine's terminal, inside tmux when it
   has it. **tmux**: the machine's sessions — attach, end, start a new one. **Tailscale**:

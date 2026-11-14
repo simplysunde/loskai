@@ -163,7 +163,8 @@ section in one scroll, and a menu down the side that jumps to one and marks wher
 Its search finds a section by what is in it and shows only those.
 
 - **General** — its machine name (what DNS answers for) and address, then what the machine says
-  about itself: system, uptime, memory, disks, updates waiting, its Tailscale address.
+  about itself: system, uptime, memory, disks, updates waiting, its Tailscale address. Beside
+  that, **Update**, **Reboot** and **Shut down** — the System tool's, done to the machine itself.
 - **SSH** — a switch beside the heading turns it on or off, each in a dialog that says what
   happens. Then its user and port, side by side; whether it is set up (and the button to set
   it up); and the **updates without a password** switch.
@@ -174,7 +175,8 @@ isn't valid says why and saves nothing. A machine set up before the overview exi
 **Install again** there — one click.
 
 **Tools** add buttons to a machine's dialog — the ones that fit what the machine has, with
-nothing to switch on, each as a card under its **Tools**. **System** updates it (with its own package manager), reboots it or shuts it down;
+nothing to switch on, each as a card under its **Tools** — except **System**, which updates it
+(with its own package manager), reboots it or shuts it down from **General**;
 **Services** restarts or stops a service or container from the Running list; **Proxmox**
 reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
 it; hovering a button shows the command. One that runs by itself — System's, Services,

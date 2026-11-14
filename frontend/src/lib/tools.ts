@@ -94,6 +94,10 @@ export function addable(tool: Tool, programs: string[]): boolean {
   return lacking.length > 0 && lacking.every((p) => tool.installable.includes(p));
 }
 
+// The tool whose actions are the machine's own — update, reboot, shut down: on its General
+// section, beside what the overview says, not a card under Tools.
+export const MACHINE_TOOL = "system";
+
 // A standard tool — System, Services, Proxmox — needs nothing Loskai installs, and shows on
 // the machine page itself; an added one (tmux, Claude Code, Tailscale) has its own page.
 export function isStandard(tool: Tool): boolean {

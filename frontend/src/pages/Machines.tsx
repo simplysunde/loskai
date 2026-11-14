@@ -7,7 +7,7 @@ import { api, apiMessage } from "../lib/api";
 import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { takesKeysOff, useRunning, useSsh } from "../lib/ssh";
-import { useTools, type ToolRun } from "../lib/tools";
+import { MACHINE_TOOL, useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/routing/AddMachineModal";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
@@ -151,8 +151,8 @@ export function Machines() {
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
           onTerminal={(machine) => setTerminalFor({ machine })}
           onUpdate={
-            tools.data?.some((t) => t.id === "system" && t.actions.some((a) => a.id === "update"))
-              ? (machine) => setTerminalFor({ machine, run: { tool: "system", action: "update", title: "Update" } })
+            tools.data?.some((t) => t.id === MACHINE_TOOL && t.actions.some((a) => a.id === "update"))
+              ? (machine) => setTerminalFor({ machine, run: { tool: MACHINE_TOOL, action: "update", title: "Update" } })
               : undefined
           }
           onName={(m) => {

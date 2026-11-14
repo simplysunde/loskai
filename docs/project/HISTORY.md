@@ -4,6 +4,13 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — System's buttons are on General
+
+Update, Reboot and Shut down are done to the machine itself, so Sunde asked for them beside
+what General says about it (its system, uptime, updates waiting) rather than as a tool card.
+System stays a tool file underneath: its actions keep the same terminal, sudo dialog and
+sudo rule. Only where they show moved, decided once (`MACHINE_TOOL`).
+
 ## 2026-11-14 — `make live` is `make dev`
 
 Sunde runs their homelab on the Loskai this checkout's working tree serves, and keeps
