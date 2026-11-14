@@ -35,7 +35,7 @@ export function DoneStep({
   onClose: () => void;
 }) {
   // A Loskai run without Caddy offers no route it can't make — a link to the Dashboard instead.
-  const routing = useCaddySetUp();
+  const caddySetUp = useCaddySetUp();
   return (
     <div className="space-y-3">
       <p className={result.ok ? "text-emerald-400" : "text-amber-300"}>
@@ -55,10 +55,10 @@ export function DoneStep({
       {result.ok && result.container && recipe?.log_link && (
         <LogLink prefix={recipe.log_link} container={result.container} />
       )}
-      {result.ok && result.container && recipe && routing && (
+      {result.ok && result.container && recipe && caddySetUp && (
         <RouteNow recipe={recipe} containerName={result.container} />
       )}
-      {result.ok && result.container && recipe && !routing && (
+      {result.ok && result.container && recipe && !caddySetUp && (
         <LinkNow recipe={recipe} containerName={result.container} />
       )}
       <details className="text-xs text-slate-500" open={!result.ok}>

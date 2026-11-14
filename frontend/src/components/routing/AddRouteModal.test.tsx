@@ -58,7 +58,7 @@ function renderModal(overrides = {}) {
         <AddRouteModal
           open
           baseDomain="example.no"
-          mode="lan"
+          upstreamMode="lan"
           onSubmit={onSubmit}
           onClose={() => {}}
           {...overrides}
@@ -169,7 +169,7 @@ function renderPicker(overrides = {}) {
           baseDomain="example.no"
           // Deployment-wide mode says "docker" — a hostname admin URL. Before Stage A this
           // alone decided the hint, so every container was told to use name:port.
-          mode="docker"
+          upstreamMode="docker"
           onSubmit={onSubmit}
           onClose={() => {}}
           {...overrides}
@@ -529,7 +529,7 @@ test("opened from a machine that answers, it starts on what runs there", async (
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <AddRouteModal open baseDomain="example.no" mode="lan" initialMachine={{ id: "nas", address: "192.168.10.50" }} onSubmit={vi.fn()} onClose={() => {}} />
+        <AddRouteModal open baseDomain="example.no" upstreamMode="lan" initialMachine={{ id: "nas", address: "192.168.10.50" }} onSubmit={vi.fn()} onClose={() => {}} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -594,7 +594,7 @@ const JELLYFIN = {
 test("without Caddy it makes a link: a name and where the browser reaches it, no prefix", async () => {
   RESPONSES["/api/health"] = { ...(DEFAULT_HEALTH as object), caddy: { status: "unconfigured" } };
   RESPONSES["/api/docker/containers"] = [JELLYFIN];
-  const { onSubmit } = renderModal({ mode: "docker" });
+  const { onSubmit } = renderModal({ upstreamMode: "docker" });
 
   expect(await screen.findByRole("heading", { name: "Add link" })).toBeInTheDocument();
   expect(screen.queryByPlaceholderText("grafana")).not.toBeInTheDocument();
@@ -615,7 +615,7 @@ test("without Caddy it makes a link: a name and where the browser reaches it, no
 
 test("with Caddy, Route or Link is a choice, and a picked container is filled again for it", async () => {
   RESPONSES["/api/docker/containers"] = [JELLYFIN];
-  const { onSubmit } = renderModal({ mode: "docker" });
+  const { onSubmit } = renderModal({ upstreamMode: "docker" });
   fireEvent.click(await screen.findByText("jellyfin-jellyfin-1"));
   expect(hostInput().value).toBe("jellyfin");
 
@@ -648,7 +648,7 @@ test("Link leaves out a container that has a link already; Route offers it, to m
     JELLYFIN,
     { ...JELLYFIN, id: "def456", name: "whoami-whoami-1", project: "whoami", url: "http://192.168.10.220:8081" },
   ];
-  renderModal({ mode: "docker" });
+  renderModal({ upstreamMode: "docker" });
   expect(await screen.findByText("whoami-whoami-1")).toBeInTheDocument();
   fireEvent.click(screen.getByText("whoami-whoami-1"));
 

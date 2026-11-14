@@ -127,7 +127,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     );
   }
 
-  const host = machine.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
+  const sshEntry = machine.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
   const hostname = machine.subdomain ?? machine.id;
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const programs = facts.data?.programs ?? [];
@@ -152,7 +152,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     });
 
   // The log is an admin's, as every log is.
-  const available = SECTIONS.filter((s) => (s.group === 0 || host?.user) && (s.id !== "log" || admin));
+  const available = SECTIONS.filter((s) => (s.group === 0 || sshEntry?.user) && (s.id !== "log" || admin));
   // The search finds Tools by the names of the tools too.
   const toolNames = (tools.data ?? []).map((t) => t.name).join(" ");
 
@@ -189,7 +189,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         </SettingRow>
       </div>
       {/* What the machine says about itself, read with the status key. */}
-      {host?.user && (
+      {sshEntry?.user && (
         <div className="mt-3">
           {!trusted ? (
             <NotYet onSetUp={() => setSetup(true)}>Set up SSH to see its system, memory and disks.</NotYet>
@@ -206,16 +206,16 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     ),
     ssh: (
       <div>
-        {!host && (
+        {!sshEntry && (
           <p className="py-2 text-xs text-slate-500">
             Off — Loskai doesn't log in to this machine. Turn it on to manage it over SSH.
           </p>
         )}
-        {host && (
+        {sshEntry && (
           <SettingRow
             label="Login"
             description={
-              !host.user
+              !sshEntry.user
                 ? "Your SSH config gives the user — set one here for Loskai to manage the machine."
                 : "The user Loskai logs in as, and the port its SSH server listens on."
             }
@@ -223,7 +223,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             <InlineText
               label="SSH user"
               width="w-40"
-              value={host.user ?? ""}
+              value={sshEntry.user ?? ""}
               placeholder="from SSH config"
               validate={(v) =>
                 !v
@@ -232,19 +232,19 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
                     ? null
                     : "A login name: letters, digits, _ . - (not starting with a digit)."
               }
-              onSave={(v) => post({ ssh: { user: v, port: host.port ?? 22 } })}
+              onSave={(v) => post({ ssh: { user: v, port: sshEntry.port ?? 22 } })}
             />
             <InlineText
               label="SSH port"
               width="w-14"
-              value={String(host.port ?? 22)}
-              disabled={!host.user}
+              value={String(sshEntry.port ?? 22)}
+              disabled={!sshEntry.user}
               validate={(v) => (isValidPort(v) ? null : "A port from 1 to 65535.")}
-              onSave={(v) => post({ ssh: { user: host.user!, port: Number(v) } })}
+              onSave={(v) => post({ ssh: { user: sshEntry.user!, port: Number(v) } })}
             />
           </SettingRow>
         )}
-        {host?.user && (
+        {sshEntry?.user && (
           <SettingRow label="Keys" description="Its host key and Loskai's key on it — SSH setup; and its own keys, in ~/.ssh.">
             {trusted ? (
               <span className="text-xs text-emerald-300">set up</span>
@@ -268,12 +268,12 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             )}
           </SettingRow>
         )}
-        {host?.user && trusted && (
+        {sshEntry?.user && trusted && (
           <SettingRow
             label="Updates without a password"
             description="System's Update runs without asking: a sudo rule on the machine for exactly its update commands."
           >
-            <SudoRuleSwitch user={host.user} facts={facts.data} onRun={runner.start} />
+            <SudoRuleSwitch user={sshEntry.user} facts={facts.data} onRun={runner.start} />
           </SettingRow>
         )}
       </div>
@@ -297,7 +297,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         ) : !runningHere ? (
           <Loader2 className="m-3 h-4 w-4 animate-spin text-slate-500" />
         ) : runningHere.ok ? (
-          <RunningList running={runningHere} user={host?.user} actions={rowActions} />
+          <RunningList running={runningHere} user={sshEntry?.user} actions={rowActions} />
         ) : (
           <p className="p-3 text-amber-300">Unreachable: {runningHere.error}</p>
         )}
@@ -312,8 +312,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
     ssh: (
       <Switch
         label="SSH"
-        checked={Boolean(host)}
-        onChange={() => (host ? setRemoving(true) : setEnabling(true))}
+        checked={Boolean(sshEntry)}
+        onChange={() => (sshEntry ? setRemoving(true) : setEnabling(true))}
       />
     ),
   };
@@ -333,7 +333,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           </span>
         }
         action={
-          trusted && host?.user ? (
+          trusted && sshEntry?.user ? (
             <button onClick={runner.openShell} title="Terminal" className={`${BUTTON} text-slate-200`}>
               <Terminal className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Terminal</span>
             </button>
@@ -392,10 +392,10 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
       )}
 
       {/* Shown once the SSH config has the login: just after a save, on its refetch. */}
-      {setup && host?.user && ssh.data?.targets[machine.id] && (
+      {setup && sshEntry?.user && ssh.data?.targets[machine.id] && (
         <SshSetupModal
           machine={{ id: machine.id, name: machine.name }}
-          user={host.user}
+          user={sshEntry.user}
           target={ssh.data.targets[machine.id]}
           sshKey={ssh.data?.key ?? null}
           onClose={() => setSetup(false)}

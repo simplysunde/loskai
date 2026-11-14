@@ -22,13 +22,13 @@ import {
 // address, no port, no TLS — and collects its own fields in AddMachineModal rather than
 // bending these through an `isDnsOnly` flag (Phase 21e).
 export function useRouteFields({
-  mode,
+  upstreamMode,
   baseDomain,
   initialPrefix = "",
   initialUpstream = "",
   initialTls = false,
 }: {
-  mode: "docker" | "lan" | null;
+  upstreamMode: "docker" | "lan" | null;
   baseDomain: string | null;
   initialPrefix?: string;
   initialUpstream?: string;
@@ -76,9 +76,9 @@ export function useRouteFields({
     portOk,
     upstreamOk: hostOk && portOk,
     valid: prefixOk && hostOk && portOk,
-    hostHint: mode === "docker" ? "jellyfin" : "192.168.10.100",
+    hostHint: upstreamMode === "docker" ? "jellyfin" : "192.168.10.100",
     upstreamHelp:
-      mode === "docker"
+      upstreamMode === "docker"
         ? "Caddy shares a Docker network with this container, so it can dial it by name."
         : "Must be reachable from wherever Caddy runs — a LAN IP:port. A container name resolves only if Caddy shares a Docker network with it.",
     // Where the record will open once saved, as the server's open_url will put it: a link

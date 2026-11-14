@@ -116,7 +116,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
           {reading > 0 && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
         </span>
       }
-      action={makers.length > 0 && <NewProject on={makers} ssh={ssh.data?.key ?? null} />}
+      action={makers.length > 0 && <NewProject on={makers} sshKey={ssh.data?.key ?? null} />}
       onClose={onClose}
     >
       {set.length === 0 ? (
@@ -202,10 +202,10 @@ const FIELD =
 // that machine's terminal. It is listed once its overview is read again.
 function NewProject({
   on,
-  ssh,
+  sshKey,
 }: {
   on: { machine: Machine; makers: { tool: Tool; action: ToolAction }[] }[];
-  ssh: LoskaiKey | null;
+  sshKey: LoskaiKey | null;
 }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(on[0].machine.id);
@@ -214,7 +214,7 @@ function NewProject({
   const at = on.find((r) => r.machine.id === picked) ?? on[0];
   const maker = at.makers[way] ?? at.makers[0];
   const shown = WAYS[maker.action.ask!] ?? { label: maker.action.label, field: "Name", placeholder: "" };
-  const runner = useToolRunner(at.machine, ssh);
+  const runner = useToolRunner(at.machine, sshKey);
   const close = () => setOpen(false);
   return (
     <>

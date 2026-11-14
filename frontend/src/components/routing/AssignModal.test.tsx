@@ -24,7 +24,7 @@ function renderModal(overrides = {}) {
     <AssignModal
       open
       baseDomain="example.no"
-      mode="lan"
+      upstreamMode="lan"
       onSubmit={onSubmit}
       onClose={() => {}}
       {...overrides}
@@ -81,7 +81,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
 });
 
 test("uses the Docker upstream hint in docker mode", () => {
-  renderModal({ mode: "docker" });
+  renderModal({ upstreamMode: "docker" });
   expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
 });
 

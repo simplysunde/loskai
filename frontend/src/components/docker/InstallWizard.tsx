@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { pathWhere, paths, syncFailed, useRecipes, type Recipe, type RecipeList, type SyncResult } from "../../lib/recipes";
+import { mountLocation, pathQuestions, syncFailureMessage, useRecipes, type Recipe, type RecipeList, type SyncResult } from "../../lib/recipes";
 import { Modal } from "../shared/Modal";
 import { refreshRecords } from "../../lib/routes";
 import { ConfigureStep } from "./InstallConfigure";
@@ -97,7 +97,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           loading={isLoading}
           refreshing={refresh.isPending}
           refreshFailed={
-            refresh.error ? apiMessage(refresh.error, "Sync failed") : refresh.data ? syncFailed(refresh.data) : null
+            refresh.error ? apiMessage(refresh.error, "Sync failed") : refresh.data ? syncFailureMessage(refresh.data) : null
           }
           onRefresh={() => refresh.mutate()}
           onPick={pick}
@@ -302,9 +302,9 @@ function ReviewStep({
         <Row label="Install">
           <code className="text-slate-300">{recipe.type}</code>
         </Row>
-        {paths(recipe).length > 0 && (
+        {pathQuestions(recipe).length > 0 && (
           <Row label="Data">
-            {paths(recipe).map((e) => (
+            {pathQuestions(recipe).map((e) => (
               <span key={e.key} className="block">
                 {e.label}:{" "}
                 {e.default ? (
@@ -312,7 +312,7 @@ function ReviewStep({
                 ) : (
                   <span className="text-slate-300">you choose</span>
                 )}
-                {e.default ? ` — ${pathWhere(e.default, recipe.id).short}` : ""}
+                {e.default ? ` — ${mountLocation(e.default, recipe.id).short}` : ""}
               </span>
             ))}
           </Row>

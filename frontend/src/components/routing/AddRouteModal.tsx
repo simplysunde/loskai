@@ -53,7 +53,7 @@ export type Source = "container" | "machines";
 export function AddRouteModal({
   open,
   baseDomain,
-  mode,
+  upstreamMode,
   initialMachine,
   initialService,
   pending = false,
@@ -63,7 +63,7 @@ export function AddRouteModal({
 }: {
   open: boolean;
   baseDomain: string | null;
-  mode: "docker" | "lan" | null;
+  upstreamMode: "docker" | "lan" | null;
   // Opened from a machine's row on the Machines tab: what runs there, with its address in
   // the host field. The address is what puts the route on it.
   initialMachine?: { id: string; address: string };
@@ -74,9 +74,9 @@ export function AddRouteModal({
   onSubmit: (route: NewRoute | NewLink) => void;
   onClose: () => void;
 }) {
-  const caddy = useCaddySetUp();
+  const caddySetUp = useCaddySetUp();
   const [asLink, setAsLink] = useState(false);
-  const link = asLink || !caddy;
+  const link = asLink || !caddySetUp;
   const [name, setName] = useState(initialService?.name ?? "");
   // Only an account that may use the Machines tab may read what runs on them.
   const mayMachines = useMe().may("machines");
@@ -92,13 +92,13 @@ export function AddRouteModal({
   const [follow, setFollow] = useState(false);
   const [derived, setDerived] = useState<string | null>(null);
   const [scheme, setScheme] = useState<Scheme>("https");
-  // A picked container answers the hint for itself; `mode` is the deployment-wide
+  // A picked container answers the hint for itself; `upstreamMode` is the deployment-wide
   // fallback, for a machine's service or a typed address, which have no container.
   const [pickedMode, setPickedMode] = useState<"docker" | "lan" | null>(null);
   // Opened from a machine, an address typed by hand starts on it; only the port is left.
   const machineUpstream = initialMachine ? `${initialMachine.address}:` : "";
   const fields = useRouteFields({
-    mode: pickedMode ?? mode,
+    upstreamMode: pickedMode ?? upstreamMode,
     baseDomain,
     initialPrefix: initialService?.prefix,
     initialUpstream: initialService?.upstream ?? machineUpstream,
@@ -191,7 +191,7 @@ export function AddRouteModal({
   return (
     <Overlay onClose={onClose}>
       <h2 className="text-base font-semibold text-slate-100">{link ? "Add link" : "Add route"}</h2>
-      {caddy && (
+      {caddySetUp && (
         <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
           <SourceTab active={!asLink} onClick={() => makeLink(false)} title="An HTTPS name, through Caddy and AdGuard">
             Route

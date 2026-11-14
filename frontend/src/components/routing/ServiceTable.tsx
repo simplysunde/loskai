@@ -43,7 +43,7 @@ export interface Instance {
 // route). Missing or stale DNS rewrites are fixed globally via the Sync button, not per row.
 //
 // A link (Phase 45) is a row with no route: it opens at its address, is edited as a link,
-// and can be given an HTTPS name. Without Caddy (`caddy` false) nothing offers a route, and
+// and can be given an HTTPS name. Without Caddy (`caddySetUp` false) nothing offers a route, and
 // an unrouted row offers a link instead.
 export function ServiceTable({
   rows,
@@ -57,7 +57,7 @@ export function ServiceTable({
   onIcon,
   onClearIcon,
   onLink,
-  caddy = true,
+  caddySetUp = true,
 }: {
   rows: Instance[];
   // Where a row's machine is looked up. Routing shows services only, so the machines its
@@ -75,7 +75,7 @@ export function ServiceTable({
   // Edit a link, or make one of an unrouted row.
   onLink?: (row: Instance) => void;
   // Caddy is set up: routes can be made.
-  caddy?: boolean;
+  caddySetUp?: boolean;
 }) {
   const hasActions = Boolean(onAssign || onRemoveRoute || onDelete || onTogglePrivate);
 
@@ -202,7 +202,7 @@ export function ServiceTable({
                           <Pencil className="h-3.5 w-3.5" />
                         </IconButton>
                       )}
-                      {onAssign && caddy && (
+                      {onAssign && caddySetUp && (
                         <IconButton
                           title={row.routed ? "Change URL" : link ? "Give it an HTTPS name" : "Assign a URL"}
                           onClick={() => onAssign(row)}
@@ -210,7 +210,7 @@ export function ServiceTable({
                           {row.routed ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                         </IconButton>
                       )}
-                      {!caddy && !row.routed && !link && onLink && (
+                      {!caddySetUp && !row.routed && !link && onLink && (
                         <IconButton title="Make a link" onClick={() => onLink(row)}>
                           <Plus className="h-3.5 w-3.5" />
                         </IconButton>

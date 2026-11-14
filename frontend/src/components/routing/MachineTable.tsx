@@ -48,7 +48,7 @@ const URL_HINT = "Its name on your network. Beside it, only when wrong: whether 
 export function MachineTable({
   machines,
   rows,
-  ssh = {},
+  sshHosts = {},
   targets = {},
   trusted = {},
   running = {},
@@ -69,7 +69,7 @@ export function MachineTable({
   // Every row, for the dependents — they are services, so not among `machines`.
   rows: Instance[];
   // SSH config entries by alias; a machine's is named after its hostname.
-  ssh?: Record<string, SshHost>;
+  sshHosts?: Record<string, SshHost>;
   // How the server reaches each machine with an SSH user, by id ("user@host[:port]").
   targets?: Record<string, string>;
   // Machine ids with a trusted host key, and what runs on each of those, by id.
@@ -99,7 +99,7 @@ export function MachineTable({
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
-  const caddy = useCaddySetUp();
+  const caddySetUp = useCaddySetUp();
 
   if (machines.length === 0) {
     return (
@@ -141,7 +141,7 @@ export function MachineTable({
           s.route?.url ? (
             <RouteLink key={s.key} url={s.route.url} />
           ) : (
-            <button key={s.key} title={`${caddy ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
+            <button key={s.key} title={`${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
               <Plus className="h-3 w-3" />:{s.upstream.split(":").pop()}
             </button>
           ),
@@ -186,8 +186,8 @@ export function MachineTable({
               const deps = routesOn(m, rows);
               const unnamed = m.id === DOCKER_HOST_ID;
               const atHost = isHost(m);
-              const host = m.subdomain ? ssh[m.subdomain] : undefined;
-              const sshReady = Boolean(host?.user);
+              const sshEntry = m.subdomain ? sshHosts[m.subdomain] : undefined;
+              const hasSshLogin = Boolean(sshEntry?.user);
               const open = expanded.isOpen(m.id);
               const Chevron = open ? ChevronDown : ChevronRight;
               return (
@@ -249,19 +249,19 @@ export function MachineTable({
                     </td>
                     <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
                       {running[m.id] ? (
-                        <RunningPill running={running[m.id]} user={host?.user} actions={runningActions(m)} />
+                        <RunningPill running={running[m.id]} user={sshEntry?.user} actions={runningActions(m)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
                       <div className="flex items-center justify-end gap-1.5">
-                        {sshReady && m.subdomain && targets[m.id] && trusted[m.id] && onTerminal && (
+                        {hasSshLogin && m.subdomain && targets[m.id] && trusted[m.id] && onTerminal && (
                           <IconButton title={`Terminal: ssh ${m.subdomain} — ${targets[m.id]}`} onClick={() => onTerminal(m)}>
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {sshReady && trusted[m.id] && tools && onTool && (
+                        {hasSshLogin && trusted[m.id] && tools && onTool && (
                           <ToolsMenu
                             machineId={m.id}
                             tools={tools}
@@ -274,7 +274,7 @@ export function MachineTable({
                             <RouteIcon className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {sshReady && trusted[m.id] && onUpdate && (
+                        {hasSshLogin && trusted[m.id] && onUpdate && (
                           <IconButton
                             title="Update the system: refresh the package lists, then install every update — in its terminal"
                             onClick={() => onUpdate(m)}
@@ -290,8 +290,8 @@ export function MachineTable({
                         {/* Its dialog: name, address, SSH, what runs there. Amber while it has
                             an SSH user but isn't set up yet. */}
                         {!unnamed && <IconButton
-                          title={sshReady && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
-                          tone={sshReady && !trusted[m.id] ? "warn" : "plain"}
+                          title={hasSshLogin && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
+                          tone={hasSshLogin && !trusted[m.id] ? "warn" : "plain"}
                           onClick={() => onOpen(m)}
                         >
                           <Settings className="h-3.5 w-3.5" />

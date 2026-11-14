@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, GitBranch, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { syncFailed, useRecipes, type SyncResult } from "../../lib/recipes";
+import { syncFailureMessage, useRecipes, type SyncResult } from "../../lib/recipes";
 import { recipeSources, useSettings, type RecipeSource } from "../../lib/settings";
 
 // The install wizard's git sources: one row per repo, each independently switched on or
@@ -42,7 +42,7 @@ export function RecipeSources() {
     onSuccess: (result) => {
       setError(null);
       setNote(
-        syncFailed(result) ??
+        syncFailureMessage(result) ??
           `Synced ${result.results.length === 1 ? result.results[0].label : `${result.results.length} sources`}.`,
       );
       qc.invalidateQueries({ queryKey: ["docker-recipes"] });

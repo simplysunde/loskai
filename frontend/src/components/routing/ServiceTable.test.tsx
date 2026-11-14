@@ -242,7 +242,7 @@ test("a link opens at its address, is tagged, and is edited as a link or given a
 test("without Caddy nothing offers a route; an unrouted row offers a link", () => {
   const onLink = vi.fn();
   const unrouted = row({ id: "immich", name: "immich", subdomain: null, fqdn: null, routed: false, synced: null });
-  render(<ServiceTable rows={[LINK, unrouted]} caddy={false} onLink={onLink} onAssign={() => {}} />);
+  render(<ServiceTable rows={[LINK, unrouted]} caddySetUp={false} onLink={onLink} onAssign={() => {}} />);
 
   expect(screen.queryByTitle("Give it an HTTPS name")).not.toBeInTheDocument();
   expect(screen.queryByTitle("Assign a URL")).not.toBeInTheDocument();

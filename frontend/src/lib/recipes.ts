@@ -62,18 +62,18 @@ export interface SyncResult {
 
 // The sources that failed to sync, in a line — or null when every one synced. A failed
 // source keeps what it last synced.
-export function syncFailed(result: SyncResult): string | null {
+export function syncFailureMessage(result: SyncResult): string | null {
   const failed = result.results.filter((r) => !r.ok);
   return failed.length ? `${failed.map((r) => r.label).join(", ")} failed — the last sync still applies.` : null;
 }
 
 // A recipe's questions that are host folders to mount (`type: path`).
-export const paths = (recipe: Recipe) => recipe.env.filter((e) => e.type === "path");
+export const pathQuestions = (recipe: Recipe) => recipe.env.filter((e) => e.type === "path");
 
 // Where a mounted folder ends up, in the terms that matter: beside the compose file (kept
 // when the stack is deleted, unless that is ticked), or anywhere else on the Docker host
 // (never touched by Loskai). Compose resolves a relative path against the stack folder.
-export function pathWhere(value: string, recipeId: string): { short: string; long: string } {
+export function mountLocation(value: string, recipeId: string): { short: string; long: string } {
   const v = value.trim();
   if (v.startsWith("/")) {
     return {

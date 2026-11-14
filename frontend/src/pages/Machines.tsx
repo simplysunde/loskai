@@ -171,7 +171,7 @@ export function Machines() {
         <MachineTable
           machines={machines}
           rows={rows}
-          ssh={sshHosts}
+          sshHosts={sshHosts}
           targets={ssh.data?.targets}
           trusted={trusted}
           running={running.data ?? {}}
@@ -225,7 +225,7 @@ export function Machines() {
         key={routeOn ? `${routeOn.machine.id}-${routeOn.service?.key ?? ""}` : "route-closed"}
         open={routeOn !== null}
         baseDomain={baseDomain}
-        mode={health.data?.caddy?.mode ?? null}
+        upstreamMode={health.data?.caddy?.mode ?? null}
         initialMachine={routeOn ? { id: routeOn.machine.id, address: routeOn.machine.upstream ?? "" } : undefined}
         initialService={routeOn?.service}
         pending={addRoute.isPending}

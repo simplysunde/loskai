@@ -1,6 +1,6 @@
 import { Loader2, Plus, X } from "lucide-react";
 
-import { pathWhere, paths, type Recipe } from "../../lib/recipes";
+import { mountLocation, pathQuestions, type Recipe } from "../../lib/recipes";
 import { pathProblem } from "../../lib/validation";
 import { OptionList } from "./RecipeOptions";
 import { INPUT } from "../../lib/ui";
@@ -74,7 +74,7 @@ export function ConfigureStep({
           onClick={onInstall}
           disabled={
             pending ||
-            paths(recipe).some((e) => !pathOk(answers[e.key] ?? "")) ||
+            pathQuestions(recipe).some((e) => !pathOk(answers[e.key] ?? "")) ||
             (recipe.mounts != null && folderProblems(folders).some(Boolean))
           }
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
@@ -93,7 +93,7 @@ function PathNote({ value, recipeId }: { value: string; recipeId: string }) {
   const problem = value.trim() ? pathProblem(value) : "Required — the folder to mount.";
   return (
     <span className={`mt-1 block text-xs ${problem ? "text-rose-400" : "text-slate-500"}`}>
-      {problem ?? pathWhere(value, recipeId).long}
+      {problem ?? mountLocation(value, recipeId).long}
     </span>
   );
 }

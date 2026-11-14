@@ -14,7 +14,7 @@ import { Overlay } from "../shared/Modal";
 export function AssignModal({
   open,
   baseDomain,
-  mode,
+  upstreamMode,
   pending = false,
   error,
   onSubmit,
@@ -30,7 +30,7 @@ export function AssignModal({
 }: {
   open: boolean;
   baseDomain: string | null;
-  mode: "docker" | "lan" | null;
+  upstreamMode: "docker" | "lan" | null;
   pending?: boolean;
   error?: string | null;
   onSubmit: (payload: {
@@ -58,7 +58,7 @@ export function AssignModal({
   const [scheme, setScheme] = useState<Scheme>(initialScheme);
   const [following, setFollowing] = useState(follow?.initial ?? false);
   const fields = useRouteFields({
-    mode,
+    upstreamMode,
     baseDomain,
     initialPrefix,
     initialUpstream,

@@ -50,7 +50,7 @@ export function Routing() {
   const qc = useQueryClient();
   const { admin } = useMe();
   const health = useHealth();
-  const caddy = useCaddySetUp();
+  const caddySetUp = useCaddySetUp();
   // The row a link is being edited, or made, for.
   const [linkTarget, setLinkTarget] = useState<Instance | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -82,7 +82,7 @@ export function Routing() {
 
   const h = health.data;
   const baseDomain = settings.data?.base_domain?.value ?? null;
-  const mode = h?.caddy?.mode ?? null;
+  const upstreamMode = h?.caddy?.mode ?? null;
   const consistency = h?.consistency ?? [];
 
   // The cert-onboarding page is served by Caddy over plain HTTP on :80 at its LAN IP —
@@ -93,7 +93,7 @@ export function Routing() {
   const assignContainer = assignTarget?.container
     ? containers.data?.find((c) => c.name === assignTarget.container)
     : undefined;
-  const assignMode = assignContainer?.upstream_mode ?? mode;
+  const assignMode = assignContainer?.upstream_mode ?? upstreamMode;
   // A container's route offers following. An existing route keeps whatever it declared; a
   // never-routed one (a fresh recipe install) starts out following whenever it can.
   const assignDerived = assignContainer?.suggested_upstream ?? null;
@@ -115,7 +115,7 @@ export function Routing() {
   const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
   const adguardUpstream = urlToUpstream(h?.adguard?.url);
   const canRouteAdguard =
-    caddy && routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
+    caddySetUp && routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
 
   // Machines live on their own tab; the route forms still list them, and the table names them.
   const rows = allRows.filter((r) => !isMachine(r));
@@ -270,7 +270,7 @@ export function Routing() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Routing</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {caddy
+            {caddySetUp
               ? "Web addresses for your services — Caddy serves them, AdGuard points the names there."
               : "Your services' addresses, as links on the Dashboard — names and HTTPS come with Caddy."}
           </p>
@@ -283,9 +283,9 @@ export function Routing() {
             }}
             className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
           >
-            <Plus className="h-4 w-4" /> {caddy ? "Add route" : "Add link"}
+            <Plus className="h-4 w-4" /> {caddySetUp ? "Add route" : "Add link"}
           </button>
-          {caddy && (
+          {caddySetUp && (
             <button
               onClick={() => push.mutate()}
               disabled={push.isPending}
@@ -440,7 +440,7 @@ export function Routing() {
             setAssignError(null);
             setLinkTarget(row);
           }}
-          caddy={caddy}
+          caddySetUp={caddySetUp}
           privateBusyId={privateToggle.isPending ? privateToggle.variables?.id : null}
         />
       )}
@@ -449,7 +449,7 @@ export function Routing() {
         key={`${assignTarget?.id ?? "new"}:${assignOpen}`}
         open={assignOpen}
         baseDomain={baseDomain}
-        mode={assignMode}
+        upstreamMode={assignMode}
         pending={assign.isPending}
         error={assignError}
         initialPrefix={assignTarget ? (assignTarget.subdomain ?? assignTarget.id) : ""}
@@ -472,7 +472,7 @@ export function Routing() {
         key={String(addOpen)}
         open={addOpen}
         baseDomain={baseDomain}
-        mode={mode}
+        upstreamMode={upstreamMode}
         pending={addRoute.isPending}
         error={assignError}
         onSubmit={(r) => addRoute.mutate(r)}

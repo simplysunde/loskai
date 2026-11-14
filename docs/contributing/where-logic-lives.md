@@ -64,7 +64,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Whether a stack takes over a folder with data in it | `modules/docker/stacks.py` `claim_dir` | `modules/docker/install.py` |
 | A stack by name, or a 404; its `.env` as written | `modules/docker/stacks.py` `require_stack` `env_text` | `modules/docker/stackform.py` `modules/docker/updates.py` |
 | Which recipe a stack came from: its install record's, else its folder's name | `modules/docker/install.py` `installed_as` `stack_recipe` | `modules/docker/stackform.py` `modules/docker/updates.py` |
-| Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailed` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
+| Which recipe sources failed to sync, in a line | `lib/recipes.ts` `syncFailureMessage` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | The recipe list, and its type | `lib/recipes.ts` `useRecipes` | `components/docker/InstallWizard.tsx` `components/settings/RecipeSources.tsx` |
 | Saving a stack and bringing it up, from either editor view | `components/docker/useSaveAndUp.ts` `useSaveAndUp` | `components/docker/StackEditor.tsx` `components/docker/StackForm.tsx` |
 

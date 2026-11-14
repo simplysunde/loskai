@@ -44,7 +44,7 @@ export function LinkModal({
     editing ? Boolean(row.follow_container) : Boolean(row.container && published),
   );
   const fields = useRouteFields({
-    mode: "lan",
+    upstreamMode: "lan",
     baseDomain: null,
     // A link keeps its address. A container's record may hold its old route's, which can be
     // a Docker service name a browser can't open — so it starts at the published port, else
