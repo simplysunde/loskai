@@ -260,7 +260,7 @@ and Add.
   repository's Deploy keys page, worked out from its remote, or your account's SSH keys
   page on the platform its remotes are on (or its comment's "for <host>"). Then **Test**,
   which asks each remote the key is for for its HEAD with that key alone, as a pull would
-  (only over SSH), and **Delete**, which asks first, removes the file and puts a
+  (only over SSH; greyed where no remote here uses it), and **Delete**, which asks first, removes the file and puts a
   project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never
@@ -271,7 +271,9 @@ and Add.
   list, one host field — `github.com`, `codeberg.org`, an alias, or `host:port` for a
   Forgejo whose SSH isn't on 22 — has three buttons. **Test key** tries the keys meant for
   that host, each on its own: the ones ssh offers it, and any whose comment says it is for
-  it — a connection or two, saying which get in and as whom ("gets in as sunde"; a deploy
+  it — a connection or two, saying which get in and as whom; the tests drop down from the
+  top, ✓ Done when a key gets in, ✗ Failed when none does, and ask nothing (a host ssh
+  hasn't met is trusted as first seen) ("gets in as sunde"; a deploy
   key as its repository). **Try every key** tries every key, at most 10, to find which one
   a host takes when nothing says; each refused key is a failed login there, so on a
   self-hosted forge with fail2ban a few can get the machine banned for a while, and it

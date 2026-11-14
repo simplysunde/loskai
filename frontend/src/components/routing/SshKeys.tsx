@@ -198,7 +198,7 @@ function KeyRow({
       <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
         <CopyKey info={info} page={page} />
         {actions.map((a) => (
-          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} kept={a.id === "delete-key" && named} />
+          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named, uses)} />
         ))}
       </div>
     </li>
@@ -248,27 +248,35 @@ function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named:
   );
 }
 
-// A key's button — rose for one that asks first (Delete); greyed, `kept`, for a Delete of a
-// key ~/.ssh/config names.
+// Why a key's button is greyed, or null: Delete of a key ~/.ssh/config names (that file is
+// yours); Test of one no remote here uses — there is nothing to try it on, and Test key, under
+// the list, tries it on a platform instead.
+function offWhy(action: ToolAction, named: boolean, uses: KeyUse[] | null): string | null {
+  if (action.id === "delete-key" && named) return "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file";
+  if (action.id === "try-key" && uses?.length === 0) return "No remote here uses it — Test key, under the list, tries it on a platform's host";
+  return null;
+}
+
+// A key's button — rose for one that asks first (Delete); greyed, saying why, when `off`.
 function KeyButton({
   tool,
   action,
   name,
   onRun,
-  kept = false,
+  off = null,
 }: {
   tool: Tool;
   action: ToolAction;
   name: string;
   onRun: ToolStart;
-  kept?: boolean;
+  off?: string | null;
 }) {
   return (
     <button
       type="button"
       aria-label={`${action.label} ${name}`}
-      title={kept ? "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file" : action.description}
-      disabled={kept}
+      title={off ?? action.description}
+      disabled={off != null}
       onClick={() => onRun({ tool: tool.id, action: action.id, target: name, title: `${action.label}: ${name}` }, action)}
       className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 ${
         action.confirm ? "border-rose-500/40 text-rose-300" : "border-slate-700 text-slate-200"

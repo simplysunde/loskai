@@ -155,9 +155,9 @@ const TOOLS = [
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
       { id: "ssh-key", label: "New account key", description: "Make one.", target: null, ask: null, confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
-      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
-      { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
-      { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, run: "git ls-remote" },
+      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
+      { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
+      { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, automatic: true, run: "git ls-remote" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
       { id: "own-key", label: "Own key", description: "Its own key.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "ssh-keygen" },
       { id: "machine-key", label: "Machine's key", description: "The machine's again.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "git config --unset core.sshCommand" },
@@ -1332,6 +1332,9 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
+  // Nothing here to test it on: Test is greyed, pointing to Test key.
+  expect(within(row).getByRole("button", { name: "Test id_ed25519" })).toBeDisabled();
+  expect(within(row).getByRole("button", { name: "Test id_ed25519" })).toHaveAttribute("title", expect.stringMatching(/Test key, under the list/));
   expect(within(within(dialog).getByText("deploy_blog").closest("li") as HTMLElement).getByText("No git remote here uses it"))
     .toHaveAttribute("title", expect.stringMatching(/^No remote here names it\./));
 });
@@ -1348,18 +1351,19 @@ test("an account key no remote uses, where the SSH ones each have their own, say
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here over SSH each use a key of their own/));
 });
 
-test("a key's Test runs in a terminal over Keys, which stays: closing the terminal comes back to it", async () => {
+test("a key's Test drops down over Keys, which stays — its answer the drop-down's Done or Failed", async () => {
   setUp();
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   fireEvent.click(within(dialog).getByRole("button", { name: "Test id_ed25519" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=try-key&target=id_ed25519")).toBeInTheDocument();
-  const terminal = screen.getByRole("dialog", { name: /Test: id_ed25519 — Storage box/ });
-  // Keys is still there, under it: the terminal comes after it, and Escape closes the terminal first.
+  // Automatic: the drop-down, not a dialog of its own.
+  const terminal = screen.getByRole("region", { name: "Test: id_ed25519 — Storage box" });
+  expect(screen.queryByRole("dialog", { name: /Test: id_ed25519/ })).toBeNull();
+  // Keys is still there, under it; closing the drop-down comes back to it.
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBe(dialog);
-  expect(dialog.compareDocumentPosition(terminal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  fireEvent.keyDown(document, { key: "Escape" });
-  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: /Test: id_ed25519/ })).toBeNull());
+  fireEvent.click(within(terminal).getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: id_ed25519/ })).toBeNull());
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 

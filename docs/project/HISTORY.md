@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — The key tests drop down, their answer Done or Failed
+
+Sunde, after a key's Test opened a dialog saying there was nothing to try it on: should it
+be the drop-down, and is it working or not? A test answers one question, so Test, Test key
+and Try every key are automatic now: the drop-down's ✓ Done means it gets in, ✗ Failed that
+it doesn't, and a failure stays. Nothing in them may prompt, so a host ssh hasn't met is
+trusted as first seen (`StrictHostKeyChecking=accept-new` — a changed key still fails, and
+says so); the extra connection offering no key, there only so ssh could ask, went with it,
+one login attempt fewer for a forge's fail2ban to count. A key's Test is greyed where no
+remote here uses it, pointing to Test key with a platform's host: a "done" that answers
+nothing is gone. What makes or deletes a key still opens a terminal that stays, to read.
+
 ## 2026-11-14 — Keys stays open under a key's terminal
 
 Running Test on a key closed Keys, so closing the terminal left Sunde on the machine's page

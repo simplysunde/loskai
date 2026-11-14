@@ -129,7 +129,10 @@ actions:
   # An account key, added to your GitHub or Forgejo account, reaches every repo you can; a
   # deploy key (a project's Own key, deploy_<project>) its repository alone. Made without a
   # passphrase, so a pull or push from the page or by Claude never stops to ask; a private
-  # half never leaves the machine. None is automatic: each terminal stays open to read.
+  # half never leaves the machine. The tests are automatic — their answer is the drop-down's
+# Done or Failed, a refused key failing — so nothing in them may prompt: a host ssh hasn't
+# met is trusted as it is first seen (StrictHostKeyChecking=accept-new; a changed key still
+# fails). What makes a key, or deletes one, stays open to read.
   ssh-key:
     label: New account key
     description: >-
@@ -175,8 +178,8 @@ actions:
   # the account (or, for a deploy key, its repository) in the greeting they answer an SSH
   # login with, and ssh exits 1 even then. The host is resolved once (`ssh -G`: an alias's
   # HostName and Port), then each key goes on its own (-F /dev/null, so the config adds
-  # none). First a connection that offers no key, so ssh can ask to trust the host's key
-  # here; after it nothing may prompt (BatchMode), and a key with a passphrase is left out.
+  # none). Nothing may prompt (BatchMode; a new host trusted as first seen), and a key with
+  # a passphrase is left out.
   # A host that stops answering — refused, reset, timed out — ends it: fail2ban, say, on a
   # self-hosted forge counts each refused key. Test key and Try every key share the part
   # that tries one key, word for word (test_ssh_tool checks it); they differ in which keys.
@@ -190,6 +193,7 @@ actions:
       Try the keys meant for a git host — the ones ssh offers it, and any made for it — one
       at a time, and see which get in, and as whom.
     ask: host
+    automatic: true
     session: false
     place: keys
     run: >-
@@ -201,18 +205,17 @@ actions:
       for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue;
       case " $(cut -d' ' -f3- "$f") " in *" for $h "*|*" for $H "*) echo "${f%.pub}";; esac; done; } | sort -u);
       [ "$H" = "$h" ] && echo "$h, port $P — the keys meant for it:" || echo "$h ($H, port $P) — the keys meant for it:";
-      ssh -T -p "$P" -o PubkeyAuthentication=no -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
-      -o ConnectTimeout=10 "git@$H" >/dev/null 2>&1;
       n=0; ok=0; for k in $ks; do [ -f "$k" ] && [ -f "$k.pub" ] || continue;
       name=${k##*/}; n=$((n+1));
       if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
-      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
+      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
+      -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
       who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
       -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
       case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
       case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
-      *"Host key verification failed"*) echo "  ssh doesn't trust $H's host key, so nothing was tried."; exit 1;;
+      *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
       echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
@@ -229,6 +232,7 @@ actions:
       answering. Each refused key is a failed login there: on a self-hosted forge with
       fail2ban, a few of them can get this machine banned for a while.
     ask: host
+    automatic: true
     session: false
     place: keys
     run: >-
@@ -237,19 +241,18 @@ actions:
       H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
       H=${H:-$h}; P=${P:-${p:-22}};
       [ "$H" = "$h" ] && echo "$h, port $P — every key:" || echo "$h ($H, port $P) — every key:";
-      ssh -T -p "$P" -o PubkeyAuthentication=no -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
-      -o ConnectTimeout=10 "git@$H" >/dev/null 2>&1;
       n=0; ok=0; for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue; k=${f%.pub}; [ -f "$k" ] || continue;
       [ $n -ge 10 ] && { echo "  Stopped at 10 keys."; break; };
       name=${k##*/}; n=$((n+1));
       if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
-      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
+      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
+      -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
       who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
       -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
       case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
       case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
-      *"Host key verification failed"*) echo "  ssh doesn't trust $H's host key, so nothing was tried."; exit 1;;
+      *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
       echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
@@ -267,6 +270,7 @@ actions:
       Try this key on each remote it is for — in every project and submodule, through
       ~/.ssh/config too — with read access, as a pull needs.
     target: key
+    automatic: true
     session: false
     run: >-
       k="$HOME/.ssh/$1"; [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
@@ -282,10 +286,11 @@ actions:
       else ssh -G "$h" 2>/dev/null </dev/null | grep -qi "^identityfile .*/$1\$" || continue; fi;
       n=$((n+1)); case "$what" in *pushurl) way=push;; *) way=fetch;; esac;
       printf '%s%s — %s %s: ' "${d#"$HOME"/}" "${m:+ › $m}" "$way" "$u";
-      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes" git ls-remote -q "$u" HEAD >/dev/null </dev/null;
+      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+      git ls-remote -q "$u" HEAD >/dev/null </dev/null;
       then echo gets in; else echo refused; s=1; fi; done; done; done;
       [ $n = 0 ] && { echo "No remote here goes over SSH with $1, so there is nothing here to try it on."; echo;
-      echo "To check it on a platform: Test key, under the list, with its host — github.com, or your Forgejo's."; };
+      echo "To check it on a platform: Test key, under the list, with its host — github.com, or your Forgejo's."; exit 1; };
       exit $s
   # The key's file goes; a project using it as its own goes back to the machine's key. One
   # ~/.ssh/config names is left alone — that file is yours, and Loskai doesn't edit it. The

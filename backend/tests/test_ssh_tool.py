@@ -28,8 +28,9 @@ def test_every_shipped_tool_is_valid():
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
             "machine-key", "try-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
-    # Their terminals stay open: a key to copy, a host's key to trust.
-    assert not tools["git"].actions["ssh-key"].automatic and not tools["git"].actions["test-key"].automatic
+    # The tests drop down, their answer Done or Failed; what makes a key stays open to read.
+    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "try-key"))
+    assert not any(tools["git"].actions[a].automatic for a in ("ssh-key", "host-key", "delete-key"))
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
@@ -140,8 +141,11 @@ def test_test_key_tries_only_the_keys_meant_for_the_host_each_alone(tmp_path):
     # ssh offers gh its defaults — none of them here — and one key is made for github.com:
     # that one alone is tried. Not deploy_site, which a forge may count as a failed login.
     assert lines[1:] == [["github.com", "gets", "in", "as", "sunde"]]
-    assert "PubkeyAuthentication=no" in calls[0] and "git@github.com" in calls[0]
-    assert len(calls) == 2 and "-F /dev/null" in calls[1] and "IdentitiesOnly=yes" in calls[1] and "-p 2222" in calls[1]
+    # One connection: that key alone, on the alias's host and port, nothing from the config
+    # added, and nothing that could prompt.
+    assert len(calls) == 1 and "git@github.com" in calls[0]
+    for option in ("-F /dev/null", "IdentitiesOnly=yes", "-p 2222", "BatchMode=yes", "StrictHostKeyChecking=accept-new"):
+        assert option in calls[0]
 
     # A host none is meant for says so, and tries nothing.
     none, _, calls = run("test-key", "codeberg.org")
@@ -172,20 +176,20 @@ def test_try_every_key_tries_each_says_which_get_in_and_stops_where_the_host_doe
     assert ["github.com", "gets", "in", "as", "sunde"] in lines
     assert ["old", "refused"] in lines
     assert ["locked", "has", "a", "passphrase:", "not", "tried"] in lines
-    assert len(calls) == 4  # a first connection with no key; the passphrase key isn't tried
+    assert len(calls) == 3  # one a key; the passphrase key isn't tried
 
     # A host that stops answering ends it: the rest aren't tried.
     (tmp_path / "blocked").touch()
     stopped, _, calls = run("every-key", "gh")
     assert stopped.returncode == 1 and "stopped answering after 1" in stopped.stdout
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
 def test_try_every_key_stops_at_ten(tmp_path):
     run = _forge(tmp_path, {f"k{i:02}": ("", "vm@box") for i in range(12)}, "", {})
     out, lines, calls = run("every-key", "github.com")
-    assert ["Stopped", "at", "10", "keys."] in lines and len(calls) == 11
+    assert ["Stopped", "at", "10", "keys."] in lines and len(calls) == 10
 
 
 def test_test_key_and_try_every_key_try_a_key_the_same_way():
