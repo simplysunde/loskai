@@ -78,7 +78,7 @@ def prepare_user_change(prev: Instance, ssh):
     if ssh is KEEP or ssh is None:
         return None
     try:
-        old = connect.target(prev.id).user
+        old = connect.require_target(prev.id).user
     except connect.SshError:
         return None  # no SSH user before: nothing of Loskai's under one
     if old == ssh.user:

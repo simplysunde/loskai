@@ -996,8 +996,8 @@ def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path)
         return out.stdout
 
     sh(tool.write_setting_script(git, "name", "Ola Nordmann"))
-    sh(tool.write_setting_script(git, "project-name", "Ola; $(id)", target="site"))
-    sh(tool.write_setting_script(git, "project-email", "ola@work.example", target="site"))
+    sh(tool.write_setting_script(git, "project-name", "Ola; $(id)", target_name="site"))
+    sh(tool.write_setting_script(git, "project-email", "ola@work.example", target_name="site"))
     read = tool.parse_settings(git, sh(tool.read_settings_script(git)))
 
     assert read["values"]["name"] == "Ola Nordmann"
@@ -1006,8 +1006,8 @@ def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path)
         "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example"},
         "notes": {"project-name": None, "project-email": None}}}
     # Taking one off leaves the global one, and taking off what isn't there is no failure.
-    sh(tool.write_setting_script(git, "project-name", "", target="site"))
-    sh(tool.write_setting_script(git, "project-name", "", target="site"))
+    sh(tool.write_setting_script(git, "project-name", "", target_name="site"))
+    sh(tool.write_setting_script(git, "project-name", "", target_name="site"))
     assert tool.parse_settings(git, sh(tool.read_settings_script(git)))["targets"]["project"]["site"] == {
         "project-name": None, "project-email": "ola@work.example"}
     who = subprocess.run(["git", "-C", str(projects / "site"), "config", "user.name"], env=env,
@@ -1021,9 +1021,9 @@ def test_a_project_s_setting_needs_its_project_and_the_machine_s_none():
     with pytest.raises(tool.ToolError, match="Not a project"):
         tool.write_setting_script(git, "project-name", "Ola")
     with pytest.raises(tool.ToolError, match="Not a project"):
-        tool.write_setting_script(git, "project-name", "Ola", target="../etc")
+        tool.write_setting_script(git, "project-name", "Ola", target_name="../etc")
     with pytest.raises(tool.ToolError, match="for the machine"):
-        tool.write_setting_script(git, "name", "Ola", target="site")
+        tool.write_setting_script(git, "name", "Ola", target_name="site")
     # The machine's name can't be taken off: it has no `unset`.
     with pytest.raises(tool.ToolError, match="Not a valid git name"):
         tool.write_setting_script(git, "name", "")

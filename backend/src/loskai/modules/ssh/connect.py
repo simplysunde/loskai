@@ -54,7 +54,7 @@ class Target:
         return f"{self.user}@{self.host}" + ("" if self.port == 22 else f":{self.port}")
 
 
-def reach(inst: instances_store.Instance, hosts: dict[str, dict]) -> Target | None:
+def target_of(inst: instances_store.Instance, hosts: dict[str, dict]) -> Target | None:
     """How the machine's SSH config entry says to reach it — its `HostName`, else the
     machine's own address — or None while the entry has no user. `hosts` is
     `logic.hosts` of the config."""
@@ -69,19 +69,19 @@ def reach(inst: instances_store.Instance, hosts: dict[str, dict]) -> Target | No
     )
 
 
-def target(machine_id: str) -> Target:
+def require_target(machine_id: str) -> Target:
     """The machine and how its SSH config entry says to reach it."""
     inst = instances_store.get_instance(machine_id)
     if inst is None or not instances_store.is_machine(inst):
         raise SshError(f"no machine '{machine_id}'", 404)
-    found = reach(inst, logic.hosts(client.read_config()))
+    found = target_of(inst, logic.hosts(client.read_config()))
     if found is None:
         raise SshError(f"'{inst.name}' has no SSH user — set one in its form", 409)
     return found
 
 
-def _trusted(t: Target) -> str:
-    key = logic.known_key(client.read_known_hosts(), t.id)
+def _trusted(target: Target) -> str:
+    key = logic.known_key(client.read_known_hosts(), target.id)
     if key is None:
         raise SshError("Trust the machine's host key first", 409)
     return key
@@ -98,48 +98,48 @@ def _main_key() -> asyncssh.SSHKey:
 
 
 async def _run(
-    t: Target, command: str, host_key: str | None = None, *,
+    target: Target, command: str, host_key: str | None = None, *,
     password: str | None = None, stdin: str | None = None,
 ) -> asyncssh.SSHCompletedProcess:
     """`command` on the machine, trusting only its trusted host key, logged in with the
     machine's `password` when given, else the main key (locked: 423). Not getting there is a
     502, in words."""
-    host_key = host_key or _trusted(t)
+    host_key = host_key or _trusted(target)
     key = None if password else _main_key()
     try:
         return await client.run(
-            t.host, t.port, t.user, host_key, command, client_key=key, password=password, stdin=stdin
+            target.host, target.port, target.user, host_key, command, client_key=key, password=password, stdin=stdin
         )
     except Exception as exc:  # noqa: BLE001 — any failure to get there is the same answer
-        raise SshError(_describe(exc, t, "password" if password else "key"), 502)
+        raise SshError(_describe(exc, target, "password" if password else "key"), 502)
 
 
-def _describe(exc: BaseException, t: Target, credential: str) -> str:
+def _describe(exc: BaseException, target: Target, credential: str) -> str:
     """What went wrong, in words — never the exception text of a password login, which
     asyncssh doesn't put the password in, but there is no reason to find out."""
     if isinstance(exc, asyncssh.HostKeyNotVerifiable):
-        return f"{t.host}'s host key has changed — trust it again only if you know why"
+        return f"{target.host}'s host key has changed — trust it again only if you know why"
     if isinstance(exc, asyncssh.PermissionDenied):
-        return f"{t.user}@{t.host} refused the {credential}"
+        return f"{target.user}@{target.host} refused the {credential}"
     if isinstance(exc, (OSError, TimeoutError, asyncio.TimeoutError)):
-        return f"Can't reach {t.host}:{t.port}"
+        return f"Can't reach {target.host}:{target.port}"
     if isinstance(exc, asyncssh.Error):
-        return f"SSH to {t.host} failed: {exc.reason}"
+        return f"SSH to {target.host} failed: {exc.reason}"
     # Not the machine's doing — Loskai's own (2026-10-31: no local user name in the
     # container). The page gets the short answer; the log gets the cause.
-    logger.warning("SSH to %s failed", t.host, exc_info=exc)
-    return f"SSH to {t.host} failed — see Loskai's log"
+    logger.warning("SSH to %s failed", target.host, exc_info=exc)
+    return f"SSH to {target.host} failed — see Loskai's log"
 
 
 # --- The host key ---
 
 
-async def _host_key(t: Target) -> asyncssh.SSHKey:
+async def _host_key(target: Target) -> asyncssh.SSHKey:
     """The host key the machine answers with now; SshError 502 when it can't be reached."""
     try:
-        return await client.scan_host_key(t.host, t.port)
+        return await client.scan_host_key(target.host, target.port)
     except Exception as exc:  # noqa: BLE001 — any failure to reach it is the same answer
-        raise SshError(_describe(exc, t, "connection"), 502)
+        raise SshError(_describe(exc, target, "connection"), 502)
 
 
 def _failed(result: asyncssh.SSHCompletedProcess) -> str:
@@ -150,26 +150,26 @@ def _failed(result: asyncssh.SSHCompletedProcess) -> str:
 async def scan(machine_id: str) -> dict:
     """The machine's host key as it answers now, and how that compares with the trusted one:
     `new` (none trusted yet), `trusted`, or `changed`."""
-    t = target(machine_id)
-    key = await _host_key(t)
+    target = require_target(machine_id)
+    key = await _host_key(target)
     offered = key.export_public_key("openssh").decode().split()
-    known = logic.known_key(client.read_known_hosts(), t.id)
+    known = logic.known_key(client.read_known_hosts(), target.id)
     state = "new" if known is None else ("trusted" if known.split() == offered[:2] else "changed")
     # The lines this machine gets, for "I'll add it myself" — null before Loskai has a key.
-    machine_lines = await asyncio.to_thread(lines, t) if client.public_key() else None
+    machine_lines = await asyncio.to_thread(lines, target) if client.public_key() else None
     return {"fingerprint": key.get_fingerprint(), "type": offered[0], "state": state, "lines": machine_lines}
 
 
 async def trust(machine_id: str, fingerprint: str) -> dict:
     """Trust the host key the machine answers with — only if it is the one that was shown
     (`fingerprint`), so what is trusted is what the person looked at."""
-    t = target(machine_id)
-    key = await _host_key(t)
+    target = require_target(machine_id)
+    key = await _host_key(target)
     if key.get_fingerprint() != fingerprint:
         raise SshError("The machine answered with a different host key than the one shown", 409)
     line = " ".join(key.export_public_key("openssh").decode().split()[:2])
-    client.update_known_hosts(lambda text: logic.set_known(text, t.id, line))
-    _drop_cached(t.id)
+    client.update_known_hosts(lambda text: logic.set_known(text, target.id, line))
+    _drop_cached(target.id)
     return {"fingerprint": fingerprint, "state": "trusted"}
 
 
@@ -182,8 +182,8 @@ def forget(machine_id: str) -> None:
 # --- Installing and testing Loskai's keys ---
 
 
-def from_addresses(t: Target | None = None) -> str | None:
-    """Where Loskai's connections to `t` come from, for the lines' `from=`: the Docker host's
+def from_addresses(target: Target | None = None) -> str | None:
+    """Where Loskai's connections to `target` come from, for the lines' `from=`: the Docker host's
     address, and its Tailscale address when set — a machine reached over Tailscale sees that
     one. Both on every machine, so a machine needs no telling which way it is reached. To the
     Docker host itself, which Docker doesn't translate, connections arrive from Loskai's
@@ -194,24 +194,24 @@ def from_addresses(t: Target | None = None) -> str | None:
         return None
     tailnet_ip = settings_store.value("host_tailscale_ip")
     addresses = [host_ip, *([tailnet_ip] if tailnet_ip else [])]
-    if t is None or t.host not in addresses:
+    if target is None or target.host not in addresses:
         return ",".join(addresses)
     try:
         subnets = docker_client.own_subnets()
     except Exception as exc:  # noqa: BLE001 — Docker unreachable: the plain line, as before
-        logger.warning("Loskai's own networks not read for %s's from=: %s", t.host, exc)
+        logger.warning("Loskai's own networks not read for %s's from=: %s", target.host, exc)
         subnets = []
     return ",".join([*addresses, *subnets])
 
 
-def lines(t: Target | None = None) -> list[str]:
+def lines(target: Target | None = None) -> list[str]:
     """Loskai's two `authorized_keys` lines — the main key's, then the status key's — for
-    machine `t`, or as most machines get them. Asks Docker for `t` = the Docker host, so
+    machine `target`, or as most machines get them. Asks Docker for `target` = the Docker host, so
     call it off the event loop then."""
     public = client.public_key()
     if public is None:
         raise SshError("Loskai has no key yet", 409)
-    from_ip = from_addresses(t)
+    from_ip = from_addresses(target)
     return [
         logic.authorized_keys_line(public, from_ip),
         status.status_line(client.status_public_key(), from_ip),
@@ -222,14 +222,14 @@ async def install(machine_id: str, password: str) -> dict:
     """Log in once with the machine's password, put Loskai's lines in `authorized_keys`
     (replacing any it put there before), then prove both keys work. The password is used
     for that one connection and kept nowhere."""
-    t = target(machine_id)
+    target = require_target(machine_id)
     _main_key()  # locked → ask for your password before the machine's is used
     result = await _run(
-        t, logic.INSTALL_SCRIPT,
-        password=password, stdin="\n".join(await asyncio.to_thread(lines, t)) + "\n",
+        target, logic.INSTALL_SCRIPT,
+        password=password, stdin="\n".join(await asyncio.to_thread(lines, target)) + "\n",
     )
     if result.exit_status != 0:
-        raise SshError(f"Adding Loskai's key on {t.host} failed: {_failed(result)}", 502)
+        raise SshError(f"Adding Loskai's key on {target.host} failed: {_failed(result)}", 502)
     return await test(machine_id)
 
 
@@ -239,37 +239,37 @@ def removal(machine_id: str) -> tuple[Target, str] | None:
     to take: no SSH user, a host key never trusted, or no key made yet. SshError 423 while
     the key is locked, so the page asks for your password before anything changes."""
     try:
-        t = target(machine_id)
-        host_key = _trusted(t)
+        target = require_target(machine_id)
+        host_key = _trusted(target)
     except SshError:
         return None
     if client.public_key() is None:
         return None
     _main_key()
-    return t, host_key
+    return target, host_key
 
 
-async def uninstall(t: Target, host_key: str) -> bool:
+async def uninstall(target: Target, host_key: str) -> bool:
     """Take what Loskai put on the machine off it, with the main key: its sudo rule, then its
     lines in `authorized_keys`. True when the sudo rule stayed (the lines are gone either
     way). Raises SshError: 423 the key locked meanwhile, 502 the machine can't be reached or
     refused."""
-    result = await _run(t, logic.UNINSTALL_SCRIPT, host_key)
+    result = await _run(target, logic.UNINSTALL_SCRIPT, host_key)
     if result.exit_status != 0:
-        raise SshError(f"Removing Loskai's key on {t.host} failed: {_failed(result)}", 502)
+        raise SshError(f"Removing Loskai's key on {target.host} failed: {_failed(result)}", 502)
     return "!sudo-rule" in str(result.stdout or "").splitlines()
 
 
 async def test(machine_id: str) -> dict:
     """Log in with the main key, then read what runs with the status key."""
-    t = target(machine_id)
-    host_key = _trusted(t)
-    result = await _run(t, "true", host_key)
+    target = require_target(machine_id)
+    host_key = _trusted(target)
+    result = await _run(target, "true", host_key)
     if result.exit_status != 0:
-        raise SshError(f"Logged in to {t.host}, but a command there failed", 502)
+        raise SshError(f"Logged in to {target.host}, but a command there failed", 502)
     # A (re)install may have put a newer status line there: the overview is asked again.
-    _facts.pop(t.id, None)
-    return {"key": True, "running": await _read_running(t, host_key)}
+    _facts.pop(target.id, None)
+    return {"key": True, "running": await _read_running(target, host_key)}
 
 
 # --- The terminal ---
@@ -283,16 +283,16 @@ async def open_terminal(
     user's password. Given sudo's `password`, it is the first line the command reads
     (`tool.visible`). Returns the target, connection and process; the caller closes the
     connection."""
-    t = target(machine_id)
-    host_key = _trusted(t)
+    target = require_target(machine_id)
+    host_key = _trusted(target)
     key = _main_key()
     try:
         conn, process = await asyncio.wait_for(
-            client.open_shell(t.host, t.port, t.user, host_key, key, cols, rows, command, password), client.TIMEOUT
+            client.open_shell(target.host, target.port, target.user, host_key, key, cols, rows, command, password), client.TIMEOUT
         )
     except Exception as exc:  # noqa: BLE001
-        raise SshError(_describe(exc, t, "key"), 502)
-    return t, conn, process
+        raise SshError(_describe(exc, target, "key"), 502)
+    return target, conn, process
 
 
 def log(event: str, machine_id: str, peer: str | None, **details) -> None:
@@ -313,12 +313,12 @@ def log(event: str, machine_id: str, peer: str | None, **details) -> None:
 # --- What runs there ---
 
 
-async def _ask_status(t: Target, host_key: str, command: str, parse) -> dict:
+async def _ask_status(target: Target, host_key: str, command: str, parse) -> dict:
     """What the status key's forced command answers to `command`, parsed — always a view:
     `ok` false with `error` (and `old` for a status line older than this Loskai, so the page
     offers the reinstall) when it can't be read. Stamped `checked`."""
     try:
-        result = await client.run(t.host, t.port, t.user, host_key, command, client_key=client.status_key())
+        result = await client.run(target.host, target.port, target.user, host_key, command, client_key=client.status_key())
         view = {"ok": True, **parse(str(result.stdout or ""))}
     except status.OldStatusLine:
         view = {"ok": False, "old": True, "error": "Its status line is older than this Loskai — install again"}
@@ -327,14 +327,14 @@ async def _ask_status(t: Target, host_key: str, command: str, parse) -> dict:
     except asyncssh.PermissionDenied:
         view = {"ok": False, "error": "The machine doesn't accept the status key — install again"}
     except Exception as exc:  # noqa: BLE001
-        view = {"ok": False, "error": _describe(exc, t, "status key")}
+        view = {"ok": False, "error": _describe(exc, target, "status key")}
     view["checked"] = time.time()
     return view
 
 
-async def _read_running(t: Target, host_key: str) -> dict:
-    view = await _ask_status(t, host_key, "running", status.parse_running)
-    _running[t.id] = (time.monotonic(), view)
+async def _read_running(target: Target, host_key: str) -> dict:
+    view = await _ask_status(target, host_key, "running", status.parse_running)
+    _running[target.id] = (time.monotonic(), view)
     return view
 
 
@@ -349,21 +349,21 @@ async def running() -> dict[str, dict]:
         if not instances_store.is_machine(inst):
             continue
         try:
-            t = target(inst.id)
+            target = require_target(inst.id)
         except SshError:
             continue
-        host_key = logic.known_key(known, t.id)
+        host_key = logic.known_key(known, target.id)
         if host_key is None:
             continue
-        cached = _running.get(t.id)
+        cached = _running.get(target.id)
         if cached and time.monotonic() - cached[0] < RUNNING_TTL:
-            out[t.id] = cached[1]
+            out[target.id] = cached[1]
         else:
-            stale.append((t, host_key))
-    for (t, _), view in zip(
-        stale, await asyncio.gather(*(_read_running(t, k) for t, k in stale)), strict=True
+            stale.append((target, host_key))
+    for (target, _), view in zip(
+        stale, await asyncio.gather(*(_read_running(target, k) for target, k in stale)), strict=True
     ):
-        out[t.id] = view
+        out[target.id] = view
     return out
 
 
@@ -375,15 +375,15 @@ async def facts(machine_id: str) -> dict:
     `FACTS_TTL`. Always a view, never an error once the machine is set up: `ok` false with
     `error` — and `old` when its status line is older than this Loskai, so the page offers the
     reinstall."""
-    t = target(machine_id)
-    host_key = _trusted(t)
-    cached = _facts.get(t.id)
+    target = require_target(machine_id)
+    host_key = _trusted(target)
+    cached = _facts.get(target.id)
     if cached and time.monotonic() - cached[0] < FACTS_TTL:
         return cached[1]
-    view = await _ask_status(t, host_key, "facts", status.parse_facts)
+    view = await _ask_status(target, host_key, "facts", status.parse_facts)
     if view.get("ok"):
         view = tool.claim_sessions(view, tool.load())
-    _facts[t.id] = (time.monotonic(), view)
+    _facts[target.id] = (time.monotonic(), view)
     return view
 
 
@@ -415,36 +415,36 @@ async def plan(
     package manager, its programs), never from the request; with `password` it reads
     sudo's first (`tool.visible`). Raises SshError or ToolError: 404 no such tool or action,
     409 it can't run here as asked."""
-    t = _tool(tool_id)
-    target(machine_id)  # an SSH user, or 409
+    found = _tool(tool_id)
+    require_target(machine_id)  # an SSH user, or 409
     f = await _overview(machine_id)
     manager = (f.get("updates") or {}).get("manager")
     programs = set(f.get("programs") or [])
     if install:
-        script = tool.install_script(t, programs, manager)
+        script = tool.install_script(found, programs, manager)
         # Never in tmux: it may be tmux that is missing.
         return tool.visible(script, None, None, automatic=True, password=password), {
-            "event": "add-tool", "tool": t.id, "programs": tool.to_install(t, programs), "command": script,
+            "event": "add-tool", "tool": found.id, "programs": tool.to_install(found, programs), "command": script,
         }, True
-    lacking = tool.missing(t, programs)
+    lacking = tool.missing(found, programs)
     if lacking:
-        raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
-    action = t.actions.get(action_id or "")
+        raise SshError(f"{found.name} needs {', '.join(lacking)} — add it first", 409)
+    action = found.actions.get(action_id or "")
     if action is None:
-        raise SshError(f"{t.name} has no action {action_id!r}", 404)
+        raise SshError(f"{found.name} has no action {action_id!r}", 404)
     tool.check_target(action.target or action.ask, target_name)
-    script = tool.action_script(t, action.id, manager)
-    session = tool.session_name(t, action, target_name) if "tmux" in programs else None
+    script = tool.action_script(found, action.id, manager)
+    session = tool.session_name(found, action, target_name) if "tmux" in programs else None
     command = tool.visible(
         script, target_name, session, _projects_folder(machine_id),
         automatic=action.automatic, password=password,
     )
     details = {
-        "event": "action", "tool": t.id, "action": action.id, "target": target_name,
+        "event": "action", "tool": found.id, "action": action.id, "target": target_name,
         "command": script, "tmux": session,
     }
     # The sudo rule lets this one run without a password — once it is on the machine.
-    if (t.id, action.id) == tool.RULE_ACTION and f.get("sudo_rule") == "on":
+    if (found.id, action.id) == tool.RULE_ACTION and f.get("sudo_rule") == "on":
         details["covered"] = True
     return command, details, action.automatic
 
@@ -454,7 +454,7 @@ async def plan_sudo(machine_id: str, allow: bool, password: bool = False) -> tup
     machine's package manager — or to take it off, and what the log says; always automatic.
     Raises SshError 409 before the overview says which package manager it has, ToolError
     409 when System's update there isn't plain sudo steps."""
-    target(machine_id)  # an SSH user, or 409
+    require_target(machine_id)  # an SSH user, or 409
     if allow:
         f = await _overview(machine_id)
         script = tool.allow_script((f.get("updates") or {}).get("manager"))
@@ -494,24 +494,24 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
     no = {"automatic": automatic, "needs_password": False, "ticket": None}
     if not automatic:
         return no
-    t = target(machine_id)
-    if t.user == "root" or "sudo" not in details["command"] or details.get("covered"):
+    target = require_target(machine_id)
+    if target.user == "root" or "sudo" not in details["command"] or details.get("covered"):
         return no
     result = await _run(
-        t, "sudo -n true" if password is None else "sudo -S -p '' -v",
+        target, "sudo -n true" if password is None else "sudo -S -p '' -v",
         stdin=None if password is None else password + "\n",
     )
     said = str(result.stderr or "")
     if result.exit_status == 127:
         raise SshError("sudo isn't installed on it — log in as root, or install sudo", 409)
     if "not in the sudoers" in said or "may not run sudo" in said:
-        raise SshError(f"{t.user} may not use sudo there", 409)
+        raise SshError(f"{target.user} may not use sudo there", 409)
     if result.exit_status == 0 and password is None:
         return no
     if password is None:
-        return {**no, "needs_password": True, "user": t.user}
+        return {**no, "needs_password": True, "user": target.user}
     if result.exit_status != 0:
-        raise SshError(f"sudo didn't accept that password for {t.user}", 422)
+        raise SshError(f"sudo didn't accept that password for {target.user}", 422)
     me = auth.current_user()
     now = time.monotonic()
     ticket = secrets.token_urlsafe(24)
@@ -519,7 +519,7 @@ async def prepare(machine_id: str, details: dict, automatic: bool, password: str
     # Gone when its minute is up, taken or not — a dialog closed before its terminal opened
     # leaves nothing behind.
     asyncio.get_running_loop().call_later(PASSWORD_TTL, _passwords.pop, ticket, None)
-    return {**no, "needs_password": True, "user": t.user, "ticket": ticket}
+    return {**no, "needs_password": True, "user": target.user, "ticket": ticket}
 
 
 def take_password(ticket: str, machine_id: str, details: dict) -> str:
@@ -542,12 +542,12 @@ def take_password(ticket: str, machine_id: str, details: dict) -> str:
 
 async def _tool_here(machine_id: str, tool_id: str) -> tool.Tool:
     """The tool, applying on this machine — it has every program it requires."""
-    t = _tool(tool_id)
+    found = _tool(tool_id)
     f = await _overview(machine_id)
-    lacking = tool.missing(t, set(f.get("programs") or []))
+    lacking = tool.missing(found, set(f.get("programs") or []))
     if lacking:
-        raise SshError(f"{t.name} needs {', '.join(lacking)} — add it first", 409)
-    return t
+        raise SshError(f"{found.name} needs {', '.join(lacking)} — add it first", 409)
+    return found
 
 
 def _projects_folder(machine_id: str) -> str | None:
@@ -559,26 +559,26 @@ async def read_settings(machine_id: str, tool_id: str) -> dict:
     """A tool's settings as the machine has them now: `{values, targets}` — the machine's by
     id, and each project's (`tool.parse_settings`), None where unset. Read with the main key,
     so the key must be unlocked (423)."""
-    t = target(machine_id)
+    target = require_target(machine_id)
     found = await _tool_here(machine_id, tool_id)
     script = tool.read_settings_script(found, _projects_folder(machine_id))
-    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + script)}")
+    result = await _run(target, f"sh -c {shlex.quote(status.USER_PATH + script)}")
     return tool.parse_settings(found, str(result.stdout or ""))
 
 
 async def write_setting(
     machine_id: str, tool_id: str, setting_id: str, value: str, peer: str | None = None,
-    row: str | None = None,
+    target_name: str | None = None,
 ) -> dict:
-    """Set one of a tool's settings on the machine — a project's, given its `row` — or, set
+    """Set one of a tool's settings on the machine — a project's, given its `target_name` — or, set
     to nothing, take it off; then read them all back — the effect, not the exit code.
     Logged, with the value. Raises ToolError 404/409/422 for no such setting, a row it isn't
     for, or a value it can't take, SshError 502 when the machine says no."""
-    t = target(machine_id)
+    target = require_target(machine_id)
     found = await _tool_here(machine_id, tool_id)
-    script = tool.write_setting_script(found, setting_id, value, row, _projects_folder(machine_id))
-    result = await _run(t, f"sh -c {shlex.quote(status.USER_PATH + script)}")
-    log("setting", machine_id, peer, tool=found.id, setting=setting_id, target=row, value=value,
+    script = tool.write_setting_script(found, setting_id, value, target_name, _projects_folder(machine_id))
+    result = await _run(target, f"sh -c {shlex.quote(status.USER_PATH + script)}")
+    log("setting", machine_id, peer, tool=found.id, setting=setting_id, target=target_name, value=value,
         ok=result.exit_status == 0)
     if result.exit_status != 0:
         said = str(result.stderr or result.stdout or "").strip().splitlines()

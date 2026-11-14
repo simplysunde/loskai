@@ -109,7 +109,7 @@ commit, the full checks, `where-used.py --write`.
 
 **Steps** — one commit each, `Rename: <area>`
 
-- [ ] 57a Backend, the SSH target: `connect.target` → `require_target`, `reach` →
+- [x] 57a Backend, the SSH target: `connect.target` → `require_target`, `reach` →
       `target_of`, `t` → `target`; a `Tool` is `tool` (`found` in `connect.py`); a row's
       name is `target_name`
 - [ ] 57b Backend, return-or-raise helpers are `require_…`: `_trusted`, `_tool`,

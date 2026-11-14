@@ -360,23 +360,23 @@ def _place(tool_id: str) -> int:
     return ORDER.index(tool_id) if tool_id in ORDER else len(ORDER)
 
 
-def view(t: Tool) -> dict:
+def view(tool: Tool) -> dict:
     """A tool as the page shows it — the commands included, so what runs can be read.
     `installable`: the programs it requires that Loskai can install."""
     return {
-        "id": t.id, "name": t.name, "description": t.description,
-        "requires": list(t.requires),
-        "installable": [p for p in t.requires if p in INSTALLERS],
+        "id": tool.id, "name": tool.name, "description": tool.description,
+        "requires": list(tool.requires),
+        "installable": [p for p in tool.requires if p in INSTALLERS],
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
              "ask": a.ask, "confirm": a.confirm, "session": a.session, "automatic": a.automatic,
              "when": a.when, "otherwise": a.otherwise, "place": a.place, "run": a.run}
-            for a in t.actions.values()
+            for a in tool.actions.values()
         ],
         "settings": [
             {"id": s.id, "label": s.label, "description": s.description, "value": s.value,
              "read": s.read, "write": s.write, "unset": s.unset, "target": s.target, "overrides": s.overrides}
-            for s in t.settings.values()
+            for s in tool.settings.values()
         ],
     }
 
@@ -393,17 +393,17 @@ def _projects_env(projects: str | None) -> str:
     return "PROJECTS=$HOME" + (f"/{shlex.quote(folder)}" if folder else "") + "; export PROJECTS; "
 
 
-def read_settings_script(t: Tool, projects: str | None = None) -> str:
+def read_settings_script(tool: Tool, projects: str | None = None) -> str:
     """One script reading each of the tool's settings, each after a line naming it — a
     project's for every git repo in the projects folder, after a line naming both. A folder
     whose name a project can't have is skipped, so a name never needs quoting or breaks a line."""
     machine = [
         f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null"
-        for s in t.settings.values() if s.target is None
+        for s in tool.settings.values() if s.target is None
     ]
     rows = [
         f"printf '%s\\n' \"{_SETTING_MARK}{s.id} $n\"; sh -c {shlex.quote(s.read)} loskai \"$n\" 2>/dev/null"
-        for s in t.settings.values() if s.target == "project"
+        for s in tool.settings.values() if s.target == "project"
     ]
     if rows:
         machine.append(
@@ -414,24 +414,24 @@ def read_settings_script(t: Tool, projects: str | None = None) -> str:
     return "; ".join(machine)
 
 
-def parse_settings(t: Tool, out: str) -> dict:
+def parse_settings(tool: Tool, out: str) -> dict:
     """`read_settings_script`'s output → `{values, targets}`: the machine's settings by id,
     and each row's by kind and row (`{"project": {"site": {"project-name": …}}}`) — None
     where nothing was printed."""
-    values: dict[str, str | None] = {s.id: None for s in t.settings.values() if s.target is None}
+    values: dict[str, str | None] = {s.id: None for s in tool.settings.values() if s.target is None}
     targets: dict[str, dict[str, dict[str, str | None]]] = {
-        s.target: {} for s in t.settings.values() if s.target
+        s.target: {} for s in tool.settings.values() if s.target
     }
     slot: tuple[dict, str] | None = None
     for line in out.splitlines():
         if line.startswith(_SETTING_MARK):
             setting_id, _, row = line[len(_SETTING_MARK):].strip().partition(" ")
-            s = t.settings.get(setting_id)
+            s = tool.settings.get(setting_id)
             slot = None
             if s and s.target is None and not row:
                 slot = (values, s.id)
             elif s and s.target and TARGETS[s.target].fullmatch(row):
-                slot = (targets[s.target].setdefault(row, {o.id: None for o in t.settings.values()
+                slot = (targets[s.target].setdefault(row, {o.id: None for o in tool.settings.values()
                                                           if o.target == s.target}), s.id)
         elif slot and slot[0][slot[1]] is None and line.strip():
             slot[0][slot[1]] = line.strip()
@@ -439,23 +439,23 @@ def parse_settings(t: Tool, out: str) -> dict:
 
 
 def write_setting_script(
-    t: Tool, setting_id: str, value: str, target: str | None = None, projects: str | None = None,
+    tool: Tool, setting_id: str, value: str, target_name: str | None = None, projects: str | None = None,
 ) -> str:
     """What sets one of the tool's settings: its `write`, the value as `$1` — checked against
     its kind first — or, for a row's, the row as `$1` and the value as `$2`. Nothing, for a
     setting that can be taken off, runs its `unset`. Raises ToolError for no such setting,
     a row it isn't for, or a value it can't take."""
-    s = t.settings.get(setting_id)
+    s = tool.settings.get(setting_id)
     if s is None:
-        raise ToolError(f"{t.name} has no setting {setting_id!r}", 404)
-    check_target(s.target, target)
+        raise ToolError(f"{tool.name} has no setting {setting_id!r}", 404)
+    check_target(s.target, target_name)
     if not value and s.unset:
         command, args = s.unset, []
     elif TARGETS[s.value].fullmatch(value):
         command, args = s.write, [value]
     else:
         raise ToolError(f"Not a valid {s.value.replace('-', ' ')}: {value!r}")
-    args = ([target] if target else []) + args
+    args = ([target_name] if target_name else []) + args
     script = f"sh -c {shlex.quote(command)} loskai" + "".join(f" {shlex.quote(a)}" for a in args)
     return _projects_env(projects) + script if s.target else script
 
@@ -476,20 +476,20 @@ def show_folder(folder: str | None) -> str:
 # --- What runs ---
 
 
-def missing(t: Tool, programs: set[str]) -> list[str]:
-    """The programs `t` requires that a machine with `programs` lacks — none: it applies."""
-    return [p for p in t.requires if p not in programs]
+def missing(tool: Tool, programs: set[str]) -> list[str]:
+    """The programs `tool` requires that a machine with `programs` lacks — none: it applies."""
+    return [p for p in tool.requires if p not in programs]
 
 
-def action_script(t: Tool, action_id: str, manager: str | None) -> str:
+def action_script(tool: Tool, action_id: str, manager: str | None) -> str:
     """The shell an action runs on a machine with `manager`."""
-    action = t.actions.get(action_id)
+    action = tool.actions.get(action_id)
     if action is None:
-        raise ToolError(f"{t.name} has no action {action_id!r}", 404)
+        raise ToolError(f"{tool.name} has no action {action_id!r}", 404)
     if isinstance(action.run, str):
         return action.run
     if manager not in action.run:
-        raise ToolError(f"{t.name} › {action.label} has no command for {manager or 'this machine'}'s package manager", 409)
+        raise ToolError(f"{tool.name} › {action.label} has no command for {manager or 'this machine'}'s package manager", 409)
     return action.run[manager]
 
 
@@ -559,25 +559,25 @@ REMOVE_RULE_SCRIPT = (
 )
 
 
-def to_install(t: Tool, programs: set[str]) -> list[str]:
-    """What adding `t` installs on a machine with `programs`: what it lacks, and curl first
+def to_install(tool: Tool, programs: set[str]) -> list[str]:
+    """What adding `tool` installs on a machine with `programs`: what it lacks, and curl first
     when a script will need it."""
-    lacking = missing(t, programs)
+    lacking = missing(tool, programs)
     if not lacking:
-        raise ToolError(f"{t.name} has everything it needs here", 409)
+        raise ToolError(f"{tool.name} has everything it needs here", 409)
     cannot = [p for p in lacking if p not in INSTALLERS]
     if cannot:
-        raise ToolError(f"{t.name} needs {', '.join(cannot)} — it can't be installed from here", 409)
+        raise ToolError(f"{tool.name} needs {', '.join(cannot)} — it can't be installed from here", 409)
     if any("script" in INSTALLERS[p] for p in lacking) and "curl" not in programs and "curl" not in lacking:
         lacking = ["curl", *lacking]
     return lacking
 
 
-def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
-    """The shell that installs what `t` lacks on a machine with `programs` and `manager`:
+def install_script(tool: Tool, programs: set[str], manager: str | None) -> str:
+    """The shell that installs what `tool` lacks on a machine with `programs` and `manager`:
     every package in one command, then each official installer."""
     packages, scripts = [], []
-    for program in to_install(t, programs):
+    for program in to_install(tool, programs):
         how = INSTALLERS[program]
         if "script" in how:
             scripts.append(how["script"])
@@ -589,15 +589,15 @@ def install_script(t: Tool, programs: set[str], manager: str | None) -> str:
     return " && ".join(steps)
 
 
-def check_target(kind: str | None, target: str | None) -> None:
-    """`target` must be what an action on (or asking for) `kind` takes — nothing, for the
+def check_target(kind: str | None, target_name: str | None) -> None:
+    """`target_name` must be what an action on (or asking for) `kind` takes — nothing, for the
     machine."""
     if kind is None:
-        if target:
+        if target_name:
             raise ToolError("This action is for the machine, not one thing on it", 409)
         return
-    if not target or not TARGETS[kind].fullmatch(target):
-        raise ToolError(f"Not a {kind}: {target!r}", 409)
+    if not target_name or not TARGETS[kind].fullmatch(target_name):
+        raise ToolError(f"Not a {kind}: {target_name!r}", 409)
 
 
 # Hands sudo the password read at the start (`$p`), so every `sudo` after it in the run finds
@@ -623,7 +623,7 @@ def _pane_reads_password() -> str:
 
 
 def visible(
-    script: str, target: str | None, session: str | None, projects: str | None = None,
+    script: str, target_name: str | None, session: str | None, projects: str | None = None,
     *, automatic: bool = False, password: bool = False,
 ) -> str:
     """The command a terminal runs for an action: `script` under `sh`, the target as `$1`;
@@ -640,7 +640,7 @@ def visible(
     `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
     through a FIFO in a folder of its own, read once and removed; a pane sent nothing ends (`PASSWORD_WAIT`)."""
     body = USER_PATH + _projects_env(projects) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
-    job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target)}" if target else "")
+    job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target_name)}" if target_name else "")
     if automatic:
         job += "; s=$?; [ $s = 0 ] && exit 0; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
     else:
@@ -663,14 +663,14 @@ def visible(
     )
 
 
-def session_name(t: Tool, action: Action, target: str | None) -> str | None:
+def session_name(tool: Tool, action: Action, target_name: str | None) -> str | None:
     """The tmux session an action runs in, in characters tmux allows in a name: by default
     one per action and target; the action's own `session` (with the target) when it shares
     one; None when it is tmux itself."""
     if action.session is False:
         return None
-    base = action.session if isinstance(action.session, str) else f"loskai-{t.id}-{action.id}"
-    return _tmux_name(base + (f"-{target}" if target else ""))
+    base = action.session if isinstance(action.session, str) else f"loskai-{tool.id}-{action.id}"
+    return _tmux_name(base + (f"-{target_name}" if target_name else ""))
 
 
 def _tmux_name(name: str) -> str:
@@ -686,15 +686,15 @@ def claim_sessions(facts: dict, tools: dict[str, Tool]) -> dict:
     names = {s["name"] for s in sessions}
     rows = {"project": [p["name"] for p in facts.get("projects") or []],
             "session": [s["name"] for s in sessions]}
-    shared = [(t, a) for t in tools.values() for a in t.actions.values() if isinstance(a.session, str)]
+    shared = [(tool, a) for tool in tools.values() for a in tool.actions.values() if isinstance(a.session, str)]
     live: dict[str, dict[str, list[str]]] = {}
-    for t, a in shared:
-        running = [r for r in rows.get(a.target or "", []) if session_name(t, a, r) in names]
+    for tool, a in shared:
+        running = [r for r in rows.get(a.target or "", []) if session_name(tool, a, r) in names]
         if running:
-            kinds = live.setdefault(t.id, {})
+            kinds = live.setdefault(tool.id, {})
             kinds[a.target] = sorted(set(kinds.get(a.target, [])) | set(running))
 
     def owner(name: str) -> str | None:
-        return next((t.id for t, a in shared if name.startswith(_tmux_name(a.session) + "-")), None)
+        return next((tool.id for tool, a in shared if name.startswith(_tmux_name(a.session) + "-")), None)
 
     return {**facts, "tmux": [{**s, "tool": owner(s["name"])} for s in sessions], "live": live}

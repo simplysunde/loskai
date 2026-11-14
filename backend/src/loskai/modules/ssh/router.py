@@ -59,14 +59,14 @@ def _known() -> dict[str, bool]:
 def ssh_status() -> dict:
     """Loskai's key (null before one is made), each `Host` in the config, which machines
     have a trusted host key, how each machine with an SSH user is reached
-    (`connect.reach`), and each machine's projects folder."""
+    (`connect.target_of`), and each machine's projects folder."""
     hosts = logic.hosts(client.read_config())
     machines = [i for i in instances_store.list_instances() if instances_store.is_machine(i)]
     return {
         "key": _key_view(),
         "hosts": hosts,
         "trusted": _known(),
-        "targets": {i.id: t.shown() for i in machines if (t := connect.reach(i, hosts))},
+        "targets": {i.id: t.shown() for i in machines if (t := connect.target_of(i, hosts))},
         "projects": {i.id: tool.show_folder(i.projects_folder) for i in machines},
     }
 
@@ -255,7 +255,7 @@ async def machine_terminal(
             command, details, _ = await _plan(machine_id, asked, sudo_password)
         if ticket:
             password = connect.take_password(ticket, machine_id, details)
-        t, conn, process = await connect.open_terminal(
+        ssh_target, conn, process = await connect.open_terminal(
             machine_id, terminal.clamp(cols), terminal.clamp(rows), command, password
         )
     except LoskaiError as exc:  # SshError, or a tool's ToolError
@@ -271,7 +271,7 @@ async def machine_terminal(
         # That sudo's password came with it — never the password.
         connect.log(details.pop("event"), machine_id, peer, **details, **({"sudo_password": True} if password else {}))
     else:
-        connect.log("open", machine_id, peer, target=f"{t.user}@{t.host}:{t.port}")
+        connect.log("open", machine_id, peer, target=f"{ssh_target.user}@{ssh_target.host}:{ssh_target.port}")
 
     async def write(data: bytes) -> None:
         process.stdin.write(data)

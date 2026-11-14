@@ -96,7 +96,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| How a machine is reached over SSH — its `HostName`, else its address — and that login shown | `modules/ssh/connect.py` `reach` | `modules/ssh/router.py` |
+| How a machine is reached over SSH — its `HostName`, else its address — and that login shown | `modules/ssh/connect.py` `target_of` | `modules/ssh/router.py` |
 | Each machine's trusted host key | `modules/ssh/logic.py` `known_keys` `known_key` | `modules/ssh/connect.py` `modules/ssh/router.py` |
 | The status line a machine installs | `modules/ssh/status.py` `STATUS_COMMAND` `status_line` | `modules/ssh/connect.py` |
 | Reading what the status key answered, and which line it came from | `modules/ssh/status.py` `parse_facts` `parse_running` `line_version` | `modules/ssh/connect.py` |
