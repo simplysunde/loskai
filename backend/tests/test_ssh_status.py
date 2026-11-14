@@ -570,6 +570,9 @@ def test_the_overview_lists_the_users_keys_and_which_one_each_project_uses(tmp_p
     assert set(keys) == {"id_ed25519", "deploy_site"}  # "with space" is skipped
     assert keys["deploy_site"]["comment"] == "vm@box site" and keys["deploy_site"]["type"] == "ED25519"
     assert keys["id_ed25519"]["fingerprint"].startswith("SHA256:") and keys["id_ed25519"]["bits"] == 256
+    # Its public half, to copy: the .pub's type and data.
+    pub = (home / ".ssh" / "deploy_site.pub").read_text().split()
+    assert keys["deploy_site"]["public"] == f"{pub[0]} {pub[1]}"
     # Only the public halves are read: nothing private in what is served — nor a token.
     assert "PRIVATE" not in str(out) and "s3cret" not in str(out)
     assert {(r["path"], r["module"], r["kind"], r["url"]) for r in out["remotes"]} == {
@@ -588,3 +591,14 @@ def test_the_overview_says_whether_loskai_s_sudo_rule_is_there():
     assert status.parse_facts(FACTS.replace("#=sudo\non\n", "#=sudo\noff\n"))["sudo_rule"] == "off"
     # Its folder not searchable by the user: the machine doesn't say.
     assert status.parse_facts(FACTS.replace("#=sudo\non\n", "#=sudo\n"))["sudo_rule"] is None
+
+
+def test_a_keys_row_from_v13_carries_its_public_half_and_before_it_none():
+    v12 = "#loskai-status 12\n#=keys\nid_ed25519|256 SHA256:abc vm@box (ED25519)\n"
+    v13 = "#loskai-status 13\n#=keys\nid_ed25519|ssh-ed25519 AAAAC3Nza|256 SHA256:abc vm@box for a|b (ED25519)\n"
+    assert status.parse_facts(v12)["ssh_keys"][0]["public"] is None
+    key = status.parse_facts(v13)["ssh_keys"][0]
+    assert key["public"] == "ssh-ed25519 AAAAC3Nza" and key["comment"] == "vm@box for a|b"
+    # Anything else where the key goes is no key.
+    assert status.parse_facts(v13.replace("ssh-ed25519 AAAAC3Nza", "rm -rf"))["ssh_keys"] == []
+

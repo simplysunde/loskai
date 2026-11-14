@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { KeyRound } from "lucide-react";
+import { ExternalLink, KeyRound } from "lucide-react";
 
-import { keyKind, keyUses, type KeyUse } from "../../lib/ssh";
+import { keyKind, keyPage, keyUses, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
+import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
 
@@ -97,6 +98,7 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                     <UsedBy uses={uses ? (uses.get(k.name) ?? []) : null} named={named.has(k.name)} />
                   </span>
                   <span className="ml-auto flex items-center gap-1">
+                    <CopyKey info={k} uses={uses ? (uses.get(k.name) ?? []) : null} />
                     {onKey.map((a) => (
                       <KeyButton
                         key={a.id}
@@ -243,5 +245,42 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
         </button>
       ))}
     </div>
+  );
+}
+
+// Copy, then Add it: the key's public line on the clipboard, ready to paste where it goes —
+// read from the overview, so nothing runs on the machine. Its comment goes with it:
+// Forgejo names a key by it.
+function CopyKey({ info, uses }: { info: SshKeyInfo; uses: KeyUse[] | null }) {
+  if (!info.public) {
+    return (
+      <span title="The status line is older: install it again to copy keys from here" className="cursor-help text-[11px] text-slate-600">
+        copy —
+      </span>
+    );
+  }
+  const page = keyPage(info, uses);
+  const text = info.comment ? `${info.public} ${info.comment}` : info.public;
+  return (
+    <>
+      <CopyButton
+        text={text}
+        title={`Copy ${info.name}'s public key${page ? ` — then paste it into ${page.where}` : ""}`}
+        label={`Copy ${info.name}`}
+        shown="Copy"
+        className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 [&_svg]:h-2.5 [&_svg]:w-2.5"
+      />
+      {page && (
+        <a
+          href={page.url}
+          target="_blank"
+          rel="noreferrer"
+          title={`Open ${page.where}: ${page.url}`}
+          className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-teal-300 hover:bg-slate-800"
+        >
+          Add it <ExternalLink className="h-2.5 w-2.5" />
+        </a>
+      )}
+    </>
   );
 }

@@ -26,7 +26,7 @@ def test_every_shipped_tool_is_valid():
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
     assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
-            "machine-key", "show-key", "try-key", "delete-key"} == set(tools["git"].actions)
+            "machine-key", "try-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
     # Their terminals stay open: a key to copy, a host's key to trust.
     assert not tools["git"].actions["ssh-key"].automatic and not tools["git"].actions["test-key"].automatic
@@ -277,19 +277,13 @@ def test_a_project_gets_its_own_key_git_uses_it_alone_and_gives_it_back(tmp_path
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_keys_show_where_they_go_test_each_project_they_are_for_and_delete(tmp_path):
+def test_keys_test_each_remote_they_are_for_and_delete(tmp_path):
     git_tool = tool.load()["git"]
     a = git_tool.actions
     home, projects, run = _home_with_projects(tmp_path, {
         "site": "ssh://git@forgejo.lan:2222/sunde/site.git", "blog": "git@github.com:sunde/blog.git"})
     assert run(a["ssh-key"].run).returncode == 0
     assert run(a["own-key"].run, "site").returncode == 0
-
-    # Show: the public half, and where it goes — a deploy key's own repository's page.
-    shown = run(a["show-key"].run, "deploy_site").stdout
-    assert (home / ".ssh" / "deploy_site.pub").read_text().strip() in shown
-    assert "https://forgejo.lan/sunde/site/settings/keys" in shown
-    assert "github.com/settings/ssh/new" in run(a["show-key"].run, "id_ed25519").stdout
 
     # Test: each project it is for, with that key alone — site's own, the account key the rest.
     deploy = run(a["try-key"].run, "deploy_site")
@@ -713,7 +707,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
         "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
-        "show-key": ("key", "card"), "try-key": ("key", "card"), "delete-key": ("key", "card")}
+        "try-key": ("key", "card"), "delete-key": ("key", "card")}
 
 
 @pytest.mark.parametrize("name", ["id_ed25519", "deploy_site", "deploy_my.site", "work-laptop"])

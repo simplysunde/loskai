@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 12
+STATUS_LINE = 13
 STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -38,6 +38,8 @@ KEYS_SINCE = 11
 # From v12, each project's remotes (and its submodules'), and which keys ssh offers for each
 # SSH host they name — so a key's use through ~/.ssh/config is seen too.
 REMOTES_SINCE = 12
+# From v13, a key's row carries its public half too — to copy it, ready to paste.
+PUBLIC_SINCE = 13
 LISTEN_SINCE = 6
 
 
@@ -189,11 +191,12 @@ _FACTS = (
     "git -C $d log -1 --format=$p%x7c$b%x7c$w%x7c$t%x7c$a%x7c$s%x7c%ct%x7c%s 2>/dev/null "
     "|| echo $p'|'$b'|'$w'|'$t'|'$a'|'$s'|0|'; "
     "done | head -n 200; "
-    # The user's SSH keys, by their public halves only — name, then ssh-keygen's line: its
+    # The user's SSH keys, by their public halves only — name, the public key itself (its
+    # type and data: public, to paste into GitHub or Forgejo), then ssh-keygen's line: its
     # size, fingerprint, comment and type. A name with any other character is skipped.
     "echo '#=keys'; if command -v ssh-keygen >/dev/null; then for f in $HOME/.ssh/*.pub; do "
     "[ -f $f ] || continue; n=${f##*/}; n=${n%.pub}; case $n in [!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) continue;; esac; "
-    "echo $n'|'$(ssh-keygen -lf $f 2>/dev/null | head -n 1); done | head -n 50; fi; "
+    "echo $n'|'$(cut -d' ' -f1,2 $f | head -n 1)'|'$(ssh-keygen -lf $f 2>/dev/null | head -n 1); done | head -n 50; fi; "
     # Every remote of each project and of its submodules (their configs are under
     # .git/modules/<name>/): `path|module|url or pushurl|address`, any user:token@ taken out
     # of the address here, before it leaves the machine. Kept for the next section.
@@ -446,8 +449,8 @@ def parse_facts(output: str) -> dict:
     seconds since the epoch (0: never), `ahead` commits not on the upstream yet (None
     without one), `key` the SSH key git uses for it — None for the machine's, a key's name
     (its own, Git's Own key), "" for a `core.sshCommand` naming none; `ssh_keys` the user's
-    keys in ~/.ssh, by their public halves, `{name, bits, fingerprint, comment, type}` — None
-    from a line before v11; `remotes` each project's remotes and its submodules', `{path,
+    keys in ~/.ssh, by their public halves, `{name, bits, fingerprint, comment, type, public}`
+    — `public` its type and data, to paste (None before v13) — None from a line before v11; `remotes` each project's remotes and its submodules', `{path,
     module, kind, url}` — `module` "" for the project itself, `kind` "url" or "pushurl", no
     user or token in the address; `ssh_hosts` the keys ssh offers each SSH host those name,
     `{host: {hostname, identities_only, keys}}` — `keys` the names of those in ~/.ssh;
@@ -487,7 +490,8 @@ def parse_facts(output: str) -> dict:
         "tailnet": _tailnet(sections.get("tailnet", [])),
         "tailscale_self": _tailscale_self(sections.get("tsself")),
         "projects": [p for p in (_project(line, version) for line in sections.get("projects", [])) if p],
-        "ssh_keys": [k for k in map(_ssh_key, sections.get("keys", [])) if k] if version >= KEYS_SINCE else None,
+        "ssh_keys": [k for k in (_ssh_key(line, version) for line in sections.get("keys", [])) if k]
+        if version >= KEYS_SINCE else None,
         **_remotes(sections, version),
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
         "outdated": version != STATUS_LINE,
@@ -601,15 +605,24 @@ def _remotes(sections: dict[str, list[str]], version: int) -> dict:
 
 
 _KEY_LINE = re.compile(r"^([A-Za-z0-9._-]+)\|(\d+) (SHA256:\S+) (.*?) ?\((\w+)\)$")
+_PUBLIC = re.compile(r"^(?:ssh|ecdsa|sk)-[A-Za-z0-9@.-]+ [A-Za-z0-9+/]+=*$")
 
 
-def _ssh_key(line: str) -> dict | None:
-    """`name|<ssh-keygen -l line>` → `{name, bits, fingerprint, comment, type}`."""
+def _ssh_key(line: str, version: int) -> dict | None:
+    """`name|<ssh-keygen -l line>` → `{name, bits, fingerprint, comment, type, public}`; from
+    v13 `name|<type data>|<ssh-keygen -l line>`, `public` its key line (None before)."""
+    public = None
+    if version >= PUBLIC_SINCE:
+        name, _, rest = line.partition("|")
+        public, _, rest = rest.partition("|")
+        line = f"{name}|{rest}"
+        if not _PUBLIC.fullmatch(public):
+            return None
     m = _KEY_LINE.match(line)
     if not m:
         return None
     return {"name": m.group(1), "bits": int(m.group(2)), "fingerprint": m.group(3),
-            "comment": m.group(4), "type": m.group(5)}
+            "comment": m.group(4), "type": m.group(5), "public": public}
 
 
 _TAILNET_IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$|^[0-9a-f:]+:[0-9a-f:]*$")

@@ -249,10 +249,12 @@ and Add.
   file is yours. A key used only by a script that runs `ssh -i` itself can't be seen. An **account** key (`id_…`) goes on your
   GitHub or Forgejo account and reaches every repository you can; it is what a project
   without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
-  reaches only it. Each key has **Show** — its public line to copy, and where it goes: your
-  account's SSH keys page, or the repository's own Deploy keys page, worked out from its
-  remote — **Test**, which asks each remote the key is for for its HEAD with that key
-  alone, as a pull would (only over SSH), and **Delete**, which asks first, removes the file and puts a
+  reaches only it. Each key has **Copy** — its public line, with its comment, onto the
+  clipboard, ready to paste — and **Add it**, which opens where it goes: a deploy key's
+  repository's Deploy keys page, worked out from its remote, or your account's SSH keys
+  page on the platform its remotes are on (or its comment's "for <host>"). Then **Test**,
+  which asks each remote the key is for for its HEAD with that key alone, as a pull would
+  (only over SSH), and **Delete**, which asks first, removes the file and puts a
   project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never

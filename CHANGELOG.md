@@ -71,7 +71,7 @@ Everything so far:
   (`https://…`, `ssh://…` or `git@host:path`) into the projects folder. They run in the
   terminal as the machine's SSH user: over SSH with that user's own keys — **Keys** lists
   them, where each is used (every remote of every project and submodule, through
-  `~/.ssh/config` aliases too) and their fingerprints, each with Show (where it goes), Test
+  `~/.ssh/config` aliases too) and their fingerprints, each with Copy (ready to paste) and Add it (where it goes), Test
   and Delete (never one `~/.ssh/config` names); Test key on a host tries the keys meant for it,
   each alone, and says which get in and as whom — Try every key tries them all, at most
   10 — and New key for a host makes one per platform, and makes an account key; a project can have its own deploy key in place

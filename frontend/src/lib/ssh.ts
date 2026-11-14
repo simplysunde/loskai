@@ -93,6 +93,37 @@ export interface SshKeyInfo {
   fingerprint: string; // SHA256:… — as GitHub and Forgejo list it
   comment: string;
   type: string; // ED25519, RSA, …
+  public?: string | null; // its type and data — to paste; null before status line v13
+}
+
+// A remote's web page: an SSH address's host (an alias's HostName, given) over https, an
+// http(s) one as it is, without .git — where GitHub and Forgejo show the repository.
+export function webOf(url: string, hostname?: string): string | null {
+  const ssh = /^ssh:\/\/(?:[^@/]*@)?([^/:]+)(?::\d+)?\/(.+)$/.exec(url) ?? /^[^@/:]*@([^:/]+):(.+)$/.exec(url);
+  const web = ssh
+    ? `https://${hostname ?? ssh[1]}/${ssh[2]}`
+    : /^https?:\/\//.test(url)
+      ? url.replace(/^(https?:\/\/)[^/@]*@/, "$1")
+      : null;
+  return web ? web.replace(/\/+$/, "").replace(/\.git$/, "") : null;
+}
+
+// Where a key goes, to paste it: a deploy key — by name, or by its comment — on the
+// repository it is used for (its Deploy keys page, the same path on GitHub and Forgejo);
+// any other on your account, on the platform its remotes are on (or its comment's "for
+// <host>"). Null where that can't be told.
+export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; where: string } | null {
+  const deploy = key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
+  const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)).filter(Boolean))] as string[];
+  if (deploy) {
+    return repos.length === 1 ? { url: `${repos[0]}/settings/keys`, where: "its repository's Deploy keys" } : null;
+  }
+  const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
+  const host = hosts.length === 1 ? hosts[0] : /\bfor ([A-Za-z0-9.-]+)$/.exec(key.comment)?.[1];
+  if (!host) return null;
+  if (host === "github.com") return { url: "https://github.com/settings/ssh/new", where: "your GitHub account's SSH keys" };
+  if (host === "gitlab.com") return { url: "https://gitlab.com/-/user_settings/ssh_keys", where: "your GitLab account's SSH keys" };
+  return { url: `https://${host}/user/settings/keys`, where: `your account's SSH keys on ${host}` };
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever

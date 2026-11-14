@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { keyUnlocked, keyUses, sshHost, takesKeysOff, type Facts, type SshStatus } from "./ssh";
+import { keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
 const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
@@ -67,3 +67,32 @@ test("a key is used where its project names it, else where ssh offers it the rem
   expect(one.get("id_ed25519")![0].offered).toBe(false);
   expect(keyUses({ ...facts, remotes: null } as Facts)).toBeNull();
 });
+
+test("a remote's web page: an SSH address over https on its real host, an http(s) one as it is", () => {
+  expect(webOf("git@github.com:me/site.git")).toBe("https://github.com/me/site");
+  expect(webOf("git@gh-site:me/site.git", "github.com")).toBe("https://github.com/me/site");
+  expect(webOf("ssh://git@forgejo.lan:2222/me/site.git")).toBe("https://forgejo.lan/me/site");
+  expect(webOf("http://192.168.10.216:3000/me/site.git")).toBe("http://192.168.10.216:3000/me/site");
+  expect(webOf("https://me:token@github.com/me/site.git/")).toBe("https://github.com/me/site");
+  expect(webOf("/srv/site.git")).toBeNull();
+});
+
+test("where a key goes: a deploy key to its repository, another to the account on its platform", () => {
+  const key = (name: string, comment = "vm@box") => ({ name, comment }) as SshKeyInfo;
+  const use = (url: string, hostname: string) => ({ url, hostname }) as KeyUse;
+  expect(keyPage(key("deploy_site"), [use("git@github.com:me/site.git", "github.com")])?.url).toBe(
+    "https://github.com/me/site/settings/keys",
+  );
+  // Deploy by its comment, through an alias — the push of a submodule.
+  expect(keyPage(key("simplysunde-site", "simplysunde.github.io deploy key (vm)"), [use("git@gh-site:me/page.git", "github.com")])?.url).toBe(
+    "https://github.com/me/page/settings/keys",
+  );
+  expect(keyPage(key("id_ed25519"), [use("git@github.com:me/a.git", "github.com")])?.url).toBe("https://github.com/settings/ssh/new");
+  expect(keyPage(key("id_ed25519"), [use("git@forgejo.lan:me/a.git", "forgejo.lan")])?.url).toBe("https://forgejo.lan/user/settings/keys");
+  // Used nowhere yet: its comment's "for <host>", else nothing to say.
+  expect(keyPage(key("codeberg.org", "vm@box for codeberg.org"), [])?.url).toBe("https://codeberg.org/user/settings/keys");
+  expect(keyPage(key("id_ed25519"), [])).toBeNull();
+  // On two platforms, or a deploy key on two repositories: no single place.
+  expect(keyPage(key("id_ed25519"), [use("git@github.com:a/b", "github.com"), use("git@forgejo.lan:a/b", "forgejo.lan")])).toBeNull();
+});
+

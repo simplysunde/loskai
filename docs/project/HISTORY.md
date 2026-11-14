@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A key's Copy, and Add it, in place of Show
+
+Show opened a terminal to print a key's public line and where it goes; Sunde asked for a
+button that copies it, ready to paste into the platform. A public key is public, so the
+status line carries it (v13) and the page copies it with its comment — Forgejo names a key
+by it — without running anything on the machine. Where it goes became **Add it**, a link:
+a deploy key's repository's Deploy keys page (by its name, or a comment that says
+"deploy"), from its remote; any other key's account page on the platform its remotes are
+on, or its comment's "for <host>". Where that isn't one place — two platforms, two
+repositories — there is no link rather than a guess.
+
 ## 2026-11-14 — Test key tries the keys meant for a host; nothing about a key is stored
 
 Test key tried every key on a host, a connection each. Asked whether that is reasonable:

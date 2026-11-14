@@ -3,7 +3,8 @@
 # pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
 # user, so a remote over SSH uses that user's own key and asks to trust a new host there,
 # and one over HTTPS asks for its login there when it needs one. That user's keys are in
-# Keys: each one's Show, Test and Delete, a new account key, and a test on any host. A
+# Keys: each one's Copy (the page's, from the overview), Test and Delete, a new account
+# key, a key for a host, and a test on any host. A
 # project can have its own commit name, email and key — a deploy key — in place of the
 # machine's.
 # docs/reference/tool-schema.md is the format.
@@ -161,7 +162,7 @@ actions:
     run: >-
       command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
       h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac; k="$HOME/.ssh/$h";
-      if [ -e "$k" ]; then echo "There is a key named $h already: Show, on its row in Keys."; exit 1; fi;
+      if [ -e "$k" ]; then echo "There is a key named $h already: Copy, on its row in Keys."; exit 1; fi;
       mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
       ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) for $h" -f "$k" </dev/null || exit 1;
       echo "Made a key for $h, with no passphrase:"; echo; cat "$k.pub"; echo;
@@ -218,7 +219,7 @@ actions:
       done;
       [ $n = 0 ] && { echo "  None here: ssh offers it no key in ~/.ssh, and none is made for it."; echo;
       echo "Try every key finds out which get in — or New key for a host makes one."; exit 1; };
-      [ $ok -gt 0 ] || { echo; echo "None gets in: add one to your account there (Show, on its row), or Try every key."; exit 1; }
+      [ $ok -gt 0 ] || { echo; echo "None gets in: add one to your account there (Copy, on its row), or Try every key."; exit 1; }
   # Try every key: each key in ~/.ssh, at most 10 — to find which a host takes when nothing
   # says. A key a host refuses is a failed login there; this one is asked for.
   every-key:
@@ -254,25 +255,7 @@ actions:
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
-      [ $ok -gt 0 ] || { echo; echo "No key here gets in: add one to your account there (Show, on its row)."; exit 1; }
-  # A key's public half, and where it goes: a deploy key to its project's repository — the
-  # page's address worked out from the remote, the same path on GitHub and Forgejo.
-  show-key:
-    label: Show
-    description: This key's public half, to copy — and where to add it.
-    target: key
-    session: false
-    run: >-
-      f="$HOME/.ssh/$1.pub"; [ -f "$f" ] || { echo "No key $1 here."; exit 1; };
-      echo "$1:"; echo; cat "$f"; echo;
-      case "$1" in deploy_*) p=${1#deploy_};
-      u=$(git -C "$PROJECTS/$p" remote get-url origin 2>/dev/null);
-      w=$(printf %s "$u" | sed -E -n -e 's,^(https?)://([^/@]*@)?([^/]+)/(.+)$,\1://\3/\4,p'
-      -e 's,^(ssh://)?[^@/]+@([^:/]+)(:[0-9]+)?[:/](.+)$,https://\2/\4,p' | sed 's,[.]git$,,' | head -n 1);
-      echo "A deploy key: add it to $p's repository, under Settings › Deploy keys, with write access to push.";
-      [ -n "$w" ] && echo "$w/settings/keys";;
-      *) echo "An account key: add it to your account — GitHub: https://github.com/settings/ssh/new";
-      echo "Forgejo: <your Forgejo>/user/settings/keys";; esac
+      [ $ok -gt 0 ] || { echo; echo "No key here gets in: add one to your account there (Copy, on its row)."; exit 1; }
   # Each remote the key is for, as the list shows it: in every repo in the home folder and
   # its submodules, a remote over SSH whose key is this one — the project's own (its
   # core.sshCommand), else what ssh offers its host (`ssh -G`: aliases, Host *, Include) —

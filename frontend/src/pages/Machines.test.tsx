@@ -62,8 +62,8 @@ const FACTS = {
   ],
   live: { claude: { project: ["site"] } },
   ssh_keys: [
-    { name: "id_ed25519", bits: 256, fingerprint: "SHA256:mach", comment: "loskai@nas", type: "ED25519" },
-    { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519" },
+    { name: "id_ed25519", bits: 256, fingerprint: "SHA256:mach", comment: "loskai@nas", type: "ED25519", public: "ssh-ed25519 AAAAmach" },
+    { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519", public: "ssh-ed25519 AAAAblog" },
     { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519" },
   ],
   // site's submodule pushes through a ~/.ssh/config alias, gh-page, which names `work`.
@@ -157,7 +157,6 @@ const TOOLS = [
       { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
       { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh -T \"git@$1\"" },
-      { id: "show-key", label: "Show", description: "Its public half.", target: "key", ask: null, confirm: null, session: false, run: "cat" },
       { id: "try-key", label: "Test", description: "Try it.", target: "key", ask: null, confirm: null, session: false, run: "git ls-remote" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
       { id: "own-key", label: "Own key", description: "Its own key.", target: "project", ask: null, confirm: null, session: false, place: "settings", run: "ssh-keygen" },
@@ -1273,13 +1272,13 @@ test("Clone asks for a repository's address and runs on it; Git's card has the p
 // Git's keys, in a dialog of their own from Keys in its header — not on the card, nor in Settings.
 async function gitKeys() {
   const tools = await screen.findByRole("region", { name: "Tools" });
-  expect(within(tools).queryByRole("button", { name: "Show id_ed25519" })).toBeNull();
+  expect(within(tools).queryByRole("button", { name: "Copy id_ed25519" })).toBeNull();
   expect(within(tools).queryByRole("button", { name: "Test key" })).toBeNull();
   fireEvent.click(await within(tools).findByRole("button", { name: "Keys" }));
   return screen.findByRole("dialog", { name: "SSH keys" });
 }
 
-test("Keys lists each SSH key: what it is, which projects use it, its fingerprint — and Show runs on it", async () => {
+test("Keys lists each SSH key: what it is, where it is used, its fingerprint — Copy puts it on the clipboard, Add it opens where it goes", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
@@ -1291,7 +1290,7 @@ test("Keys lists each SSH key: what it is, which projects use it, its fingerprin
   // Each by the remotes it is for: the account key site's (blog has its own); blog's deploy
   // key; and `work`, which site's submodule pushes with through ~/.ssh/config's gh-page.
   expect(row("id_ed25519")).toHaveTextContent("account");
-  expect(row("id_ed25519")).toHaveTextContent(/projects\/site — fetch and push Show/);
+  expect(row("id_ed25519")).toHaveTextContent(/projects\/site — fetch and push\s*Copy/);
   expect(row("id_ed25519")).toHaveTextContent("SHA256:mach");
   // Its comment — what it is for — in view: it travels with the key.
   expect(row("deploy_blog")).toHaveTextContent("loskai@nas blog");
@@ -1305,10 +1304,13 @@ test("Keys lists each SSH key: what it is, which projects use it, its fingerprin
   // An account key exists: no New account key.
   expect(within(dialog).queryByRole("button", { name: "New account key" })).toBeNull();
 
-  fireEvent.click(within(row("deploy_blog")).getByRole("button", { name: "Show deploy_blog" }));
-  expect(screen.queryByRole("dialog", { name: "SSH keys" })).toBeNull();
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=show-key&target=deploy_blog")).toBeInTheDocument();
-  expect(screen.getByRole("dialog", { name: /Show: deploy_blog — Storage box/ })).toBeInTheDocument();
+  // Copy: its public line and comment, from the overview — nothing runs on the machine.
+  fireEvent.click(within(row("deploy_blog")).getByRole("button", { name: "Copy deploy_blog" }));
+  await vi.waitFor(() => expect(vi.mocked(copyText)).toHaveBeenLastCalledWith("ssh-ed25519 AAAAblog loskai@nas blog"));
+  expect(screen.queryByText(/shell at/)).toBeNull();
+  // Add it: a deploy key's repository, from its remote; the account key's platform.
+  expect(within(row("deploy_blog")).getByRole("link", { name: /Add it/ })).toHaveAttribute("href", "https://forgejo.lan/me/blog/settings/keys");
+  expect(within(row("id_ed25519")).getByRole("link", { name: /Add it/ })).toHaveAttribute("href", "https://github.com/settings/ssh/new");
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {
