@@ -4,7 +4,7 @@ import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
 import { hostOptions } from "./hostOptions";
 import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 
 export interface LinkPayload {
@@ -28,11 +28,11 @@ export function LinkModal({
   onSubmit,
   onClose,
 }: {
-  row: RouteRow;
+  row: Instance;
   // The row's container's published address now — what a following link uses — or null.
   published?: string | null;
   dockerHost?: string | null;
-  rows?: RouteRow[];
+  rows?: Instance[];
   pending?: boolean;
   error?: string | null;
   onSubmit: (link: LinkPayload) => void;

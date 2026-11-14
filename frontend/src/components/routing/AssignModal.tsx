@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 import { useRouteFields } from "./useRouteFields";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { hostOptions } from "./hostOptions";
@@ -47,7 +47,7 @@ export function AssignModal({
   initialUpstream?: string;
   initialTls?: boolean;
   initialScheme?: Scheme;
-  rows?: RouteRow[];
+  rows?: Instance[];
   // Present only for a container's route: whether it starts out following, and the
   // container's live address (null when Docker can't name its port).
   follow?: { initial: boolean; derived: string | null };

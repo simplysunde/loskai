@@ -3,7 +3,7 @@ import { Container as ContainerIcon, Server } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useContainers, type Container } from "../../lib/containers";
-import { useRoutes } from "../../lib/routes";
+import { useInstances } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { useRunning } from "../../lib/ssh";
 import { useMe } from "../../lib/useAuth";
@@ -109,7 +109,7 @@ export function AddRouteModal({
   // machines. Unlike the Container and Machines sources these are NOT filtered by whether
   // they are routed: you are borrowing the address, not routing the thing, so a NAS that
   // already answers to its own name is still a valid upstream for a new route.
-  const rows = useRoutes(open);
+  const rows = useInstances(open);
   const settings = useSettings(open);
 
 

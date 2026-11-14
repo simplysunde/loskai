@@ -2,7 +2,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
 import type { NewLink, NewRoute } from "../components/routing/AddRouteModal";
-import type { RouteRow } from "../components/routing/ServiceTable";
+import type { Instance } from "../components/routing/ServiceTable";
 import type { SaveResult } from "../components/routing/useSaveMachine";
 
 // Add route's submit, to the endpoint for what it made: a route goes through Caddy and
@@ -32,10 +32,10 @@ export interface DnsStatus {
 
 // Every record, routed or not — one cache entry for the Routing and Machines tabs, a
 // machine's dialog and the Add route picker.
-export function useRoutes(enabled = true) {
+export function useInstances(enabled = true) {
   return useQuery({
     queryKey: ["caddy-routes"],
-    queryFn: () => api.get<RouteRow[]>("/api/caddy/routes"),
+    queryFn: () => api.get<Instance[]>("/api/caddy/routes"),
     refetchInterval: 15_000,
     enabled,
   });
@@ -43,15 +43,15 @@ export function useRoutes(enabled = true) {
 
 // The routes with each row's DNS status merged in, and the built-in network services
 // already routed (the Routing tab offers to route AdGuard while it isn't).
-export function useRouteRows() {
-  const routes = useRoutes();
+export function useInstanceRows() {
+  const routes = useInstances();
   const dns = useQuery({
     queryKey: ["adguard-status"],
     queryFn: () => api.get<DnsStatus>("/api/adguard/status"),
     refetchInterval: 15_000,
   });
   const dnsById = new Map(dns.data?.instances.map((i) => [i.id, i]) ?? []);
-  const rows: RouteRow[] = (routes.data ?? []).map((r) => {
+  const rows: Instance[] = (routes.data ?? []).map((r) => {
     const d = dnsById.get(r.id);
     return { ...r, dnsPresent: d?.present ?? null, dnsConflict: d?.conflict ?? false };
   });

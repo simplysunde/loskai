@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
-import { ServiceTable, type RouteRow } from "./ServiceTable";
+import { ServiceTable, type Instance } from "./ServiceTable";
 
-function row(overrides: Partial<RouteRow> = {}): RouteRow {
+function row(overrides: Partial<Instance> = {}): Instance {
   return {
     id: "grafana",
     name: "Grafana",

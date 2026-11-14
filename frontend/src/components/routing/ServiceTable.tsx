@@ -10,7 +10,7 @@ import { isMachine, machineAt, machineLabel } from "./machine";
 const MACHINE_HINT = "The machine at this address — the route moves with it";
 const MACHINE_FOLLOWING = "The machine at this address — the route follows its container";
 
-export interface RouteRow {
+export interface Instance {
   id: string;
   name: string;
   type: "docker" | "external";
@@ -59,21 +59,21 @@ export function ServiceTable({
   onLink,
   caddy = true,
 }: {
-  rows: RouteRow[];
+  rows: Instance[];
   // Where a row's machine is looked up. Routing shows services only, so the machines its
   // routes are on are not among `rows`.
-  machines?: RouteRow[];
-  onAssign?: (row: RouteRow) => void;
-  onRemoveRoute?: (row: RouteRow) => void;
-  onDelete?: (row: RouteRow) => void;
+  machines?: Instance[];
+  onAssign?: (row: Instance) => void;
+  onRemoveRoute?: (row: Instance) => void;
+  onDelete?: (row: Instance) => void;
   actionBusyId?: string | null;
-  onTogglePrivate?: (row: RouteRow) => void;
+  onTogglePrivate?: (row: Instance) => void;
   privateBusyId?: string | null;
   // Launcher icon: picking a file uploads it, and a row with one offers to clear it.
-  onIcon?: (row: RouteRow, file: File) => void;
-  onClearIcon?: (row: RouteRow) => void;
+  onIcon?: (row: Instance, file: File) => void;
+  onClearIcon?: (row: Instance) => void;
   // Edit a link, or make one of an unrouted row.
-  onLink?: (row: RouteRow) => void;
+  onLink?: (row: Instance) => void;
   // Caddy is set up: routes can be made.
   caddy?: boolean;
 }) {
@@ -254,7 +254,7 @@ function Dash() {
   return <span className="text-xs text-slate-600">—</span>;
 }
 
-function routeFine(row: RouteRow) {
+function routeFine(row: Instance) {
   return !row.routed || row.synced === true;
 }
 function OnPhone({ children }: { children: string }) {
@@ -294,9 +294,9 @@ function IconPicker({
   onPick,
   onClear,
 }: {
-  row: RouteRow;
-  onPick: (row: RouteRow, file: File) => void;
-  onClear?: (row: RouteRow) => void;
+  row: Instance;
+  onPick: (row: Instance, file: File) => void;
+  onClear?: (row: Instance) => void;
 }) {
   const id = `icon-${row.id}`;
   return (

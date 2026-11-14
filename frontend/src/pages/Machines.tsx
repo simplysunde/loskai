@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Download, FolderGit2, HardDrive, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../lib/api";
-import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
+import { refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { MACHINE_TOOL, useTools, type ToolRun } from "../lib/tools";
@@ -19,7 +19,7 @@ import { SaveBanner } from "../components/routing/SaveBanner";
 import { ProjectsOverview } from "../components/routing/ProjectsOverview";
 import { UpdateAll } from "../components/routing/UpdateAll";
 import { ToolDialog } from "../components/routing/ToolDialog";
-import type { RouteRow } from "../components/routing/ServiceTable";
+import type { Instance } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
@@ -39,7 +39,7 @@ export function Machines() {
   const [naming, setNaming] = useState<{ address?: string; name?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Instance | null>(null);
   // Deleting a set-up machine takes Loskai's key off it first, which needs the key unlocked:
   // your password, typed in the dialog when it is locked. What went wrong shows there;
   // a machine deleted with its key still on it says so after.
@@ -47,16 +47,16 @@ export function Machines() {
   const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
   // The machine a new route is being added on, from its row — with a port of its running
   // list already picked, from there.
-  const [routeOn, setRouteOn] = useState<{ machine: RouteRow; service?: MachineService } | null>(null);
+  const [routeOn, setRouteOn] = useState<{ machine: Instance; service?: MachineService } | null>(null);
   // The machine with a terminal open, and what it runs there — its shell, or System's Update.
-  const [terminalFor, setTerminalFor] = useState<{ machine: RouteRow; run?: ToolRun } | null>(null);
+  const [terminalFor, setTerminalFor] = useState<{ machine: Instance; run?: ToolRun } | null>(null);
   // A tool on a machine, from the Tools menu on its row.
-  const [toolFor, setToolFor] = useState<{ machine: RouteRow; toolId: string } | null>(null);
+  const [toolFor, setToolFor] = useState<{ machine: Instance; toolId: string } | null>(null);
   // Every machine's projects, and every machine's updates, from the row above the table.
   const [projects, setProjects] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  const { routes, rows } = useRouteRows();
+  const { routes, rows } = useInstanceRows();
   const settings = useSettings();
   const baseDomain = settings.data?.base_domain?.value ?? null;
   const ssh = useSsh();
@@ -100,7 +100,7 @@ export function Machines() {
 
   const remove = useMutation({
     // With Loskai's key on it and the key locked, the delete asks for your password (api.ts).
-    mutationFn: (row: RouteRow) => api.del<{ warning: string | null }>(`/api/instances/${row.id}`),
+    mutationFn: (row: Instance) => api.del<{ warning: string | null }>(`/api/instances/${row.id}`),
     onSuccess: (data) => {
       setConfirmDelete(null);
       setDeleteWarning(data.warning);

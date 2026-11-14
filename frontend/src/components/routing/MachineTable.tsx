@@ -32,7 +32,7 @@ import { ToolsMenu } from "./MachineTools";
 import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "./machineServices";
 import { RunningPill } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
-import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
+import { DNS_HINT, DnsCell, type Instance } from "./ServiceTable";
 
 // A small copy button after a name or an address: shown on the row's hover (or focus) —
 // always on a phone, which has no hover.
@@ -65,9 +65,9 @@ export function MachineTable({
   onTool,
   busyId,
 }: {
-  machines: RouteRow[];
+  machines: Instance[];
   // Every row, for the dependents — they are services, so not among `machines`.
-  rows: RouteRow[];
+  rows: Instance[];
   // SSH config entries by alias; a machine's is named after its hostname.
   ssh?: Record<string, SshHost>;
   // How the server reaches each machine with an SSH user, by id ("user@host[:port]").
@@ -76,26 +76,26 @@ export function MachineTable({
   trusted?: Record<string, boolean>;
   running?: Record<string, Running>;
   // The machine's own page — the cog. Once its SSH is set up, a terminal on it too.
-  onOpen: (machine: RouteRow) => void;
-  onTerminal?: (machine: RouteRow) => void;
+  onOpen: (machine: Instance) => void;
+  onTerminal?: (machine: Instance) => void;
   // System's Update, run in its terminal — given only where there is one.
-  onUpdate?: (machine: RouteRow) => void;
+  onUpdate?: (machine: Instance) => void;
   // Behind the row's ⋮, so it isn't one click from the buttons used every day.
-  onDelete: (machine: RouteRow) => void;
+  onDelete: (machine: Instance) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
-  onAddRoute?: (machine: RouteRow) => void;
+  onAddRoute?: (machine: Instance) => void;
   // A port on its running list: Add route there, with it picked.
-  onRouteService?: (machine: RouteRow, service: MachineService) => void;
+  onRouteService?: (machine: Instance, service: MachineService) => void;
   // The Docker host before it is named (`DOCKER_HOST_ID`): naming it is all its row offers,
   // beside Add route — no SSH, DNS or settings until it is a machine.
-  onName?: (machine: RouteRow) => void;
+  onName?: (machine: Instance) => void;
   // A Proxmox guest on its running list: Name a machine, with its name and address.
   onNameGuest?: (guest: { name: string; address: string }) => void;
   // The Docker host's address: its containers are the Container source, not buttons here.
   dockerHost?: string | null;
   // The tools in the image: a set-up machine's row opens each added one in a dialog.
   tools?: Tool[];
-  onTool?: (machine: RouteRow, toolId: string) => void;
+  onTool?: (machine: Instance, toolId: string) => void;
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
@@ -113,7 +113,7 @@ export function MachineTable({
   // The buttons on each row of a machine's running list: a route per port (or the route or
   // link it has) — a link while Caddy isn't set up — and naming a guest (or the machine it
   // already is).
-  const runningActions = (m: RouteRow) => {
+  const runningActions = (m: Instance) => {
     const r = running[m.id];
     const services = servicesOn(m, r, rows, dockerHost);
     return (target: ToolTarget, id: string): React.ReactNode => {
@@ -149,7 +149,7 @@ export function MachineTable({
     };
   };
 
-  const isHost = (m: RouteRow) => Boolean(dockerHost) && m.upstream === dockerHost;
+  const isHost = (m: Instance) => Boolean(dockerHost) && m.upstream === dockerHost;
   const ids = machines.map((m) => m.id);
   const anyOpen = expanded.anyOpen(ids);
   const AllIcon = anyOpen ? ChevronsDownUp : ChevronsUpDown;

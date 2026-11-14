@@ -15,7 +15,7 @@ import {
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
-import { refreshRecords, saveNew, useRouteRows } from "../lib/routes";
+import { refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { answerHost, useCaddySetUp, useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
@@ -25,7 +25,7 @@ import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusP
 import { ADGUARD_SERVICE, urlToUpstream } from "../components/routing/networkServices";
 import { LinkModal, type LinkPayload } from "../components/routing/LinkModal";
 import type { SaveResult } from "../components/routing/useSaveMachine";
-import { ServiceTable, type RouteRow } from "../components/routing/ServiceTable";
+import { ServiceTable, type Instance } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -52,14 +52,14 @@ export function Routing() {
   const health = useHealth();
   const caddy = useCaddySetUp();
   // The row a link is being edited, or made, for.
-  const [linkTarget, setLinkTarget] = useState<RouteRow | null>(null);
+  const [linkTarget, setLinkTarget] = useState<Instance | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [assignTarget, setAssignTarget] = useState<RouteRow | null>(null); // for editing an existing route
+  const [assignTarget, setAssignTarget] = useState<Instance | null>(null); // for editing an existing route
   const [addOpen, setAddOpen] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [result, setResult] = useState<AssignResult | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<RouteRow | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<RouteRow | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<Instance | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Instance | null>(null);
   const [syncNote, setSyncNote] = useState<string | null>(null);
   // A row action that failed (its dialogs say so themselves; these have none).
   const [failed, setFailed] = useState<{ title: string; detail: string } | null>(null);
@@ -68,7 +68,7 @@ export function Routing() {
     onError: (err: unknown) => setFailed({ title, detail: apiMessage(err) }),
   });
 
-  const { routes, rows: allRows, routedOrigins } = useRouteRows();
+  const { routes, rows: allRows, routedOrigins } = useInstanceRows();
   const settings = useSettings();
   const orphans = useQuery({
     queryKey: ["docker-orphans"],
@@ -188,21 +188,21 @@ export function Routing() {
   });
 
   const setIcon = useMutation({
-    mutationFn: ({ row, file }: { row: RouteRow; file: File }) =>
+    mutationFn: ({ row, file }: { row: Instance; file: File }) =>
       api.upload(`/api/instances/${row.id}/icon`, file),
     onSuccess: invalidate,
     ...reportsAs("Couldn't set the icon"),
   });
 
   const clearIcon = useMutation({
-    mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}/icon`),
+    mutationFn: (row: Instance) => api.del(`/api/instances/${row.id}/icon`),
     onSuccess: invalidate,
     ...reportsAs("Couldn't remove the icon"),
   });
 
   // Remove the route (Caddy + DNS), keep the instance.
   const removeRoute = useMutation({
-    mutationFn: (row: RouteRow) => api.del(`/api/assign/${row.id}`),
+    mutationFn: (row: Instance) => api.del(`/api/assign/${row.id}`),
     onSuccess: () => {
       setConfirmRemove(null);
       invalidate();
@@ -211,7 +211,7 @@ export function Routing() {
 
   // Delete an instance entirely (route + rewrite + record) — any type.
   const deleteInstance = useMutation({
-    mutationFn: (row: RouteRow) => api.del(`/api/instances/${row.id}`),
+    mutationFn: (row: Instance) => api.del(`/api/instances/${row.id}`),
     onSuccess: () => {
       setConfirmDelete(null);
       invalidate();
@@ -219,7 +219,7 @@ export function Routing() {
   });
 
   const privateToggle = useMutation({
-    mutationFn: (row: RouteRow) => api.patch(`/api/instances/${row.id}`, { private: !row.private }),
+    mutationFn: (row: Instance) => api.patch(`/api/instances/${row.id}`, { private: !row.private }),
     onSuccess: invalidate,
     ...reportsAs("Couldn't change who sees it"),
   });
@@ -253,7 +253,7 @@ export function Routing() {
     },
   });
 
-  const openAssign = (target: RouteRow | null) => {
+  const openAssign = (target: Instance | null) => {
     setAssignTarget(target);
     setAssignError(null);
     setAssignOpen(true);

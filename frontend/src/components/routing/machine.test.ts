@@ -1,9 +1,9 @@
 import { expect, test } from "vitest";
 
 import { isMachine, routesOn } from "./machine";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 
-function row(over: Partial<RouteRow>): RouteRow {
+function row(over: Partial<Instance>): Instance {
   return {
     id: "x", name: "x", type: "external", kind: "service", subdomain: "x", fqdn: "x.example.no",
     upstream: "192.168.10.50:3000", private: false, routed: true, synced: true,

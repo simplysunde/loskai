@@ -2,9 +2,9 @@ import { expect, test } from "vitest";
 
 import type { Running } from "../../lib/ssh";
 import { guestAddress, machineServices } from "./machineServices";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 
-const row = (r: Partial<RouteRow>): RouteRow => ({
+const row = (r: Partial<Instance>): Instance => ({
   id: "x", name: "x", type: "external", kind: "service", subdomain: null, fqdn: null, upstream: null,
   private: false, routed: false, synced: null, ...r,
 });

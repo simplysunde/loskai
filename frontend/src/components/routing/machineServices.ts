@@ -1,7 +1,7 @@
 import type { Guest, Running } from "../../lib/ssh";
 import { suggestPrefix } from "./containerPrefill";
 import { isMachine } from "./machine";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 
 // One port something listens on, on a machine — a row the Add route picker offers, and a
 // button on the machine's running list.
@@ -12,11 +12,11 @@ export interface MachineService {
   upstream: string;
   prefix: string;
   // The route already at this address and port, if there is one.
-  route: RouteRow | null;
+  route: Instance | null;
 }
 
 export interface MachineGroup {
-  machine: RouteRow;
+  machine: Instance;
   services: MachineService[];
   // Why some or all of it can't be listed, when that is so.
   note: string | null;
@@ -28,9 +28,9 @@ export interface MachineGroup {
 // are the Container source, where a route can follow its container. Proxmox guests are
 // never offered — they're machines of their own.
 export function servicesOn(
-  machine: RouteRow,
+  machine: Instance,
   r: Running | undefined,
-  rows: RouteRow[],
+  rows: Instance[],
   dockerHost: string | null | undefined,
 ): MachineService[] {
   const address = machine.upstream;
@@ -59,7 +59,7 @@ export function servicesOn(
 // less what already has a route. A machine without SSH set up has no running list, so no
 // group.
 export function machineServices(
-  rows: RouteRow[],
+  rows: Instance[],
   running: Record<string, Running> | undefined,
   dockerHost: string | null | undefined,
 ): MachineGroup[] {
@@ -82,7 +82,7 @@ export function machineServices(
 }
 
 // The machine a Proxmox guest already is: one named at any of its addresses.
-export function guestMachine(guest: Guest, rows: RouteRow[]): RouteRow | null {
+export function guestMachine(guest: Guest, rows: Instance[]): Instance | null {
   const addresses = guest.addresses ?? [];
   return rows.find((r) => isMachine(r) && r.upstream !== null && addresses.includes(r.upstream)) ?? null;
 }

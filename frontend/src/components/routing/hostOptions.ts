@@ -1,4 +1,4 @@
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 import { isMachine } from "./machine";
 
 // What the route forms' host dropdown offers: the Docker host, the picked container's own
@@ -13,7 +13,7 @@ export function hostOptions({
   dockerHost,
   containerHost,
 }: {
-  rows?: RouteRow[];
+  rows?: Instance[];
   dockerHost?: string | null;
   containerHost?: string | null;
 }): HostOption[] {

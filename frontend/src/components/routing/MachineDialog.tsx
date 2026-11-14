@@ -14,7 +14,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { apiMessage } from "../../lib/api";
-import { useRoutes } from "../../lib/routes";
+import { useInstances } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
 import { keysSummary, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
@@ -80,7 +80,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [ownKeys, setOwnKeys] = useState(false);
   // Your password, when removing the connection needs Loskai's key unlocked.
 
-  const routes = useRoutes();
+  const routes = useInstances();
   const settings = useSettings();
   const tools = useTools();
   const ssh = useSsh();

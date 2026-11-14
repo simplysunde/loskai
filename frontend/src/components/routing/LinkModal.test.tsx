@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { LinkModal } from "./LinkModal";
-import type { RouteRow } from "./ServiceTable";
+import type { Instance } from "./ServiceTable";
 
 const host = () => screen.getByRole("combobox", { name: "Host" }) as HTMLInputElement;
 const port = () => screen.getByRole("textbox", { name: "Port" }) as HTMLInputElement;
 
-function row(overrides: Partial<RouteRow>): RouteRow {
+function row(overrides: Partial<Instance>): Instance {
   return {
     id: "jellyfin", name: "Jellyfin", type: "docker", kind: "service", subdomain: null, fqdn: null,
     upstream: null, private: false, routed: false, synced: null, ...overrides,

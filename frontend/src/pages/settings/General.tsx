@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Download, Loader2 } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { useRoutes } from "../../lib/routes";
+import { useInstances } from "../../lib/routes";
 import { useSettings, type FieldDef } from "../../lib/settings";
 import { useSsh } from "../../lib/ssh";
 import { machineAt } from "../../components/routing/machine";
@@ -36,7 +36,7 @@ const APP_FIELDS: FieldDef[] = [
 // as far along as it is: to name it, to set up its SSH, or to its tools.
 function DockerHostLink() {
   const settings = useSettings();
-  const routes = useRoutes();
+  const routes = useInstances();
   const ssh = useSsh();
   const hostIp = settings.data?.host_ip?.value;
   if (!hostIp) return null;
