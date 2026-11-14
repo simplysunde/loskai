@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Projects: a side menu, New project, only machines with projects
+
+Sunde asked for New project in Projects, a side panel to jump to a machine once the list
+grows, and no machine without projects. The side panel is the machine dialog's
+(`SectionPane`): its search finds a machine by a project's name too. Hiding the machines
+with none would hide where a first project could be made, so New project (and Git's Clone,
+the other way a project starts) sit above the list, on a machine picked from every one that
+has the tool — not on each machine's section. A machine that can't be read isn't hidden:
+whether it has projects isn't known, so it says why at the top.
+
 ## 2026-11-14 — The sidebar collapses to its icons
 
 Sunde asked for an adjustable sidebar, perhaps a collapsed mode with only the icons. One

@@ -227,7 +227,7 @@ beforeEach(() => {
             : path.endsWith("/tools/git/settings/project-email")
               ? { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": "ola@work.example" } } } }
             : path.endsWith("/facts")
-              ? facts
+              ? (typeof facts === "function" ? facts(path) : facts)
             // As the backend says: automatic when the action is, and the sudo rule and an
             // install always — an automatic run drops down instead of opening a dialog.
             : path.endsWith("/run")
@@ -1310,6 +1310,35 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   // Run in that machine's terminal.
   fireEvent.click(within(row("site")).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
+});
+
+test("Projects lists only the machines with projects, beside a menu of them, and makes one on any machine", async () => {
+  setUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  // pve has git and Claude Code, and no project yet.
+  facts = (path: string) => (path.includes("/pve/") ? { ...FACTS, projects: [], live: {} } : FACTS);
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const dialog = await screen.findByRole("dialog", { name: "Projects" });
+  await within(dialog).findByRole("region", { name: "Storage box" });
+  const menu = within(dialog).getByRole("navigation", { name: "Categories" });
+  expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
+  expect(within(menu).queryByRole("button", { name: "pve" })).toBeNull();
+  expect(within(dialog).queryByRole("region", { name: "pve" })).toBeNull();
+  // The search finds a machine by its projects.
+  fireEvent.change(within(dialog).getByLabelText("Search"), { target: { value: "blog" } });
+  expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
+
+  // New project, on pve: Claude Code's, in pve's terminal.
+  const make = within(dialog).getByRole("group", { name: "New project" });
+  await vi.waitFor(() => expect(within(make).getAllByRole("option").map((o) => o.textContent)).toEqual(["Storage box", "pve"]));
+  fireEvent.change(within(make).getByLabelText("On machine"), { target: { value: "pve" } });
+  expect(within(make).getByLabelText("Clone — repository")).toBeInTheDocument();
+  fireEvent.change(within(make).getByLabelText("New project — name"), { target: { value: "web" } });
+  fireEvent.click(within(make).getByRole("button", { name: "New project" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/pve/terminal?tool=claude&action=new&target=web")).toBeInTheDocument();
 });
 
 test("Update all, from the row above the table: each set-up machine updated in turn, the next once the last ends", async () => {

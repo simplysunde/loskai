@@ -46,7 +46,8 @@ Everything so far:
   then **Attach** and **Stop**; **Update Claude** and **Stop all** on the card;
   **New project** makes the folder, `git init`, and starts Claude in it. **Projects**, above
   the Machines tab's table, shows every machine's projects in one place — each one's git and Claude
-  session together, with their buttons. Tool cards come Git, Claude Code, Tailscale, tmux. The **Tools** button on a machine's row lists
+  session together, with their buttons, a side menu of the machines, and New project and
+  Clone on any of them. Tool cards come Git, Claude Code, Tailscale, tmux. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
 - **Deleting a machine**, or removing its SSH connection, takes Loskai's sudo rule and key

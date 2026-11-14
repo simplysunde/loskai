@@ -418,7 +418,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   );
 }
 
-function Shell({
+// A dialog with a side menu (SectionPane) under its title — this one's, and Projects'.
+export function Shell({
   label,
   title,
   action,

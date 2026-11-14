@@ -270,12 +270,15 @@ starting once the last ends, each asking for its `sudo` password where it needs 
 What waits on a machine is read again as its run ends.
 
 **Projects** follows work
-across machines: a card for each such machine — its address, Tailscale, how many tmux
+across machines: each machine with projects — its address, Tailscale, how many tmux
 sessions of your own — with each project once, its git (branch, commits not pushed,
 uncommitted changes, last commit) and its Claude session together, and the buttons both
 cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
-A machine that can't be read says why in its card. Its name opens its dialog, where a
-project's own settings are.
+A side menu jumps to a machine, and its search finds one by a project's name too. A
+machine with no projects isn't listed; one that can't be read says why at the top.
+**Machine** beside a machine's name opens its dialog, where a project's own settings are.
+At the top, **New project** and **Clone** make a project on the machine you pick — any
+with Claude Code or Git, projects or not — in its terminal.
 
 A machine set up before a tool's facts existed asks you to **Install again** in its dialog —
 one click, and its overview comes back with them.

@@ -134,12 +134,16 @@ export interface Facts {
 
 // Only a machine's own page asks; the backend reuses an answer for 60 s.
 export function useFacts(machineId: string, enabled: boolean) {
-  return useQuery({
+  return useQuery({ ...factsQuery(machineId), enabled });
+}
+
+// The read behind `useFacts` — for reading several machines' at once (`useQueries`).
+export function factsQuery(machineId: string) {
+  return {
     queryKey: ["ssh-facts", machineId],
     queryFn: () => api.get<Facts>(`/api/ssh/machines/${machineId}/facts`),
     refetchInterval: 60_000,
-    enabled,
-  });
+  };
 }
 
 // What Tailscale is doing on the machine: the line's own state (v9), or before it, whether
