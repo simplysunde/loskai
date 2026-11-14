@@ -74,6 +74,9 @@ TARGETS = {
         r"|[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*:[A-Za-z0-9._~][A-Za-z0-9._~/+-]*"
         r")$"
     ),
+    # A git host to reach over SSH (Git's Test key): a name or an address, and a port when
+    # its SSH isn't on 22 — never an option to ssh.
+    "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),

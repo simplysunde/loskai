@@ -4,8 +4,10 @@ import {
   ArrowUp,
   ArrowUpFromLine,
   Download,
+  KeyRound,
   LogIn,
   Play,
+  PlugZap,
   Power,
   RotateCw,
   Square,
@@ -65,12 +67,26 @@ const SYMBOLS: Record<string, LucideIcon> = {
   "git.terminal": Terminal,
   "git.pull-all": ArrowDownToLine,
   "git.push-all": ArrowUpFromLine,
+  "git.ssh-key": KeyRound,
+  "git.test-key": PlugZap,
 };
 
-export function ActionIcon({ tool, action, className = "h-2.5 w-2.5" }: { tool: string; action: string; className?: string }) {
+// `fallback`: for an action with no symbol of its own — a play button, or a plus for one
+// that makes something from a name typed beside it.
+export function ActionIcon({
+  tool,
+  action,
+  className = "h-2.5 w-2.5",
+  fallback = Play,
+}: {
+  tool: string;
+  action: string;
+  className?: string;
+  fallback?: LucideIcon;
+}) {
   const d = ACTIONS[`${tool}.${action}`];
   if (!d) {
-    const Icon = SYMBOLS[`${tool}.${action}`] ?? Play;
+    const Icon = SYMBOLS[`${tool}.${action}`] ?? fallback;
     return <Icon aria-hidden="true" className={className} />;
   }
   return (

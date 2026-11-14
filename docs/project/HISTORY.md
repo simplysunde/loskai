@@ -4,6 +4,23 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Git's SSH key and Test key
+
+Clone, Pull and Push over SSH use the machine user's own key, and nothing helped get one
+onto GitHub or Forgejo. **SSH key** shows it — making an ed25519 one first when there is
+none — and **Test key** tries it on a host. An **account** key, not a deploy key: a deploy
+key reaches one repository and GitHub takes a key on one repository only, so a machine
+worked on across projects would need a key and an `~/.ssh/config` alias per repository; an
+account key per machine reaches all of them. No passphrase: pulls and pushes from the page,
+and Claude's, run unattended, and an ssh-agent on every machine is more than it is worth —
+whoever can read that user's home could use it, which the page says. Both live in Git's
+tool file: the key is printed in the terminal, which stays open to copy it, rather than a
+new field in the status line. Loskai never adds a key to the forge itself — that would
+need an API token, which it doesn't hold. Test key goes by the forge's greeting ("successfully
+authenticated", GitLab's "Welcome to GitLab"), since `ssh -T` exits 1 even when it got
+in; its host is a new `ask` kind, `host`, a name and an optional port, never a user or an
+option.
+
 ## 2026-11-14 — Update all has each machine's no-password switch
 
 Seen running: Update all stops at each machine whose sudo asks for a password. The switch

@@ -25,8 +25,10 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone"} == set(tools["git"].actions)
-    assert tools["git"].actions["clone"].ask == "repo"
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "test-key"} == set(tools["git"].actions)
+    assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
+    # Their terminals stay open: a key to copy, a host's key to trust.
+    assert not tools["git"].actions["ssh-key"].automatic and not tools["git"].actions["test-key"].automatic
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
@@ -48,6 +50,59 @@ def test_clone_takes_an_https_or_ssh_remote(url):
 def test_clone_refuses_an_option_another_transport_or_a_path(url):
     """`$1` is quoted, but git reads it: never an option, and never `ext::`, which runs a command."""
     assert not tool.TARGETS["repo"].fullmatch(url)
+
+
+@pytest.mark.parametrize("host", ["github.com", "codeberg.org", "git.home.lan:2222", "192.168.10.216"])
+def test_test_key_takes_a_host_and_a_port(host):
+    assert tool.TARGETS["host"].fullmatch(host)
+
+
+@pytest.mark.parametrize("host", ["-oProxyCommand=x", "git@github.com", "github.com:x", "a b", "h;rm", "h/x", ""])
+def test_test_key_refuses_an_option_a_user_or_anything_else(host):
+    assert not tool.TARGETS["host"].fullmatch(host)
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_ssh_key_makes_one_once_and_shows_the_public_half(tmp_path):
+    run = tool.load()["git"].actions["ssh-key"].run
+    env = {**os.environ, "HOME": str(tmp_path)}
+
+    first = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
+    assert first.returncode == 0, first.stderr
+    pub = (tmp_path / ".ssh" / "id_ed25519.pub").read_text()
+    assert pub.startswith("ssh-ed25519 ") and pub.strip() in first.stdout and "Made a new key" in first.stdout
+    assert not (tmp_path / ".ssh" / "id_ed25519").read_text().count("ENCRYPTED")  # no passphrase
+    assert (tmp_path / ".ssh" / "id_ed25519").stat().st_mode & 0o077 == 0
+    assert "PRIVATE" not in first.stdout
+
+    # Again: the same key, shown — never a second.
+    again = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
+    assert again.returncode == 0 and pub.strip() in again.stdout and "Made a new key" not in again.stdout
+    # A key with its public half lost gets it back, not replaced.
+    (tmp_path / ".ssh" / "id_ed25519.pub").unlink()
+    back = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
+    assert back.returncode == 0 and pub.split()[1] in back.stdout
+
+
+@pytest.mark.parametrize(("says", "code", "ok"), [
+    ("Hi sunde! You've successfully authenticated, but GitHub does not provide shell access.", 1, True),
+    ("Hi there, sunde! You've successfully authenticated with the key named codebox, but Forgejo does not provide shell access.", 0, True),
+    ("git@github.com: Permission denied (publickey).", 255, False),
+])
+def test_test_key_goes_by_the_hosts_greeting_not_sshs_exit(tmp_path, says, code, ok):
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    (tmp_path / "says").write_text(says + "\n")
+    (bin_ / "ssh").write_text(f"#!/bin/sh\necho \"$*\" > {tmp_path}/args\ncat {tmp_path}/says >&2\nexit {code}\n")
+    (bin_ / "ssh").chmod(0o755)
+    run = tool.load()["git"].actions["test-key"].run
+    env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"}
+
+    out = subprocess.run(["sh", "-c", run, "sh", "git.home.lan:2222"], capture_output=True, text=True, env=env, timeout=30)
+
+    assert (out.returncode == 0) is ok
+    assert ("gets into git.home.lan" in out.stdout) is ok
+    assert (tmp_path / "args").read_text().split() == ["-T", "-p", "2222", "-o", "ConnectTimeout=10", "git@git.home.lan"]
 
 
 def test_pull_all_pulls_each_project_with_a_remote_and_says_which_failed(tmp_path):

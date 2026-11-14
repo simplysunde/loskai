@@ -2,8 +2,10 @@
 # its projects folder ($PROJECTS), which Claude Code finds its projects in too: clone one,
 # pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
 # user, so a remote over SSH uses that user's own key and asks to trust a new host there,
-# and one over HTTPS asks for its login there when it needs one. A project can have its own
-# commit name and email, in its .git/config, in place of the global ones.
+# and one over HTTPS asks for its login there when it needs one — SSH key shows that user's
+# key to add to GitHub or Forgejo (made first when there is none), and Test key tries it. A
+# project can have its own commit name and email, in its .git/config, in place of the
+# global ones.
 # docs/reference/tool-schema.md is the format.
 name: Git
 description: Your projects' git — clone, pull, push — and who commits made on it are by.
@@ -85,3 +87,40 @@ actions:
       Over SSH it uses this machine's own key for its user.
     ask: repo
     run: mkdir -p "$PROJECTS" && cd "$PROJECTS" && git clone -- "$1"
+  # The user's own key, never Loskai's: an account key, added to your GitHub or Forgejo
+  # account, reaches every repo you can (a deploy key, one repo's, isn't for a machine you
+  # work on). Made without a passphrase, so a pull or push from the page or by Claude never
+  # stops to ask; its private half never leaves the machine. Not automatic: its terminal
+  # stays open to copy the line from.
+  ssh-key:
+    label: SSH key
+    description: >-
+      This machine's SSH key for its user, to add to your GitHub or Forgejo account — made
+      first when there is none (ed25519, no passphrase, so pulls and pushes run unattended).
+    session: false
+    run: >-
+      command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
+      k=; for t in ed25519 ecdsa rsa; do if [ -f ~/.ssh/id_$t ]; then k=~/.ssh/id_$t;
+      [ -f "$k.pub" ] || ssh-keygen -y -f "$k" > "$k.pub" || exit 1; break; fi; done;
+      if [ -z "$k" ]; then k=~/.ssh/id_ed25519; mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
+      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname)" -f "$k" </dev/null || exit 1;
+      echo "Made a new key for $(id -un) on $(hostname), with no passphrase:";
+      else echo "$(id -un)'s key on $(hostname), $k.pub:"; fi;
+      echo; cat "$k.pub"; echo;
+      echo "Add this line to your account — GitHub: Settings › SSH and GPG keys › New SSH key;";
+      echo "Forgejo: Settings › SSH / GPG keys › Add key. Then Test key."
+  # GitHub, Forgejo and GitLab each answer an SSH login with a greeting and no shell, and
+  # ssh exits 1 even then — so the greeting is what says it got in. The first time, ssh
+  # asks to trust the host's key, here in the terminal.
+  test-key:
+    label: Test key
+    description: >-
+      Try this machine's SSH key on a git host — github.com, codeberg.org or your Forgejo
+      (host:port when its SSH isn't on 22).
+    ask: host
+    session: false
+    run: >-
+      h=${1%:*}; p=22; case "$1" in *:*) p=${1##*:};; esac;
+      out=$(ssh -T -p "$p" -o ConnectTimeout=10 "git@$h" 2>&1); echo "$out"; echo;
+      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) echo "This machine's key gets into $h.";;
+      *) echo "$h didn't take this machine's key. Add it to your account there (SSH key shows it)."; exit 1;; esac

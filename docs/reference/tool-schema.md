@@ -132,6 +132,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `vm` | each running VM (Proxmox) | its id, `200` |
 | `session` | each tmux session, listed on the tool's card | its name, `work` |
 | `project` | each project — a git repo in the projects folder — on the tool's card | its folder's name, `site`: the project is `$PROJECTS/$1` |
+| `host` | only with `ask` (Git's Test key): a field for a host to reach over SSH | a name or an address starting with a letter or digit, then letters, digits, `.` and `-`, and `:port` optionally — `github.com`, `git.home.lan:2222`; never a user or an option |
 | `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a user and a host that each start with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
 
 Every target kind starts with a letter, a digit or (a session) `_`, never `-`, so `$1` can't
