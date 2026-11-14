@@ -14,6 +14,11 @@ the other way a project starts) sit above the list, on a machine picked from eve
 has the tool — not on each machine's section. A machine that can't be read isn't hidden:
 whether it has projects isn't known, so it says why at the top.
 
+Seen on the page, the side menu took too much of the width the rows of buttons need
+(Sunde), so in Projects it is a strip across the top at every width — the phone's layout,
+`SectionPane`'s `across`, with its search first in the strip. The machine dialog keeps its
+side menu: its sections are many and its content narrow.
+
 ## 2026-11-14 — The sidebar collapses to its icons
 
 Sunde asked for an adjustable sidebar, perhaps a collapsed mode with only the icons. One

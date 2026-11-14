@@ -274,7 +274,8 @@ across machines: each machine with projects — its address, Tailscale, how many
 sessions of your own — with each project once, its git (branch, commits not pushed,
 uncommitted changes, last commit) and its Claude session together, and the buttons both
 cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
-A side menu jumps to a machine, and its search finds one by a project's name too. A
+A strip of the machines across the top jumps to one, and its search finds one by a
+project's name too. A
 machine with no projects isn't listed; one that can't be read says why at the top.
 **Machine** beside a machine's name opens its dialog, where a project's own settings are.
 At the top, **New project** and **Clone** make a project on the machine you pick — any

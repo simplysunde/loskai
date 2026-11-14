@@ -13,8 +13,8 @@ import { useToolRunner } from "./useToolRunner";
 
 type Machine = { id: string; name: string; upstream?: string | null };
 
-// What an action asks for when it makes a project: a name (Claude Code's New project) or a
-// repository (Git's Clone).
+// What an action asks for when it makes a project, in the order they are offered: a name
+// (Claude Code's New project), then a repository (Git's Clone).
 const MAKES = ["project", "repo"];
 
 // A machine's projects as its cards list them — the rows are the same on every tool that
@@ -23,7 +23,9 @@ function projectsOf(ctx: ToolContext) {
   const here = ctx.tools.filter((t) => applies(t, ctx.facts.programs ?? []));
   const lister = here.find((t) => t.actions.some((a) => a.target === "project"));
   const rows = (lister && listsOf(lister, ctx).find((l) => l.kind === "project")?.rows) ?? [];
-  const makers = here.flatMap((t) => t.actions.filter((a) => a.ask && MAKES.includes(a.ask)).map((a) => ({ tool: t, action: a })));
+  const makers = here
+    .flatMap((t) => t.actions.filter((a) => a.ask && MAKES.includes(a.ask)).map((a) => ({ tool: t, action: a })))
+    .sort((a, b) => MAKES.indexOf(a.action.ask!) - MAKES.indexOf(b.action.ask!));
   return { here, rows, makers };
 }
 
@@ -63,6 +65,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
         <p className="p-5 text-sm text-slate-500">No machine has SSH set up yet.</p>
       ) : (
         <SectionPane
+          across
           ready
           top={
             <div className="space-y-2 pt-4">

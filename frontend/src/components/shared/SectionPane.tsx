@@ -21,6 +21,7 @@ export function SectionPane({
   start,
   ready,
   top,
+  across = false,
 }: {
   sections: PaneSection[];
   // The section to open at (from the URL), once `ready` — or the first, when there is no such one.
@@ -28,6 +29,9 @@ export function SectionPane({
   ready: boolean;
   // Above the sections, in the scroll.
   top?: ReactNode;
+  // The menu a strip across the top at every width, as on a phone — for content that
+  // wants the room (Projects' rows of buttons).
+  across?: boolean;
 }) {
   const [query, setQuery] = useState("");
   // The section the menu marks: the one scrolled to, or the one just picked.
@@ -71,13 +75,20 @@ export function SectionPane({
   const shown = sections.filter((s) => !q || `${s.label} ${s.words}`.toLowerCase().includes(q));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-      {/* A strip across the top on a phone, a column with the search beside the content wider up. */}
+    <div className={`flex min-h-0 flex-1 flex-col ${across ? "" : "sm:flex-row"}`}>
+      {/* A strip across the top on a phone, a column with the search beside the content wider
+          up — or, `across`, the strip everywhere, its search first in it from a wider screen. */}
       <nav
         aria-label="Categories"
-        className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2 sm:block sm:w-52 sm:space-y-0.5 sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3"
+        className={`flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2 ${
+          across ? "items-center" : "sm:block sm:w-52 sm:space-y-0.5 sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3"
+        }`}
       >
-        <label className="mb-2 hidden items-center sm:flex gap-2 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5">
+        <label
+          className={`hidden items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 sm:flex ${
+            across ? "mr-1 w-40 shrink-0" : "mb-2"
+          }`}
+        >
           <Search className="h-3.5 w-3.5 text-slate-500" />
           <input
             aria-label="Search"
@@ -89,7 +100,7 @@ export function SectionPane({
         </label>
         {shown.map((s, i) => (
           <div key={s.id} className="shrink-0">
-            {i > 0 && shown[i - 1].group !== s.group && (
+            {!across && i > 0 && shown[i - 1].group !== s.group && (
               <div className="mx-2 my-2 hidden border-t border-slate-800 sm:block" />
             )}
             <button

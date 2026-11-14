@@ -1324,6 +1324,8 @@ test("Projects lists only the machines with projects, beside a menu of them, and
   const dialog = await screen.findByRole("dialog", { name: "Projects" });
   await within(dialog).findByRole("region", { name: "Storage box" });
   const menu = within(dialog).getByRole("navigation", { name: "Categories" });
+  // Across the top at every width, not a column beside the projects.
+  expect(menu).not.toHaveClass("sm:w-52");
   expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
   expect(within(menu).queryByRole("button", { name: "pve" })).toBeNull();
   expect(within(dialog).queryByRole("region", { name: "pve" })).toBeNull();
@@ -1335,7 +1337,8 @@ test("Projects lists only the machines with projects, beside a menu of them, and
   const make = within(dialog).getByRole("group", { name: "New project" });
   await vi.waitFor(() => expect(within(make).getAllByRole("option").map((o) => o.textContent)).toEqual(["Storage box", "pve"]));
   fireEvent.change(within(make).getByLabelText("On machine"), { target: { value: "pve" } });
-  expect(within(make).getByLabelText("Clone — repository")).toBeInTheDocument();
+  // New project first, then Clone.
+  expect(within(make).getAllByRole("textbox").map((t) => t.getAttribute("aria-label"))).toEqual(["New project — name", "Clone — repository"]);
   fireEvent.change(within(make).getByLabelText("New project — name"), { target: { value: "web" } });
   fireEvent.click(within(make).getByRole("button", { name: "New project" }));
   expect(await screen.findByText("shell at /api/ssh/machines/pve/terminal?tool=claude&action=new&target=web")).toBeInTheDocument();
