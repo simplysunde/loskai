@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { SshKey } from "../../lib/ssh";
+import type { LoskaiKey } from "../../lib/ssh";
 import type { ToolAction, ToolRun } from "../../lib/tools";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { MachineTerminal } from "./MachineTerminal";
@@ -12,7 +12,7 @@ import { MachineTerminal } from "./MachineTerminal";
 // `start`'s own `onEnded` hears how an automatic run ended: done, or failed.
 export function useToolRunner(
   machine: { id: string; name: string } | undefined,
-  sshKey: SshKey | null,
+  sshKey: LoskaiKey | null,
   onEnd?: () => void,
 ) {
   const [run, setRun] = useState<ToolRun | "shell" | null>(null);

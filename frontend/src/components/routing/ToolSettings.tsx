@@ -4,7 +4,7 @@ import { Loader2, Settings } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { requestUnlock } from "../../lib/unlock";
-import { sshHost } from "../../lib/ssh";
+import { remoteSshHost } from "../../lib/ssh";
 import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import { cardSettingsOf, hasCardSettings, hasKeys, rowSettingsOf, settingsActionsOf, type Tool, type ToolTarget } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
@@ -294,7 +294,7 @@ function ProjectKey({ tool, ctx, name, onRun }: { tool: Tool; ctx: ToolContext; 
   const info = key ? ctx.facts.ssh_keys?.find((k) => k.name === key) : null;
   // Its own remotes (not a submodule's): none over SSH, and no key is used.
   const remotes = ctx.facts.remotes?.filter((r) => r.path === project?.path && r.module === "");
-  const noSsh = remotes != null && !remotes.some((r) => sshHost(r.url));
+  const noSsh = remotes != null && !remotes.some((r) => remoteSshHost(r.url));
   const action = tool.actions.find((a) => a.id === (key == null ? "own-key" : "machine-key"));
   const line =
     ctx.facts.ssh_keys == null

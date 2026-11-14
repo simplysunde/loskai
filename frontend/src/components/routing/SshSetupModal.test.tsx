@@ -1,20 +1,20 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
-import type { SshKey } from "../../lib/ssh";
+import type { LoskaiKey } from "../../lib/ssh";
 import { SshSetupModal } from "./SshSetupModal";
 import { UnlockPrompt } from "../shared/UnlockPrompt";
 import { renderWithQuery, json } from "../../test/render";
 
 const FP = "SHA256:XwXWP1efObJOv+IhNojI/m+P5drO8my+LOVsqOVPaRQ";
-const UNLOCKED: SshKey = {
+const UNLOCKED: LoskaiKey = {
   public_key: "ssh-ed25519 AAAA loskai",
   fingerprint: "SHA256:main",
   lines: ['from="192.168.10.216" ssh-ed25519 AAAA loskai', 'restrict,command="…" ssh-ed25519 ST loskai-status'],
   from: "192.168.10.216",
   unlocked_until: new Date(Date.now() + 10 * 60_000).toISOString(),
 };
-const LOCKED: SshKey = { ...UNLOCKED, unlocked_until: null };
+const LOCKED: LoskaiKey = { ...UNLOCKED, unlocked_until: null };
 const TESTED = {
   key: true,
   running: { ok: true, checked: 0, containers: [{ name: "web", image: "nginx", status: "Up", ports: [] }], services: ["nginx"], guests: [] },
@@ -24,7 +24,7 @@ type Answer = { status?: number; body: unknown };
 let calls: { path: string; body: unknown }[] = [];
 
 
-function renderModal(sshKey: SshKey | null, answers: Record<string, Answer | Answer[]>) {
+function renderModal(sshKey: LoskaiKey | null, answers: Record<string, Answer | Answer[]>) {
   calls = [];
   const queues = Object.fromEntries(
     Object.entries(answers).map(([k, v]) => [k, Array.isArray(v) ? [...v] : [v]]),

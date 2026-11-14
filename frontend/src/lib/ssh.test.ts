@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { commentText, factsQuery, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
+import { commentText, factsQuery, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, remoteSshHost, takesKeysOff, webOf, type Facts, type KeyUse, type MachineKey, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
 const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
@@ -23,7 +23,7 @@ test("the key is unlocked until its time, or for good when nothing asks for the 
 test("an SSH remote's host — scp-like or ssh:// — and none for another transport", () => {
   expect(
     ["git@github.com:a/b.git", "ssh://git@forgejo.lan:2222/a/b.git", "git@gh-site:a/b.git",
-     "https://github.com/a/b", "http://x:3000/a", "/srv/x", "file:///x", "ext::sh -c x"].map(sshHost),
+     "https://github.com/a/b", "http://x:3000/a", "/srv/x", "file:///x", "ext::sh -c x"].map(remoteSshHost),
   ).toEqual(["github.com", "forgejo.lan", "gh-site", null, null, null, null, null]);
 });
 
@@ -78,7 +78,7 @@ test("a remote's web page: an SSH address over https on its real host, an http(s
 });
 
 test("where a key goes: a deploy key to its repository, another to the account on its platform", () => {
-  const key = (name: string, comment = "vm@box") => ({ name, comment }) as SshKeyInfo;
+  const key = (name: string, comment = "vm@box") => ({ name, comment }) as MachineKey;
   const use = (url: string, hostname: string) => ({ url, hostname }) as KeyUse;
   expect(keyPage(key("deploy_site"), [use("git@github.com:me/site.git", "github.com")])?.url).toBe(
     "https://github.com/me/site/settings/keys",
@@ -102,7 +102,7 @@ test("what a key is for, written on it, comes before any guess", () => {
   expect(keyLabel("vm@box (loskai: login)")).toEqual({ kind: "login" });
   expect(keyLabel("vm@box deploy key")).toBeNull();
   expect(commentText("vm@box (loskai: account)")).toBe("vm@box");
-  const key = (name: string, comment: string) => ({ name, comment }) as SshKeyInfo;
+  const key = (name: string, comment: string) => ({ name, comment }) as MachineKey;
   // Named deploy_, labelled for a platform: the label wins.
   expect(keyGroup(key("deploy_site", "vm@box (loskai: for github.com)"), [])).toEqual({ group: "account", tag: "github.com" });
   // An odd name, labelled a deploy key: its project, with no remote to say its repository.

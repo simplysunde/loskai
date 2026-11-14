@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
-import type { SshKey } from "../../lib/ssh";
+import type { LoskaiKey } from "../../lib/ssh";
 import { MachineTerminal } from "./MachineTerminal";
 import { UnlockPrompt } from "../shared/UnlockPrompt";
 import { json } from "../../test/render";
@@ -17,7 +17,7 @@ vi.mock("../shared/XtermSession", () => ({
   },
 }));
 
-const KEY: SshKey = {
+const KEY: LoskaiKey = {
   public_key: "ssh-ed25519 AAAA loskai",
   fingerprint: "SHA256:main",
   lines: [],
@@ -29,7 +29,7 @@ afterEach(() => {
   sessions.length = 0;
 });
 
-function renderTerminal(sshKey: SshKey, unlockStatus = 200, onClose = () => {}) {
+function renderTerminal(sshKey: LoskaiKey, unlockStatus = 200, onClose = () => {}) {
   const fetchMock = vi.fn(async () =>
     json(unlockStatus === 200 ? KEY : { detail: "Invalid password" }, unlockStatus),
   );

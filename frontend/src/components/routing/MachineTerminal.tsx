@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { api, ApiError, apiMessage } from "../../lib/api";
 import { runQuery, type ToolRun } from "../../lib/tools";
-import { keyUnlocked, type SshKey } from "../../lib/ssh";
+import { keyUnlocked, type LoskaiKey } from "../../lib/ssh";
 import { requestUnlock } from "../../lib/unlock";
 import { Modal } from "../shared/Modal";
 import { QuickTerminal, type QuickPhase } from "../shared/QuickTerminal";
@@ -54,7 +54,7 @@ export function MachineTerminal({
   onEnded,
 }: {
   machine: { id: string; name: string };
-  sshKey: SshKey | null;
+  sshKey: LoskaiKey | null;
   run?: ToolRun;
   quick?: boolean;
   onClose: () => void;

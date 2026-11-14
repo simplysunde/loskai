@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { HardDrive, Loader2, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type SshKey } from "../../lib/ssh";
+import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type LoskaiKey } from "../../lib/ssh";
 import { COLUMNS, isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
 import { CARD_TABLE } from "../../lib/ui";
 import { applies, useTools, type Tool, type ToolAction, type ToolTarget } from "../../lib/tools";
@@ -205,7 +205,7 @@ function NewProject({
   ssh,
 }: {
   on: { machine: Machine; makers: { tool: Tool; action: ToolAction }[] }[];
-  ssh: SshKey | null;
+  ssh: LoskaiKey | null;
 }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(on[0].machine.id);

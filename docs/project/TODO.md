@@ -125,7 +125,7 @@ commit, the full checks, `where-used.py --write`.
 - [x] 57f Backend, one alias per module: `env`, `settings_store`, `instances_store`
 - [x] 57g Frontend, `RouteRow` → `Instance`, `useRoutes` → `useInstances`, `useRouteRows` →
       `useInstanceRows`
-- [ ] 57h Frontend, the keys: `SshKey` → `LoskaiKey`, `SshKeyInfo` → `MachineKey`,
+- [x] 57h Frontend, the keys: `SshKey` → `LoskaiKey`, `SshKeyInfo` → `MachineKey`,
       `sshHost` → `remoteSshHost`, `SshKeys.tsx`'s locals
 - [ ] 57i Frontend, tools: `onCard` → `isOnCard`, `runQuery` → `runQueryString`,
       `ToolTarget` → `TargetKind`, the runner's `onEnded` → `onResult`

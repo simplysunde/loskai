@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Check, ExternalLink, KeyRound, RotateCw, Tag, X } from "lucide-react";
 
-import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
+import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, remoteSshHost, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
@@ -69,23 +69,23 @@ export function SshKeys({
   // Where each is used, through every remote in the home folder; null on an older line.
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
-  const named = new Set(ctx.facts.ssh_config_keys ?? []);
-  const onKey = tool.actions.filter((a) => a.target === "key");
-  const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
-  const list = (ks: SshKeyInfo[]) => (
+  const inSshConfig = new Set(ctx.facts.ssh_config_keys ?? []);
+  const keyActions = tool.actions.filter((a) => a.target === "key");
+  const usesOf = (k: MachineKey) => (uses ? (uses.get(k.name) ?? []) : null);
+  const list = (ks: MachineKey[]) => (
     <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
       {ks.map((k) => (
         <KeyRow
           key={k.name}
           info={k}
           uses={usesOf(k)}
-          named={named.has(k.name)}
+          inSshConfig={inSshConfig.has(k.name)}
           facts={ctx.facts}
-          actions={git ? [] : onKey}
+          actions={git ? [] : keyActions}
           tool={tool}
           onRun={run}
-          test={git ? onHost : undefined}
-          label={git ? undefined : onLabel}
+          testAction={git ? testAction : undefined}
+          labelAction={git ? undefined : labelAction}
           git={git}
           tested={tested[k.name]}
           onTested={onTested}
@@ -95,9 +95,9 @@ export function SshKeys({
   );
   // A key's own Test: that key on a host typed on its row (`<key>@<host>`). Its answer, while
   // this is open — kept nowhere else, so it never outlives what it saw.
-  const onHost = tool.actions.find((a) => a.ask === "key-host");
+  const testAction = tool.actions.find((a) => a.ask === "key-host");
   // A key's Label: what it is for, written on it (`<key>@<what>`).
-  const onLabel = tool.actions.find((a) => a.ask === "key-label");
+  const labelAction = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
@@ -105,7 +105,7 @@ export function SshKeys({
   const beside = git
     ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && !(a.id === "ssh-key" && hasAccount))
     : [];
-  const order = (k: SshKeyInfo) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
+  const order = (k: MachineKey) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
   const notGit = (keys ?? []).filter((k) => !["account", "deploy"].includes(keyGroup(k, usesOf(k)).group));
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
@@ -202,26 +202,26 @@ export function SshKeys({
 function KeyRow({
   info,
   uses,
-  named,
+  inSshConfig,
   facts,
   actions,
   tool,
   onRun,
-  test,
-  label,
+  testAction,
+  labelAction,
   git,
   tested,
   onTested,
 }: {
-  info: SshKeyInfo;
+  info: MachineKey;
   uses: KeyUse[] | null;
-  named: boolean;
+  inSshConfig: boolean;
   facts: Facts;
   actions: ToolAction[];
   tool: Tool;
   onRun: ToolStart;
-  test?: ToolAction;
-  label?: ToolAction;
+  testAction?: ToolAction;
+  labelAction?: ToolAction;
   git: boolean;
   tested?: Tested;
   onTested: (name: string, host: string, ok: boolean) => void;
@@ -243,13 +243,13 @@ function KeyRow({
             </span>
           )}
           {git && tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
-          {named && (
+          {inSshConfig && (
             <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
               ~/.ssh/config
             </span>
           )}
         </div>
-        {git && <UsedBy uses={uses} named={named} account={group === "account"} ssh={keyKind(info.name) === "account"} facts={facts} />}
+        {git && <UsedBy uses={uses} inSshConfig={inSshConfig} account={group === "account"} isSshDefault={keyKind(info.name) === "account"} facts={facts} />}
         {/* Its comment says what it is for and travels with the key; its fingerprint is the
             one GitHub and Forgejo list beside a key; then where to paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
@@ -274,10 +274,10 @@ function KeyRow({
       </div>
       <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
         <CopyKey info={info} page={page} />
-        {test && (
+        {testAction && (
           <KeyTest
             tool={tool}
-            action={test}
+            action={testAction}
             name={info.name}
             start={keyHost(info, uses) ?? ""}
             tested={tested}
@@ -285,7 +285,7 @@ function KeyRow({
             onTested={onTested}
           />
         )}
-        {label && (
+        {labelAction && (
           <button
             type="button"
             aria-label={`Label ${info.name}`}
@@ -298,11 +298,11 @@ function KeyRow({
           </button>
         )}
         {actions.map((a) => (
-          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named)} />
+          <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} disabledReason={whyDisabled(a, inSshConfig)} />
         ))}
       </div>
-      {labelling && label && (
-        <LabelKey tool={tool} action={label} info={info} facts={facts} onRun={onRun} onClose={() => setLabelling(false)} />
+      {labelling && labelAction && (
+        <LabelKey tool={tool} action={labelAction} info={info} facts={facts} onRun={onRun} onClose={() => setLabelling(false)} />
       )}
     </li>
   );
@@ -312,28 +312,28 @@ function KeyRow({
 // which platform, through which ~/.ssh/config alias. Unused, a word on why.
 function UsedBy({
   uses,
-  named,
+  inSshConfig,
   account,
-  ssh: own,
+  isSshDefault: own,
   facts,
 }: {
   uses: KeyUse[] | null;
-  named: boolean;
+  inSshConfig: boolean;
   account: boolean;
   // ssh's own (`id_…`): offered wherever no other key is named — logins to other computers too.
-  ssh: boolean;
+  isSshDefault: boolean;
   facts: Facts;
 }) {
   if (!uses) return <p className="mt-0.5 text-slate-500">Install the status line again to see where it's used.</p>;
   if (uses.length === 0) {
     // Only git's use of it is seen: it may be on an account, or log in elsewhere — so the
     // line says which remotes don't use it, and why, not that it is useless.
-    const ssh = (facts.remotes ?? []).some((r) => sshHost(r.url));
-    const why = named
+    const hasSshRemotes = (facts.remotes ?? []).some((r) => remoteSshHost(r.url));
+    const why = inSshConfig
       ? "~/.ssh/config names it for a host no project here uses."
       : !account && !own
         ? "No remote here names it."
-        : ssh
+        : hasSshRemotes
           ? "The remotes here over SSH each use a key of their own; the rest are over HTTP(S), which needs none."
           : "The remotes here are over HTTP(S), which needs no key.";
     return (
@@ -372,31 +372,31 @@ function UsedBy({
 
 // Why a key's button is greyed, or null: Delete of a key ~/.ssh/config names — that file is
 // yours.
-function offWhy(action: ToolAction, named: boolean): string | null {
-  if (action.id === "delete-key" && named) return "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file";
+function whyDisabled(action: ToolAction, inSshConfig: boolean): string | null {
+  if (action.id === "delete-key" && inSshConfig) return "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file";
   return null;
 }
 
-// A key's button — rose for one that asks first (Delete); greyed, saying why, when `off`.
+// A key's button — rose for one that asks first (Delete); greyed, saying why, when `disabledReason` is given.
 function KeyButton({
   tool,
   action,
   name,
   onRun,
-  off = null,
+  disabledReason = null,
 }: {
   tool: Tool;
   action: ToolAction;
   name: string;
   onRun: ToolStart;
-  off?: string | null;
+  disabledReason?: string | null;
 }) {
   return (
     <button
       type="button"
       aria-label={`${action.label} ${name}`}
-      title={off ?? action.description}
-      disabled={off != null}
+      title={disabledReason ?? action.description}
+      disabled={disabledReason != null}
       onClick={() => onRun({ tool: tool.id, action: action.id, target: name, title: `${action.label}: ${name}` }, action)}
       className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 ${
         action.confirm ? "border-rose-500/40 text-rose-300" : "border-slate-700 text-slate-200"
@@ -414,7 +414,7 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
   const { remember } = useRecentHosts();
   const asked = askedOf(actions[0].ask);
   const v = value.trim();
-  const host = actions[0].ask === "host";
+  const asksHost = actions[0].ask === "host";
   const field = {
     label: asked.what.replace(/^./, (c) => c.toUpperCase()),
     value,
@@ -425,7 +425,7 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
     <div className="flex flex-wrap items-center gap-1.5">
       {/* A host is offered from the ones tested before; Enter runs none — which, only its
           button says. */}
-      {host ? (
+      {asksHost ? (
         <HostInput {...field} onChange={setValue} onEnter={() => {}} />
       ) : (
         <input aria-label={field.label} value={value} onChange={(e) => setValue(e.target.value)} placeholder={field.placeholder} className={field.className} />
@@ -437,7 +437,7 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
           disabled={!v}
           title={a.description}
           onClick={() => {
-            if (host) remember(v);
+            if (asksHost) remember(v);
             onRun({ tool: tool.id, action: a.id, target: v, title: `${a.label}: ${v}` }, a);
           }}
           className={TOOL_BUTTON}
@@ -452,7 +452,7 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
 // Copy: the key's public line on the clipboard, ready to paste where it goes — read from the
 // overview, so nothing runs on the machine. Its comment goes with it: Forgejo names a key by
 // it.
-function CopyKey({ info, page }: { info: SshKeyInfo; page: { where: string } | null }) {
+function CopyKey({ info, page }: { info: MachineKey; page: { where: string } | null }) {
   if (!info.public) {
     return (
       <span title="The status line is older: install it again to copy keys from here" className="cursor-help px-1.5 py-0.5 text-[11px] text-slate-600">
@@ -492,23 +492,23 @@ function KeyTest({
 }) {
   const [host, setHost] = useState(start);
   // Once it got in, the field is done with: the answer in its place, until clicked to test again.
-  const [again, setAgain] = useState(false);
+  const [retesting, setRetesting] = useState(false);
   const refused = tested && !tested.ok;
   const { remember } = useRecentHosts();
-  const h = host.trim();
-  const go = () => {
-    if (!h) return;
-    setAgain(false);
-    remember(h);
-    onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action, (ok) => onTested(name, h, ok));
+  const trimmedHost = host.trim();
+  const runTest = () => {
+    if (!trimmedHost) return;
+    setRetesting(false);
+    remember(trimmedHost);
+    onRun({ tool: tool.id, action: action.id, target: `${name}@${trimmedHost}`, title: `Test: ${name} on ${trimmedHost}` }, action, (ok) => onTested(name, trimmedHost, ok));
   };
-  if (tested?.ok && !again) {
+  if (tested?.ok && !retesting) {
     return (
       <button
         type="button"
         aria-label={`Tested ${name}: it gets in on ${tested.host} — test again`}
         title={`It got in on ${tested.host} just now — click to test it again, or on another host`}
-        onClick={() => setAgain(true)}
+        onClick={() => setRetesting(true)}
         className="flex w-[9.75rem] items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-500/20"
       >
         <Check className="h-3 w-3 shrink-0" />
@@ -524,7 +524,7 @@ function KeyTest({
         label={`Host to test ${name} on`}
         value={host}
         onChange={setHost}
-        onEnter={go}
+        onEnter={runTest}
         placeholder="host"
         className={`w-28 min-w-0 rounded-l-md border border-r-0 bg-slate-950 px-1.5 py-0.5 font-mono text-[11px] text-slate-200 placeholder:text-slate-600 ${
           refused ? "border-rose-500/60" : "border-slate-700"
@@ -533,9 +533,9 @@ function KeyTest({
       <button
         type="button"
         aria-label={`Test ${name}`}
-        disabled={!h}
-        title={h ? `Try ${name} alone on ${h}` : "Type the host it is for — github.com, your Forgejo's"}
-        onClick={go}
+        disabled={!trimmedHost}
+        title={trimmedHost ? `Try ${name} alone on ${trimmedHost}` : "Type the host it is for — github.com, your Forgejo's"}
+        onClick={runTest}
         className="flex items-center gap-1 rounded-r-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40"
       >
         <ActionIcon tool={tool.id} action={action.id} /> {action.label}
@@ -645,7 +645,7 @@ function LabelKey({
 }: {
   tool: Tool;
   action: ToolAction;
-  info: SshKeyInfo;
+  info: MachineKey;
   facts: Facts;
   onRun: ToolStart;
   onClose: () => void;

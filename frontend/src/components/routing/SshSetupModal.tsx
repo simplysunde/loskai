@@ -6,7 +6,7 @@ import { api, apiMessage } from "../../lib/api";
 import { useMe } from "../../lib/useAuth";
 import { CopyButton } from "../shared/CopyButton";
 import { YourPassword } from "../shared/YourPassword";
-import { runningCount, type Running, type SshKey } from "../../lib/ssh";
+import { runningCount, type Running, type LoskaiKey } from "../../lib/ssh";
 import { TabButton } from "../shared/TabButton";
 import { Modal } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
@@ -41,7 +41,7 @@ export function SshSetupModal({
   machine: { id: string; name: string };
   user: string;
   target: string; // the server's, from GET /api/ssh
-  sshKey: SshKey | null;
+  sshKey: LoskaiKey | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -69,7 +69,7 @@ export function SshSetupModal({
   });
 
   const createKey = useMutation({
-    mutationFn: () => api.post<SshKey>("/api/ssh/key", { password: adminPassword }),
+    mutationFn: () => api.post<LoskaiKey>("/api/ssh/key", { password: adminPassword }),
     onSuccess: () => {
       setAdminPassword("");
       qc.invalidateQueries({ queryKey: ["ssh"] });

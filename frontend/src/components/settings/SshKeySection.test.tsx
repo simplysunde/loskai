@@ -1,11 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
-import type { SshKey } from "../../lib/ssh";
+import type { LoskaiKey } from "../../lib/ssh";
 import { SshKeySection } from "./SshKeySection";
 import { renderWithQuery, json } from "../../test/render";
 
-const KEY: SshKey = {
+const KEY: LoskaiKey = {
   public_key: "ssh-ed25519 AAAAC3Nza loskai",
   fingerprint: "SHA256:Ap4hJGzRxN2kq9uE0vWzvSPnKCN7tL1cX3m6oQyGcYk",
   lines: [
@@ -17,7 +17,7 @@ const KEY: SshKey = {
 };
 
 
-function renderSection(key: SshKey | null, replace: { status: number; body: unknown } = { status: 200, body: KEY }) {
+function renderSection(key: LoskaiKey | null, replace: { status: number; body: unknown } = { status: 200, body: KEY }) {
   const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => {
     const answer = path === "/api/ssh" ? { status: 200, body: { key, hosts: {}, trusted: {} } } : replace;
     return json(answer.body, answer.status);

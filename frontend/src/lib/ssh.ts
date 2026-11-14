@@ -4,7 +4,7 @@ import { api } from "./api";
 
 // Loskai's SSH key (null until one is made) and each Host in its SSH config, by alias — a
 // machine's entry is the one named after its hostname.
-export interface SshKey {
+export interface LoskaiKey {
   public_key: string;
   fingerprint: string; // SHA256:…, as ssh-keygen -lf prints it
   lines: string[]; // both lines a machine gets: the main key's, then the status key's
@@ -14,7 +14,7 @@ export interface SshKey {
 }
 // Whether the main key is unlocked now — for your account (the backend's `unlocked_until`),
 // or for good, when nothing asks for the password.
-export function keyUnlocked(key?: SshKey | null): boolean {
+export function keyUnlocked(key?: LoskaiKey | null): boolean {
   if (key?.asks_password === false) return true;
   return Boolean(key?.unlocked_until && Date.parse(key.unlocked_until) > Date.now());
 }
@@ -25,7 +25,7 @@ export interface SshHost {
   port: number;
 }
 export interface SshStatus {
-  key: SshKey | null;
+  key: LoskaiKey | null;
   hosts: Record<string, SshHost>;
   trusted: Record<string, boolean>; // machine ids with a trusted host key
   targets: Record<string, string>; // how the server reaches each machine with a user: "user@host[:port]"
@@ -87,7 +87,7 @@ export function runningCount(r: Running): number {
 
 // A machine's overview, read with the status key (works while the main key is locked).
 // One of the SSH user's keys, as ssh-keygen -l describes its public half.
-export interface SshKeyInfo {
+export interface MachineKey {
   name: string; // its file in ~/.ssh, without .pub
   bits: number;
   fingerprint: string; // SHA256:… — as GitHub and Forgejo list it
@@ -112,7 +112,7 @@ export function webOf(url: string, hostname?: string): string | null {
 // repository it is used for (its Deploy keys page, the same path on GitHub and Forgejo);
 // any other on your account, on the platform its remotes are on (or its comment's "for
 // <host>"). Null where that can't be told.
-export function keyPage(key: SshKeyInfo, uses: KeyUse[] | null): { url: string; where: string; label: string } | null {
+export function keyPage(key: MachineKey, uses: KeyUse[] | null): { url: string; where: string; label: string } | null {
   const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)).filter(Boolean))] as string[];
   if (isDeploy(key)) {
     return repos.length === 1
@@ -142,7 +142,7 @@ export function commentText(comment: string): string {
 }
 
 // A deploy key: by its mark, else by its name (Own key's) or a comment that says so.
-function isDeploy(key: SshKeyInfo): boolean {
+function isDeploy(key: MachineKey): boolean {
   const label = keyLabel(key.comment);
   if (label) return label.kind === "deploy";
   return key.name.startsWith("deploy_") || /deploy/i.test(key.comment);
@@ -150,7 +150,7 @@ function isDeploy(key: SshKeyInfo): boolean {
 
 // The one platform a key is for: its mark's "for <host>", else where its remotes all go, else
 // a comment ending "for <host>" — what its own Test starts with.
-export function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefined {
+export function keyHost(key: MachineKey, uses: KeyUse[] | null): string | undefined {
   const label = keyLabel(key.comment);
   if (label?.kind === "for") return label.host;
   const hosts = [...new Set((uses ?? []).map((u) => u.hostname))];
@@ -163,7 +163,7 @@ export function keyHost(key: SshKeyInfo, uses: KeyUse[] | null): string | undefi
 // wherever no other is named, or one for a platform — on your account (the platform, when
 // one); a key for logging in to other computers; or none of these.
 export function keyGroup(
-  key: SshKeyInfo,
+  key: MachineKey,
   uses: KeyUse[] | null,
 ): { group: "account" | "deploy" | "login" | "other"; tag: string | null } {
   const label = keyLabel(key.comment);
@@ -189,7 +189,7 @@ export function keyKind(name: string): "account" | "deploy" | "other" {
 
 // The host an SSH remote names — `git@host:path`, `ssh://user@host:port/path` — or null
 // for another transport: as the overview and Git's Test find it.
-export function sshHost(url: string): string | null {
+export function remoteSshHost(url: string): string | null {
   const m = /^ssh:\/\/(?:[^@/]*@)?([^/:]+)/.exec(url) ?? (/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? null : /^[^@/:]*@([^:/]+):/.exec(url));
   return m ? m[1] : null;
 }
@@ -220,7 +220,7 @@ export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
   // ssh names its default files whether they exist or not: only the keys there count.
   const here = new Set((facts.ssh_keys ?? []).map((k) => k.name));
   for (const r of facts.remotes) {
-    const host = sshHost(r.url);
+    const host = remoteSshHost(r.url);
     if (!host) continue;
     const mine = r.module === "" ? own.get(r.path) : null;
     // A project's own command naming no key ("") says nothing of which key it uses.
@@ -281,7 +281,7 @@ export interface Facts {
     key?: string | null;
   }[];
   // The SSH user's keys in ~/.ssh, by their public halves; null from a line before v11.
-  ssh_keys?: SshKeyInfo[] | null;
+  ssh_keys?: MachineKey[] | null;
   // Every remote of each project and its submodules (`module` "" for the project itself),
   // no user or token in it; the keys ssh offers each SSH host they name; the keys
   // ~/.ssh/config names — the three null from a line before v12.

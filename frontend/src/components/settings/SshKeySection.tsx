@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw } from "lucide-react";
 
 import { api, apiMessage } from "../../lib/api";
-import { useSsh, type SshKey } from "../../lib/ssh";
+import { useSsh, type LoskaiKey } from "../../lib/ssh";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
 import { YourPassword } from "../shared/YourPassword";
@@ -57,7 +57,7 @@ function ReplaceKeyDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const make = useMutation({
-    mutationFn: () => api.post<SshKey>("/api/ssh/key", { password, replace: true }),
+    mutationFn: () => api.post<LoskaiKey>("/api/ssh/key", { password, replace: true }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ssh"] });
       onClose();
