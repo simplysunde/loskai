@@ -4,6 +4,14 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Projects' New project is a dialog
+
+The bar of fields above the list — a machine, a name and New project, a repository and
+Clone — took a row of the dialog for something done now and then, and read as two forms.
+Sunde asked for it as a dialog, as elsewhere (Git's Settings). **New project** in the
+header opens one: the machine, then how — a new folder or a clone, each the tool's own
+action — and one field. The runs are unchanged.
+
 ## 2026-11-14 — Projects lists each machine's tmux sessions too
 
 Asked by Sunde: a session of your own is work being followed too — a build, a dev server.

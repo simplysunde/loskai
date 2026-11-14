@@ -278,8 +278,9 @@ tmux's Attach and End. A strip of the machines across the top jumps to one, and 
 project's name too. A
 machine with no projects isn't listed; one that can't be read says why at the top.
 **Machine** beside a machine's name opens its dialog, where a project's own settings are.
-At the top, **New project** and **Clone** make a project on the machine you pick — any
-with Claude Code or Git, projects or not — in its terminal.
+**New project**, in the dialog's header, opens a dialog to make one on the machine you pick
+— any with Claude Code or Git, projects or not: a new folder (Git started and Claude opened
+in it) or a clone of a repository — then runs it in that machine's terminal.
 
 A machine set up before a tool's facts existed asks you to **Install again** in its dialog —
 one click, and its overview comes back with them.

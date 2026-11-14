@@ -1376,14 +1376,23 @@ test("Projects lists only the machines with projects, beside a menu of them, and
   fireEvent.change(within(dialog).getByLabelText("Search"), { target: { value: "blog" } });
   expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
 
-  // New project, on pve: Claude Code's, in pve's terminal.
-  const make = within(dialog).getByRole("group", { name: "New project" });
-  await vi.waitFor(() => expect(within(make).getAllByRole("option").map((o) => o.textContent)).toEqual(["Storage box", "pve"]));
-  fireEvent.change(within(make).getByLabelText("On machine"), { target: { value: "pve" } });
-  // New project first, then Clone.
-  expect(within(make).getAllByRole("textbox").map((t) => t.getAttribute("aria-label"))).toEqual(["New project — name", "Clone — repository"]);
-  fireEvent.change(within(make).getByLabelText("New project — name"), { target: { value: "web" } });
+  // New project, from the dialog's header, in a dialog of its own: on pve — Claude Code's
+  // new folder, or Git's clone — run in pve's terminal.
+  fireEvent.click(within(dialog).getByRole("button", { name: "New project" }));
+  const make = await screen.findByRole("dialog", { name: "New project" });
+  expect(within(make).getAllByRole("option").map((o) => o.textContent)).toEqual(["Storage box", "pve"]);
+  fireEvent.change(within(make).getByLabelText("Machine"), { target: { value: "pve" } });
+  expect(within(make).getAllByRole("radio").map((r) => r.closest("label")?.textContent)).toEqual([
+    expect.stringMatching(/^New folder/),
+    expect.stringMatching(/^Clone a repository/),
+  ]);
+  fireEvent.click(within(make).getByLabelText(/^Clone a repository/));
+  expect(within(make).getByLabelText("Repository")).toBeInTheDocument();
+  fireEvent.click(within(make).getByLabelText(/^New folder/));
+  expect(within(make).getByRole("button", { name: "New project" })).toBeDisabled();
+  fireEvent.change(within(make).getByLabelText("Name"), { target: { value: "web" } });
   fireEvent.click(within(make).getByRole("button", { name: "New project" }));
+  expect(screen.queryByRole("dialog", { name: "New project" })).toBeNull();
   expect(await screen.findByText("shell at /api/ssh/machines/pve/terminal?tool=claude&action=new&target=web")).toBeInTheDocument();
 });
 

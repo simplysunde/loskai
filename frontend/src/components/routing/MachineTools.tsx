@@ -399,7 +399,7 @@ const ASKED: Partial<Record<ToolTarget, { placeholder: string; width: string; wh
   repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
 };
 
-export function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
+function Ask({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
   const [name, setName] = useState("");
   const asked = (action.ask && ASKED[action.ask]) || { placeholder: "name", width: "w-32", what: "name" };
   return (

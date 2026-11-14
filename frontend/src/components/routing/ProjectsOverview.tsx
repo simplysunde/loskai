@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { HardDrive, Loader2 } from "lucide-react";
+import { HardDrive, Loader2, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type SshKey } from "../../lib/ssh";
@@ -9,7 +9,8 @@ import { CARD_TABLE } from "../../lib/ui";
 import { applies, useTools, type Tool, type ToolAction, type ToolTarget } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { Shell } from "./MachineDialog";
-import { Ask, RowButtons } from "./MachineTools";
+import { RowButtons } from "./MachineTools";
+import { Overlay } from "../shared/Modal";
 import { useToolRunner } from "./useToolRunner";
 
 type Machine = { id: string; name: string; upstream?: string | null };
@@ -115,6 +116,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
           {reading > 0 && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
         </span>
       }
+      action={makers.length > 0 && <NewProject on={makers} ssh={ssh.data?.key ?? null} />}
       onClose={onClose}
     >
       {set.length === 0 ? (
@@ -124,22 +126,25 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
           across
           ready
           top={
-            <div className="space-y-2 pt-3">
-              {makers.length > 0 && <NewProject on={makers} ssh={ssh.data?.key ?? null} />}
-              {failed.map((r) => (
-                <p key={r.machine.id} className="text-xs text-amber-300">
-                  {r.machine.name}: {r.facts && !r.facts.ok ? r.facts.error : "couldn't read it"}
-                </p>
-              ))}
-              {listed.length === 0 && reading === 0 && (
-                <p className="text-sm text-slate-500">No projects on any machine yet.</p>
-              )}
-            </div>
+            (failed.length > 0 || (listed.length === 0 && reading === 0)) && (
+              <div className="space-y-2 pt-3">
+                {failed.map((r) => (
+                  <p key={r.machine.id} className="text-xs text-amber-300">
+                    {r.machine.name}: {r.facts && !r.facts.ok ? r.facts.error : "couldn't read it"}
+                  </p>
+                ))}
+                {listed.length === 0 && reading === 0 && (
+                  <p className="text-sm text-slate-500">
+                    No projects on any machine yet{makers.length > 0 ? " — New project, above, makes one." : "."}
+                  </p>
+                )}
+              </div>
+            )
           }
           pinned={
             listed.length > 0 && (
               // Bordered like the tables under it, so its columns sit over theirs.
-              <table aria-hidden className="mb-1 w-full table-fixed border-x border-b border-slate-800 bg-slate-900/60 text-left max-sm:hidden">
+              <table aria-hidden className="mb-1 w-full table-fixed border border-slate-800 bg-slate-900/60 text-left max-sm:hidden">
                 <Columns kind="project" />
                 <Head kind="project" />
               </table>
@@ -183,8 +188,18 @@ function MachineLine({ machine, facts, onClose }: { machine: Machine; facts: Fac
   );
 }
 
-// Make a project on a machine picked from those that can: Claude Code's New project, Git's
-// Clone — in that machine's terminal. It is listed here once its overview is read again.
+// How a project is made, by what its action asks for.
+const WAYS: Record<string, { label: string; field: string; placeholder: string }> = {
+  project: { label: "New folder", field: "Name", placeholder: "my-project" },
+  repo: { label: "Clone a repository", field: "Repository", placeholder: "https://… or git@host:path" },
+};
+
+const FIELD =
+  "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-teal-500";
+
+// New project, in the dialog's header: a dialog to make one on a machine picked from those
+// that can — a new folder (Claude Code's New project) or a clone (Git's) — then its run in
+// that machine's terminal. It is listed once its overview is read again.
 function NewProject({
   on,
   ssh,
@@ -192,28 +207,105 @@ function NewProject({
   on: { machine: Machine; makers: { tool: Tool; action: ToolAction }[] }[];
   ssh: SshKey | null;
 }) {
+  const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(on[0].machine.id);
+  const [way, setWay] = useState(0);
+  const [value, setValue] = useState("");
   const at = on.find((r) => r.machine.id === picked) ?? on[0];
+  const maker = at.makers[way] ?? at.makers[0];
+  const shown = WAYS[maker.action.ask!] ?? { label: maker.action.label, field: "Name", placeholder: "" };
   const runner = useToolRunner(at.machine, ssh);
+  const close = () => setOpen(false);
   return (
-    <div role="group" aria-label="New project" className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 px-3 py-2">
-      <select
-        aria-label="On machine"
-        value={at.machine.id}
-        onChange={(e) => setPicked(e.target.value)}
-        className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        title="Make a project on one of your machines — a new folder, or a clone"
+        className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
       >
-        {on.map((r) => (
-          <option key={r.machine.id} value={r.machine.id}>
-            {r.machine.name}
-          </option>
-        ))}
-      </select>
-      {at.makers.map(({ tool, action }) => (
-        <Ask key={`${tool.id}.${action.id}`} tool={tool} action={action} onRun={runner.start} />
-      ))}
+        <Plus className="h-3.5 w-3.5" /> New project
+      </button>
+      {open && (
+        <Overlay onClose={close} label="New project">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const target = value.trim();
+              if (!target) return;
+              close();
+              setValue("");
+              runner.start({ tool: maker.tool.id, action: maker.action.id, target, title: `${maker.action.label}: ${target}` }, maker.action);
+            }}
+          >
+            <h2 className="text-base font-semibold text-slate-100">New project</h2>
+            <p className="mt-1 text-sm text-slate-400">Made in the machine's projects folder, in its terminal.</p>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1.5 block text-sm text-slate-200">Machine</span>
+                <select
+                  aria-label="Machine"
+                  value={at.machine.id}
+                  onChange={(e) => {
+                    setPicked(e.target.value);
+                    setWay(0);
+                  }}
+                  className={FIELD}
+                >
+                  {on.map((r) => (
+                    <option key={r.machine.id} value={r.machine.id}>
+                      {r.machine.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {at.makers.length > 1 && (
+                <fieldset>
+                  <legend className="mb-1.5 text-sm text-slate-200">How</legend>
+                  <div className="space-y-1.5">
+                    {at.makers.map((m, i) => (
+                      <label key={`${m.tool.id}.${m.action.id}`} className="flex items-start gap-2 text-sm text-slate-300">
+                        <input type="radio" name="way" checked={m === maker} onChange={() => setWay(i)} className="mt-1 accent-teal-500" />
+                        <span>
+                          {WAYS[m.action.ask!]?.label ?? m.action.label}
+                          <span className="block text-xs text-slate-500">{m.action.description}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+              <label className="block">
+                <span className="mb-1.5 block text-sm text-slate-200">{shown.field}</span>
+                <input
+                  aria-label={shown.field}
+                  autoFocus
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={shown.placeholder}
+                  className={`${FIELD} font-mono`}
+                />
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={close} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!value.trim()}
+                title={`${maker.action.description}\n$ ${typeof maker.action.run === "string" ? maker.action.run : ""}`}
+                className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+              >
+                {maker.action.label}
+              </button>
+            </div>
+          </form>
+        </Overlay>
+      )}
       {runner.ui}
-    </div>
+    </>
   );
 }
 

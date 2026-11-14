@@ -124,7 +124,7 @@ export function SectionPane({
       </nav>
       <div ref={pane} onScroll={onScroll} className={`min-w-0 flex-1 overflow-auto ${across ? "px-4 pb-4" : "px-5 pb-5"}`}>
         {top}
-        {pinned && <div className="sticky top-0 z-10 bg-slate-900">{pinned}</div>}
+        {pinned && <div className="sticky top-0 z-10 bg-slate-900 pt-3">{pinned}</div>}
         {/* The last section is at least the pane's height, so a pick can scroll any
             section to the top — even while the ones below are still loading. */}
         {shown.map((s) => (
