@@ -285,8 +285,8 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
         {"path": "loskai", "folder": "", "name": "loskai", "branch": None, "dirty": False,
          "claude": 0, "ahead": None, "committed": 0, "subject": "", "key": None},
     ]
-    # A line before v11 can't say which keys there are.
-    assert out["ssh_keys"] is None
+    # A line before v11 can't say which keys there are, nor one before v12 the remotes.
+    assert out["ssh_keys"] is None and out["remotes"] is None and out["ssh_hosts"] is None
 
 
 def test_an_overview_from_an_older_line_is_read_and_says_so():
@@ -551,6 +551,15 @@ def test_the_overview_lists_the_users_keys_and_which_one_each_project_uses(tmp_p
 
     git_config("site", f"ssh -i '{home}/.ssh/deploy_site' -o IdentitiesOnly=yes")  # as Own key sets it
     git_config("odd", "ssh -o ProxyJump=x")  # a command of its own, naming no key
+    # Remotes: one over SSH, one with a token in it; and a submodule pushing elsewhere.
+    subprocess.run(["git", "-C", str(home / "projects" / "blog"), "remote", "add", "origin", "git@example.invalid:me/blog.git"], check=True)
+    subprocess.run(["git", "-C", str(home / "projects" / "site"), "remote", "add", "origin",
+                    "https://me:s3cret-token@forge.invalid/me/site.git"], check=True)
+    module = home / "projects" / "site" / ".git" / "modules" / "public" / "page"
+    module.mkdir(parents=True)
+    (module / "config").write_text('[remote "origin"]\n\turl = https://forge.invalid/me/page.git\n'
+                                   "\tpushurl = git@example.invalid:me/page.git\n")
+    (home / ".ssh" / "config").write_text("Host gh-site\n  IdentityFile ~/.ssh/deploy_site\n")
 
     env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
     out = status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
@@ -561,8 +570,17 @@ def test_the_overview_lists_the_users_keys_and_which_one_each_project_uses(tmp_p
     assert set(keys) == {"id_ed25519", "deploy_site"}  # "with space" is skipped
     assert keys["deploy_site"]["comment"] == "vm@box site" and keys["deploy_site"]["type"] == "ED25519"
     assert keys["id_ed25519"]["fingerprint"].startswith("SHA256:") and keys["id_ed25519"]["bits"] == 256
-    # Only the public halves are read: nothing private in what is served.
-    assert "PRIVATE" not in str(out)
+    # Only the public halves are read: nothing private in what is served — nor a token.
+    assert "PRIVATE" not in str(out) and "s3cret" not in str(out)
+    assert {(r["path"], r["module"], r["kind"], r["url"]) for r in out["remotes"]} == {
+        ("projects/blog", "", "url", "git@example.invalid:me/blog.git"),
+        ("projects/site", "", "url", "https://forge.invalid/me/site.git"),
+        ("projects/site", "public/page", "url", "https://forge.invalid/me/page.git"),
+        ("projects/site", "public/page", "pushurl", "git@example.invalid:me/page.git"),
+    }
+    # The SSH host they name, and the keys ssh offers it — here its defaults, the account key.
+    assert set(out["ssh_hosts"]) == {"example.invalid"} and "id_ed25519" in out["ssh_hosts"]["example.invalid"]["keys"]
+    assert out["ssh_config_keys"] == ["deploy_site"]
 
 
 def test_the_overview_says_whether_loskai_s_sudo_rule_is_there():

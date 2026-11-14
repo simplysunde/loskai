@@ -109,6 +109,9 @@ The Add route picker's Machines source offers these ports
 | `#=tsself` | `state <BackendState>` (from `tailscale status --json --peers=false`), `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from the same status), only where `tailscale` is | `tailscale_self` — `{state, shared, approved}`: `state` `on` (Running), `off` (Stopped), `login` (NeedsLogin), `approval` (NeedsMachineAuth) or `null`; the networks without an exit node's `0.0.0.0/0` and `::/0`. `null` with no section (no Tailscale, or a line before v9) |
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|key\|committed\|subject` (`key` since v11) | `projects` — see below |
 | `#=keys` | `name\|<ssh-keygen -lf line>` for each `~/.ssh/*.pub`, at most 50 — the public halves only, never a private key; only where `ssh-keygen` is | `ssh_keys` — `{name, bits, fingerprint, comment, type}`; `null` from a line before v11 |
+| `#=remotes` | `path\|module\|url or pushurl\|address` for every remote of each project and of its submodules (`.git/modules/<name>/config`, three deep), at most 300 — a `user:token@` taken out of the address on the machine, before it is printed | `remotes` — `{path, module, kind, url}`, `module` `""` for the project itself; `null` before v12 |
+| `#=sshhosts` | `host\|hostname\|identitiesonly\|file…` for each SSH host those remotes name (`git@host:…`, `ssh://…`), at most 30: what `ssh -G` resolves for it — aliases, `Host *`, `Include`, `Match`, as a connection would — without connecting | `ssh_hosts` — `{host: {hostname, identities_only, keys}}`, `keys` the names of those files in `~/.ssh`; `null` before v12 |
+| `#=sshconfig` | the `IdentityFile`s `~/.ssh/config` names — nothing else of that file | `ssh_config_keys` — their names, of those in `~/.ssh`; `null` before v12 |
 | `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 
 **Projects** are the git repos one and two folders into the home folder (`~/<x>/.git`,
@@ -149,7 +152,9 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
   `ash`. The test suite runs it with `sh` for every request.
 - **`sudo -n` only**, so it never waits for a password — and only where the user's rules
   let every command run without one, so a refusal is never logged (above).
-- **Nothing secret in the output** — it is cached and served to the logged-in admin.
+- **Nothing secret in the output** — it is cached and served to every account with the
+  Machines tab. A key is read by its public half; a remote's address loses any
+  `user:token@` on the machine; of `~/.ssh/config`, only the `IdentityFile`s are read.
 
 ## Versions
 
@@ -161,8 +166,8 @@ number back. Changing what the command runs means each machine needs the new lin
    `parse_running` reads them all — from a line before v6 (`LISTEN_SINCE`), without ports;
    before v7, without guest addresses.
    `parse_facts` reads every line from v5 (`FACTS_SINCE`; before v9, without
-   `tailscale_self`; before v11, `KEYS_SINCE`, without keys), and says `outdated` for any
-   but the current one — the overview offers the reinstall. A page on an older line says so. A number newer than this Loskai's is
+   `tailscale_self`; before v11, `KEYS_SINCE`, without keys; before v12, `REMOTES_SINCE`,
+   without remotes), and says `outdated` for any but the current one — the overview offers the reinstall. A page on an older line says so. A number newer than this Loskai's is
    not read.
 3. A request an old line can't answer raises `status.OldStatusLine`. The page then says
    "install again" and offers the button. One click in the machine's dialog reinstalls both lines.
@@ -180,6 +185,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 9 | `facts` adds `#=tsself`: whether the machine is connected to its tailnet, the networks it shares, and which are approved |
 | 10 | sudo is used only where its last rule for every command needs no password: a check that a command was allowed said nothing of the password, so with Loskai's update rule every use was refused, and logged. `#=tsself` asks `tailscale status` once, not twice |
 | 11 | `facts` adds `#=keys`, the SSH user's keys by their public halves, and each project's `key` — the one git uses for it (Git's Keys) |
+| 12 | `facts` adds `#=remotes`, `#=sshhosts` and `#=sshconfig`: every remote of each project and submodule, the keys ssh offers each SSH host they name, and the keys `~/.ssh/config` names — so a key used through an alias is seen (Git's Keys, Test, Delete) |
 
 ## Adding a fact
 

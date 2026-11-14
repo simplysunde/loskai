@@ -66,6 +66,19 @@ const FACTS = {
     { name: "deploy_blog", bits: 256, fingerprint: "SHA256:blog", comment: "loskai@nas blog", type: "ED25519" },
     { name: "work", bits: 256, fingerprint: "SHA256:work", comment: "me@laptop", type: "ED25519" },
   ],
+  // site's submodule pushes through a ~/.ssh/config alias, gh-page, which names `work`.
+  remotes: [
+    { path: "projects/site", module: "", kind: "url", url: "git@github.com:me/site.git" },
+    { path: "projects/blog", module: "", kind: "url", url: "git@forgejo.lan:me/blog.git" },
+    { path: "projects/site", module: "public/page", kind: "url", url: "https://github.com/me/page.git" },
+    { path: "projects/site", module: "public/page", kind: "pushurl", url: "git@gh-page:me/page.git" },
+  ],
+  ssh_hosts: {
+    "github.com": { hostname: "github.com", identities_only: false, keys: ["id_ed25519"] },
+    "forgejo.lan": { hostname: "forgejo.lan", identities_only: false, keys: ["id_ed25519"] },
+    "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] },
+  },
+  ssh_config_keys: ["work"],
   projects: [
     { path: "projects/site", folder: "projects", name: "site", branch: "main", dirty: true, claude: 1793212000,
       ahead: 2, committed: 1793211000, subject: "Add the header" },
@@ -1273,12 +1286,18 @@ test("Keys lists each SSH key: what it is, which projects use it, its fingerprin
   expect(within(dialog).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(
     ["id_ed25519", "deploy_blog", "work"],
   );
-  // The account key: every project without its own (site); blog's own deploy key; one git doesn't use.
+  // Each by the remotes it is for: the account key site's (blog has its own); blog's deploy
+  // key; and `work`, which site's submodule pushes with through ~/.ssh/config's gh-page.
   expect(row("id_ed25519")).toHaveTextContent("account");
-  expect(row("id_ed25519")).toHaveTextContent("1 project without their own");
+  expect(row("id_ed25519")).toHaveTextContent(/projects\/site — fetch and push Show/);
   expect(row("id_ed25519")).toHaveTextContent("SHA256:mach");
-  expect(row("deploy_blog")).toHaveTextContent(/deploy.*blog/);
-  expect(row("work")).toHaveTextContent("not used by git here");
+  expect(row("deploy_blog")).toHaveTextContent("projects/blog — fetch and push");
+  expect(row("work")).toHaveTextContent("projects/site › public/page — push · via gh-page");
+  expect(row("work")).toHaveTextContent("named in ~/.ssh/config");
+  expect(row("work")).not.toHaveTextContent("fetch");
+  // That one is yours: Delete leaves it alone.
+  expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
+  expect(within(row("deploy_blog")).getByRole("button", { name: "Delete deploy_blog" })).toBeEnabled();
   // An account key exists: no New account key.
   expect(within(dialog).queryByRole("button", { name: "New account key" })).toBeNull();
 
@@ -1293,11 +1312,11 @@ test("Delete, in Keys, asks first and then runs on the key", async () => {
   renderPage("/machines/nas/tools");
 
   const dialog = await gitKeys();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Delete work" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete deploy_blog" }));
   expect(await screen.findByText("Its file goes for good.")).toBeInTheDocument();
   expect(screen.queryByText(/shell at .*delete-key/)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=work")).toBeInTheDocument();
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=deploy_blog")).toBeInTheDocument();
 });
 
 test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on it; Settings has neither", async () => {
@@ -1330,11 +1349,19 @@ test("Keys offers New account key while there is none, and says when the status 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=ssh-key")).toBeInTheDocument();
 });
 
-test("an older status line: Keys says to install it again", async () => {
+test("an older status line: Keys says to install it again — for the keys, or for where they are used", async () => {
   setUp();
   facts = { ...FACTS, ssh_keys: null };
   renderPage("/machines/nas/tools");
   expect(within(await gitKeys()).getByText(/status line is older than this Loskai/)).toBeInTheDocument();
+});
+
+test("a line with the keys but not the remotes lists them, and says where they're used needs it installed again", async () => {
+  setUp();
+  facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  expect(within(dialog).getAllByText("install the status line again to see where it is used")).toHaveLength(3);
 });
 
 test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {

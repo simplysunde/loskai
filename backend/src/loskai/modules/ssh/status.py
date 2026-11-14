@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 11
+STATUS_LINE = 12
 STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -35,6 +35,9 @@ FACTS_SINCE = 5
 # From v11, a project's row says which key git uses for it (`key`), and `#=keys` lists the
 # user's SSH keys.
 KEYS_SINCE = 11
+# From v12, each project's remotes (and its submodules'), and which keys ssh offers for each
+# SSH host they name — so a key's use through ~/.ssh/config is seen too.
+REMOTES_SINCE = 12
 LISTEN_SINCE = 6
 
 
@@ -191,6 +194,26 @@ _FACTS = (
     "echo '#=keys'; if command -v ssh-keygen >/dev/null; then for f in $HOME/.ssh/*.pub; do "
     "[ -f $f ] || continue; n=${f##*/}; n=${n%.pub}; case $n in [!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) continue;; esac; "
     "echo $n'|'$(ssh-keygen -lf $f 2>/dev/null | head -n 1); done | head -n 50; fi; "
+    # Every remote of each project and of its submodules (their configs are under
+    # .git/modules/<name>/): `path|module|url or pushurl|address`, any user:token@ taken out
+    # of the address here, before it leaves the machine. Kept for the next section.
+    "echo '#=remotes'; r=$(for g in $HOME/*/.git $HOME/*/*/.git; do "
+    "d=${g%/.git}; p=${d#$HOME/}; case $p in *[!A-Za-z0-9._/-]*) continue;; esac; [ -d $g ] || continue; "
+    "for c in $g/config $g/modules/*/config $g/modules/*/*/config $g/modules/*/*/*/config; do "
+    "[ -f $c ] || continue; case $c in *[!A-Za-z0-9._/-]*) continue;; esac; m=${c#$g/}; m=${m#modules/}; m=${m%config}; m=${m%/}; "
+    "git config -f $c --get-regexp '^remote[.].*[.](url|pushurl)$' 2>/dev/null | while read k u; do "
+    "echo $p'|'$m'|'${k##*.}'|'$u; done; done; done | sed 's,//[^/@]*@,//,' | head -n 300); "
+    "for l in $r; do echo $l; done; "
+    # For each SSH host those name, the keys ssh offers it — asked of ssh itself (`ssh -G`
+    # resolves aliases, Host *, Include and Match as a connection would), without connecting:
+    # `host|hostname|identitiesonly|file…`.
+    "echo '#=sshhosts'; if command -v ssh >/dev/null; then for l in $r; do u=${l##*|}; "
+    "case $u in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac; "
+    "case $h in ''|*[!A-Za-z0-9._-]*) continue;; esac; echo $h; done | sort -u | head -n 30 | while read h; do "
+    "ssh -G $h 2>/dev/null </dev/null | awk -v OFS='|' -v h=$h -v N=hostname -v O=identitiesonly -v I=identityfile "
+    "'$1==N{n=$2} $1==O{o=$2} $1==I{f=f OFS $2} END{print h,n,o f}'; done; fi; "
+    # The key files ~/.ssh/config names: one it names is kept out of Delete.
+    "echo '#=sshconfig'; grep -i '^[[:space:]]*identityfile' $HOME/.ssh/config 2>/dev/null | awk '{print $2}' | head -n 50; "
     "true"
 )
 STATUS_COMMAND = (
@@ -405,7 +428,8 @@ _PSEUDO_FS = ("tmpfs", "devtmpfs", "overlay", "efivarfs", "udev", "none", "shm",
 def parse_facts(output: str) -> dict:
     """The forced command's `facts` answer → the machine's overview:
     `{os, os_id, os_like, kernel, uptime, memory, disks, updates, programs, tmux, tailscale,
-    tailnet, tailscale_self, projects, ssh_keys, sudo_rule, outdated}`.
+    tailnet, tailscale_self, projects, ssh_keys, remotes, ssh_hosts, ssh_config_keys, sudo_rule,
+    outdated}`.
 
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
@@ -423,7 +447,12 @@ def parse_facts(output: str) -> dict:
     without one), `key` the SSH key git uses for it — None for the machine's, a key's name
     (its own, Git's Own key), "" for a `core.sshCommand` naming none; `ssh_keys` the user's
     keys in ~/.ssh, by their public halves, `{name, bits, fingerprint, comment, type}` — None
-    from a line before v11; `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
+    from a line before v11; `remotes` each project's remotes and its submodules', `{path,
+    module, kind, url}` — `module` "" for the project itself, `kind` "url" or "pushurl", no
+    user or token in the address; `ssh_hosts` the keys ssh offers each SSH host those name,
+    `{host: {hostname, identities_only, keys}}` — `keys` the names of those in ~/.ssh;
+    `ssh_config_keys` the keys ~/.ssh/config names — the three None from a line before v12;
+    `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
     where the machine won't say; `outdated` true on a line older than this Loskai's — still
     read, but a fix since (v10's quiet sudo) reaches it only when it is installed again.
     Raises `OldStatusLine` for a machine still on an older line, ValueError for anything else."""
@@ -459,6 +488,7 @@ def parse_facts(output: str) -> dict:
         "tailscale_self": _tailscale_self(sections.get("tsself")),
         "projects": [p for p in (_project(line, version) for line in sections.get("projects", [])) if p],
         "ssh_keys": [k for k in map(_ssh_key, sections.get("keys", [])) if k] if version >= KEYS_SINCE else None,
+        **_remotes(sections, version),
         "sudo_rule": next((v for v in sections.get("sudo", []) if v in ("on", "off")), None),
         "outdated": version != STATUS_LINE,
     }
@@ -534,6 +564,40 @@ def _project(line: str, version: int) -> dict | None:
         "subject": parts[6],
         "key": None if key == "-" else "" if key == "+" else key,
     }
+
+
+# What the command lets through in a path or a module's name, and in an SSH host as a
+# remote names it (an alias may hold `_`).
+_SAFE = re.compile(r"^[A-Za-z0-9._/-]*$")
+_HOST = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
+# A key in ~/.ssh by its file's name — as the command lists them, and as Git's actions on
+# a key take one (tool.TARGETS["key"]): never a path, never an option.
+KEY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+
+
+def _key_name(path: str) -> str | None:
+    """A key file as ssh names it (`~/.ssh/id_ed25519`, `/home/u/.ssh/x`, `%d/.ssh/x`) → its
+    name, when it is in ~/.ssh — the only keys Keys lists."""
+    folder, _, name = path.strip('"').rpartition("/")
+    return name if folder.endswith(".ssh") and KEY_NAME.fullmatch(name) else None
+
+
+def _remotes(sections: dict[str, list[str]], version: int) -> dict:
+    if version < REMOTES_SINCE:
+        return {"remotes": None, "ssh_hosts": None, "ssh_config_keys": None}
+    remotes = []
+    for line in sections.get("remotes", []):
+        parts = line.split("|", 3)
+        if len(parts) == 4 and _SAFE.fullmatch(parts[0]) and _SAFE.fullmatch(parts[1]) and parts[2] in ("url", "pushurl"):
+            remotes.append({"path": parts[0], "module": parts[1], "kind": parts[2], "url": parts[3]})
+    hosts = {}
+    for line in sections.get("sshhosts", []):
+        host, hostname, only, *files = line.split("|")
+        if _HOST.fullmatch(host):
+            hosts[host] = {"hostname": hostname or host, "identities_only": only == "yes",
+                           "keys": [k for k in map(_key_name, files) if k]}
+    return {"remotes": remotes, "ssh_hosts": hosts,
+            "ssh_config_keys": sorted({k for k in map(_key_name, sections.get("sshconfig", [])) if k})}
 
 
 _KEY_LINE = re.compile(r"^([A-Za-z0-9._-]+)\|(\d+) (SHA256:\S+) (.*?) ?\((\w+)\)$")

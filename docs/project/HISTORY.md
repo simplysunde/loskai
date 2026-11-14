@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Where a key is used: every remote, through ~/.ssh/config too
+
+Sunde's workspace has a submodule whose push address goes through a `~/.ssh/config` alias
+naming its own key; Keys listed that key as "not used by git here", and Delete would have
+removed it. Asked whether to manage such setups or keep track of them: keep track. Loskai
+doesn't rewrite `~/.ssh/config` or a remote's push address — hand-made, and the user's —
+but sees them: status line v12 reads every remote of each project and submodule, and
+which keys ssh offers each SSH host they name. That is asked of `ssh -G`, not a parser of
+ours, so aliases, `Host *`, `Include` and `Match` resolve as a connection would. A key's
+uses are each remote it is for (fetch, push), Test tries each of them, and Delete refuses
+a key `~/.ssh/config` names, saying for which Host. On security: only public material —
+keys by their `.pub`, addresses with any `user:token@` removed on the machine, of
+`~/.ssh/config` only its `IdentityFile`s — and Test reaches out only to SSH addresses
+from the machine's own config (`ext::` would run a command). What it can't see: a key used
+only by a script that runs `ssh -i` itself.
+
 ## 2026-11-14 — Git's SSH keys in a dialog of their own
 
 Sunde, seeing the machine's key in Git's Settings and a project's in its cog: "a better

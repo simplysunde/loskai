@@ -240,14 +240,19 @@ and Add.
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
   **Keys**, beside Settings in Git's header, lists that user's SSH keys (`~/.ssh`, read by
-  their public halves only): each one's kind, which projects use it, and its fingerprint —
-  the one GitHub and Forgejo list beside a key. An **account** key (`id_…`) goes on your
+  their public halves only): each one's kind, where it is used, and its fingerprint — the
+  one GitHub and Forgejo list beside a key. Where it is used is every remote it is for, in
+  every project and submodule — fetch, push, or both — by the project's own key, else by
+  what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
+  pushes through `git@github-site:…`, an alias naming its own key, shows under that key,
+  "via github-site". A key `~/.ssh/config` names says so; Delete leaves it alone, since that
+  file is yours. A key used only by a script that runs `ssh -i` itself can't be seen. An **account** key (`id_…`) goes on your
   GitHub or Forgejo account and reaches every repository you can; it is what a project
   without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
   reaches only it. Each key has **Show** — its public line to copy, and where it goes: your
   account's SSH keys page, or the repository's own Deploy keys page, worked out from its
-  remote — **Test**, which asks each project the key is for for its remote with that key
-  alone, as a pull would, and **Delete**, which asks first, removes the file and puts a
+  remote — **Test**, which asks each remote the key is for for its HEAD with that key
+  alone, as a pull would (only over SSH), and **Delete**, which asks first, removes the file and puts a
   project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never

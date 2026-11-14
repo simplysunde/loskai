@@ -22,7 +22,7 @@ import yaml
 
 from ...shared.errors import LoskaiError
 from .logic import SUDO_RULE, remove_sudo_rule
-from .status import PROGRAMS, USER_PATH
+from .status import KEY_NAME, PROGRAMS, USER_PATH
 
 DIR = Path(__file__).parent / "tools"
 
@@ -77,9 +77,8 @@ TARGETS = {
     # A git host to reach over SSH (Git's Test key): a name or an address, and a port when
     # its SSH isn't on 22 — never an option to ssh.
     "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?$"),
-    # A key in the SSH user's ~/.ssh, by its file's name — as the overview lists them (Git's
-    # Keys): never a path, never an option.
-    "key": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
+    # A key in the SSH user's ~/.ssh, as the overview lists them (Git's Keys).
+    "key": KEY_NAME,
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),

@@ -181,40 +181,55 @@ actions:
       [ -n "$w" ] && echo "$w/settings/keys";;
       *) echo "An account key: add it to your account — GitHub: https://github.com/settings/ssh/new";
       echo "Forgejo: <your Forgejo>/user/settings/keys";; esac
-  # Each project the key is for — its own, for a deploy key; those with none of their own,
-  # for any other — asked for its remote's HEAD with that key alone: what a pull does first.
+  # Each remote the key is for, as the list shows it: in every repo in the home folder and
+  # its submodules, a remote over SSH whose key is this one — the project's own (its
+  # core.sshCommand), else what ssh offers its host (`ssh -G`: aliases, Host *, Include) —
+  # asked for its HEAD with this key alone: the read a pull or push does first. Only SSH
+  # addresses: another transport (git's ext::) could run a command.
   try-key:
     label: Test
-    description: Try this key on the remote of each project it is for — read access, as a pull needs.
+    description: >-
+      Try this key on each remote it is for — in every project and submodule, through
+      ~/.ssh/config too — with read access, as a pull needs.
     target: key
     session: false
     run: >-
       k="$HOME/.ssh/$1"; [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
-      cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
-      n=0; s=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
-      u=$(git -C "$d" remote get-url origin 2>/dev/null) || continue;
-      case "$u" in http://*|https://*|/*|file:*) continue;; esac;
-      c=$(git -C "$d" config --local core.sshCommand);
-      case "$1" in deploy_*) case "$c" in *"/$1'"*|*"/$1 "*) ;; *) continue;; esac;; *) [ -z "$c" ] || continue;; esac;
-      n=$((n+1)); printf '%s — %s: ' "$d" "$u";
-      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes" git -C "$d" ls-remote -q origin HEAD >/dev/null;
-      then echo gets in; else echo refused; s=1; fi; done;
-      [ $n = 0 ] && echo "No project here uses $1 with an SSH remote. Test key, under the list, takes a host.";
+      n=0; s=0;
+      for g in "$HOME"/*/.git "$HOME"/*/*/.git; do [ -d "$g" ] || continue; d=${g%/.git};
+      own=$(git -C "$d" config --local core.sshCommand);
+      for c in "$g/config" "$g"/modules/*/config "$g"/modules/*/*/config "$g"/modules/*/*/*/config; do
+      [ -f "$c" ] || continue; m=${c#"$g"/}; m=${m#modules/}; m=${m%config}; m=${m%/};
+      for line in $(git config -f "$c" --get-regexp '^remote[.].*[.](url|pushurl)$' | tr ' ' '|'); do
+      what=${line%%|*}; u=${line#*|};
+      case "$u" in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac;
+      if [ -z "$m" ] && [ -n "$own" ]; then case "$own" in *"/$1'"*|*"/$1 "*) ;; *) continue;; esac;
+      else ssh -G "$h" 2>/dev/null </dev/null | grep -qi "^identityfile .*/$1\$" || continue; fi;
+      n=$((n+1)); case "$what" in *pushurl) way=push;; *) way=fetch;; esac;
+      printf '%s%s — %s %s: ' "${d#"$HOME"/}" "${m:+ › $m}" "$way" "$u";
+      if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes" git ls-remote -q "$u" HEAD >/dev/null </dev/null;
+      then echo gets in; else echo refused; s=1; fi; done; done; done;
+      [ $n = 0 ] && echo "No remote here goes over SSH with $1. Test key, under the list, takes a host.";
       exit $s
-  # The key's file goes; a project using it goes back to the machine's key. The forge still
-  # lists it — Loskai can't take it off there.
+  # The key's file goes; a project using it as its own goes back to the machine's key. One
+  # ~/.ssh/config names is left alone — that file is yours, and Loskai doesn't edit it. The
+  # forge still lists the key: Loskai can't take it off there.
   delete-key:
     label: Delete
-    description: Delete this key's file; a project using it goes back to the machine's key.
+    description: >-
+      Delete this key's file; a project using it as its own goes back to the machine's key.
+      Not one ~/.ssh/config names.
     target: key
     session: false
     confirm: >-
-      Its file goes for good, and a project using it goes back to the machine's key. GitHub
-      or Forgejo still lists it until you take it off there.
+      Its file goes for good, and a project using it as its own goes back to the machine's
+      key. GitHub or Forgejo still lists it until you take it off there.
     run: >-
       k="$HOME/.ssh/$1"; [ -f "$k.pub" ] || [ -f "$k" ] || { echo "No key $1 here."; exit 1; };
-      if cd "$PROJECTS" 2>/dev/null; then for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
+      hosts=$(awk -v k="/$1" 'tolower($1)=="host"{h=$2} tolower($1)=="identityfile" && substr($2, length($2)-length(k)+1)==k {print h}' ~/.ssh/config 2>/dev/null | sort -u | tr '\n' ' ');
+      if [ -n "$hosts" ]; then echo "~/.ssh/config names $1, for Host $hosts— take it out there first: Loskai doesn't edit that file. Nothing deleted."; exit 1; fi;
+      for g in "$HOME"/*/.git "$HOME"/*/*/.git; do [ -d "$g" ] || continue; d=${g%/.git};
       case "$(git -C "$d" config --local core.sshCommand)" in *"/$1'"*|*"/$1 "*)
-      git -C "$d" config --local --unset core.sshCommand && echo "$d uses the machine's key again.";; esac; done; fi;
+      git -C "$d" config --local --unset core.sshCommand && echo "${d#"$HOME"/} uses the machine's key again.";; esac; done;
       rm -f "$k" "$k.pub" && echo "Deleted $1." &&
       echo "GitHub or Forgejo still lists it: take it off there too — an account key under your account's SSH keys, a deploy key under its repository's Deploy keys."

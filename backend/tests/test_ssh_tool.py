@@ -119,7 +119,10 @@ def _home_with_projects(tmp_path, remotes: dict[str, str]):
     bin_ = tmp_path / "bin"
     bin_.mkdir()
     (bin_ / "ssh").write_text(
-        f"#!/bin/sh\necho \"$*\" >> {tmp_path}/ssh.log\n"
+        # `ssh -G` is the real one, on this home's config: ssh reads the account's own, not $HOME's.
+        f"#!/bin/sh\nc=$HOME/.ssh/config; [ -f $c ] || c=/dev/null\n"
+        f"[ \"$1\" = -G ] && exec {shutil.which('ssh')} -F $c \"$@\"\n"
+        f"echo \"$*\" >> {tmp_path}/ssh.log\n"
         '[ -n "$REFUSE" ] && case "$*" in *"$REFUSE"*) echo "Permission denied (publickey)." >&2; exit 255;; esac\n'
         f'for a; do last=$a; done\ncd {tmp_path}/remotes || exit 1\neval "set -- $last"\nexec "$1" "${{2#/}}"\n')
     (bin_ / "ssh").chmod(0o755)
@@ -182,12 +185,13 @@ def test_keys_show_where_they_go_test_each_project_they_are_for_and_delete(tmp_p
     # Test: each project it is for, with that key alone — site's own, the account key the rest.
     deploy = run(a["try-key"].run, "deploy_site")
     assert deploy.returncode == 0, deploy.stdout + deploy.stderr
-    assert "site — ssh://git@forgejo.lan:2222/sunde/site.git: gets in" in deploy.stdout and "blog" not in deploy.stdout
+    assert "projects/site — fetch ssh://git@forgejo.lan:2222/sunde/site.git: gets in" in deploy.stdout
+    assert "blog" not in deploy.stdout
     assert f"-i {home}/.ssh/deploy_site -o IdentitiesOnly=yes" in (tmp_path / "ssh.log").read_text()
     account = run(a["try-key"].run, "id_ed25519")
-    assert "blog — git@github.com:sunde/blog.git: gets in" in account.stdout and "site" not in account.stdout
+    assert "projects/blog — fetch git@github.com:sunde/blog.git: gets in" in account.stdout and "site" not in account.stdout
     refused = run(a["try-key"].run, "id_ed25519", REFUSE="id_ed25519")
-    assert refused.returncode == 1 and "blog — git@github.com:sunde/blog.git: refused" in refused.stdout
+    assert refused.returncode == 1 and "projects/blog — fetch git@github.com:sunde/blog.git: refused" in refused.stdout
 
     # Delete: the files go, and site goes back to the machine's key.
     gone = run(a["delete-key"].run, "deploy_site")
@@ -196,6 +200,31 @@ def test_keys_show_where_they_go_test_each_project_they_are_for_and_delete(tmp_p
     assert _key_of(home, "site") is None
     assert run(a["delete-key"].run, "deploy_site").returncode == 1  # nothing left to delete
     assert (home / ".ssh" / "id_ed25519").exists()
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_a_key_through_ssh_config_is_tested_on_the_submodule_that_pushes_with_it_and_never_deleted(tmp_path):
+    """A workspace whose submodule pushes through a ~/.ssh/config alias naming its own key."""
+    a = tool.load()["git"].actions
+    home, projects, run = _home_with_projects(tmp_path, {"workspace": "git@github.com:sunde/workspace.git"})
+    (home / ".ssh").mkdir(parents=True, exist_ok=True)
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(home / ".ssh" / "site-key")], check=True)
+    (home / ".ssh" / "config").write_text("Host gh-site\n  HostName github.com\n  IdentityFile ~/.ssh/site-key\n  IdentitiesOnly yes\n")
+    module = projects / "workspace" / ".git" / "modules" / "public" / "site"
+    module.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "--bare", str(tmp_path / "remotes" / "sunde" / "site.git")], check=True)
+    (module / "config").write_text('[remote "origin"]\n\turl = https://github.com/sunde/site.git\n'
+                                   "\tpushurl = git@gh-site:sunde/site.git\n")
+
+    tested = run(a["try-key"].run, "site-key")
+    assert tested.returncode == 0, tested.stdout + tested.stderr
+    # Only the push address goes through the alias; the fetch is over HTTPS, the workspace's own
+    # remote uses the machine's default keys.
+    assert tested.stdout.strip() == "projects/workspace › public/site — push git@gh-site:sunde/site.git: gets in"
+
+    kept = run(a["delete-key"].run, "site-key")
+    assert kept.returncode == 1 and "~/.ssh/config names site-key, for Host gh-site" in kept.stdout
+    assert (home / ".ssh" / "site-key").exists()
 
 
 def test_pull_all_pulls_each_project_with_a_remote_and_says_which_failed(tmp_path):

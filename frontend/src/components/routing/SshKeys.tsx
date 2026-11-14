@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { KeyRound } from "lucide-react";
 
-import { keyKind, type SshKeyInfo } from "../../lib/ssh";
-import { projectsIn, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { keyKind, keyUses, type KeyUse } from "../../lib/ssh";
+import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
@@ -12,7 +12,7 @@ import { ActionIcon } from "./ToolIcon";
 const KIND_TITLE = {
   account: "On your GitHub or Forgejo account: reaches every repository you can. ssh offers it wherever no other key is named.",
   deploy: "On one repository only, for one project — its Own key, in its cog.",
-  other: "Not used by git here, unless your ~/.ssh/config names it for a host.",
+  other: "A key of your own: used where ~/.ssh/config names it for a host.",
 };
 
 
@@ -42,8 +42,10 @@ export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
 // no key (New account key, Test key). Each runs in the machine's terminal, this closing.
 function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
   const keys = ctx.facts.ssh_keys;
-  // The projects folder's, as Test and Delete go through: the ones the card lists.
-  const projects = projectsIn(ctx.facts, ctx.folder);
+  // Where each is used, through every remote in the home folder; null on an older line.
+  const uses = keyUses(ctx.facts);
+  // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
+  const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
@@ -51,13 +53,6 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   const run: ToolStart = (r, a) => {
     onClose();
     ctx.onRun(r, a);
-  };
-
-  const usedBy = (k: SshKeyInfo) => {
-    const kind = keyKind(k.name);
-    if (kind === "deploy") return projects.filter((p) => p.key === k.name).map((p) => p.name);
-    if (kind === "account") return projects.filter((p) => p.key == null).map((p) => p.name);
-    return [];
   };
 
   return (
@@ -85,7 +80,6 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
           <ul aria-label="Keys" className="divide-y divide-slate-800 rounded-lg border border-slate-800">
             {keys.map((k) => {
               const kind = keyKind(k.name);
-              const users = usedBy(k);
               return (
                 <li key={k.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs">
                   <span className="min-w-0 sm:w-56">
@@ -98,21 +92,18 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                     </span>
                   </span>
                   <span className="min-w-0 flex-1 text-slate-400">
-                    {kind === "other" ? (
-                      <span className="text-slate-500">not used by git here</span>
-                    ) : users.length === 0 ? (
-                      <span className="text-slate-500">no project</span>
-                    ) : kind === "account" ? (
-                      <span title={users.join(", ")}>
-                        {users.length} {users.length === 1 ? "project" : "projects"} without their own
-                      </span>
-                    ) : (
-                      users.join(", ")
-                    )}
+                    <UsedBy uses={uses ? (uses.get(k.name) ?? []) : null} named={named.has(k.name)} />
                   </span>
                   <span className="ml-auto flex items-center gap-1">
                     {onKey.map((a) => (
-                      <KeyButton key={a.id} tool={tool} action={a} name={k.name} onRun={run} />
+                      <KeyButton
+                        key={a.id}
+                        tool={tool}
+                        action={a}
+                        name={k.name}
+                        onRun={run}
+                        kept={a.id === "delete-key" && named.has(k.name)}
+                      />
                     ))}
                   </span>
                 </li>
@@ -149,15 +140,58 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   );
 }
 
-// A key's button — rose for one that asks first (Delete).
-function KeyButton({ tool, action, name, onRun }: { tool: Tool; action: ToolAction; name: string; onRun: ToolStart }) {
+// Where a key is used: each remote it is for — a project's, or a submodule's, fetch or
+// push — and whether ~/.ssh/config names it. A few shown; all in the tooltip.
+function UsedBy({ uses, named }: { uses: KeyUse[] | null; named: boolean }) {
+  if (!uses) return <span className="text-slate-500">install the status line again to see where it is used</span>;
+  const line = (u: KeyUse) => `${u.repo}${u.module ? ` › ${u.module}` : ""} — ${u.way}`;
+  const via = (u: KeyUse) => `${line(u)}: ${u.url}${u.hostname !== u.host ? ` (${u.host} → ${u.hostname})` : ""}`;
+  const shown = uses.slice(0, 3);
+  return (
+    <span title={uses.map(via).join("\n") || undefined} className="block">
+      {shown.map((u) => (
+        <span key={`${u.repo}|${u.module}|${u.way}|${u.url}`} className="block truncate">
+          {line(u)}
+          {u.hostname !== u.host && <span className="text-slate-500"> · via {u.host}</span>}
+        </span>
+      ))}
+      {uses.length > shown.length && <span className="block text-slate-500">and {uses.length - shown.length} more</span>}
+      {named && (
+        <span
+          title="~/.ssh/config names it — for a remote above, or for logging in elsewhere"
+          className="block cursor-help text-slate-500"
+        >
+          named in ~/.ssh/config
+        </span>
+      )}
+      {uses.length === 0 && !named && <span className="text-slate-500">no remote here</span>}
+    </span>
+  );
+}
+
+// A key's button — rose for one that asks first (Delete); greyed, `kept`, for a Delete of a
+// key ~/.ssh/config names.
+function KeyButton({
+  tool,
+  action,
+  name,
+  onRun,
+  kept = false,
+}: {
+  tool: Tool;
+  action: ToolAction;
+  name: string;
+  onRun: ToolStart;
+  kept?: boolean;
+}) {
   return (
     <button
       type="button"
       aria-label={`${action.label} ${name}`}
-      title={action.description}
+      title={kept ? "~/.ssh/config names this key — take it out there first; Loskai doesn't edit that file" : action.description}
+      disabled={kept}
       onClick={() => onRun({ tool: tool.id, action: action.id, target: name, title: `${action.label}: ${name}` }, action)}
-      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 ${
+      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 ${
         action.confirm ? "border-rose-500/40 text-rose-300" : "border-slate-700 text-slate-200"
       }`}
     >

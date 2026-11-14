@@ -102,6 +102,45 @@ export function keyKind(name: string): "account" | "deploy" | "other" {
   return name.startsWith("id_") ? "account" : name.startsWith("deploy_") ? "deploy" : "other";
 }
 
+// The host an SSH remote names — `git@host:path`, `ssh://user@host:port/path` — or null
+// for another transport: as the overview and Git's Test find it.
+export function sshHost(url: string): string | null {
+  const m = /^ssh:\/\/(?:[^@/]*@)?([^/:]+)/.exec(url) ?? (/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? null : /^[^@/:]*@([^:/]+):/.exec(url));
+  return m ? m[1] : null;
+}
+
+// Where a key is used: each remote — of a project, or a submodule of one — whose key it is,
+// its project's own (Own key), else what ssh offers the remote's host. Null where the
+// status line is too old to say.
+export interface KeyUse {
+  repo: string; // the project's path in the home folder
+  module: string; // the submodule's, or ""
+  way: "fetch" | "push" | "fetch and push";
+  url: string;
+  host: string;
+  hostname: string; // where the host goes: an alias's HostName
+}
+
+export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
+  if (!facts.remotes || !facts.ssh_hosts) return null;
+  const uses = new Map<string, KeyUse[]>();
+  const own = new Map((facts.projects ?? []).map((p) => [p.path, p.key]));
+  const pushes = new Set(facts.remotes.filter((r) => r.kind === "pushurl").map((r) => `${r.path}|${r.module}`));
+  for (const r of facts.remotes) {
+    const host = sshHost(r.url);
+    if (!host) continue;
+    const mine = r.module === "" ? own.get(r.path) : null;
+    // A project's own command naming no key ("") says nothing of which key it uses.
+    const keys = mine === "" ? [] : mine ? [mine] : (facts.ssh_hosts[host]?.keys ?? []);
+    const way = r.kind === "pushurl" ? "push" : pushes.has(`${r.path}|${r.module}`) ? "fetch" : "fetch and push";
+    for (const k of keys) {
+      const use = { repo: r.path, module: r.module, way, url: r.url, host, hostname: facts.ssh_hosts[host]?.hostname ?? host } as const;
+      uses.set(k, [...(uses.get(k) ?? []), use]);
+    }
+  }
+  return uses;
+}
+
 export interface Facts {
   ok: boolean;
   error?: string;
@@ -149,6 +188,12 @@ export interface Facts {
   }[];
   // The SSH user's keys in ~/.ssh, by their public halves; null from a line before v11.
   ssh_keys?: SshKeyInfo[] | null;
+  // Every remote of each project and its submodules (`module` "" for the project itself),
+  // no user or token in it; the keys ssh offers each SSH host they name; the keys
+  // ~/.ssh/config names — the three null from a line before v12.
+  remotes?: { path: string; module: string; kind: "url" | "pushurl"; url: string }[] | null;
+  ssh_hosts?: Record<string, { hostname: string; identities_only: boolean; keys: string[] }> | null;
+  ssh_config_keys?: string[] | null;
   // Loskai's sudo rule — updates without a password; null where the machine won't say.
   sudo_rule?: "on" | "off" | null;
 }
