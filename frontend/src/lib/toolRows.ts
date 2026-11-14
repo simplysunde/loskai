@@ -18,10 +18,10 @@ interface Row {
   tag?: string;
 }
 
-// A table's columns for each kind of row, after its name — Projects' tables.
+// A table's columns for each kind of row, after its name — Projects' tables. A kind with
+// none here has cells that say what they are.
 export const COLUMNS: Partial<Record<ToolTarget, string[]>> = {
   project: ["Branch", "Changes", "Last commit", "Claude"],
-  session: ["Windows", "Started"],
 };
 
 // The rows of each kind a card lists, from the overview: the sessions no tool claims — a
@@ -39,7 +39,7 @@ function rowsOf(kind: ToolTarget, facts: Facts, folder: string): Row[] | null {
           name: s.name,
           detail: `${windows}${s.attached ? " · attached" : ""} · since ${since}`,
           title: `Since ${since}`,
-          cells: [String(s.windows), formatAgo(s.created)],
+          cells: [windows, `started ${formatAgo(s.created)}`],
           tag: s.attached ? "attached" : undefined,
         };
       });

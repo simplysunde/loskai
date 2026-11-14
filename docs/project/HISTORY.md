@@ -20,6 +20,13 @@ Claude (a session's windows and start), so the eye runs down one column across p
 card's one-line detail (`toolRows`' `cells` beside `detail`), so the two can't disagree.
 On a phone each row is a card, as every table here is.
 
+Seen on the page: not defined enough, too much space, and a heading row per machine. Each
+table is now framed, its rows tighter, and the columns one width on every machine
+(`table-fixed`), so one heading row, pinned at the top as the machines scroll under it
+(`SectionPane`'s `pinned`), serves them all — each table keeps its headings for a screen
+reader only. A session's cells say what they are ("2 windows", "started 4d ago"), so its
+table needs no headings either.
+
 ## 2026-11-14 — Projects: a side menu, New project, only machines with projects
 
 Sunde asked for New project in Projects, a side panel to jump to a machine once the list

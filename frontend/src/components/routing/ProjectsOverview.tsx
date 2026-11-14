@@ -16,7 +16,48 @@ type Machine = { id: string; name: string; upstream?: string | null };
 
 // On a phone a table's headings are hidden, so a cell that is only a time or a number
 // says which it is.
-const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Claude", Windows: "windows:", Started: "started" };
+const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Claude" };
+
+// Each table's column widths, the name's first — the same on every machine, so they line
+// up under the one heading. The buttons' column fits the most a row has (a project's five).
+const WIDTHS: Partial<Record<ToolTarget, string[]>> = {
+  project: ["w-[22%]", "w-[15%]", "w-[17%]", "w-[11%]", "w-[10%]"],
+  session: ["w-[37%]", "w-[17%]", "w-[21%]"],
+};
+const ACTIONS_WIDTH = "w-[19.5rem]";
+
+// A table's column widths (a wider screen's: a phone's rows are cards).
+function Columns({ kind }: { kind: ToolTarget }) {
+  const widths = WIDTHS[kind] ?? [];
+  return (
+    <colgroup className="max-sm:hidden">
+      {widths.map((w, i) => (
+        <col key={i} className={w} />
+      ))}
+      <col className={ACTIONS_WIDTH} />
+    </colgroup>
+  );
+}
+
+// The projects' column headings: once, pinned above every machine — and, for a screen
+// reader, in each table.
+function Head({ kind, className = "" }: { kind: ToolTarget; className?: string }) {
+  return (
+    <thead className={`text-[11px] uppercase text-slate-500 ${className}`}>
+      <tr>
+        <th className="px-2.5 py-1.5 font-medium">Project</th>
+        {(COLUMNS[kind] ?? []).map((c) => (
+          <th key={c} className="px-2.5 py-1.5 font-medium">
+            {c}
+          </th>
+        ))}
+        <th className="px-2.5 py-1.5 font-medium">
+          <span className="sr-only">Actions</span>
+        </th>
+      </tr>
+    </thead>
+  );
+}
 
 // What an action asks for when it makes a project, in the order they are offered: a name
 // (Claude Code's New project), then a repository (Git's Clone).
@@ -81,7 +122,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
           across
           ready
           top={
-            <div className="space-y-2 pt-4">
+            <div className="space-y-2 pt-3">
               {makers.length > 0 && <NewProject on={makers} ssh={ssh.data?.key ?? null} />}
               {failed.map((r) => (
                 <p key={r.machine.id} className="text-xs text-amber-300">
@@ -92,6 +133,15 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
                 <p className="text-sm text-slate-500">No projects on any machine yet.</p>
               )}
             </div>
+          }
+          pinned={
+            listed.length > 0 && (
+              // Bordered like the tables under it, so its columns sit over theirs.
+              <table aria-hidden className="mb-1 w-full table-fixed border-x border-b border-slate-800 bg-slate-900/60 text-left max-sm:hidden">
+                <Columns kind="project" />
+                <Head kind="project" />
+              </table>
+            )
           }
           sections={listed.map((r) => ({
             id: r.machine.id,
@@ -179,28 +229,17 @@ function MachineProjects({ machine }: { machine: Machine }) {
   // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a
   // card (CARD_TABLE): the name on a line of its own, the cells that say something, then
   // the buttons.
-  const table = (kind: ToolTarget, items: typeof rows, label: string) => {
-    const columns = COLUMNS[kind] ?? [];
-    return (
-      <table aria-label={label} className={`w-full text-left text-xs ${CARD_TABLE}`}>
-        <thead className="text-[11px] uppercase text-slate-500 max-sm:hidden">
-          <tr>
-            <th className="py-1.5 pr-3 font-medium">{kind === "project" ? "Project" : "Session"}</th>
-            {columns.map((c) => (
-              <th key={c} className="py-1.5 pr-3 font-medium">
-                {c}
-              </th>
-            ))}
-            <th className="py-1.5 font-medium">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
+  const table = (kind: ToolTarget, items: typeof rows, label: string) => (
+    <div className="overflow-hidden rounded-lg border border-slate-800 max-sm:border-0">
+      <table aria-label={label} className={`w-full text-left text-xs sm:table-fixed ${CARD_TABLE}`}>
+        <Columns kind={kind} />
+        {/* The headings are the one pinned above every machine; here only for a screen reader. */}
+        {kind === "project" && <Head kind={kind} className="sr-only" />}
         <tbody className="divide-y divide-slate-800/70">
           {items.map((r) => (
-            <tr key={r.name} className="text-slate-400 max-sm:py-2">
-              <td className="py-1.5 pr-3 max-sm:basis-full">
-                <span title={r.title} className="break-all font-mono text-slate-200">
+            <tr key={r.name} className="text-slate-400 hover:bg-slate-800/30 max-sm:py-2">
+              <td className="truncate px-2.5 py-1 max-sm:basis-full max-sm:whitespace-normal">
+                <span title={r.title ?? r.name} className="font-mono text-slate-200">
                   {r.name}
                 </span>
                 {kind === "project" && claude && isLive(claude, "project", r.name, ctx.facts) && (
@@ -208,18 +247,21 @@ function MachineProjects({ machine }: { machine: Machine }) {
                 )}
                 {r.tag && <span className="ml-2 text-slate-500">{r.tag}</span>}
               </td>
-              {r.cells.map((c, i) => (
-                <td
-                  key={columns[i] ?? i}
-                  title={columns[i] === "Last commit" ? r.title : undefined}
-                  className={`whitespace-nowrap py-1.5 pr-3 ${c ? "" : "max-sm:hidden"}`}
-                >
-                  {/* On a phone, with no headings: what a bare time or number is. */}
-                  {c && PHONE[columns[i]] && <span className="sm:hidden">{PHONE[columns[i]]} </span>}
-                  {c || <span className="text-slate-600">—</span>}
-                </td>
-              ))}
-              <td className="py-1.5 max-sm:ml-auto">
+              {r.cells.map((c, i) => {
+                const column = COLUMNS[kind]?.[i];
+                return (
+                  <td
+                    key={column ?? i}
+                    title={column === "Last commit" ? r.title : c || undefined}
+                    className={`truncate px-2.5 py-1 ${c ? "" : "max-sm:hidden"}`}
+                  >
+                    {/* On a phone, with no headings: what a bare time is. */}
+                    {c && column && PHONE[column] && <span className="sm:hidden">{PHONE[column]} </span>}
+                    {c || <span className="text-slate-600">—</span>}
+                  </td>
+                );
+              })}
+              <td className="px-2.5 py-1 max-sm:ml-auto">
                 <span className="flex flex-wrap items-center justify-end gap-1">
                   <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
                 </span>
@@ -228,14 +270,14 @@ function MachineProjects({ machine }: { machine: Machine }) {
           ))}
         </tbody>
       </table>
-    );
-  };
+    </div>
+  );
   return (
     <>
       {table("project", rows, "Projects")}
       {sessions.length > 0 && (
         <>
-          <h3 className="mb-0.5 mt-4 text-xs text-slate-500">
+          <h3 className="mb-1 mt-3 text-xs text-slate-500">
             {sessions.length} tmux {sessions.length === 1 ? "session" : "sessions"}
           </h3>
           {table("session", sessions, "tmux sessions")}

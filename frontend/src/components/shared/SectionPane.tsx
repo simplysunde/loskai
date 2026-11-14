@@ -21,6 +21,7 @@ export function SectionPane({
   start,
   ready,
   top,
+  pinned,
   across = false,
 }: {
   sections: PaneSection[];
@@ -29,6 +30,8 @@ export function SectionPane({
   ready: boolean;
   // Above the sections, in the scroll.
   top?: ReactNode;
+  // Under `top`, kept in view as the sections scroll under it — one heading for them all.
+  pinned?: ReactNode;
   // The menu a strip across the top at every width, as on a phone — for content that
   // wants the room (Projects' rows of buttons).
   across?: boolean;
@@ -119,8 +122,9 @@ export function SectionPane({
         ))}
         {shown.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">Nothing matches.</p>}
       </nav>
-      <div ref={pane} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto px-5 pb-5">
+      <div ref={pane} onScroll={onScroll} className={`min-w-0 flex-1 overflow-auto ${across ? "px-4 pb-4" : "px-5 pb-5"}`}>
         {top}
+        {pinned && <div className="sticky top-0 z-10 bg-slate-900">{pinned}</div>}
         {/* The last section is at least the pane's height, so a pick can scroll any
             section to the top — even while the ones below are still loading. */}
         {shown.map((s) => (
@@ -130,9 +134,9 @@ export function SectionPane({
             ref={(el) => {
               anchors.current[s.id] = el;
             }}
-            className="border-b border-slate-800 py-4 last-of-type:min-h-full last-of-type:border-b-0"
+            className={`border-b border-slate-800 last-of-type:min-h-full last-of-type:border-b-0 ${across ? "py-3" : "py-4"}`}
           >
-            <div className="mb-2 flex items-center justify-between gap-4">
+            <div className={`flex items-center justify-between gap-4 ${across ? "mb-1.5" : "mb-2"}`}>
               <h2 className="text-sm font-semibold text-slate-100">{s.label}</h2>
               {s.action}
             </div>

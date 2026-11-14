@@ -1299,6 +1299,10 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(within(nas).getByText(/^192\.168\.10\.50 · Tailscale 100\.64\.0\.7$/)).toBeInTheDocument();
 
   // Each project once, a table: its git in columns, Git's buttons and Claude Code's by its session.
+  // The column headings once, pinned above every machine (each table keeps them for a
+  // screen reader).
+  expect(within(dialog).getAllByText("Branch")).toHaveLength(2);
+  expect(within(dialog).getAllByText("Branch")[0].closest("table")).toHaveAttribute("aria-hidden");
   const projects = within(nas).getByRole("table", { name: "Projects" });
   expect(within(projects).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
     ["Project", "Branch", "Changes", "Last commit", "Claude", "Actions"],
@@ -1320,8 +1324,11 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   // tmux's buttons.
   expect(within(nas).getByRole("heading", { name: "1 tmux session" })).toBeInTheDocument();
   const sessions = within(nas).getByRole("table", { name: "tmux sessions" });
-  expect(within(sessions).getAllByRole("row").slice(1).map((tr) => tr.querySelector(".font-mono")?.textContent)).toEqual(["build"]);
-  expect(within(row("build")).getAllByRole("cell")[1]).toHaveTextContent(/^windows: 2$/);
+  expect(within(sessions).getAllByRole("row").map((tr) => tr.querySelector(".font-mono")?.textContent)).toEqual(["build"]);
+  // No headings of its own: its cells say what they are.
+  expect(within(sessions).queryByRole("columnheader")).toBeNull();
+  expect(within(row("build")).getAllByRole("cell")[1]).toHaveTextContent(/^2 windows$/);
+  expect(within(row("build")).getAllByRole("cell")[2]).toHaveTextContent(/^started \d+[mhd] ago$/);
   fireEvent.click(within(sessions).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
