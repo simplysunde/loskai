@@ -151,7 +151,8 @@ The computers on your network, by name — a name with no port.
 
 A machine's row has its name on the network under **URL**; while AdGuard doesn't answer
 that name with its address, a **DNS missing** (or **DNS conflict**, **DNS unknown** while
-AdGuard can't be read) tag sits beside it — set, nothing more is said.
+AdGuard can't be read) tag sits beside it — set, nothing more is said. A small button after
+the name and after the address copies it (shown as you point at the row; always on a phone).
 
 Under each machine are the routes on its address — however they were made. A machine's
 row opens and closes like a stack on the Docker tab, showing how many it holds while

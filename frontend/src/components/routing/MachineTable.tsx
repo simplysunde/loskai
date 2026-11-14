@@ -31,7 +31,13 @@ import { DOCKER_HOST_ID, routesOn } from "./machine";
 import { ToolsMenu } from "./MachineTools";
 import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "./machineServices";
 import { RunningPill } from "./RunningPill";
+import { CopyButton } from "../shared/CopyButton";
 import { DNS_HINT, DnsCell, type RouteRow } from "./ServiceTable";
+
+// A small copy button after a name or an address: shown on the row's hover (or focus) —
+// always on a phone, which has no hover.
+const COPY =
+  "rounded p-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-200 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 [&_svg]:h-3 [&_svg]:w-3";
 
 const URL_HINT = "Its name on your network. Beside it, only when wrong: whether AdGuard answers it with its address.";
 
@@ -186,7 +192,7 @@ export function MachineTable({
               const Chevron = open ? ChevronDown : ChevronRight;
               return (
                 <Fragment key={m.id}>
-                  <tr className={`border-t border-slate-800 max-sm:px-4 max-sm:py-2.5 ${atHost ? "bg-teal-500/5" : "bg-slate-900/50"}`}>
+                  <tr className={`group border-t border-slate-800 max-sm:px-4 max-sm:py-2.5 ${atHost ? "bg-teal-500/5" : "bg-slate-900/50"}`}>
                     <td className="px-4 py-2 max-sm:basis-full">
                       <button
                         onClick={() => expanded.toggle(m.id)}
@@ -219,8 +225,11 @@ export function MachineTable({
                     <td className={`px-4 py-2 text-xs text-slate-400 ${m.fqdn ? "" : "max-sm:hidden"}`}>
                       {m.fqdn ? (
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span title={dnsFine(m) ? `AdGuard answers it with ${m.upstream}` : DNS_HINT} className="w-fit">
-                            {m.fqdn}
+                          <span className="flex items-center gap-1">
+                            <span title={dnsFine(m) ? `AdGuard answers it with ${m.upstream}` : DNS_HINT} className="w-fit">
+                              {m.fqdn}
+                            </span>
+                            <CopyButton text={m.fqdn} title={`Copy ${m.fqdn}`} className={COPY} />
                           </span>
                           {!dnsFine(m) && <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} beside />}
                         </div>
@@ -228,7 +237,16 @@ export function MachineTable({
                         "—"
                       )}
                     </td>
-                    <td className="px-4 py-2 font-mono text-xs text-slate-300">{m.upstream ?? "—"}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-300">
+                      {m.upstream ? (
+                        <span className="flex items-center gap-1">
+                          {m.upstream}
+                          <CopyButton text={m.upstream} title={`Copy ${m.upstream}`} className={COPY} />
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
                       {running[m.id] ? (
                         <RunningPill running={running[m.id]} user={host?.user} actions={runningActions(m)} />

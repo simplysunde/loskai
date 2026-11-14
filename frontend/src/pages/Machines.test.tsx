@@ -5,8 +5,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { Machines } from "./Machines";
 import { UnlockPrompt } from "../components/shared/UnlockPrompt";
 import { renderWithQuery, json } from "../test/render";
+import { copyText } from "../lib/clipboard";
 
 // xterm needs a real canvas; these tests only need to know a terminal opened, and where.
+// Copying is the browser's; the tests see what was asked to be copied.
+vi.mock("../lib/clipboard", () => ({ copyText: vi.fn(async () => true) }));
 vi.mock("../components/shared/XtermSession", () => ({
   XtermSession: ({ url }: { url: string }) => <div>shell at {url}</div>,
 }));
@@ -321,6 +324,15 @@ test("a hosted route links out under URL; DNS state is the machine's alone, besi
   const [, pveUrl] = within(pveRow).getAllByRole("cell");
   expect(pveUrl).toHaveTextContent("pve.example.no");
   expect(within(pveUrl).getByText("DNS unknown")).toBeInTheDocument();
+});
+
+test("a machine's URL and address each copy with a small button", async () => {
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByRole("button", { name: "Copy 192.168.10.50" }));
+  fireEvent.click(within(nasRow()).getByRole("button", { name: "Copy nas.example.no" }));
+  expect(vi.mocked(copyText).mock.calls).toEqual([["192.168.10.50"], ["nas.example.no"]]);
 });
 
 test("deleting a machine names the routes on its address, which keep it", async () => {
