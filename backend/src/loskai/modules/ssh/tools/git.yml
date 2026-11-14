@@ -11,13 +11,13 @@ requires: [git]
 settings:
   name:
     label: Name
-    description: On every commit made here, unless a project has its own — git's global user.name.
+    description: Git's global user.name — a project can set its own.
     value: git-name
     read: git config --global user.name
     write: git config --global user.name "$1"
   email:
     label: Email
-    description: On every commit made here, unless a project has its own — git's global user.email.
+    description: Git's global user.email — a project can set its own.
     value: email
     read: git config --global user.email
     write: git config --global user.email "$1"
