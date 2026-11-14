@@ -34,24 +34,24 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 |---|---|---|
 | A record by id, or a 404; the base domain a name needs, or a 400 | `shared/instances.py` `require` `require_base` | `modules/adguard/service.py` `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` |
 | Whether a record is a machine (declared by `kind`) | `shared/instances.py` `is_machine` | `modules/adguard/service.py` `modules/ssh/connect.py` `modules/ssh/router.py` `shared/assign.py` `shared/dashboard.py` |
-| The same, in the browser | `components/routing/machine.ts` `isMachine` | `components/routing/MachineDialog.tsx` `components/routing/ServiceTable.tsx` `components/routing/hostOptions.ts` `components/routing/machineServices.ts` `pages/Machines.tsx` `pages/Routing.tsx` |
+| The same, in the browser | `components/routing/machine.ts` `isMachine` | `components/machines/MachineDialog.tsx` `components/routing/ServiceTable.tsx` `components/routing/hostOptions.ts` `components/routing/machineServices.ts` `pages/Machines.tsx` `pages/Routing.tsx` |
 | Which routes are on a machine: those on its address | `shared/instances.py` `on_address` | `shared/assign.py` |
-| The same, in the browser | `components/routing/machine.ts` `machineAt` `routesOn` | `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` `pages/Machines.tsx` `pages/settings/General.tsx` |
+| The same, in the browser | `components/routing/machine.ts` `machineAt` `routesOn` | `components/machines/MachineTable.tsx` `components/routing/ServiceTable.tsx` `pages/Machines.tsx` `pages/settings/General.tsx` |
 | The Docker host's row before it is named | `components/routing/machine.ts` `unnamedDockerHost` | `pages/Machines.tsx` |
 | Where a record opens | `shared/instances.py` `open_url` | `modules/caddy/service.py` `modules/docker/router.py` `shared/assign.py` `shared/dashboard.py` |
 | Where a record's uploaded icon is served | `shared/instances.py` `icon_url` | `modules/caddy/service.py` `shared/dashboard.py` |
 | What a change to the records makes stale, in the browser | `lib/routes.ts` `refreshRecords` | `components/docker/InstallDone.tsx` `components/docker/InstallWizard.tsx` `components/routing/useSaveMachine.ts` `components/settings/ClearRewrites.tsx` `pages/Machines.tsx` `pages/Routing.tsx` |
-| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallDone.tsx` `components/docker/StackGroups.tsx` `components/routing/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
+| How that address is shown and opened | `components/shared/RouteLink.tsx` `RouteLink` | `components/docker/InstallDone.tsx` `components/docker/StackGroups.tsx` `components/machines/MachineTable.tsx` `components/routing/ServiceTable.tsx` |
 | A file the browser saves, from what the API answered | `lib/download.ts` `saveFile` | `pages/Certificate.tsx` `pages/settings/General.tsx` |
 | Making a route or naming a machine: Caddy, then AdGuard, rolled back on failure | `shared/assign.py` `assign` | only its own file |
 | Making a link | `shared/assign.py` `make_link` | only its own file |
 | Saving or deleting a machine, and what Loskai put on it with its SSH connection | `shared/assign.py` `save_machine` `purge_instance` | `modules/docker/router.py` |
 | Whether an edit may move a record to another container: never | `shared/assign.py` `require_same_container` | only its own file |
 | What a name and an upstream may be (enforced) | `shared/assign.py` `validate_prefix` `validate_upstream` | only its own file |
-| The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallConfigure.tsx` `components/docker/InstallDone.tsx` `components/docker/StackForm.tsx` `components/routing/AddMachineModal.tsx` `components/routing/MachineDialog.tsx` `components/routing/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
+| The same rules while typing | `lib/validation.ts` `isValidPrefix` `splitUpstream` `assembleFqdn` `pathProblem` | `components/docker/InstallConfigure.tsx` `components/docker/InstallDone.tsx` `components/docker/StackForm.tsx` `components/machines/AddMachineModal.tsx` `components/machines/MachineDialog.tsx` `components/machines/MachineTable.tsx` `components/routing/machine.ts` `components/routing/useRouteFields.ts` |
 | A route form's fields and their checks | `components/routing/useRouteFields.ts` `useRouteFields` | `components/routing/AddRouteModal.tsx` `components/routing/AssignModal.tsx` `components/routing/LinkModal.tsx` |
 | What a route form fills in for a container | `components/routing/containerPrefill.ts` `containerPrefill` | `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `pages/Routing.tsx` |
-| Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallDone.tsx` `components/routing/AddRouteModal.tsx` `components/routing/MachineTable.tsx` `pages/Routing.tsx` |
+| Whether Caddy is set up: offer routes, or only links | `lib/useHealth.ts` `useCaddySetUp` | `components/docker/InstallDone.tsx` `components/machines/MachineTable.tsx` `components/routing/AddRouteModal.tsx` `pages/Routing.tsx` |
 
 ## Containers
 
@@ -90,7 +90,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/install.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
 | A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
-| Asking for your password to unlock it — when, and once for the page | `lib/unlock.ts` `requestUnlock` | `components/routing/MachineTerminal.tsx` `components/routing/ToolSettings.tsx` `lib/api.ts` |
+| Asking for your password to unlock it — when, and once for the page | `lib/unlock.ts` `requestUnlock` | `components/machines/MachineTerminal.tsx` `components/machines/ToolSettings.tsx` `lib/api.ts` |
 
 ## Machines and tools
 
@@ -110,13 +110,13 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | What the sudo rule for updates allows | `modules/ssh/tool.py` `update_commands` `allow_script` | `modules/ssh/connect.py` |
 | sudo's password for an automatic run: checked, held for one run | `modules/ssh/connect.py` `prepare` `take_password` | `modules/ssh/router.py` |
 | Which SSH keys a machine's user has, and which key git uses for each project | `modules/ssh/status.py` `_FACTS` (`#=keys`, a project's `key`) `parse_facts` | |
-| Which remotes a key is for — a project's own key, else what ssh offers the remote's host | `lib/ssh.ts` `keyUses` `remoteSshHost` | `components/routing/SshKeys.tsx` `components/routing/ToolSettings.tsx` |
-| Where a key goes, to paste it — a deploy key's repository, or the account on its platform — and which list it is in | `lib/ssh.ts` `keyPage` `webOf` `keyGroup` `keyHost` `keyLabel` | `components/routing/SshKeys.tsx` |
-| What a key is (account, deploy, other), by its name | `lib/ssh.ts` `keyKind` | `components/routing/SshKeys.tsx` |
-| Whether a machine's updates-without-a-password switch applies, and what it runs | `components/routing/SudoRuleSwitch.tsx` `SudoRuleSwitch` | `components/routing/MachineDialog.tsx` `components/routing/UpdateAll.tsx` |
-| What Tailscale is doing on a machine, and in a few words | `lib/ssh.ts` `tailscaleState` `tailscaleStatus` | `components/routing/MachineOverview.tsx` `components/routing/MachineTools.tsx` `components/routing/ProjectsOverview.tsx` `lib/toolRows.ts` |
-| What a tool's card lists, and its one-line summary | `lib/toolRows.ts` `toolSummary` `listsOf` `toolContext` | `components/routing/MachineDialog.tsx` `components/routing/MachineTools.tsx` `components/routing/ProjectsOverview.tsx` `components/routing/ToolDialog.tsx` |
-| An automatic run's terminal: drops down, lingers, stays on a failure | `components/shared/QuickTerminal.tsx` `QuickTerminal` | `components/routing/MachineTerminal.tsx` |
+| Which remotes a key is for — a project's own key, else what ssh offers the remote's host | `lib/ssh.ts` `keyUses` `remoteSshHost` | `components/machines/SshKeys.tsx` `components/machines/ToolSettings.tsx` |
+| Where a key goes, to paste it — a deploy key's repository, or the account on its platform — and which list it is in | `lib/ssh.ts` `keyPage` `webOf` `keyGroup` `keyHost` `keyLabel` | `components/machines/SshKeys.tsx` |
+| What a key is (account, deploy, other), by its name | `lib/ssh.ts` `keyKind` | `components/machines/SshKeys.tsx` |
+| Whether a machine's updates-without-a-password switch applies, and what it runs | `components/machines/SudoRuleSwitch.tsx` `SudoRuleSwitch` | `components/machines/MachineDialog.tsx` `components/machines/UpdateAll.tsx` |
+| What Tailscale is doing on a machine, and in a few words | `lib/ssh.ts` `tailscaleState` `tailscaleStatus` | `components/machines/MachineOverview.tsx` `components/machines/MachineTools.tsx` `components/machines/ProjectsOverview.tsx` `lib/toolRows.ts` |
+| What a tool's card lists, and its one-line summary | `lib/toolRows.ts` `toolSummary` `listsOf` `toolContext` | `components/machines/MachineDialog.tsx` `components/machines/MachineTools.tsx` `components/machines/ProjectsOverview.tsx` `components/machines/ToolDialog.tsx` |
+| An automatic run's terminal: drops down, lingers, stays on a failure | `components/shared/QuickTerminal.tsx` `QuickTerminal` | `components/machines/MachineTerminal.tsx` |
 
 ## The page
 

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../../lib/api";
-import type { NewMachine } from "./AddMachineModal";
+import type { NewMachine } from "../machines/AddMachineModal";
 import { refreshRecords } from "../../lib/routes";
 
 export interface SaveResult {

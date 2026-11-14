@@ -312,7 +312,7 @@ dialog's password came with it — never the password.
    version steps. If Loskai can install it, add it to `tool.INSTALLERS`.
 4. A new kind of `target` needs a row in the Running list to put it on: `tool.TARGETS`,
    `RunningList`, and this page.
-5. Optionally icons, in `frontend/src/components/routing/ToolIcon.tsx`: the tool's 24×24
+5. Optionally icons, in `frontend/src/components/machines/ToolIcon.tsx`: the tool's 24×24
    path in `PATHS`, by its id (without one it gets a wrench). An action's symbol, by
    `<tool>.<action>`, should say what its button does: a program's own logo in `ACTIONS`
    (Claude's mark on starting Claude), else a Lucide icon in

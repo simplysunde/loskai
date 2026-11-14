@@ -80,7 +80,7 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
   `health.py`, `export.py`.
 
 Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (one per tab,
-`settings/` its sub-pages), `components/{docker,routing,settings,shared}/`, `lib/` (`api.ts`,
+`settings/` its sub-pages), `components/{docker,machines,routing,settings,shared}/`, `lib/` (`api.ts`,
 hooks, `docs.ts` — the repo's address, for links to the docs).
 
 Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`

@@ -146,7 +146,7 @@ commit, the full checks, `where-used.py --write`.
 - [x] 57n Tests, frontend: `setUp` → `sshSetUp`, `open` → `openCategory`. `c` and `s` in
       `groupByStack.test.ts` stay: `stack` is already a parameter there, and the rename
       shadowed it (the checks caught it)
-- [ ] 57o The Machines tab's components move to `components/machines/`
+- [x] 57o The Machines tab's components move to `components/machines/`
 - [ ] 57p Live: every tab on a scratch backend, a machine's dialog and a tool run, a route;
       then `main` fast-forwarded on Sunde's word, `:8080` and its log checked; the HISTORY
       entry with the whole `old → new` table

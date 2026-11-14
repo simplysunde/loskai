@@ -27,12 +27,12 @@ import type { Tool, TargetKind } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { splitUpstream } from "../../lib/validation";
-import { DOCKER_HOST_ID, routesOn } from "./machine";
+import { DOCKER_HOST_ID, routesOn } from "../routing/machine";
 import { ToolsMenu } from "./MachineTools";
-import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "./machineServices";
+import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "../routing/machineServices";
 import { RunningPill } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
-import { DNS_HINT, DnsCell, type Instance } from "./ServiceTable";
+import { DNS_HINT, DnsCell, type Instance } from "../routing/ServiceTable";
 
 // A small copy button after a name or an address: shown on the row's hover (or focus) —
 // always on a phone, which has no hover.

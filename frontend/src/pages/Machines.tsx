@@ -9,20 +9,20 @@ import { useSettings } from "../lib/settings";
 import { takesKeysOff, useRunning, useSsh } from "../lib/ssh";
 import { MACHINE_TOOL, useTools, type ToolRun } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
-import { AddMachineModal } from "../components/routing/AddMachineModal";
+import { AddMachineModal } from "../components/machines/AddMachineModal";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
 import type { MachineService } from "../components/routing/machineServices";
 import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/machine";
-import { MachineTable } from "../components/routing/MachineTable";
-import { MachineTerminal } from "../components/routing/MachineTerminal";
+import { MachineTable } from "../components/machines/MachineTable";
+import { MachineTerminal } from "../components/machines/MachineTerminal";
 import { SaveBanner } from "../components/routing/SaveBanner";
-import { ProjectsOverview } from "../components/routing/ProjectsOverview";
-import { UpdateAll } from "../components/routing/UpdateAll";
-import { ToolDialog } from "../components/routing/ToolDialog";
+import { ProjectsOverview } from "../components/machines/ProjectsOverview";
+import { UpdateAll } from "../components/machines/UpdateAll";
+import { ToolDialog } from "../components/machines/ToolDialog";
 import type { Instance } from "../components/routing/ServiceTable";
 import { useSaveMachine, type SaveResult } from "../components/routing/useSaveMachine";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
-import { MachineDialog, type MachineState } from "../components/routing/MachineDialog";
+import { MachineDialog, type MachineState } from "../components/machines/MachineDialog";
 
 // Named LAN machines: a name that resolves to an address, and nothing more — no route, no
 // certificate. Every route on a machine's address is on it, so moving it here re-points them all.

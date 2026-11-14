@@ -28,15 +28,15 @@ import { SectionPane } from "../shared/SectionPane";
 import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
 import { SshLog } from "../settings/SshLog";
 import type { NewMachine } from "./AddMachineModal";
-import { isMachine } from "./machine";
+import { isMachine } from "../routing/machine";
 import { MachineOverview } from "./MachineOverview";
 import { AddToolMenu, MachineTools, OwnButtons, RowButtons } from "./MachineTools";
 import { EnableSshModal } from "./EnableSshModal";
 import { RunningList } from "./RunningPill";
-import { SaveBanner } from "./SaveBanner";
+import { SaveBanner } from "../routing/SaveBanner";
 import { SshKeys } from "./SshKeys";
 import { SshSetupModal } from "./SshSetupModal";
-import { useSaveMachine, type SaveResult } from "./useSaveMachine";
+import { useSaveMachine, type SaveResult } from "../routing/useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
 
 // What opening a machine can hand over: what a save said, and whether to start its SSH

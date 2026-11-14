@@ -315,7 +315,7 @@ installs Tailscale there like on any machine. A named
 machine's row has Add route and its settings cog — amber while it has an SSH user but isn't
 set up — with Delete under ⋮; once SSH is set up, Terminal, Tools and Update too. The cog
 opens the machine's dialog over the list (`/machines/<id>/<category>`,
-`components/routing/MachineDialog.tsx`) — what belongs to that machine alone, its sections
+`components/machines/MachineDialog.tsx`) — what belongs to that machine alone, its sections
 in one scroll with a menu down the side that jumps to them and a search that narrows them,
 like a settings window: General
 (machine name, address, then the overview) and SSH (on or off, the login, setup, updates
@@ -509,10 +509,10 @@ Open: running one command on several machines at once.
 **Code:** `shared/assign.py` (`POST /api/machines`), `shared/instances.py`
 (`on_address`), `modules/ssh/` — `client.py`, `logic.py`, `status.py`, `connect.py`, `unlock.py`,
 `machines.py`, `tool.py`, `tools/`; frontend `pages/Machines.tsx`, `pages/settings/Ssh.tsx`,
-`components/routing/` — `MachineTable.tsx`, `AddMachineModal.tsx`, `MachineDialog.tsx`,
+`components/machines/` — `MachineTable.tsx`, `AddMachineModal.tsx`, `MachineDialog.tsx`,
 `MachineTools.tsx`, `ToolDialog.tsx`, `EnableSshModal.tsx`, `SshSetupModal.tsx`,
 `MachineTerminal.tsx`,
-`RunningPill.tsx`, `machine.ts`.
+`RunningPill.tsx`; `components/routing/machine.ts`.
 
 ---
 
