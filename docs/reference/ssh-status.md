@@ -110,7 +110,7 @@ The Add route picker's Machines source offers these ports
 | `#=projects` | `path\|branch\|dirty\|claude\|ahead\|key\|committed\|subject` (`key` since v11) | `projects` — see below |
 | `#=keys` | `name\|<type data>\|<ssh-keygen -lf line>` for each `~/.ssh/*.pub`, at most 50 — the public halves only, never a private key; only where `ssh-keygen` is (`<type data>`, the key itself, since v13) | `ssh_keys` — `{name, bits, fingerprint, comment, type, public}`, `public` the key to paste (`null` before v13); `null` from a line before v11 |
 | `#=remotes` | `path\|module\|url or pushurl\|address` for every remote of each project and of its submodules (`.git/modules/<name>/config`, three deep), at most 300 — a `user:token@` taken out of the address on the machine, before it is printed | `remotes` — `{path, module, kind, url}`, `module` `""` for the project itself; `null` before v12 |
-| `#=sshhosts` | `host\|hostname\|identitiesonly\|file…` for each SSH host those remotes name (`git@host:…`, `ssh://…`), at most 30: what `ssh -G` resolves for it — aliases, `Host *`, `Include`, `Match`, as a connection would — without connecting | `ssh_hosts` — `{host: {hostname, identities_only, keys}}`, `keys` the names of those files in `~/.ssh`; `null` before v12 |
+| `#=sshhosts` | `host\|hostname\|identitiesonly\|file…` for each SSH host those remotes name (`git@host:…`, `ssh://…`), at most 30: what `ssh -G` resolves for it — aliases, `Host *`, `Include`, `Match`, as a connection would — without connecting. Since v14, only `!match-exec` where `~/.ssh/config` or the system's (`/etc/ssh/ssh_config`, `ssh_config.d/*.conf`) has a `Match exec`: ssh would run that command to answer, and the command only reads | `ssh_hosts` — `{host: {hostname, identities_only, keys}}`, `keys` the names of those files in `~/.ssh`; `null` before v12; `ssh_match_exec` true where it wasn't asked |
 | `#=sshconfig` | the `IdentityFile`s `~/.ssh/config` names — nothing else of that file | `ssh_config_keys` — their names, of those in `~/.ssh`; `null` before v12 |
 | `#=sudo` | `on` or `off` — whether `/etc/sudoers.d/loskai` is there; nothing where the user can't search that folder | `sudo_rule` — `"on"`, `"off"` or `null` |
 
@@ -145,7 +145,9 @@ has sshd's `PATH`, not the login shell's, and per-user installs (Claude Code) li
 ## Rules for the command
 
 - **It only reads.** Nothing in it changes the machine. A command that acts belongs to the
-  main key, which a user unlocks with their own password.
+  main key, which a user unlocks with their own password. That includes what it asks of
+  another program: `ssh -G` runs nothing — unless an ssh config's `Match exec` tells it to,
+  so where one has that, it isn't asked (v14).
 - **No double quotes and no backslashes** — it sits inside `command="…"`. A test fails if
   either appears.
 - **POSIX `sh`.** It runs under the user's login shell, which may be `dash`, `bash` or
@@ -187,6 +189,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 11 | `facts` adds `#=keys`, the SSH user's keys by their public halves, and each project's `key` — the one git uses for it (Git's Keys) |
 | 12 | `facts` adds `#=remotes`, `#=sshhosts` and `#=sshconfig`: every remote of each project and submodule, the keys ssh offers each SSH host they name, and the keys `~/.ssh/config` names — so a key used through an alias is seen (Git's Keys, Test, Delete) |
 | 13 | `#=keys` carries each key's public half, its type and data — public, to copy and paste into GitHub or Forgejo (Git's Keys) |
+| 14 | `#=sshhosts` isn't asked where an ssh config has `Match exec` — `ssh -G` would run that command — and says `!match-exec` instead |
 
 ## Adding a fact
 

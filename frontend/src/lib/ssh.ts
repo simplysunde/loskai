@@ -285,6 +285,9 @@ export interface Facts {
   remotes?: { path: string; module: string; kind: "url" | "pushurl"; url: string }[] | null;
   ssh_hosts?: Record<string, { hostname: string; identities_only: boolean; keys: string[] }> | null;
   ssh_config_keys?: string[] | null;
+  // An ssh config with `Match exec`: ssh would run a command to answer, so ssh_hosts wasn't
+  // asked (v14) — which keys the remotes use can't be told there.
+  ssh_match_exec?: boolean;
   // Loskai's sudo rule — updates without a password; null where the machine won't say.
   sudo_rule?: "on" | "off" | null;
 }

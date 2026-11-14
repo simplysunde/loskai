@@ -583,7 +583,16 @@ def test_the_overview_lists_the_users_keys_and_which_one_each_project_uses(tmp_p
     }
     # The SSH host they name, and the keys ssh offers it — here its defaults, the account key.
     assert set(out["ssh_hosts"]) == {"example.invalid"} and "id_ed25519" in out["ssh_hosts"]["example.invalid"]["keys"]
-    assert out["ssh_config_keys"] == ["deploy_site"]
+    assert out["ssh_config_keys"] == ["deploy_site"] and out["ssh_match_exec"] is False
+
+    # An ssh config that runs a command to match a host: ssh -G would run it, so it isn't
+    # asked — the status command only reads.
+    (home / ".ssh" / "config").write_text('Match exec "touch $HOME/ran" host *\n  IdentityFile ~/.ssh/deploy_site\n')
+    again = status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
+                                              env=env, cwd=tmp_path, timeout=30).stdout)
+    assert again["ssh_match_exec"] is True and again["ssh_hosts"] == {}
+    assert not (home / "ran").exists()
+    assert again["remotes"] and again["ssh_config_keys"] == ["deploy_site"]
 
 
 def test_the_overview_says_whether_loskai_s_sudo_rule_is_there():

@@ -70,7 +70,8 @@ whether a platform takes it is a test.
 
 - [x] 56a The status line reads the keys (v11), every remote of each project and submodule
       and what `ssh -G` offers each SSH host (v12), and each key's public half (v13) —
-      public material only, any `user:token@` taken out on the machine
+      public material only, any `user:token@` taken out on the machine; not `ssh -G` where
+      an ssh config has `Match exec`, which would run a command (v14)
 - [x] 56b The machine's **Keys** row in its SSH settings: SSH setup, and Keys (n) — every key,
       one line each, what it is for, its fingerprint; Copy, Label, Delete (never one
       `~/.ssh/config` names)

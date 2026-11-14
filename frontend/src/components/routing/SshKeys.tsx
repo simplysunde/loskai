@@ -121,6 +121,11 @@ export function SshKeys({
       <p className="mt-1 text-sm text-slate-400">
         {git ? "The keys git uses here, and where." : "Every key of the user Loskai logs in as, in ~/.ssh — public halves only."}
       </p>
+      {git && ctx.facts.ssh_match_exec && (
+        <p className="mt-1 text-xs text-amber-300/90">
+          This machine's ssh config runs a command to choose keys (Match exec), so Loskai doesn't ask ssh which key each remote uses: it only reads.
+        </p>
+      )}
       <div className="mt-4 min-h-0 overflow-auto">
         {keys == null ? (
           <p className="text-sm text-amber-300">

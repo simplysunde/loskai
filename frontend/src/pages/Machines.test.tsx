@@ -1515,6 +1515,13 @@ test("Label, on a key: what it is for, picked in a dialog and written on the key
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 
+test("a machine whose ssh config has Match exec: Git's Keys says which remotes use which key wasn't asked", async () => {
+  setUp();
+  facts = { ...FACTS, ssh_hosts: {}, ssh_match_exec: true };
+  renderPage("/machines/nas/tools");
+  expect(await gitKeys()).toHaveTextContent("This machine's ssh config runs a command to choose keys (Match exec)");
+});
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");

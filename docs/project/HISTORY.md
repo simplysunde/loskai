@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — The status read doesn't ask ssh where its config would run a command
+
+Since v12 the status command asks `ssh -G` which keys each remote's host gets. ssh answers
+from its config without connecting — but a config's `Match exec "…"` makes it run that
+command to decide, and the status command's promise is that it only reads. None of Sunde's
+machines has one; the promise shouldn't depend on that. Since v14 the question isn't asked
+where `~/.ssh/config` or the system's ssh config has a `Match exec`: the section says
+`!match-exec`, and Git's Keys says which remotes use which key wasn't asked there. A config
+`Include`d from elsewhere isn't looked in.
+
 ## 2026-11-14 — SSH keys: what a machine has, what each is for, and git's side in Git (Phase 56)
 
 Started as one button on Git's card (show this machine's key to add to GitHub or Forgejo)

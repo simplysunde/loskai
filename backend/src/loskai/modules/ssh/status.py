@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE = 13
+STATUS_LINE = 14
 STATUS_VERSION = f"#loskai-status {STATUS_LINE}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -209,8 +209,10 @@ _FACTS = (
     "for l in $r; do echo $l; done; "
     # For each SSH host those name, the keys ssh offers it — asked of ssh itself (`ssh -G`
     # resolves aliases, Host *, Include and Match as a connection would), without connecting:
-    # `host|hostname|identitiesonly|file…`.
-    "echo '#=sshhosts'; if command -v ssh >/dev/null; then for l in $r; do u=${l##*|}; "
+    # `host|hostname|identitiesonly|file…`. Not where an ssh config has `Match exec`: there
+    # ssh would run that command to answer, and this only reads — `!match-exec` says so (v14).
+    "echo '#=sshhosts'; if grep -qis '^[[:space:]]*match[^#]*exec' $HOME/.ssh/config /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*.conf; "
+    "then echo '!match-exec'; elif command -v ssh >/dev/null; then for l in $r; do u=${l##*|}; "
     "case $u in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac; "
     "case $h in ''|*[!A-Za-z0-9._-]*) continue;; esac; echo $h; done | sort -u | head -n 30 | while read h; do "
     "ssh -G $h 2>/dev/null </dev/null | awk -v OFS='|' -v h=$h -v N=hostname -v O=identitiesonly -v I=identityfile "
@@ -455,6 +457,7 @@ def parse_facts(output: str) -> dict:
     user or token in the address; `ssh_hosts` the keys ssh offers each SSH host those name,
     `{host: {hostname, identities_only, keys}}` — `keys` the names of those in ~/.ssh;
     `ssh_config_keys` the keys ~/.ssh/config names — the three None from a line before v12;
+    `ssh_match_exec` true where an ssh config has `Match exec`, so `ssh_hosts` wasn't asked (v14);
     `sudo_rule` "on" or "off" — Loskai's sudo rule, `SUDO_RULE` — or None
     where the machine won't say; `outdated` true on a line older than this Loskai's — still
     read, but a fix since (v10's quiet sudo) reaches it only when it is installed again.
@@ -588,19 +591,23 @@ def _key_name(path: str) -> str | None:
 
 def _remotes(sections: dict[str, list[str]], version: int) -> dict:
     if version < REMOTES_SINCE:
-        return {"remotes": None, "ssh_hosts": None, "ssh_config_keys": None}
+        return {"remotes": None, "ssh_hosts": None, "ssh_match_exec": False, "ssh_config_keys": None}
     remotes = []
     for line in sections.get("remotes", []):
         parts = line.split("|", 3)
         if len(parts) == 4 and _SAFE.fullmatch(parts[0]) and _SAFE.fullmatch(parts[1]) and parts[2] in ("url", "pushurl"):
             remotes.append({"path": parts[0], "module": parts[1], "kind": parts[2], "url": parts[3]})
     hosts = {}
+    # v14: an ssh config with `Match exec`, where ssh -G would run a command: not asked.
+    skipped = "!match-exec" in sections.get("sshhosts", [])
     for line in sections.get("sshhosts", []):
+        if line.count("|") < 2:
+            continue
         host, hostname, only, *files = line.split("|")
         if _HOST.fullmatch(host):
             hosts[host] = {"hostname": hostname or host, "identities_only": only == "yes",
                            "keys": [k for k in map(_key_name, files) if k]}
-    return {"remotes": remotes, "ssh_hosts": hosts,
+    return {"remotes": remotes, "ssh_hosts": hosts, "ssh_match_exec": skipped,
             "ssh_config_keys": sorted({k for k in map(_key_name, sections.get("sshconfig", [])) if k})}
 
 
