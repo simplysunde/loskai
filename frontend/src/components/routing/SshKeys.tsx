@@ -166,6 +166,11 @@ function UsedBy({
   if (!uses) return <p className="mt-1 text-slate-500">Install the status line again to see where it is used.</p>;
   const verb = { "fetch and push": "Fetches and pushes", fetch: "Fetches", push: "Pushes" } as const;
   const sshRemotes = (facts.remotes ?? []).some((r) => sshHost(r.url));
+  // Why the account key goes unused: every remote over HTTP(S), or the SSH ones each with
+  // a key of their own (an alias's IdentitiesOnly, a project's Own key).
+  const unused = !sshRemotes
+    ? "No remote here uses it: they are over HTTP(S), not SSH. An account key reaches every repository your account can, once a remote here goes over SSH."
+    : "No remote here uses it: the ones over SSH each use a key of their own. An account key reaches every repository your account can, once a remote here goes over SSH without one.";
   return (
     <div className="mt-1 space-y-0.5 text-slate-300">
       {uses.map((u) => (
@@ -194,8 +199,8 @@ function UsedBy({
         <p className="text-slate-500">
           {named
             ? "~/.ssh/config names it for a host no project here uses — a login elsewhere, perhaps."
-            : account && !sshRemotes
-              ? "No project here uses it: their remotes are over HTTP(S), not SSH."
+            : account
+              ? unused
               : "No remote here uses it yet."}
         </p>
       )}

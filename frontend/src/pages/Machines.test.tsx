@@ -1322,8 +1322,20 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(row).toHaveTextContent("No project here uses it: their remotes are over HTTP(S), not SSH.");
+  expect(row).toHaveTextContent("No remote here uses it: they are over HTTP(S), not SSH.");
   expect(within(dialog).getByText("deploy_blog").closest("li")).toHaveTextContent("No remote here uses it yet.");
+});
+
+test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
+  setUp();
+  // codebox: its one SSH address, a submodule's push, goes through an alias with its own key.
+  facts = { ...FACTS, remotes: [
+    { path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" },
+    { path: "projects/site", module: "public/page", kind: "pushurl", url: "git@gh-page:me/page.git" },
+  ], ssh_hosts: { "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] } }, ssh_config_keys: ["work"] };
+  renderPage("/machines/nas/tools");
+  const row = within(await gitKeys()).getByText("id_ed25519").closest("li") as HTMLElement;
+  expect(row).toHaveTextContent("No remote here uses it: the ones over SSH each use a key of their own.");
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {

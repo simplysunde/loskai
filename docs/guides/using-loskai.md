@@ -244,9 +244,11 @@ and Add.
   key kept elsewhere, not a private key without its `.pub`), a card each: its name and what
   it is in words — Account key, Deploy key, Key for github.com — what it does, written out
   ("Pushes projects › public/simplysunde.github.io on github.com through
-  ~/.ssh/config (github-blog)"), or why nothing uses it ("their remotes are over
-  HTTP(S), not SSH"), and its comment and fingerprint — the one GitHub and Forgejo list
-  beside a key, shortened, whole in its tooltip. Where it is used is every remote it is for, in
+  ~/.ssh/config (github-blog)"), or why nothing uses it — an account key belongs to
+  your account, not a repository, so it shows the remotes here git would use it for, and
+  says when none would: all over HTTP(S), or the SSH ones each with a key of their own —
+  and its comment and fingerprint, the one GitHub and Forgejo list beside a key, shortened,
+  whole in its tooltip. Where it is used is every remote it is for, in
   every project and submodule — fetch, push, or both — by the project's own key, else by
   what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
   pushes through `git@github-site:…`, an alias naming its own key, shows under that key,
