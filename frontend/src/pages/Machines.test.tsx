@@ -1279,35 +1279,37 @@ test("Clone asks for a repository's address and runs on it; Git's card has the p
   ).toBeInTheDocument();
 });
 
-// The machine's keys, from its SSH settings — the Keys row — not from Git's card.
+// Git's view of the keys, from Keys in its card's header.
 async function gitKeys() {
   const tools = await screen.findByRole("region", { name: "Tools" });
-  expect(within(tools).queryByRole("button", { name: "Keys" })).toBeNull();
-  const ssh = screen.getByRole("region", { name: "SSH" });
+  fireEvent.click(await within(tools).findByRole("button", { name: "Keys" }));
+  return screen.findByRole("dialog", { name: "SSH keys" });
+}
+
+// Every key, plainly, from the machine's SSH settings — its Keys row.
+async function machineKeys() {
+  const ssh = await screen.findByRole("region", { name: "SSH" });
   fireEvent.click(await within(ssh).findByRole("button", { name: /^Keys( \(|$)/ }));
   return screen.findByRole("dialog", { name: "SSH keys" });
 }
 
-test("Keys lists each SSH key: what it is, where it is used, its fingerprint — Copy puts it on the clipboard, Add it opens where it goes", async () => {
+const names = (el: HTMLElement) => within(el).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent);
+
+test("Git's Keys: git's keys — the remotes each is for, a Test, where to add it — Copy puts one on the clipboard", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
   const dialog = await gitKeys();
+  expect(dialog).toHaveTextContent("SSH keys for git");
   const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
-  // Account keys and deploy keys apart: the account key, and `work` — a key for github.com,
-  // which site's submodule pushes with through ~/.ssh/config's gh-page; blog's deploy key.
+  // Account keys and deploy keys: the account key, and `work` — a key for github.com, which
+  // site's submodule pushes with through ~/.ssh/config's gh-page; blog's deploy key.
   const section = (name: string) => within(dialog).getByRole("region", { name });
-  expect(within(section("Account keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
-    .toEqual(["id_ed25519", "work"]);
-  expect(within(section("Deploy keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
-    .toEqual(["deploy_blog"]);
-  expect(within(dialog).queryByRole("region", { name: "Other keys" })).toBeNull();
-
-  expect(within(section("Login keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
-    .toEqual(["server"]);
-  // Its comment without the mark.
-  expect(row("server")).toHaveTextContent("admin@nas ·");
-  expect(row("server")).not.toHaveTextContent("(loskai:");
+  expect(names(section("Account keys"))).toEqual(["id_ed25519", "work"]);
+  expect(names(section("Deploy keys"))).toEqual(["deploy_blog"]);
+  // A login key isn't git's: a line, no more.
+  expect(within(dialog).queryByText("server")).toBeNull();
+  expect(dialog).toHaveTextContent("1 more key on this machine, not git's — in its SSH settings.");
   // What each does, in a line a remote.
   expect(row("id_ed25519")).toHaveTextContent("Fetches and pushes projects/site · github.com");
   expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog · forgejo.lan");
@@ -1317,17 +1319,14 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(row("work")).not.toHaveTextContent("Fetches");
   // The fingerprint, shortened; whole in its tooltip.
   expect(within(row("id_ed25519")).getByTitle("ED25519 256: SHA256:mach")).toBeInTheDocument();
-  // Every row has the same buttons, in the same order, so they line up; where to add a key
-  // is a link with its text, not one more button on some rows.
+  // Git's buttons only — Copy and Test — the same on every row; Label and Delete are the
+  // machine's, in its SSH settings.
   for (const li of within(dialog).getAllByRole("listitem")) {
     const name = li.querySelector(".font-mono")?.textContent;
     const buttons = within(li).getAllByRole("button");
-    expect(buttons).toHaveLength(4);
-    ["Copy", "Test", "Label", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
+    expect(buttons).toHaveLength(2);
+    ["Copy", "Test"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
-  // That one is yours: Delete leaves it alone.
-  expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
-  expect(within(row("deploy_blog")).getByRole("button", { name: "Delete deploy_blog" })).toBeEnabled();
   // An account key exists: no New account key.
   expect(within(dialog).queryByRole("button", { name: "New account key" })).toBeNull();
 
@@ -1340,17 +1339,50 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toHaveAttribute("href", "https://github.com/settings/ssh/new");
 });
 
+test("the machine's SSH settings: Keys beside SSH setup lists every key plainly — what for, Copy, Label, Delete", async () => {
+  setUp();
+  renderPage("/machines/nas/ssh");
+  const ssh = await screen.findByRole("region", { name: "SSH" });
+  const keys = await within(ssh).findByRole("button", { name: /Keys \(4\)/ });
+  expect(keys).toHaveAttribute("title", "Its own SSH keys: 4 keys: 2 account, 1 deploy, 1 login");
+  expect(within(ssh).getByRole("button", { name: "SSH setup" })).toBeInTheDocument();
+  fireEvent.click(keys);
+  const dialog = await screen.findByRole("dialog", { name: "SSH keys" });
+  expect(dialog).toHaveTextContent("Every key of the user Loskai logs in as");
+  const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+  // One plain list, git's first: what each is for, in a word or two.
+  expect(names(dialog)).toEqual(["id_ed25519", "work", "deploy_blog", "server"]);
+  expect(row("id_ed25519")).toHaveTextContent("Account · github.com");
+  expect(row("deploy_blog")).toHaveTextContent("Deploy · me/blog");
+  expect(row("server")).toHaveTextContent("Login");
+  // Its comment without the mark.
+  expect(row("server")).toHaveTextContent("admin@nas ·");
+  expect(row("server")).not.toHaveTextContent("(loskai:");
+  // Nothing of git's: no remotes, no Test, no host field, no Add to.
+  expect(dialog).not.toHaveTextContent("Fetches");
+  expect(within(dialog).queryByRole("link", { name: /Add to/ })).toBeNull();
+  expect(within(dialog).queryByLabelText("Host")).toBeNull();
+  for (const li of within(dialog).getAllByRole("listitem")) {
+    const name = li.querySelector(".font-mono")?.textContent;
+    const buttons = within(li).getAllByRole("button");
+    expect(buttons).toHaveLength(3);
+    ["Copy", "Label", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
+  }
+  // One ~/.ssh/config names is yours: Delete leaves it alone.
+  expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
+  expect(within(row("deploy_blog")).getByRole("button", { name: "Delete deploy_blog" })).toBeEnabled();
+});
+
 test("an account key no remote uses says why: the remotes there are over HTTP", async () => {
   setUp();
-  facts = { ...FACTS, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }],
+  // Labelled an account key, so git's — though no remote here uses it.
+  const labelled = FACTS.ssh_keys.map((k) => (k.name === "id_ed25519" ? { ...k, comment: "loskai@nas (loskai: account)" } : k));
+  facts = { ...FACTS, ssh_keys: labelled, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }],
     ssh_hosts: {}, ssh_config_keys: [] };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  // ssh's own, unlabelled, that no remote uses: not git's — with every key, under Other keys;
-  // Label moves it up.
-  expect(within(within(dialog).getByRole("region", { name: "Account keys" })).queryByText("id_ed25519")).toBeNull();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(within(dialog).getByRole("region", { name: "Other keys" })).toContainElement(row);
+  expect(within(dialog).getByRole("region", { name: "Account keys" })).toContainElement(row);
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
   // ssh's own: what logs in to other computers, as far as anyone here can tell — said, not hidden.
   expect(row).toHaveTextContent("ssh's default — it may log in to other computers");
@@ -1370,7 +1402,8 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
 test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
   setUp();
   // codebox: its one SSH address, a submodule's push, goes through an alias with its own key.
-  facts = { ...FACTS, remotes: [
+  const labelled = FACTS.ssh_keys.map((k) => (k.name === "id_ed25519" ? { ...k, comment: "loskai@nas (loskai: account)" } : k));
+  facts = { ...FACTS, ssh_keys: labelled, remotes: [
     { path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" },
     { path: "projects/site", module: "public/page", kind: "pushurl", url: "git@gh-page:me/page.git" },
   ], ssh_hosts: { "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] } }, ssh_config_keys: ["work"] };
@@ -1457,7 +1490,7 @@ test("a host tested before is offered in every host field, newest first, and for
 test("Label, on a key: what it is for, picked in a dialog and written on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
-  const dialog = await gitKeys();
+  const dialog = await machineKeys();
   fireEvent.click(within(dialog).getByRole("button", { name: "Label id_ed25519" }));
   const label = await screen.findByRole("dialog", { name: "Label id_ed25519" });
   // An account key, for a platform: its field; a deploy key, a project — needed before Label.
@@ -1472,27 +1505,11 @@ test("Label, on a key: what it is for, picked in a dialog and written on the key
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 
-test("the machine's SSH settings: Keys beside SSH setup opens every key it has", async () => {
-  setUp();
-  renderPage("/machines/nas/ssh");
-  const ssh = await screen.findByRole("region", { name: "SSH" });
-  const keys = await within(ssh).findByRole("button", { name: /Keys \(4\)/ });
-  expect(keys).toHaveAttribute("title", "Its own SSH keys: 4 keys: 2 account, 1 deploy, 1 login");
-  expect(within(ssh).getByRole("button", { name: "SSH setup" })).toBeInTheDocument();
-  fireEvent.click(keys);
-  const dialog = await screen.findByRole("dialog", { name: "SSH keys" });
-  expect(dialog).toHaveTextContent("Every key of the user Loskai logs in as");
-  for (const name of ["Account keys", "Deploy keys", "Login keys"]) {
-    expect(within(dialog).getByRole("region", { name })).toBeInTheDocument();
-  }
-  expect(within(within(dialog).getByRole("region", { name: "Login keys" })).getByText("server")).toBeInTheDocument();
-});
-
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  const dialog = await gitKeys();
+  const dialog = await machineKeys();
   fireEvent.click(within(dialog).getByRole("button", { name: "Delete deploy_blog" }));
   expect(await screen.findByText("Its file goes for good.")).toBeInTheDocument();
   expect(screen.queryByText(/shell at .*delete-key/)).toBeNull();
@@ -1556,7 +1573,8 @@ test("a line with the keys but not the remotes lists them, and says where they'r
   facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(4);
+  // Git's two — ssh's own, and the deploy key.
+  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(2);
 });
 
 test("a project's cog says which key it uses — its own teal like its own name — with Own key and Machine's key", async () => {

@@ -239,14 +239,15 @@ and Add.
   machine needs its own key for that user added at the forge (Loskai's key never leaves
   Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
   public repository just works, and a private one asks for its login in the terminal.
-  The keys git uses are the machine's: in its dialog, under SSH, the **Keys** row has **SSH
+  A machine's keys are listed plainly in its dialog, under SSH: the **Keys** row has **SSH
   setup** — Loskai's way in, its host key and Loskai's key on it — and **Keys (n)**, every
-  key of the user Loskai logs in as (`~/.ssh`, public halves only), in lists: **Account
+  key of the user Loskai logs in as (`~/.ssh`, public halves only), one line each: what it
+  is for (Account, Deploy, Login, or not labelled), its fingerprint, and **Copy**, **Label**
+  and **Delete**. Git's side of them is Git's: **Keys** in its card's header lists **Account
   keys** — on your account, reaching every repository you can: ssh's own (`id_…`) where a
-  remote uses it, and a key for one platform, its platform beside it — **Deploy keys**, on
-  one repository each, its repository beside it — and, when there are any, **Login keys**
-  (for logging in to other computers) and **Other keys** (nothing says what for, `id_…`
-  that no remote uses included).
+  remote uses it, and a key for one platform, its platform beside it — and **Deploy keys**,
+  on one repository each, its repository beside it; the rest are a line, being the
+  machine's.
   What a key is for is written on it: every key Loskai makes ends its comment with
   `(loskai: account)`, `(loskai: for github.com)` or `(loskai: deploy site)`, and **Label**
   puts that mark on any other — account (for a platform, or not), deploy (for a project), or

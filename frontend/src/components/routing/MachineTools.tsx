@@ -22,6 +22,7 @@ import { RowMenu } from "../shared/RowMenu";
 import { SettingRow, Switch } from "../shared/SettingRow";
 import { CardSettings, GitIdentity, SettingsButton, SettingsDialog } from "./ToolSettings";
 import { Ask } from "./ToolAsk";
+import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
 
 const BUTTON = TOOL_BUTTON;
@@ -124,7 +125,10 @@ export function ToolCard({ tool: t, ctx, titled = true }: { tool: Tool; ctx: Too
               </span>
             )}
           </div>
-          <CardSettings tool={t} ctx={ctx} />
+          <span className="flex shrink-0 items-center gap-1.5">
+            <CardKeys tool={t} ctx={ctx} />
+            <CardSettings tool={t} ctx={ctx} />
+          </span>
         </div>
       )}
       {tailscale && <TailscaleSettings tool={t} ctx={ctx} />}

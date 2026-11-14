@@ -406,6 +406,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         <SshKeys
           tool={applies(gitTool, ctx.facts.programs ?? []) ? gitTool : { ...gitTool, actions: [] }}
           ctx={ctx}
+          mode="machine"
           onClose={() => setOwnKeys(false)}
         />
       )}

@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { ExternalLink, Tag, X } from "lucide-react";
+import { ExternalLink, KeyRound, Tag, X } from "lucide-react";
 
 import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
-import { askedOf, type Tool, type ToolAction } from "../../lib/tools";
+import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
@@ -12,6 +12,26 @@ import { ActionIcon } from "./ToolIcon";
 
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
 type Tested = { host: string; ok: boolean };
+
+// Keys, in Git's card header beside Settings: git's view of the machine's keys.
+export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
+  const [open, setOpen] = useState(false);
+  if (!hasKeys(tool)) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        title="The keys git uses here — which remotes use which, testing one on a host, where to add it"
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+      >
+        <KeyRound className="h-3.5 w-3.5" /> Keys
+      </button>
+      {open && <SshKeys tool={tool} ctx={ctx} mode="git" onClose={() => setOpen(false)} />}
+    </>
+  );
+}
 
 // The lists, each with a line saying what its keys are: git's two, then logins, then those
 // nothing says.
@@ -29,9 +49,23 @@ const GROUPS = [
 // written out in full; its comment and fingerprint; and its buttons: Copy and Add to …
 // (from the page), Test and Delete (in the machine's terminal). Under the
 // list, what makes or tests a key for a host. A run's terminal opens over it.
-// From the machine's SSH settings, its Keys row; the buttons are Git's tool's.
-export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
+// Two views of the one list, each where it belongs. `machine`, from the machine's SSH
+// settings: every key, what it is for, its fingerprint — Copy, Label, Delete — and nothing
+// else. `git`, from Git's card: git's keys only — the remotes each is for, a Test on a host,
+// where to add it, and what makes or tests a key for a host. The buttons are Git's tool's.
+export function SshKeys({
+  tool,
+  ctx,
+  mode,
+  onClose,
+}: {
+  tool: Tool;
+  ctx: ToolContext;
+  mode: "machine" | "git";
+  onClose: () => void;
+}) {
   const keys = ctx.facts.ssh_keys;
+  const git = mode === "git";
   // Where each is used, through every remote in the home folder; null on an older line.
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
@@ -47,11 +81,12 @@ export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; 
           uses={usesOf(k)}
           named={named.has(k.name)}
           facts={ctx.facts}
-          actions={onKey}
+          actions={git ? [] : onKey}
           tool={tool}
           onRun={run}
-          test={onHost}
-          label={onLabel}
+          test={git ? onHost : undefined}
+          label={git ? undefined : onLabel}
+          git={git}
           tested={tested[k.name]}
           onTested={onTested}
         />
@@ -67,9 +102,11 @@ export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; 
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
-  const beside = tool.actions.filter(
-    (a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && !(a.id === "ssh-key" && hasAccount),
-  );
+  const beside = git
+    ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && !(a.id === "ssh-key" && hasAccount))
+    : [];
+  const order = (k: SshKeyInfo) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
+  const notGit = (keys ?? []).filter((k) => !["account", "deploy"].includes(keyGroup(k, usesOf(k)).group));
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
   const run = ctx.onRun;
@@ -80,8 +117,10 @@ export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; 
       label="SSH keys"
       className="flex max-h-full w-full max-w-3xl flex-col rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:max-h-[85vh]"
     >
-      <h2 className="text-base font-semibold text-slate-100">SSH keys</h2>
-      <p className="mt-1 text-sm text-slate-400">Every key of the user Loskai logs in as, in ~/.ssh — public halves only.</p>
+      <h2 className="text-base font-semibold text-slate-100">{git ? "SSH keys for git" : "SSH keys"}</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        {git ? "The keys git uses here, and where." : "Every key of the user Loskai logs in as, in ~/.ssh — public halves only."}
+      </p>
       <div className="mt-4 min-h-0 overflow-auto">
         {keys == null ? (
           <p className="text-sm text-amber-300">
@@ -89,12 +128,13 @@ export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; 
           </p>
         ) : keys.length === 0 ? (
           <p className="text-sm text-slate-500">No SSH key here yet.</p>
+        ) : !git ? (
+          // The machine's: one plain list, git's keys first.
+          list([...keys].sort((a, b) => order(a) - order(b)))
         ) : (
           <div className="space-y-4">
-            {GROUPS.map((g) => {
+            {GROUPS.filter((g) => g.id === "account" || g.id === "deploy").map((g) => {
               const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
-              // Login and Other show only where there is one.
-              if (inIt.length === 0 && g.id !== "account" && g.id !== "deploy") return null;
               return (
                 <section key={g.id} aria-label={g.title}>
                   <h3 className="text-xs font-medium text-slate-200">
@@ -104,6 +144,11 @@ export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; 
                 </section>
               );
             })}
+            {notGit.length > 0 && (
+              <p className="text-xs text-slate-500">
+                {notGit.length} more {notGit.length === 1 ? "key" : "keys"} on this machine, not git's — in its SSH settings.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -152,6 +197,7 @@ function KeyRow({
   onRun,
   test,
   label,
+  git,
   tested,
   onTested,
 }: {
@@ -164,19 +210,27 @@ function KeyRow({
   onRun: ToolStart;
   test?: ToolAction;
   label?: ToolAction;
+  git: boolean;
   tested?: Tested;
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const { group, tag } = keyGroup(info, uses);
   const [labelling, setLabelling] = useState(false);
-  // Where to add it — until a Test has seen it get in.
-  const page = info.public && !tested?.ok ? keyPage(info, uses) : null;
+  // Where to add it — git's view, until a Test has seen it get in.
+  const page = git && info.public && !tested?.ok ? keyPage(info, uses) : null;
+  // The machine's view says what it is for in a word or two.
+  const purpose = { account: "Account", deploy: "Deploy", login: "Login", other: null }[group];
   return (
     <li className="flex gap-3 px-3 py-2 text-xs max-sm:flex-col">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-mono text-sm text-slate-100">{info.name}</span>
-          {tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
+          {!git && (
+            <span className={`rounded px-1.5 py-0.5 text-[10px] ${purpose ? "bg-slate-800 text-slate-300" : "text-slate-500"}`}>
+              {purpose ? `${purpose}${tag ? ` · ${tag}` : ""}` : "not labelled"}
+            </span>
+          )}
+          {git && tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
           {named && (
             <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
               ~/.ssh/config
@@ -191,7 +245,7 @@ function KeyRow({
             </span>
           )}
         </div>
-        <UsedBy uses={uses} named={named} account={group === "account"} ssh={keyKind(info.name) === "account"} facts={facts} />
+        {git && <UsedBy uses={uses} named={named} account={group === "account"} ssh={keyKind(info.name) === "account"} facts={facts} />}
         {/* Its comment says what it is for and travels with the key; its fingerprint is the
             one GitHub and Forgejo list beside a key; then where to paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">

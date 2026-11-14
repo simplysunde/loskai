@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Keys: a plain list on the machine, git's side in Git
+
+Then Sunde: keep a simple overview of the keys, with no extra features, and keep git's
+configuration and tests in the Git tool. The usual uses of a key are logging in to another
+computer, a git account key, a git deploy key — and signing, automation and the host key,
+which aren't a user's `~/.ssh` concern here — so a key's label is Account, Deploy or Login.
+The one dialog now has two views, each where it belongs. The machine's SSH settings list
+every key plainly: what it is for, its fingerprint, Copy, Label, Delete. Git's card has its
+Keys back, for git's keys only: the remotes each is for, Test on a host, Add to …, and what
+makes or tests a key for a host; Label and Delete aren't there. Not the same dialog twice
+any more: the same list, two different jobs.
+
 ## 2026-11-14 — One Keys, in the machine's SSH settings; Delete names the fingerprint
 
 Sunde: the two keys dialogs — Git's, and the machine's — were basically the same. They
