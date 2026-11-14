@@ -336,5 +336,7 @@ actions:
       for g in "$HOME"/*/.git "$HOME"/*/*/.git; do [ -d "$g" ] || continue; d=${g%/.git};
       case "$(git -C "$d" config --local core.sshCommand)" in *"/$1'"*|*"/$1 "*)
       git -C "$d" config --local --unset core.sshCommand && echo "${d#"$HOME"/} uses the machine's key again.";; esac; done;
-      rm -f "$k" "$k.pub" && echo "Deleted $1." &&
-      echo "GitHub or Forgejo still lists it: take it off there too — an account key under your account's SSH keys, a deploy key under its repository's Deploy keys."
+      fp=$(ssh-keygen -lf "$k.pub" 2>/dev/null | cut -d' ' -f2);
+      rm -f "$k" "$k.pub" && echo "Deleted $1${fp:+, $fp}." && echo &&
+      echo "If you added it to GitHub or Forgejo, it is still listed there: find it by that fingerprint" &&
+      echo "(an account key under your account's SSH keys, a deploy key under its repository's Deploy keys) and remove it."

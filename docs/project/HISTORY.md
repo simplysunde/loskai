@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — One Keys, in the machine's SSH settings; Delete names the fingerprint
+
+Sunde: the two keys dialogs — Git's, and the machine's — were basically the same. They
+were: one dialog, filtered to git's keys from Git's header. Git's Keys button went, and
+with it the filter and its "1 more key" line; the machine's SSH settings are the one place,
+every key in its lists. A project's overrides still say which key it uses. Delete's
+message said a platform "still lists it" without saying how to find it there: it now gives
+the key's fingerprint, the one GitHub and Forgejo list beside a key, and says to remove it
+there only if it was added.
+
 ## 2026-11-14 — A machine's own keys, all of them, in its SSH settings
 
 Keys not used by git had been folded under Git's Keys; Sunde: their place is the machine's

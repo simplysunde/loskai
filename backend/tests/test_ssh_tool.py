@@ -381,7 +381,9 @@ def test_delete_takes_the_key_off_and_its_project_back_to_the_machines(tmp_path)
 
     # Delete: the files go, and site goes back to the machine's key.
     gone = run(a["delete-key"].run, "deploy_site")
-    assert gone.returncode == 0 and "site uses the machine's key again" in gone.stdout and "still lists it" in gone.stdout
+    assert gone.returncode == 0 and "site uses the machine's key again" in gone.stdout
+    # Its fingerprint, to find it by where it was added.
+    assert re.search(r"Deleted deploy_site, SHA256:\S+\.", gone.stdout) and "find it by that fingerprint" in gone.stdout
     assert not list((home / ".ssh").glob("deploy_site*"))
     assert _key_of(home, "site") is None
     assert run(a["delete-key"].run, "deploy_site").returncode == 1  # nothing left to delete

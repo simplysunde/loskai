@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { ExternalLink, KeyRound, Tag, X } from "lucide-react";
+import { ExternalLink, Tag, X } from "lucide-react";
 
 import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, sshHost, type Facts, type KeyUse, type SshKeyInfo } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
-import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
+import { askedOf, type Tool, type ToolAction } from "../../lib/tools";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
@@ -13,57 +13,31 @@ import { ActionIcon } from "./ToolIcon";
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
 type Tested = { host: string; ok: boolean };
 
-// The lists, each with a line saying what its keys are.
+// The lists, each with a line saying what its keys are: git's two, then logins, then those
+// nothing says.
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
   { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
-] as const;
-
-// Every key on the machine: git's lists, then logins, then those nothing says.
-const ALL_GROUPS = [
-  ...GROUPS,
   { id: "login", title: "Login keys", hint: "for logging in to other computers" },
   { id: "other", title: "Other keys", hint: "not labelled — Label says what one is for" },
 ] as const;
 
 
-// Keys, in the card's header beside Settings, where a tool keeps the SSH user's keys (Git).
-export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
-  const [open, setOpen] = useState(false);
-  if (!hasKeys(tool)) return null;
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        title="The SSH keys git uses here — which project uses which, where each goes, and deleting one"
-        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
-      >
-        <KeyRound className="h-3.5 w-3.5" /> Keys
-      </button>
-      {open && <SshKeys tool={tool} ctx={ctx} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
 
 // Every key in the SSH user's ~/.ssh, as the overview reads them (public halves only), a
 // card each: its name and what it is, in words; what it does — each remote it is for —
 // written out in full; its comment and fingerprint; and its buttons: Copy and Add to …
 // (from the page), Test and Delete (in the machine's terminal). Under the
 // list, what makes or tests a key for a host. A run's terminal opens over it.
-// `all`: every key on the machine — from its SSH settings — rather than git's, from Git's
-// header; from git's, one button shows them all.
-export function SshKeys({ tool, ctx, all: allAtFirst = false, onClose }: { tool: Tool; ctx: ToolContext; all?: boolean; onClose: () => void }) {
+// From the machine's SSH settings, its Keys row; the buttons are Git's tool's.
+export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
   const keys = ctx.facts.ssh_keys;
-  const [all, setAll] = useState(allAtFirst);
   // Where each is used, through every remote in the home folder; null on an older line.
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
   const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
-  const notGit = (keys ?? []).filter((k) => !GROUPS.some((g) => g.id === keyGroup(k, usesOf(k)).group));
   const list = (ks: SshKeyInfo[]) => (
     <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
       {ks.map((k) => (
@@ -106,10 +80,8 @@ export function SshKeys({ tool, ctx, all: allAtFirst = false, onClose }: { tool:
       label="SSH keys"
       className="flex max-h-full w-full max-w-3xl flex-col rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:max-h-[85vh]"
     >
-      <h2 className="text-base font-semibold text-slate-100">{all ? "SSH keys" : "SSH keys for git"}</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {all ? "Every key of the user Loskai logs in as, in ~/.ssh" : "Git's keys, of the user Loskai logs in as, in ~/.ssh"} — public halves only.
-      </p>
+      <h2 className="text-base font-semibold text-slate-100">SSH keys</h2>
+      <p className="mt-1 text-sm text-slate-400">Every key of the user Loskai logs in as, in ~/.ssh — public halves only.</p>
       <div className="mt-4 min-h-0 overflow-auto">
         {keys == null ? (
           <p className="text-sm text-amber-300">
@@ -119,9 +91,9 @@ export function SshKeys({ tool, ctx, all: allAtFirst = false, onClose }: { tool:
           <p className="text-sm text-slate-500">No SSH key here yet.</p>
         ) : (
           <div className="space-y-4">
-            {(all ? ALL_GROUPS : GROUPS).map((g) => {
+            {GROUPS.map((g) => {
               const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
-              // Every key's lists show only where there is one: login and other.
+              // Login and Other show only where there is one.
               if (inIt.length === 0 && g.id !== "account" && g.id !== "deploy") return null;
               return (
                 <section key={g.id} aria-label={g.title}>
@@ -132,17 +104,6 @@ export function SshKeys({ tool, ctx, all: allAtFirst = false, onClose }: { tool:
                 </section>
               );
             })}
-            {/* The rest — keys for logins, and ones no remote uses and nothing says are git's —
-                are the machine's, in its SSH settings; here, a line and the way to them. */}
-            {!all && notGit.length > 0 && (
-              <p className="text-xs text-slate-500">
-                {notGit.length} more {notGit.length === 1 ? "key" : "keys"} on this machine, not used by git —{" "}
-                <button type="button" onClick={() => setAll(true)} className="text-teal-400 hover:underline">
-                  all its keys
-                </button>
-                , as in its SSH settings.
-              </p>
-            )}
           </div>
         )}
       </div>

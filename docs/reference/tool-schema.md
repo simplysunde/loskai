@@ -258,7 +258,8 @@ Where an action is offered, and the dialog closes as it runs:
   its cog (Git's **Own key** and **Machine's key**). Only a kind of row with settings has
   one (`tool.SETTING_TARGETS`), so `place: settings` with another `target` is refused.
 - **`keys`** — on no row, beside the list in **Keys**: the dialog of the SSH user's keys,
-  from the card's header, for a tool with an action on a `key` (Git's **New account key**,
+  from the machine's SSH settings (its Keys row), its buttons a tool's with an action on a
+  `key` (Git's **New account key**,
   shown only while there is no account key, and **Test key**). An action on a `key` is on
   that key's row there; `place: keys` with a `target` is refused.
 

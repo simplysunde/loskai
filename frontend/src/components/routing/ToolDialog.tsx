@@ -7,7 +7,6 @@ import { toolContext, toolSummary } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { ToolCard } from "./MachineTools";
-import { CardKeys } from "./SshKeys";
 import { CardSettings, GitIdentity } from "./ToolSettings";
 import { ToolIcon } from "./ToolIcon";
 import { useToolRunner } from "./useToolRunner";
@@ -75,8 +74,7 @@ export function ToolDialog({
             )}
           </p>
           <div className="flex shrink-0 items-center gap-2">
-            {/* The card's Keys and Settings, as in its header there (Git's). */}
-            {applies(tool, programs) && <CardKeys tool={tool} ctx={ctx} />}
+            {/* The card's Settings, as in its header there (Git's). */}
             {applies(tool, programs) && <CardSettings tool={tool} ctx={ctx} />}
             {/* The machine's own dialog — its name, SSH, every tool (the projects folder is in
                 the Git card's settings). */}

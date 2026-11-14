@@ -256,14 +256,14 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             </button>
             {/* Its own keys — every one, as Git's Keys shows git's. Their buttons are Git's
                 tool's, so a machine without git lists them only. */}
-            {ctx && facts.data?.ok && facts.data.ssh_keys && (
+            {ctx && facts.data?.ok && (
               <button
                 onClick={() => setOwnKeys(true)}
                 aria-haspopup="dialog"
-                title={`Its own SSH keys: ${keysSummary(facts.data)}`}
+                title={facts.data.ssh_keys ? `Its own SSH keys: ${keysSummary(facts.data)}` : "Its own SSH keys — its status line is older: install it again to list them"}
                 className={`${BUTTON} text-slate-200`}
               >
-                <KeyRound className="h-3.5 w-3.5" /> Keys ({facts.data.ssh_keys.length})
+                <KeyRound className="h-3.5 w-3.5" /> Keys{facts.data.ssh_keys ? ` (${facts.data.ssh_keys.length})` : ""}
               </button>
             )}
           </SettingRow>
@@ -406,7 +406,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         <SshKeys
           tool={applies(gitTool, ctx.facts.programs ?? []) ? gitTool : { ...gitTool, actions: [] }}
           ctx={ctx}
-          all
           onClose={() => setOwnKeys(false)}
         />
       )}

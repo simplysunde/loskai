@@ -103,8 +103,9 @@ export function onCard(action: ToolAction): boolean {
   return (action.place ?? "card") === "card";
 }
 
-// Whether a tool keeps the SSH user's keys (Git): its Keys dialog lists them, with its
-// actions on a key and those placed beside the list.
+// Whether a tool keeps the SSH user's keys (Git): its actions on a key, and those placed
+// beside the list, are the buttons of the machine's Keys (its SSH settings); a project's
+// overrides say which key it uses.
 export function hasKeys(tool: Tool): boolean {
   return tool.actions.some((a) => a.target === "key" || a.place === "keys");
 }
