@@ -4,6 +4,14 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Keys stays open under a key's terminal
+
+Running Test on a key closed Keys, so closing the terminal left Sunde on the machine's page
+with the list gone. The terminal now opens over Keys, which stays — as the machine's dialog
+opens over Projects — and the list reflects what it did, the overview being read again as
+the terminal closes. A key's Test with no SSH remote to try now says how to check it on a
+platform: Test key, with its host.
+
 ## 2026-11-14 — A project's cog opens its Project overrides
 
 "Settings for site" became **Project overrides for site** (Sunde): what it holds is the

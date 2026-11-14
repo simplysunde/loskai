@@ -1348,6 +1348,21 @@ test("an account key no remote uses, where the SSH ones each have their own, say
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here over SSH each use a key of their own/));
 });
 
+test("a key's Test runs in a terminal over Keys, which stays: closing the terminal comes back to it", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Test id_ed25519" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=try-key&target=id_ed25519")).toBeInTheDocument();
+  const terminal = screen.getByRole("dialog", { name: /Test: id_ed25519 — Storage box/ });
+  // Keys is still there, under it: the terminal comes after it, and Escape closes the terminal first.
+  expect(screen.getByRole("dialog", { name: "SSH keys" })).toBe(dialog);
+  expect(dialog.compareDocumentPosition(terminal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.keyDown(document, { key: "Escape" });
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: /Test: id_ed25519/ })).toBeNull());
+  expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
+});
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");

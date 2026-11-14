@@ -284,7 +284,8 @@ actions:
       printf '%s%s — %s %s: ' "${d#"$HOME"/}" "${m:+ › $m}" "$way" "$u";
       if GIT_SSH_COMMAND="ssh -i '$k' -o IdentitiesOnly=yes" git ls-remote -q "$u" HEAD >/dev/null </dev/null;
       then echo gets in; else echo refused; s=1; fi; done; done; done;
-      [ $n = 0 ] && echo "No remote here goes over SSH with $1. Test key, under the list, takes a host.";
+      [ $n = 0 ] && { echo "No remote here goes over SSH with $1, so there is nothing here to try it on."; echo;
+      echo "To check it on a platform: Test key, under the list, with its host — github.com, or your Forgejo's."; };
       exit $s
   # The key's file goes; a project using it as its own goes back to the machine's key. One
   # ~/.ssh/config names is left alone — that file is yours, and Loskai doesn't edit it. The

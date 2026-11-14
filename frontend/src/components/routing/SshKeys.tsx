@@ -40,8 +40,8 @@ export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
 // Every key in the SSH user's ~/.ssh, as the overview reads them (public halves only), a
 // card each: its name and what it is, in words; what it does — each remote it is for —
 // written out in full; its comment and fingerprint; and its buttons: Copy and Add to …
-// (from the page), Test and Delete (in the machine's terminal, this closing). Under the
-// list, what makes or tests a key for a host.
+// (from the page), Test and Delete (in the machine's terminal). Under the
+// list, what makes or tests a key for a host. A run's terminal opens over it.
 function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
   const keys = ctx.facts.ssh_keys;
   // Where each is used, through every remote in the home folder; null on an older line.
@@ -53,10 +53,9 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
   const beside = tool.actions.filter((a) => a.place === "keys" && !(a.id === "ssh-key" && hasAccount));
-  const run: ToolStart = (r, a) => {
-    onClose();
-    ctx.onRun(r, a);
-  };
+  // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
+  // comes back here, and the list follows what it did (the overview is read again then).
+  const run = ctx.onRun;
 
   return (
     <Overlay
