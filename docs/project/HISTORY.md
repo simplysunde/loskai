@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Projects lists each machine's tmux sessions too
+
+Asked by Sunde: a session of your own is work being followed too — a build, a dev server.
+Each listed machine's sessions go under its projects, with tmux's buttons, and the
+"N tmux sessions" in its line became their heading. Not beside a project: the overview
+doesn't say which folder a session started in, and reading that would change the status
+line. Not Claude's sessions, which are the projects' "running". And a machine with
+sessions but no projects stays out — Projects stays a view of projects; the tmux card is
+where every session is.
+
 ## 2026-11-14 — Projects: a side menu, New project, only machines with projects
 
 Sunde asked for New project in Projects, a side panel to jump to a machine once the list

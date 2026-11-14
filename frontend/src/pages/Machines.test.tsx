@@ -1295,8 +1295,8 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   const nas = await within(dialog).findByRole("region", { name: "Storage box" });
   // Without SSH set up, pve isn't listed.
   expect(within(dialog).queryByRole("region", { name: "pve" })).toBeNull();
-  // What the machine is, in a line: its address, Tailscale, its own tmux sessions.
-  expect(within(nas).getByText(/192\.168\.10\.50 · Tailscale 100\.64\.0\.7 · 1 tmux session$/)).toBeInTheDocument();
+  // What the machine is, in a line: its address, Tailscale.
+  expect(within(nas).getByText(/^192\.168\.10\.50 · Tailscale 100\.64\.0\.7$/)).toBeInTheDocument();
 
   // Each project once, with Git's buttons and Claude Code's by its session.
   const row = (name: string) => within(nas).getByText(name).closest("li") as HTMLElement;
@@ -1307,8 +1307,22 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(buttons("blog")).toEqual(["Attach", "Pull", "Start"]);
   expect(within(row("blog")).getByRole("button", { name: "Attach" })).toBeDisabled();
 
-  // Run in that machine's terminal.
-  fireEvent.click(within(row("site")).getByRole("button", { name: "Attach" }));
+  // Under them, its tmux sessions of your own — not Claude's, which is on its project — with
+  // tmux's buttons.
+  expect(within(nas).getByRole("heading", { name: "1 tmux session" })).toBeInTheDocument();
+  const sessions = within(nas).getByRole("list", { name: "tmux sessions" });
+  expect(within(sessions).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(["build"]);
+  fireEvent.click(within(sessions).getByRole("button", { name: "Attach" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
+});
+
+test("a project's buttons in Projects run in that machine's terminal", async () => {
+  setUp();
+  renderPage();
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
+  const site = (await within(nas).findByText("site")).closest("li") as HTMLElement;
+  fireEvent.click(within(site).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
 });
 

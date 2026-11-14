@@ -269,12 +269,11 @@ starting once the last ends, each asking for its `sudo` password where it needs 
 (without, under *Updates without a password*). **Stop after this one** leaves the rest.
 What waits on a machine is read again as its run ends.
 
-**Projects** follows work
-across machines: each machine with projects — its address, Tailscale, how many tmux
-sessions of your own — with each project once, its git (branch, commits not pushed,
-uncommitted changes, last commit) and its Claude session together, and the buttons both
-cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
-A strip of the machines across the top jumps to one, and its search finds one by a
+**Projects** follows work across machines: each machine with projects — its address and
+Tailscale — with each project once, its git (branch, commits not pushed, uncommitted
+changes, last commit) and its Claude session together, and the buttons both cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
+Under them are its tmux sessions of your own (a Claude session is on its project), with
+tmux's Attach and End. A strip of the machines across the top jumps to one, and its search finds one by a
 project's name too. A
 machine with no projects isn't listed; one that can't be read says why at the top.
 **Machine** beside a machine's name opens its dialog, where a project's own settings are.

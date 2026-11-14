@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type SshKey } from "../../lib/ssh";
 import { isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
-import { applies, useTools, type Tool, type ToolAction } from "../../lib/tools";
+import { applies, useTools, type Tool, type ToolAction, type ToolTarget } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { Shell } from "./MachineDialog";
 import { Ask, RowButtons } from "./MachineTools";
@@ -17,16 +17,23 @@ type Machine = { id: string; name: string; upstream?: string | null };
 // (Claude Code's New project), then a repository (Git's Clone).
 const MAKES = ["project", "repo"];
 
-// A machine's projects as its cards list them — the rows are the same on every tool that
-// lists them, so one is read — with the tools that apply there.
+// A machine's rows of a kind as its cards list them — the same on every tool that lists
+// them, so one is read.
+function rowsHere(here: Tool[], kind: ToolTarget, ctx: ToolContext) {
+  const lister = here.find((t) => t.actions.some((a) => a.target === kind));
+  return (lister && listsOf(lister, ctx).find((l) => l.kind === kind)?.rows) ?? [];
+}
+
+// A machine's projects, and its tmux sessions of your own (Claude's are on their
+// projects), with the tools that apply there.
 function projectsOf(ctx: ToolContext) {
   const here = ctx.tools.filter((t) => applies(t, ctx.facts.programs ?? []));
-  const lister = here.find((t) => t.actions.some((a) => a.target === "project"));
-  const rows = (lister && listsOf(lister, ctx).find((l) => l.kind === "project")?.rows) ?? [];
+  const rows = rowsHere(here, "project", ctx);
+  const sessions = rowsHere(here, "session", ctx);
   const makers = here
     .flatMap((t) => t.actions.filter((a) => a.ask && MAKES.includes(a.ask)).map((a) => ({ tool: t, action: a })))
     .sort((a, b) => MAKES.indexOf(a.action.ask!) - MAKES.indexOf(b.action.ask!));
-  return { here, rows, makers };
+  return { here, rows, sessions, makers };
 }
 
 // Every machine's projects in one place, from the Machines tab: a side menu of the machines
@@ -43,7 +50,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
   const read = set.map((m, i) => {
     const q = reads[i];
     const ctx = toolContext(m.id, tools.data, q.data, ssh.data);
-    return { machine: m, facts: q.data, error: q.isError, ctx, ...(ctx ? projectsOf(ctx) : { here: [], rows: [], makers: [] }) };
+    return { machine: m, facts: q.data, error: q.isError, ctx, ...(ctx ? projectsOf(ctx) : { here: [], rows: [], sessions: [], makers: [] }) };
   });
   const reading = read.filter((r) => !r.facts && !r.error).length;
   const failed = read.filter((r) => r.error || (r.facts && !r.facts.ok));
@@ -85,8 +92,8 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
             label: r.machine.name,
             icon: HardDrive,
             group: 0,
-            // The search finds a machine by its projects too.
-            words: r.rows.map((p) => p.name).join(" "),
+            // The search finds a machine by its projects and sessions too.
+            words: [...r.rows, ...r.sessions].map((p) => p.name).join(" "),
             action: <MachineLine machine={r.machine} facts={r.facts!} onClose={onClose} />,
             content: <MachineProjects machine={r.machine} />,
           }))}
@@ -96,13 +103,12 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
   );
 }
 
-// Beside a machine's name: what it is in a line, and the way to its dialog.
+// Beside a machine's name: what it is in a line, and the way to its dialog. Its tmux
+// sessions are listed under its projects.
 function MachineLine({ machine, facts, onClose }: { machine: Machine; facts: Facts; onClose: () => void }) {
-  const sessions = (facts.tmux ?? []).filter((s) => !s.tool).length;
   const line = [
     machine.upstream,
     facts.programs?.includes("tailscale") ? `Tailscale ${tailscaleStatus(facts)}` : null,
-    facts.programs?.includes("tmux") ? `${sessions} tmux ${sessions === 1 ? "session" : "sessions"}` : null,
   ].filter(Boolean);
   return (
     <span className="flex min-w-0 items-baseline gap-3">
@@ -153,7 +159,8 @@ function NewProject({
   );
 }
 
-// One machine's projects, each with its buttons. Its overview is the one the list read.
+// One machine's projects, then its tmux sessions, each with its buttons. Its overview is
+// the one the list read.
 function MachineProjects({ machine }: { machine: Machine }) {
   const ssh = useSsh();
   const tools = useTools();
@@ -161,26 +168,42 @@ function MachineProjects({ machine }: { machine: Machine }) {
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
   if (!ctx) return null;
-  const { here, rows } = projectsOf(ctx);
+  const { here, rows, sessions } = projectsOf(ctx);
   const claude = here.find((t) => t.id === "claude");
+  const list = (kind: ToolTarget, items: typeof rows, label: string) => (
+    // As on a card: on a wider screen every row's buttons start in one column; on a phone
+    // they go under its name.
+    <ul
+      aria-label={label}
+      className="space-y-1.5 text-xs text-slate-300 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:space-y-0"
+    >
+      {items.map((r) => (
+        <li key={r.name} className="flex flex-col gap-1 sm:contents">
+          <span title={r.title} className="min-w-0">
+            <span className="break-all font-mono">{r.name}</span>
+            {kind === "project" && claude && isLive(claude, "project", r.name, ctx.facts) && (
+              <span className="ml-2 text-emerald-300">running</span>
+            )}
+            <span className="block truncate text-slate-500">{r.detail}</span>
+          </span>
+          <span className="flex flex-wrap items-center gap-1">
+            <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <>
-      {/* As on a card: on a wider screen every row's buttons start in one column; on a
-          phone they go under its name. */}
-      <ul className="space-y-1.5 text-xs text-slate-300 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:space-y-0">
-        {rows.map((r) => (
-          <li key={r.name} className="flex flex-col gap-1 sm:contents">
-            <span title={r.title} className="min-w-0">
-              <span className="break-all font-mono">{r.name}</span>
-              {claude && isLive(claude, "project", r.name, ctx.facts) && <span className="ml-2 text-emerald-300">running</span>}
-              <span className="block truncate text-slate-500">{r.detail}</span>
-            </span>
-            <span className="flex flex-wrap items-center gap-1">
-              <RowButtons here={here} kind="project" name={r.name} onRun={runner.start} facts={ctx.facts} />
-            </span>
-          </li>
-        ))}
-      </ul>
+      {list("project", rows, "Projects")}
+      {sessions.length > 0 && (
+        <>
+          <h3 className="mb-1.5 mt-3 text-xs text-slate-500">
+            {sessions.length} tmux {sessions.length === 1 ? "session" : "sessions"}
+          </h3>
+          {list("session", sessions, "tmux sessions")}
+        </>
+      )}
       {runner.ui}
     </>
   );

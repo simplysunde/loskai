@@ -80,6 +80,8 @@ what nothing about a tool stores.
 - [x] 55d Asked after 55c (Sunde): New project in Projects, a side menu to jump to a machine,
       and no machine without projects — New project and Clone at the top, on a machine
       picked from all that can, so one with none yet can still get its first
+- [x] 55e Each listed machine's own tmux sessions under its projects, with tmux's buttons —
+      not a machine with sessions and no projects
 
 ---
 

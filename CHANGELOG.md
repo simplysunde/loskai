@@ -46,7 +46,7 @@ Everything so far:
   then **Attach** and **Stop**; **Update Claude** and **Stop all** on the card;
   **New project** makes the folder, `git init`, and starts Claude in it. **Projects**, above
   the Machines tab's table, shows every machine's projects in one place — each one's git and Claude
-  session together, with their buttons, a strip of the machines to jump between, and New project and
+  session together, with their buttons, each machine's own tmux sessions under them, a strip of the machines to jump between, and New project and
   Clone on any of them. Tool cards come Git, Claude Code, Tailscale, tmux. The **Tools** button on a machine's row lists
   each added tool with how it stands there and opens it in a dialog — what it needs, and
   the tool itself; tmux's sessions are your own, Claude's are on their projects.
