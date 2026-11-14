@@ -211,3 +211,12 @@ def test_a_removed_account_s_sessions_stay_ended_when_the_name_is_used_again(adm
 
     assert op.get("/api/docker/volumes").status_code == 401
     assert op.get("/api/users").status_code == 401
+
+
+def test_asyncssh_logs_only_warnings_its_every_step_buries_what_matters():
+    """Each poll of each machine would log every connection step and command in full."""
+    import logging
+
+    import loskai.main  # noqa: F401 — sets it, as the app starts
+
+    assert logging.getLogger("asyncssh").getEffectiveLevel() == logging.WARNING

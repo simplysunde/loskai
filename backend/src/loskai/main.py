@@ -39,6 +39,11 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# asyncssh logs each connection's every step, and each command in full, at INFO: on every
+# poll of every machine — thousands of lines an hour that bury what matters. Its warnings
+# and errors still show; what Loskai ran is in the SSH log (Settings › Logs).
+logging.getLogger("asyncssh").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 

@@ -4,6 +4,13 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — asyncssh logs only its warnings
+
+Reading the dev container's log for diagnostics (Sunde asked for it to be looked at now and
+then): of 51,000 lines in six hours, most were asyncssh's — each step of each connection
+and each command in full, on every poll of every machine. It now logs only warnings and
+errors; what Loskai ran on a machine stays in the SSH log (Settings › Logs).
+
 ## 2026-11-14 — The status read doesn't ask ssh where its config would run a command
 
 Since v12 the status command asks `ssh -G` which keys each remote's host gets. ssh answers
