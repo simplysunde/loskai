@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A machine's own keys, all of them, in its SSH settings
+
+Keys not used by git had been folded under Git's Keys; Sunde: their place is the machine's
+own SSH settings, and its Setup row could be the one. It is now **Keys**: SSH setup, as
+before — Loskai's way in, its host key and Loskai's key on it — and **Keys (n)**, every key
+of the user it logs in as, in the same dialog Git's Keys opens, with Login and Other lists
+beside Account and Deploy. Git's Keys shows git's keys, and a line for the rest with the
+way to them. One dialog, two ways in, nothing kept twice. Their buttons are Git's tool's
+actions, so on a machine without git the keys are listed without them — moving them to a
+tool of their own is left until a machine needs it.
+
 ## 2026-11-14 — Keys shows git's keys; the rest folded away
 
 Sunde: a key that has nothing to do with git shouldn't be in Git's Keys. The lists now hold

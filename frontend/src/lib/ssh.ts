@@ -316,3 +316,17 @@ export function tailscaleStatus(facts: Facts): string {
   if (state === "approval") return "waiting for approval";
   return facts.tailscale ?? "not connected";
 }
+
+// A machine's own keys in a few words — "2 keys: 1 account, 1 deploy" — for its SSH settings.
+export function keysSummary(facts: Facts): string {
+  const keys = facts.ssh_keys ?? [];
+  const uses = keyUses(facts);
+  const counts = new Map<string, number>();
+  for (const k of keys) {
+    const { group } = keyGroup(k, uses ? (uses.get(k.name) ?? []) : null);
+    counts.set(group, (counts.get(group) ?? 0) + 1);
+  }
+  const parts = ["account", "deploy", "login", "other"].filter((g) => counts.get(g)).map((g) => `${counts.get(g)} ${g === "other" ? "unlabelled" : g}`);
+  return `${keys.length} ${keys.length === 1 ? "key" : "keys"}${parts.length ? `: ${parts.join(", ")}` : ""}`;
+}
+

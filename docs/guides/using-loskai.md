@@ -244,7 +244,10 @@ and Add.
   every repository you can: ssh's own (`id_…`), and a key for one platform, its platform
   beside it — and **Deploy keys**, on one repository each, its repository beside it. The rest
   — keys labelled for logins, and ones no remote uses and nothing says are git's, `id_…`
-  unused included — are folded away under **Not used by git**, there to label or delete.
+  unused included — are the machine's: a line says how many, and **all its keys** shows
+  every one. The same list is in the machine's own dialog, under SSH: the **Keys** row,
+  where **SSH setup** is Loskai's way in (its host key, Loskai's key on it) and **Keys (n)**
+  the machine's own keys — Account, Deploy, Login and Other, to copy, label or delete.
   What a key is for is written on it: every key Loskai makes ends its comment with
   `(loskai: account)`, `(loskai: for github.com)` or `(loskai: deploy site)`, and **Label**
   puts that mark on any other — account (for a platform, or not), deploy (for a project), or

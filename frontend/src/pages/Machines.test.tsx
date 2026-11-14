@@ -1302,11 +1302,13 @@ test("Keys lists each SSH key: what it is, where it is used, its fingerprint —
   expect(within(section("Deploy keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
     .toEqual(["deploy_blog"]);
   expect(within(dialog).queryByRole("region", { name: "Other keys" })).toBeNull();
-  // A key labelled for logins: folded away under Not used by git, its comment without the mark.
-  const notGit = within(dialog).getByRole("group", { name: "Not used by git" });
-  expect(notGit).toHaveTextContent("Not used by git (1)");
-  expect(within(notGit).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(["server"]);
-  expect(notGit).not.toHaveAttribute("open");
+  // A key labelled for logins isn't git's: a line says so, and the way to every key.
+  expect(within(dialog).queryByText("server")).toBeNull();
+  expect(dialog).toHaveTextContent("1 more key on this machine, not used by git");
+  fireEvent.click(within(dialog).getByRole("button", { name: "all its keys" }));
+  expect(within(section("Login keys")).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent))
+    .toEqual(["server"]);
+  // Its comment without the mark.
   expect(row("server")).toHaveTextContent("admin@nas ·");
   expect(row("server")).not.toHaveTextContent("(loskai:");
   // What each does, in a line a remote.
@@ -1347,10 +1349,12 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
     ssh_hosts: {}, ssh_config_keys: [] };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
-  const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  // ssh's own, unlabelled, that no remote uses: folded under Not used by git — Label moves it up.
-  expect(within(dialog).getByRole("group", { name: "Not used by git" })).toContainElement(row);
+  // ssh's own, unlabelled, that no remote uses: not git's — with every key, under Other keys;
+  // Label moves it up.
   expect(within(within(dialog).getByRole("region", { name: "Account keys" })).queryByText("id_ed25519")).toBeNull();
+  fireEvent.click(within(dialog).getByRole("button", { name: "all its keys" }));
+  const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
+  expect(within(dialog).getByRole("region", { name: "Other keys" })).toContainElement(row);
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
   // ssh's own: what logs in to other computers, as far as anyone here can tell — said, not hidden.
   expect(row).toHaveTextContent("ssh's default — it may log in to other computers");
@@ -1375,7 +1379,9 @@ test("an account key no remote uses, where the SSH ones each have their own, say
     { path: "projects/site", module: "public/page", kind: "pushurl", url: "git@gh-page:me/page.git" },
   ], ssh_hosts: { "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] } }, ssh_config_keys: ["work"] };
   renderPage("/machines/nas/tools");
-  const row = within(await gitKeys()).getByText("id_ed25519").closest("li") as HTMLElement;
+  const dialog = await gitKeys();
+  fireEvent.click(within(dialog).getByRole("button", { name: "all its keys" }));
+  const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
   expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here over SSH each use a key of their own/));
 });
 
@@ -1471,6 +1477,22 @@ test("Label, on a key: what it is for, picked in a dialog and written on the key
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 
+test("the machine's SSH settings: Keys beside SSH setup opens every key it has", async () => {
+  setUp();
+  renderPage("/machines/nas/ssh");
+  const ssh = await screen.findByRole("region", { name: "SSH" });
+  const keys = await within(ssh).findByRole("button", { name: /Keys \(4\)/ });
+  expect(keys).toHaveAttribute("title", "Its own SSH keys: 4 keys: 2 account, 1 deploy, 1 login");
+  expect(within(ssh).getByRole("button", { name: "SSH setup" })).toBeInTheDocument();
+  fireEvent.click(keys);
+  const dialog = await screen.findByRole("dialog", { name: "SSH keys" });
+  expect(dialog).toHaveTextContent("Every key of the user Loskai logs in as");
+  for (const name of ["Account keys", "Deploy keys", "Login keys"]) {
+    expect(within(dialog).getByRole("region", { name })).toBeInTheDocument();
+  }
+  expect(within(within(dialog).getByRole("region", { name: "Login keys" })).getByText("server")).toBeInTheDocument();
+});
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   setUp();
   renderPage("/machines/nas/tools");
@@ -1539,6 +1561,9 @@ test("a line with the keys but not the remotes lists them, and says where they'r
   facts = { ...FACTS, remotes: null, ssh_hosts: null, ssh_config_keys: null };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
+  // Git's two — ssh's own, and the deploy key; with every key, all four.
+  expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(2);
+  fireEvent.click(within(dialog).getByRole("button", { name: "all its keys" }));
   expect(within(dialog).getAllByText("Install the status line again to see where it's used.")).toHaveLength(4);
 });
 
