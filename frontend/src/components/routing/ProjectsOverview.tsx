@@ -19,12 +19,14 @@ type Machine = { id: string; name: string; upstream?: string | null };
 const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Claude" };
 
 // Each table's column widths, the name's first — the same on every machine, so they line
-// up under the one heading. The buttons' column fits the most a row has (a project's five).
+// up under the one heading. The buttons' column fits the most a row has (a project's five,
+// about 300px, with its padding), and they never wrap there: a wrapped one made rows of two
+// lines.
 const WIDTHS: Partial<Record<ToolTarget, string[]>> = {
   project: ["w-[22%]", "w-[15%]", "w-[17%]", "w-[11%]", "w-[10%]"],
   session: ["w-[37%]", "w-[17%]", "w-[21%]"],
 };
-const ACTIONS_WIDTH = "w-[19.5rem]";
+const ACTIONS_WIDTH = "w-[21.5rem]";
 
 // A table's column widths (a wider screen's: a phone's rows are cards).
 function Columns({ kind }: { kind: ToolTarget }) {
@@ -262,7 +264,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
                 );
               })}
               <td className="px-2.5 py-1 max-sm:ml-auto">
-                <span className="flex flex-wrap items-center justify-end gap-1">
+                <span className="flex flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
                   <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
                 </span>
               </td>
