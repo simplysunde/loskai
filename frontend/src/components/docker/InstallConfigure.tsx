@@ -14,8 +14,8 @@ export function ConfigureStep({
   setAnswers,
   folders,
   setFolders,
-  chosen,
-  setChosen,
+  optionsOn,
+  setOptionsOn,
   pending,
   error,
   onBack,
@@ -26,8 +26,8 @@ export function ConfigureStep({
   setAnswers: (a: Record<string, string>) => void;
   folders: string[];
   setFolders: (f: string[]) => void;
-  chosen: Record<string, boolean>;
-  setChosen: (c: Record<string, boolean>) => void;
+  optionsOn: Record<string, boolean>;
+  setOptionsOn: (c: Record<string, boolean>) => void;
   pending: boolean;
   error: string | null;
   onBack: () => void;
@@ -60,8 +60,8 @@ export function ConfigureStep({
           <span className="mb-1.5 block text-xs font-medium text-slate-400">Options</span>
           <OptionList
             options={recipe.options}
-            on={chosen}
-            onChange={(id, value) => setChosen({ ...chosen, [id]: value })}
+            on={optionsOn}
+            onChange={(id, value) => setOptionsOn({ ...optionsOn, [id]: value })}
           />
         </div>
       )}

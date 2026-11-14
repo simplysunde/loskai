@@ -93,18 +93,18 @@ function projectsOf(ctx: ToolContext) {
 export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; onClose: () => void }) {
   const ssh = useSsh();
   const tools = useTools();
-  const set = machines.filter((m) => ssh.data?.trusted[m.id]);
-  const reads = useQueries({ queries: set.map((m) => factsQuery(m.id, false)) });
+  const setUpMachines = machines.filter((m) => ssh.data?.trusted[m.id]);
+  const factsQueries = useQueries({ queries: setUpMachines.map((m) => factsQuery(m.id, false)) });
 
-  const read = set.map((m, i) => {
-    const q = reads[i];
+  const machineReads = setUpMachines.map((m, i) => {
+    const q = factsQueries[i];
     const ctx = toolContext(m.id, tools.data, q.data, ssh.data);
     return { machine: m, facts: q.data, error: q.isError, ctx, ...(ctx ? projectsOf(ctx) : { here: [], rows: [], sessions: [], makers: [] }) };
   });
-  const reading = read.filter((r) => !r.facts && !r.error).length;
-  const failed = read.filter((r) => r.error || (r.facts && !r.facts.ok));
-  const listed = read.filter((r) => r.rows.length > 0);
-  const makers = read.filter((r) => r.makers.length > 0);
+  const readingCount = machineReads.filter((r) => !r.facts && !r.error).length;
+  const failed = machineReads.filter((r) => r.error || (r.facts && !r.facts.ok));
+  const listed = machineReads.filter((r) => r.rows.length > 0);
+  const makers = machineReads.filter((r) => r.makers.length > 0);
 
   return (
     <SectionDialog
@@ -113,27 +113,27 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
       title={
         <span className="flex items-center gap-2">
           Projects
-          {reading > 0 && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
+          {readingCount > 0 && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
         </span>
       }
-      action={makers.length > 0 && <NewProject on={makers} sshKey={ssh.data?.key ?? null} />}
+      action={makers.length > 0 && <NewProject machineMakers={makers} sshKey={ssh.data?.key ?? null} />}
       onClose={onClose}
     >
-      {set.length === 0 ? (
+      {setUpMachines.length === 0 ? (
         <p className="p-5 text-sm text-slate-500">No machine has SSH set up yet.</p>
       ) : (
         <SectionPane
           across
           ready
           top={
-            (failed.length > 0 || (listed.length === 0 && reading === 0)) && (
+            (failed.length > 0 || (listed.length === 0 && readingCount === 0)) && (
               <div className="space-y-2 pt-3">
                 {failed.map((r) => (
                   <p key={r.machine.id} className="text-xs text-amber-300">
                     {r.machine.name}: {r.facts && !r.facts.ok ? r.facts.error : "couldn't read it"}
                   </p>
                 ))}
-                {listed.length === 0 && reading === 0 && (
+                {listed.length === 0 && readingCount === 0 && (
                   <p className="text-sm text-slate-500">
                     No projects on any machine yet{makers.length > 0 ? " — New project, above, makes one." : "."}
                   </p>
@@ -201,20 +201,20 @@ const FIELD =
 // that can — a new folder (Claude Code's New project) or a clone (Git's) — then its run in
 // that machine's terminal. It is listed once its overview is read again.
 function NewProject({
-  on,
+  machineMakers,
   sshKey,
 }: {
-  on: { machine: Machine; makers: { tool: Tool; action: ToolAction }[] }[];
+  machineMakers: { machine: Machine; makers: { tool: Tool; action: ToolAction }[] }[];
   sshKey: LoskaiKey | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [picked, setPicked] = useState(on[0].machine.id);
+  const [picked, setPicked] = useState(machineMakers[0].machine.id);
   const [way, setWay] = useState(0);
   const [value, setValue] = useState("");
-  const at = on.find((r) => r.machine.id === picked) ?? on[0];
-  const maker = at.makers[way] ?? at.makers[0];
+  const current = machineMakers.find((r) => r.machine.id === picked) ?? machineMakers[0];
+  const maker = current.makers[way] ?? current.makers[0];
   const shown = WAYS[maker.action.ask!] ?? { label: maker.action.label, field: "Name", placeholder: "" };
-  const runner = useToolRunner(at.machine, sshKey);
+  const runner = useToolRunner(current.machine, sshKey);
   const close = () => setOpen(false);
   return (
     <>
@@ -246,25 +246,25 @@ function NewProject({
                 <span className="mb-1.5 block text-sm text-slate-200">Machine</span>
                 <select
                   aria-label="Machine"
-                  value={at.machine.id}
+                  value={current.machine.id}
                   onChange={(e) => {
                     setPicked(e.target.value);
                     setWay(0);
                   }}
                   className={FIELD}
                 >
-                  {on.map((r) => (
+                  {machineMakers.map((r) => (
                     <option key={r.machine.id} value={r.machine.id}>
                       {r.machine.name}
                     </option>
                   ))}
                 </select>
               </label>
-              {at.makers.length > 1 && (
+              {current.makers.length > 1 && (
                 <fieldset>
                   <legend className="mb-1.5 text-sm text-slate-200">How</legend>
                   <div className="space-y-1.5">
-                    {at.makers.map((m, i) => (
+                    {current.makers.map((m, i) => (
                       <label key={`${m.tool.id}.${m.action.id}`} className="flex items-start gap-2 text-sm text-slate-300">
                         <input type="radio" name="way" checked={m === maker} onChange={() => setWay(i)} className="mt-1 accent-teal-500" />
                         <span>

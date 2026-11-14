@@ -19,7 +19,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
   const [reviewed, setReviewed] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [folders, setFolders] = useState<string[]>([]);
-  const [chosen, setChosen] = useState<Record<string, boolean>>({});
+  const [optionsOn, setOptionsOn] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<InstallResult | null>(null);
 
   const { data, isLoading } = useRecipes();
@@ -34,7 +34,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
       api.post<InstallResult>(`/api/docker/recipes/${recipe.id}/install`, {
         answers,
         mounts: folders.filter((f) => f.trim() !== ""),
-        options: Object.keys(chosen).filter((id) => chosen[id]),
+        options: Object.keys(optionsOn).filter((id) => optionsOn[id]),
       }),
     onSuccess: (r) => {
       setResult(r);
@@ -52,7 +52,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     setAnswers(seed);
     // One empty row to start, so the field reads as something to fill in.
     setFolders(recipe.mounts ? [""] : []);
-    setChosen({});
+    setOptionsOn({});
     setResult(null);
   }
 
@@ -78,8 +78,8 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
           setAnswers={setAnswers}
           folders={folders}
           setFolders={setFolders}
-          chosen={chosen}
-          setChosen={setChosen}
+          optionsOn={optionsOn}
+          setOptionsOn={setOptionsOn}
           pending={install.isPending}
           error={install.error ? apiMessage(install.error, "Install failed") : null}
           onBack={() => setReviewed(false)}

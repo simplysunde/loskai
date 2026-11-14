@@ -113,16 +113,16 @@ export function MachineTable({
   // The buttons on each row of a machine's running list: a route per port (or the route or
   // link it has) — a link while Caddy isn't set up — and naming a guest (or the machine it
   // already is).
-  const runningActions = (m: Instance) => {
-    const r = running[m.id];
-    const services = servicesOn(m, r, rows, dockerHost);
+  const runningActions = (machine: Instance) => {
+    const r = running[machine.id];
+    const services = servicesOn(machine, r, rows, dockerHost);
     return (target: TargetKind, id: string): React.ReactNode => {
       if (target === "lxc" || target === "vm") {
         const guest = r?.guests?.find((g) => g.id === id);
         if (!guest || !onNameGuest) return null;
         const named = guestMachine(guest, rows);
         if (named) return <span className="truncate text-[11px] text-slate-400">{named.fqdn ?? named.name}</span>;
-        const address = guestAddress(guest, m.upstream);
+        const address = guestAddress(guest, machine.upstream);
         return (
           <button
             title={address ? `Name it as a machine, at ${address}` : "Name it as a machine — its address isn't known (a VM without the QEMU guest agent)"}
@@ -141,7 +141,7 @@ export function MachineTable({
           s.route?.url ? (
             <RouteLink key={s.key} url={s.route.url} />
           ) : (
-            <button key={s.key} title={`${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(m, s)} className={RUNNING_BUTTON}>
+            <button key={s.key} title={`${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(machine, s)} className={RUNNING_BUTTON}>
               <Plus className="h-3 w-3" />:{s.upstream.split(":").pop()}
             </button>
           ),
@@ -182,27 +182,27 @@ export function MachineTable({
         <tbody>
           {[...machines]
             .sort((a, b) => Number(isHost(b)) - Number(isHost(a)) || a.name.localeCompare(b.name))
-            .map((m) => {
-              const deps = routesOn(m, rows);
-              const unnamed = m.id === DOCKER_HOST_ID;
-              const atHost = isHost(m);
-              const sshEntry = m.subdomain ? sshHosts[m.subdomain] : undefined;
+            .map((machine) => {
+              const routes = routesOn(machine, rows);
+              const unnamed = machine.id === DOCKER_HOST_ID;
+              const atHost = isHost(machine);
+              const sshEntry = machine.subdomain ? sshHosts[machine.subdomain] : undefined;
               const hasSshLogin = Boolean(sshEntry?.user);
-              const open = expanded.isOpen(m.id);
+              const open = expanded.isOpen(machine.id);
               const Chevron = open ? ChevronDown : ChevronRight;
               return (
-                <Fragment key={m.id}>
+                <Fragment key={machine.id}>
                   <tr className={`group border-t border-slate-800 max-sm:px-4 max-sm:py-2.5 ${atHost ? "bg-teal-500/5" : "bg-slate-900/50"}`}>
                     <td className="px-4 py-2 max-sm:basis-full">
                       <button
-                        onClick={() => expanded.toggle(m.id)}
+                        onClick={() => expanded.toggle(machine.id)}
                         aria-expanded={open}
-                        title={`${deps.length} ${deps.length === 1 ? "route" : "routes"} on this machine`}
+                        title={`${routes.length} ${routes.length === 1 ? "route" : "routes"} on this machine`}
                         className="flex items-center gap-2 text-left"
                       >
                         <Chevron className="h-4 w-4 text-slate-500" />
                         <HardDrive className={`h-3.5 w-3.5 ${atHost ? "text-teal-300" : "text-teal-300/70"}`} />
-                        <span className="font-medium text-slate-100">{m.name}</span>
+                        <span className="font-medium text-slate-100">{machine.name}</span>
                         {unnamed && <span className="text-xs text-slate-500">not named</span>}
                         {atHost && !unnamed && (
                           <span
@@ -213,8 +213,8 @@ export function MachineTable({
                           </span>
                         )}
                         {/* Collapsed, the row still says how many it holds. */}
-                        {!open && deps.length > 0 && (
-                          <span className="text-xs text-slate-500">{deps.length}</span>
+                        {!open && routes.length > 0 && (
+                          <span className="text-xs text-slate-500">{routes.length}</span>
                         )}
                       </button>
                     </td>
@@ -222,84 +222,84 @@ export function MachineTable({
                         is promised to answer on it over https. Its DNS state beside it, only
                         while AdGuard doesn't answer it right. A phone, with no column
                         headings, leaves out the empty cells. */}
-                    <td className={`px-4 py-2 text-xs text-slate-400 ${m.fqdn ? "" : "max-sm:hidden"}`}>
-                      {m.fqdn ? (
+                    <td className={`px-4 py-2 text-xs text-slate-400 ${machine.fqdn ? "" : "max-sm:hidden"}`}>
+                      {machine.fqdn ? (
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="flex items-center gap-1">
-                            <span title={dnsFine(m) ? `AdGuard answers it with ${m.upstream}` : DNS_HINT} className="w-fit">
-                              {m.fqdn}
+                            <span title={dnsFine(machine) ? `AdGuard answers it with ${machine.upstream}` : DNS_HINT} className="w-fit">
+                              {machine.fqdn}
                             </span>
-                            <CopyButton text={m.fqdn} title={`Copy ${m.fqdn}`} className={COPY} />
+                            <CopyButton text={machine.fqdn} title={`Copy ${machine.fqdn}`} className={COPY} />
                           </span>
-                          {!dnsFine(m) && <DnsCell present={m.dnsPresent} conflict={m.dnsConflict} beside />}
+                          {!dnsFine(machine) && <DnsCell present={machine.dnsPresent} conflict={machine.dnsConflict} beside />}
                         </div>
                       ) : (
                         "—"
                       )}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-300">
-                      {m.upstream ? (
+                      {machine.upstream ? (
                         <span className="flex items-center gap-1">
-                          {m.upstream}
-                          <CopyButton text={m.upstream} title={`Copy ${m.upstream}`} className={COPY} />
+                          {machine.upstream}
+                          <CopyButton text={machine.upstream} title={`Copy ${machine.upstream}`} className={COPY} />
                         </span>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td className={`px-4 py-2 ${running[m.id] ? "" : "max-sm:hidden"}`}>
-                      {running[m.id] ? (
-                        <RunningPill running={running[m.id]} user={sshEntry?.user} actions={runningActions(m)} />
+                    <td className={`px-4 py-2 ${running[machine.id] ? "" : "max-sm:hidden"}`}>
+                      {running[machine.id] ? (
+                        <RunningPill running={running[machine.id]} user={sshEntry?.user} actions={runningActions(machine)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
                       <div className="flex items-center justify-end gap-1.5">
-                        {hasSshLogin && m.subdomain && targets[m.id] && trusted[m.id] && onTerminal && (
-                          <IconButton title={`Terminal: ssh ${m.subdomain} — ${targets[m.id]}`} onClick={() => onTerminal(m)}>
+                        {hasSshLogin && machine.subdomain && targets[machine.id] && trusted[machine.id] && onTerminal && (
+                          <IconButton title={`Terminal: ssh ${machine.subdomain} — ${targets[machine.id]}`} onClick={() => onTerminal(machine)}>
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {hasSshLogin && trusted[m.id] && tools && onTool && (
+                        {hasSshLogin && trusted[machine.id] && tools && onTool && (
                           <ToolsMenu
-                            machineId={m.id}
+                            machineId={machine.id}
                             tools={tools}
                             className={ICON_BUTTON}
-                            onPick={(toolId) => onTool(m, toolId)}
+                            onPick={(toolId) => onTool(machine, toolId)}
                           />
                         )}
                         {onAddRoute && (
-                          <IconButton title="Add a route on this machine" onClick={() => onAddRoute(m)}>
+                          <IconButton title="Add a route on this machine" onClick={() => onAddRoute(machine)}>
                             <RouteIcon className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {hasSshLogin && trusted[m.id] && onUpdate && (
+                        {hasSshLogin && trusted[machine.id] && onUpdate && (
                           <IconButton
                             title="Update the system: refresh the package lists, then install every update — in its terminal"
-                            onClick={() => onUpdate(m)}
+                            onClick={() => onUpdate(machine)}
                           >
                             <Download className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {unnamed && onName && (
-                          <IconButton title="Name it — a DNS name, then SSH and its tools" onClick={() => onName(m)}>
+                          <IconButton title="Name it — a DNS name, then SSH and its tools" onClick={() => onName(machine)}>
                             <Tag className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {/* Its dialog: name, address, SSH, what runs there. Amber while it has
                             an SSH user but isn't set up yet. */}
                         {!unnamed && <IconButton
-                          title={hasSshLogin && !trusted[m.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
-                          tone={hasSshLogin && !trusted[m.id] ? "warn" : "plain"}
-                          onClick={() => onOpen(m)}
+                          title={hasSshLogin && !trusted[machine.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
+                          tone={hasSshLogin && !trusted[machine.id] ? "warn" : "plain"}
+                          onClick={() => onOpen(machine)}
                         >
                           <Settings className="h-3.5 w-3.5" />
                         </IconButton>}
                         {!unnamed && <RowMenu
                           label="More"
                           trigger={
-                            busyId === m.id ? (
+                            busyId === machine.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <MoreVertical className="h-3.5 w-3.5" />
@@ -311,14 +311,14 @@ export function MachineTable({
                               label: "Delete machine",
                               icon: <Trash2 className="h-3.5 w-3.5" />,
                               danger: true,
-                              onClick: () => onDelete(m),
+                              onClick: () => onDelete(machine),
                             },
                           ]}
                         />}
                       </div>
                     </td>
                   </tr>
-                  {open && deps.length === 0 && (
+                  {open && routes.length === 0 && (
                     <tr className="max-sm:pb-2 max-sm:pl-11">
                       <td colSpan={5} className="px-4 pb-2 pl-11 text-xs text-slate-600">
                         No routes on this machine.
@@ -326,23 +326,23 @@ export function MachineTable({
                     </tr>
                   )}
                   {open &&
-                    deps.map((d) => (
-                      <tr key={d.id} className="text-xs hover:bg-slate-900/40 max-sm:py-1 max-sm:pl-10 max-sm:pr-4">
+                    routes.map((route) => (
+                      <tr key={route.id} className="text-xs hover:bg-slate-900/40 max-sm:py-1 max-sm:pl-10 max-sm:pr-4">
                         <td className="py-1 pl-10 pr-4">
                           <div className="flex items-center gap-1.5 text-slate-300">
                             <CornerDownRight className="h-3.5 w-3.5 text-slate-600" />
-                            {d.name}
+                            {route.name}
                           </div>
                         </td>
                         <td className="px-4 py-1">
-                          {d.url ? (
-                            <RouteLink url={d.url} />
+                          {route.url ? (
+                            <RouteLink url={route.url} />
                           ) : (
                             <span className="text-slate-600">not routed</span>
                           )}
                         </td>
                         <td className="px-4 py-1 font-mono text-slate-500">
-                          :{splitUpstream(d.upstream ?? "").port || "—"}
+                          :{splitUpstream(route.upstream ?? "").port || "—"}
                         </td>
                         {/* No DNS state here: a route's own is the Routing tab's to show. These
                             rows say what the machine hosts; its DNS is the row above. */}

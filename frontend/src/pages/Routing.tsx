@@ -80,10 +80,10 @@ export function Routing() {
   // never routed).
   const containers = useContainers();
 
-  const h = health.data;
+  const healthData = health.data;
   const baseDomain = settings.data?.base_domain?.value ?? null;
-  const upstreamMode = h?.caddy?.mode ?? null;
-  const consistency = h?.consistency ?? [];
+  const upstreamMode = healthData?.caddy?.mode ?? null;
+  const consistency = healthData?.consistency ?? [];
 
   // The cert-onboarding page is served by Caddy over plain HTTP on :80 at its LAN IP —
   // deliberately by-IP and not behind the route, since its whole job is fixing the untrusted
@@ -104,16 +104,16 @@ export function Routing() {
       }
     : undefined;
 
-  const caddyHost = answerHost(h?.adguard?.answer_ip);
+  const caddyHost = answerHost(healthData?.adguard?.answer_ip);
   const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
   // Once AdGuard is routed (from its pill, which sets `origin`), its link-out
   // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
   const adguardRoute = (routes.data ?? []).find((r) => r.origin === "adguard" && r.url);
-  const adguardUrl = adguardRoute?.url ?? h?.adguard?.url;
+  const adguardUrl = adguardRoute?.url ?? healthData?.adguard?.url;
   // What the pill shows beside its name: where its link goes, minus the scheme.
-  const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(h?.adguard?.url);
-  const adguardUpstream = urlToUpstream(h?.adguard?.url);
+  const adguardAddress = adguardRoute?.fqdn ?? urlToUpstream(healthData?.adguard?.url);
+  const adguardUpstream = urlToUpstream(healthData?.adguard?.url);
   const canRouteAdguard =
     caddySetUp && routes.isSuccess && !routedOrigins.has("adguard") && Boolean(adguardUpstream && baseDomain);
 
@@ -305,7 +305,7 @@ export function Routing() {
             configurable={admin}
             icon={<Shield className="h-4 w-4" />}
             name="AdGuard"
-            health={h?.adguard}
+            health={healthData?.adguard}
             url={adguardUrl}
             linkLabel={adguardRoute ? `Open AdGuard at ${adguardRoute.fqdn}` : "Open AdGuard"}
             action={
@@ -349,17 +349,17 @@ export function Routing() {
             configurable={admin}
             icon={<Lock className="h-4 w-4" />}
             name="Caddy"
-            health={h?.caddy}
+            health={healthData?.caddy}
             url={certUrl}
             linkLabel={`Cert page — share it to trust *.${baseDomain ?? "domain"}`}
             action={<CopyCertLink url={certUrl} />}
           >
-            {h?.adguard?.answer_ip && (
+            {healthData?.adguard?.answer_ip && (
               <span
                 title="Where Caddy listens — every DNS rewrite answers with this address"
                 className="min-w-0 truncate font-mono text-xs text-slate-500"
               >
-                {h.adguard.answer_ip}
+                {healthData.adguard.answer_ip}
               </span>
             )}
           </InfraStatusPill>

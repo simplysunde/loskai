@@ -176,7 +176,7 @@ export function StackGroups({
           group.containers.map((c) => (
             <ContainerRow
               key={c.id}
-              c={c}
+              container={c}
               busy={containerAction.isPending && containerAction.variables?.id === c.id}
               onAction={(verb) => containerAction.mutate({ id: c.id, name: c.name, verb })}
               onLogs={() => onLogs(c)}
@@ -191,7 +191,7 @@ export function StackGroups({
   return (
     <div className="space-y-3">
       {failed && <ActionError {...failed} onDismiss={() => setFailed(null)} />}
-      {self && <SelfStrip c={self} onLogs={() => onLogs(self)} />}
+      {self && <SelfStrip container={self} onLogs={() => onLogs(self)} />}
       <GroupTable
         title="Stacks"
         anyOpen={anyOpen(managed)}
@@ -303,10 +303,10 @@ function GroupTable({
 // Loskai's own container, out of the list: stopping or removing it from here would take
 // down the page doing it, so all it offers is its logs.
 function SelfStrip({
-  c,
+  container,
   onLogs,
 }: {
-  c: Container;
+  container: Container;
   onLogs: () => void;
 }) {
   return (
@@ -314,10 +314,10 @@ function SelfStrip({
       <Anchor className="h-4 w-4 text-teal-300" />
       <span className="font-medium text-slate-100">Loskai</span>
       <span className="text-xs text-slate-500">this app</span>
-      {c.url && <RouteLink url={c.url} />}
+      {container.url && <RouteLink url={container.url} />}
       <span className="ml-auto text-xs text-slate-500">
-        {formatUptime(c.uptime)} · {formatPercent(c.cpu)} CPU · {formatPercent(c.mem?.percent)} mem ·{" "}
-        <span className="font-mono">{c.image}</span>
+        {formatUptime(container.uptime)} · {formatPercent(container.cpu)} CPU · {formatPercent(container.mem?.percent)} mem ·{" "}
+        <span className="font-mono">{container.image}</span>
       </span>
       <Act title="Logs" onClick={onLogs}>
         <ScrollText className="h-3.5 w-3.5" />
@@ -451,37 +451,37 @@ const DOT: Record<string, string> = {
 };
 
 function ContainerRow({
-  c,
+  container,
   busy,
   onAction,
   onLogs,
   onTerminal,
   onRemove,
 }: {
-  c: Container;
+  container: Container;
   busy: boolean;
   onAction: (verb: string) => void;
   onLogs: () => void;
   onTerminal: () => void;
   onRemove: () => void;
 }) {
-  const running = c.status === "running";
+  const running = container.status === "running";
   return (
     <tr className="border-t border-slate-800/50 hover:bg-slate-900/40 max-sm:py-2.5 max-sm:pl-8 max-sm:pr-4">
       <td className="py-3 pl-11 pr-4 max-sm:min-w-32 max-sm:flex-1">
         <div className="flex items-center gap-2 font-medium text-slate-100">
           <span
-            title={c.status}
-            aria-label={c.status}
-            className={`h-2 w-2 shrink-0 rounded-full ${DOT[c.status] ?? "bg-slate-600"}`}
+            title={container.status}
+            aria-label={container.status}
+            className={`h-2 w-2 shrink-0 rounded-full ${DOT[container.status] ?? "bg-slate-600"}`}
           />
-          {c.name}
+          {container.name}
         </div>
-        <div className="pl-4 font-mono text-xs text-slate-500 max-sm:break-all">{c.image}</div>
+        <div className="pl-4 font-mono text-xs text-slate-500 max-sm:break-all">{container.image}</div>
       </td>
-      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatUptime(c.uptime)}</td>
-      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(c.cpu)}</td>
-      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(c.mem?.percent)}</td>
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatUptime(container.uptime)}</td>
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(container.cpu)}</td>
+      <td className="px-4 py-3 text-slate-400 max-sm:hidden">{formatPercent(container.mem?.percent)}</td>
       <td className="px-4 py-3 max-sm:ml-auto">
         <div className="flex items-center justify-end gap-1">
           {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
@@ -492,7 +492,7 @@ function ContainerRow({
             <TerminalSquare className="h-3.5 w-3.5" />
           </Act>
           <RowMenu
-            label={`More for ${c.name}`}
+            label={`More for ${container.name}`}
             items={[
               ...(running
                 ? [

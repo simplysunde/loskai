@@ -6,7 +6,7 @@ import { ClearRewrites } from "../../components/settings/ClearRewrites";
 import { PeerDnsReminder } from "../../components/settings/PeerDnsReminder";
 import { InlineSettingsFields } from "../../components/shared/InlineSettingsFields";
 
-const GATEWAY_FIELDS = [
+const WIREGUARD_FIELDS = [
   { key: "wireguard_dashboard_url", label: "Dashboard URL", hint: "http://…:51821" },
 ];
 const ADGUARD_FIELDS = [
@@ -35,8 +35,8 @@ const CADDY_FIELDS = [
 // in Routing and keeps its convenience link here.
 export function Network() {
   const health = useHealth();
-  const h = health.data;
-  const gatewayUrl = h?.wireguard?.url ?? null;
+  const healthData = health.data;
+  const wireguardUrl = healthData?.wireguard?.url ?? null;
 
   return (
     <div className="max-w-xl space-y-8">
@@ -67,11 +67,11 @@ export function Network() {
         subtitle="Remote access. Loskai only links to the dashboard — it never configures it."
         action={
           <a
-            href={gatewayUrl ?? undefined}
+            href={wireguardUrl ?? undefined}
             target="_blank"
             rel="noreferrer"
             className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
-              gatewayUrl
+              wireguardUrl
                 ? "border-slate-700 text-slate-200 hover:bg-slate-800"
                 : "pointer-events-none border-slate-800 text-slate-600"
             }`}
@@ -80,9 +80,9 @@ export function Network() {
           </a>
         }
       >
-        <InlineSettingsFields fields={GATEWAY_FIELDS} />
+        <InlineSettingsFields fields={WIREGUARD_FIELDS} />
         <div className="mt-4">
-          <PeerDnsReminder dnsHint={h?.wireguard?.dns_hint} />
+          <PeerDnsReminder dnsHint={healthData?.wireguard?.dns_hint} />
         </div>
       </Section>
     </div>

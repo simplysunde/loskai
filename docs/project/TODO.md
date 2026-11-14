@@ -134,8 +134,11 @@ commit, the full checks, `where-used.py --write`.
       `RecipeOptions` would sit one letter from the type `RecipeOption` in the same file
 - [x] 57k Frontend, `caddySetUp`, `upstreamMode`, what `ssh` and `host` hold, the recipes
       helpers
-- [ ] 57l Frontend, long-lived short names and old terms: `m`, `c`, `t`, `h`, `f`,
-      `GATEWAY_FIELDS`, `dockerHost`, `chosen`/`picked`, the result types
+- [x] 57l Frontend, long-lived short names and old terms: `m`, `c`, `t`, `h`, `f`,
+      `GATEWAY_FIELDS`, `dockerHost`, `chosen`/`picked`. Left: `AssignResult` and
+      `RouteResult` (one is an alias, the other its own interface — making them
+      `SaveResult` is a merge, not a rename), `Act`, `Fact`, `LINK`, `SourceTab`,
+      `OwnButtons`, `here`
 - [ ] 57m Tests, backend: helpers that mislead, the aliases, the fakes, the four test
       names, the two files
 - [ ] 57n Tests, frontend: `setUp` → `sshSetUp`, `open` → `openCategory`, `c`/`s`

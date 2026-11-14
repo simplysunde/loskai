@@ -68,8 +68,8 @@ export function Machines() {
   const canUpdate = Boolean(tools.data?.some((t) => t.id === MACHINE_TOOL && t.actions.some((a) => a.id === "update")));
 
   const named = rows.filter(isMachine);
-  const dockerHost = unnamedDockerHost(settings.data?.host_ip?.value, named);
-  const machines = dockerHost ? [...named, dockerHost] : named;
+  const unnamedHost = unnamedDockerHost(settings.data?.host_ip?.value, named);
+  const machines = unnamedHost ? [...named, unnamedHost] : named;
 
   const invalidate = () => {
     refreshRecords(qc);

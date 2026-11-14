@@ -59,12 +59,12 @@ export function ToolSettingsButton({
   let own = false;
   if (row) {
     const mine = values.data?.targets?.[row.kind]?.[row.name] ?? {};
-    const set = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]).map((s) => `${s.label} ${mine[s.id]}`);
+    const ownSettings = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]).map((s) => `${s.label} ${mine[s.id]}`);
     // Its own SSH key counts as its own setting: one in place of the machine's.
     const key = row.kind === "project" && hasKeys(tool) ? projectKeyOf(ctx, row.name) : null;
-    if (key != null) set.push(`SSH key ${key || "its own command"}`);
-    own = set.length > 0;
-    title = own ? `${overridesOf(row)} — ${set.join(", ")}` : `${overridesOf(row)}: its own settings in place of the card's`;
+    if (key != null) ownSettings.push(`SSH key ${key || "its own command"}`);
+    own = ownSettings.length > 0;
+    title = own ? `${overridesOf(row)} — ${ownSettings.join(", ")}` : `${overridesOf(row)}: its own settings in place of the card's`;
   } else {
     const shown = [
       ...(tool.id === "git" ? [`Projects folder ${ctx.folder}`] : []),
@@ -140,9 +140,9 @@ export function ToolSettingsDialog({
   const settings = row ? rowSettingsOf(tool, row.kind) : cardSettingsOf(tool);
   const have: Record<string, string | null> = (row ? values.data?.targets?.[row.kind]?.[row.name] : values.data?.values) ?? {};
   // Git's card: the projects folder first — Loskai's, not the machine's, saved on its own.
-  const folder = !row && tool.id === "git";
+  const hasFolderField = !row && tool.id === "git";
   const fields = [
-    ...(folder
+    ...(hasFolderField
       ? [{ id: FOLDER, label: "Projects folder", description: "Where Claude Code finds its projects: ~ or one folder in it — empty, ~/projects.", unset: "default" }]
       : []),
     ...settings,
@@ -153,7 +153,7 @@ export function ToolSettingsDialog({
   const shown = draft ?? Object.fromEntries(fields.map((s) => [s.id, had(s.id)]));
   const changed = fields.filter((s) => shown[s.id].trim() !== had(s.id));
   // Only what you changed: one never set and left alone stays as it is.
-  const empty = changed.find((s) => !s.unset && !shown[s.id].trim());
+  const emptyField = changed.find((s) => !s.unset && !shown[s.id].trim());
   const save = useMutation({
     mutationFn: async () => {
       for (const s of changed) {
@@ -185,7 +185,7 @@ export function ToolSettingsDialog({
         id={formId}
         onSubmit={(e) => {
           e.preventDefault();
-          if (changed.length && !empty) save.mutate();
+          if (changed.length && !emptyField) save.mutate();
         }}
       >
         <h2 className="text-base font-semibold text-slate-100">
@@ -229,7 +229,7 @@ export function ToolSettingsDialog({
             {save.error ? apiMessage(save.error, "Couldn't save it") : apiMessage(values.error, "Couldn't read them")}
           </p>
         )}
-        {empty && <p className="mt-3 text-sm text-rose-400">{empty.label} needs a value.</p>}
+        {emptyField && <p className="mt-3 text-sm text-rose-400">{emptyField.label} needs a value.</p>}
       </form>
       {/* Beside the values, what is set up once and rarely run (Git's SSH key): each runs in
           the machine's terminal, this dialog closing first. A form of its own, so outside
@@ -264,7 +264,7 @@ export function ToolSettingsDialog({
         <button
           type="submit"
           form={formId}
-          disabled={!changed.length || Boolean(empty) || save.isPending}
+          disabled={!changed.length || Boolean(emptyField) || save.isPending}
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -19,7 +19,7 @@ const RUN = { tool: MACHINE_TOOL, action: "update", title: "Update" };
 // stopping to ask.
 export function UpdateAll({ machines, onClose }: { machines: Machine[]; onClose: () => void }) {
   const ssh = useSsh();
-  const set = machines.filter((m) => ssh.data?.trusted[m.id]);
+  const setUpMachines = machines.filter((m) => ssh.data?.trusted[m.id]);
   // The machines still to update, in order; the first one's run is under way.
   const [queue, setQueue] = useState<string[]>([]);
   const next = () => setQueue((q) => q.slice(1));
@@ -34,7 +34,7 @@ export function UpdateAll({ machines, onClose }: { machines: Machine[]; onClose:
           <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
         ) : (
           <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">
-            {set.map((m) => (
+            {setUpMachines.map((m) => (
               <MachineUpdate
                 key={m.id}
                 machine={m}
@@ -59,8 +59,8 @@ export function UpdateAll({ machines, onClose }: { machines: Machine[]; onClose:
           )}
           <button
             type="button"
-            disabled={queue.length > 0 || set.length === 0}
-            onClick={() => setQueue(set.map((m) => m.id))}
+            disabled={queue.length > 0 || setUpMachines.length === 0}
+            onClick={() => setQueue(setUpMachines.map((m) => m.id))}
             className="flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {queue.length > 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -92,9 +92,9 @@ function MachineUpdate({
   const facts = useFacts(machine.id, true, false);
   const runner = useToolRunner(machine, ssh.data?.key ?? null, onEnd);
   const action = tools.data?.find((t) => t.id === MACHINE_TOOL)?.actions.find((a) => a.id === RUN.action);
-  const f = facts.data;
+  const machineFacts = facts.data;
   const user = machine.subdomain ? ssh.data?.hosts[machine.subdomain]?.user : undefined;
-  const command = f?.ok && action ? commandFor(action, f.updates?.manager) : null;
+  const command = machineFacts?.ok && action ? commandFor(action, machineFacts.updates?.manager) : null;
   const read = !facts.isLoading && Boolean(tools.data);
 
   // Its turn starts its run once; what it can't run hands the turn on.
@@ -114,17 +114,17 @@ function MachineUpdate({
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
       <span className="font-medium text-slate-100">{machine.name}</span>
       <span className="text-xs text-slate-500">
-        {!f ? (
+        {!machineFacts ? (
           facts.isError ? "couldn't read it" : <Loader2 className="inline h-3 w-3 animate-spin" />
-        ) : !f.ok ? (
-          <span className="text-amber-300">{f.error}</span>
-        ) : !f.updates ? (
+        ) : !machineFacts.ok ? (
+          <span className="text-amber-300">{machineFacts.error}</span>
+        ) : !machineFacts.updates ? (
           "—"
-        ) : f.updates.count === 0 ? (
+        ) : machineFacts.updates.count === 0 ? (
           "up to date"
         ) : (
           <span className="text-amber-300">
-            {f.updates.count} waiting <span className="text-slate-500">({f.updates.manager})</span>
+            {machineFacts.updates.count} waiting <span className="text-slate-500">({machineFacts.updates.manager})</span>
           </span>
         )}
       </span>
@@ -133,7 +133,7 @@ function MachineUpdate({
           <span title="Passwordless sudo, for exactly the update commands — on, Update runs without asking for sudo's password" className="flex items-center gap-1.5">
             {/* Root's note says it alone. */}
             {user !== "root" && <span className="max-sm:hidden">Passwordless sudo</span>}
-            <SudoRuleSwitch user={user} facts={f} onRun={runner.start} disabled={busy} short />
+            <SudoRuleSwitch user={user} facts={machineFacts} onRun={runner.start} disabled={busy} short />
           </span>
         )}
         {turn ? (

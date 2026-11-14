@@ -40,7 +40,7 @@ export interface NewLink {
   follow_container?: boolean;
 }
 
-export type Source = "container" | "machines";
+export type PickList = "container" | "machines";
 
 // "Add route" picker: pick an unrouted Container or something running on a Machine, which
 // pre-fills the prefix + upstream, or type any address into the fields — they stay
@@ -82,12 +82,12 @@ export function AddRouteModal({
   const mayMachines = useMe().may("machines");
   const running = useRunning(open && mayMachines);
   // A machine's row is on the Machines tab, so whoever opened it from there may read it.
-  const [source, setSource] = useState<Source>(initialMachine ? "machines" : "container");
+  const [pickList, setPickList] = useState<PickList>(initialMachine ? "machines" : "container");
   // What the pick names: the container a route or link is linked to, and its label.
-  const [chosen, setChosen] = useState<{ container?: string; name?: string }>(
+  const [pickedNames, setPickedNames] = useState<{ container?: string; name?: string }>(
     initialService ? { name: initialService.name } : {},
   );
-  const [picked, setPicked] = useState<string | null>(initialService?.key ?? null);
+  const [pickedKey, setPickedKey] = useState<string | null>(initialService?.key ?? null);
   // A picked container's route follows it by default whenever its address can be derived.
   const [follow, setFollow] = useState(false);
   const [derived, setDerived] = useState<string | null>(null);
@@ -119,7 +119,7 @@ export function AddRouteModal({
   // offered — routing it makes its link the route); for a link, neither — picking a linked
   // one would overwrite its link.
   const unroutedContainers = (containers.data ?? []).filter((c) => (link ? !c.subdomain && !c.url : !c.subdomain));
-  const pickedContainer = chosen.container ? (containers.data ?? []).find((c) => c.id === picked) : undefined;
+  const pickedContainer = pickedNames.container ? (containers.data ?? []).find((c) => c.id === pickedKey) : undefined;
   const hosts = hostOptions({
     rows: rows.data,
     dockerHost: settings.data?.host_ip?.value,
@@ -132,8 +132,8 @@ export function AddRouteModal({
 
   // Forget a pick, keeping the fields.
   const drop = () => {
-    setChosen({});
-    setPicked(null);
+    setPickedNames({});
+    setPickedKey(null);
     setPickedMode(null);
     setFollow(false);
     setDerived(null);
@@ -145,10 +145,10 @@ export function AddRouteModal({
   };
   // A pick belongs to its list: showing the other one clears it, so a container's link
   // can't ride along with an address typed there. What was typed by hand stays.
-  const showList = (next: Source) => {
-    if (next === source) return;
-    if (picked) clear();
-    setSource(next);
+  const showList = (next: PickList) => {
+    if (next === pickList) return;
+    if (pickedKey) clear();
+    setPickList(next);
   };
 
   // A container is pre-filled for what is being made: a route with the address Caddy dials
@@ -166,20 +166,20 @@ export function AddRouteModal({
       setDerived(c.suggested_upstream ?? null);
       setFollow(Boolean(c.suggested_upstream));
     }
-    setChosen({ container: c.name, name: label });
+    setPickedNames({ container: c.name, name: label });
     setName(label);
-    setPicked(c.id);
+    setPickedKey(c.id);
   };
   const pickService = (s: MachineService) => {
     drop();
     fields.set({ prefix: s.prefix, upstream: s.upstream });
-    setChosen({ name: s.name });
+    setPickedNames({ name: s.name });
     setName(s.name);
-    setPicked(s.key);
+    setPickedKey(s.key);
   };
   // Route or Link: a picked container is pre-filled again for the other; a machine's
   // service and a typed address are the same address either way.
-  const makeLink = (next: boolean) => {
+  const chooseLink = (next: boolean) => {
     if (next === asLink) return;
     setAsLink(next);
     if (pickedContainer && next && pickedContainer.url) clear(); // not on Link's list
@@ -193,21 +193,21 @@ export function AddRouteModal({
       <h2 className="text-base font-semibold text-slate-100">{link ? "Add link" : "Add route"}</h2>
       {caddySetUp && (
         <div className="mt-3 flex gap-1 rounded-lg border border-slate-800 p-1">
-          <SourceTab active={!asLink} onClick={() => makeLink(false)} title="An HTTPS name, through Caddy and AdGuard">
+          <SourceTab active={!asLink} onClick={() => chooseLink(false)} title="An HTTPS name, through Caddy and AdGuard">
             Route
           </SourceTab>
-          <SourceTab active={asLink} onClick={() => makeLink(true)} title="Its address on the Dashboard, opened directly — no name, no HTTPS">
+          <SourceTab active={asLink} onClick={() => chooseLink(true)} title="Its address on the Dashboard, opened directly — no name, no HTTPS">
             Link
           </SourceTab>
         </div>
       )}
 
       <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 p-1">
-        <SourceTab active={source === "container"} onClick={() => showList("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
+        <SourceTab active={pickList === "container"} onClick={() => showList("container")} icon={<ContainerIcon className="h-3.5 w-3.5" />}>
           Container
         </SourceTab>
         {mayMachines && (
-          <SourceTab active={source === "machines"} onClick={() => showList("machines")} icon={<Server className="h-3.5 w-3.5" />}>
+          <SourceTab active={pickList === "machines"} onClick={() => showList("machines")} icon={<Server className="h-3.5 w-3.5" />}>
             Machines
           </SourceTab>
         )}
@@ -215,7 +215,7 @@ export function AddRouteModal({
 
       {/* One height on both lists, so switching doesn't move the fields and buttons. */}
       <div className="mt-3 h-40 overflow-y-auto">
-        {source === "container" && (
+        {pickList === "container" && (
           <PickList
             empty={
               containers.isLoading
@@ -226,11 +226,11 @@ export function AddRouteModal({
             }
           >
             {unroutedContainers.map((c) => (
-              <PickItem key={c.id} active={picked === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
+              <PickItem key={c.id} active={pickedKey === c.id} onClick={() => pickContainer(c)} title={c.name} sub={c.image} />
             ))}
           </PickList>
         )}
-        {source === "machines" && (
+        {pickList === "machines" && (
           <PickList
             empty={
               running.isLoading ? (
@@ -252,7 +252,7 @@ export function AddRouteModal({
               <div key={g.machine.id} className="space-y-1">
                 <p className="px-1 pt-1 text-[11px] font-medium uppercase text-slate-500">{machineLabel(g.machine)}</p>
                 {g.services.map((s) => (
-                  <PickItem key={s.key} active={picked === s.key} onClick={() => pickService(s)} title={s.name} sub={`${s.upstream} · ${s.kind}`} />
+                  <PickItem key={s.key} active={pickedKey === s.key} onClick={() => pickService(s)} title={s.name} sub={`${s.upstream} · ${s.kind}`} />
                 ))}
                 {g.services.length === 0 && !g.note && <p className="px-1 text-xs text-slate-600">Nothing more to route here.</p>}
                 {g.note && <p className="px-1 text-xs text-amber-300/80">{g.note}</p>}
@@ -265,7 +265,7 @@ export function AddRouteModal({
         <span title="A route on a named machine's address is listed under it, and moves with it">
           Pick one, or type any address below.
         </span>
-        {picked && (
+        {pickedKey && (
           <button type="button" onClick={clear} className="text-teal-400 hover:text-teal-300 hover:underline">
             Clear
           </button>
@@ -308,13 +308,13 @@ export function AddRouteModal({
                   name: name.trim(),
                   upstream: fields.upstream,
                   upstream_tls: fields.tls,
-                  ...(chosen.container ? { container: chosen.container, follow_container: follow } : {}),
+                  ...(pickedNames.container ? { container: pickedNames.container, follow_container: follow } : {}),
                 }
               : {
                   ...fields.payload(),
                   scheme,
-                  ...chosen,
-                  ...(chosen.container ? { follow_container: follow } : {}),
+                  ...pickedNames,
+                  ...(pickedNames.container ? { follow_container: follow } : {}),
                 },
           )
         }
