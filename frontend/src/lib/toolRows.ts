@@ -5,7 +5,8 @@ import type { Tool, ToolAction, ToolRun, ToolTarget } from "./tools";
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
 // target, and a tool in a few words.
 
-export type ToolStart = (run: ToolRun, action?: ToolAction) => void;
+// `onEnded`, for an automatic run: how it ended — done, or failed.
+export type ToolStart = (run: ToolRun, action?: ToolAction, onEnded?: (ok: boolean) => void) => void;
 
 // A row a tool's card lists, for its actions on that kind of target: `detail` on a card,
 // under its name; `cells` in a table, under COLUMNS (an empty one says nothing); `tag`

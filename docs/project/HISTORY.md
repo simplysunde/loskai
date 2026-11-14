@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A key's Test answer stays beside it while Keys is open
+
+Sunde, of a deploy key made by hand: shouldn't "Add to repository" go once the key is bound
+and works? The machine can't say that — it says which key a remote would use, not whether
+GitHub has it — but a Test can. Its answer now stays beside the key while Keys is open
+(✓ or ✗ and the host), and a key that got in loses its Add to …; one refused keeps it,
+being what comes next. This is the "confirmed by Test" label weighed earlier, and still
+nothing is stored: the answer lives as long as the dialog. The drop-down terminal tells
+whoever started a run how it ended (`useToolRunner`'s `start`, `onEnded`), which is how
+Keys hears it.
+
 ## 2026-11-14 — Each key tested on a host you name
 
 A key's Test tried it on the remotes here that use it; for codebox's account key there are

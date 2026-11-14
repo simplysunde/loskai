@@ -262,7 +262,10 @@ and Add.
   comment's "for <host>"). Then a host and **Test**: the host is where the key came from —
   filled in with that platform when it can be told, yours to type when not, `:port` for a
   Forgejo whose SSH isn't on 22 — and Test tries that key alone there, dropping down with
-  ✓ and whom it gets in as, or ✗. Then **Delete**, which asks first, removes the file and
+  ✓ and whom it gets in as, or ✗. While Keys is open, the answer stays beside the key —
+  "✓ github.com", "✗ github.com" — and once it gets in, Add to … goes: it is there already.
+  Only a test can tell that: what the machine says is which key a remote would use, not
+  whether the platform has it. Nothing is kept once Keys closes. Then **Delete**, which asks first, removes the file and
   puts a project that used it back on the machine's key (GitHub or Forgejo still lists it until
   you take it off there). While there is no account key, **New account key** makes one
   (ed25519, no passphrase, so pulls and pushes run unattended; its private half never

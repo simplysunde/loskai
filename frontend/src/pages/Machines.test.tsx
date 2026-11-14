@@ -11,7 +11,14 @@ import { copyText } from "../lib/clipboard";
 // Copying is the browser's; the tests see what was asked to be copied.
 vi.mock("../lib/clipboard", () => ({ copyText: vi.fn(async () => true) }));
 vi.mock("../components/shared/XtermSession", () => ({
-  XtermSession: ({ url }: { url: string }) => <div>shell at {url}</div>,
+  // A session's end, as the machine would: what it printed last, then closed normally.
+  XtermSession: ({ url, onOutput, onClosed }: { url: string; onOutput?: (t: string) => void; onClosed?: (code: number, reason: string) => void }) => (
+    <div>
+      shell at {url}
+      <button onClick={() => onClosed?.(1000, "")}>end: done</button>
+      <button onClick={() => onOutput?.("[failed, exit 1] Enter closes this.")}>end: failed</button>
+    </div>
+  ),
 }));
 
 const ROUTES = [
@@ -1373,6 +1380,26 @@ test("a key's Test drops down over Keys, which stays — its answer the drop-dow
   fireEvent.click(within(terminal).getByRole("button", { name: "Close" }));
   await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: id_ed25519/ })).toBeNull());
   expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
+});
+
+test("a key's Test, while Keys is open: ✓ in its row, and no Add to … once it gets in; ✗ keeps it", async () => {
+  setUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+  expect(within(row("deploy_blog")).getByRole("link", { name: /Add to repository/ })).toBeInTheDocument();
+
+  fireEvent.click(within(row("deploy_blog")).getByRole("button", { name: "Test deploy_blog" }));
+  fireEvent.click(await screen.findByRole("button", { name: "end: done" }));
+  await vi.waitFor(() => expect(row("deploy_blog")).toHaveTextContent("✓ forgejo.lan"));
+  expect(within(row("deploy_blog")).queryByRole("link", { name: /Add to/ })).toBeNull();
+  fireEvent.click(within(screen.getByRole("region", { name: /Test: deploy_blog/ })).getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: deploy_blog/ })).toBeNull());
+
+  fireEvent.click(within(row("id_ed25519")).getByRole("button", { name: "Test id_ed25519" }));
+  fireEvent.click(await screen.findByRole("button", { name: "end: failed" }));
+  await vi.waitFor(() => expect(row("id_ed25519")).toHaveTextContent("✗ github.com"));
+  expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toBeInTheDocument();
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {

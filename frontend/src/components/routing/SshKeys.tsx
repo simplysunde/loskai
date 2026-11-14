@@ -9,6 +9,9 @@ import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
 
+// A key's Test, as it last came out while Keys is open: the host, and whether it got in.
+type Tested = { host: string; ok: boolean };
+
 // The lists, each with a line saying what its keys are.
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
@@ -50,8 +53,11 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
   const named = new Set(ctx.facts.ssh_config_keys ?? []);
   const onKey = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: SshKeyInfo) => (uses ? (uses.get(k.name) ?? []) : null);
-  // A key's own Test: that key on a host typed on its row (`<key>@<host>`).
+  // A key's own Test: that key on a host typed on its row (`<key>@<host>`). Its answer, while
+  // this is open — kept nowhere else, so it never outlives what it saw.
   const onHost = tool.actions.find((a) => a.ask === "key-host");
+  const [tested, setTested] = useState<Record<string, Tested>>({});
+  const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
   const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
   // New account key only while there is none.
   const beside = tool.actions.filter(
@@ -101,6 +107,8 @@ function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose
                           tool={tool}
                           onRun={run}
                           test={onHost}
+                          tested={tested[k.name]}
+                          onTested={onTested}
                         />
                       ))}
                     </ul>
@@ -155,6 +163,8 @@ function KeyRow({
   tool,
   onRun,
   test,
+  tested,
+  onTested,
 }: {
   info: SshKeyInfo;
   uses: KeyUse[] | null;
@@ -164,9 +174,12 @@ function KeyRow({
   tool: Tool;
   onRun: ToolStart;
   test?: ToolAction;
+  tested?: Tested;
+  onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const { group, tag } = keyGroup(info, uses);
-  const page = info.public ? keyPage(info, uses) : null;
+  // Where to add it — until a Test has seen it get in.
+  const page = info.public && !tested?.ok ? keyPage(info, uses) : null;
   return (
     <li className="flex gap-3 px-3 py-2 text-xs max-sm:flex-col">
       <div className="min-w-0 flex-1">
@@ -176,6 +189,14 @@ function KeyRow({
           {named && (
             <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
               ~/.ssh/config
+            </span>
+          )}
+          {tested && (
+            <span
+              title={tested.ok ? `Its Test just now: it gets in on ${tested.host}` : `Its Test just now: ${tested.host} refused it`}
+              className={`rounded px-1.5 py-0.5 text-[10px] ${tested.ok ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"}`}
+            >
+              {tested.ok ? "✓" : "✗"} {tested.host}
             </span>
           )}
         </div>
@@ -204,7 +225,9 @@ function KeyRow({
       </div>
       <div className="flex shrink-0 items-start gap-1 max-sm:justify-end">
         <CopyKey info={info} page={page} />
-        {test && <KeyTest tool={tool} action={test} name={info.name} start={keyHost(info, uses) ?? ""} onRun={onRun} />}
+        {test && (
+          <KeyTest tool={tool} action={test} name={info.name} start={keyHost(info, uses) ?? ""} onRun={onRun} onTested={onTested} />
+        )}
         {actions.map((a) => (
           <KeyButton key={a.id} tool={tool} action={a} name={info.name} onRun={onRun} off={offWhy(a, named)} />
         ))}
@@ -354,16 +377,19 @@ function KeyTest({
   name,
   start,
   onRun,
+  onTested,
 }: {
   tool: Tool;
   action: ToolAction;
   name: string;
   start: string;
   onRun: ToolStart;
+  onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const [host, setHost] = useState(start);
   const h = host.trim();
-  const go = () => h && onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action);
+  const go = () =>
+    h && onRun({ tool: tool.id, action: action.id, target: `${name}@${h}`, title: `Test: ${name} on ${h}` }, action, (ok) => onTested(name, h, ok));
   return (
     <span className="flex items-center">
       <input

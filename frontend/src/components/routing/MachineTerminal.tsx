@@ -44,18 +44,21 @@ type Stage = "unlock" | "preparing" | "password" | "terminal";
 //
 // `quick`: the run is automatic, so it drops down from the top (QuickTerminal) rather than
 // opening a dialog — only the prompts, the key's and sudo's passwords, are dialogs.
+// `onEnded` hears how a quick run ended — done, or failed — once it has.
 export function MachineTerminal({
   machine,
   sshKey,
   run,
   quick = false,
   onClose,
+  onEnded,
 }: {
   machine: { id: string; name: string };
   sshKey: SshKey | null;
   run?: ToolRun;
   quick?: boolean;
   onClose: () => void;
+  onEnded?: (ok: boolean) => void;
 }) {
   const unlocked = keyUnlocked(sshKey);
   const [stage, setStage] = useState<Stage>(!unlocked ? "unlock" : run ? "preparing" : "terminal");
@@ -65,6 +68,13 @@ export function MachineTerminal({
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   // How a quick run ended, and the last of what it printed, to find out.
   const [ended, setEnded] = useState<{ phase: "done" | "failed"; detail?: string } | null>(null);
+  const heard = useRef(onEnded);
+  useEffect(() => {
+    heard.current = onEnded;
+  });
+  useEffect(() => {
+    if (ended) heard.current?.(ended.phase === "done");
+  }, [ended]);
   const tail = useRef("");
 
   const prepare = useMutation({
