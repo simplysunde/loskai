@@ -205,11 +205,11 @@ actions:
       H=${H:-$h}; P=${P:-${p:-22}};
       ks=$( { printf '%s\n' "$g" | awk '$1=="identityfile"{print $2}' | sed "s,^~,$HOME,";
       for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue;
-      case " $(cut -d' ' -f3- "$f") " in *" for $h "*|*" for $H "*) echo "${f%.pub}";; esac; done; } | sort -u);
+      case " $(cut -d' ' -f3- "$f" | tr '()' '  ') " in *" for $h "*|*" for $H "*) echo "${f%.pub}";; esac; done; } | sort -u);
       [ "$H" = "$h" ] && echo "$h, port $P — the keys meant for it:" || echo "$h ($H, port $P) — the keys meant for it:";
-      n=0; ok=0; for k in $ks; do [ -f "$k" ] && [ -f "$k.pub" ] || continue;
+      n=0; t=0; ok=0; for k in $ks; do [ -f "$k" ] && [ -f "$k.pub" ] || continue;
       name=${k##*/}; n=$((n+1));
-      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi; t=$((t+1));
       out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
       -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
       who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
@@ -219,8 +219,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
-      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
+      if [ $t = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $t — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  None here: ssh offers it no key in ~/.ssh, and none is made for it."; echo;
@@ -244,10 +244,10 @@ actions:
       H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
       H=${H:-$h}; P=${P:-${p:-22}};
       [ "$H" = "$h" ] && echo "$h, port $P — every key:" || echo "$h ($H, port $P) — every key:";
-      n=0; ok=0; for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue; k=${f%.pub}; [ -f "$k" ] || continue;
-      [ $n -ge 10 ] && { echo "  Stopped at 10 keys."; break; };
+      n=0; t=0; ok=0; for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue; k=${f%.pub}; [ -f "$k" ] || continue;
+      [ $t -ge 10 ] && { echo "  Stopped at 10 keys."; break; };
       name=${k##*/}; n=$((n+1));
-      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi; t=$((t+1));
       out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
       -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
       who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
@@ -257,8 +257,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
-      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
+      if [ $t = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $t — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
@@ -280,9 +280,9 @@ actions:
       H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
       H=${H:-$h}; P=${P:-${p:-22}};
       [ "$H" = "$h" ] && echo "$h, port $P:" || echo "$h ($H, port $P):";
-      n=0; ok=0; for k in "$k"; do
+      n=0; t=0; ok=0; for k in "$k"; do
       name=${k##*/}; n=$((n+1));
-      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi;
+      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi; t=$((t+1));
       out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
       -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
       who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
@@ -292,8 +292,8 @@ actions:
       printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
       *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
       *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      if [ $n = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
-      else echo "  $H stopped answering after $n — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
+      if [ $t = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
+      else echo "  $H stopped answering after $t — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $ok -gt 0 ] || exit 1

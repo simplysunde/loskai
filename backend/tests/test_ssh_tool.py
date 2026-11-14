@@ -157,6 +157,25 @@ def test_test_key_tries_only_the_keys_meant_for_the_host_each_alone(tmp_path):
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_test_key_finds_the_key_new_key_for_a_host_made_by_its_mark(tmp_path):
+    """New key for a host writes `(loskai: for <host>)`; Test key, its next step, tries it."""
+    run = _forge(tmp_path, {"github.com": ("", "vm@box (loskai: for github.com)")}, "", GREETINGS)
+    out, lines, _ = run("test-key", "github.com")
+    assert out.returncode == 0, out.stdout
+    assert lines[1:] == [["github.com", "gets", "in", "as", "sunde"]]
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
+def test_a_skipped_passphrase_key_isnt_counted_as_tried(tmp_path):
+    """The first key has a passphrase and isn't tried; the next is refused at once: the port, not a ban."""
+    run = _forge(tmp_path, {"a-locked": ("secret", "vm@box"), "b-open": ("", "vm@box")}, "", {})
+    (tmp_path / "blocked").touch()
+    out, _, calls = run("every-key", "github.com")
+    assert out.returncode == 1 and "Nothing answers SSH on github.com" in out.stdout and "fail2ban" not in out.stdout
+    assert len(calls) == 1
+
+
+@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
 def test_test_key_tries_the_key_ssh_config_names_for_an_alias(tmp_path):
     run = _forge(tmp_path, {"site-key": ("", "vm@box"), "old": ("", "vm@box")},
                  "Host gh-site\n  HostName github.com\n  IdentityFile ~/.ssh/site-key\n  IdentitiesOnly yes\n",
