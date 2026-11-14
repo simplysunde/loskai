@@ -14,7 +14,7 @@ export function SettingRow({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-1.5 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0">
         <div className="text-sm text-slate-200">{label}</div>
         {description && <div className="mt-0.5 text-xs text-slate-500">{description}</div>}
