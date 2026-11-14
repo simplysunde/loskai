@@ -1331,8 +1331,9 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(row).toHaveTextContent("Unused here — remotes are HTTP(S)");
-  expect(within(dialog).getByText("deploy_blog").closest("li")).toHaveTextContent(/Unused here(?! —)/);
+  expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
+  expect(within(within(dialog).getByText("deploy_blog").closest("li") as HTMLElement).getByText("No git remote here uses it"))
+    .toHaveAttribute("title", expect.stringMatching(/^No remote here names it\./));
 });
 
 test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
@@ -1344,7 +1345,7 @@ test("an account key no remote uses, where the SSH ones each have their own, say
   ], ssh_hosts: { "gh-page": { hostname: "github.com", identities_only: true, keys: ["work"] } }, ssh_config_keys: ["work"] };
   renderPage("/machines/nas/tools");
   const row = within(await gitKeys()).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(row).toHaveTextContent("Unused here — SSH remotes use their own keys");
+  expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here over SSH each use a key of their own/));
 });
 
 test("Delete, in Keys, asks first and then runs on the key", async () => {

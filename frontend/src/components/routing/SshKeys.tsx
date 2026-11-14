@@ -211,10 +211,19 @@ function KeyRow({
 function UsedBy({ uses, named, account, facts }: { uses: KeyUse[] | null; named: boolean; account: boolean; facts: Facts }) {
   if (!uses) return <p className="mt-0.5 text-slate-500">Install the status line again to see where it's used.</p>;
   if (uses.length === 0) {
+    // Only git's use of it is seen: it may be on an account, or log in elsewhere — so the
+    // line says which remotes don't use it, and why, not that it is useless.
     const ssh = (facts.remotes ?? []).some((r) => sshHost(r.url));
+    const why = named
+      ? "~/.ssh/config names it for a host no project here uses."
+      : !account
+        ? "No remote here names it."
+        : ssh
+          ? "The remotes here over SSH each use a key of their own; the rest are over HTTP(S), which needs none."
+          : "The remotes here are over HTTP(S), which needs no key.";
     return (
-      <p className="mt-0.5 text-slate-500">
-        {named ? "Used by no remote here" : account ? (ssh ? "Unused here — SSH remotes use their own keys" : "Unused here — remotes are HTTP(S)") : "Unused here"}
+      <p title={`${why} It may still be on your account, or log in elsewhere: Loskai sees only git here.`} className="mt-0.5 w-fit cursor-help text-slate-500">
+        No git remote here uses it
       </p>
     );
   }

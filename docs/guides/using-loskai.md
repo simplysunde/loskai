@@ -245,7 +245,8 @@ and Add.
   platform beside it — and **Deploy keys**, on one repository each, its repository beside
   it (**Other keys**, when one is neither). Each says in a line a remote what it does —
   "Pushes projects › public/simplysunde.github.io · github.com via
-  github-blog" — or why it is unused, and its comment and fingerprint
+  github-blog" — or "No git remote here uses it", the reason in its tooltip
+  (it may still be on an account, or log in elsewhere: only git's use is seen), and its comment and fingerprint
   (shortened; whole in its tooltip). Where it is used is every remote it is for, in
   every project and submodule — fetch, push, or both — by the project's own key, else by
   what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
