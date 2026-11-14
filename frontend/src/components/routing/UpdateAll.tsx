@@ -4,16 +4,19 @@ import { Download, Loader2 } from "lucide-react";
 import { useFacts, useSsh } from "../../lib/ssh";
 import { commandFor, MACHINE_TOOL, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
+import { SudoRuleSwitch } from "./SudoRuleSwitch";
 import { useToolRunner } from "./useToolRunner";
 
-type Machine = { id: string; name: string };
+type Machine = { id: string; name: string; subdomain?: string | null };
 
 const RUN = { tool: MACHINE_TOOL, action: "update", title: "Update" };
 
 // Every machine with SSH set up, brought up to date from the Machines tab: each with what
 // waits there and its own Update, and Update all — System's Update on each in turn, one
 // after the other ends (a sudo password asked for each that needs one). What waits is read
-// again as each ends: "up to date" is the machine's word, not the run's.
+// again as each ends: "up to date" is the machine's word, not the run's. Beside each, the
+// switch for updates without a password: on, Update all goes past that machine without
+// stopping to ask.
 export function UpdateAll({ machines, onClose }: { machines: Machine[]; onClose: () => void }) {
   const ssh = useSsh();
   const set = machines.filter((m) => ssh.data?.trusted[m.id]);
@@ -90,6 +93,7 @@ function MachineUpdate({
   const runner = useToolRunner(machine, ssh.data?.key ?? null, onEnd);
   const action = tools.data?.find((t) => t.id === MACHINE_TOOL)?.actions.find((a) => a.id === RUN.action);
   const f = facts.data;
+  const user = machine.subdomain ? ssh.data?.hosts[machine.subdomain]?.user : undefined;
   const command = f?.ok && action ? commandFor(action, f.updates?.manager) : null;
   const read = !facts.isLoading && Boolean(tools.data);
 
@@ -124,7 +128,13 @@ function MachineUpdate({
           </span>
         )}
       </span>
-      <span className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+      <span className="ml-auto flex items-center gap-3 text-xs text-slate-500">
+        {user && command && (
+          <span title="Updates without a password — on, Update goes by without asking for sudo's" className="flex items-center gap-1.5">
+            <span className="max-sm:hidden">No password</span>
+            <SudoRuleSwitch user={user} facts={f} onRun={runner.start} disabled={busy} short />
+          </span>
+        )}
         {turn ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating

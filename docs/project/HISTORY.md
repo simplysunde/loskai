@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — Update all has each machine's no-password switch
+
+Seen running: Update all stops at each machine whose sudo asks for a password. The switch
+for updates without one (Loskai's sudo rule) was only in a machine's dialog; it is now
+beside each machine in Update all too — the same component (`SudoRuleSwitch`), so the
+two can't disagree on when it applies (not for root; "can't tell" where the machine won't
+show its sudoers). Greyed while Update all runs: a row's own run ending would hand the turn
+on. Asked with it: the drop-down terminal of an automatic run is lower, 22% of the window
+rather than 30%.
+
 ## 2026-11-14 — Projects' New project is a dialog
 
 The bar of fields above the list — a machine, a name and New project, a repository and

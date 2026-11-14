@@ -23,6 +23,7 @@ import { useMe } from "../../lib/useAuth";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Overlay } from "../shared/Modal";
+import { SudoRuleSwitch } from "./SudoRuleSwitch";
 import { SectionPane } from "../shared/SectionPane";
 import { InlineText, SettingRow, Switch } from "../shared/SettingRow";
 import { SshLog } from "../settings/SshLog";
@@ -256,35 +257,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             label="Updates without a password"
             description="System's Update runs without asking: a sudo rule on the machine for exactly its update commands."
           >
-            {host.user === "root" ? (
-              <span className="text-xs text-slate-500">not needed — it logs in as root</span>
-            ) : facts.data?.ok ? (
-              <>
-                {facts.data.sudo_rule !== "on" && facts.data.sudo_rule !== "off" && (
-                  <span title="The machine doesn't let its user look in /etc/sudoers.d" className="cursor-help text-xs text-slate-500">
-                    can't tell
-                  </span>
-                )}
-                {/* Either way an automatic run in the machine's terminal; the switch moves
-                    when the overview reads the rule back. */}
-                <Switch
-                  label="Updates without a password"
-                  title={
-                    facts.data.sudo_rule === "on"
-                      ? "Take the rule off: Update asks for sudo's password again"
-                      : "Add the rule: asks for sudo's password this once"
-                  }
-                  checked={facts.data.sudo_rule === "on"}
-                  onChange={() =>
-                    facts.data?.ok && facts.data.sudo_rule === "on"
-                      ? runner.start({ sudo: "remove", title: "Take off updates without a password" })
-                      : runner.start({ sudo: "allow", title: "Allow updates without a password" })
-                  }
-                />
-              </>
-            ) : (
-              <span className="text-xs text-slate-500">needs its overview — see General</span>
-            )}
+            <SudoRuleSwitch user={host.user} facts={facts.data} onRun={runner.start} />
           </SettingRow>
         )}
       </div>

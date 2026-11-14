@@ -1444,6 +1444,35 @@ test("Update all, from the row above the table: each set-up machine updated in t
   await vi.waitFor(() => expect(reads()).toBeGreaterThan(before));
 });
 
+test("Update all has each machine's switch for updates without a password; root needs none", async () => {
+  setUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  facts = { ...FACTS, sudo_rule: "off" };
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
+  const dialog = await screen.findByRole("dialog", { name: "Update all" });
+  const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+  const rule = await within(row("Storage box")).findByRole("switch", { name: "Updates without a password" });
+  expect(rule).toHaveAttribute("aria-checked", "false");
+  expect(within(row("pve")).queryByRole("switch")).toBeNull();
+  expect(row("pve")).toHaveTextContent("root — no password asked");
+
+  // Not while Update all runs: its run would hand the turn on.
+  await vi.waitFor(() => expect(within(dialog).getByRole("button", { name: "Update all" })).toBeEnabled());
+  fireEvent.click(within(dialog).getByRole("button", { name: "Update all" }));
+  await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update");
+  expect(rule).toBeDisabled();
+  fireEvent.click(within(screen.getByRole("region", { name: "Update — Storage box" })).getByRole("button", { name: "Close" }));
+  await screen.findByText("shell at /api/ssh/machines/pve/terminal?tool=system&action=update");
+  fireEvent.click(within(screen.getByRole("region", { name: "Update — pve" })).getByRole("button", { name: "Close" }));
+
+  await vi.waitFor(() => expect(rule).toBeEnabled());
+  fireEvent.click(rule);
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?sudo=allow")).toBeInTheDocument();
+});
+
 test("Update all can stop after the machine updating now", async () => {
   setUp();
   sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
