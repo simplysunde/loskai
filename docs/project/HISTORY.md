@@ -4,6 +4,12 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-14 — A project's cog opens its Project overrides
+
+"Settings for site" became **Project overrides for site** (Sunde): what it holds is the
+project's own name, email and key in place of Git's, and the name says so. The Keys
+dialog and Git's Settings point to it by that name.
+
 ## 2026-11-14 — Keys: account keys and deploy keys apart, in fewer words
 
 Sunde: too much text, and account keys should stand apart from deploy keys. Keys is now

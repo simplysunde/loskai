@@ -63,8 +63,8 @@ Everything so far:
   without sudo asking: a sudo rule for exactly its update commands, switched on (with the
   password once) and off in its SSH section, and taken off with the machine.
 - **Git** — a tool for a machine's git: its commit name and email (`git config --global`),
-  read and set in a dialog from **Settings** in its card's header — and, under a project's
-  cog, that project's own — and the projects folder Claude Code finds its projects in.
+  read and set in a dialog from **Settings** in its card's header — and, in a project's
+  **Project overrides** (its cog), that project's own — and the projects folder Claude Code finds its projects in.
   Its projects have **Pull** (fast-forward only), **Push** and **Terminal**; **Pull all**
   pulls every project with a remote, **Push all** pushes every one with commits to push,
   and **Clone** takes a repository's address

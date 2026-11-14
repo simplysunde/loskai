@@ -12,7 +12,7 @@ import { ActionIcon } from "./ToolIcon";
 // The lists, each with a line saying what its keys are.
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
-  { id: "deploy", title: "Deploy keys", hint: "on one repository each — a project's cog makes one" },
+  { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
   { id: "other", title: "Other keys", hint: "neither, as far as Loskai can tell" },
 ] as const;
 

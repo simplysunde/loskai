@@ -965,10 +965,10 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  const cog = await within(tools).findByRole("button", { name: "Settings for site" });
+  const cog = await within(tools).findByRole("button", { name: "Project overrides for site" });
   fireEvent.click(cog);
   // Opened once the settings are read again: never the locked error it had.
-  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
   expect(within(dialog).queryByText(/locked/)).toBeNull();
   expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
   expect(within(dialog).getByLabelText("Name")).toBeEnabled();
@@ -979,14 +979,14 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   fireEvent.change(email, { target: { value: "ola@work.example" } });
   fireEvent.click(save);
 
-  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull());
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull());
   // Only the field changed is written.
   expect(calls.filter((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual([{
     path: "/api/ssh/machines/nas/tools/git/settings/project-email", method: "PUT",
     body: { value: "ola@work.example", target: "site" },
   }]);
   // Set, its cog says so; the card's own Email is untouched.
-  expect(cog).toHaveAttribute("title", "Its own: Email ola@work.example");
+  expect(cog).toHaveAttribute("title", "Project overrides — Email ola@work.example");
   expect(within(tools).getByRole("button", { name: "Git settings" }).title).toContain("Email not set");
 });
 
@@ -1011,12 +1011,12 @@ test("a project's settings dialog cancelled writes nothing", async () => {
   setUp();
   renderPage("/machines/nas/tools");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Settings for site" }));
-  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  fireEvent.click(await screen.findByRole("button", { name: "Project overrides for site" }));
+  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
   fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Someone" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
-  expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull();
   expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
@@ -1056,14 +1056,14 @@ test("with Loskai's key locked, a project's cog asks for your password, then ope
   renderPage("/machines/nas/tools");
 
   await vi.waitFor(() => expect(screen.getByRole("button", { name: "Git settings" }).title).toContain("(locked)"));
-  fireEvent.click(screen.getByRole("button", { name: "Settings for site" }));
+  fireEvent.click(screen.getByRole("button", { name: "Project overrides for site" }));
   const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
   fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
   gitStatus = 200;
   fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
   // Opened once the settings are read again: never the locked error it had.
-  const dialog = await screen.findByRole("dialog", { name: "Settings for site" });
+  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
   expect(within(dialog).queryByText(/locked/)).toBeNull();
   expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
   expect(within(dialog).getByLabelText("Name")).toBeEnabled();
@@ -1419,19 +1419,19 @@ test("a project's cog says which key it uses — its own teal like its own name 
   const siteRow = within(tools).getAllByText("site").map((el) => el.closest("li") as HTMLElement).find((li) => within(li).queryByRole("button", { name: "Pull" }))!;
   expect(within(siteRow).queryByRole("button", { name: "Own key" })).toBeNull();
   // blog has its own key: its cog is teal, and says so.
-  const blogCog = await within(tools).findByRole("button", { name: "Settings for blog" });
+  const blogCog = await within(tools).findByRole("button", { name: "Project overrides for blog" });
   await vi.waitFor(() => expect(blogCog).toHaveClass("text-teal-300"));
   expect(blogCog.title).toContain("SSH key deploy_blog");
   fireEvent.click(blogCog);
-  const blog = await screen.findByRole("dialog", { name: "Settings for blog" });
+  const blog = await screen.findByRole("dialog", { name: "Project overrides for blog" });
   expect(within(blog).getByLabelText("SSH key")).toHaveTextContent("deploy_blog · SHA256:blog");
   fireEvent.click(within(blog).getByRole("button", { name: "Cancel" }));
 
-  fireEvent.click(within(tools).getByRole("button", { name: "Settings for site" }));
-  const site = await screen.findByRole("dialog", { name: "Settings for site" });
+  fireEvent.click(within(tools).getByRole("button", { name: "Project overrides for site" }));
+  const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
   expect(within(site).getByLabelText("SSH key")).toHaveTextContent("the machine's");
   fireEvent.click(within(site).getByRole("button", { name: "Own key" }));
-  expect(screen.queryByRole("dialog", { name: "Settings for site" })).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull();
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=own-key&target=site")).toBeInTheDocument();
   expect(screen.getByRole("dialog", { name: /Own key: site — Storage box/ })).toBeInTheDocument();
 });

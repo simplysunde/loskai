@@ -33,6 +33,11 @@ function useToolSettings(tool: Tool, machineId: string) {
 // Where a dialog's settings are: the card's — the machine's own values — or a row's.
 type Row = { kind: ToolTarget; name: string };
 
+// A row's own settings, in place of the card's, are its overrides: "Project overrides".
+function overridesOf(row: Row): string {
+  return `${row.kind[0].toUpperCase()}${row.kind.slice(1)} overrides`;
+}
+
 // Opens the card's settings — a Settings button in its header — or, given a `row`, that
 // row's own, from a cog on it, in a dialog. Read with Loskai's key: while it is locked, your
 // password first. A row's cog is teal while any of its own is set.
@@ -58,7 +63,7 @@ export function SettingsButton({
     const key = row.kind === "project" && hasKeys(tool) ? projectKeyOf(ctx, row.name) : null;
     if (key != null) set.push(`SSH key ${key || "its own command"}`);
     own = set.length > 0;
-    title = own ? `Its own: ${set.join(", ")}` : "Its own settings, in place of the card's";
+    title = own ? `${overridesOf(row)} — ${set.join(", ")}` : `${overridesOf(row)}: its own settings in place of the card's`;
   } else {
     const shown = [
       ...(tool.id === "git" ? [`Projects folder ${ctx.folder}`] : []),
@@ -69,7 +74,7 @@ export function SettingsButton({
   return (
     <button
       type="button"
-      aria-label={row ? `Settings for ${row.name}` : `${tool.name} settings`}
+      aria-label={row ? `${overridesOf(row)} for ${row.name}` : `${tool.name} settings`}
       aria-haspopup="dialog"
       title={title}
       onClick={async () => {
@@ -162,7 +167,7 @@ export function SettingsDialog({
     },
     onSuccess: onClose,
   });
-  const label = row ? `Settings for ${row.name}` : `${tool.name} settings`;
+  const label = row ? `${overridesOf(row)} for ${row.name}` : `${tool.name} settings`;
   const formId = useId();
   const actions = settingsActionsOf(tool, row?.kind ?? null);
   // Each in the machine's terminal, this dialog closing first; a row's on that row.
@@ -183,7 +188,7 @@ export function SettingsDialog({
         <h2 className="text-base font-semibold text-slate-100">
           {row ? (
             <>
-              Settings for <span className="font-mono">{row.name}</span>
+              {overridesOf(row)} for <span className="font-mono">{row.name}</span>
             </>
           ) : (
             label
@@ -193,7 +198,7 @@ export function SettingsDialog({
           {row
             ? `In place of the card's, for this ${row.kind} only — empty, the card's applies.`
             : (tool.settings ?? []).some((s) => s.target)
-              ? "On this machine — a project's cog can set its own in place of these."
+              ? "On this machine — Project overrides, a project's cog, can set its own."
               : "On this machine."}
         </p>
         <div className="mt-4 space-y-3">

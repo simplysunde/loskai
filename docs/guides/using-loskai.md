@@ -227,10 +227,10 @@ and Add.
   header: a dialog, read from the machine with Loskai's key (while it is locked, your
   password first), whose Save writes what you changed. Beside the card's summary, who the
   commits are by: `as Sunde`. It lists the git projects there, each with **Pull** (only when it
-  fast-forwards), **Push** and **Terminal** (a shell in it), and a cog for the project's
-  own **Name** and **Email** — set in its `.git/config`, in place of the global ones for
-  that project only; empty, the global one applies (shown greyed), and the cog is teal
-  while one is set. A fresh clone starts without them. Under the projects' buttons,
+  fast-forwards), **Push** and **Terminal** (a shell in it), and a cog opening its
+  **Project overrides**: its own **Name**, **Email** and SSH key — set in its `.git/config`,
+  in place of the global ones for that project only; empty, the global one applies (shown
+  greyed), and the cog is teal while one is set. A fresh clone starts without them. Under the projects' buttons,
   **Pull all** pulls every project that has a remote, and **Push all** pushes every one
   with commits its remote doesn't have yet (as of the last fetch — Pull all fetches),
   and any without an upstream, which says so. **Clone** takes a repository's address — `https://…`,
@@ -278,7 +278,7 @@ and Add.
   per platform is a `Host` block each in `~/.ssh/config`: **New key for a host** makes
   `~/.ssh/<host>` and prints the block to paste there — Loskai doesn't edit that file.
   Where ssh tries several keys on a host (no `IdentitiesOnly`), each shows as **offered**
-  there. A project's cog says which key it uses;
+  there. A project's **Project overrides** say which key it uses;
   **Own key** there gives it a deploy key (set as its `core.sshCommand`, so git uses that
   key alone for it), its cog teal like its own name, and **Machine's key** goes back,
   keeping the file, so Own key takes the same key up again. On a machine Claude works on by

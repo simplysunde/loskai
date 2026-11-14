@@ -203,7 +203,7 @@ A setting may also have:
   as `$1` and the value as `$2`, with `$PROJECTS` set as for an action. The same read lists
   every git repo in the projects folder and reads each one's after the machine's, so the
   card still makes one connection. The card shows a cog on each project's row, teal while
-  any of its settings is set, that opens them in a dialog; Save writes the fields changed.
+  any of its settings is set, that opens them in a dialog, **Project overrides**; Save writes the fields changed.
   The machine's own — the settings without a `target` — are behind **Settings** in the
   card's header, in the same dialog.
 - **`overrides`** names the machine's setting this one replaces where it is set, of the
@@ -252,7 +252,7 @@ Where an action is offered, and the dialog closes as it runs:
 - **`card`** (the default) — on its card, or on its row.
 - **`settings`** — in a settings dialog, for one set up once and rarely run again. On no
   row, the dialog its card's **Settings** button opens (a tool with such an action has that
-  button even without settings of its own); on a project, that project's own dialog, from
+  button even without settings of its own); on a project, its **Project overrides**, from
   its cog (Git's **Own key** and **Machine's key**). Only a kind of row with settings has
   one (`tool.SETTING_TARGETS`), so `place: settings` with another `target` is refused.
 - **`keys`** — on no row, beside the list in **Keys**: the dialog of the SSH user's keys,
