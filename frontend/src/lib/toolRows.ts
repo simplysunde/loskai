@@ -7,12 +7,22 @@ import type { Tool, ToolAction, ToolRun, ToolTarget } from "./tools";
 
 export type ToolStart = (run: ToolRun, action?: ToolAction) => void;
 
-// A row a tool's card lists, for its actions on that kind of target.
+// A row a tool's card lists, for its actions on that kind of target: `detail` on a card,
+// under its name; `cells` in a table, under COLUMNS (an empty one says nothing); `tag`
+// beside its name in either.
 interface Row {
   name: string;
   detail: string;
   title?: string;
+  cells: string[];
+  tag?: string;
 }
+
+// A table's columns for each kind of row, after its name — Projects' tables.
+export const COLUMNS: Partial<Record<ToolTarget, string[]>> = {
+  project: ["Branch", "Changes", "Last commit", "Claude"],
+  session: ["Windows", "Started"],
+};
 
 // The rows of each kind a card lists, from the overview: the sessions no tool claims — a
 // session `claude-site` is the Claude Code tool's, on its project, as the server says — and
@@ -22,28 +32,36 @@ function rowsOf(kind: ToolTarget, facts: Facts, folder: string): Row[] | null {
   if (kind === "session") {
     return (facts.tmux ?? [])
       .filter((s) => !s.tool)
-      .map((s) => ({
-        name: s.name,
-        detail: `${s.windows} ${s.windows === 1 ? "window" : "windows"}${s.attached ? " · attached" : ""} · since ${new Date(s.created * 1000).toLocaleString()}`,
-      }));
+      .map((s) => {
+        const windows = `${s.windows} ${s.windows === 1 ? "window" : "windows"}`;
+        const since = new Date(s.created * 1000).toLocaleString();
+        return {
+          name: s.name,
+          detail: `${windows}${s.attached ? " · attached" : ""} · since ${since}`,
+          title: `Since ${since}`,
+          cells: [String(s.windows), formatAgo(s.created)],
+          tag: s.attached ? "attached" : undefined,
+        };
+      });
   }
   if (kind === "project") {
     const relative = folder === "~" ? "" : folder.replace(/^~\//, "");
     return (facts.projects ?? [])
       .filter((p) => p.folder === relative)
-      .map((p) => ({
-        name: p.name,
-        detail: [
-          p.branch ?? "no branch",
-          p.ahead ? `${p.ahead} to push` : null,
-          p.dirty ? "uncommitted changes" : null,
-          p.committed ? `committed ${formatAgo(p.committed)}` : "no commits",
-          p.claude ? `Claude ${formatAgo(p.claude)}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        title: p.subject ? `Last commit: ${p.subject}` : undefined,
-      }));
+      .map((p) => {
+        const branch = p.branch ?? "no branch";
+        const changes = [p.ahead ? `${p.ahead} to push` : null, p.dirty ? "uncommitted changes" : null].filter(Boolean);
+        const committed = p.committed ? formatAgo(p.committed) : null;
+        const claude = p.claude ? formatAgo(p.claude) : null;
+        return {
+          name: p.name,
+          detail: [branch, ...changes, committed ? `committed ${committed}` : "no commits", claude && `Claude ${claude}`]
+            .filter(Boolean)
+            .join(" · "),
+          title: p.subject ? `Last commit: ${p.subject}` : undefined,
+          cells: [branch, changes.join(", "), committed ?? "no commits", claude ?? ""],
+        };
+      });
   }
   return null;
 }

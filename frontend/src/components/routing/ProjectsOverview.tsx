@@ -4,7 +4,8 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type SshKey } from "../../lib/ssh";
-import { isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
+import { COLUMNS, isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
+import { CARD_TABLE } from "../../lib/ui";
 import { applies, useTools, type Tool, type ToolAction, type ToolTarget } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { Shell } from "./MachineDialog";
@@ -12,6 +13,10 @@ import { Ask, RowButtons } from "./MachineTools";
 import { useToolRunner } from "./useToolRunner";
 
 type Machine = { id: string; name: string; upstream?: string | null };
+
+// On a phone a table's headings are hidden, so a cell that is only a time or a number
+// says which it is.
+const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Claude", Windows: "windows:", Started: "started" };
 
 // What an action asks for when it makes a project, in the order they are offered: a name
 // (Claude Code's New project), then a repository (Git's Clone).
@@ -60,6 +65,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
   return (
     <Shell
       label="Projects"
+      wide
       title={
         <span className="flex items-center gap-2">
           Projects
@@ -170,38 +176,69 @@ function MachineProjects({ machine }: { machine: Machine }) {
   if (!ctx) return null;
   const { here, rows, sessions } = projectsOf(ctx);
   const claude = here.find((t) => t.id === "claude");
-  const list = (kind: ToolTarget, items: typeof rows, label: string) => (
-    // As on a card: on a wider screen every row's buttons start in one column; on a phone
-    // they go under its name.
-    <ul
-      aria-label={label}
-      className="space-y-1.5 text-xs text-slate-300 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:space-y-0"
-    >
-      {items.map((r) => (
-        <li key={r.name} className="flex flex-col gap-1 sm:contents">
-          <span title={r.title} className="min-w-0">
-            <span className="break-all font-mono">{r.name}</span>
-            {kind === "project" && claude && isLive(claude, "project", r.name, ctx.facts) && (
-              <span className="ml-2 text-emerald-300">running</span>
-            )}
-            <span className="block truncate text-slate-500">{r.detail}</span>
-          </span>
-          <span className="flex flex-wrap items-center gap-1">
-            <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
+  // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a
+  // card (CARD_TABLE): the name on a line of its own, the cells that say something, then
+  // the buttons.
+  const table = (kind: ToolTarget, items: typeof rows, label: string) => {
+    const columns = COLUMNS[kind] ?? [];
+    return (
+      <table aria-label={label} className={`w-full text-left text-xs ${CARD_TABLE}`}>
+        <thead className="text-[11px] uppercase text-slate-500 max-sm:hidden">
+          <tr>
+            <th className="py-1.5 pr-3 font-medium">{kind === "project" ? "Project" : "Session"}</th>
+            {columns.map((c) => (
+              <th key={c} className="py-1.5 pr-3 font-medium">
+                {c}
+              </th>
+            ))}
+            <th className="py-1.5 font-medium">
+              <span className="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800/70">
+          {items.map((r) => (
+            <tr key={r.name} className="text-slate-400 max-sm:py-2">
+              <td className="py-1.5 pr-3 max-sm:basis-full">
+                <span title={r.title} className="break-all font-mono text-slate-200">
+                  {r.name}
+                </span>
+                {kind === "project" && claude && isLive(claude, "project", r.name, ctx.facts) && (
+                  <span className="ml-2 text-emerald-300">running</span>
+                )}
+                {r.tag && <span className="ml-2 text-slate-500">{r.tag}</span>}
+              </td>
+              {r.cells.map((c, i) => (
+                <td
+                  key={columns[i] ?? i}
+                  title={columns[i] === "Last commit" ? r.title : undefined}
+                  className={`whitespace-nowrap py-1.5 pr-3 ${c ? "" : "max-sm:hidden"}`}
+                >
+                  {/* On a phone, with no headings: what a bare time or number is. */}
+                  {c && PHONE[columns[i]] && <span className="sm:hidden">{PHONE[columns[i]]} </span>}
+                  {c || <span className="text-slate-600">—</span>}
+                </td>
+              ))}
+              <td className="py-1.5 max-sm:ml-auto">
+                <span className="flex flex-wrap items-center justify-end gap-1">
+                  <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
   return (
     <>
-      {list("project", rows, "Projects")}
+      {table("project", rows, "Projects")}
       {sessions.length > 0 && (
         <>
-          <h3 className="mb-1.5 mt-3 text-xs text-slate-500">
+          <h3 className="mb-0.5 mt-4 text-xs text-slate-500">
             {sessions.length} tmux {sessions.length === 1 ? "session" : "sessions"}
           </h3>
-          {list("session", sessions, "tmux sessions")}
+          {table("session", sessions, "tmux sessions")}
         </>
       )}
       {runner.ui}

@@ -14,6 +14,12 @@ line. Not Claude's sessions, which are the projects' "running". And a machine wi
 sessions but no projects stays out — Projects stays a view of projects; the tmux card is
 where every session is.
 
+Then, asked by Sunde, both are tables: a column each for branch, changes, last commit and
+Claude (a session's windows and start), so the eye runs down one column across projects
+— the dialog widened for it (`Shell`'s `wide`). The cells come from the same place as a
+card's one-line detail (`toolRows`' `cells` beside `detail`), so the two can't disagree.
+On a phone each row is a card, as every table here is.
+
 ## 2026-11-14 — Projects: a side menu, New project, only machines with projects
 
 Sunde asked for New project in Projects, a side panel to jump to a machine once the list

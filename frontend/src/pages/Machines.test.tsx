@@ -1298,11 +1298,20 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   // What the machine is, in a line: its address, Tailscale.
   expect(within(nas).getByText(/^192\.168\.10\.50 · Tailscale 100\.64\.0\.7$/)).toBeInTheDocument();
 
-  // Each project once, with Git's buttons and Claude Code's by its session.
-  const row = (name: string) => within(nas).getByText(name).closest("li") as HTMLElement;
+  // Each project once, a table: its git in columns, Git's buttons and Claude Code's by its session.
+  const projects = within(nas).getByRole("table", { name: "Projects" });
+  expect(within(projects).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
+    ["Project", "Branch", "Changes", "Last commit", "Claude", "Actions"],
+  );
+  const row = (name: string) => within(nas).getByText(name).closest("tr") as HTMLElement;
   const buttons = (name: string) => within(row(name)).getAllByRole("button").map((b) => b.textContent?.trim()).sort();
   expect(await within(nas).findByText("running")).toBeInTheDocument();
-  expect(row("site").textContent).toContain("main · 2 to push · uncommitted changes");
+  const cells = within(row("site")).getAllByRole("cell").map((c) => c.textContent);
+  expect(cells.slice(0, 3)).toEqual(["siterunning", "main", "2 to push, uncommitted changes"]);
+  expect(cells[3]).toMatch(/^committed \d+[mhd] ago$/);
+  expect(within(row("site")).getAllByRole("cell")[3]).toHaveAttribute("title", "Last commit: Add the header");
+  // No Claude yet: a dash, not an empty cell.
+  expect(within(row("blog")).getAllByRole("cell")[4]).toHaveTextContent("—");
   expect(buttons("site")).toEqual(["Attach", "Pull", "Stop"]);
   expect(buttons("blog")).toEqual(["Attach", "Pull", "Start"]);
   expect(within(row("blog")).getByRole("button", { name: "Attach" })).toBeDisabled();
@@ -1310,8 +1319,9 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   // Under them, its tmux sessions of your own — not Claude's, which is on its project — with
   // tmux's buttons.
   expect(within(nas).getByRole("heading", { name: "1 tmux session" })).toBeInTheDocument();
-  const sessions = within(nas).getByRole("list", { name: "tmux sessions" });
-  expect(within(sessions).getAllByRole("listitem").map((li) => li.querySelector(".font-mono")?.textContent)).toEqual(["build"]);
+  const sessions = within(nas).getByRole("table", { name: "tmux sessions" });
+  expect(within(sessions).getAllByRole("row").slice(1).map((tr) => tr.querySelector(".font-mono")?.textContent)).toEqual(["build"]);
+  expect(within(row("build")).getAllByRole("cell")[1]).toHaveTextContent(/^windows: 2$/);
   fireEvent.click(within(sessions).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
@@ -1321,7 +1331,7 @@ test("a project's buttons in Projects run in that machine's terminal", async () 
   renderPage();
   fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
   const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
-  const site = (await within(nas).findByText("site")).closest("li") as HTMLElement;
+  const site = (await within(nas).findByText("site")).closest("tr") as HTMLElement;
   fireEvent.click(within(site).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=claude&action=attach&target=site")).toBeInTheDocument();
 });
