@@ -89,7 +89,7 @@ function MachineUpdate({
 }) {
   const ssh = useSsh();
   const tools = useTools();
-  const facts = useFacts(machine.id, true);
+  const facts = useFacts(machine.id, true, false);
   const runner = useToolRunner(machine, ssh.data?.key ?? null, onEnd);
   const action = tools.data?.find((t) => t.id === MACHINE_TOOL)?.actions.find((a) => a.id === RUN.action);
   const f = facts.data;

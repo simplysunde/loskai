@@ -94,7 +94,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
   const ssh = useSsh();
   const tools = useTools();
   const set = machines.filter((m) => ssh.data?.trusted[m.id]);
-  const reads = useQueries({ queries: set.map((m) => factsQuery(m.id)) });
+  const reads = useQueries({ queries: set.map((m) => factsQuery(m.id, false)) });
 
   const read = set.map((m, i) => {
     const q = reads[i];
@@ -314,7 +314,7 @@ function NewProject({
 function MachineProjects({ machine }: { machine: Machine }) {
   const ssh = useSsh();
   const tools = useTools();
-  const facts = useFacts(machine.id, true);
+  const facts = useFacts(machine.id, true, false);
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
   if (!ctx) return null;

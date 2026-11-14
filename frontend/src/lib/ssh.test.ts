@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { commentText, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
+import { commentText, factsQuery, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, sshHost, takesKeysOff, webOf, type Facts, type KeyUse, type SshKeyInfo, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
 const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
@@ -129,5 +129,10 @@ test("a remote's pushurl is its own: another remote in the project still fetches
     "git@github.com:me/mirror.git fetch",
     "git@github.com:me/mirror-push.git push",
   ]);
+});
+
+test("one machine's overview is read every minute; every machine's at once, once", () => {
+  expect(factsQuery("nas").refetchInterval).toBe(60_000);
+  expect(factsQuery("nas", false).refetchInterval).toBe(false);
 });
 

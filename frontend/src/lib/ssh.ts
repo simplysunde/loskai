@@ -296,17 +296,20 @@ export interface Facts {
   sudo_rule?: "on" | "off" | null;
 }
 
-// Only a machine's own page asks; the backend reuses an answer for 60 s.
-export function useFacts(machineId: string, enabled: boolean) {
-  return useQuery({ ...factsQuery(machineId), enabled });
+// A machine's overview: read again every minute where one machine is open (its dialog, a
+// tool's) — the backend reuses an answer for 60 s. `poll: false` where every machine's is
+// read at once (Projects, Update all): once as it opens, and again when a run there ends —
+// the runner invalidates it — not each machine's heavier read every minute.
+export function useFacts(machineId: string, enabled: boolean, poll = true) {
+  return useQuery({ ...factsQuery(machineId, poll), enabled });
 }
 
 // The read behind `useFacts` — for reading several machines' at once (`useQueries`).
-export function factsQuery(machineId: string) {
+export function factsQuery(machineId: string, poll = true) {
   return {
     queryKey: ["ssh-facts", machineId],
     queryFn: () => api.get<Facts>(`/api/ssh/machines/${machineId}/facts`),
-    refetchInterval: 60_000,
+    refetchInterval: poll ? 60_000 : (false as const),
   };
 }
 
