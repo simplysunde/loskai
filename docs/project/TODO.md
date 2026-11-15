@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 57** (below) — the rename pass: names only, in the worktree `../loskai-rename`, each step a commit. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** **Phase 57** (below) — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -147,9 +147,9 @@ commit, the full checks, `where-used.py --write`.
       `groupByStack.test.ts` stay: `stack` is already a parameter there, and the rename
       shadowed it (the checks caught it)
 - [x] 57o The Machines tab's components move to `components/machines/`
-- [ ] 57p Live, and the HISTORY entry with the whole `old → new` table — both done; left:
-      `main` fast-forwarded on Sunde's word, then `:8080` and its log checked, the worktree
-      removed.
+- [x] 57p Live, and the HISTORY entry with the whole `old → new` table; `main`
+      fast-forwarded on Sunde's word (2026-11-15), `:8080` reloaded and its log clean, the
+      worktree removed.
       live: a scratch Loskai on `:8010` with its own Caddy (`-p loskai-smoke`) and a
       throwaway Debian machine. Through the API, 56 checks, the effect each time: the key's
       two lines in the machine's `authorized_keys` with `from=`, test, facts, the projects
