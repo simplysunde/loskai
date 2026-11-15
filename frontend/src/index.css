@@ -41,7 +41,7 @@ html.light body {
   color: #1e293b; /* inverted slate-200 */
 }
 
-/* The Simply Sunde look (`html.brand`, lib/theme.ts), the default — without it, the basic
+/* The Simply Sunde look (`html.brand`, lib/theme.ts), the default — without it, the legacy
    look: the brand's palette, fonts and square corners over the same components — a remap like light mode's, no markup changes. The
    values are the brand's own tokens (`--ss-*`), from frontend/vendor/simplysunde-ui/
    simplysunde.css, copied unedited; their dark or light set follows `data-theme`, which applyTheme sets. Its

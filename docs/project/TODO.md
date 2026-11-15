@@ -4,7 +4,7 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 59** (below) — the Simply Sunde look, the default, beside a basic one — is done,
+**Now:** **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
 merged on 2026-11-15. **Phase 58** — help is in `Hint`s
 a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
@@ -94,8 +94,8 @@ self-hosted fonts.
       motion — on the buttons that look like buttons, not hints, toggles, tabs or cards
 - [x] 59e 59d merged on Sunde's word (2026-11-15); `:8080` serves it, its logs clean; the
       worktree removed
-- [x] 59f Simply Sunde is the default look (Sunde: "the main one"); the old one is `basic`
-      ("a basic or boring theme"), renamed from `loskai`
+- [x] 59f Simply Sunde is the default look (Sunde: "the main one"); the old one is `legacy`
+      ("have the basic as legacy"), renamed from `loskai`
 
 ---
 

@@ -88,5 +88,5 @@ def test_dashboard_carries_the_look_to_anyone():
 
     with TestClient(app) as client:
         assert client.get("/api/dashboard").json()["ui_look"] == "simplysunde"
-        settings_store.update({"ui_look": "basic"})
-        assert client.get("/api/dashboard").json()["ui_look"] == "basic"
+        settings_store.update({"ui_look": "legacy"})
+        assert client.get("/api/dashboard").json()["ui_look"] == "legacy"

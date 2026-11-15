@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     # settings.SESSION_IDLE_CHOICES. Unset means 120.
     session_idle_minutes: str | None = None
     # The look, for everyone and the public Dashboard: "simplysunde" (the Simply Sunde brand's
-    # palette, fonts and motion) or "basic" (plain slate and teal). Unset means simplysunde.
+    # palette, fonts and motion) or "legacy" (the original slate and teal). Unset means simplysunde.
     # Light or dark stays each browser's.
     ui_look: str | None = None
 

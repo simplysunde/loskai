@@ -81,8 +81,8 @@ SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
 SESSION_IDLE_DEFAULT = "120"
 
 # The look every page wears: the Simply Sunde brand's (the frontend's `html.brand`), or the
-# basic one under it. Presentation only; light or dark is each browser's own choice.
-UI_LOOK_CHOICES = ("simplysunde", "basic")
+# legacy one under it. Presentation only; light or dark is each browser's own choice.
+UI_LOOK_CHOICES = ("simplysunde", "legacy")
 UI_LOOK_DEFAULT = "simplysunde"
 
 # The settings that are one of a few choices: the choices, the default, and what a value

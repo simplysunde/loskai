@@ -22,13 +22,13 @@ export function setTheme(theme: Theme): void {
 }
 
 // The look: the Simply Sunde brand's (`html.brand` in index.css — its palette, fonts, square
-// corners and motion, in either theme), the default; or the basic one under it.
-export type Look = "simplysunde" | "basic";
+// corners and motion, in either theme), the default; or the legacy one under it.
+export type Look = "simplysunde" | "legacy";
 
 const LOOK_KEY = "loskai-look";
 
 export function getLook(): Look {
-  return localStorage.getItem(LOOK_KEY) === "basic" ? "basic" : "simplysunde";
+  return localStorage.getItem(LOOK_KEY) === "legacy" ? "legacy" : "simplysunde";
 }
 
 export function applyLook(look: Look): void {

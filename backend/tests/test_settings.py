@@ -252,8 +252,8 @@ def test_the_look_is_simply_sundes_until_chosen():
 
 
 def test_the_look_chosen_is_stored():
-    settings_store.update({"ui_look": "basic"})
-    assert settings_store.choice("ui_look") == "basic"
+    settings_store.update({"ui_look": "legacy"})
+    assert settings_store.choice("ui_look") == "legacy"
 
 
 def test_the_look_refuses_one_it_doesnt_have():

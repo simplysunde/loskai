@@ -35,7 +35,7 @@ const APP_FIELDS: FieldDef[] = [
     label: "Look",
     options: [
       { value: "simplysunde", label: "Simply Sunde" },
-      { value: "basic", label: "Basic" },
+      { value: "legacy", label: "Legacy" },
     ],
   },
 ];
