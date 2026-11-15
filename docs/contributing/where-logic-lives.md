@@ -122,7 +122,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| Escape closes the top dialog only | `lib/useEscape.ts` `useEscape` | `components/shared/Modal.tsx` `components/shared/QuickTerminal.tsx` |
+| Escape closes the top dialog only | `lib/useEscape.ts` `useEscape` | `components/shared/Hint.tsx` `components/shared/Modal.tsx` `components/shared/QuickTerminal.tsx` |
 | A link from the app to a page of these docs | `lib/docs.ts` `docUrl` | `components/docker/StackGroups.tsx` |
 
 ## Pairs that must agree
