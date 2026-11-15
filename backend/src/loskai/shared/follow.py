@@ -28,7 +28,7 @@ from . import settings as settings_store
 
 logger = logging.getLogger(__name__)
 
-RETRY_INITIAL = 2.0  # seconds; doubles per failed connect, capped
+RETRY_INITIAL = 2.0  # seconds; doubles per failed connect or catch-up, capped
 RETRY_MAX = 60.0
 
 
@@ -130,8 +130,10 @@ async def watch(caddy_client) -> None:
         stream = None
         try:
             stream = await asyncio.to_thread(docker_client.container_events)
-            delay = RETRY_INITIAL
             await reconcile_all(caddy_client)
+            # Back to the first delay only once caught up: a catch-up that fails every
+            # time backs off like a daemon that is gone.
+            delay = RETRY_INITIAL
             while True:
                 event = await asyncio.to_thread(next, stream, None)
                 if event is None:

@@ -250,6 +250,33 @@ async def test_a_start_event_repoints_the_route(monkeypatch, pushed):
     assert stream.closed, "shutdown must close the stream, or its reader thread never returns"
 
 
+async def test_a_catch_up_that_keeps_failing_backs_off(monkeypatch, pushed):
+    """The stream connecting is not success: a catch-up failing every time (a container
+    whose image is gone failed every listing) must back off, not retry at the first
+    delay for ever."""
+    monkeypatch.setattr(follow, "RETRY_INITIAL", 0.01)
+    delays = []
+
+    class Log:
+        def warning(self, _msg, _error, delay):
+            delays.append(delay)
+
+    async def failing(_caddy):
+        raise RuntimeError("No such image")
+
+    monkeypatch.setattr(follow, "logger", Log())
+    monkeypatch.setattr(follow, "reconcile_all", failing)
+    monkeypatch.setattr(follow.docker_client, "container_events", lambda: FakeStream([]))
+
+    task = asyncio.create_task(WATCH(None))
+    await _until(lambda: len(delays) >= 3)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert delays[:3] == [0.01, 0.02, 0.04]
+
+
 async def test_the_daemon_going_away_is_retried_and_caught_up(monkeypatch, pushed):
     """No event arrives for a change made while the stream was down — so each (re)connect
     starts with a catch-up."""

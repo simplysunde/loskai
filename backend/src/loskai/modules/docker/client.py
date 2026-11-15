@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 
 import docker
-from docker.errors import DockerException
+from docker.errors import DockerException, ImageNotFound
 from requests.exceptions import RequestException
 
 from ...shared.errors import describe_error
@@ -22,6 +22,16 @@ DOCKER_ERRORS = (DockerException, RequestException, OSError)
 
 logger = logging.getLogger(__name__)
 
+
+
+def _image_tags(c) -> list[str]:
+    """A container's image tags — none when its image is gone (rebuilt and pruned while the
+    container lives on). docker-py looks the image up when `c.image` is read, which then
+    raises; one such container must not fail every listing."""
+    try:
+        return c.image.tags if c.image else []
+    except ImageNotFound:
+        return []
 
 class DockerClient:
     def __init__(self) -> None:
@@ -72,7 +82,7 @@ class DockerClient:
             summary = {
                 "id": c.id[:12],
                 "name": c.name,
-                "image": logic.image_name(attrs, c.image.tags if c.image else []),
+                "image": logic.image_name(attrs, _image_tags(c)),
                 # The compose project it belongs to — a stack's folder name, for one
                 # Loskai manages. The Docker tab groups containers under their stack by it.
                 "project": labels.get("com.docker.compose.project"),
@@ -230,7 +240,7 @@ class DockerClient:
 
     def image_of(self, container_id: str) -> str:
         c = self._get().containers.get(container_id)
-        return logic.image_name(c.attrs, c.image.tags if c.image else [])
+        return logic.image_name(c.attrs, _image_tags(c))
 
     def host_stats(self) -> dict:
         client = self._get()

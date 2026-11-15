@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from docker.errors import DockerException
+from docker.errors import DockerException, ImageNotFound
 
 from loskai.modules.docker import client as client_mod
 from loskai.modules.docker import logic
@@ -67,6 +67,30 @@ def test_health_unreachable(monkeypatch):
     _use(monkeypatch, FakeDocker([], ping_ok=False))
     result = DockerClient().health()
     assert result["status"] == "unreachable"
+
+
+class ImagelessContainer(FakeContainer):
+    """A container that outlived its image — rebuilt and pruned while it still exists.
+    docker-py looks the image up when `.image` is read, and that raises."""
+
+    @property
+    def image(self):
+        raise ImageNotFound("404 Client Error: No such image: sha256:deadbeef")
+
+    @image.setter
+    def image(self, _value):
+        pass
+
+
+def test_a_container_whose_image_is_gone_is_still_listed(monkeypatch, data_dir):
+    """One such container must not fail the whole listing — the Docker tab, Add route's
+    picker and the follower all read it. It shows its image id, as an untagged one does."""
+    _use(monkeypatch, FakeDocker([FakeContainer("grafana"), ImagelessContainer("tydar")]))
+
+    rows = {r["name"]: r for r in DockerClient().list_containers()}
+
+    assert rows["grafana"]["image"] == "grafana/img:latest"
+    assert rows["tydar"]["image"] == "sha256:deadbeef"
 
 
 def test_list_containers(monkeypatch, data_dir):
