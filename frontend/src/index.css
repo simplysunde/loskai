@@ -127,16 +127,16 @@ html.brand [data-shell] {
   background-size: 0.3rem 0.3rem;
 }
 /* A panel's mitred corner, after the angular mark: the large rounded boxes (dialogs, tables,
-   cards) lose their top-right and bottom-left corners. */
-html.brand .rounded-xl {
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--ss-cut)) 0,
-    100% var(--ss-cut),
-    100% 100%,
-    var(--ss-cut) 100%,
-    0 calc(100% - var(--ss-cut))
-  );
+   cards) cut their top-right and bottom-left corners, border and all. A bevelled corner
+   shape, never a clip-path: a clip-path clips everything inside, fixed overlays too, and
+   makes the box a stacking context — a row's ⋯ menu then couldn't be closed by a click
+   outside its table. A browser without corner-shape keeps the corners square. */
+@supports (corner-shape: bevel) {
+  html.brand .rounded-xl {
+    border-top-right-radius: var(--ss-cut);
+    border-bottom-left-radius: var(--ss-cut);
+    corner-shape: bevel;
+  }
 }
 /* The display face on headings, as the brand's own CSS sets it; buttons stay in the body face
    there too (Chakra Petch spaces unevenly below about 15px). In the base layer, so a
