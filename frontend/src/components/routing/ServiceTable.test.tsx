@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { ServiceTable, type Instance } from "./ServiceTable";
@@ -98,10 +98,8 @@ test("a route on a machine's address shows the address, the machine beneath", ()
   );
   expect(screen.getByText("192.168.10.50:32400")).toBeInTheDocument();
   // The full name — `nas` alone would not resolve.
-  expect(screen.getByText("nas.example.no").closest("div")).toHaveAttribute(
-    "title",
-    expect.stringMatching(/moves with it/),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "nas.example.no" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/moves with it/);
   expect(screen.queryByText("nas:32400")).not.toBeInTheDocument();
 });
 
@@ -134,10 +132,8 @@ test("a route following its container says so over its machine", () => {
       machines={[row({ id: "nas", name: "nas", fqdn: "nas.example.no", upstream: "192.168.10.50", kind: "machine" })]}
     />,
   );
-  expect(screen.getByText("nas.example.no").closest("div")).toHaveAttribute(
-    "title",
-    expect.stringMatching(/follows its container/),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "nas.example.no" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/follows its container/);
 });
 
 test("a non-default scheme is tagged, https is not", () => {
@@ -208,11 +204,13 @@ test("a routed name opens the site at the server's url — over http when that i
   expect(screen.getByText("not routed")).toBeInTheDocument();
 });
 
-test("each status header explains itself on hover", () => {
+test("each status header explains itself in a hint", () => {
   render(<ServiceTable rows={[row({ id: "echo", name: "echo" })]} />);
 
   for (const name of ["Route", "DNS"]) {
-    expect(screen.getByRole("columnheader", { name })).toHaveAttribute("title");
+    fireEvent.click(within(screen.getByRole("columnheader", { name })).getByRole("button", { name }));
+    expect(screen.getByRole("tooltip")).not.toBeEmptyDOMElement();
+    fireEvent.keyDown(window, { key: "Escape" });
   }
 });
 

@@ -127,21 +127,27 @@ export function RouteFields({
           <code className="text-slate-400">loskai.port</code> label to change that.
         </span>
       )}
-      <label
-        title={
-          link
-            ? "Open it with https:// — the browser shows its certificate warning if it is self-signed"
-            : "Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
-        }
-        className="mt-3 flex w-fit items-center gap-2 text-xs text-slate-400"
-      >
+      {/* Only "HTTPS" is the hint: a tap on the rest of the label still ticks the box. The
+          hint comes after the checkbox, so the label still names the checkbox. */}
+      <label className="mt-3 flex w-fit items-center gap-2 text-xs text-slate-400">
         <input
           type="checkbox"
           checked={fields.tls}
           onChange={(e) => fields.setTls(e.target.checked)}
           className="accent-teal-500"
         />
-        {link ? "Opens over HTTPS" : "Backend speaks HTTPS"}
+        <span>
+          {link ? "Opens over" : "Backend speaks"}{" "}
+          <Hint
+            text={
+              link
+                ? "Open it with https:// — the browser shows its certificate warning if it is self-signed"
+                : "Dial the upstream over TLS, accepting a self-signed certificate (e.g. Proxmox)"
+            }
+          >
+            HTTPS
+          </Hint>
+        </span>
       </label>
     </>
   );

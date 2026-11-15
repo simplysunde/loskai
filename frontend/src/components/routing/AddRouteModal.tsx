@@ -15,6 +15,7 @@ import { machineServices, type MachineService } from "./machineServices";
 import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { OpensAt, RouteFields, RouteFormFooter } from "./RouteFields";
 import { useRouteFields } from "./useRouteFields";
+import { Hint } from "../shared/Hint";
 import { Overlay } from "../shared/Modal";
 import { INPUT } from "../../lib/ui";
 
@@ -262,8 +263,12 @@ export function AddRouteModal({
         )}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 px-1 text-xs text-slate-500">
-        <span title="A route on a named machine's address is listed under it, and moves with it">
-          Pick one, or type any address below.
+        <span>
+          Pick one, or type{" "}
+          <Hint text="A route on a named machine's address is listed under it, and moves with it">
+            any address
+          </Hint>{" "}
+          below.
         </span>
         {pickedKey && (
           <button type="button" onClick={clear} className="text-teal-400 hover:text-teal-300 hover:underline">

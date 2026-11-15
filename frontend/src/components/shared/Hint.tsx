@@ -12,7 +12,17 @@ const WIDTH = 288;
 // it. A tap (or a click) pins it open; a tap outside, Escape or a scroll closes it.
 // Never inside a <label>: a label names the first button in it, so the field beside it would
 // lose its name — and the hint its own.
-export function Hint({ text, children }: { text: string; children: React.ReactNode }) {
+// `className` adds to the word's own classes — `min-w-0 truncate` for an address that may be
+// cut off.
+export function Hint({
+  text,
+  children,
+  className = "",
+}: {
+  text: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -65,7 +75,8 @@ export function Hint({ text, children }: { text: string; children: React.ReactNo
           if (!at) show();
           setPinned(true);
         }}
-        className="cursor-help underline decoration-slate-500 decoration-dotted underline-offset-4 hover:decoration-slate-300"
+        // A button resets text-transform; the word keeps its heading's (uppercase).
+        className={`cursor-help underline decoration-slate-500 decoration-dotted underline-offset-4 [text-transform:inherit] hover:decoration-slate-300 ${className}`}
       >
         {children}
       </button>

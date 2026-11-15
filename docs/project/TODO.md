@@ -81,8 +81,10 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
 **Steps** — a worktree, one commit an area; each judged where it stands (a value stays a
 `title`), the checks run, `:8080` checked after the merge
 
-- [ ] 58a Routing: the table's headings and badges, the AdGuard and Caddy rows, InfraStatusPill,
-      "Backend speaks HTTPS", Add route's machine note
+- [x] 58a Routing: the table's headings and badges, the AdGuard and Caddy rows, InfraStatusPill,
+      "Backend speaks HTTPS", Add route's machine note. Stay: the status pill's detail (its
+      own text, cut off — the ellipsis rule) and the launcher icon's label (it names a control).
+      `Hint` took a `className` (an address still truncates) and keeps a heading's uppercase
 - [ ] 58b Machines: the table, the overview, RunningPill's "unreachable", SshKeys, the sudo
       rule (SudoRuleSwitch, UpdateAll), MachineTools, Add machine's SSH note, the terminal's keys
 - [ ] 58c Docker: the stack form, StackGroups (its "?" for where a stack started), a

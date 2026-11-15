@@ -30,6 +30,7 @@ import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { CopyButton } from "../components/shared/CopyButton";
+import { Hint } from "../components/shared/Hint";
 import { SaveBanner } from "../components/routing/SaveBanner";
 
 interface Orphan {
@@ -336,12 +337,12 @@ export function Routing() {
             }
           >
             {adguardAddress && (
-              <span
-                title={adguardRoute ? "AdGuard's route" : "AdGuard's URL, from Settings › Network"}
+              <Hint
+                text={adguardRoute ? "AdGuard's route" : "AdGuard's URL, from Settings › Network"}
                 className="min-w-0 truncate font-mono text-xs text-slate-500"
               >
                 {adguardAddress}
-              </span>
+              </Hint>
             )}
           </InfraStatusPill>
 
@@ -355,12 +356,12 @@ export function Routing() {
             action={<CopyCertLink url={certUrl} />}
           >
             {healthData?.adguard?.answer_ip && (
-              <span
-                title="Where Caddy listens — every DNS rewrite answers with this address"
+              <Hint
+                text="Where Caddy listens — every DNS rewrite answers with this address"
                 className="min-w-0 truncate font-mono text-xs text-slate-500"
               >
                 {healthData.adguard.answer_ip}
-              </span>
+              </Hint>
             )}
           </InfraStatusPill>
         </div>

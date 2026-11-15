@@ -78,7 +78,8 @@ test("a routed AdGuard opens at its name, and offers no second route", async () 
     await screen.findByRole("link", { name: "Open AdGuard at adguard.example.no" }),
   ).toHaveAttribute("href", "http://adguard.example.no");
   expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
-  expect(screen.getByText("adguard.example.no", { selector: "span" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "adguard.example.no" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent("AdGuard's route");
 });
 
 function failing(method: string, path: string, detail: string) {

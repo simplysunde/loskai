@@ -2,6 +2,7 @@ import { Eye, EyeOff, HardDrive, ImagePlus, Pencil, Plus, Trash2, Unlink, X } fr
 
 import { CARD_TABLE } from "../../lib/ui";
 import { dnsFine } from "../../lib/routes";
+import { Hint } from "../shared/Hint";
 import { IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -94,8 +95,12 @@ export function ServiceTable({
           <tr>
             <th className="px-4 py-2.5 font-medium">Service</th>
             <th className="px-4 py-2.5 font-medium">Upstream</th>
-            <th title={ROUTE_HINT} className="cursor-help px-4 py-2.5 font-medium">Route</th>
-            <th title={DNS_HINT} className="cursor-help px-4 py-2.5 font-medium">DNS</th>
+            <th className="px-4 py-2.5 font-medium">
+              <Hint text={ROUTE_HINT}>Route</Hint>
+            </th>
+            <th className="px-4 py-2.5 font-medium">
+              <Hint text={DNS_HINT}>DNS</Hint>
+            </th>
             {hasActions && <th className="px-4 py-2.5 font-medium text-right">Actions</th>}
           </tr>
         </thead>
@@ -131,15 +136,16 @@ export function ServiceTable({
                   {/* Only when it differs from the default: a tag on every row would be
                       noise, and https is what almost everything should be. */}
                   {row.scheme && row.scheme !== "https" && (
-                    <span
-                      title={
-                        row.scheme === "http"
-                          ? "Plain HTTP only — no certificate is issued for this name"
-                          : "Served on both 443 and 80"
-                      }
-                      className="ml-1.5 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300"
-                    >
-                      {row.scheme}
+                    <span className="ml-1.5 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300">
+                      <Hint
+                        text={
+                          row.scheme === "http"
+                            ? "Plain HTTP only — no certificate is issued for this name"
+                            : "Served on both 443 and 80"
+                        }
+                      >
+                        {row.scheme}
+                      </Hint>
                     </span>
                   )}
                   {row.upstream_tls && (
@@ -148,20 +154,18 @@ export function ServiceTable({
                     </span>
                   )}
                   {link && (
-                    <span
-                      title="A link: the Dashboard opens this address directly — no name, no Caddy route"
-                      className="ml-1.5 cursor-help rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400"
-                    >
-                      link
+                    <span className="ml-1.5 rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400">
+                      <Hint text="A link: the Dashboard opens this address directly — no name, no Caddy route">
+                        link
+                      </Hint>
                     </span>
                   )}
                   {machine && (
-                    <div
-                      title={row.follow_container ? MACHINE_FOLLOWING : MACHINE_HINT}
-                      className="flex w-fit cursor-help items-center gap-1 text-[11px] text-slate-500"
-                    >
+                    <div className="flex w-fit items-center gap-1 text-[11px] text-slate-500">
                       <HardDrive className="h-3 w-3" />
-                      {machineLabel(machine)}
+                      <Hint text={row.follow_container ? MACHINE_FOLLOWING : MACHINE_HINT}>
+                        {machineLabel(machine)}
+                      </Hint>
                     </div>
                   )}
                 </td>
