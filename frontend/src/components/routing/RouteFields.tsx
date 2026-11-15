@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { HelpCircle, Loader2 } from "lucide-react";
 
 import { HostSelect } from "./HostSelect";
 import type { HostOption } from "./hostOptions";
@@ -38,6 +38,11 @@ export function RouteFields({
 }) {
   const following = Boolean(follow?.on);
   const typedPort = fields.port !== "";
+  const hostHelp = following
+    ? "Follows the container — Loskai rewrites this when its port changes."
+    : link
+      ? "Opened from the browser — a LAN IP and port, never a container's name."
+      : fields.upstreamHelp;
   return (
     <>
       {!link && (
@@ -64,7 +69,12 @@ export function RouteFields({
           port the half usually typed. */}
       <div className="mt-3 flex gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="mb-1 block text-xs font-medium text-slate-400">Host</span>
+          <span className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-400">
+            Host
+            <span role="img" title={hostHelp} aria-label={hostHelp} className="cursor-help text-slate-500">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </span>
+          </span>
           <HostSelect
             value={fields.host}
             options={hosts}
@@ -88,13 +98,6 @@ export function RouteFields({
           />
         </label>
       </div>
-      <span className="mt-1 block text-xs text-slate-500">
-        {following
-          ? "Follows the container — Loskai rewrites this when its port changes."
-          : link
-            ? "Opened from the browser — a LAN IP and port, never a container's name."
-            : fields.upstreamHelp}
-      </span>
       {!following && fields.host && !fields.hostOk && (
         <span className="mt-1 block text-xs text-rose-400">
           Just the host — no scheme (http://), path or port.

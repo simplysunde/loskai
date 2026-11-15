@@ -183,7 +183,7 @@ test("a following route shows the container's address, locked", () => {
   expect(hostInput().readOnly && portInput().readOnly).toBe(true);
   // Locked means no list either.
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
-  expect(screen.getByText(/Follows the container/)).toBeInTheDocument();
+  expect(screen.getByTitle(/Follows the container/)).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ follow_container: true }));
