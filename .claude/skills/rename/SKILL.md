@@ -120,6 +120,25 @@ worktree at the end (`git worktree remove ../loskai-rename`, then `git branch -d
   `uvx ruff check --select F401,F811,F821 backend/src backend/tests` (unused, redefined,
   undefined) — compare against `main`'s output; don't add ruff to the project.
   TypeScript's `npm run build` (`tsc -b`, tests included) finds the frontend's stragglers.
+- **Traps met in Phase 57** (2026-11-14), each a rename that changed behaviour while the
+  build passed:
+  - **A prop passed through an untyped object.** Test helpers spread `overrides = {}` into
+    a component (`renderModal({ mode: "docker" })`): neither `tsc` nor the language service
+    sees the key. One test failed; three kept passing with the prop ignored. After renaming
+    a prop, grep the tests for `<old>:`.
+  - **A test helper named like the source function it wraps.** `test_assign.py`'s
+    `name_machine` beside `assign.name_machine`: renaming the helper by token took the nine
+    real calls with it. Rename the bare name only (`^old=new`), then look at every hit.
+  - **A new name already in scope.** `s` → `stack` where `stack` was a parameter. The
+    language service renames into a collision without a word; compare
+    `npx oxlint -D no-shadow src` against `main` after a batch.
+  - **A handler's docstring is in the OpenAPI document**, as is its name (the summary), so
+    the API guard strips both along with the `operationId`.
+  - **Rename identifiers, never text:** Python by token (`tokenize`), so no string can
+    change; TypeScript by the language service's rename with
+    `providePrefixAndSuffixTextForRename`, which keeps a shorthand property as `old: new`.
+    Two more guards follow from that and caught the most: every backend string literal that
+    isn't a docstring, and every frontend string, JSX text and property name, unchanged.
 
 ### The guards — every commit, against `main`
 
