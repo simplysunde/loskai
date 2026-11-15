@@ -71,7 +71,7 @@ self-hosted fonts.
   rose and white at the brand's tokens, the fonts at its three, the corners square (the large
   boxes mitred), grid paper behind the shell. No component changes. The brand's element
   styles (inside `.ss`) are not used: they would fight Tailwind's.
-- **The brand's files are copied unedited** (`frontend/src/theme/simplysunde-ui/`, v0.1,
+- **The brand's files are copied unedited** (`frontend/vendor/simplysunde-ui/`, v0.1,
   the same files simplysunde.no serves), with their licences; the colour values stay in
   their one file.
 - **Chakra Petch on headings only**, as the brand's CSS has it (the brand's guide says buttons too):

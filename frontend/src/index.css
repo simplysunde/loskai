@@ -43,8 +43,8 @@ html.light body {
 
 /* The Simply Sunde look (`html.brand`, lib/theme.ts): the brand's palette, fonts and square
    corners over the same components — a remap like light mode's, no markup changes. The
-   values are the brand's own tokens (`--ss-*`), from theme/simplysunde-ui/simplysunde.css,
-   copied unedited; their dark or light set follows `data-theme`, which applyTheme sets. Its
+   values are the brand's own tokens (`--ss-*`), from frontend/vendor/simplysunde-ui/
+   simplysunde.css, copied unedited; their dark or light set follows `data-theme`, which applyTheme sets. Its
    element styles apply only inside `.ss`, which Loskai never uses: only the tokens and fonts.
    The scale is authored dark, so each shade is a role: 950 the page, 900 a panel, 800 a
    raised fill or a soft line, 700 a border, 500 muted text, 200 text. Teal is the accent;
