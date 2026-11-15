@@ -189,6 +189,20 @@ test("a following route shows the container's address, locked", () => {
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ follow_container: true }));
 });
 
+test("the host's ? shows its help on a tap — a phone has no hover — and hides it on the next", () => {
+  renderModal();
+  const help = screen.getByRole("button", { name: "About the host" });
+  expect(screen.queryByText(/Must be reachable from wherever Caddy runs/)).not.toBeInTheDocument();
+
+  fireEvent.click(help);
+  expect(screen.getByText(/Must be reachable from wherever Caddy runs/)).toBeInTheDocument();
+  // The ? sits in the host's <label>; the tap must not also focus the field.
+  expect(document.activeElement).not.toBe(hostInput());
+
+  fireEvent.click(help);
+  expect(screen.queryByText(/Must be reachable from wherever Caddy runs/)).not.toBeInTheDocument();
+});
+
 test("Set by hand unlocks the address and stops following", () => {
   const { onSubmit } = renderModal({
     initialPrefix: "whoami",

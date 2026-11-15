@@ -1,4 +1,5 @@
 import { HelpCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 import { HostSelect } from "./HostSelect";
 import type { HostOption } from "./hostOptions";
@@ -43,6 +44,8 @@ export function RouteFields({
     : link
       ? "Opened from the browser — a LAN IP and port, never a container's name."
       : fields.upstreamHelp;
+  // The ? shows it on hover, and on a tap as a line under the row — a phone has no hover.
+  const [showHostHelp, setShowHostHelp] = useState(false);
   return (
     <>
       {!link && (
@@ -71,9 +74,20 @@ export function RouteFields({
         <label className="block min-w-0 flex-1">
           <span className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-400">
             Host
-            <span role="img" title={hostHelp} aria-label={hostHelp} className="cursor-help text-slate-500">
+            {/* preventDefault: a click inside the <label> would also focus the host field. */}
+            <button
+              type="button"
+              title={hostHelp}
+              aria-label="About the host"
+              aria-expanded={showHostHelp}
+              onClick={(e) => {
+                e.preventDefault();
+                setShowHostHelp((shown) => !shown);
+              }}
+              className="cursor-help rounded text-slate-500 hover:text-slate-300"
+            >
               <HelpCircle className="h-3.5 w-3.5" />
-            </span>
+            </button>
           </span>
           <HostSelect
             value={fields.host}
@@ -98,6 +112,7 @@ export function RouteFields({
           />
         </label>
       </div>
+      {showHostHelp && <span className="mt-1 block text-xs text-slate-500">{hostHelp}</span>}
       {!following && fields.host && !fields.hostOk && (
         <span className="mt-1 block text-xs text-rose-400">
           Just the host — no scheme (http://), path or port.
