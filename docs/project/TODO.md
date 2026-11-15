@@ -100,9 +100,12 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
       source's URL (values), a mount's icon and a container's status dot (they name an icon),
       a setting's "Empty uses the default" (its placeholder shows the default). Not a tooltip:
       Other containers' "?" is a link to the guide
-- [ ] 58d Settings and shared: Settings › SSH, the key's fingerprint, the Dashboard card's note
+- [x] 58d Settings and shared: Settings › SSH, the key's fingerprint. The Dashboard card's
+      note is a disabled reason — moved to 58e. Stay: the SSH log's command (a value), the
+      collapsed sidebar's names (desktop only)
 - [ ] 58e Disabled reasons: EditorFooter's `blocked`, MachineTools (not running, no command),
-      SshKeys' `disabledReason`, ToolSettings' `why`, UpdateAll's no command
+      SshKeys' `disabledReason`, ToolSettings' `why`, UpdateAll's no command, the Dashboard's
+      card with no link yet
 - [ ] 58f Merged on Sunde's word; `:8080` and its log checked; the worktree removed
 
 ---

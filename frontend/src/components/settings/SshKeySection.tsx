@@ -7,6 +7,7 @@ import { useSsh, type LoskaiKey } from "../../lib/ssh";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
 import { YourPassword } from "../shared/YourPassword";
+import { Hint } from "../shared/Hint";
 
 // Loskai's own key, the one it logs in to every machine with. Using it needs nothing here:
 // a machine's SSH setup creates it and puts it on that machine. What is left is the rare
@@ -26,12 +27,12 @@ export function SshKeySection() {
       {sshKey === null && <p className="mt-3 text-xs text-slate-500">None yet.</p>}
       {sshKey && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <code
-            title="As ssh-keygen -lf ~/.ssh/authorized_keys shows it on a machine"
-            className="cursor-help font-mono text-xs text-slate-300"
+          <Hint
+            text="As ssh-keygen -lf ~/.ssh/authorized_keys shows it on a machine"
+            className="font-mono text-xs text-slate-300"
           >
             {sshKey.fingerprint}
-          </code>
+          </Hint>
           <button
             title="Replace the key — every machine's SSH setup then has to be run again"
             onClick={() => setReplacing(true)}
