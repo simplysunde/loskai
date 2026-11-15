@@ -1,6 +1,6 @@
 # Simply Sunde UI (vendored)
 
-The Simply Sunde brand's theme and fonts, v0.1 — the same files simplysunde.no serves.
+The Simply Sunde brand's theme and fonts, v0.2 — the same files simplysunde.no serves.
 Don't edit them here: an update is a fresh copy of all of them.
 
 Loskai uses only the theme's tokens (`--ss-*`) and the fonts: the look `html.brand` in
