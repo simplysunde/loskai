@@ -255,8 +255,7 @@ and Add.
   login. Only the comment changes (`ssh-keygen -c`); the key and its fingerprint stay the
   same, so it goes on working wherever it was added. A key with no mark is placed as far
   as its name, comment and remotes say. Each says in a line a remote what it does —
-  "Pushes projects › public/simplysunde.github.io · github.com via
-  github-blog" — or "No git remote here uses it", the reason in its tooltip
+  "Pushes projects › blog · github.com via github-blog" — or "No git remote here uses it", the reason in its tooltip
   (it may still be on an account, or log in elsewhere: only git's use is seen), and its comment and fingerprint
   (shortened; whole in its tooltip). Where it is used is every remote it is for, in
   every project and submodule — fetch, push, or both — by the project's own key, else by
