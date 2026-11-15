@@ -4,6 +4,29 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-15 — Help a phone can open: `title` tooltips became `Hint`s (Phase 58)
+
+Every explanation in the app was a native `title`, which shows only on hover — and a phone
+has none, so a phone user never read any of it. Sunde asked for the host field's help in an
+overlay box with a cue quieter than a "?", liked the result ("this is the way it should be
+implemented forward"), and asked to tell a button's *name* from *help*. So the rule
+(`docs/contributing/phone-layout.md`, *A name and help are two things*): a `title` names
+an icon-only button; help on a word, heading, status or field is a `Hint` — the word
+underlined with dots, a box on hover or a tap (`lib/useHintBox.tsx`, portalled like
+RunningPill's card); no "?" icons.
+
+- **Of 204 `title`s, 34 moved.** The rest are icon buttons' names, a cut-off value's full
+  text (the ellipsis rule), or a heading prop. The wording of each didn't change.
+- **Buttons with words keep their `title`**, as a desktop extra — Sunde chose "fix disabled
+  reasons only": a button off for a reason nobody can see is `aria-disabled` (a `disabled`
+  one swallows the tap too) and opens its reason (`ReasonButton`). So does the Dashboard's
+  card with no link yet.
+- **A `Hint` never sits before its field in a `<label>`:** the label would name the hint's
+  button, not the field. Two forms became a `<div>` with an `aria-label` on the field.
+- **Vite missed saves on `:8080`** twice while editing live — once serving a half-edited
+  file, which blanked the page on Add route. The pass then ran in a worktree, and each file
+  `:8080` serves was compared with its source after the merge.
+
 ## 2026-11-14 — The rename pass: a name says what the thing is (Phase 57)
 
 Sunde ran `/rename`: make names say what things are, and change nothing else. Three

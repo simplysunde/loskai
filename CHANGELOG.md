@@ -120,6 +120,8 @@ Everything so far:
   Tailscale address in Settings › General (`HOST_TAILSCALE_IP`), the Machines tab manages
   machines on your tailnet too — from any browser, Tailscale or not. See the Tailscale guide.
 - **The sidebar collapses** to its icons, and the browser remembers it.
+- **Help you can tap** — a word underlined with dots has more to say: point at it, or tap it
+  on a phone, for a small box. A button that can't be used says why the same way.
 - **On a phone** — the sidebar is a drawer behind a Menu button, so each page gets the whole
   width; a page's buttons sit under its title, Settings' categories are a strip across the
   top, and the larger dialogs fill the screen. Tables become a list of cards — each row's
