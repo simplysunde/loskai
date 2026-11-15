@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 59** (below) — a look: Loskai's own, or the Simply Sunde brand's — built in
-the worktree `../loskai-theme`, to merge on Sunde's word. **Phase 58** — help is in `Hint`s
+**Now:** **Phase 59** (below) — a look: Loskai's own, or the Simply Sunde brand's — is done,
+merged on 2026-11-15. **Phase 58** — help is in `Hint`s
 a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
@@ -87,7 +87,8 @@ self-hosted fonts.
 - [x] 59b The setting: `ui_look` (backend, tests), its field in Settings › General, applied
       from the dashboard payload (`useLook`); its docs (`api.md`, deployment, using Loskai,
       `.env.example`, the compose files)
-- [ ] 59c Merged on Sunde's word; `:8080` and its log checked; the worktree removed
+- [x] 59c Merged on Sunde's word (2026-11-15); `:8080` serves every changed file, the theme
+      and fonts load, the payload carries `ui_look`; the worktree removed
 
 ---
 
