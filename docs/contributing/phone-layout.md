@@ -48,6 +48,10 @@ break the phone, nor the other way round.
   - **Help is a `Hint`** (`components/shared/Hint.tsx`) — what a word, a heading, a status or
     a field means. The word is underlined with dots, and its text opens in a box on hover
     or on a tap. Never a `title` for help, which a phone can't show, and no "?" icon.
+  - **A button's own words are its name.** A `title` on it, saying what it runs, is a
+    desktop extra. A reason it is *disabled* has to reach a phone too: such a button opens
+    its reason in a `Hint`'s box, on hover or a tap. A reason anyone can see needs none
+    ("Nothing changed yet", an empty field, busy).
   - **A `Hint` sits outside a `<label>`, or after its field inside one.** A label names
     the first field or button in it, so a hint before the field takes the field's name.
 

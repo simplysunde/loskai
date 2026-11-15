@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 57** (below) — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** **Phase 58** (below) — help moves from `title` tooltips to `Hint`, which a phone
+can open — in the worktree `../loskai-hints`. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -53,6 +54,43 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 58 — Help a phone can open: `title` tooltips become `Hint`s
+
+Asked 2026-11-15. The host's help was a line under the field, then a "?" with a `title`,
+which a phone never shows. Sunde: an overlay box, and a cue quieter than a "?"; then, on the
+`Hint` that came of it, "this is the way it should be implemented forward", and "we should
+differentiate between a simple button name and an actual tooltip or help text".
+
+**Decisions (2026-11-15, Sunde)**
+
+- **The rule** is `docs/contributing/phone-layout.md`'s *A name and help are two things*:
+  a `title` names an icon-only button; help on a word, heading, status or field is a `Hint`
+  (`components/shared/Hint.tsx`, dotted underline, a box on hover or a tap); no "?" icons.
+- **Buttons with words of their own** keep their `title` as a desktop extra (what they run) —
+  Sunde chose "fix disabled reasons only": a button disabled for a reason nobody can see
+  opens it like a `Hint`.
+- **Unchanged:** every help text's wording; the ~48 icon-button names; a cut-off value's
+  full text in a `title` (a volume's name, a URL, a command — the ellipsis rule); `title`
+  as a heading prop (`Modal`, `Panel`, …); the collapsed sidebar's names (desktop only).
+
+The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
+
+**Steps** — a worktree, one commit an area; each judged where it stands (a value stays a
+`title`), the checks run, `:8080` checked after the merge
+
+- [ ] 58a Routing: the table's headings and badges, the AdGuard and Caddy rows, InfraStatusPill,
+      "Backend speaks HTTPS", Add route's machine note
+- [ ] 58b Machines: the table, the overview, RunningPill's "unreachable", SshKeys, the sudo
+      rule (SudoRuleSwitch, UpdateAll), MachineTools, Add machine's SSH note, the terminal's keys
+- [ ] 58c Docker: the stack form, StackGroups (its "?" for where a stack started), a
+      container's status, VolumeList, InstallDone, RecipeUpdates
+- [ ] 58d Settings and shared: Settings › SSH, the key's fingerprint, the Dashboard card's note
+- [ ] 58e Disabled reasons: EditorFooter's `blocked`, MachineTools (not running, no command),
+      SshKeys' `disabledReason`, ToolSettings' `why`, UpdateAll's no command
+- [ ] 58f Merged on Sunde's word; `:8080` and its log checked; the worktree removed
 
 ---
 
