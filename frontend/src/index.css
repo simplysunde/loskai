@@ -147,6 +147,111 @@ html.brand .rounded-xl {
   }
 }
 
+/* The brand's motion, from its stylesheet, aimed at Loskai's classes rather than at every
+   <button>: a button that looks like one — bordered, or the solid primary or danger — fills
+   with a bar from the left on hover or keyboard focus, its text in the "on ink" colour, and
+   two lines slide out above and below it. Danger (a solid rose, or rose text) fills with the
+   error colour. Not a hint, a row's toggle, a tab or a menu item (none has a border), nor
+   a card to pick or open (`rounded-xl`, or a two-line `flex-col` pick). The bar
+   is the button's own ::after, under its content (the button is a stacking context), so no
+   markup changes. */
+@layer base {
+  /* In the base layer: a button a utility positions (.absolute) keeps its place. */
+  html.brand :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col) {
+    position: relative;
+    z-index: 0;
+  }
+}
+html.brand :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col)::before,
+html.brand :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col)::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  transition: all var(--ss-speed) ease-out;
+}
+html.brand :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col)::before {
+  inset: -1px;
+  border: solid transparent;
+  border-width: 1px 0;
+}
+html.brand :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col)::after {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  background: var(--ss-ink);
+  z-index: -1;
+}
+html.brand
+  :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col, :disabled, [aria-disabled="true"]):is(
+    :hover,
+    :focus-visible
+  ) {
+  color: var(--ss-on-ink);
+}
+/* Its icons and words flip with it, whatever colour their own classes give them. */
+html.brand
+  :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col, :disabled, [aria-disabled="true"]):is(
+    :hover,
+    :focus-visible
+  )
+  * {
+  color: inherit;
+}
+html.brand
+  :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col, :disabled, [aria-disabled="true"]):is(
+    :hover,
+    :focus-visible
+  )::before {
+  top: -0.3rem;
+  bottom: -0.3rem;
+  border-color: var(--ss-rule);
+}
+html.brand
+  :is(button, a):is(.border, .bg-teal-600, .bg-rose-600):not([data-hint], .rounded-xl, .flex-col, :disabled, [aria-disabled="true"]):is(
+    :hover,
+    :focus-visible
+  )::after {
+  width: 100%;
+}
+html.brand :is(button, a).bg-teal-600:not(:disabled, [aria-disabled="true"]):is(:hover, :focus-visible)::before {
+  border-color: var(--ss-accent);
+}
+html.brand
+  :is(button, a):is(.bg-rose-600, .text-rose-300, .text-rose-400):is(.border, .bg-rose-600):not(
+    :disabled,
+    [aria-disabled="true"]
+  ):is(:hover, :focus-visible) {
+  color: var(--ss-bg);
+}
+html.brand :is(button, a):is(.bg-rose-600, .text-rose-300, .text-rose-400):is(.border, .bg-rose-600)::after {
+  background: var(--ss-error);
+}
+html.brand
+  :is(button, a):is(.bg-rose-600, .text-rose-300, .text-rose-400):is(.border, .bg-rose-600):not(
+    :disabled,
+    [aria-disabled="true"]
+  ):is(:hover, :focus-visible)::before {
+  border-color: var(--ss-error);
+}
+/* A field draws its accent underline as it takes focus (its border already turns the accent). */
+html.brand :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea) {
+  transition:
+    border-color var(--ss-speed),
+    box-shadow var(--ss-speed);
+}
+html.brand :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea):focus {
+  box-shadow: 0 1px 0 var(--ss-accent);
+}
+/* Still, for anyone whose system asks for less motion — as the brand's own CSS. */
+@media (prefers-reduced-motion: reduce) {
+  html.brand :is(button, a)::before,
+  html.brand :is(button, a)::after,
+  html.brand :is(input, select, textarea) {
+    transition: none;
+  }
+}
+
 /* The quick terminal's linger (QuickTerminal): the bar empties, and when it has the panel
    goes — the animation is the timer, so hovering pauses both. */
 @keyframes quick-linger {

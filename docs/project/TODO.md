@@ -89,6 +89,10 @@ self-hosted fonts.
       `.env.example`, the compose files)
 - [x] 59c Merged on Sunde's word (2026-11-15); `:8080` serves every changed file, the theme
       and fonts load, the payload carries `ui_look`; the worktree removed
+- [x] 59d The brand's motion (asked after the merge, "yes, give it a go"): a button's bar
+      fill and its lines, danger in the error colour, a field's underline, still for reduced
+      motion — on the buttons that look like buttons, not hints, toggles, tabs or cards
+- [ ] 59e 59d merged on Sunde's word; `:8080` checked; the worktree removed
 
 ---
 

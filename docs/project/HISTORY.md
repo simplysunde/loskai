@@ -22,8 +22,14 @@ theme through `data-theme`.
 - **Chakra Petch on headings only**, though the brand's guide names buttons too: its CSS
   keeps buttons in Plex, and at button sizes Chakra Petch spaced letters unevenly ("Cont
   ainers") — in the brand's own demo as well.
-- **Not done:** YoRHa's bar-fill buttons and side stripes (they would need markup), and a
-  primary button's hover is only a shade, not the bar.
+- **The motion came after, the same day** (Sunde: "we are missing the animation part" —
+  "yes, give it a go"). The first write-up said the bar-fill buttons "would need markup";
+  they don't — the bar is the button's own `::after`, which Loskai's buttons don't use. The
+  brand aims it at every `<button>`; Loskai aims it at the ones that look like buttons
+  (bordered, or the solid primary or danger), so a hint, a row's toggle, a tab, a menu item
+  and a card to pick or open (`rounded-xl`, a two-line `flex-col` pick) keep still. A
+  field draws its accent underline on focus. Left out: the side stripes and the
+  `<details>` marker — Loskai has no blockquote, alert box or `<details>`.
 
 ## 2026-11-15 — Help a phone can open: `title` tooltips became `Hint`s (Phase 58)
 
