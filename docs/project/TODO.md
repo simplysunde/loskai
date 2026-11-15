@@ -4,8 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 58** (below) — help moves from `title` tooltips to `Hint`, which a phone
-can open — in the worktree `../loskai-hints`. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** **Phase 58** (below) — help is in `Hint`s a phone can open, not `title` tooltips —
+is done, merged on 2026-11-15; left from it, the refused key test's status (58b). **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -108,7 +108,8 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
       card with no link yet. `ReasonButton` (beside `Hint`): `aria-disabled`, since `disabled`
       would swallow the tap too, and its reason in the box instead of its action. The box
       itself is `lib/useHintBox.tsx`, shared by `Hint`, `ReasonButton` and the card
-- [ ] 58f Merged on Sunde's word; `:8080` and its log checked; the worktree removed
+- [x] 58f Merged on Sunde's word (2026-11-15); `:8080` serves every changed file and its log is
+      clean; the worktree removed
 
 ---
 
