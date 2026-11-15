@@ -43,7 +43,7 @@ Caddyfile). Both are built for `amd64` and `arm64`, tagged with the version and 
   for both platforms, pushes them to `LOSKAI_REGISTRY` (`ghcr.io/simplysunde` unless set —
   your forge's registry works too), and tags the commit `v<version>`. It needs
   `docker login` to the registry, and QEMU for the other platform — the script says how
-  when it is missing.
+  when it is missing. Every step: [releasing.md](../contributing/releasing.md).
 
 ## Layouts
 

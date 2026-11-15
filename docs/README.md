@@ -72,6 +72,7 @@ are not obvious from the code.
 | [where-logic-lives.md](contributing/where-logic-lives.md) | Before writing a function that decides something. Each decision's one owner, and the files that use it; the decisions the browser makes again, and what keeps them in step. |
 | [phone-layout.md](contributing/phone-layout.md) | Adding or changing a page, a table or a dialog. The one layout's phone variants — the drawer, tables as cards, full-screen dialogs — and the traps in them. |
 | [demo.md](contributing/demo.md) | The animations in the README and Using Loskai no longer match the UI, or you want a new one. `make demo` records them in a made-up homelab; how to change a flow. |
+| [releasing.md](contributing/releasing.md) | Publishing a version. The registry token, QEMU for `arm64`, `make release`, making the packages public, and checking them as a stranger would. |
 | [lxc-script-authoring.md](contributing/lxc-script-authoring.md) | Adding a new `create-<service>-lxc.sh`. The safety invariants, the shared library to copy verbatim, and an authoring checklist. |
 
 ## Project
