@@ -277,6 +277,52 @@ async def test_a_catch_up_that_keeps_failing_backs_off(monkeypatch, pushed):
     assert delays[:3] == [0.01, 0.02, 0.04]
 
 
+class EndingStream(FakeStream):
+    """A stream that ends by itself after `up` seconds, with no event."""
+
+    def __init__(self, up):
+        super().__init__([])
+        self._up = up
+
+    def __next__(self):
+        self._closed.wait(timeout=self._up)
+        raise StopIteration
+
+
+async def test_the_delay_starts_over_only_after_a_stream_that_stayed_up(monkeypatch, pushed):
+    """Caught up, then a stream that stays up a while: healthy, so the next drop starts
+    from the first delay. Caught up, then a stream that ends at once (a proxy that accepts
+    /events and closes it): still backing off."""
+    monkeypatch.setattr(follow, "RETRY_INITIAL", 0.01)
+    monkeypatch.setattr(follow, "RETRY_MAX", 0.05)
+    delays = []
+
+    class Log:
+        def warning(self, _msg, _error, delay):
+            delays.append(delay)
+
+    caught_up = iter([False, False, True, True, True])
+
+    async def catch_up(_caddy):
+        if not next(caught_up, True):
+            raise RuntimeError("No such image")
+
+    streams = iter([EndingStream(0), EndingStream(0), EndingStream(0.08), EndingStream(0), EndingStream(0)])
+    monkeypatch.setattr(follow, "logger", Log())
+    monkeypatch.setattr(follow, "reconcile_all", catch_up)
+    monkeypatch.setattr(follow.docker_client, "container_events", lambda: next(streams))
+
+    task = asyncio.create_task(WATCH(None))
+    await _until(lambda: len(delays) >= 5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    # Two failed catch-ups back off; the stream that stayed up starts over; one that ends at
+    # once doesn't.
+    assert delays[:5] == [0.01, 0.02, 0.01, 0.02, 0.04]
+
+
 async def test_the_daemon_going_away_is_retried_and_caught_up(monkeypatch, pushed):
     """No event arrives for a change made while the stream was down — so each (re)connect
     starts with a catch-up."""

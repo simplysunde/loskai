@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 
 import docker
-from docker.errors import DockerException, ImageNotFound
+from docker.errors import DockerException, NotFound
 from requests.exceptions import RequestException
 
 from ...shared.errors import describe_error
@@ -23,15 +23,17 @@ DOCKER_ERRORS = (DockerException, RequestException, OSError)
 logger = logging.getLogger(__name__)
 
 
-
 def _image_tags(c) -> list[str]:
     """A container's image tags — none when its image is gone (rebuilt and pruned while the
-    container lives on). docker-py looks the image up when `c.image` is read, which then
-    raises; one such container must not fail every listing."""
+    container lives on). docker-py looks the image up each time `c.image` is read, so it is
+    read once; a missing one raises NotFound (ImageNotFound in Docker's own words), and one
+    such container must not fail every listing."""
     try:
-        return c.image.tags if c.image else []
-    except ImageNotFound:
+        image = c.image
+    except NotFound:
         return []
+    return image.tags if image else []
+
 
 class DockerClient:
     def __init__(self) -> None:
@@ -63,7 +65,7 @@ class DockerClient:
         """Every container, from one list call — no stats: those take ~2s from Docker, so
         they are their own request (`container_stats`) and nothing waits on them."""
         client = self._get()
-        containers = client.containers.list(all=True)
+        containers = client.containers.list(all=True, ignore_removed=True)
         # Find Caddy in the list we already have — one API call for the whole request, not
         # a lookup per container. `caddy_admin_host` is CADDY_ADMIN_URL's hostname; None when
         # Caddy is addressed by IP (it is off-box, so there is nothing here to match).
@@ -123,7 +125,7 @@ class DockerClient:
         One stats call takes ~2s — Docker samples CPU twice, a second apart — so they run
         side by side: this costs one sample, not one per container. Capped at docker-py's
         connection pool (10), beyond which they would only queue."""
-        running = [c for c in self._get().containers.list() if c.status == "running"]
+        running = [c for c in self._get().containers.list(ignore_removed=True) if c.status == "running"]
         if not running:
             return {}
         with ThreadPoolExecutor(max_workers=min(10, len(running))) as pool:
@@ -168,7 +170,7 @@ class DockerClient:
     def container_names(self) -> set[str]:
         """Every container name present on the host (running or stopped). A name absent
         here means the container was removed — used to flag orphaned instances."""
-        return {c.name for c in self._get().containers.list(all=True)}
+        return {c.name for c in self._get().containers.list(all=True, ignore_removed=True)}
 
     def start(self, container_id: str) -> None:
         self._get().containers.get(container_id).start()
@@ -193,7 +195,7 @@ class DockerClient:
         its name — compose lowercases a folder's name and drops its dots to make the
         project's."""
         result: dict[str, dict] = {}
-        for c in self._get().containers.list(all=True):
+        for c in self._get().containers.list(all=True, ignore_removed=True):
             labels = c.labels or {}
             folder = labels.get("com.docker.compose.project.working_dir")
             service = labels.get("com.docker.compose.service")
@@ -219,7 +221,7 @@ class DockerClient:
         installed recipe's instance has to link to (logic.primary_container).
         """
         containers = self._get().containers.list(
-            all=True, filters={"label": f"com.docker.compose.project={project}"}
+            all=True, filters={"label": f"com.docker.compose.project={project}"}, ignore_removed=True
         )
         out: list[dict] = []
         for c in containers:
@@ -268,7 +270,7 @@ class DockerClient:
         volumes = client.df().get("Volumes") or []
         containers = [
             {"name": c.name, "mounts": c.attrs.get("Mounts")}
-            for c in client.containers.list(all=True)
+            for c in client.containers.list(all=True, ignore_removed=True)
         ]
         return logic.volume_rows(volumes, containers)
 
@@ -279,7 +281,7 @@ class DockerClient:
         client = self._get()
         me = client.containers.get(socket.gethostname())  # NotFound outside a container
         client.containers.run(
-            me.image.id, ["/target", "-mindepth", "1", "-delete"], entrypoint="find", user="0",
+            me.attrs["Image"], ["/target", "-mindepth", "1", "-delete"], entrypoint="find", user="0",
             volumes={path: {"bind": "/target", "mode": "rw"}}, remove=True,
         )
 

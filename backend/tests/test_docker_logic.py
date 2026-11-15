@@ -60,6 +60,16 @@ def test_image_name_prefers_tag():
     assert logic.image_name({"Image": "sha256:abcdef0123456789xyz"}, []) == "sha256:abcdef012345"
 
 
+def test_image_name_without_tags_is_the_name_it_was_created_from():
+    """An untagged or pruned image still has the name the container was made from — what
+    `docker ps` shows, and what Quick commands match their presets on."""
+    attrs = {"Image": "sha256:abcdef0123456789xyz", "Config": {"Image": "grafana/grafana:latest"}}
+    assert logic.image_name(attrs, []) == "grafana/grafana:latest"
+    # Made from an id, it has no name to give.
+    attrs = {"Image": "sha256:abcdef0123456789xyz", "Config": {"Image": "sha256:abcdef0123456789xyz"}}
+    assert logic.image_name(attrs, []) == "sha256:abcdef012345"
+
+
 def test_compute_stack_status():
     assert logic.compute_stack_status({"a", "b"}, set()) == "down"
     assert logic.compute_stack_status({"a", "b"}, {"a", "b"}) == "up"

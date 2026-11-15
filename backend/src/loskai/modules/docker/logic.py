@@ -69,8 +69,13 @@ def uptime_seconds(started_at: str | None, now: datetime | None = None) -> int |
 
 
 def image_name(container_attrs: dict, image_tags: list[str] | None) -> str:
+    """Its image's first tag; else the name it was created from (`Config.Image`, what
+    `docker ps` shows — still there once the image is untagged or pruned); else its id."""
     if image_tags:
         return image_tags[0]
+    created = (container_attrs.get("Config") or {}).get("Image") or ""
+    if created and not created.startswith("sha256:"):
+        return created
     image_id = (container_attrs.get("Image") or "")
     return image_id[:19] if image_id else "<none>"
 

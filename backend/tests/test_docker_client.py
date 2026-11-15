@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from docker.errors import DockerException, ImageNotFound
+from docker.errors import DockerException, ImageNotFound, NotFound
 
 from loskai.modules.docker import client as client_mod
 from loskai.modules.docker import logic
@@ -44,8 +44,9 @@ class FakeDocker:
         self.list_calls = 0
         self.containers = SimpleNamespace(list=self._list)
 
-    def _list(self, all=True):
+    def _list(self, all=True, ignore_removed=False, **_filters):
         self.list_calls += 1
+        self.ignore_removed = ignore_removed
         return self._containers
 
     def ping(self):
@@ -73,24 +74,47 @@ class ImagelessContainer(FakeContainer):
     """A container that outlived its image — rebuilt and pruned while it still exists.
     docker-py looks the image up when `.image` is read, and that raises."""
 
+    error = ImageNotFound("404 Client Error: No such image: sha256:deadbeef")
+
     @property
     def image(self):
-        raise ImageNotFound("404 Client Error: No such image: sha256:deadbeef")
+        raise self.error
 
     @image.setter
     def image(self, _value):
         pass
 
 
+class OtherWordsContainer(ImagelessContainer):
+    """The same on a Docker-compatible daemon whose 404 says it in other words: docker-py
+    then raises the parent NotFound."""
+
+    error = NotFound("404 Client Error: image not known")
+
+
 def test_a_container_whose_image_is_gone_is_still_listed(monkeypatch, data_dir):
     """One such container must not fail the whole listing — the Docker tab, Add route's
-    picker and the follower all read it. It shows its image id, as an untagged one does."""
-    _use(monkeypatch, FakeDocker([FakeContainer("grafana"), ImagelessContainer("tydar")]))
+    picker and the follower all read it. It shows the name it was created from."""
+    gone, other = ImagelessContainer("tydar"), OtherWordsContainer("podman-app")
+    gone.attrs["Config"] = {"Image": "tydar:latest"}
+    _use(monkeypatch, FakeDocker([FakeContainer("grafana"), gone, other]))
 
     rows = {r["name"]: r for r in DockerClient().list_containers()}
 
     assert rows["grafana"]["image"] == "grafana/img:latest"
-    assert rows["tydar"]["image"] == "sha256:deadbeef"
+    assert rows["tydar"]["image"] == "tydar:latest"
+    assert rows["podman-app"]["image"] == "sha256:deadbeef"
+
+
+def test_a_container_removed_mid_listing_is_skipped(monkeypatch, data_dir):
+    """docker-py inspects each container it lists; one removed in between (a recreate)
+    would fail the listing unless it is told to skip it."""
+    fake = FakeDocker([FakeContainer("grafana")])
+    _use(monkeypatch, fake)
+
+    DockerClient().list_containers()
+
+    assert fake.ignore_removed is True
 
 
 def test_list_containers(monkeypatch, data_dir):
@@ -308,7 +332,7 @@ def test_a_container_whose_stats_fail_gets_none(monkeypatch, data_dir):
 
 def test_clear_folder_runs_find_as_root_from_loskais_own_image(monkeypatch):
     me = FakeContainer("loskai")
-    me.image = SimpleNamespace(id="sha256:loskai")
+    me.attrs["Image"] = "sha256:loskai"  # its image's id — read from attrs, no image lookup
     runs = []
     fake = FakeDocker([])
     fake.containers.get = lambda name: me if name == "3f2a9c1b7e4d" else None

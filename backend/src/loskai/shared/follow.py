@@ -28,7 +28,7 @@ from . import settings as settings_store
 
 logger = logging.getLogger(__name__)
 
-RETRY_INITIAL = 2.0  # seconds; doubles per failed connect or catch-up, capped
+RETRY_INITIAL = 2.0  # seconds; doubles per failed connect, catch-up or short stream, capped
 RETRY_MAX = 60.0
 
 
@@ -126,14 +126,14 @@ async def watch(caddy_client) -> None:
     the subscription is still seen. Any failure — the daemon restarting, the socket gone —
     drops back to a retry with backoff; only cancellation ends the loop."""
     delay = RETRY_INITIAL
+    loop = asyncio.get_running_loop()
     while True:
         stream = None
+        up_since = None
         try:
             stream = await asyncio.to_thread(docker_client.container_events)
             await reconcile_all(caddy_client)
-            # Back to the first delay only once caught up: a catch-up that fails every
-            # time backs off like a daemon that is gone.
-            delay = RETRY_INITIAL
+            up_since = loop.time()
             while True:
                 event = await asyncio.to_thread(next, stream, None)
                 if event is None:
@@ -144,6 +144,11 @@ async def watch(caddy_client) -> None:
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 — anything at all means "retry", never "die"
+            # Back to the first delay only after a stream that stayed up a while: a catch-up
+            # that fails every time, or a stream that ends as soon as it opens, backs off
+            # like a daemon that is gone.
+            if up_since is not None and loop.time() - up_since >= RETRY_MAX:
+                delay = RETRY_INITIAL
             logger.warning(
                 "not following containers (%s) — retrying in %.0fs", describe_error(exc), delay
             )
