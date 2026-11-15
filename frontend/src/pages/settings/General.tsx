@@ -34,8 +34,8 @@ const APP_FIELDS: FieldDef[] = [
     key: "ui_look",
     label: "Look",
     options: [
-      { value: "loskai", label: "Loskai" },
       { value: "simplysunde", label: "Simply Sunde" },
+      { value: "basic", label: "Basic" },
     ],
   },
 ];

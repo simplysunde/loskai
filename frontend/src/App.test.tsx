@@ -88,7 +88,7 @@ test("shows it in admin mode once logged in", async () => {
 });
 
 // The look is the whole Loskai's: a logged-out visitor on the login page wears it too, this
-// browser keeps it for the next first paint, and Loskai's own takes it off again.
+// browser keeps it for the next first paint, and the basic look takes it off again.
 test("the look comes from the public payload, even on the login page, and is remembered", async () => {
   RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
   RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "public", ui_look: "simplysunde" };
@@ -98,10 +98,10 @@ test("the look comes from the public payload, even on the login page, and is rem
   expect(localStorage.getItem("loskai-look")).toBe("simplysunde");
 
   cleanup();
-  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "public", ui_look: "loskai" };
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "public", ui_look: "basic" };
   renderAt("/login");
   await waitFor(() => expect(document.documentElement).not.toHaveClass("brand"));
-  expect(localStorage.getItem("loskai-look")).toBe("loskai");
+  expect(localStorage.getItem("loskai-look")).toBe("basic");
 });
 
 // `hidden` takes the link out of the sidebar; it is not a lock. The root CA is public

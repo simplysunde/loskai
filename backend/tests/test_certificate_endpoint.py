@@ -87,6 +87,6 @@ def test_dashboard_carries_the_look_to_anyone():
     from loskai.shared import settings as settings_store
 
     with TestClient(app) as client:
-        assert client.get("/api/dashboard").json()["ui_look"] == "loskai"
-        settings_store.update({"ui_look": "simplysunde"})
         assert client.get("/api/dashboard").json()["ui_look"] == "simplysunde"
+        settings_store.update({"ui_look": "basic"})
+        assert client.get("/api/dashboard").json()["ui_look"] == "basic"

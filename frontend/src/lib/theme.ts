@@ -21,14 +21,14 @@ export function setTheme(theme: Theme): void {
   applyTheme(theme);
 }
 
-// The look: Loskai's own, or the Simply Sunde brand's (`html.brand` in index.css — its
-// palette, fonts and square corners, in either theme).
-export type Look = "loskai" | "simplysunde";
+// The look: the Simply Sunde brand's (`html.brand` in index.css — its palette, fonts, square
+// corners and motion, in either theme), the default; or the basic one under it.
+export type Look = "simplysunde" | "basic";
 
 const LOOK_KEY = "loskai-look";
 
 export function getLook(): Look {
-  return localStorage.getItem(LOOK_KEY) === "simplysunde" ? "simplysunde" : "loskai";
+  return localStorage.getItem(LOOK_KEY) === "basic" ? "basic" : "simplysunde";
 }
 
 export function applyLook(look: Look): void {

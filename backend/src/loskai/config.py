@@ -68,9 +68,9 @@ class Settings(BaseSettings):
     # How long a session lasts without activity, in minutes: one of
     # settings.SESSION_IDLE_CHOICES. Unset means 120.
     session_idle_minutes: str | None = None
-    # The look, for everyone and the public Dashboard: "loskai" (its own) or "simplysunde"
-    # (the Simply Sunde brand's palette and fonts). Unset means loskai. Light or dark stays
-    # each browser's.
+    # The look, for everyone and the public Dashboard: "simplysunde" (the Simply Sunde brand's
+    # palette, fonts and motion) or "basic" (plain slate and teal). Unset means simplysunde.
+    # Light or dark stays each browser's.
     ui_look: str | None = None
 
     # --- Env-only settings (never written to settings.json) ---

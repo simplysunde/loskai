@@ -247,13 +247,13 @@ def test_certificate_tab_falls_back_when_env_is_a_typo(monkeypatch):
 # --- The look ---
 
 
-def test_the_look_is_loskais_own_until_chosen():
-    assert settings_store.choice("ui_look") == "loskai"
+def test_the_look_is_simply_sundes_until_chosen():
+    assert settings_store.choice("ui_look") == "simplysunde"
 
 
 def test_the_look_chosen_is_stored():
-    settings_store.update({"ui_look": "simplysunde"})
-    assert settings_store.choice("ui_look") == "simplysunde"
+    settings_store.update({"ui_look": "basic"})
+    assert settings_store.choice("ui_look") == "basic"
 
 
 def test_the_look_refuses_one_it_doesnt_have():
@@ -262,8 +262,8 @@ def test_the_look_refuses_one_it_doesnt_have():
 
 
 def test_the_look_falls_back_when_env_is_a_typo(monkeypatch):
-    monkeypatch.setattr(config.settings, "ui_look", "simplysunds")
-    assert settings_store.choice("ui_look") == "loskai"
+    monkeypatch.setattr(config.settings, "ui_look", "basik")
+    assert settings_store.choice("ui_look") == "simplysunde"
 
 
 def test_the_ssh_unlock_lasts_15_minutes_unless_set():

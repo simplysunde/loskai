@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-15 — Simply Sunde is the main look; the old one is Basic (Phase 59f)
+
+Seeing the brand look with its motion, Sunde: "I want the simply sunde theme to be the main
+one, and then have the old one as a basic or boring theme". So `ui_look` defaults to
+`simplysunde`, and the other value is `basic` — renamed from `loskai`, which would read as
+the main look. Nothing had stored `loskai` (the setting was hours old, and Sunde's own
+install had already chosen `simplysunde`), so nothing needed carrying over; a stored value
+outside the choices would fall back to the default anyway. The basic look is not removed:
+it is what the components are written in, and the brand look is a remap on top of it.
+
 ## 2026-11-15 — A look: Loskai's own, or the Simply Sunde brand's (Phase 59)
 
 Sunde asked for the Simply Sunde brand's UI theme — the one simplysunde.no wears — with a

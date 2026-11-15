@@ -80,10 +80,10 @@ SSH_ASK_PASSWORD_DEFAULT = "yes"
 SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
 SESSION_IDLE_DEFAULT = "120"
 
-# The look every page wears: Loskai's own, or the Simply Sunde brand's (the frontend's
-# `html.brand`). Presentation only; light or dark is each browser's own choice.
-UI_LOOK_CHOICES = ("loskai", "simplysunde")
-UI_LOOK_DEFAULT = "loskai"
+# The look every page wears: the Simply Sunde brand's (the frontend's `html.brand`), or the
+# basic one under it. Presentation only; light or dark is each browser's own choice.
+UI_LOOK_CHOICES = ("simplysunde", "basic")
+UI_LOOK_DEFAULT = "simplysunde"
 
 # The settings that are one of a few choices: the choices, the default, and what a value
 # outside them is told (`_validate`). The env layer isn't validated, so `choice` reads a
