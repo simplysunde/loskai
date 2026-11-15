@@ -4,8 +4,9 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 58** (below) — help is in `Hint`s a phone can open, not `title` tooltips —
-is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
+**Now:** **Phase 59** (below) — a look: Loskai's own, or the Simply Sunde brand's — built in
+the worktree `../loskai-theme`, to merge on Sunde's word. **Phase 58** — help is in `Hint`s
+a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
 34–46 — machines over SSH, accounts, automatic runs, the key kept simply, the two sweeps, the
 demo, routes from what runs on a machine, Tailscale, links — are built and in
@@ -54,6 +55,39 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 59 — A look: Loskai's own, or the Simply Sunde brand's
+
+Asked 2026-11-15 (Sunde: implement the brand folder's UI spec, "maybe with a toggle in the
+settings … to load the original and the brand theme"). The spec is the brand's UI theme,
+Simply Sunde UI v0.1 — the one simplysunde.no wears: `simplysunde.css`'s token block and three
+self-hosted fonts.
+
+**Decisions (2026-11-15, Sunde)**
+
+- **A remap, like light mode's:** `html.brand` points Tailwind's slate, teal, emerald, amber,
+  rose and white at the brand's tokens, the fonts at its three, the corners square (the large
+  boxes mitred), grid paper behind the shell. No component changes. The brand's element
+  styles (inside `.ss`) are not used: they would fight Tailwind's.
+- **The brand's files are copied unedited** (`frontend/src/theme/simplysunde-ui/`, v0.1,
+  the same files simplysunde.no serves), with their licences; the colour values stay in
+  their one file.
+- **Chakra Petch on headings only**, as the brand's CSS has it (the brand's guide says buttons too):
+  below about 15px it spaces letters unevenly, in the brand's own demo as well.
+- **The whole Loskai's choice** (Sunde: "Whole Loskai, in Settings"): `ui_look`, Settings ›
+  General, env `UI_LOOK`, sent in the public `GET /api/dashboard` so the login page and the
+  Dashboard wear it; kept in the browser for the first paint. Light or dark stays each
+  browser's.
+
+**Steps**
+
+- [x] 59a The look: the brand's files, the remap, `data-theme` from `applyTheme`
+- [x] 59b The setting: `ui_look` (backend, tests), its field in Settings › General, applied
+      from the dashboard payload (`useLook`); its docs (`api.md`, deployment, using Loskai,
+      `.env.example`, the compose files)
+- [ ] 59c Merged on Sunde's word; `:8080` and its log checked; the worktree removed
 
 ---
 

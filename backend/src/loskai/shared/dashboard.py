@@ -7,6 +7,7 @@ It also carries `certificate_tab`, because the shell has to decide whether to sh
 Certificate link before anyone has logged in, and this is the one public payload the
 whole app already reads. It is a nav-visibility mode, not an access grant — the cert
 endpoint itself is public in every mode (see `modules/caddy/router.root_certificate`).
+And `ui_look`, for the same reason: the login page and the Dashboard wear the look too.
 """
 
 from fastapi import APIRouter
@@ -71,4 +72,5 @@ def dashboard() -> dict:
     return {
         "services": cards,
         "certificate_tab": settings_store.certificate_tab(),
+        "ui_look": settings_store.choice("ui_look"),
     }

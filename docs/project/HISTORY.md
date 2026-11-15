@@ -4,6 +4,27 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-15 — A look: Loskai's own, or the Simply Sunde brand's (Phase 59)
+
+Sunde asked for the Simply Sunde brand's UI theme — the one simplysunde.no wears — with a
+toggle between it and the original. The spec's stylesheet styles plain elements (`:where(.ss) button`, …), and
+Loskai's components are Tailwind classes — the two would fight over every button. But light
+mode already showed the way: Tailwind v4 reads its palette from CSS variables, so a look
+is a remap. `html.brand` points the six colour families Loskai uses at the brand's tokens
+(slate's shades become roles: page, panel, raised, border, muted, text; teal the accent;
+emerald, amber and rose the status colours; white the text on an accent button), the fonts
+at its three, the radius at nothing. The brand's files are copied unedited, so its token
+block stays the one place its colours live, and its dark or light set follows Loskai's
+theme through `data-theme`.
+
+- **Whole Loskai, not each browser** (Sunde's choice): it is the homelab's look, so an admin
+  sets it and the public Dashboard wears it. Light or dark stays a browser's own.
+- **Chakra Petch on headings only**, though the brand's guide names buttons too: its CSS
+  keeps buttons in Plex, and at button sizes Chakra Petch spaced letters unevenly ("Cont
+  ainers") — in the brand's own demo as well.
+- **Not done:** YoRHa's bar-fill buttons and side stripes (they would need markup), and a
+  primary button's hover is only a shade, not the bar.
+
 ## 2026-11-15 — Help a phone can open: `title` tooltips became `Hint`s (Phase 58)
 
 Every explanation in the app was a native `title`, which shows only on hover — and a phone

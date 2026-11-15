@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/shared/Layout";
+import { useLook } from "./lib/useLook";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
@@ -39,6 +40,7 @@ function PageFallback() {
 // guard wraps the shell once rather than each category. The catch-all is inside
 // <Layout/> so a mistyped URL keeps the nav instead of rendering an empty pane.
 export default function App() {
+  useLook();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

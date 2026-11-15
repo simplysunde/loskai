@@ -82,7 +82,8 @@ Backend — Python, FastAPI, `uv` — in `backend/src/loskai/`:
 
 Frontend — React, TS, Vite, TanStack Query — in `frontend/src/`: `pages/` (one per tab,
 `settings/` its sub-pages), `components/{docker,machines,routing,settings,shared}/`, `lib/` (`api.ts`,
-hooks, `docs.ts` — the repo's address, for links to the docs).
+hooks, `docs.ts` — the repo's address, for links to the docs), `theme/simplysunde-ui/` (the Simply
+Sunde brand's tokens and fonts, copied unedited — the look `html.brand` in `index.css` remaps to).
 
 Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
 (C), `compose.rig.yml` (Caddy + AdGuard for a dev Loskai on the host — `compose.dev.yml` in older

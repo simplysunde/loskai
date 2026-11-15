@@ -29,6 +29,15 @@ const APP_FIELDS: FieldDef[] = [
     below: <DockerHostLink />,
   },
   { key: "stacks_dir", label: "Stacks Directory", hint: "set in the compose file" },
+  // The first option is the default (backend UI_LOOK_DEFAULT).
+  {
+    key: "ui_look",
+    label: "Look",
+    options: [
+      { value: "loskai", label: "Loskai" },
+      { value: "simplysunde", label: "Simply Sunde" },
+    ],
+  },
 ];
 
 // Where the Tailscale address comes from: Tailscale on the Docker host, which Loskai installs

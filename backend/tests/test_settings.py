@@ -244,6 +244,28 @@ def test_certificate_tab_falls_back_when_env_is_a_typo(monkeypatch):
     assert settings_store.certificate_tab() == "public"
 
 
+# --- The look ---
+
+
+def test_the_look_is_loskais_own_until_chosen():
+    assert settings_store.choice("ui_look") == "loskai"
+
+
+def test_the_look_chosen_is_stored():
+    settings_store.update({"ui_look": "simplysunde"})
+    assert settings_store.choice("ui_look") == "simplysunde"
+
+
+def test_the_look_refuses_one_it_doesnt_have():
+    with pytest.raises(ValueError, match="The look must be one of"):
+        settings_store.update({"ui_look": "neon"})
+
+
+def test_the_look_falls_back_when_env_is_a_typo(monkeypatch):
+    monkeypatch.setattr(config.settings, "ui_look", "simplysunds")
+    assert settings_store.choice("ui_look") == "loskai"
+
+
 def test_the_ssh_unlock_lasts_15_minutes_unless_set():
     assert settings_store.ssh_unlock_seconds() == 15 * 60
     settings_store.update({"ssh_unlock_minutes": "180"})

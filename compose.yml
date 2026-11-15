@@ -48,6 +48,7 @@ services:
       - SESSION_IDLE_MINUTES=${SESSION_IDLE_MINUTES:-}
       - SSH_UNLOCK_MINUTES=${SSH_UNLOCK_MINUTES:-}
       - CERTIFICATE_TAB=${CERTIFICATE_TAB:-}
+      - UI_LOOK=${UI_LOOK:-}
       - STACKS_DIR=${STACKS_DIR:-${PWD}/stacks}
       # Must equal the `./data:/data` mount above. Passed explicitly so the mount and
       # the path the app writes to can't drift apart; the code default is the repo's data/.

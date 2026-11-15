@@ -35,6 +35,8 @@ function AutoField({ def, field }: { def: FieldDef; field?: SettingField }) {
       await api.put("/api/settings", { [def.key]: val });
       qc.invalidateQueries({ queryKey: ["settings"] });
       qc.invalidateQueries({ queryKey: ["health"] });
+      // The public payload carries settings too (the Certificate link, the look).
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     { failed: "Failed to save" },
   );

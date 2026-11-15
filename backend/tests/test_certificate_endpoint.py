@@ -79,3 +79,14 @@ def test_dashboard_advertises_the_certificate_tab():
         body = client.get("/api/dashboard").json()
 
     assert body["certificate_tab"] == "public"  # default with nothing configured
+
+
+def test_dashboard_carries_the_look_to_anyone():
+    """The login page and the public Dashboard wear the look too, so it rides on the one
+    public payload, readable before anyone logs in."""
+    from loskai.shared import settings as settings_store
+
+    with TestClient(app) as client:
+        assert client.get("/api/dashboard").json()["ui_look"] == "loskai"
+        settings_store.update({"ui_look": "simplysunde"})
+        assert client.get("/api/dashboard").json()["ui_look"] == "simplysunde"

@@ -87,6 +87,23 @@ test("shows it in admin mode once logged in", async () => {
   expect(await screen.findByRole("link", { name: "Certificate" })).toBeInTheDocument();
 });
 
+// The look is the whole Loskai's: a logged-out visitor on the login page wears it too, this
+// browser keeps it for the next first paint, and Loskai's own takes it off again.
+test("the look comes from the public payload, even on the login page, and is remembered", async () => {
+  RESPONSES["/api/auth/status"] = { authed: false, needs_setup: false, user: null };
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "public", ui_look: "simplysunde" };
+  renderAt("/login");
+
+  await waitFor(() => expect(document.documentElement).toHaveClass("brand"));
+  expect(localStorage.getItem("loskai-look")).toBe("simplysunde");
+
+  cleanup();
+  RESPONSES["/api/dashboard"] = { services: [], certificate_tab: "public", ui_look: "loskai" };
+  renderAt("/login");
+  await waitFor(() => expect(document.documentElement).not.toHaveClass("brand"));
+  expect(localStorage.getItem("loskai-look")).toBe("loskai");
+});
+
 // `hidden` takes the link out of the sidebar; it is not a lock. The root CA is public
 // material, so anyone who has the URL still gets the page — including a device that was
 // handed the link before someone flipped the setting.

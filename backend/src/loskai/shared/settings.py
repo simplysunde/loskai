@@ -39,6 +39,7 @@ CONFIGURABLE_KEYS = [
     "ssh_unlock_minutes",
     "ssh_ask_password",
     "session_idle_minutes",
+    "ui_look",
 ]
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
@@ -79,6 +80,11 @@ SSH_ASK_PASSWORD_DEFAULT = "yes"
 SESSION_IDLE_CHOICES = ("30", "60", "120", "480", "1440", "10080")
 SESSION_IDLE_DEFAULT = "120"
 
+# The look every page wears: Loskai's own, or the Simply Sunde brand's (the frontend's
+# `html.brand`). Presentation only; light or dark is each browser's own choice.
+UI_LOOK_CHOICES = ("loskai", "simplysunde")
+UI_LOOK_DEFAULT = "loskai"
+
 # The settings that are one of a few choices: the choices, the default, and what a value
 # outside them is told (`_validate`). The env layer isn't validated, so `choice` reads a
 # value outside them as the default.
@@ -93,6 +99,7 @@ _CHOICES = {
     "session_idle_minutes": (
         SESSION_IDLE_CHOICES, SESSION_IDLE_DEFAULT, "How long a session lasts idle must be one of {} minutes",
     ),
+    "ui_look": (UI_LOOK_CHOICES, UI_LOOK_DEFAULT, "The look must be one of {}"),
 }
 
 # Recipe sources are the one configurable value that is a list rather than a string: a
