@@ -1373,7 +1373,10 @@ test("the machine's SSH settings: Keys beside SSH setup lists every key plainly 
     ["Copy", "Label", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
   // One ~/.ssh/config names is yours: Delete leaves it alone.
-  expect(within(row("work")).getByRole("button", { name: "Delete work" })).toBeDisabled();
+  const deleteWork = within(row("work")).getByRole("button", { name: "Delete work" });
+  expect(deleteWork).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(deleteWork); // a tap says why, and deletes nothing
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/~\/\.ssh\/config/);
   expect(within(row("deploy_blog")).getByRole("button", { name: "Delete deploy_blog" })).toBeEnabled();
 });
 
@@ -1638,7 +1641,7 @@ test("a project whose remote is over HTTP: no SSH key is used, which its overrid
   const tools = await screen.findByRole("region", { name: "Tools" });
   fireEvent.click(await within(tools).findByRole("button", { name: "Project overrides for site" }));
   const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
-  expect(within(site).getByRole("button", { name: /Give it its own key/ })).toBeDisabled();
+  expect(within(site).getByRole("button", { name: /Give it its own key/ })).toHaveAttribute("aria-disabled", "true");
   expect(site).toHaveTextContent("Its remote is over HTTP(S), which uses no SSH key — switch it to its SSH address first.");
 });
 
@@ -1693,8 +1696,10 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
   expect(buttons("blog")).toEqual(["Attach", "Start"]);
   expect(within(claude("site")).getByRole("button", { name: "Attach" })).toBeEnabled();
   const idle = within(claude("blog")).getByRole("button", { name: "Attach" });
-  expect(idle).toBeDisabled();
-  expect(idle.title).toBe("Not running — Start it first");
+  expect(idle).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(idle);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Not running — Start it first");
+  fireEvent.pointerDown(document.body);
 });
 
 test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {
@@ -1730,7 +1735,7 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(within(row("blog")).getAllByRole("cell")[4]).toHaveTextContent("—");
   expect(buttons("site")).toEqual(["Attach", "Pull", "Stop"]);
   expect(buttons("blog")).toEqual(["Attach", "Pull", "Start"]);
-  expect(within(row("blog")).getByRole("button", { name: "Attach" })).toBeDisabled();
+  expect(within(row("blog")).getByRole("button", { name: "Attach" })).toHaveAttribute("aria-disabled", "true");
 
   // Under them, its tmux sessions of your own — not Claude's, which is on its project — with
   // tmux's buttons.

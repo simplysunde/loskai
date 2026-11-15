@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
-import { Hint } from "./Hint";
+import { Hint, ReasonButton } from "./Hint";
 
 function renderHint() {
   render(
@@ -35,5 +35,39 @@ test("a tap outside or Escape closes it", () => {
 
   fireEvent.click(word);
   fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+});
+
+test("a button off for a reason says it on a tap, and does nothing else", () => {
+  const onClick = vi.fn();
+  render(
+    <ReasonButton reason="Not running — Start it first" title="Attach to its session" onClick={onClick}>
+      Attach
+    </ReasonButton>,
+  );
+  const button = screen.getByRole("button", { name: "Attach" });
+  // aria-disabled, not disabled: a disabled button would swallow the tap too.
+  expect(button).toHaveAttribute("aria-disabled", "true");
+  expect(button).toBeEnabled();
+  expect(button).not.toHaveAttribute("title");
+
+  fireEvent.click(button);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Not running — Start it first");
+  expect(onClick).not.toHaveBeenCalled();
+});
+
+test("without a reason it is a plain button", () => {
+  const onClick = vi.fn();
+  render(
+    <ReasonButton reason={null} title="Attach to its session" onClick={onClick}>
+      Attach
+    </ReasonButton>,
+  );
+  const button = screen.getByRole("button", { name: "Attach" });
+  expect(button).not.toHaveAttribute("aria-disabled");
+  expect(button).toHaveAttribute("title", "Attach to its session");
+
+  fireEvent.click(button);
+  expect(onClick).toHaveBeenCalledOnce();
   expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 });

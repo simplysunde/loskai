@@ -1,5 +1,7 @@
 import { ExternalLink, Boxes } from "lucide-react";
 
+import { useHintBox } from "../../lib/useHintBox";
+
 export interface DashboardCard {
   id: string;
   name: string;
@@ -12,6 +14,8 @@ export interface DashboardCard {
 // One launcher card on the public Dashboard. Links out to the routed service; disabled
 // when no FQDN can be assembled yet (base_domain unset).
 export function ServiceCard({ card }: { card: DashboardCard }) {
+  // A card with no link yet says why on hover or a tap — the Dashboard is often a phone's.
+  const why = useHintBox("No link until a base domain is set, in Settings › General");
   const body = (
     <>
       {card.icon ? (
@@ -58,8 +62,11 @@ export function ServiceCard({ card }: { card: DashboardCard }) {
       {body}
     </a>
   ) : (
-    <div className={`${base} opacity-60`} title="No link until a base domain is set, in Settings › General">
-      {body}
-    </div>
+    <>
+      <div {...why.trigger} aria-disabled="true" className={`${base} cursor-help opacity-60`}>
+        {body}
+      </div>
+      {why.box}
+    </>
   );
 }

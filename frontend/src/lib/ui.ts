@@ -12,4 +12,4 @@ export const CARD_TABLE =
 
 // A tool's button on its card (Pull all, Clone) and in its settings dialog (SSH key).
 export const TOOL_BUTTON =
-  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent";
+  "flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent aria-disabled:opacity-40 aria-disabled:hover:bg-transparent";

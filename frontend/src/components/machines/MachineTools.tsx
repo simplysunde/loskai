@@ -24,13 +24,13 @@ import { CardSettings, GitIdentity, ToolSettingsButton, ToolSettingsDialog } fro
 import { ToolAsk } from "./ToolAsk";
 import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
-import { Hint } from "../shared/Hint";
+import { Hint, ReasonButton } from "../shared/Hint";
 
 const BUTTON = TOOL_BUTTON;
 
 // A row's button — and, under a list, the tool's own (Pull all), so they line up as one column.
 const ROW_BUTTON =
-  "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40";
+  "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-40 aria-disabled:opacity-40";
 
 // The buttons the tools that apply put on a row of `kind` — a card's, or the Running list's:
 // small bordered ones, in rose for those that ask first (Stop). One with a `when` is there
@@ -56,22 +56,18 @@ export function RowButtons({
     tool.actions
       .filter((a) => a.target === kind && isOnCard(a) && (fits(tool, a) || a.otherwise === "disabled"))
       .map((a) => (
-        <button
+        <ReasonButton
           key={`${tool.id}-${a.id}`}
-          disabled={!fits(tool, a)}
-          title={
-            fits(tool, a)
-              ? `${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()
-              : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"
-          }
+          reason={fits(tool, a) ? null : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"}
+          title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
           onClick={() => onRun({ tool: tool.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent ${
+          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 aria-disabled:opacity-40 aria-disabled:hover:bg-transparent ${
             a.confirm ? "text-rose-300" : "text-slate-200"
           }`}
         >
           <ActionIcon tool={tool.id} action={a.id} />
           {a.label}
-        </button>
+        </ReasonButton>
       )),
   );
 }
@@ -85,15 +81,15 @@ export function OwnButtons({ tool, ctx, small = false }: { tool: Tool; ctx: Tool
     .map((a) => {
       const command = commandFor(a, manager);
       return (
-        <button
+        <ReasonButton
           key={a.id}
-          disabled={!command}
-          title={command ? `${a.description}\n$ ${command}` : `No command for ${manager ?? "this machine"}'s package manager`}
+          reason={command ? null : `No command for ${manager ?? "this machine"}'s package manager`}
+          title={`${a.description}\n$ ${command}`}
           onClick={() => ctx.onRun({ tool: tool.id, action: a.id, title: a.label }, a)}
           className={small ? ROW_BUTTON : BUTTON}
         >
           <ActionIcon tool={tool.id} action={a.id} className={small ? undefined : "h-3.5 w-3.5"} /> {a.label}
-        </button>
+        </ReasonButton>
       );
     });
 }

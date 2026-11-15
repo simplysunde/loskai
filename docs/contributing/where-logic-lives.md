@@ -122,7 +122,8 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 
 | Decision | Owner | Used by |
 |---|---|---|
-| Escape closes the top dialog only | `lib/useEscape.ts` `useEscape` | `components/shared/Hint.tsx` `components/shared/Modal.tsx` `components/shared/QuickTerminal.tsx` |
+| Escape closes the top dialog only | `lib/useEscape.ts` `useEscape` | `components/shared/Modal.tsx` `components/shared/QuickTerminal.tsx` `lib/useHintBox.tsx` |
+| Help opens in a box on hover or a tap, never a `title` | `lib/useHintBox.tsx` `useHintBox` | `components/shared/Hint.tsx` `components/shared/ServiceCard.tsx` |
 | A link from the app to a page of these docs | `lib/docs.ts` `docUrl` | `components/docker/StackGroups.tsx` |
 
 ## Pairs that must agree

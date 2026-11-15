@@ -157,7 +157,11 @@ test("an unsaved compose.yml keeps you in the text view", async () => {
 
   fireEvent.click(await screen.findByText("Edit as text"));
   fireEvent.change(await screen.findByLabelText("compose.yml"), { target: { value: "services: {}\n" } });
-  expect(screen.getByText("Edit as form").closest("button")).toBeDisabled();
+  const toForm = screen.getByText("Edit as form").closest("button")!;
+  expect(toForm).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(toForm); // a tap says why, and stays in the text view
+  expect(screen.getByRole("tooltip")).not.toBeEmptyDOMElement();
+  expect(screen.getByLabelText("compose.yml")).toBeInTheDocument();
 });
 
 test("an option is a checkbox, and switching it sends only that change", async () => {

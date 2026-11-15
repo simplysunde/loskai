@@ -6,7 +6,7 @@ import { commandFor, MACHINE_TOOL, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { SudoRuleSwitch } from "./SudoRuleSwitch";
 import { useToolRunner } from "./useToolRunner";
-import { Hint } from "../shared/Hint";
+import { Hint, ReasonButton } from "../shared/Hint";
 
 type Machine = { id: string; name: string; subdomain?: string | null };
 
@@ -150,16 +150,16 @@ function MachineUpdate({
         ) : queued ? (
           "Queued"
         ) : (
-          <button
-            type="button"
-            disabled={!command || busy}
+          <ReasonButton
+            reason={command ? null : "No command for its package manager"}
+            disabled={busy}
             onClick={() => action && runner.start(RUN, action)}
-            title={command ? `${action?.description}\n$ ${command}` : "No command for its package manager"}
+            title={`${action?.description}\n$ ${command}`}
             aria-label={`Update ${machine.name}`}
-            className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:opacity-40"
           >
             <Download className="h-3 w-3" /> Update
-          </button>
+          </ReasonButton>
         )}
       </span>
       {runner.ui}

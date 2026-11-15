@@ -11,6 +11,7 @@ import { TOOL_BUTTON } from "../../lib/ui";
 import { ToolAsk } from "./ToolAsk";
 import { ActionIcon } from "./ToolIcon";
 import { Overlay } from "../shared/Modal";
+import { ReasonButton } from "../shared/Hint";
 
 // The machine's settings by id, and each row's by kind and row: `targets.project.site`.
 type Values = {
@@ -318,16 +319,15 @@ function ProjectKey({ tool, ctx, name, onRun }: { tool: Tool; ctx: ToolContext; 
           {line}
         </span>
         {action && key !== "" && (
-          <button
-            type="button"
-            disabled={why != null && key == null}
-            title={why && key == null ? why : action.description}
+          <ReasonButton
+            reason={key == null ? why : null}
+            title={action.description}
             onClick={() => onRun({ tool: tool.id, action: action.id, title: action.label }, action)}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 aria-disabled:opacity-40 aria-disabled:hover:bg-transparent"
           >
             <ActionIcon tool={tool.id} action={action.id} className="h-3.5 w-3.5" />
             {key == null ? "Give it its own key" : "Back to the machine's key"}
-          </button>
+          </ReasonButton>
         )}
       </div>
       {why && <p className="mt-1 text-xs text-slate-500">{why}</p>}

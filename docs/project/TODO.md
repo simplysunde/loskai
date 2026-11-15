@@ -103,9 +103,11 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
 - [x] 58d Settings and shared: Settings › SSH, the key's fingerprint. The Dashboard card's
       note is a disabled reason — moved to 58e. Stay: the SSH log's command (a value), the
       collapsed sidebar's names (desktop only)
-- [ ] 58e Disabled reasons: EditorFooter's `blocked`, MachineTools (not running, no command),
+- [x] 58e Disabled reasons: EditorFooter's `blocked`, MachineTools (not running, no command),
       SshKeys' `disabledReason`, ToolSettings' `why`, UpdateAll's no command, the Dashboard's
-      card with no link yet
+      card with no link yet. `ReasonButton` (beside `Hint`): `aria-disabled`, since `disabled`
+      would swallow the tap too, and its reason in the box instead of its action. The box
+      itself is `lib/useHintBox.tsx`, shared by `Hint`, `ReasonButton` and the card
 - [ ] 58f Merged on Sunde's word; `:8080` and its log checked; the worktree removed
 
 ---

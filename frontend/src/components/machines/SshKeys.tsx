@@ -9,7 +9,7 @@ import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
-import { Hint } from "../shared/Hint";
+import { Hint, ReasonButton } from "../shared/Hint";
 
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
 type Tested = { host: string; ok: boolean };
@@ -399,18 +399,17 @@ function KeyButton({
   disabledReason?: string | null;
 }) {
   return (
-    <button
-      type="button"
+    <ReasonButton
       aria-label={`${action.label} ${name}`}
-      title={disabledReason ?? action.description}
-      disabled={disabledReason != null}
+      title={action.description}
+      reason={disabledReason}
       onClick={() => onRun({ tool: tool.id, action: action.id, target: name, title: `${action.label}: ${name}` }, action)}
-      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-slate-800 aria-disabled:opacity-40 aria-disabled:hover:bg-transparent ${
         action.confirm ? "border-rose-500/40 text-rose-300" : "border-slate-700 text-slate-200"
       }`}
     >
       <ActionIcon tool={tool.id} action={action.id} /> {action.label}
-    </button>
+    </ReasonButton>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { FileCode, ListChecks, Loader2 } from "lucide-react";
+import { ReasonButton } from "../shared/Hint";
 
 export function EditorFooter({
   left,
@@ -55,14 +56,13 @@ export function EditorFooter({
 // `blocked` says why it can't, when it can't.
 export function SwitchView({ to, onClick, blocked }: { to: string; onClick: () => void; blocked?: string | null }) {
   return (
-    <button
+    <ReasonButton
       onClick={onClick}
-      disabled={!!blocked}
-      title={blocked ?? undefined}
-      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-transparent"
+      reason={blocked}
+      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
     >
       {to === "Edit as text" ? <FileCode className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
       {to}
-    </button>
+    </ReasonButton>
   );
 }
