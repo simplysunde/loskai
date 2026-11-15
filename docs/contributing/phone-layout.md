@@ -42,6 +42,14 @@ break the phone, nor the other way round.
   its tooltip is out of reach. Give it a line of its own (Routing's AdGuard and Caddy rows),
   or leave it out where another section shows it (a machine's address in its dialog's
   header — General has it).
+- **A name and help are two things.**
+  - **A `title` names an icon-only button**, with an `aria-label` of the same words. A
+    phone never shows it, so the icon has to do there.
+  - **Help is a `Hint`** (`components/shared/Hint.tsx`) — what a word, a heading, a status or
+    a field means. The word is underlined with dots, and its text opens in a box on hover
+    or on a tap. Never a `title` for help, which a phone can't show, and no "?" icon.
+  - **A `Hint` sits outside a `<label>`, or after its field inside one.** A label names
+    the first field or button in it, so a hint before the field takes the field's name.
 
 ## Traps
 

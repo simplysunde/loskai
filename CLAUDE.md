@@ -41,7 +41,8 @@ homelab.
   successes**: an empty `200` where a proxied response was expected, a `.env` that
   truncated a password while `up` exited 0, a Save that reported success and dropped a
   folder. Check the bytes, the container, the file — not the status code.
-- **UI:** minimal visible text, details in a short `title` tooltip; one layout, reusing the
+- **UI:** minimal visible text, details out of sight — help on a word is a `Hint` (dotted
+  underline, a box on hover or a tap), and a `title` only names an icon button; one layout, reusing the
   existing pattern rather than a variant; never show something that looks like an address
   but isn't (show the real address or the full FQDN); show a status only on the tab that owns it.
   The same layout works on a phone — its patterns and traps: `docs/contributing/phone-layout.md`.
