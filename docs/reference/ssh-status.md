@@ -29,7 +29,7 @@ command only compares it in a `case` to pick one of two fixed answers:
 | Request | Answer | Parsed by | Asked by |
 |---|---|---|---|
 | `running` (or anything else, or nothing) | What runs: containers, services, Proxmox guests, and the ports the containers and services take | `status.parse_running` | `GET /api/ssh/running` — the Machines tab, every 30 s, for every set-up machine; `POST /api/ssh/machines/{id}/test` (and an install, which ends with it), for that one |
-| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects, the SSH keys | `status.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._overview`) |
+| `facts` | The overview: OS, kernel, uptime, memory, disks, updates waiting, programs, tmux sessions, the Tailscale address and tailnet, the projects, the SSH keys | `status.parse_facts` | `GET /api/ssh/machines/{id}/facts` — the machine's own page, every 60 s; and a tool's command, the sudo rule's and a tool's settings, which need its package manager and programs (`connect._require_facts`) |
 
 Two requests rather than one answer, because the overview costs more (counting updates
 runs the package manager's simulation, ~0.5 s) and only one page shows it.
