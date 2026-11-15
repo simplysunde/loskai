@@ -132,7 +132,7 @@ export function Layout() {
   return (
     // Exactly the window's height (the visible one, under a phone's browser bar): the
     // sidebar stays put and only <main> scrolls.
-    <div className="flex h-dvh flex-col overflow-hidden bg-slate-950 text-slate-200 md:flex-row">
+    <div data-shell className="flex h-dvh flex-col overflow-hidden bg-slate-950 text-slate-200 md:flex-row">
       <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900/40 px-2 py-1.5 md:hidden">
         <button
           onClick={() => setDrawer(true)}

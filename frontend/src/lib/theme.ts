@@ -12,9 +12,30 @@ export function getTheme(): Theme {
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.classList.toggle("light", theme === "light");
+  // The brand's tokens pick their dark or light set by this, not by the system's.
+  document.documentElement.dataset.theme = theme;
 }
 
 export function setTheme(theme: Theme): void {
   localStorage.setItem(KEY, theme);
   applyTheme(theme);
+}
+
+// The look: Loskai's own, or the Simply Sunde brand's (`html.brand` in index.css — its
+// palette, fonts and square corners, in either theme).
+export type Look = "loskai" | "simplysunde";
+
+const LOOK_KEY = "loskai-look";
+
+export function getLook(): Look {
+  return localStorage.getItem(LOOK_KEY) === "simplysunde" ? "simplysunde" : "loskai";
+}
+
+export function applyLook(look: Look): void {
+  document.documentElement.classList.toggle("brand", look === "simplysunde");
+}
+
+export function setLook(look: Look): void {
+  localStorage.setItem(LOOK_KEY, look);
+  applyLook(look);
 }

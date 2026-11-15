@@ -4,11 +4,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App.tsx";
-import { applyTheme, getTheme } from "./lib/theme";
+import { applyLook, applyTheme, getLook, getTheme } from "./lib/theme";
+// The brand's tokens and fonts, before Loskai's own CSS (theme/simplysunde-ui, unedited).
+import "./theme/simplysunde-ui/fonts.css";
+import "./theme/simplysunde-ui/simplysunde.css";
 import "./index.css";
 
-// Apply the saved theme before the first paint to avoid a flash of the wrong palette.
+// Apply the saved theme and look before the first paint to avoid a flash of the wrong palette.
 applyTheme(getTheme());
+applyLook(getLook());
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
