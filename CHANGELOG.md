@@ -3,7 +3,7 @@
 What changed for someone running Loskai, newest first. The reasons behind each change are
 in [`HISTORY.md`](docs/project/HISTORY.md).
 
-## Unreleased — first public release
+## 0.1.0 — 2026-11-15 — first public release
 
 Everything so far:
 
