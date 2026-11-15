@@ -14,6 +14,13 @@ which would read as the main look. Nothing had stored `loskai` (the setting was 
 install had already chosen `simplysunde`), so nothing needed carrying over; a stored value
 outside the choices would fall back to the default anyway.
 
+Then, on the brand look's contrast (Sunde: borders and container lines hard to see, "more
+so on the light mode"): the first remap took only the tokens, so a button was a thin line
+over the grid and a container was see-through, and Loskai draws its container lines in
+slate-800 — the brand's *raised* colour, #EBEBEB on a white page. The brand's own CSS gives
+buttons and fields the raised fill and panels the surface; Loskai's look now does too, and a
+slate-800 line takes the brand's border colour (59g).
+
 Removing the legacy look was priced, and it stays for now. The setting, `UI_LOOK`, the field
 and `useLook` would go — a few dozen lines — but not the slate CSS: the components are
 written in it, and the brand look is a remap on top of it. Kept as the way back while the

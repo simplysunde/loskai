@@ -147,6 +147,40 @@ html.brand [data-shell] {
   }
 }
 
+/* Fills and lines that stand off the page, as the brand's own buttons, fields and panels do
+   (its stylesheet gives them raised and surface fills). Without them a bordered button is
+   a thin line over the grid paper, and in the light theme — page #FFF, raised #EBEBEB —
+   Loskai's container lines (slate-800, the raised colour) all but vanish. So:
+   - a button-shaped button or link, and a bordered field, takes the raised fill;
+   - a container (the large boxes, the see-through panels) is an opaque surface, so the
+     grid paper shows on the page only; a row's hover inside one is a wash of raised;
+   - a line drawn in slate-800 takes the brand's border colour, not its raised one
+     (slate-800 itself stays: it is also the hover and chip fill).
+   A fill or line a utility sets on purpose (a primary, a tint, a hover border) still wins. */
+@layer base {
+  html.brand :is(button, a).border:not([data-hint], .rounded-xl, .flex-col) {
+    background-color: var(--ss-raised);
+  }
+  html.brand .rounded-xl {
+    background-color: var(--ss-surface);
+  }
+}
+html.brand :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea).border {
+  background-color: var(--ss-raised);
+}
+html.brand :is([class~="bg-slate-900/40"], [class~="bg-slate-900/50"], [class~="bg-slate-900/60"]) {
+  background-color: var(--ss-surface);
+}
+html.brand [class~="hover:bg-slate-900/40"]:hover {
+  background-color: color-mix(in srgb, var(--ss-raised) 60%, transparent);
+}
+html.brand :is(.border-slate-800, [class~="border-slate-800/70"], [class~="border-slate-800/50"]):not(:hover) {
+  border-color: var(--ss-border);
+}
+html.brand :is(.divide-slate-800, [class~="divide-slate-800/70"]) > :not(:last-child) {
+  border-color: var(--ss-border);
+}
+
 /* The brand's motion, from its stylesheet, aimed at Loskai's classes rather than at every
    <button>: a button that looks like one — bordered, or the solid primary or danger — fills
    with a bar from the left on hover or keyboard focus, its text in the "on ink" colour, and

@@ -96,6 +96,9 @@ self-hosted fonts.
       worktree removed
 - [x] 59f Simply Sunde is the default look (Sunde: "the main one"); the old one is `legacy`
       ("have the basic as legacy"), renamed from `loskai`
+- [x] 59g Fills and lines that stand off the page, "more so on the light mode" (Sunde): a
+      button or bordered field takes the raised fill, a container the surface (the grid on
+      the page only), a slate-800 line the brand's border colour — as the brand's own CSS
 
 ---
 
