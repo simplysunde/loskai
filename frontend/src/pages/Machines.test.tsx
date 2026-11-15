@@ -1467,7 +1467,11 @@ test("a key's Test, while Keys is open: a ✓ in its field's place, and no Add t
   fireEvent.click(within(row("id_ed25519")).getByRole("button", { name: "Test id_ed25519" }));
   fireEvent.click(await screen.findByRole("button", { name: "end: failed" }));
   // Refused: the field stays — another host, or adding it, comes next — and so does Add to.
-  await vi.waitFor(() => expect(within(row("id_ed25519")).getByTitle("github.com refused it just now")).toBeInTheDocument());
+  // Said in words beside the field, not only by its red border; the host in its hint.
+  const refused = await within(row("id_ed25519")).findByRole("button", { name: "refused" });
+  fireEvent.click(refused);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("github.com refused it just now");
+  fireEvent.pointerDown(document.body);
   expect(within(row("id_ed25519")).getByLabelText("Host to test id_ed25519 on")).toBeInTheDocument();
   expect(within(row("id_ed25519")).getByRole("link", { name: /Add to GitHub/ })).toBeInTheDocument();
 });

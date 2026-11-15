@@ -525,7 +525,10 @@ function KeyTest({
     );
   }
   return (
-    <span className="flex items-center" title={refused ? `${tested.host} refused it just now` : undefined}>
+    // Refused: the field and Test stay — another host, or adding the key, comes next — and a
+    // word after them says so, its host in the hint (a phone can't read a title). Short of
+    // room, the word goes under them, never pushing the row wider.
+    <span className="flex flex-wrap items-center justify-end gap-y-1">
       <HostInput
         label={`Host to test ${name} on`}
         value={host}
@@ -546,6 +549,11 @@ function KeyTest({
       >
         <ActionIcon tool={tool.id} action={action.id} /> {action.label}
       </button>
+      {refused && (
+        <span className="ml-1.5 text-[11px] text-rose-300">
+          <Hint text={`${tested.host} refused it just now`}>refused</Hint>
+        </span>
+      )}
     </span>
   );
 }
