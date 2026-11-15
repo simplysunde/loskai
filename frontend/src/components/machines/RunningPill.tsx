@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import type { TargetKind } from "../../lib/tools";
 import { runningCount, type Running } from "../../lib/ssh";
+import { Hint } from "../shared/Hint";
 
 const DENIED: Record<string, string> = {
   docker: "containers",
@@ -49,11 +50,8 @@ export function RunningPill({
 
   if (!running.ok) {
     return (
-      <span
-        title={running.error}
-        className="cursor-help rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300"
-      >
-        unreachable
+      <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300">
+        {running.error ? <Hint text={running.error}>unreachable</Hint> : "unreachable"}
       </span>
     );
   }

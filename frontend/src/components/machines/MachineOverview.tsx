@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 
 import { formatBytes, formatUptime } from "../../lib/format";
 import { tailscaleStatus, type Facts } from "../../lib/ssh";
+import { Hint } from "../shared/Hint";
 
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
 
@@ -46,10 +47,11 @@ export function MachineOverview({
         </dd>
         <dt className="text-slate-500">Up</dt>
         <dd className="text-slate-300">{formatUptime(facts.uptime)}</dd>
-        <dt className="text-slate-500">Updates</dt>
+        <dt className="text-slate-500">
+          <Hint text={UPDATES_HINT}>Updates</Hint>
+        </dt>
         <dd className="text-slate-300">
-          <span title={UPDATES_HINT} className="cursor-help">
-            {!updates ? (
+          {!updates ? (
               "—"
             ) : updates.count === 0 ? (
               "up to date"
@@ -58,7 +60,6 @@ export function MachineOverview({
                 {updates.count} waiting <span className="text-xs text-slate-500">({updates.manager})</span>
               </span>
             )}
-          </span>
         </dd>
         {facts.programs?.includes("tailscale") && (
           <>
@@ -87,11 +88,12 @@ export function MachineOverview({
       </div>
 
       {facts.outdated && (
-        <p
-          title="Still read as before. Installing again brings what changed since."
-          className="w-fit text-xs text-slate-500"
-        >
-          Its status line is older than this Loskai.
+        <p className="w-fit text-xs text-slate-500">
+          Its status line is{" "}
+          <Hint text="Still read as before. Installing again brings what changed since.">
+            older than this Loskai
+          </Hint>
+          .
           <button onClick={onReinstall} className="ml-2 text-teal-400 hover:underline">
             Install again
           </button>

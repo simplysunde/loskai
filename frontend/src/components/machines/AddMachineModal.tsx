@@ -4,6 +4,7 @@ import { HardDrive, Loader2 } from "lucide-react";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidSshLogin } from "../../lib/validation";
 import { INPUT } from "../../lib/ui";
 import { Overlay } from "../shared/Modal";
+import { Hint } from "../shared/Hint";
 
 // What the parent posts to /api/machines. `ssh` sets the machine's SSH config entry, null
 // removes it, and left out the entry only follows a rename or a move.
@@ -112,15 +113,19 @@ export function AddMachineModal({
       </label>
 
       <div className="mt-3 flex gap-2">
-        <label className="block flex-1" title={SSH_HINT}>
-          <span className="mb-1 block text-xs font-medium text-slate-400">SSH user</span>
+        {/* A <div>: a label would name the hint's button instead of the field. */}
+        <div className="block flex-1">
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            <Hint text={SSH_HINT}>SSH user</Hint>
+          </span>
           <input
+            aria-label="SSH user"
             value={sshUser}
             onChange={(e) => setSshUser(e.target.value.trim())}
             placeholder="none"
             className={INPUT}
           />
-        </label>
+        </div>
         <label className="block w-24">
           <span className="mb-1 block text-xs font-medium text-slate-400">Port</span>
           <input

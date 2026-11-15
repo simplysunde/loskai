@@ -9,6 +9,7 @@ import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
+import { Hint } from "../shared/Hint";
 
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
 type Tested = { host: string; ok: boolean };
@@ -244,8 +245,8 @@ function KeyRow({
           )}
           {git && tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
           {inSshConfig && (
-            <span title="~/.ssh/config names it — Delete leaves it alone" className="cursor-help rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-              ~/.ssh/config
+            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+              <Hint text="~/.ssh/config names it — Delete leaves it alone">~/.ssh/config</Hint>
             </span>
           )}
         </div>
@@ -337,12 +338,17 @@ function UsedBy({
           ? "The remotes here over SSH each use a key of their own; the rest are over HTTP(S), which needs none."
           : "The remotes here are over HTTP(S), which needs no key.";
     return (
-      <p title={`${why} It may still be on your account, or log in elsewhere: Loskai sees only git here.`} className="mt-0.5 w-fit cursor-help text-slate-500">
-        No git remote here uses it
+      <p className="mt-0.5 w-fit text-slate-500">
+        <Hint text={`${why} It may still be on your account, or log in elsewhere: Loskai sees only git here.`}>
+          No git remote here uses it
+        </Hint>
         {own && (
-          <span className="text-amber-300/80" title="ssh offers it to any computer this machine logs in to without naming a key — deleting it can lock those logins out">
-            {" "}
-            · ssh's default — it may log in to other computers
+          <span className="text-amber-300/80">
+            {" · "}
+            <Hint text="ssh offers it to any computer this machine logs in to without naming a key — deleting it can lock those logins out">
+              ssh's default
+            </Hint>
+            {" — it may log in to other computers"}
           </span>
         )}
       </p>
@@ -360,8 +366,9 @@ function UsedBy({
             {u.hostname !== u.host && ` via ${u.host}`}
           </span>
           {u.offered && (
-            <span title={`One of several keys ssh offers there — Test key with ${u.host} says which gets in`} className="cursor-help text-amber-300/80">
-              {" · offered"}
+            <span className="text-amber-300/80">
+              {" · "}
+              <Hint text={`One of several keys ssh offers there — Test key with ${u.host} says which gets in`}>offered</Hint>
             </span>
           )}
         </p>
@@ -455,9 +462,9 @@ function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[];
 function CopyKey({ info, page }: { info: MachineKey; page: { where: string } | null }) {
   if (!info.public) {
     return (
-      <span title="The status line is older: install it again to copy keys from here" className="cursor-help px-1.5 py-0.5 text-[11px] text-slate-600">
+      <Hint text="The status line is older: install it again to copy keys from here" className="px-1.5 py-0.5 text-[11px] text-slate-600">
         Copy —
-      </span>
+      </Hint>
     );
   }
   return (

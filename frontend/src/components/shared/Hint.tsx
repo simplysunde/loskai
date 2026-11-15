@@ -66,6 +66,7 @@ export function Hint({
       <button
         ref={trigger}
         type="button"
+        data-hint
         aria-expanded={at !== null}
         aria-describedby={at ? id : undefined}
         onPointerEnter={(e) => e.pointerType === "mouse" && !at && show()}

@@ -6,6 +6,7 @@ import { commandFor, MACHINE_TOOL, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { SudoRuleSwitch } from "./SudoRuleSwitch";
 import { useToolRunner } from "./useToolRunner";
+import { Hint } from "../shared/Hint";
 
 type Machine = { id: string; name: string; subdomain?: string | null };
 
@@ -130,9 +131,15 @@ function MachineUpdate({
       </span>
       <span className="ml-auto flex items-center gap-3 text-xs text-slate-500">
         {user && command && (
-          <span title="Passwordless sudo, for exactly the update commands — on, Update runs without asking for sudo's password" className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5">
             {/* Root's note says it alone. */}
-            {user !== "root" && <span className="max-sm:hidden">Passwordless sudo</span>}
+            {user !== "root" && (
+              <span className="max-sm:hidden">
+                <Hint text="Passwordless sudo, for exactly the update commands — on, Update runs without asking for sudo's password">
+                  Passwordless sudo
+                </Hint>
+              </span>
+            )}
             <SudoRuleSwitch user={user} facts={machineFacts} onRun={runner.start} disabled={busy} short />
           </span>
         )}

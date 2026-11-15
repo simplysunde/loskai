@@ -1,6 +1,7 @@
 import type { Facts } from "../../lib/ssh";
 import type { ToolStart } from "../../lib/toolRows";
 import { Switch } from "../shared/SettingRow";
+import { Hint } from "../shared/Hint";
 
 // Updates without a password — Loskai's sudo rule on the machine (logic.SUDO_RULE), for
 // exactly System's update commands — as a switch: in the machine's dialog, and beside each
@@ -31,8 +32,8 @@ export function SudoRuleSwitch({
   return (
     <>
       {facts.sudo_rule !== "on" && facts.sudo_rule !== "off" && (
-        <span title="The machine doesn't let its user look in /etc/sudoers.d" className="cursor-help text-xs text-slate-500">
-          can't tell
+        <span className="text-xs text-slate-500">
+          <Hint text="The machine doesn't let its user look in /etc/sudoers.d">can't tell</Hint>
         </span>
       )}
       <Switch

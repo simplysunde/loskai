@@ -85,8 +85,15 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
       "Backend speaks HTTPS", Add route's machine note. Stay: the status pill's detail (its
       own text, cut off — the ellipsis rule) and the launcher icon's label (it names a control).
       `Hint` took a `className` (an address still truncates) and keeps a heading's uppercase
-- [ ] 58b Machines: the table, the overview, RunningPill's "unreachable", SshKeys, the sudo
-      rule (SudoRuleSwitch, UpdateAll), MachineTools, Add machine's SSH note, the terminal's keys
+- [x] 58b Machines: the table, the overview, RunningPill's "unreachable", SshKeys, the sudo
+      rule (SudoRuleSwitch, UpdateAll), MachineTools, Add machine's SSH note, the terminal's keys.
+      Stay as values: a disk's device, a container's image, a row's title, a tailnet device's
+      OS, a key's and a host key's fingerprint, a remote's URL. The row's "Host" tag stays a
+      `title`: it is inside the row's button (the button rule). `Hint` gained `data-hint`, so
+      a test can count a row's actions without its hints.
+      **Found, not changed:** a key's Test refused on a host says so only in a `title` on the
+      host field (and its red border) — a status, not help; making it visible is a change of
+      layout, for its own step.
 - [ ] 58c Docker: the stack form, StackGroups (its "?" for where a stack started), a
       container's status, VolumeList, InstallDone, RecipeUpdates
 - [ ] 58d Settings and shared: Settings › SSH, the key's fingerprint, the Dashboard card's note

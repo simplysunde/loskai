@@ -24,6 +24,7 @@ import { CardSettings, GitIdentity, ToolSettingsButton, ToolSettingsDialog } fro
 import { ToolAsk } from "./ToolAsk";
 import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
+import { Hint } from "../shared/Hint";
 
 const BUTTON = TOOL_BUTTON;
 
@@ -115,9 +116,9 @@ export function ToolCard({ tool, ctx, titled = true }: { tool: Tool; ctx: ToolCo
       {/* Its settings (Git's name, email and projects folder) behind the cog on the right. */}
       {titled && (
         <div className="flex items-center justify-between gap-2">
-          <div title={tool.description} className="flex w-fit min-w-0 items-center gap-2 text-sm text-slate-100">
+          <div className="flex w-fit min-w-0 items-center gap-2 text-sm text-slate-100">
             <ToolIcon id={tool.id} className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            {tool.name}
+            <Hint text={tool.description}>{tool.name}</Hint>
             {!isStandard(tool) && (
               <span className="truncate text-xs text-slate-500">
                 {toolSummary(tool, ctx)}

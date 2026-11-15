@@ -33,6 +33,7 @@ import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineServ
 import { RunningPill } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
 import { DNS_HINT, DnsCell, type Instance } from "../routing/ServiceTable";
+import { Hint } from "../shared/Hint";
 
 // A small copy button after a name or an address: shown on the row's hover (or focus) —
 // always on a phone, which has no hover.
@@ -173,7 +174,9 @@ export function MachineTable({
                 </button>
               </div>
             </th>
-            <th title={URL_HINT} className="cursor-help px-4 py-2.5 font-medium max-sm:hidden">URL</th>
+            <th className="px-4 py-2.5 font-medium max-sm:hidden">
+              <Hint text={URL_HINT}>URL</Hint>
+            </th>
             <th className="px-4 py-2.5 font-medium max-sm:hidden">Address</th>
             <th className="px-4 py-2.5 font-medium max-sm:hidden">Running</th>
             <th className="px-4 py-2.5 font-medium text-right max-sm:hidden">Actions</th>
@@ -226,9 +229,9 @@ export function MachineTable({
                       {machine.fqdn ? (
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="flex items-center gap-1">
-                            <span title={dnsFine(machine) ? `AdGuard answers it with ${machine.upstream}` : DNS_HINT} className="w-fit">
+                            <Hint text={dnsFine(machine) ? `AdGuard answers it with ${machine.upstream}` : DNS_HINT}>
                               {machine.fqdn}
-                            </span>
+                            </Hint>
                             <CopyButton text={machine.fqdn} title={`Copy ${machine.fqdn}`} className={COPY} />
                           </span>
                           {!dnsFine(machine) && <DnsCell present={machine.dnsPresent} conflict={machine.dnsConflict} beside />}

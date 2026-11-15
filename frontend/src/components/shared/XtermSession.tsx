@@ -6,6 +6,7 @@ import "@xterm/xterm/css/xterm.css";
 
 import { copyText } from "../../lib/clipboard";
 import { clipboardAction, decodeOsc52 } from "../../lib/terminalKeys";
+import { Hint } from "./Hint";
 
 const KEYS_HINT =
   "Tab completes on the remote shell. Ctrl+Shift+C copies the selection (Ctrl+C too, while " +
@@ -184,9 +185,9 @@ export function XtermSession({
             <Copy className="h-3.5 w-3.5" /> Copy {copied.text.length} characters
           </button>
         )}
-        <span title={KEYS_HINT} className="shrink-0 cursor-help text-slate-500">
+        <Hint text={KEYS_HINT} className="shrink-0 text-slate-500">
           <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
-        </span>
+        </Hint>
       </div>
       <div ref={hostRef} className={`${height} rounded-lg bg-slate-950 p-2`} />
     </>

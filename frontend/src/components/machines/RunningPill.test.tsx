@@ -69,8 +69,9 @@ test("each row gets its actions, and one clicked closes the card", () => {
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
-test("a machine that can't be read says why in its tooltip", () => {
+test("a machine that can't be read says why in its hint", () => {
   render(<RunningPill running={{ ok: false, checked: 0, error: "Can't reach 192.168.10.50:22" }} />);
 
-  expect(screen.getByText("unreachable")).toHaveAttribute("title", "Can't reach 192.168.10.50:22");
+  fireEvent.click(screen.getByRole("button", { name: "unreachable" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Can't reach 192.168.10.50:22");
 });

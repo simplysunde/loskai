@@ -356,7 +356,8 @@ test("a hosted route links out under URL; DNS state is the machine's alone, besi
   expect(screen.queryByRole("columnheader", { name: "DNS" })).not.toBeInTheDocument();
   const [, nasUrl] = within(nasRow()).getAllByRole("cell");
   expect(nasUrl).toHaveTextContent(/^nas\.example\.no$/);
-  expect(within(nasUrl).getByText("nas.example.no")).toHaveAttribute("title", "AdGuard answers it with 192.168.10.50");
+  fireEvent.click(within(nasUrl).getByRole("button", { name: "nas.example.no" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent("AdGuard answers it with 192.168.10.50");
   const pveRow = screen.getByText("pve").closest("tr") as HTMLElement;
   const [, pveUrl] = within(pveRow).getAllByRole("cell");
   expect(pveUrl).toHaveTextContent("pve.example.no");
@@ -773,7 +774,7 @@ test("an overview from the current status line has no reinstall note", async () 
   renderPage("/machines/nas/overview");
 
   expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
-  expect(screen.queryByText("Its status line is older than this Loskai.")).toBeNull();
+  expect(screen.queryByText((_, el) => el?.tagName === "P" && /^Its status line is older than this Loskai\./.test(el.textContent ?? ""))).toBeNull();
 });
 
 test("an overview read from an older status line says so, and offers the reinstall", async () => {
@@ -783,7 +784,7 @@ test("an overview read from an older status line says so, and offers the reinsta
   renderPage("/machines/nas/overview");
 
   expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
-  expect(screen.getByText("Its status line is older than this Loskai.")).toBeInTheDocument();
+  expect(screen.getByText((_, el) => el?.tagName === "P" && /^Its status line is older than this Loskai\./.test(el.textContent ?? ""))).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Install again" }));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
@@ -1323,7 +1324,8 @@ test("Git's Keys: git's keys — the remotes each is for, a Test, where to add i
   // machine's, in its SSH settings.
   for (const li of within(dialog).getAllByRole("listitem")) {
     const name = li.querySelector(".font-mono")?.textContent;
-    const buttons = within(li).getAllByRole("button");
+    // A hint is a button too; these are the row's actions.
+    const buttons = within(li).getAllByRole("button").filter((b) => !b.hasAttribute("data-hint"));
     expect(buttons).toHaveLength(2);
     ["Copy", "Test"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
@@ -1366,7 +1368,7 @@ test("the machine's SSH settings: Keys beside SSH setup lists every key plainly 
   expect(within(dialog).queryByLabelText("Host")).toBeNull();
   for (const li of within(dialog).getAllByRole("listitem")) {
     const name = li.querySelector(".font-mono")?.textContent;
-    const buttons = within(li).getAllByRole("button");
+    const buttons = within(li).getAllByRole("button").filter((b) => !b.hasAttribute("data-hint"));
     expect(buttons).toHaveLength(3);
     ["Copy", "Label", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
@@ -1385,7 +1387,8 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
   expect(within(dialog).getByRole("region", { name: "Account keys" })).toContainElement(row);
-  expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/));
+  fireEvent.click(within(row).getByRole("button", { name: "No git remote here uses it" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/^The remotes here are over HTTP\(S\), which needs no key\. It may still be on your account/);
   // ssh's own: what logs in to other computers, as far as anyone here can tell — said, not hidden.
   expect(row).toHaveTextContent("ssh's default — it may log in to other computers");
   expect(within(dialog).getByText("deploy_blog").closest("li")).not.toHaveTextContent("ssh's default");
@@ -1397,8 +1400,9 @@ test("an account key no remote uses says why: the remotes there are over HTTP", 
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.keyDown(host, { key: "Enter" });
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40git.home.lan%3A2222")).toBeInTheDocument();
-  expect(within(within(dialog).getByText("deploy_blog").closest("li") as HTMLElement).getByText("No git remote here uses it"))
-    .toHaveAttribute("title", expect.stringMatching(/^No remote here names it\./));
+  fireEvent.pointerDown(document.body); // a tap elsewhere closes the first hint
+  fireEvent.click(within(within(dialog).getByText("deploy_blog").closest("li") as HTMLElement).getByRole("button", { name: "No git remote here uses it" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/^No remote here names it\./);
 });
 
 test("an account key no remote uses, where the SSH ones each have their own, says so", async () => {
@@ -1412,7 +1416,8 @@ test("an account key no remote uses, where the SSH ones each have their own, say
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   const row = within(dialog).getByText("id_ed25519").closest("li") as HTMLElement;
-  expect(within(row).getByText("No git remote here uses it")).toHaveAttribute("title", expect.stringMatching(/^The remotes here over SSH each use a key of their own/));
+  fireEvent.click(within(row).getByRole("button", { name: "No git remote here uses it" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/^The remotes here over SSH each use a key of their own/);
 });
 
 test("a key's Test drops down over Keys, which stays — its answer the drop-down's Done or Failed", async () => {
