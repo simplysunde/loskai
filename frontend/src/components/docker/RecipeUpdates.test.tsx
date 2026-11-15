@@ -88,8 +88,9 @@ test("an untracked install warns before compose.yml is replaced, the why in a to
   renderUpdates({ list: [{ ...JELLYFIN, status: "untracked" }] });
 
   fireEvent.click(await screen.findByText("Jellyfin"));
-  const note = screen.getByText("Updating replaces compose.yml — check its volumes first.");
-  expect(note).toHaveAttribute("title", expect.stringMatching(/your own changes too/));
+  expect(screen.getByText(/check its volumes first/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Updating replaces compose.yml" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/your own changes too/);
 });
 
 test("one that can't be updated says why, with no Update button", async () => {

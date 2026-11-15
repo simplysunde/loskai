@@ -6,6 +6,7 @@ import { api, apiMessage } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
 import { CARD_TABLE } from "../../lib/ui";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { Hint } from "../shared/Hint";
 
 export interface Volume {
   name: string;
@@ -111,11 +112,8 @@ export function VolumeList() {
                       {v.used_by.join(", ")}
                     </span>
                   ) : (
-                    <span
-                      title="No container mounts it, running or stopped"
-                      className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300"
-                    >
-                      unused
+                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                      <Hint text="No container mounts it, running or stopped">unused</Hint>
                     </span>
                   )}
                 </td>

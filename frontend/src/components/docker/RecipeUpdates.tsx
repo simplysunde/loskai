@@ -4,6 +4,7 @@ import { ArrowUpCircle, Check, ChevronDown, ChevronRight, Loader2 } from "lucide
 
 import { api, apiMessage } from "../../lib/api";
 import { Modal } from "../shared/Modal";
+import { Hint } from "../shared/Hint";
 
 export type RecipeUpdate = {
   stack: string;
@@ -166,11 +167,11 @@ function UpdateRow({
             </p>
           )}
           {u.status === "untracked" && (
-            <p
-              className="w-fit text-xs text-amber-300"
-              title="Not installed by this Loskai, or before updates were tracked: this is everything that differs, your own changes too."
-            >
-              Updating replaces compose.yml — check its volumes first.
+            <p className="w-fit text-xs text-amber-300">
+              <Hint text="Not installed by this Loskai, or before updates were tracked: this is everything that differs, your own changes too.">
+                Updating replaces compose.yml
+              </Hint>{" "}
+              — check its volumes first.
             </p>
           )}
           {u.images.length > 1 && (

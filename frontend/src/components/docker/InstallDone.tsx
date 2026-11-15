@@ -12,6 +12,7 @@ import { useSettings } from "../../lib/settings";
 import { isValidPrefix } from "../../lib/validation";
 import { containerPrefill, suggestPrefix } from "../routing/containerPrefill";
 import { refreshRecords } from "../../lib/routes";
+import { Hint } from "../shared/Hint";
 
 // The install wizard's last step: what the install did, the link its logs print, and — the
 // one place the Docker tab makes one — a route for it, or a link while Caddy isn't set up.
@@ -105,8 +106,10 @@ function LogLink({ prefix, container }: { prefix: string; container: string }) {
     );
   }
   return (
-    <div className={box} title="From the container's logs — the instructions say what it is for">
-      <p className="mb-1 font-medium text-slate-200">Open its link</p>
+    <div className={box}>
+      <p className="mb-1 font-medium text-slate-200">
+        <Hint text="From the container's logs — the instructions say what it is for">Open its link</Hint>
+      </p>
       <a href={url} target="_blank" rel="noreferrer" className="block truncate text-teal-300 underline underline-offset-2">
         {url}
       </a>

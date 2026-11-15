@@ -94,8 +94,12 @@ The inventory (2026-11-15): 204 JSX `title`s, about 40 of them help on text.
       **Found, not changed:** a key's Test refused on a host says so only in a `title` on the
       host field (and its red border) — a status, not help; making it visible is a change of
       layout, for its own step.
-- [ ] 58c Docker: the stack form, StackGroups (its "?" for where a stack started), a
-      container's status, VolumeList, InstallDone, RecipeUpdates
+- [x] 58c Docker: the stack form, StackGroups (its "?" for where a stack started), a
+      container's status, VolumeList, InstallDone, RecipeUpdates. Where a stack started is a
+      folder icon whose hint holds the path (no "?"). Stay: a setting's env key and a recipe
+      source's URL (values), a mount's icon and a container's status dot (they name an icon),
+      a setting's "Empty uses the default" (its placeholder shows the default). Not a tooltip:
+      Other containers' "?" is a link to the guide
 - [ ] 58d Settings and shared: Settings › SSH, the key's fingerprint, the Dashboard card's note
 - [ ] 58e Disabled reasons: EditorFooter's `blocked`, MachineTools (not running, no command),
       SshKeys' `disabledReason`, ToolSettings' `why`, UpdateAll's no command

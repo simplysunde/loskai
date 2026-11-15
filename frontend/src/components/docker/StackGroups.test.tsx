@@ -86,7 +86,8 @@ test("stacks and the containers Loskai doesn't manage are separate tables", asyn
   expect(within(stacksTable).queryByText("other-app")).not.toBeInTheDocument();
   expect(within(othersTable).getByText("other-app")).toBeInTheDocument();
   expect(within(othersTable).getByRole("button", { name: "More for portainer" })).toBeInTheDocument();
-  expect(screen.getByTitle(/not managed by Loskai/)).toHaveTextContent("Other containers");
+  fireEvent.click(screen.getByRole("button", { name: "Other containers" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/not managed by Loskai/);
   // A user who already ran these is pointed at how to bring them in.
   const guide = within(othersTable).getByRole("link", { name: "How to bring these into Loskai" });
   expect(guide.getAttribute("href")).toMatch(/docs\/guides\/migration\.md$/);
@@ -160,7 +161,8 @@ test("a project from elsewhere says where it was started, and removes its contai
   );
   await screen.findByText("other-app");
 
-  expect(within(header("other")).getByRole("img", { name: "Started from /home/someone/other" })).toBeInTheDocument();
+  fireEvent.click(within(header("other")).getByRole("button", { name: "Started from /home/someone/other" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Started from /home/someone/other");
   fireEvent.click(within(header("other")).getByRole("button", { name: "Remove containers" }));
   expect(onRemoveProject).toHaveBeenCalledWith(
     expect.objectContaining({ name: "other", containers: expect.arrayContaining([expect.objectContaining({ name: "other-worker" })]) }),

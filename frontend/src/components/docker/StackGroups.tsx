@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
+  FolderOpen,
   HelpCircle,
   Layers,
   Loader2,
@@ -37,6 +38,7 @@ import {
   type Group,
   type Stack,
 } from "./groupByStack";
+import { Hint } from "../shared/Hint";
 
 // Every container on the host, nested under the stack that started it — in two sections:
 // the stacks Loskai manages (their header row is where their links, status and actions
@@ -261,9 +263,7 @@ function GroupTable({
           <tr className="max-sm:px-4 max-sm:py-2.5">
             <th className="px-4 py-2.5 font-medium text-slate-300">
               <div className="flex items-center gap-1.5">
-                <span title={note} className={note ? "cursor-help" : ""}>
-                  {title}
-                </span>
+                {note ? <Hint text={note}>{title}</Hint> : <span>{title}</span>}
                 {guide && (
                   <a
                     href={guide}
@@ -396,14 +396,10 @@ function GroupHeader({
               </Act>
             )}
             {composeDir && (
-              <span
-                role="img"
-                title={`Started from ${composeDir}`}
-                aria-label={`Started from ${composeDir}`}
-                className="cursor-help rounded-lg border border-slate-700 p-1.5 text-slate-300"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </span>
+              // Where it was started: a path worth reading on a phone too, so a Hint, not a title.
+              <Hint text={`Started from ${composeDir}`} className="rounded-lg border border-slate-700 p-1.5 text-slate-300">
+                <FolderOpen aria-label={`Started from ${composeDir}`} className="h-3.5 w-3.5" />
+              </Hint>
             )}
             <Act title={single ? "Remove" : "Remove containers"} danger onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" />

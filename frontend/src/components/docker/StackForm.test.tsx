@@ -63,7 +63,8 @@ test("the stack opens as labelled values, the app read-only", async () => {
   expect(screen.getByText("jellyfin/jellyfin:12.2")).toBeInTheDocument();
   expect(screen.getByText("./config")).toBeInTheDocument();
   expect(screen.getByText("/cache")).toBeInTheDocument();
-  expect(screen.getByTitle(/From the Jellyfin recipe/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Recipe" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/From the Jellyfin recipe/);
   // Nothing changed yet: nothing to save.
   expect(screen.getByText("Save").closest("button")).toBeDisabled();
 });

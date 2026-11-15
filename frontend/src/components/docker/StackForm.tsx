@@ -7,6 +7,7 @@ import { EditorFooter, SwitchView } from "./EditorFooter";
 import { OptionList, type RecipeOption } from "./RecipeOptions";
 import type { Carried } from "./StackEditor";
 import { useSaveAndUp } from "./useSaveAndUp";
+import { Hint } from "../shared/Hint";
 
 export type Folder = { service: string; source: string; target: string; writable: boolean };
 
@@ -183,7 +184,8 @@ export function StackForm({
                   aria-label={`Folder ${i + 1} in the container`}
                   className={`${INPUT} min-w-0 font-mono text-xs`}
                 />
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400" title="Off mounts it read-only">
+                {/* The hint after the checkbox: the label still names the checkbox. */}
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
                   <input
                     type="checkbox"
                     checked={f.writable}
@@ -191,7 +193,7 @@ export function StackForm({
                     aria-label={`Folder ${i + 1} writable`}
                     className="h-4 w-4 accent-teal-500"
                   />
-                  Writable
+                  <Hint text="Off mounts it read-only">Writable</Hint>
                 </label>
                 <button
                   onClick={() => setFolders(folders.filter((_, j) => j !== i))}
@@ -272,11 +274,13 @@ function AppHeader({ form, stack }: { form: StackFormData; stack: string }) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold text-slate-100">{name}</p>
-          <span
-            title={`${form.recipe ? `From the ${form.recipe.name} recipe — Check for updates replaces it.` : "From compose.yml."} Change it under Edit as text.`}
-            className="flex shrink-0 items-center gap-1 rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-400"
-          >
-            <Lock className="h-3 w-3" /> {form.recipe ? "Recipe" : "compose.yml"}
+          <span className="flex shrink-0 items-center gap-1 rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-400">
+            <Lock className="h-3 w-3" />{" "}
+            <Hint
+              text={`${form.recipe ? `From the ${form.recipe.name} recipe — Check for updates replaces it.` : "From compose.yml."} Change it under Edit as text.`}
+            >
+              {form.recipe ? "Recipe" : "compose.yml"}
+            </Hint>
           </span>
         </div>
         {form.app.map((a) => (
