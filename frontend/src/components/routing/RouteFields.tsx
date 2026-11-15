@@ -1,10 +1,10 @@
-import { HelpCircle, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { HostSelect } from "./HostSelect";
 import type { HostOption } from "./hostOptions";
 import type { RouteFieldsState } from "./useRouteFields";
 import { INPUT } from "../../lib/ui";
+import { Hint } from "../shared/Hint";
 
 // A container's route can follow it: the upstream is the container's live address, kept in
 // step by the backend when its port changes (shared/follow.py). Passed only for a
@@ -44,8 +44,6 @@ export function RouteFields({
     : link
       ? "Opened from the browser — a LAN IP and port, never a container's name."
       : fields.upstreamHelp;
-  // The ? shows it on hover, and on a tap as a line under the row — a phone has no hover.
-  const [showHostHelp, setShowHostHelp] = useState(false);
   return (
     <>
       {!link && (
@@ -71,23 +69,11 @@ export function RouteFields({
       {/* Host and port on one row: the host is the half usually picked from a list, the
           port the half usually typed. */}
       <div className="mt-3 flex gap-2">
-        <label className="block min-w-0 flex-1">
-          <span className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-400">
-            Host
-            {/* preventDefault: a click inside the <label> would also focus the host field. */}
-            <button
-              type="button"
-              title={hostHelp}
-              aria-label="About the host"
-              aria-expanded={showHostHelp}
-              onClick={(e) => {
-                e.preventDefault();
-                setShowHostHelp((shown) => !shown);
-              }}
-              className="cursor-help rounded text-slate-500 hover:text-slate-300"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-            </button>
+        {/* A <div>, not a <label>: a label would name the hint's button instead of the
+            field. HostSelect names itself (aria-label "Host"). */}
+        <div className="min-w-0 flex-1">
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            <Hint text={hostHelp}>Host</Hint>
           </span>
           <HostSelect
             value={fields.host}
@@ -98,7 +84,7 @@ export function RouteFields({
             onPick={(option) => fields.setHost(option.address)}
             className={following ? `${INPUT} cursor-default text-slate-400` : INPUT}
           />
-        </label>
+        </div>
         <label className="block w-24 shrink-0">
           <span className="mb-1 block text-xs font-medium text-slate-400">Port</span>
           <input
@@ -112,7 +98,6 @@ export function RouteFields({
           />
         </label>
       </div>
-      {showHostHelp && <span className="mt-1 block text-xs text-slate-500">{hostHelp}</span>}
       {!following && fields.host && !fields.hostOk && (
         <span className="mt-1 block text-xs text-rose-400">
           Just the host — no scheme (http://), path or port.

@@ -183,24 +183,17 @@ test("a following route shows the container's address, locked", () => {
   expect(hostInput().readOnly && portInput().readOnly).toBe(true);
   // Locked means no list either.
   expect(screen.queryByRole("button", { name: "Show hosts" })).not.toBeInTheDocument();
-  expect(screen.getByTitle(/Follows the container/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Host" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/Follows the container/);
 
   fireEvent.click(screen.getByRole("button", { name: "Assign" }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ follow_container: true }));
 });
 
-test("the host's ? shows its help on a tap — a phone has no hover — and hides it on the next", () => {
+test("the word Host is a hint: where Caddy must reach the address from", () => {
   renderModal();
-  const help = screen.getByRole("button", { name: "About the host" });
-  expect(screen.queryByText(/Must be reachable from wherever Caddy runs/)).not.toBeInTheDocument();
-
-  fireEvent.click(help);
-  expect(screen.getByText(/Must be reachable from wherever Caddy runs/)).toBeInTheDocument();
-  // The ? sits in the host's <label>; the tap must not also focus the field.
-  expect(document.activeElement).not.toBe(hostInput());
-
-  fireEvent.click(help);
-  expect(screen.queryByText(/Must be reachable from wherever Caddy runs/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Host" }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent(/Must be reachable from wherever Caddy runs/);
 });
 
 test("Set by hand unlocks the address and stops following", () => {
