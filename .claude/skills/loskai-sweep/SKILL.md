@@ -1,6 +1,6 @@
 ---
-name: sweep
-description: Loskai's whole-project simplification sweep, run by hand with /sweep — an honest read-only estimate of how much the backend, frontend, tests and docs could be simplified while keeping every function, then, on the go-ahead, bugs first and the restructuring area by area as a TODO phase, each step committed, tested and checked live. It reviews the entire codebase, so it is never started for a question about one part.
+name: loskai-sweep
+description: Loskai's whole-project simplification sweep, run by hand with /loskai-sweep — an honest read-only estimate of how much the backend, frontend, tests and docs could be simplified while keeping every function, then, on the go-ahead, bugs first and the restructuring area by area as a TODO phase, each step committed, tested and checked live. It reviews the entire codebase, so it is never started for a question about one part.
 disable-model-invocation: true
 ---
 

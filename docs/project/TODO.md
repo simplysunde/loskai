@@ -166,7 +166,7 @@ commit changes names and nothing else — no behaviour, no wording on the page, 
 stored format, nothing a machine has installed. The inventory (three read-only reviewers,
 each finding checked against the definition and its uses) found about 130 names worth
 changing — on the backend about 42 of roughly 820 top-level names — and the rest fine as they
-are. How the pass is run is `.claude/skills/rename/SKILL.md`: a worktree
+are. How the pass is run is `.claude/skills/loskai-rename/SKILL.md`: a worktree
 (`../loskai-rename`, branch `rename`), the five guards diffed against `main` after every
 commit, the full checks, `where-used.py --write`.
 

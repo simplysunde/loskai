@@ -1,6 +1,6 @@
 ---
-name: rename
-description: Loskai's whole-project naming audit, run by hand with /rename — a read-only inventory of the function, variable, constant and type names in the backend and frontend that don't say what they are, with a proposed convention and glossary; then, on the go-ahead, pure renames area by area as a TODO phase, in a separate worktree, each commit proven to change no behaviour, contract or stored format. It reads the whole codebase, so it is never started for one name.
+name: loskai-rename
+description: Loskai's whole-project naming audit, run by hand with /loskai-rename — a read-only inventory of the function, variable, constant and type names in the backend and frontend that don't say what they are, with a proposed convention and glossary; then, on the go-ahead, pure renames area by area as a TODO phase, in a separate worktree, each commit proven to change no behaviour, contract or stored format. It reads the whole codebase, so it is never started for one name.
 disable-model-invocation: true
 ---
 
@@ -18,7 +18,7 @@ one concept two things. A name that is already clear stays, even if you'd have p
 another — every rename costs a diff, `git blame`, and the HISTORY entries that cite the old
 name. Say in the estimate how many names are fine as they are.
 
-Read `.claude/skills/sweep/SKILL.md` too: its traps, checks and "Checking live" section
+Read `.claude/skills/loskai-sweep/SKILL.md` too: its traps, checks and "Checking live" section
 apply here unchanged, and are not repeated.
 
 ## What is never renamed — the contracts
@@ -197,7 +197,7 @@ READ-ONLY audit. Do not edit, create or commit any files in <repo>, and run noth
 changes state.
 
 Context: <repo> is Loskai, a homelab control panel. <AREA> is <path> (<N> lines). Read
-<repo>/CLAUDE.md and <repo>/.claude/skills/rename/SKILL.md first — the second lists the
+<repo>/CLAUDE.md and <repo>/.claude/skills/loskai-rename/SKILL.md first — the second lists the
 names that are contracts and must never be renamed, and the convention proposed so far:
 <convention>. Glossary so far: <glossary>.
 
