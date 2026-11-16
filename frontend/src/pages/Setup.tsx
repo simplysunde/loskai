@@ -4,6 +4,7 @@ import { Loader2, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { api, apiMessage } from "../lib/api";
+import { docUrl } from "../lib/docs";
 import { HOME, type SetupFields, type SetupKey } from "../lib/useAuth";
 import { hostFromAddress } from "../lib/setup";
 import { INPUT } from "../lib/ui";
@@ -22,7 +23,7 @@ const NETWORK: FieldDef[] = [
   {
     key: "base_domain",
     label: "Base Domain",
-    hint: "What your names end in — jellyfin.home.lan, nas.home.lan. It only has to exist on your network: no need to own it.",
+    hint: "What your machines' and services' names end in — nas.home.lan, jellyfin.home.lan. It only has to exist on your network: no need to own it.",
     placeholder: "home.lan",
   },
   {
@@ -50,8 +51,7 @@ const NAMES: FieldDef[] = [
   { key: "adguard_password", label: "AdGuard password", hint: "Kept on this machine, in Loskai's settings file." },
 ];
 
-const NAMES_HINT =
-  "Caddy serves each name over HTTPS and AdGuard answers its DNS. Leave these empty to add them later, in Settings › Network: until then a service is a link to its address.";
+const NAME_KEYS = NAMES.map((def) => def.key);
 
 // Set by the compose file or `.env` (or stored already): shown, not asked.
 const isSet = (fields: SetupFields, key: SetupKey) => Boolean(fields[key] && fields[key].source !== "unset");
@@ -75,6 +75,10 @@ export function Setup({ fields }: { fields: SetupFields }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [answers, setAnswers] = useState(() => firstAnswers(fields));
+  // Loskai runs without Caddy and AdGuard, a service being a link to its address: their
+  // fields show for whoever asks — or whose compose file already answered.
+  const namesSet = NAME_KEYS.some((key) => isSet(fields, key));
+  const [wantNames, setWantNames] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -89,7 +93,8 @@ export function Setup({ fields }: { fields: SetupFields }) {
     }
     setSubmitting(true);
     try {
-      const settings = Object.fromEntries(Object.entries(answers).filter(([key]) => !isSet(fields, key as SetupKey)));
+      const asked = (key: SetupKey) => !isSet(fields, key) && (namesSet || wantNames || !NAME_KEYS.includes(key));
+      const settings = Object.fromEntries(Object.entries(answers).filter(([key]) => asked(key as SetupKey)));
       await api.post("/api/auth/setup", { username, password, settings });
       await qc.invalidateQueries({ queryKey: ["auth-status"] });
       // Routing: where Caddy and AdGuard say whether they are online.
@@ -122,9 +127,39 @@ export function Setup({ fields }: { fields: SetupFields }) {
 
         <Section title="Your network">{NETWORK.map(field)}</Section>
 
-        <Section title={<Hint text={NAMES_HINT}>HTTPS names</Hint>} note="optional">
-          {NAMES.map(field)}
-        </Section>
+        {namesSet ? (
+          <Section title="Secure HTTPS connections">{NAMES.map(field)}</Section>
+        ) : (
+          <section className="space-y-3">
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={wantNames}
+                onChange={(e) => setWantNames(e.target.checked)}
+                className="accent-teal-500"
+              />
+              I want secure HTTPS connections
+            </label>
+            {wantNames && (
+              <>
+                <p className="text-xs text-slate-500">
+                  Each service gets a name, like https://jellyfin.{answers.base_domain || "home.lan"}. That takes
+                  Caddy and AdGuard Home on your network: the{" "}
+                  <a
+                    href={docUrl("docs/guides/install.md")}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-teal-400 hover:underline"
+                  >
+                    install guide
+                  </a>{" "}
+                  sets them up.
+                </p>
+                {NAMES.map(field)}
+              </>
+            )}
+          </section>
+        )}
 
         {error && <p className="text-sm text-rose-400">{error}</p>}
         <button
@@ -135,18 +170,16 @@ export function Setup({ fields }: { fields: SetupFields }) {
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
           Start using Loskai
         </button>
+        <p className="text-center text-xs text-slate-500">Everything here can be changed later, in Settings.</p>
       </form>
     </AuthShell>
   );
 }
 
-function Section({ title, note, children }: { title: React.ReactNode; note?: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {title}
-        {note && <span className="font-normal normal-case tracking-normal text-slate-600">{note}</span>}
-      </h2>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
       <div className="space-y-3">{children}</div>
     </section>
   );

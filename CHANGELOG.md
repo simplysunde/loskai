@@ -130,8 +130,10 @@ Everything so far:
   top, and the larger dialogs fill the screen. Tables become a list of cards — each row's
   name, then its status and buttons — instead of columns too narrow to read.
 - **First run** — a new Loskai opens on a welcome page: your account, the domain your names
-  end in, the Docker host's address (filled in from the address you opened), and Caddy's and
-  AdGuard's if you run them. What the compose file or `.env` set is shown, not asked.
+  end in and the Docker host's address (filled in from the address you opened). Tick **I want
+  secure HTTPS connections** to give it Caddy's and AdGuard's too; without them Loskai runs
+  on links, and shows no Certificate tab. What the compose file or `.env` set is shown, not
+  asked, and everything on the page is in Settings afterwards.
 - **Accounts** — the welcome page creates the admin account; Settings › Users adds more, each with
   a level that adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings (an
   admin). An open

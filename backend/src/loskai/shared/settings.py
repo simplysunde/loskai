@@ -173,8 +173,9 @@ def choice(key: str) -> str:
 
 
 def certificate_tab() -> str:
-    """The Certificate page's nav visibility."""
-    return choice("certificate_tab")
+    """The Certificate page's nav visibility. Hidden while Caddy isn't set up, whatever the
+    setting says: Loskai then runs on links, and there is no certificate to hand out."""
+    return choice("certificate_tab") if value("caddy_admin_url") else "hidden"
 
 
 def ssh_unlock_seconds() -> int:

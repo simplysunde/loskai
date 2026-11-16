@@ -247,3 +247,12 @@ test("without Caddy nothing offers a route; an unrouted row offers a link", () =
   fireEvent.click(screen.getByTitle("Make a link"));
   expect(onLink).toHaveBeenCalledWith(unrouted);
 });
+
+// Without Caddy the page's one button is Add link: the empty table names that, not a URL.
+test("an empty table says how to add the first one, by what the page offers", () => {
+  const { rerender } = render(<ServiceTable rows={[]} />);
+  expect(screen.getByText("No services yet. Assign a URL to add one.")).toBeInTheDocument();
+
+  rerender(<ServiceTable rows={[]} caddySetUp={false} />);
+  expect(screen.getByText("No services yet. Add a link to put one on the Dashboard.")).toBeInTheDocument();
+});

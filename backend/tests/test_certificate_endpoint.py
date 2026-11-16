@@ -75,10 +75,15 @@ def test_unreachable_caddy_is_502(monkeypatch):
 def test_dashboard_advertises_the_certificate_tab():
     """The shell decides whether to show the nav link before anyone logs in, so the mode
     rides on the one public payload it already reads."""
+    from loskai.shared import settings as settings_store
+
     with TestClient(app) as client:
+        without_caddy = client.get("/api/dashboard").json()
+        settings_store.update({"caddy_admin_url": "http://caddy:2019"})
         body = client.get("/api/dashboard").json()
 
-    assert body["certificate_tab"] == "public"  # default with nothing configured
+    assert without_caddy["certificate_tab"] == "hidden"  # no Caddy, no certificate to hand out
+    assert body["certificate_tab"] == "public"  # the default once there is one
 
 
 def test_dashboard_carries_the_look_to_anyone():

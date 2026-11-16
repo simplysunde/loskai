@@ -223,12 +223,20 @@ def test_path_defaults_are_repo_anchored_not_container_paths():
 
 
 def test_certificate_tab_defaults_to_public():
-    """Internal CA is the default TLS mode, so the page is useful out of the box."""
+    """Internal CA is the default TLS mode, so with Caddy the page is useful out of the box."""
+    settings_store.update({"caddy_admin_url": "http://caddy:2019"})
     assert settings_store.certificate_tab() == "public"
 
 
 def test_certificate_tab_stored_value_is_used():
-    settings_store.update({"certificate_tab": "hidden"})
+    settings_store.update({"caddy_admin_url": "http://caddy:2019", "certificate_tab": "hidden"})
+    assert settings_store.certificate_tab() == "hidden"
+
+
+def test_without_caddy_there_is_no_certificate_tab():
+    """Loskai runs without Caddy, on links: the page could only say it can't reach one."""
+    assert settings_store.certificate_tab() == "hidden"
+    settings_store.update({"certificate_tab": "public"})
     assert settings_store.certificate_tab() == "hidden"
 
 
@@ -241,6 +249,7 @@ def test_certificate_tab_falls_back_when_env_is_a_typo(monkeypatch):
     """The env layer never passes through `_validate`, so a bad CERTIFICATE_TAB must
     degrade to the default rather than silently hiding the page."""
     monkeypatch.setattr(config.settings, "certificate_tab", "publik")
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://caddy:2019")
     assert settings_store.certificate_tab() == "public"
 
 

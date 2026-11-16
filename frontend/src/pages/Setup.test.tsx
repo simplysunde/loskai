@@ -58,6 +58,7 @@ test("one request makes the account and stores the answers, then opens Routing",
   expect(screen.getByLabelText("Base Domain")).toHaveValue("home.lan"); // a domain that works as it is
   fillAccount();
   fireEvent.change(screen.getByLabelText("Docker Host LAN IP"), { target: { value: "192.168.10.20" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "I want secure HTTPS connections" }));
   fireEvent.change(screen.getByLabelText("Caddy admin URL"), { target: { value: "http://192.168.10.101:2019" } });
   fireEvent.click(screen.getByRole("button", { name: "Start using Loskai" }));
 
@@ -77,6 +78,36 @@ test("one request makes the account and stores the answers, then opens Routing",
   ]);
 });
 
+// Loskai runs without Caddy and AdGuard, on links: their four fields are for whoever asks.
+test("without HTTPS the page is the account and the network, and says the rest can wait", async () => {
+  renderSetup();
+
+  expect(screen.queryByLabelText("Caddy admin URL")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("AdGuard password")).not.toBeInTheDocument();
+  expect(screen.getByText(/can be changed later, in Settings/)).toBeInTheDocument();
+  fillAccount();
+  fireEvent.click(screen.getByRole("button", { name: "Start using Loskai" }));
+
+  await screen.findByText("routing");
+  expect((posts[0].body as { settings: unknown }).settings).toEqual({ base_domain: "home.lan", host_ip: "" });
+});
+
+test("asking for HTTPS says what it needs; a change of mind sends none of it", async () => {
+  renderSetup();
+  const want = screen.getByRole("checkbox", { name: "I want secure HTTPS connections" });
+
+  fireEvent.click(want);
+  expect(screen.getByText(/Caddy and AdGuard Home/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "install guide" })).toHaveAttribute("href", expect.stringContaining("docs/guides/install.md"));
+  fireEvent.change(screen.getByLabelText("AdGuard URL"), { target: { value: "http://192.168.10.2:3000" } });
+  fireEvent.click(want);
+  fillAccount();
+  fireEvent.click(screen.getByRole("button", { name: "Start using Loskai" }));
+
+  await screen.findByText("routing");
+  expect((posts[0].body as { settings: unknown }).settings).toEqual({ base_domain: "home.lan", host_ip: "" });
+});
+
 test("what the compose file set is shown locked, and not sent", async () => {
   renderSetup({
     ...NOTHING_SET,
@@ -84,6 +115,8 @@ test("what the compose file set is shown locked, and not sent", async () => {
     adguard_password: { value: null, source: "env", secret: true },
   });
 
+  // Already chosen in the compose file: its fields are there without asking.
+  expect(screen.queryByRole("checkbox", { name: "I want secure HTTPS connections" })).not.toBeInTheDocument();
   expect(screen.getByLabelText("Caddy admin URL")).toHaveValue("http://caddy:2019");
   expect(screen.getByLabelText("Caddy admin URL")).toBeDisabled();
   expect(screen.getByLabelText("AdGuard password")).toBeDisabled(); // set, its value never sent here

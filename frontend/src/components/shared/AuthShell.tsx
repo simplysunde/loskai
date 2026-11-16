@@ -2,9 +2,11 @@ import { Anchor } from "lucide-react";
 
 import { INPUT } from "../../lib/ui";
 
-// The page before the app: one card in the middle of the screen, under Loskai's mark —
-// logging in, and first-run setup. `my-auto` rather than centring the flex line: a card
-// taller than a phone's screen then starts at the top and scrolls, instead of losing its head.
+// The page before the app: one card under Loskai's mark — logging in, and first-run setup.
+// Login's sits in the middle of the screen: `my-auto` rather than centring the flex line, so
+// a card taller than a phone's screen starts at the top and scrolls instead of losing its
+// head. Setup's (`wide`) hangs from the top: it grows when a tick opens more fields, and a
+// centred card would jump up under the pointer.
 export function AuthShell({
   title,
   lead,
@@ -19,7 +21,7 @@ export function AuthShell({
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-950 p-4">
       <div
-        className={`my-auto w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl ${wide ? "max-w-md" : "max-w-sm"}`}
+        className={`w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl ${wide ? "max-w-md sm:my-12" : "my-auto max-w-sm"}`}
       >
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/15 text-teal-300">

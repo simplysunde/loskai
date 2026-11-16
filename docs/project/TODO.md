@@ -73,6 +73,15 @@ user, and filling in values that loskai cant find itself, which it also needs to
 - **One page, three parts:** the account; the network — Base Domain and the Docker host's
   LAN IP; and HTTPS names — Caddy's admin URL and AdGuard's URL, user and password, which
   may be left empty (Sunde chose the network and the names parts together).
+- **The names part is behind a tick** (Sunde, seeing the page: "how would this look if we
+  decieded to not use the https part … I made loskai useable without both adguard and
+  caddy"): **I want secure HTTPS connections** (his wording, over "I run Caddy and AdGuard")
+  opens the four fields and says what they need. Unticked, the page is the account and
+  the network. A compose file that set any of them shows them without asking.
+- **A line under the button says it can all be changed in Settings** (Sunde: "its also
+  importent to mention in a small line that valuse can be set later in settings").
+- **Without Caddy there is no Certificate tab**, and Routing's empty table names **Add
+  link**: two things the links-only install showed that pointed at what it doesn't have.
 - **What is already set is not asked** ("If using the loskai-caddy compose, or setting the
   values in the env, i belibe they should be autodetected or auto filled"): a value from the
   compose file or `.env` shows as set. The host's IP is filled from the address the page
@@ -104,7 +113,9 @@ user, and filling in values that loskai cant find itself, which it also needs to
       the catalog listing six recipes with no Refresh pressed (one sync in the log). Names
       set by the environment: five fields locked and marked env, the password blank, only
       the host's IP stored. No page errors; no sideways scroll at 390 px
-- [ ] 61f Merged on Sunde's word; `:8080` checked; the worktree removed
+- [x] 61f The names part behind **I want secure HTTPS connections**; the line about
+      Settings; no Certificate tab without Caddy; the empty table's text in link mode
+- [ ] 61g Merged on Sunde's word; `:8080` checked; the worktree removed
 
 ---
 

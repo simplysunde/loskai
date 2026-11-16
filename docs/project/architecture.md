@@ -646,7 +646,8 @@ is the same list including private services, behind the login, for a desktop lau
 `private` means "not on the public wall", not "secret". The **Certificate** page hands out
 Caddy's internal root CA so a device can trust every `*.BASE_DOMAIN` name; it is public
 because the device that needs it can't yet log in over HTTPS
-([`certificate-setup.md`](../guides/certificate-setup.md)).
+([`certificate-setup.md`](../guides/certificate-setup.md)). Its link in the sidebar is
+`settings.certificate_tab`'s to decide: the setting, and hidden while Caddy isn't set up.
 
 ### Settings
 

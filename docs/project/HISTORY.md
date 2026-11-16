@@ -38,6 +38,17 @@ flash in an install's life.
 the user opening the catalog, once per opening; later syncs are the button's, and nothing is
 fetched in the background.
 
+**The names part is behind a tick.** Loskai runs without Caddy and AdGuard, on links, and
+for that install four of the page's nine fields were for something it doesn't have. Sunde
+asked how it would look without "the https part"; the answer became **I want secure HTTPS
+connections** — his wording: what the user wants, not which programs they run. Ticked, it
+says what that takes and shows the fields; a compose file that set any shows them without
+asking. Under the button, one line: everything here can be changed later, in Settings.
+
+**No Certificate tab without Caddy.** The links-only walk also found the tab leading to
+"couldn't reach Caddy". `settings.certificate_tab` now answers `hidden` while
+`caddy_admin_url` is unset, whatever the setting says — the page itself stays where it was.
+
 **Left alone:** `LOSKAI_PASSWORD` in `.env` makes the account, so that install never sees the
 page — its settings are in `.env` too. Nothing on the page is tested against Caddy or
 AdGuard; Routing, where it lands, says whether each is online.

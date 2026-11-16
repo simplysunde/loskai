@@ -58,8 +58,8 @@ Names take two more pieces, and Loskai drives both once they are up:
 [Caddy](https://caddyserver.com) serves each name over HTTPS, and
 [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) answers its DNS. The
 [install guide](docs/guides/install.md) sets them up step by step: with Proxmox, without
-it, or all on one box. If you run both already, the welcome page takes their addresses
-under **HTTPS names**.
+it, or all on one box. If you run both already, tick **I want secure HTTPS
+connections** on the welcome page and give it their addresses.
 
 The certificates come from Caddy's own certificate authority, so there is no domain to buy
 and nothing is exposed to the internet. Each device trusts it once, from Loskai's

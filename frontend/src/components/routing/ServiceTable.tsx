@@ -83,7 +83,9 @@ export function ServiceTable({
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
-        No services yet. Assign a URL to add one.
+        {caddySetUp
+          ? "No services yet. Assign a URL to add one."
+          : "No services yet. Add a link to put one on the Dashboard."}
       </div>
     );
   }

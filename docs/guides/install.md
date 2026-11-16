@@ -257,7 +257,8 @@ HOST_IP=<docker-host-lan-ip>   # locks Loskai's SSH keys on your machines to thi
 ```
 
 Then `docker compose up -d` and open `http://<docker-host>:8080`. On **Welcome to Loskai**,
-fill in **Your account**, leave **HTTPS names** empty and click **Start using Loskai**. With
+fill in **Your account**, leave **I want secure HTTPS connections** unticked and click
+**Start using Loskai**. With
 no `.env` at all the same page asks for the two values above.
 
 - **What works:** the Docker tab — stacks, the install wizard, updates, logs, terminals — and
