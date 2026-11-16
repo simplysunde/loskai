@@ -1,7 +1,9 @@
 # Loskai — single image: FastAPI serves the API and the built React bundle on :8080.
 
 # --- Stage 1: build the frontend bundle ---
-FROM node:20-alpine AS frontend
+# On the machine that builds, whatever platform the image is for: the bundle is the same
+# JavaScript everywhere, and `npm ci` and Vite under emulation took most of an arm64 build.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
