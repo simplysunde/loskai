@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react";
 
@@ -28,6 +28,18 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
     mutationFn: () => api.post<SyncResult>("/api/docker/recipes/refresh"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["docker-recipes"] }),
   });
+
+  // A source that has never synced has nothing to list — a new install's catalog was empty
+  // until someone found Refresh recipes. So opening the catalog fetches it, once; every
+  // later sync is the button's.
+  const neverSynced = (data?.sources ?? []).some((s) => s.enabled && !s.synced);
+  const fetchedFirst = useRef(false);
+  const { mutate: syncSources } = refresh;
+  useEffect(() => {
+    if (!neverSynced || fetchedFirst.current) return;
+    fetchedFirst.current = true;
+    syncSources();
+  }, [neverSynced, syncSources]);
 
   const install = useMutation({
     mutationFn: (recipe: Recipe) =>
@@ -94,7 +106,7 @@ export function InstallWizard({ onClose }: { onClose: () => void }) {
       ) : (
         <ChooseStep
           data={data}
-          loading={isLoading}
+          loading={isLoading || (refresh.isPending && !data?.recipes.length)}
           refreshing={refresh.isPending}
           refreshFailed={
             refresh.error ? apiMessage(refresh.error, "Sync failed") : refresh.data ? syncFailureMessage(refresh.data) : null

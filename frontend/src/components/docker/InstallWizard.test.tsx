@@ -229,6 +229,29 @@ test("an install that can't reach Loskai says so", async () => {
   expect(await screen.findByText("Install failed")).toBeInTheDocument();
 });
 
+const refreshes = (fetchMock: ReturnType<typeof renderWizard>) =>
+  fetchMock.mock.calls.filter(([path]) => String(path).endsWith("/recipes/refresh")).length;
+
+// A new install's catalog was empty until someone found Refresh recipes.
+test("a source that has never synced is fetched when the catalog opens, once", async () => {
+  const fetchMock = renderWizard({
+    recipes: [],
+    sources: [{ ...SOURCES[0], synced: false, count: 0 }],
+  });
+
+  await waitFor(() => expect(refreshes(fetchMock)).toBe(1));
+  // Still unsynced afterwards (the source is unreachable, say): it says so, and doesn't loop.
+  expect(await screen.findByText(/loskai-recipes has never synced/)).toBeInTheDocument();
+  expect(refreshes(fetchMock)).toBe(1);
+});
+
+test("a synced source is fetched only by Refresh recipes", async () => {
+  const fetchMock = renderWizard();
+
+  await screen.findByText("Grafana");
+  expect(refreshes(fetchMock)).toBe(0);
+});
+
 test("Refresh recipes says which source failed to sync", async () => {
   renderWizard({
     refresh: {
