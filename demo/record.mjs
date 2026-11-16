@@ -16,7 +16,7 @@ const SIZE = { width: 1280, height: 720 };
 const browser = await chromium.launch();
 
 // The cursor and the caption, drawn on every page the flow opens.
-function overlay() {
+function overlay({ touch } = {}) {
   const add = () => {
     if (document.getElementById("demo-cursor")) return;
     const cursor = document.createElement("div");
@@ -26,12 +26,20 @@ function overlay() {
       position: "fixed", left: "-40px", top: "-40px", zIndex: 2147483647, pointerEvents: "none",
       filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))", transition: "transform .12s",
     });
+    // On a phone there is no arrow: a fingertip, centred on where it touches.
+    if (touch) {
+      cursor.innerHTML = "";
+      Object.assign(cursor.style, {
+        width: "26px", height: "26px", margin: "-10px 0 0 -10px", borderRadius: "50%",
+        background: "rgba(255,255,255,.35)", border: "2px solid rgba(255,255,255,.8)",
+      });
+    }
     const caption = document.createElement("div");
     caption.id = "demo-caption";
     Object.assign(caption.style, {
       position: "fixed", left: "50%", top: "12px", transform: "translateX(-50%)", zIndex: 2147483646,
       pointerEvents: "none", padding: "8px 16px", borderRadius: "10px", background: "rgba(2,6,23,.88)",
-      color: "#e2e8f0", font: "500 16px system-ui, sans-serif", border: "1px solid rgba(45,212,191,.45)",
+      color: "#e2e8f0", font: `500 ${touch ? 14 : 16}px system-ui, sans-serif`, border: "1px solid rgba(45,212,191,.45)",
       maxWidth: "90vw", whiteSpace: "nowrap", opacity: "0", transition: "opacity .25s",
     });
     document.body.append(cursor, caption);
@@ -43,13 +51,13 @@ function overlay() {
   else addEventListener("DOMContentLoaded", add);
 }
 
-async function newContext({ login = true, ...options } = {}) {
+async function newContext({ login = true, touch = false, ...options } = {}) {
   const ctx = await browser.newContext({
     viewport: SIZE, recordVideo: { dir: `${OUT}/raw`, size: options.viewport || SIZE },
     ignoreHTTPSErrors: true, colorScheme: "dark", extraHTTPHeaders: { Origin: BASE }, ...options,
   });
   ctx.setDefaultTimeout(30000);
-  await ctx.addInitScript(overlay);
+  await ctx.addInitScript(overlay, { touch });
   if (!login) return ctx;
   // The context's API calls share its cookies: logging in here logs the page in.
   const r = await ctx.request.post(`${BASE}/api/login`, { data: { username: "admin", password: process.env.LOSKAI_PASSWORD } });
@@ -149,70 +157,89 @@ await record("routing", async (p, start) => {
   await pause(p, 3200);
 });
 
-// Docker: an app installed from its recipe, and routed from the wizard's last step.
+// Docker: a stack opened to its containers and their logs, then an app installed from its
+// recipe and named from the wizard's last step.
 await record("docker", async (p, start) => {
   await go(p, "/docker");
   start();
   await caption(p, "Docker — every stack and its containers");
-  await pause(p, 2000);
+  await pause(p, 1800);
+  await click(p, p.getByRole("row").filter({ hasText: "jellyfin" }).first().getByRole("button", { name: "jellyfin", exact: true }));
+  await caption(p, "Open a stack: its containers, their logs, a terminal");
+  await pause(p, 1200);
+  await click(p, p.getByRole("row").filter({ hasText: "jellyfin-jellyfin-1" }).getByRole("button", { name: "Logs" }));
+  await pause(p, 2400);
+  await click(p, p.locator('[role="dialog"] button').first()); // its ✕, which has no name
   await click(p, p.getByRole("button", { name: "Install recipe" }));
   await caption(p, "Install an app from a recipe");
   await pause(p, 1200);
   await click(p, dialog(p).getByRole("button", { name: /Forgejo/ }));
-  await pause(p, 1500);
+  await pause(p, 1300);
   await click(p, dialog(p).getByRole("button", { name: "Continue" }));
   await caption(p, "Its settings, with defaults");
-  await pause(p, 1500);
+  await pause(p, 1300);
   await click(p, dialog(p).getByRole("button", { name: "Deploy", exact: true }));
   await caption(p, "Installing…");
   await dialog(p).getByText("Route it").waitFor({ timeout: 180000 });
-  await caption(p, "Installed — and routed from the same dialog");
+  await caption(p, "Installed — and named from the same dialog");
   await pause(p, 1200);
   await click(p, dialog(p).getByRole("button", { name: "Add route" }));
-  await pause(p, 2500);
+  await pause(p, 2300);
   await click(p, dialog(p).getByRole("button", { name: "Done", exact: true }).last());
   await caption(p, "Forgejo, running at https://git.home.lan");
   await pause(p, 3000);
 });
 
-// Machines: a machine's dialog — its overview, and a terminal on it in the browser.
+// Machines: a machine's dialog over SSH — its overview, a service restarted in one click,
+// and Claude Code started in a project. On the demo's machine `claude` is a stand-in
+// (demo/machine/Dockerfile), so the flow stops at Loskai's card and never attaches.
 await record("machines", async (p, start) => {
   const r = await p.context().request.post(`${BASE}/api/ssh/unlock`, { data: { password: process.env.LOSKAI_PASSWORD } });
   if (!r.ok()) throw new Error(`unlock: ${r.status()}`);
+  const section = (name) => dialog(p).getByRole("button", { name, exact: true });
   await go(p, "/machines");
   start();
   await caption(p, "Machines — your computers by name, and what runs on them");
-  await pause(p, 2500);
+  await pause(p, 2000);
   await click(p, p.getByRole("row").filter({ hasText: "nas.home.lan" }).getByTitle(/^Machine settings/));
   await caption(p, "Over SSH: its overview — system, memory, disks, updates");
+  await pause(p, 2600);
+  await click(p, section("Running"));
+  await caption(p, "What runs on it — every service");
+  await pause(p, 1600);
+  await click(p, dialog(p).getByRole("button", { name: "Restart", exact: true }).first());
+  await caption(p, "One click: it runs on the machine, and says how it went");
+  await p.getByText("Done", { exact: true }).first().waitFor();
+  await pause(p, 1400);
+  // The run's drop-down stays while the cursor is on it: off it, it slides away.
+  await point(p, section("Tools"));
+  await p.getByText("Restart nginx").first().waitFor({ state: "hidden" });
+  await click(p, section("Tools"));
+  await caption(p, "Its tools — Git and Claude Code, for each project");
+  await pause(p, 1800);
+  await click(p, dialog(p).getByRole("button", { name: "Start", exact: true }).last());
+  await caption(p, "Claude Code, started in that project");
+  await p.getByText(/Claude runs in homelab/).first().waitFor();
+  await pause(p, 2200);
+  await point(p, dialog(p).getByRole("button", { name: "Attach", exact: true }).last());
+  await caption(p, "It runs in the background — Attach to watch it");
   await pause(p, 3000);
-  await click(p, dialog(p).getByRole("button", { name: "Terminal" }));
-  await caption(p, "A terminal on it, in the browser");
-  await pause(p, 2500);
-  await p.keyboard.type("df -h /", { delay: 110 });
-  await p.keyboard.press("Enter");
-  await pause(p, 3500);
 });
 
-// The dashboard: every service as a card, as anyone on the LAN sees it, without logging in
-// — on a computer, then a phone.
-await record("dashboard", async (p, start) => {
+// A phone: the same pages, laid out for a small screen — a tour of the tabs from the menu.
+await record("phone", async (p, start) => {
   await go(p, "/");
   start();
-  await caption(p, "The dashboard — every service, no login needed");
-  await pause(p, 2000);
-  for (const card of (await p.getByRole("main").getByRole("link").all()).slice(0, 4)) {
-    const box = await card.boundingBox();
-    if (box) await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 20 });
+  await caption(p, "Loskai on a phone");
+  await pause(p, 2200);
+  for (const [name, says] of [["Routing", "Routes, as cards"], ["Docker", "Stacks and containers"], ["Machines", "Machines, and what runs on them"]]) {
+    await click(p, p.getByRole("button", { name: "Menu" }));
     await pause(p, 500);
+    await click(p, tab(p, name));
+    await caption(p, says);
+    await pause(p, 2400);
   }
-  await pause(p, 1500);
-}, { login: false });
-await record("dashboard-phone", async (p, start) => {
-  await go(p, "/");
-  start();
-  await pause(p, 3000);
-}, { ...devices["Pixel 7"], login: false });
+}, { ...devices["Pixel 7"], touch: true });
 
 // Merged with an earlier run's, so ONLY rerecords some flows and keeps the others' marks.
 const earlier = fs.existsSync(`${OUT}/marks.txt`) ? fs.readFileSync(`${OUT}/marks.txt`, "utf8").split("\n") : [];

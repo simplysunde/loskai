@@ -94,8 +94,9 @@ docker run -d -q --name "$DIND" --hostname docker --privileged --network "$NET" 
   -e DOCKER_TLS_CERTDIR= -v loskai-demo-docker:/var/lib/docker -v "$W:$W" \
   -v /etc/localtime:/etc/localtime:ro docker:29.9.3-dind >/dev/null
 docker run -d -q --name loskai-demo-adguard --network "$NET" --ip "$SUB.2" adguard/adguardhome:v0.107.80 >/dev/null
+# Privileged, in a cgroup namespace of its own: it runs systemd, so its services are real.
 docker run -d -q --name loskai-demo-nas --hostname nas --network "$NET" --ip "$SUB.50" \
-  --cap-add SYS_ADMIN -v /srv/storage -e MACHINE_PASSWORD="$MACHINE_PASSWORD" loskai-demo-machine >/dev/null
+  --privileged --cgroupns=private -v /srv/storage -e MACHINE_PASSWORD="$MACHINE_PASSWORD" loskai-demo-machine >/dev/null
 
 wait_for() { # what, then a command that succeeds once it is ready
   local what=$1; shift

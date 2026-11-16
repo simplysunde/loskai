@@ -21,7 +21,7 @@ ffmpeg() {
 while read -r name start; do
   [ -n "$name" ] || continue
   case $name in
-    *-phone) scale="scale=-2:640:flags=lanczos" ;; # a phone stays a phone, at the height of the rest
+    phone) scale="scale=-2:640:flags=lanczos" ;; # a phone stays a phone, at the height of the rest
     *) scale="scale=960:-2:flags=lanczos" ;;
   esac
   ffmpeg -ss "$start" -i "/in/$name.webm" -vf "fps=15,$scale" \

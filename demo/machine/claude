@@ -1,0 +1,6 @@
+#!/bin/sh
+# The demo machine's stand-in for Claude Code (see the Dockerfile): it answers `update` and
+# otherwise waits, as a session does, until its tmux session is ended.
+case $1 in update) echo "claude (the demo's stand-in): nothing to update"; exit 0 ;; esac
+echo "claude (the demo's stand-in) $*"
+exec sleep infinity
