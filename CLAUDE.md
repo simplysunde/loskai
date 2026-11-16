@@ -373,7 +373,8 @@ with the machine or its SSH connection.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run
   `bash scripts/sync-recipe-schema.sh`; the docs check fails while the copy differs.
 - **`docs/guides/topologies.md` is the single source for deployment layouts**: A split-LXC,
-  B split DNS, C all-in-Docker — A and B recommended, C supported, all three shipped. A
+  B split DNS, C all-in-Docker — all three shipped and recommended, each for the hardware
+  you have (C since 2026-11-16, when its port 53 stopped needing the host changed). A
   merged single-container layout was considered and rejected; don't re-propose it. The
   letters were reassigned on 2026-09-04 (B↔C), so a letter in an older `HISTORY.md` or
   `TODO.md` entry may be the old one.

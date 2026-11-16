@@ -1,8 +1,9 @@
-# All-in-Docker alternative (no Proxmox/LXC): Loskai + Caddy + AdGuard as containers on one
-# host. Also the basis for the Tier-3 test rig. See docs/guides/deployment.md for env vars, the
-# co-located port notes, and why CADDY_HOST_IP is required here — set it in a .env. It is
-# also where AdGuard's DNS is published: this host's LAN address, beside the host's own
-# resolver.
+# All-in-Docker layout (C): Loskai + Caddy + AdGuard as containers on one host — the
+# recommended layout when one machine is all you have. Also the basis for the Tier-3 test
+# rig. See docs/guides/deployment.md for env vars, the co-located port notes, and why
+# CADDY_HOST_IP is required here — set it in a .env. It is also where AdGuard's DNS is
+# published: this host's LAN address, beside the host's own resolver. Walkthrough:
+# docs/guides/install.md#one-machine-all-three-in-docker
 #
 #   mkdir -p data stacks && docker compose -f compose.colocated.yml up -d      # first run
 #   docker compose -f compose.colocated.yml pull && \

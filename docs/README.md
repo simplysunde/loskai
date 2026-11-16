@@ -35,7 +35,7 @@ Operating Loskai. Read in roughly this order the first time.
 |---|---|
 | [install.md](guides/install.md) | Setting Loskai up from nothing. Loskai itself in three commands, then HTTPS names: AdGuard and Caddy with Proxmox or without, pointing your devices at AdGuard, trusting the certificate, the first name. Start here. |
 | [using-loskai.md](guides/using-loskai.md) | Right after installing. One section per tab — what it is for, with an example. |
-| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which two are recommended, and records the arrangements that were considered and rejected. |
+| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which suits the hardware you have, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | The first confusing moment for most users — why LAN devices distrust the cert under the internal CA, and the onboarding page that fixes it once per device. |
 | [backend-certificates.md](guides/backend-certificates.md) | Only if you open a backend on its own port — Proxmox `:8006`, a NAS UI. Runs Caddy as an ACME server for its own CA so the backend serves a certificate your devices already trust. Loskai is not involved; this is Caddy and the backend. |

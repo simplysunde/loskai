@@ -56,23 +56,22 @@ Three compose files, same image:
   [`scripts/create-caddy-lxc.sh`](../../scripts/create-caddy-lxc.sh) and
   [`scripts/create-adguard-lxc.sh`](../../scripts/create-adguard-lxc.sh) (run from the Proxmox
   shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
-- **`compose.caddy-loskai.yml` — recommended without Proxmox.** Split DNS: Caddy + Loskai as
+- **`compose.caddy-loskai.yml` — recommended with a small always-on box.** Split DNS: Caddy + Loskai as
   containers on the Docker host, AdGuard on its own small always-on box (a Raspberry Pi or
   similar) reached over the LAN. `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so
   you **must** set `CADDY_HOST_IP` to this host's LAN IP. It declares the shared
   [`loskai-edge` network](topologies.md#routing-a-container-without-publishing-a-port), which
   lets a managed stack be routed without publishing a host port.
-- **`compose.colocated.yml` — all-in-Docker.** Loskai + Caddy + AdGuard as containers on
-  one host, with no second machine at all. Supported, but see the recommendation below.
+- **`compose.colocated.yml` — recommended on one machine.** All-in-Docker: Loskai + Caddy +
+  AdGuard as containers on one host, with no second machine at all.
   Here `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so you **must** set
   `CADDY_HOST_IP` to the host's LAN IP (where Caddy's published `:443` actually lives for
   LAN clients).
 
-**Two layouts are recommended.** Use `compose.yml` if you run Proxmox; use
-`compose.caddy-loskai.yml` otherwise — it is the friendlier setup for most people, since the
-DNS box is configured once and everything you iterate on stays in one compose stack.
-All-in-Docker remains fully supported and is the right answer when a second box isn't an
-option; its costs are stated at the point of choice. The full comparison — which ports each
+**All three are recommended, each for the hardware you have.** Use `compose.yml` if you run
+Proxmox; `compose.caddy-loskai.yml` with a small always-on box for DNS, which is configured
+once while everything you iterate on stays in one compose stack; `compose.colocated.yml` on
+one machine, where DNS then shares that machine's restarts. The full comparison — which ports each
 layout contests, which admin channels it leaves on the LAN, and why — is in
 [topologies.md](topologies.md).
 

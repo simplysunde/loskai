@@ -1,9 +1,9 @@
 # Split-DNS layout (B): Caddy + Loskai here on the Docker host, AdGuard on its own small
-# always-on box over the LAN. The recommended layout without Proxmox — see
+# always-on box over the LAN. The recommended layout with such a box — see
 # docs/guides/topologies.md for why, and docs/guides/deployment.md for env vars and volumes.
 # Set AdGuard up on the other box first, then put ADGUARD_URL (its LAN IP) and CADDY_HOST_IP
 # (this host's LAN IP) in a .env. Walkthrough:
-# docs/guides/install.md#without-proxmox-caddy-beside-loskai
+# docs/guides/install.md#with-a-small-always-on-machine-caddy-beside-loskai
 #
 #   mkdir -p data stacks && docker compose -f compose.caddy-loskai.yml up -d   # first run
 #   docker compose -f compose.caddy-loskai.yml pull && \

@@ -13,8 +13,8 @@ after it.
 |---|---|
 | Loskai running | [Install Loskai](#install-loskai) |
 | HTTPS names, and you run Proxmox | then [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) |
-| HTTPS names, without Proxmox | then [Without Proxmox](#without-proxmox-caddy-beside-loskai) |
-| Everything on one machine | then [Everything on one machine](#everything-on-one-machine) |
+| HTTPS names, with a small always-on machine for DNS | then [With a small always-on machine](#with-a-small-always-on-machine-caddy-beside-loskai) |
+| HTTPS names, on this one machine | then [One machine](#one-machine-all-three-in-docker) |
 | Settings in a file, not the UI | [Settings in a `.env` file](#settings-in-a-env-file) |
 
 ## Install Loskai
@@ -58,14 +58,15 @@ Three things, each set up once:
 - **Your devices asking AdGuard.** Until a device does, the names don't exist for it:
   [Point your devices at AdGuard](#point-your-devices-at-adguard).
 
-Where the two programs run is your choice. AdGuard is best on a machine of its own, so your
-network's DNS stays up while you work on the Docker host.
+Where the two programs run depends on what you have. A machine of its own for AdGuard keeps
+your network's DNS up while the Docker host restarts; one machine for everything is the
+least to run.
 
 | | AdGuard | Caddy |
 |---|---|---|
 | [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) | An LXC | An LXC |
-| [Without Proxmox](#without-proxmox-caddy-beside-loskai) | A small always-on machine | In Docker, beside Loskai |
-| [One machine](#everything-on-one-machine) | In Docker | In Docker |
+| [With a small always-on machine](#with-a-small-always-on-machine-caddy-beside-loskai) | That machine | In Docker, beside Loskai |
+| [One machine](#one-machine-all-three-in-docker) | In Docker | In Docker |
 
 ## With Proxmox: AdGuard and Caddy in LXCs
 
@@ -100,7 +101,7 @@ program and prints the address it got. Read a script before piping it into a she
 
 Then [point your devices at AdGuard](#point-your-devices-at-adguard).
 
-## Without Proxmox: Caddy beside Loskai
+## With a small always-on machine: Caddy beside Loskai
 
 AdGuard goes on a small machine that is always on — a Raspberry Pi, a mini PC, a NAS that
 runs containers. Caddy runs in Docker next to Loskai, so ports 80 and 443 on the Docker host
@@ -149,6 +150,36 @@ A container can also join Caddy's network and be routed without publishing a por
 [topologies.md](topologies.md#routing-a-container-without-publishing-a-port).
 
 Then [point your devices at AdGuard](#point-your-devices-at-adguard).
+
+## One machine: all three in Docker
+
+AdGuard, Caddy and Loskai as three containers on the Docker host: nothing else to buy or set
+up. What you trade for it: while that machine is down or restarting, so is your network's DNS. Ports 80, 443 and
+3000 must be free on it. Port 53 only has to be free on its LAN address, where AdGuard's DNS
+goes: the resolver most Linux hosts run themselves is on another address and stays as it is.
+
+1. In Loskai's folder, replace `compose.yml` with the file that has all three, and say this
+   machine's address:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.colocated.yml -o compose.yml
+   echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
+   docker compose up -d
+   ```
+
+   `docker compose ps` lists `adguard`, `caddy` and `loskai`. Your account and settings are
+   as they were.
+
+2. Set AdGuard up: open `http://<this-machine>:3000`. Its setup asks which port its web
+   interface should use and offers 80: type `3000`, the only one Loskai and you can reach it
+   on here. Leave DNS on 53, and choose a username and password.
+3. Give Loskai that login. In **Settings** › **Network**, fill in AdGuard's **Username** and
+   **Password**; its **URL** and Caddy's **Admin URL** are already there, marked **env**. On
+   **Routing**, the **Caddy** and **AdGuard** rows say **online**.
+
+Then [point your devices at AdGuard](#point-your-devices-at-adguard): its address is this
+machine's. How the three layouts compare:
+[topologies.md](topologies.md#which-one-should-i-run).
 
 ## Point your devices at AdGuard
 
@@ -205,36 +236,6 @@ For a router that won't hand out another DNS server. AdGuard Home can hand out t
 addresses itself, and then every device uses it for DNS. Turn the router's DHCP off first:
 two DHCP servers on one network give out conflicting addresses. AdGuard's own guide has the
 steps: [DHCP](https://github.com/AdguardTeam/AdGuardHome/wiki/DHCP).
-
-### Everything on one machine
-
-AdGuard, Caddy and Loskai as three containers on the Docker host, for when a second machine
-isn't an option. While that machine is down, so is your network's DNS. Ports 80, 443 and
-3000 must be free on it. Port 53 only has to be free on its LAN address, where AdGuard's DNS
-goes: the resolver most Linux hosts run themselves is on another address and stays as it is.
-
-1. In Loskai's folder, replace `compose.yml` with the file that has all three, and say this
-   machine's address:
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.colocated.yml -o compose.yml
-   echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
-   docker compose up -d
-   ```
-
-   `docker compose ps` lists `adguard`, `caddy` and `loskai`. Your account and settings are
-   as they were.
-
-2. Set AdGuard up: open `http://<this-machine>:3000`. Its setup asks which port its web
-   interface should use and offers 80: type `3000`, the only one Loskai and you can reach it
-   on here. Leave DNS on 53, and choose a username and password.
-3. Give Loskai that login. In **Settings** › **Network**, fill in AdGuard's **Username** and
-   **Password**; its **URL** and Caddy's **Admin URL** are already there, marked **env**. On
-   **Routing**, the **Caddy** and **AdGuard** rows say **online**.
-
-Then [point your devices at AdGuard](#point-your-devices-at-adguard): its address is this
-machine's. What this layout costs beside the other two:
-[topologies.md](topologies.md#c--all-in-docker-composecolocatedyml).
 
 ### Settings in a `.env` file
 

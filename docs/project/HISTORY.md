@@ -19,9 +19,13 @@ there, and already this host's LAN address, where devices ask anyway. Tried on a
 `systemd-resolved`: `-p 53:53` fails with "failed to bind host port", `-p <lan-ip>:53:53`
 starts. The guide's section became three steps with one line of `.env`.
 
-This takes away what the 2026-09-04 entry called the cost "that actually bites" in C. C stays
-*supported, not recommended* for what is left: DNS in the Docker host's fault domain, and a
-managed stack having to publish a port. `topologies.md` and `deployment.md` say so now.
+This takes away what the 2026-09-04 entry called the cost "that actually bites" in C. So
+Sunde: "since we have kinda fixed the sytem reslove problem, id say we can recommend it on
+equal grounds like the two other options". **All three layouts are recommended now, each for
+the hardware you have**: A with Proxmox, B with a small always-on box, C on one machine. C
+had been *supported, not recommended* since 2026-09-04. What it trades is still said where
+you choose — DNS in the Docker host's fault domain, a managed stack having to publish a port
+— as a trade, not a ranking. The guide gives it a main section beside the other two.
 
 ## 2026-11-16 — The animations, recorded again as four: none opens an app, one is a phone
 
@@ -3252,7 +3256,8 @@ alongside two wins, which undersold the one that actually bites: **C is the only
 needs the host reconfigured before it will start**, because AdGuard's `53` has to be taken from
 `systemd-resolved` by hand. That is a different kind of cost from "DNS shares a fault domain",
 and it belongs at the point of choice. *(Superseded 2026-11-16: the compose file publishes
-`53` on the LAN address only, and nothing on the host has to change.)*
+`53` on the LAN address only, nothing on the host has to change, and C is recommended like
+the other two.)*
 
 **The all-in-one LXC is deleted rather than kept as documented-but-unsupported.** It was never
 an option: Loskai's Docker client dials the local socket, so on its own LXC it loses the Docker

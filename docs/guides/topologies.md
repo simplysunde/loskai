@@ -15,23 +15,23 @@ For the env vars, volumes and cold start of whichever layout you pick, see
 
 ## Which one should I run?
 
-Two layouts are recommended, and which one depends on what hardware you already have:
+All three layouts are recommended, each for the hardware you have:
 
 - **Running Proxmox? Use [A — split LXC](#a--split-lxc-composeyml)**, the three-way split.
   AdGuard and Caddy each get their own container, giving the widest fault isolation and zero
   port contention. This is the layout the install guide walks through.
-- **No Proxmox? Use [B — split DNS](#b--split-dns-adguard-separate-caddy--loskai-together)**,
-  the two-way split. AdGuard runs on any small always-on box — a Raspberry Pi is ideal, and so
+- **A small always-on box beside your Docker host? Use
+  [B — split DNS](#b--split-dns-adguard-separate-caddy--loskai-together)**, the two-way split. AdGuard runs on any small always-on box — a Raspberry Pi is ideal, and so
   is an old mini-PC or NAS — while Caddy and Loskai run together in Docker on your main host.
   This is the friendliest setup to actually operate: the Pi does one job and never needs
   touching, and everything you *do* touch is one `docker compose` command away.
 
-**[C — all-in-Docker](#c--all-in-docker-composecolocatedyml) is the supported alternative**,
-and the right pick when a second box genuinely isn't an option: it needs no extra hardware and
-keeps Caddy's admin API off the LAN. Its costs are real: DNS shares a fault domain with
-everything else on the Docker host, so your network's names go when that host does, and a
-managed stack must publish a host port to be routable, since Compose keeps it off Caddy's
-network. If you can add one small always-on box, B removes both.
+- **One machine? Use [C — all-in-Docker](#c--all-in-docker-composecolocatedyml).** Nothing
+  else to buy or set up: all three are one `docker compose` command, and Caddy's admin API
+  stays off the LAN. What you trade for it: DNS shares a fault domain with everything else on
+  the Docker host, so your network's names go while that host is down or restarting, and a
+  managed stack must publish a host port to be routable, since Compose keeps it off Caddy's
+  network. A small always-on box, added later, turns it into B.
 
 A fourth arrangement — merging all three components into a single container — was considered
 and **rejected**; see [Considered and not supported](#considered-and-not-supported).
@@ -74,7 +74,7 @@ DNS rewrite was skipped.
 
 | | A: split LXC | B: split DNS | C: all-in-Docker |
 |---|---|---|---|
-| **Verdict** | **recommended — with Proxmox** | **recommended — otherwise** | supported alternative |
+| **Verdict** | **recommended — with Proxmox** | **recommended — with a small always-on box** | **recommended — on one machine** |
 | Status | shipping (`compose.yml`) | shipping (`compose.caddy-loskai.yml`) | shipping (`compose.colocated.yml`) |
 | Boxes needed | 3 (2 LXCs + Docker host) | 2 (small DNS box + Docker host) | 1 |
 | `53` | own box, clean | own box, clean | the host's LAN address, beside its own resolver |
@@ -133,8 +133,9 @@ rebuild takes name resolution down LAN-wide.
 
 ### B — Split DNS: AdGuard separate, Caddy + Loskai together
 
-> **Recommended if you don't run Proxmox.** Shipping today as `compose.caddy-loskai.yml`;
-> [install.md](install.md#without-proxmox-caddy-beside-loskai) walks it through.
+> **Recommended with a small always-on box beside your Docker host.** Shipping today as
+> `compose.caddy-loskai.yml`;
+> [install.md](install.md#with-a-small-always-on-machine-caddy-beside-loskai) walks it through.
 
 AdGuard on its own small always-on box — a Raspberry Pi is the natural fit, as is a mini-PC,
 an old thin client, or a NAS that can run one container. Caddy and Loskai run as containers on
@@ -162,9 +163,9 @@ explicitly — see [deployment.md](deployment.md#environment-variables).
 
 ### C — All-in-Docker (`compose.colocated.yml`)
 
-> **The supported alternative.** Shipping today, and the layout to choose when one box is all
-> you have — at the cost of being the only one that needs host configuration before it will
-> start.
+> **Recommended when one machine is all you have.** Shipping today as
+> `compose.colocated.yml`; [install.md](install.md#one-machine-all-three-in-docker) walks it
+> through.
 
 All three as containers on one host.
 
@@ -184,9 +185,9 @@ explicitly — see [deployment.md](deployment.md#environment-variables).
   network. Loskai detects which applies per container — see
   [Docker service names are not automatically resolvable](#docker-service-names-are-not-automatically-resolvable).
 
-One device is the whole difference between C and B: on every other axis B dominates — C's sole
-advantage over A (internal `2019`) is one B also has, without C's shared DNS fault domain.
-Which is why C stays supported rather than recommended.
+One device is the whole difference between C and B: B is this layout with AdGuard moved to a
+box of its own, which takes DNS out of the Docker host's fault domain and lets a stack stay
+unpublished. Until you have that box, C is the layout to run.
 
 ## Considered and not supported
 

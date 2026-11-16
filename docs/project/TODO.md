@@ -159,13 +159,16 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       2026-11-16). Settings go in the welcome page and Settings › Network; `.env` holds only
       `CADDY_HOST_IP`, where the compose file demands it
       — live: a fresh Docker host (a dind container, the images built from this checkout):
-      Install Loskai as written, then Without Proxmox as written — AdGuard's setup on port
+      Install Loskai as written, then the small-always-on-machine section as written — AdGuard's setup on port
       3000, the compose file swapped over the running install (the account kept), Settings ›
       Network, both rows online, the Certificate page, `loskai` routed: its rewrite in
       AdGuard, AdGuard answering the name, Loskai's own body over HTTPS through Caddy.
       Then, on Sunde's question about the one-machine layout: `compose.colocated.yml`
       publishes AdGuard's `53` on the LAN address only, so nothing on the host changes, and
-      its section is three steps — followed the same way, to Loskai's body over HTTPS
+      its section is three steps — followed the same way, to Loskai's body over HTTPS. With
+      that fixed, Sunde: recommend it "on equal grounds like the two other options" — it is a
+      main section of the guide, and every page that ranked the layouts says all three,
+      each for the hardware you have
       **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
       scripts' own text) and the published images (the release's clean install,
       [releasing.md](../contributing/releasing.md) step 7, still to do)

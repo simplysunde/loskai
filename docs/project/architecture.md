@@ -75,9 +75,10 @@ Proxmox host (layout A)
 ```
 
 Three layouts ship: **A** split LXCs (above), **B** split DNS (AdGuard on its own small box,
-Caddy beside Loskai in Docker), **C** all-in-Docker. A and B are recommended; C is the
-supported single-box option. AdGuard and Caddy are kept apart because Caddy is the thing
-Loskai constantly reconfigures, and restarting it must never take LAN DNS down with it. A
+Caddy beside Loskai in Docker), **C** all-in-Docker. Each is recommended for its hardware:
+A with Proxmox, B with a small always-on box, C on one machine. In A and B, AdGuard is kept
+apart because Caddy is the thing Loskai constantly reconfigures, and restarting it there
+never takes LAN DNS down with it; in C the two are still separate containers. A
 fourth layout — all three merged into one container — was considered and rejected: it
 fixes no port conflict and puts DNS, TLS and the Docker socket in one blast radius.
 [`topologies.md`](../guides/topologies.md) is the single source for layouts; env vars and
