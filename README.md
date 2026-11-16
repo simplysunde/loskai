@@ -67,9 +67,9 @@ and nothing is exposed to the internet. Each device trusts it once, from Loskai'
 
 ## A look around
 
-**Docker** — a stack's containers and logs, then an app installed from its recipe and named.
+**Docker** — a stack and its containers, then an app installed from its recipe and named.
 
-![Docker: a stack's logs, then an app installed from its recipe](docs/images/demo-docker.webp)
+![Docker: a stack opened, then an app installed from its recipe](docs/images/demo-docker.webp)
 
 **Machines** — a machine's overview, a service restarted in one click, and Claude Code
 started in a project.

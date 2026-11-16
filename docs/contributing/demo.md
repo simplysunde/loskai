@@ -11,7 +11,7 @@ Loskai, records each flow, and writes the images to `docs/images/`:
 | File | What it shows |
 |---|---|
 | `demo-routing.webp` | The dashboard, then Add route → a container → its HTTPS name, and its card on the dashboard |
-| `demo-docker.webp` | A stack opened to its containers and their logs, then the install wizard: a recipe installed and named from its last step |
+| `demo-docker.webp` | A stack opened to its containers, then the install wizard: a recipe installed and named from its last step |
 | `demo-machines.webp` | A machine's dialog over SSH — its overview, a service restarted in one click, Claude Code started in a project |
 | `demo-phone.webp` | A phone: the dashboard, then Routing, Docker and Machines from the menu |
 
@@ -87,7 +87,10 @@ await record("routing", async (p, start) => {
 - Find things by what a person reads — a button's name, a title — as the tests do; never by
   a CSS class.
 - Keep a flow under about half a minute: an animation has no pause button, and git keeps
-  every version of it, so its size counts — `convert.sh` prints each one's.
+  every version of it, so its size counts — `convert.sh` prints each one's. A screen of
+  small text is the costliest thing to show: a container's log, opened for two seconds,
+  doubled the Docker animation. `QUALITY` (70) is what the size hangs on, far more than
+  `FPS` (12): `QUALITY=60 make demo` for smaller still.
 - A run that drops down from the top (an automatic action) stays while the cursor is on it:
   `point` at something else and wait for it to go before the next step.
 - Something the flow needs set up first goes in `setup.mjs`, through the API.

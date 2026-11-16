@@ -55,7 +55,7 @@ This page hands out that certificate with install steps per OS. Once per device 
 
 Your containers, grouped by compose project.
 
-![Docker: a stack's logs, then an app installed from its recipe](../images/demo-docker.webp)
+![Docker: a stack opened, then an app installed from its recipe](../images/demo-docker.webp)
 
 - **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
   pull + update, edit, or delete — **Delete keeps `./data` unless you tick it**, so installing

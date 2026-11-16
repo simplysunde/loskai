@@ -157,19 +157,18 @@ await record("routing", async (p, start) => {
   await pause(p, 3200);
 });
 
-// Docker: a stack opened to its containers and their logs, then an app installed from its
-// recipe and named from the wizard's last step.
+// Docker: a stack opened to its containers, then an app installed from its recipe and named
+// from the wizard's last step. (A container's log, opened here once, doubled the image: a
+// screen of small text is the costliest thing an animation can show.)
 await record("docker", async (p, start) => {
   await go(p, "/docker");
   start();
   await caption(p, "Docker — every stack and its containers");
   await pause(p, 1800);
   await click(p, p.getByRole("row").filter({ hasText: "jellyfin" }).first().getByRole("button", { name: "jellyfin", exact: true }));
-  await caption(p, "Open a stack: its containers, their logs, a terminal");
-  await pause(p, 1200);
-  await click(p, p.getByRole("row").filter({ hasText: "jellyfin-jellyfin-1" }).getByRole("button", { name: "Logs" }));
-  await pause(p, 2400);
-  await click(p, p.locator('[role="dialog"] button').first()); // its ✕, which has no name
+  await caption(p, "Open a stack: its containers, a click from their logs and a terminal");
+  await point(p, p.getByRole("row").filter({ hasText: "jellyfin-jellyfin-1" }).getByRole("button", { name: "Logs" }));
+  await pause(p, 2000);
   await click(p, p.getByRole("button", { name: "Install recipe" }));
   await caption(p, "Install an app from a recipe");
   await pause(p, 1200);

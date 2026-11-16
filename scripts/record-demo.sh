@@ -28,6 +28,8 @@
 #                                    http://$DEMO_SUBNET.20:8080, user admin, the password
 #                                    printed at the end; KEEP=0 to clear it away again
 #   DEMO_SUBNET=192.168.50           the made-up LAN; it must not be one this host routes
+#   QUALITY=70  FPS=12               the animations' WebP quality and frames a second
+#                                    (demo/convert.sh): quality is what their size hangs on
 
 set -euo pipefail
 

@@ -52,6 +52,13 @@ recorded; `demo.md` says so.
 The Docker and Machines flows run 27 seconds, past the 20 the page asked for, which now says
 half a minute; the Docker one is 1.4 MB, mostly the log view and the recipe's page of text.
 
+**Made lighter the same day** (Sunde: "we can drop the log view, and we can probably reduce
+the frames a bit?"). The log view went, which halved the Docker animation: a screen of small
+text is the costliest thing to show. Frames turned out to matter little — 15 a second down to
+8 saved 15% and made the cursor jerk — so they are 12. WebP's quality is what the size hangs
+on: at 70 for 80, each animation is some 40% smaller with its text as readable. The four
+are 1.2 MB together, from 3.0.
+
 ## 2026-11-16 — A first run that sets Loskai up (Phase 61)
 
 Walking the README on a bare install (Phase 60) showed what a new user met: an empty
