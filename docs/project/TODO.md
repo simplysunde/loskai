@@ -614,7 +614,7 @@ avoided when possible")**
   worktree's is a file — so it needs a status line version, and Install again on each
   machine. Not several sessions in one folder: they overwrite each other's changes
 - **A one-line install, `curl … | sh`** (Sunde, 2026-11-14: for when the build is public and
-  the release is a pulled image) — what the README's *Run it* does in three lines now (make
+  the release is a pulled image) — what the README's *Get started* does in three lines now (make
   `data` and `stacks` as the user, fetch `compose.yml`, `docker compose up -d`), as one
   script. `deploy.sh` and `make dev` stay what they are: running a checkout's own code
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
