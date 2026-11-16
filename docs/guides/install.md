@@ -154,9 +154,12 @@ Then [point your devices at AdGuard](#point-your-devices-at-adguard).
 ## One machine: all three in Docker
 
 AdGuard, Caddy and Loskai as three containers on the Docker host: nothing else to buy or set
-up. What you trade for it: while that machine is down or restarting, so is your network's DNS. Ports 80, 443 and
-3000 must be free on it. Port 53 only has to be free on its LAN address, where AdGuard's DNS
-goes: the resolver most Linux hosts run themselves is on another address and stays as it is.
+up. What you trade for it: while that machine is down or restarting, so is your network's
+DNS.
+
+Ports 80, 443 and 3000 must be free on it. Port 53 only has to be free on its LAN address,
+where AdGuard's DNS goes: the resolver most Linux hosts run themselves is on another address
+and stays as it is.
 
 1. In Loskai's folder, replace `compose.yml` with the file that has all three, and say this
    machine's address:
