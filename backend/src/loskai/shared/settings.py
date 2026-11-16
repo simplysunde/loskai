@@ -44,6 +44,11 @@ CONFIGURABLE_KEYS = [
 # Rendered as password inputs in the UI (value still returned over the auth-gated API).
 SECRET_KEYS = {"adguard_password"}
 
+# What first-run setup asks for, in the page's order: the two things Loskai can't find from
+# inside its container, then what HTTPS names need. `POST /api/auth/setup` stores these and
+# no other key, and `setup_view` says which the compose file or `.env` already set.
+SETUP_KEYS = ("base_domain", "host_ip", "caddy_admin_url", "adguard_url", "adguard_user", "adguard_password")
+
 # Configurable keys with **no env layer** — stored or unset, never set from the
 # environment. `_resolve` needs no special case (there is simply no attribute of that name
 # on `config.Settings`); this names them so the three-places enumeration test can tell a
@@ -249,6 +254,13 @@ _BARE_IPS = {
 }
 
 
+def setup_view() -> dict[str, Any]:
+    """The setup page's fields as `get_view` shows them, for `GET /api/auth/status` while no
+    account exists. That answer is public, so a secret's value is never in it."""
+    view = get_view()
+    return {key: {**view[key], "value": None if view[key]["secret"] else view[key]["value"]} for key in SETUP_KEYS}
+
+
 def _validate(key: str, val: Any) -> None:
     """Reject values that would corrupt downstream use. Raises ValueError (→ 422)."""
     if key in _BARE_IPS:
@@ -300,31 +312,39 @@ def _validate(key: str, val: Any) -> None:
             seen.add(url)
 
 
+def _apply(payload: dict[str, Any], stored: dict[str, Any]) -> dict[str, Any]:
+    """`stored` with `payload` put into it — what `update` writes and `check` only tries.
+    Env-sourced and non-configurable keys are ignored."""
+    for key, val in payload.items():
+        if key not in CONFIGURABLE_KEYS:
+            continue
+        if _resolve(key, stored)[1] == "env":
+            continue  # env wins — never override from the UI
+        # A field's spaces are never meant: an address pasted with a newline would be
+        # written into every machine's `from=` with it. A password's may be.
+        if isinstance(val, str) and key not in SECRET_KEYS:
+            val = val.strip()
+        if val in (None, ""):
+            stored.pop(key, None)
+        else:
+            # An empty *list* is not an unset value: `recipes_repos: []` is how "no
+            # git sources at all" is stored, and it has to persist rather than let
+            # the built-in default re-seed itself on the next read.
+            _validate(key, val)  # raises before anything is written
+            stored[key] = val
+    return stored
+
+
 def update(payload: dict[str, Any]) -> dict[str, Any]:
     """Persist stored settings. Env-sourced and non-configurable keys are ignored."""
-
-    def apply(stored: dict[str, Any]) -> dict[str, Any]:
-        for key, val in payload.items():
-            if key not in CONFIGURABLE_KEYS:
-                continue
-            if _resolve(key, stored)[1] == "env":
-                continue  # env wins — never override from the UI
-            # A field's spaces are never meant: an address pasted with a newline would be
-            # written into every machine's `from=` with it. A password's may be.
-            if isinstance(val, str) and key not in SECRET_KEYS:
-                val = val.strip()
-            if val in (None, ""):
-                stored.pop(key, None)
-            else:
-                # An empty *list* is not an unset value: `recipes_repos: []` is how "no
-                # git sources at all" is stored, and it has to persist rather than let
-                # the built-in default re-seed itself on the next read.
-                _validate(key, val)  # raises before anything is written
-                stored[key] = val
-        return stored
-
-    _update_stored(apply)
+    _update_stored(lambda stored: _apply(payload, stored))
     return get_view()
+
+
+def check(payload: dict[str, Any]) -> None:
+    """Raise the `ValueError` `update(payload)` would, writing nothing — for first-run setup,
+    which must refuse a wrong answer before it makes the account."""
+    _apply(payload, _read_stored())
 
 
 # --- Admin password hash (stored, never returned) ---

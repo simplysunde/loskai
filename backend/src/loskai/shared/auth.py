@@ -20,6 +20,7 @@ import time
 from collections.abc import Hashable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
@@ -385,6 +386,11 @@ class LoginBody(BaseModel):
     password: str
 
 
+class SetupBody(LoginBody):
+    # The setup page's answers, by setting key; only `settings.SETUP_KEYS` are stored.
+    settings: dict[str, Any] = {}
+
+
 class NewPassword(BaseModel):
     current: str
     new: str
@@ -414,7 +420,12 @@ def set_cookie(request: Request, response: Response, user: User) -> None:
 def auth_status(request: Request) -> dict:
     """Whether this browser is signed in, as whom, and whether first-run setup is due."""
     user = session_user(request.cookies.get(SESSION_COOKIE))
-    return {"authed": user is not None, "needs_setup": not users.any_users(), "user": user.view() if user else None}
+    status = {"authed": user is not None, "needs_setup": not users.any_users(), "user": user.view() if user else None}
+    if status["needs_setup"]:
+        # What the compose file or `.env` already set, so the setup page asks for the rest.
+        # Public like the rest of this answer, but only until the first account exists.
+        status["setup"] = settings_store.setup_view()
+    return status
 
 
 @router.post("/login")
@@ -445,11 +456,22 @@ def login_log(limit: int = 200) -> list[dict]:
 
 
 @router.post("/auth/setup")
-def setup(body: LoginBody, request: Request, response: Response) -> dict:
-    """First run: create the admin account and sign in as it. Refuses once any account exists."""
+def setup(body: SetupBody, request: Request, response: Response) -> dict:
+    """First run: create the admin account, store the setup page's answers and sign in.
+    Refuses once any account exists."""
     if users.any_users():  # early, before hashing; `first` is the check that holds
         raise HTTPException(status_code=409, detail="Loskai is already set up")
+    answers = {
+        key: val for key, val in body.settings.items() if key in settings_store.SETUP_KEYS and isinstance(val, str)
+    }
+    try:
+        # Before the account: once it exists the page is gone, and a mistyped address
+        # would be left for Settings to explain.
+        settings_store.check(answers)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     user = users.create(body.username.strip().lower(), body.password, users.ADMIN, first=True)
+    settings_store.update(answers)
     set_cookie(request, response, user)
     return {"authed": True, "user": user.view()}
 

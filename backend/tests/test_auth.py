@@ -567,7 +567,8 @@ def test_without_bash_the_container_terminal_falls_back_to_sh(tmp_path):
 
 def test_first_run_setup_creates_the_admin_account_once(tmp_path):
     with TestClient(app) as c:
-        assert c.get("/api/auth/status").json() == {"authed": False, "needs_setup": True, "user": None}
+        status = c.get("/api/auth/status").json()
+        assert (status["authed"], status["needs_setup"], status["user"]) == (False, True, None)
         bad = c.post("/api/auth/setup", json={"username": "Not OK", "password": PASSWORD})
         short = c.post("/api/auth/setup", json={"username": "sunde", "password": "short"})
         r = c.post("/api/auth/setup", json={"username": "Sunde", "password": PASSWORD})
@@ -578,6 +579,64 @@ def test_first_run_setup_creates_the_admin_account_once(tmp_path):
         assert again.status_code == 409 and users.get("evil") is None
         status = c.get("/api/auth/status").json()
         assert status["authed"] and status["user"]["level"] == users.ADMIN and not status["needs_setup"]
+
+
+def test_first_run_setup_stores_its_answers_with_the_account(tmp_path):
+    answers = {
+        "base_domain": " home.lan ", "host_ip": "192.168.10.20",
+        "caddy_admin_url": "http://192.168.10.101:2019", "adguard_url": "",
+    }
+    with TestClient(app) as c:
+        r = c.post("/api/auth/setup", json={"username": "sunde", "password": PASSWORD, "settings": answers})
+
+        assert r.status_code == 200
+        stored = json.loads((tmp_path / "settings.json").read_text())
+        assert stored == {  # trimmed; an empty answer stores nothing
+            "base_domain": "home.lan", "host_ip": "192.168.10.20",
+            "caddy_admin_url": "http://192.168.10.101:2019",
+        }
+
+
+def test_a_wrong_answer_refuses_the_whole_setup_and_makes_no_account(tmp_path):
+    """The page is gone once an account exists, so a mistyped address must not make one."""
+    with TestClient(app) as c:
+        r = c.post(
+            "/api/auth/setup",
+            json={"username": "sunde", "password": PASSWORD, "settings": {"base_domain": "home.lan", "host_ip": "http://192.168.10.20"}},
+        )
+
+        assert r.status_code == 422 and "bare IP" in r.json()["detail"]
+        assert not users.any_users() and not (tmp_path / "settings.json").exists()
+        assert c.get("/api/auth/status").json()["needs_setup"]
+
+
+def test_first_run_setup_takes_only_what_the_page_asks(tmp_path):
+    """Setup is public until an account exists: it stores the page's fields, nothing else."""
+    with TestClient(app) as c:
+        r = c.post(
+            "/api/auth/setup",
+            json={"username": "sunde", "password": PASSWORD, "settings": {"base_domain": "home.lan", "ui_look": "legacy", "recipes_repos": []}},
+        )
+
+        assert r.status_code == 200
+        assert json.loads((tmp_path / "settings.json").read_text()) == {"base_domain": "home.lan"}
+
+
+def test_status_says_what_is_already_set_until_an_account_exists(tmp_path, monkeypatch):
+    """What the compose file set is shown, not asked — and a password is never sent."""
+    monkeypatch.setattr(config.settings, "caddy_admin_url", "http://caddy:2019")
+    monkeypatch.setattr(config.settings, "adguard_password", "from-the-env")
+    with TestClient(app) as c:
+        setup = c.get("/api/auth/status").json()["setup"]
+
+        assert setup["caddy_admin_url"] == {"value": "http://caddy:2019", "source": "env", "secret": False}
+        assert setup["adguard_password"] == {"value": None, "source": "env", "secret": True}
+        assert setup["base_domain"] == {"value": None, "source": "unset", "secret": False}
+        assert set(setup) == set(settings_store.SETUP_KEYS)
+
+        c.post("/api/auth/setup", json={"username": "sunde", "password": PASSWORD, "settings": {"caddy_admin_url": "http://elsewhere:2019"}})
+        assert "setup" not in c.get("/api/auth/status").json()
+        assert json.loads((tmp_path / "settings.json").read_text()) == {}  # the env's value wins
 
 
 def test_a_wrong_username_is_refused_like_a_wrong_password(client):
