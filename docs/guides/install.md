@@ -208,13 +208,33 @@ steps: [DHCP](https://github.com/AdguardTeam/AdGuardHome/wiki/DHCP).
 
 ### Everything on one machine
 
-`compose.colocated.yml` runs AdGuard, Caddy and Loskai as three containers on the Docker
-host, for when a second machine isn't an option. It is the only layout that needs the host
-changed before it starts: free port 53 first, which most Linux hosts have `systemd-resolved`
-on. Then follow [Without Proxmox](#without-proxmox-caddy-beside-loskai) from step 4 with
-`compose.colocated.yml` as the file, and put `ADGUARD_USER` and `ADGUARD_PASSWORD` in `.env`
-too. Finish AdGuard's setup at `http://<docker-host>:3000` with that username and password.
-[topologies.md](topologies.md#c--all-in-docker-composecolocatedyml) has what it costs.
+AdGuard, Caddy and Loskai as three containers on the Docker host, for when a second machine
+isn't an option. While that machine is down, so is your network's DNS. Ports 80, 443 and
+3000 must be free on it. Port 53 only has to be free on its LAN address, where AdGuard's DNS
+goes: the resolver most Linux hosts run themselves is on another address and stays as it is.
+
+1. In Loskai's folder, replace `compose.yml` with the file that has all three, and say this
+   machine's address:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.colocated.yml -o compose.yml
+   echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
+   docker compose up -d
+   ```
+
+   `docker compose ps` lists `adguard`, `caddy` and `loskai`. Your account and settings are
+   as they were.
+
+2. Set AdGuard up: open `http://<this-machine>:3000`. Its setup asks which port its web
+   interface should use and offers 80: type `3000`, the only one Loskai and you can reach it
+   on here. Leave DNS on 53, and choose a username and password.
+3. Give Loskai that login. In **Settings** › **Network**, fill in AdGuard's **Username** and
+   **Password**; its **URL** and Caddy's **Admin URL** are already there, marked **env**. On
+   **Routing**, the **Caddy** and **AdGuard** rows say **online**.
+
+Then [point your devices at AdGuard](#point-your-devices-at-adguard): its address is this
+machine's. What this layout costs beside the other two:
+[topologies.md](topologies.md#c--all-in-docker-composecolocatedyml).
 
 ### Settings in a `.env` file
 

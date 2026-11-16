@@ -78,13 +78,14 @@ layout contests, which admin channels it leaves on the LAN, and why — is in
 
 ### Co-located port notes
 
-Two host-port conflicts to clear before `up -d` in the all-in-Docker layout. For *why* these
-are the only two, and which ports each layout contests, see
+Two ports to know about in the all-in-Docker layout. Which ports each layout contests is in
 [topologies.md](topologies.md#the-comparison).
 
-- **AdGuard `:53` vs the host resolver** — most Linux hosts run `systemd-resolved` on `53`.
-  Free it (disable/reconfigure `systemd-resolved`) or bind AdGuard's `53` to a host IP.
-- **Keep AdGuard off `80`/`443`** — those belong to Caddy; let Caddy reverse-proxy its UI.
+- **AdGuard's `:53` is published on `CADDY_HOST_IP` only** — the host's LAN address. Most
+  Linux hosts run `systemd-resolved` on `127.0.0.53:53`, and a publish on every address fails
+  against it; on the LAN address the two sit side by side, and nothing on the host changes.
+- **Keep AdGuard off `80`/`443`** — those belong to Caddy. Its setup offers `80` for its web
+  interface: choose `3000`, the port the compose file publishes and Loskai asks it on.
 
 ## Environment variables
 

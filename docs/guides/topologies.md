@@ -28,12 +28,10 @@ Two layouts are recommended, and which one depends on what hardware you already 
 
 **[C — all-in-Docker](#c--all-in-docker-composecolocatedyml) is the supported alternative**,
 and the right pick when a second box genuinely isn't an option: it needs no extra hardware and
-keeps Caddy's admin API off the LAN. But it is the one layout that asks for **extra
-configuration before it will start** — AdGuard's `53` fights the host resolver and you have to
-free that port by hand. Its other costs are real too: DNS shares a fault domain with everything
-else on the Docker host, and a managed stack must publish a host port to be routable, since
-Compose keeps it off Caddy's network. If you can add one small always-on box, B removes all
-three.
+keeps Caddy's admin API off the LAN. Its costs are real: DNS shares a fault domain with
+everything else on the Docker host, so your network's names go when that host does, and a
+managed stack must publish a host port to be routable, since Compose keeps it off Caddy's
+network. If you can add one small always-on box, B removes both.
 
 A fourth arrangement — merging all three components into a single container — was considered
 and **rejected**; see [Considered and not supported](#considered-and-not-supported).
@@ -79,7 +77,7 @@ DNS rewrite was skipped.
 | **Verdict** | **recommended — with Proxmox** | **recommended — otherwise** | supported alternative |
 | Status | shipping (`compose.yml`) | shipping (`compose.caddy-loskai.yml`) | shipping (`compose.colocated.yml`) |
 | Boxes needed | 3 (2 LXCs + Docker host) | 2 (small DNS box + Docker host) | 1 |
-| `53` | own box, clean | own box, clean | **fights `systemd-resolved`** |
+| `53` | own box, clean | own box, clean | the host's LAN address, beside its own resolver |
 | `80`/`443` | own box | Docker host | Docker host |
 | `2019` | **LAN-exposed, needs a firewall rule** | internal | internal |
 | `3000` | LAN-exposed | own box | published for first-run |
@@ -96,7 +94,8 @@ Three things follow from that table.
 **Merging processes does not solve the port problem.** Collapsing the three components into
 one container eliminates contention *between* them — but they never contended in the first
 place. The only genuinely contested port is `53` against the host's resolver, and that is a
-host-vs-container conflict. It survives the merge untouched. This is the core reason the
+host-vs-container conflict, settled by publishing it on the LAN address only (as C does). A
+merge leaves it exactly where it was. This is the core reason the
 single-container arrangement was rejected rather than built.
 
 **A's one real cost is `2019` on the LAN.** In split-LXC, Caddy's admin API is reachable
@@ -147,8 +146,8 @@ be touched again — while everything you *do* iterate on lives behind a single
 `docker compose pull && docker compose up -d` on the main host. It keeps the property the two-LXC split was
 protecting (DNS in its own fault domain) without asking for a hypervisor.
 
-- **Win:** the `53` vs `systemd-resolved` fight leaves the Docker host entirely, because
-  AdGuard owns its box. Nothing has to be freed by hand before the stack starts.
+- **Win:** `53` leaves the Docker host entirely, because AdGuard owns its box: DNS has
+  nothing to share an address or a restart with.
 - **Win:** `2019` stays internal to the compose network. No firewall rule to get wrong.
 - **Win:** the only layout where routing a service can *free* a host port instead of
   consuming one, because Caddy can reach unpublished containers over the shared
@@ -173,10 +172,11 @@ All three as containers on one host.
 explicitly — see [deployment.md](deployment.md#environment-variables).
 
 - **Win:** `2019` never leaves the Docker network.
-- **Cost:** AdGuard's `53` fights `systemd-resolved` on most Linux hosts, and **this one is
-  work you have to do before the stack comes up** — disable or reconfigure `systemd-resolved`,
-  or bind AdGuard's `53` to a specific host IP. Caddy owns `80`/`443` on the host, and
-  AdGuard's `3000` is published for first-run setup, a common collision.
+- **Handled:** most Linux hosts run `systemd-resolved` on `53`, so the compose file publishes
+  AdGuard's `53` on the host's LAN address only (`CADDY_HOST_IP`), where the two sit side by
+  side. Nothing on the host has to change.
+- **Cost:** Caddy owns `80`/`443` on the host, and AdGuard's `3000` is published for its web
+  interface, a common collision.
 - **Cost:** DNS shares a fault domain with everything else on the Docker host — the exact
   coupling the two-LXC split was introduced to avoid.
 - **Caveat:** a `name:port` upstream works only for containers in Caddy's own compose
@@ -185,8 +185,8 @@ explicitly — see [deployment.md](deployment.md#environment-variables).
   [Docker service names are not automatically resolvable](#docker-service-names-are-not-automatically-resolvable).
 
 One device is the whole difference between C and B: on every other axis B dominates — C's sole
-advantage over A (internal `2019`) is one B also has, without C's `53` cost or its shared DNS
-fault domain. Which is why C stays supported rather than recommended.
+advantage over A (internal `2019`) is one B also has, without C's shared DNS fault domain.
+Which is why C stays supported rather than recommended.
 
 ## Considered and not supported
 
@@ -200,7 +200,7 @@ AdGuard, Caddy and Loskai under a supervisor in a single image. One network name
 of the admin channels of anything here. **That is the whole of its advantage**, and it does
 not outweigh:
 
-- It does **not** fix the `53` conflict, which is the only port that actually bites — see
+- It does nothing for `53`, the only port a host contests — see
   [The comparison](#the-comparison).
 - It reverses the fault-domain split deliberately: a Caddy misconfig or restart takes LAN
   DNS down with it, and no component can be updated without restarting the other two.

@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-16 — All-in-Docker needs nothing changed on the host: AdGuard's 53 on the LAN address
+
+Reading the rewritten install guide, Sunde stopped at the one-machine layout — "free port 53
+first, which most Linux hosts have systemd-resolved on" — and asked for it "in a resonable
+way": "its mostly the system resolve that might be problematic". Freeing the port means
+editing the host's own DNS setup, the kind of step that leaves a newcomer with a machine that
+resolves nothing.
+
+It never needed freeing. `systemd-resolved` listens on `127.0.0.53` and `127.0.0.54`, not on
+the LAN address; only a publish on *every* address collides with it. So
+`compose.colocated.yml` now publishes AdGuard's `53` on `CADDY_HOST_IP` — already required
+there, and already this host's LAN address, where devices ask anyway. Tried on a host running
+`systemd-resolved`: `-p 53:53` fails with "failed to bind host port", `-p <lan-ip>:53:53`
+starts. The guide's section became three steps with one line of `.env`.
+
+This takes away what the 2026-09-04 entry called the cost "that actually bites" in C. C stays
+*supported, not recommended* for what is left: DNS in the Docker host's fault domain, and a
+managed stack having to publish a port. `topologies.md` and `deployment.md` say so now.
+
 ## 2026-11-16 — The animations, recorded again as four: none opens an app, one is a phone
 
 Sunde, on the README's first animation: start "with a overview of the dashboard, and then
@@ -3232,7 +3251,8 @@ What separates C from B is also stated more honestly now. It was written up as a
 alongside two wins, which undersold the one that actually bites: **C is the only layout that
 needs the host reconfigured before it will start**, because AdGuard's `53` has to be taken from
 `systemd-resolved` by hand. That is a different kind of cost from "DNS shares a fault domain",
-and it belongs at the point of choice.
+and it belongs at the point of choice. *(Superseded 2026-11-16: the compose file publishes
+`53` on the LAN address only, and nothing on the host has to change.)*
 
 **The all-in-one LXC is deleted rather than kept as documented-but-unsupported.** It was never
 an option: Loskai's Docker client dials the local socket, so on its own LXC it loses the Docker

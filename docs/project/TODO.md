@@ -163,6 +163,9 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       3000, the compose file swapped over the running install (the account kept), Settings ›
       Network, both rows online, the Certificate page, `loskai` routed: its rewrite in
       AdGuard, AdGuard answering the name, Loskai's own body over HTTPS through Caddy.
+      Then, on Sunde's question about the one-machine layout: `compose.colocated.yml`
+      publishes AdGuard's `53` on the LAN address only, so nothing on the host changes, and
+      its section is three steps — followed the same way, to Loskai's body over HTTPS
       **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
       scripts' own text) and the published images (the release's clean install,
       [releasing.md](../contributing/releasing.md) step 7, still to do)

@@ -1,7 +1,8 @@
 # All-in-Docker alternative (no Proxmox/LXC): Loskai + Caddy + AdGuard as containers on one
 # host. Also the basis for the Tier-3 test rig. See docs/guides/deployment.md for env vars, the
-# co-located port notes (AdGuard :53 vs the host resolver), and why CADDY_HOST_IP is
-# required here — set it in a .env.
+# co-located port notes, and why CADDY_HOST_IP is required here — set it in a .env. It is
+# also where AdGuard's DNS is published: this host's LAN address, beside the host's own
+# resolver.
 #
 #   mkdir -p data stacks && docker compose -f compose.colocated.yml up -d      # first run
 #   docker compose -f compose.colocated.yml pull && \
@@ -24,9 +25,13 @@ services:
     image: adguard/adguardhome:latest
     container_name: adguard
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "3000:3000" # first-run setup UI; afterwards reach it through Caddy
+      # DNS on this host's LAN address only, not on every address: most Linux hosts run
+      # systemd-resolved on 127.0.0.53:53, and a bind on all of them fails against it
+      # ("failed to bind host port"). On the LAN address the two sit side by side, and
+      # nothing on the host has to change.
+      - "${CADDY_HOST_IP:?set CADDY_HOST_IP to the host's LAN IP}:53:53/tcp"
+      - "${CADDY_HOST_IP:?set CADDY_HOST_IP to the host's LAN IP}:53:53/udp"
+      - "3000:3000" # its web interface: choose port 3000 in its setup, where Loskai asks it
     volumes:
       - adguard-work:/opt/adguardhome/work
       - adguard-conf:/opt/adguardhome/conf
