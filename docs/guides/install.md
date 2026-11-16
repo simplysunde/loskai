@@ -88,7 +88,8 @@ program and prints the address it got. Read a script before piping it into a she
 
 2. Give both a fixed address in your router (a DHCP reservation).
 3. Set AdGuard up: open `http://<adguard-ip>:3000`. Its setup asks which port its web
-   interface should use and offers 80: type `3000`. Leave DNS on 53, and choose a username
+   interface should use and offers 80: type `3000`, the port this guide uses. Another works
+   too, as long as the URL you give Loskai names it. Leave DNS on 53, and choose a username
    and password. You end on AdGuard's dashboard, at `http://<adguard-ip>:3000`.
 4. Tell Loskai where they are. In **Settings** › **Network**, fill in Caddy's **Admin URL**
    (`http://<caddy-ip>:2019`) and AdGuard's **URL** (`http://<adguard-ip>:3000`),
@@ -125,7 +126,8 @@ must be free.
 
 2. Give that machine a fixed address in your router (a DHCP reservation).
 3. Set AdGuard up: open `http://<adguard-ip>:3000`. Its setup asks which port its web
-   interface should use and offers 80: type `3000`. Leave DNS on 53, and choose a username
+   interface should use and offers 80: type `3000`, the port this guide uses. Another works
+   too, as long as the URL you give Loskai names it. Leave DNS on 53, and choose a username
    and password. You end on AdGuard's dashboard, at `http://<adguard-ip>:3000`.
 4. Add Caddy. In Loskai's folder on the Docker host, replace `compose.yml` with the file that
    has both, and say where names should point — this machine, where Caddy will listen:

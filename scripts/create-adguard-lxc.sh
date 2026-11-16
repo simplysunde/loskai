@@ -219,9 +219,11 @@ AdGuard is up on DHCP IP: ${CT_IP_ADDR}  (assign it a static lease/IP next).
 
 Next steps (AdGuard):
   1. Open AdGuard setup at http://${CT_IP_ADDR}:3000 and finish first-time config
-     (set the admin user/password; enable the DNS server on :53).
+     (set the admin user/password; enable the DNS server on :53). It asks which port its
+     web interface should use and offers 80: choose 3000, which the steps below assume.
+     Another port works too — use it wherever they say 3000.
   2. Firewall the REST API: allow :3000 only from the Docker host (where Loskai runs).
   3. Point your LAN's DHCP DNS at this box so devices resolve through AdGuard.
-  4. On the Docker host, set Loskai's ADGUARD_URL=http://${CT_IP_ADDR}:3000
-     (plus ADGUARD_USER / ADGUARD_PASSWORD).
+  4. Tell Loskai: in Settings > Network, AdGuard's URL http://${CT_IP_ADDR}:3000, username
+     and password (or ADGUARD_URL / ADGUARD_USER / ADGUARD_PASSWORD in its .env).
 NEXT
