@@ -3582,7 +3582,7 @@ places. Four bugs they found, each checked in the code, go first.
       host key. A recipe installed (`.env`, the published port in `docker inspect`), routed,
       and served through Caddy (whoami's body); reconcile left both rewrites as they were,
       a hand-added answer was reported and kept, and the clear list marked it unmanaged.
-      Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (6245fca)
+      Found: every save re-added the rewrite, and AdGuard kept each copy — fixed (a8c5ed3)
 - [x] 46l Frontend: no URL built in the browser (AdGuard's pill, the wizard's "Already routed")
 - [x] 46m Frontend: the route forms' preview and follow toggle, once (`opensAt`,
       `follow`, `OpensAt`) — Assign now says the scheme too. Not done: moving the Assign

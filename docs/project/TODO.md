@@ -623,7 +623,7 @@ avoided when possible")**
 - **Your devices' keys on every machine** (planned as Phase 39 on 2026-11-04, cancelled the
   same day as not needed now) — Loskai installing your own devices' public keys beside its
   own, so the SSH config download logs in from them. Its proposal and open questions are in
-  commit `6c0f42a`
+  commit `c5b8361`
 - **Uptime monitoring** — ping each upstream, keep response-time history
 - **Notifications** — a container crashed, AdGuard down, a certificate near expiry
 - **Multi-host** — a second Docker host in the same Docker tab — a read-only agent, or over
