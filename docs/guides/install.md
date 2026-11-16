@@ -9,6 +9,16 @@ Loskai installs in three commands and works at once for Docker and your machines
 `https://jellyfin.home.lan` take two more programs and one network setting, in the sections
 after it.
 
+| You want | Go to |
+|---|---|
+| Loskai running | [Install Loskai](#install-loskai) |
+| HTTPS names, and you run Proxmox | [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) |
+| HTTPS names, with a small always-on machine for DNS | [With a small always-on machine](#with-a-small-always-on-machine-caddy-beside-loskai) |
+| HTTPS names, on this one machine | [One machine](#one-machine-all-three-in-docker) |
+| Your devices to find the names | [Point your devices at AdGuard](#point-your-devices-at-adguard) |
+| Names without a browser warning | [Trust the certificate](#trust-the-certificate) |
+| Settings in a file, not the UI | [Settings in a `.env` file](#settings-in-a-env-file) |
+
 ## Install Loskai
 
 You need a machine with [Docker](https://docs.docker.com/engine/install/) and Compose,
@@ -53,12 +63,6 @@ Three things, each set up once:
 Where the two programs run depends on what you have. A machine of its own for AdGuard keeps
 your network's DNS up while the Docker host restarts; one machine for everything is the
 least to run. [topologies.md](topologies.md#which-one-should-i-run) compares them.
-
-| | AdGuard | Caddy |
-|---|---|---|
-| [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) | An LXC | An LXC |
-| [With a small always-on machine](#with-a-small-always-on-machine-caddy-beside-loskai) | That machine | In Docker, beside Loskai |
-| [One machine](#one-machine-all-three-in-docker) | In Docker | In Docker |
 
 ## Install AdGuard and Caddy
 
