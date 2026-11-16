@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
+**Now:** **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is open: the
+README first, then the guides. **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
 merged on 2026-11-15. **Phase 58** — help is in `Hint`s
 a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
@@ -55,6 +56,43 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 60 — The user pages, task-first
+
+Asked 2026-11-16, ahead of the first release. Sunde: "we should have docs that are user
+oriented and docs that are used to explain the nity gritty which will be mostly for ai agents
+to understand the architecture and code under the hood". The guides carried both: what to
+click beside how a key is classified and which layouts were rejected. How a user page is
+written, and how one is rewritten, is the `loskai-docs` skill.
+
+**Decisions (2026-11-16, Sunde)**
+
+- **Two readers.** User pages — the README and `docs/guides/` — say what to do and what you
+  will see. How it works and why are the agent docs': `CLAUDE.md`, `architecture.md`,
+  Reference, Contributing, `HISTORY.md`. Those stay as dense as they need to be.
+- **One page per pass, never the docs in one go** ("I agree, make the skills"): every fact on
+  the page is kept, moved to a named agent doc, or dropped with how it was checked; a
+  procedure is followed for real; Sunde sees the page before the next.
+- **The README first**, out of the skill's order: "keep it short and simple, enabling fast
+  setups for potential users", with popular repos' READMEs as the model.
+- **Left alone:** `HISTORY.md`, this file, the archive and the reference pages — records and
+  contracts.
+
+**Steps**
+
+- [ ] 60a `README.md`
+- [ ] 60b `install.md` — followed on a machine that has never had Loskai
+      ([releasing.md](../contributing/releasing.md), step 7)
+- [ ] 60c `using-loskai.md`
+- [ ] 60d `troubleshooting.md`
+- [ ] 60e `certificate-setup.md`
+- [ ] 60f `tailscale.md`
+- [ ] 60g `migration.md`
+- [ ] 60h `topologies.md`
+- [ ] 60i `deployment.md`
+- [ ] 60j `backend-certificates.md`
 
 ---
 
