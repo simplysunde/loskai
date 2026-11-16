@@ -37,12 +37,13 @@ You need [Docker](https://docs.docker.com/engine/install/) with Compose, on an `
    docker compose up -d
    ```
 
-2. Open `http://<docker-host>:8080`. You see the **Dashboard**, still empty.
-3. Click **Log in** and fill in **Create the admin account**. You land on **Routing**.
+2. Open `http://<docker-host>:8080`. You see **Welcome to Loskai**.
+3. Fill in **Your account**, check **Your network** — the domain your names will end in, and
+   this machine's address, already filled in — and click **Start using Loskai**. You land on
+   **Routing**.
 
-The **Docker** tab works right away, with your containers already listed. **Machines** asks
-for a domain first: **Settings** › **Base Domain** (`home.lan` will do). Names take a little
-more: see [HTTPS names](#https-names).
+**Docker** and **Machines** work right away. Names take a little more: see
+[HTTPS names](#https-names).
 
 To update, run `docker compose pull && docker compose up -d` in that folder. A `.env` beside
 `compose.yml` can hold the settings instead of the **Settings** tab
@@ -57,7 +58,8 @@ Names take two more pieces, and Loskai drives both once they are up:
 [Caddy](https://caddyserver.com) serves each name over HTTPS, and
 [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) answers its DNS. The
 [install guide](docs/guides/install.md) sets them up step by step: with Proxmox, without
-it, or all on one box.
+it, or all on one box. If you run both already, the welcome page takes their addresses
+under **HTTPS names**.
 
 The certificates come from Caddy's own certificate authority, so there is no domain to buy
 and nothing is exposed to the internet. Each device trusts it once, from Loskai's

@@ -4,6 +4,44 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-16 — A first run that sets Loskai up (Phase 61)
+
+Walking the README on a bare install (Phase 60) showed what a new user met: an empty
+Dashboard with the account form behind **Log in**, a Machines tab that refused a name until
+**Base Domain** was set, and a recipe list that was empty until someone found **Refresh
+recipes**. Sunde: "on an initiall setup the user should be meet with an simple introduction
+page for setting up a user, and filling in values that loskai cant find itself, which it
+also needs to function".
+
+**One page, shown for every address until an account exists.** It asks for the account, then
+the two things Loskai can't find from inside its container — the base domain, starting as
+`home.lan`, and the Docker host's LAN IP — and takes Caddy's and AdGuard's addresses for
+whoever runs them already. Sunde chose the names part in, and that set values are not asked:
+"If using the loskai-caddy compose, or setting the values in the env, i belibe they should
+be autodetected or auto filled". So a value from the environment is shown locked, as Settings
+shows it, and the host's IP is filled from the address the page was opened on — the one
+thing the browser knows that the container can't. It is a guess the user sees and can
+change, not a detection: behind a name or a proxy it stays empty.
+
+**One request, checked before the account is made.** `POST /api/auth/setup` takes the
+answers. Two requests would have left an account behind a mistyped address, with the page
+gone and nothing to say why. It stores the page's six keys and no other: the endpoint is
+public until an account exists. `GET /api/auth/status` says what is already set for that
+same while, never a secret's value — whoever arrives first could become the admin anyway.
+
+**Not gated on a spinner.** The app paints at once and swaps to the page when the status
+arrives; holding every page load for that request would cost each daily load to hide one
+flash in an install's life.
+
+**The catalog fetches a source the first time it opens** — a walk-back of "Sync is explicit"
+(2026-07-11, the install wizard's recipes) for the one case where there is nothing to list. It is still
+the user opening the catalog, once per opening; later syncs are the button's, and nothing is
+fetched in the background.
+
+**Left alone:** `LOSKAI_PASSWORD` in `.env` makes the account, so that install never sees the
+page — its settings are in `.env` too. Nothing on the page is tested against Caddy or
+AdGuard; Routing, where it lands, says whether each is online.
+
 ## 2026-11-16 — The docs have two readers; the README leads with the quick start (Phase 60)
 
 Ahead of the first release, Sunde asked whether the docs could be rewritten "userfriendly
@@ -4304,6 +4342,7 @@ building any authoring UI, keeping the module thin.
   to a settings-volume cache, no auth) + a local `/opt/loskai/recipes/` dir (dev/testing
   scratchpad, same volume, no new mount). On a name clash the **repo wins**; the shadowed
   local copy is flagged. Sync is explicit ("Refresh recipes"), no background polling
+  *(Since 2026-11-16 the catalog also fetches a source that has never synced, when it opens.)*
 - **Recipe folder** = `recipe.yml` (manifest) + a standalone `compose.yml` (native `${VAR}`,
   testable/SSH-editable, not embedded) + `instructions.md`. The **`.env` is generated** from
   wizard answers at install time and never committed (holds secrets); `docker compose`

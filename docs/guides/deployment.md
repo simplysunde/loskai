@@ -19,8 +19,9 @@ curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.ym
 docker compose up -d
 ```
 
-Open `http://<docker-host>:8080`, create the admin account on first run, then use the
-Routing tab to assign HTTPS names to your services. A `.env` beside the compose file is
+Open `http://<docker-host>:8080`, fill in the welcome page on first run — your account, and
+whatever of your network `.env` didn't set — then use the Routing tab to assign HTTPS names
+to your services. A `.env` beside the compose file is
 optional — every value can be set in the UI ([`.env.example`](../../.env.example) lists them).
 
 ## Images and releases

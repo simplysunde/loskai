@@ -77,7 +77,9 @@ your network. Read this before deciding where it runs and who can reach it.
 
 ## How access is controlled
 
-- **Accounts.** First-run setup creates an **admin**, who can add more. Each account has a
+- **Accounts.** First-run setup creates an **admin**, who can add more. Until it has run,
+  whoever reaches Loskai first becomes that admin, and can read the addresses the compose
+  file set (never a password) — so finish the welcome page before leaving a new install up. Each account has a
   **level**, and each adds to the ones below: 1 Routing, 2 Docker, 3 Machines, 4 Settings —
   an admin, who can do everything, the accounts and the logs included. The API enforces it,
   one rule per route (`shared/access.py`), and a route without one is admin-only. Levels are

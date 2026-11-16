@@ -126,9 +126,11 @@ docker compose up -d
 
 ## Step 4 — First run
 
-1. Open `http://<docker-host>:8080` and **create the admin account** — a username and a
-   password (unless `LOSKAI_PASSWORD` is in `.env`, which makes it as `admin`, or
-   `LOSKAI_USERNAME`). More accounts are added in Settings › Users.
+1. Open `http://<docker-host>:8080`. You see **Welcome to Loskai**: fill in **Your
+   account** and click **Start using Loskai**. What you put in `.env` shows there as set,
+   marked **env**; **Docker Host LAN IP** is filled in from the address you opened. (With
+   `LOSKAI_PASSWORD` in `.env` the account is made for you, as `admin` or `LOSKAI_USERNAME`,
+   and you see the login page instead.) More accounts are added in Settings › Users.
 2. Check the **Routing** tab — its **Caddy** and **AdGuard** rows should say online. Anything
    else = Loskai can't reach that service; re-check its IP and firewall rule.
 3. **Cold start:** a brand-new Caddy has no routes, so `loskai.example.no` won't resolve yet —
@@ -254,7 +256,9 @@ BASE_DOMAIN=home.lan        # still needed — a machine's name is <name>.<domai
 HOST_IP=<docker-host-lan-ip>   # locks Loskai's SSH keys on your machines to this host
 ```
 
-Then `docker compose up -d`, open `http://<docker-host>:8080` and create the admin account.
+Then `docker compose up -d` and open `http://<docker-host>:8080`. On **Welcome to Loskai**,
+fill in **Your account**, leave **HTTPS names** empty and click **Start using Loskai**. With
+no `.env` at all the same page asks for the two values above.
 
 - **What works:** the Docker tab — stacks, the install wizard, updates, logs, terminals — and
   the Machines tab — SSH setup, terminals, tools, the overview, what runs on each. Machines on

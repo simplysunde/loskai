@@ -88,15 +88,22 @@ user, and filling in values that loskai cant find itself, which it also needs to
 
 **Steps**
 
-- [ ] 61a Backend: `POST /api/auth/setup` takes the answers; `GET /api/auth/status` says
+- [x] 61a Backend: `POST /api/auth/setup` takes the answers; `GET /api/auth/status` says
       what is already set, while no account exists; tests; `api.md`
-- [ ] 61b The page (`Setup.tsx`), shown for every address until an account exists; `Login`
+- [x] 61b The page (`Setup.tsx`), shown for every address until an account exists; `Login`
       only logs in; tests
-- [ ] 61c Install recipe fetches a never-synced source when it opens; test
-- [ ] 61d Docs: the README's quick start, the install guide's first-run steps, Using Loskai,
-      `CHANGELOG.md`, `HISTORY.md`, `where-logic-lives.md`
-- [ ] 61e Live: a bare install walked in a browser, on a computer and at phone width —
+- [x] 61c Install recipe fetches a never-synced source when it opens; test
+- [x] 61d Docs: the README's quick start, the install guide's first-run steps, Using Loskai,
+      `CHANGELOG.md`, `HISTORY.md`, `SECURITY.md`, `where-logic-lives.md`
+- [x] 61e Live: a bare install walked in a browser, on a computer and at phone width —
       with nothing set, and with the names part set by the compose file
+      — live: two scratch backends from the worktree. Nothing set: `/docker` opened the
+      page, `home.lan` and the opened address filled in; `http://…` as the host's IP was
+      refused with its reason, the page and what was typed kept, no account made; then
+      Routing, `settings.json` holding the two values, a machine named `nas.home.lan`, and
+      the catalog listing six recipes with no Refresh pressed (one sync in the log). Names
+      set by the environment: five fields locked and marked env, the password blank, only
+      the host's IP stored. No page errors; no sideways scroll at 390 px
 - [ ] 61f Merged on Sunde's word; `:8080` checked; the worktree removed
 
 ---

@@ -17,8 +17,9 @@ database.
 
 ## Accounts
 
-The first time you open Loskai it asks you to create the **admin** account — a username and a
-password. In **Settings › Users** an admin adds more, each with a **level**; each level
+The first time you open Loskai it shows **Welcome to Loskai**: you create the **admin**
+account — a username and a password — and check what it needs to know about your network.
+Everything on that page is in **Settings** afterwards. In **Settings › Users** an admin adds more, each with a **level**; each level
 adds to the ones before it:
 
 1. **Routing** — routes and DNS names.
@@ -87,7 +88,8 @@ Only the recipe's `compose.yml` is replaced — your answers and `compose.overri
 > `https://jellyfin.home.lan`.
 
 Recipes come from git repos listed in **Settings › General**, plus any you drop into
-`data/recipes/` ([recipe-schema.md](../reference/recipe-schema.md)).
+`data/recipes/`. The catalog fetches a repo the first time it opens; after that,
+**Refresh recipes** gets what is new ([recipe-schema.md](../reference/recipe-schema.md)).
 
 ## Routing
 
