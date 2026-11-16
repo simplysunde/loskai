@@ -9,15 +9,11 @@ import fs from "node:fs";
 import { chromium, devices } from "playwright";
 
 const BASE = process.env.LOSKAI_URL;
-const SUB = process.env.SUB;
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const OUT = "/out";
 const SIZE = { width: 1280, height: 720 };
 
-const browser = await chromium.launch({
-  // The demo's names resolve to its Caddy, as AdGuard would answer them on the LAN.
-  args: [`--host-resolver-rules=MAP *.home.lan ${SUB}.20`],
-});
+const browser = await chromium.launch();
 
 // The cursor and the caption, drawn on every page the flow opens.
 function overlay() {
@@ -91,6 +87,14 @@ async function go(p, path) {
   await pause(p, 800);
 }
 const dialog = (p) => p.getByRole("dialog").last();
+// A tab, opened from the sidebar as a person would: the page never reloads.
+const tab = (p, name) => p.getByRole("navigation").getByRole("link", { name }).first();
+// Rest the cursor on something, to point at it.
+async function point(p, locator) {
+  await locator.waitFor({ state: "visible" });
+  const box = await locator.boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 25 });
+}
 
 const marks = [];
 async function record(name, flow, options) {
@@ -112,12 +116,22 @@ async function record(name, flow, options) {
   console.log(`✓ recorded ${name}`);
 }
 
-// Routing: a container gets its name in one step, and opens over HTTPS.
+// Routing: from the dashboard, a container gets its name in one step — and its card is on
+// the dashboard. It stays in Loskai throughout: what the app behind the name looks like is
+// that app's to show.
 await record("routing", async (p, start) => {
-  await go(p, "/routing");
+  await go(p, "/");
   start();
-  await caption(p, "Routing — every service with a name of its own");
-  await pause(p, 2000);
+  await caption(p, "Your homelab — every service, one click away");
+  const cards = p.getByRole("main").getByRole("link");
+  for (const card of (await cards.all()).slice(0, 3)) {
+    await point(p, card);
+    await pause(p, 450);
+  }
+  await pause(p, 800);
+  await click(p, tab(p, "Routing"));
+  await caption(p, "Routing — give a service a name of its own");
+  await pause(p, 1500);
   await click(p, p.getByRole("button", { name: "Add route" }).first());
   await caption(p, "Add route → pick a container");
   await click(p, dialog(p).getByText("jellyfin-jellyfin-1"));
@@ -126,10 +140,13 @@ await record("routing", async (p, start) => {
   await click(p, dialog(p).getByRole("button", { name: "Add route" }));
   await dialog(p).waitFor({ state: "detached" });
   await p.getByText("jellyfin.home.lan").first().waitFor();
-  await pause(p, 2000);
-  await go(p, "https://jellyfin.home.lan/");
-  await caption(p, "https://jellyfin.home.lan — Jellyfin, over HTTPS");
-  await pause(p, 3500);
+  await caption(p, "https://jellyfin.home.lan — routed, and in DNS");
+  await pause(p, 2200);
+  await click(p, tab(p, "Dashboard"));
+  const jellyfin = cards.filter({ hasText: "Jellyfin" });
+  await point(p, jellyfin);
+  await caption(p, "…and on the dashboard, for everyone at home");
+  await pause(p, 3200);
 });
 
 // Docker: an app installed from its recipe, and routed from the wizard's last step.

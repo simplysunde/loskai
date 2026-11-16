@@ -10,7 +10,7 @@ Loskai, records each flow, and writes the images to `docs/images/`:
 
 | File | What it shows |
 |---|---|
-| `demo-routing.webp` | Add route → a container → its HTTPS name, then the app opening there |
+| `demo-routing.webp` | The dashboard, then Add route → a container → its HTTPS name, and its card on the dashboard |
 | `demo-docker.webp` | The install wizard: a recipe installed and routed from its last step |
 | `demo-machines.webp` | A machine's dialog — its overview over SSH — and a terminal on it |
 | `demo-dashboard.webp`, `demo-dashboard-phone.webp` | The public dashboard on a computer and a phone |
