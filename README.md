@@ -2,65 +2,81 @@
 
 **Safe passage for your Docker deployments.**
 
-A control panel for your homelab, in one container. Give every service an HTTPS name in one
-step, run your Docker stacks, install apps from recipes, and look after the machines on your
-network over SSH — from a computer or a phone.
+[![Version](https://img.shields.io/github/v/tag/simplysunde/loskai?label=version&sort=semver)](CHANGELOG.md)
+[![License](https://img.shields.io/github/license/simplysunde/loskai)](LICENSE)
+
+A control panel for your homelab, in one container: an HTTPS name for every service, your
+Docker stacks, apps from recipes, and your machines over SSH.
 
 ![Routing: a container gets its HTTPS name in one step](docs/images/demo-routing.webp)
 
-## What it does
+## Features
 
-**A name for every service.** `https://jellyfin.home.lan` instead of `192.168.10.20:8096`.
-One step adds the Caddy route and the AdGuard DNS entry together.
+- **HTTPS names in one step.** `https://jellyfin.home.lan` instead of `192.168.10.20:8096`:
+  one step adds the Caddy route and the AdGuard DNS entry.
+- **Docker stacks.** Start, stop, update and edit them, with the logs and a terminal for
+  each container.
+- **Apps from recipes.** Jellyfin, Immich, Forgejo and more, installed from a short form and
+  named in the same dialog.
+- **Machines over SSH.** Name the computers on your network, see what runs on each and
+  which updates wait, and open a terminal in the browser.
+- **A dashboard for everyone.** Every service as a card, no login needed.
+- **On a phone too.** Every page, not only the dashboard.
 
-**Apps from recipes.** Your containers, grouped by stack: start, stop, update, edit. Install
-an app from a recipe and name it in the same dialog.
+## Quick start
 
-![Docker: an app installed from its recipe](docs/images/demo-docker.webp)
+You need [Docker](https://docs.docker.com/engine/install/) with Compose, on an `amd64` or
+`arm64` machine.
 
-**Your machines, over SSH.** Name the computers on your network and see what runs on each,
-with its updates, its tools and a terminal in the browser. Routes on a machine move with it
-when its address changes.
+1. Start Loskai:
 
-![Machines: a machine's overview and a terminal on it](docs/images/demo-machines.webp)
+   ```bash
+   mkdir loskai && cd loskai
+   mkdir data stacks    # made by you, so Loskai runs as you and not as root
+   curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
+   docker compose up -d
+   ```
 
-**A dashboard for everyone.** Every service as a card, no login needed.
+2. Open `http://<docker-host>:8080`. You see the **Dashboard**, still empty.
+3. Click **Log in** and fill in **Create the admin account**. You land on **Routing**.
 
-![The dashboard on a computer](docs/images/demo-dashboard.webp)
-![The dashboard on a phone](docs/images/demo-dashboard-phone.webp)
+The **Docker** tab works right away, with your containers already listed. **Machines** asks
+for a domain first: **Settings** › **Base Domain** (`home.lan` will do). Names take a little
+more: see [HTTPS names](#https-names).
 
-## Get started
-
-You need Docker with Compose, on an `amd64` or `arm64` host.
-
-```bash
-mkdir loskai && cd loskai && mkdir data stacks   # yours, so Loskai runs as you, not root
-curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
-docker compose up -d
-```
-
-Open `http://<docker-host>:8080` and create the admin account. Docker, Machines and the
-dashboard work from here.
-
-**HTTPS names** also need [Caddy](https://caddyserver.com) and
-[AdGuard Home](https://github.com/AdguardTeam/AdGuardHome), which Loskai drives through their
-APIs. The [install guide](docs/guides/install.md) sets them up, in one of three layouts:
-
-| Layout | Caddy and AdGuard | Compose file |
-|---|---|---|
-| **A** — with Proxmox *(recommended)* | Each in its own LXC, made by a script | `compose.yml` |
-| **B** — without Proxmox *(recommended)* | AdGuard on a small always-on box, Caddy beside Loskai | `compose.caddy-loskai.yml` |
-| **C** — one box | All three in Docker; the host's port 53 must be freed first | `compose.colocated.yml` |
-
-The certificates come from Caddy's own certificate authority, so no domain needs buying and
-nothing is exposed to the internet. Each device trusts it once, from Loskai's
-**Certificate** page.
-
-**Update:** `docker compose pull && docker compose up -d`. Every setting is in the UI; a
-`.env` beside `compose.yml` can set them instead ([`.env.example`](.env.example)).
+To update, run `docker compose pull && docker compose up -d` in that folder. A `.env` beside
+`compose.yml` can hold the settings instead of the **Settings** tab
+([`.env.example`](.env.example)).
 
 Loskai mounts the Docker socket, which is root on the host: give it to no other container.
 More in [SECURITY.md](SECURITY.md).
+
+## HTTPS names
+
+Names take two more pieces, and Loskai drives both once they are up:
+[Caddy](https://caddyserver.com) serves each name over HTTPS, and
+[AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) answers its DNS. The
+[install guide](docs/guides/install.md) sets them up step by step: with Proxmox, without
+it, or all on one box.
+
+The certificates come from Caddy's own certificate authority, so there is no domain to buy
+and nothing is exposed to the internet. Each device trusts it once, from Loskai's
+**Certificate** page.
+
+## A look around
+
+**Docker** — an app installed from its recipe, and named.
+
+![Docker: an app installed from its recipe](docs/images/demo-docker.webp)
+
+**Machines** — a machine's overview, and a terminal on it.
+
+![Machines: a machine's overview and a terminal on it](docs/images/demo-machines.webp)
+
+**Dashboard** — on a computer and on a phone.
+
+![The dashboard on a computer](docs/images/demo-dashboard.webp)
+![The dashboard on a phone](docs/images/demo-dashboard-phone.webp)
 
 ## Documentation
 
@@ -69,11 +85,11 @@ More in [SECURITY.md](SECURITY.md).
 - [Troubleshooting](docs/guides/troubleshooting.md) — 502s, redirect loops, DNS, certificates.
 - [Everything else](docs/README.md) — every page, with when to read it.
 
-## Status
+## Contributing
 
-0.1.0 is the first public release ([changelog](CHANGELOG.md)). It runs every day on its
-author's homelab. Issues and pull requests are welcome — [CONTRIBUTING.md](CONTRIBUTING.md)
-has how to run it from source.
+Loskai is new: this is its first public release ([changelog](CHANGELOG.md)), and it runs
+every day on its author's homelab. Issues and pull requests are welcome.
+[CONTRIBUTING.md](CONTRIBUTING.md) has how to run it from source.
 
 ## License
 

@@ -4,6 +4,28 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-16 — The docs have two readers; the README leads with the quick start (Phase 60)
+
+Ahead of the first release, Sunde asked whether the docs could be rewritten "userfriendly
+short, but practical", and then named the split: "docs that are user oriented and docs that
+are used to explain the nity gritty which will be mostly for ai agents". The guides had
+carried both. So user pages — the README and `docs/guides/` — are task-first: a section per
+task, steps that end on what you see, the app's own words. How it works and why belong to
+the agent docs. The `loskai-docs` skill holds the style and the way a page is rewritten.
+
+**One page per pass, not one prompt for all of them.** A whole-docs rewrite drops a step or a
+caveat silently, and `check-docs.sh` sees links and counts, not a lost fact. Each fact on a
+page is kept, moved to a named agent doc, or dropped with how it was checked; a procedure is
+followed for real.
+
+**The README, first.** Its quick start sat below five animations; it now follows one
+animation and six lines of features, as the READMEs of Dockge, Uptime Kuma and Nginx Proxy
+Manager do. The layout table went: the install guide and `topologies.md` own the layouts.
+Following it on a bare install found what reading could not — the page that opens is the
+public Dashboard, not the account form, and Machines refuses a name until **Base Domain** is
+set. The skill's own names took a `loskai-` prefix the same day, `/rename` being Claude
+Code's command for renaming a session.
+
 ## 2026-11-15 — Simply Sunde is Loskai's look; the old one is Legacy (Phase 59f)
 
 Seeing the brand look with its motion, Sunde: "I want the simply sunde theme to be the main

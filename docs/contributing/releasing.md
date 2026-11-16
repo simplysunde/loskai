@@ -94,5 +94,5 @@ docker buildx imagetools inspect ghcr.io/simplysunde/loskai-caddy:0.1.0
 ```
 
 Both must list the two platforms. A `denied` or `unauthorized` error means the package is
-still private. Then run the README's *Get started* on a machine that has never had Loskai: the
+still private. Then run the README's *Quick start* on a machine that has never had Loskai: the
 three lines, the first-run admin account, a recipe sync, and one route opened over HTTPS.

@@ -82,9 +82,17 @@ written, and how one is rewritten, is the `loskai-docs` skill.
 
 **Steps**
 
-- [ ] 60a `README.md`
+- [x] 60a `README.md` — the pitch, one animation and the features, then **Quick start** as
+      numbered steps ending on what you see; names in a section of their own; the other
+      animations under *A look around*. The three-layout table went (the install guide and
+      `topologies.md` have it). Modelled on Dockge's, Uptime Kuma's and Nginx Proxy Manager's
+      — live: a bare install from the image, no settings, walked in a browser. Two lines of
+      the old README were wrong: opening `:8080` shows the Dashboard, and **Log in** leads to
+      **Create the admin account**; and Machines needs **Base Domain** before it names one.
+      Recipes synced from the GitHub source (six), after **Refresh recipes**
 - [ ] 60b `install.md` — followed on a machine that has never had Loskai
-      ([releasing.md](../contributing/releasing.md), step 7)
+      ([releasing.md](../contributing/releasing.md), step 7). Its first-run steps say "open
+      and create the admin account" too: the page that opens is the Dashboard (60a)
 - [ ] 60c `using-loskai.md`
 - [ ] 60d `troubleshooting.md`
 - [ ] 60e `certificate-setup.md`
@@ -652,7 +660,7 @@ avoided when possible")**
   worktree's is a file — so it needs a status line version, and Install again on each
   machine. Not several sessions in one folder: they overwrite each other's changes
 - **A one-line install, `curl … | sh`** (Sunde, 2026-11-14: for when the build is public and
-  the release is a pulled image) — what the README's *Get started* does in three lines now (make
+  the release is a pulled image) — what the README's *Quick start* does in three lines now (make
   `data` and `stacks` as the user, fetch `compose.yml`, `docker compose up -d`), as one
   script. `deploy.sh` and `make dev` stay what they are: running a checkout's own code
 - **Machines over SSH, after Phase 34** — one command on several machines at once; a second
