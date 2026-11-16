@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./api";
+import type { SettingField } from "./settings";
 
 // An account has a level, and each level adds to the ones below (shared/users.py); 4 is an
 // admin. `tabs` are the ones its level reaches, as the API works them out.
@@ -22,14 +23,20 @@ export const LEVELS: { level: Level; name: string; adds: string }[] = [
 
 export const levelName = (level: Level) => `${level} — ${LEVELS[level - 1].name}`;
 
+// What first-run setup asks for (backend `settings.SETUP_KEYS`), each as Settings shows a
+// value: where it came from, and the value unless it is a secret.
+export type SetupKey = "base_domain" | "host_ip" | "caddy_admin_url" | "adguard_url" | "adguard_user" | "adguard_password";
+export type SetupFields = Partial<Record<SetupKey, SettingField>>;
+
 export interface AuthStatus {
   authed: boolean;
-  needs_setup: boolean; // no account yet: first-run setup creates the admin
+  needs_setup: boolean; // no account yet: the app shows first-run setup, which makes the admin
+  setup?: SetupFields; // only while needs_setup
   user: Me | null;
 }
 
-// /api/auth/status always returns 200 (authed true/false) — the SPA uses it to choose
-// login vs first-run setup, and RequireAuth uses it to gate admin routes (UX only; the
+// /api/auth/status always returns 200 (authed true/false) — the SPA uses it to show
+// first-run setup instead of the app, and RequireAuth uses it to gate admin routes (UX only; the
 // real gate is the API middleware).
 export function useAuthStatus() {
   return useQuery({

@@ -61,6 +61,21 @@ test("an unmatched path explains itself and keeps the nav", () => {
 });
 
 
+// Before any account exists there is one thing to do, whatever address was opened: the
+// Dashboard would be empty, and the account form used to hide behind its Log in.
+test("until an account exists, every address shows first-run setup", async () => {
+  RESPONSES["/api/auth/status"] = {
+    authed: false, needs_setup: true, user: null,
+    setup: { base_domain: { value: "example.no", source: "env", secret: false } },
+  };
+  renderAt("/docker");
+
+  expect(await screen.findByRole("heading", { name: "Welcome to Loskai" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Base Domain")).toHaveValue("example.no");
+  expect(screen.getByLabelText("Base Domain")).toBeDisabled();
+  expect(screen.queryByRole("link", { name: "Routing" })).not.toBeInTheDocument();
+});
+
 // The Certificate tab is the only nav entry whose presence is configurable, and the
 // setting is read from the *public* payload — the shell has to decide before anyone has
 // logged in.

@@ -3,11 +3,13 @@ import { Loader2 } from "lucide-react";
 import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/shared/Layout";
+import { useAuthStatus } from "./lib/useAuth";
 import { useLook } from "./lib/useLook";
 import { RequireAuth } from "./components/shared/RequireAuth";
 import { Certificate } from "./pages/Certificate";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { Setup } from "./pages/Setup";
 import { NotFound } from "./pages/NotFound";
 import { Routing } from "./pages/Routing";
 import { General } from "./pages/settings/General";
@@ -41,6 +43,9 @@ function PageFallback() {
 // <Layout/> so a mistyped URL keeps the nav instead of rendering an empty pane.
 export default function App() {
   useLook();
+  // No account yet: whatever the address, the one thing to do is set Loskai up.
+  const { data } = useAuthStatus();
+  if (data?.needs_setup) return <Setup fields={data.setup ?? {}} />;
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

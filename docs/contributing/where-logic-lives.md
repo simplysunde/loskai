@@ -88,6 +88,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Asking for a password again, with the login backoff | `shared/auth.py` `check_password` | `modules/ssh/router.py` |
 | Who may open a terminal WebSocket, and when it closes | `shared/terminal.py` `accept` `relay` | `modules/docker/router.py` `modules/ssh/router.py` |
 | Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/install.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
+| The Docker host's address, guessed from the address the page was opened on | `lib/setup.ts` `hostFromAddress` | `pages/Setup.tsx` |
 | What first-run setup asks for, and which of it is already set | `shared/settings.py` `SETUP_KEYS` `setup_view` | `shared/auth.py` |
 | A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |

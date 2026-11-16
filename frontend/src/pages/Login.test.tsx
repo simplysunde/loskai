@@ -33,21 +33,6 @@ afterEach(() => {
   posts.length = 0;
 });
 
-test("first run creates the admin account with a username", async () => {
-  status = { authed: false, needs_setup: true, user: null };
-  renderLogin();
-
-  expect(await screen.findByRole("heading", { name: "Create the admin account" })).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Username"), { target: { value: "sunde" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a long password" } });
-  fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "a long password" } });
-  fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-
-  await vi.waitFor(() =>
-    expect(posts).toEqual([{ path: "/api/auth/setup", body: { username: "sunde", password: "a long password" } }]),
-  );
-});
-
 test("a login sends the username and password", async () => {
   status = { authed: false, needs_setup: false, user: null };
   renderLogin();
