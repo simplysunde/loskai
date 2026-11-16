@@ -153,7 +153,11 @@ pct exec <caddy-ctid> -- curl -skv https://<target-ip>:8006/
 
 - **Is the client using AdGuard?** `nslookup grafana.example.no <adguard-ip>` — if *that* works
   but the default resolver doesn't, your device isn't pointed at AdGuard (see
-  [VPN DNS](#vpn-clients-arent-using-adguard) or set the router's DHCP DNS to the AdGuard IP).
+  [VPN DNS](#vpn-clients-arent-using-adguard) or
+  [Point your devices at AdGuard](install.md#point-your-devices-at-adguard)).
+- **Only the browser can't find it?** `nslookup` answers but the browser says the site can't be
+  reached: the browser is asking a DNS service of its own ("Secure DNS", "DNS over HTTPS" in
+  its settings). Turn that off for this network.
 - **Cold start:** a brand-new Caddy/AdGuard has no routes or rewrites yet. Reach Loskai directly
   at `http://<docker-host>:8080` and click **Sync** on the Routing tab to seed every route +
   DNS rewrite.
@@ -278,5 +282,5 @@ same device: if that fails, so will the card.
 - **"… is the link … — give it this name with Assign a URL"** — a new route was given a
   link's name. Use **+** on the link's row instead: it becomes the route, the same entry.
 - **Only Add link, no Add route, no Sync** — Caddy isn't set up, so Loskai makes only links
-  ([Loskai alone](install.md#loskai-alone--docker-and-machines-no-routing)). Give it Caddy's
+  ([Install Loskai](install.md#install-loskai)). Give it Caddy's
   address in Settings › Network to route.

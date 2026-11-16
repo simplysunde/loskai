@@ -152,9 +152,20 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       the old README were wrong: opening `:8080` shows the Dashboard, and **Log in** leads to
       **Create the admin account**; and Machines needs **Base Domain** before it names one.
       Recipes synced from the GitHub source (six), after **Refresh recipes**
-- [ ] 60b `install.md` — followed on a machine that has never had Loskai
-      ([releasing.md](../contributing/releasing.md), step 7). Its first-run steps say "open
-      and create the admin account" too: the page that opens is the Dashboard (60a)
+- [x] 60b `install.md` — Loskai first, in three commands and the welcome page; then names:
+      what they need (AdGuard, Caddy, devices asking AdGuard), a section with Proxmox and one
+      with Caddy beside Loskai, pointing devices at AdGuard, the certificate, the first name;
+      one machine, AdGuard as DHCP server and `.env` under Advanced (Sunde's outline,
+      2026-11-16). Settings go in the welcome page and Settings › Network; `.env` holds only
+      `CADDY_HOST_IP`, where the compose file demands it
+      — live: a fresh Docker host (a dind container, the images built from this checkout):
+      Install Loskai as written, then Without Proxmox as written — AdGuard's setup on port
+      3000, the compose file swapped over the running install (the account kept), Settings ›
+      Network, both rows online, the Certificate page, `loskai` routed: its rewrite in
+      AdGuard, AdGuard answering the name, Loskai's own body over HTTPS through Caddy.
+      **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
+      scripts' own text) and the published images (the release's clean install,
+      [releasing.md](../contributing/releasing.md) step 7, still to do)
 - [ ] 60c `using-loskai.md`
 - [ ] 60d `troubleshooting.md`
 - [ ] 60e `certificate-setup.md`

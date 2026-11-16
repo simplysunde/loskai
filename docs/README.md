@@ -14,6 +14,7 @@ question they answer.
 | I want to… | Go to |
 |---|---|
 | **Install Loskai** for the first time | [Install guide](guides/install.md) |
+| Get **HTTPS names** working — AdGuard, Caddy, my devices' DNS | [Install guide](guides/install.md#what-https-names-need) |
 | Know **what each tab does** once it's running | [Using Loskai](guides/using-loskai.md) |
 | **Decide how to lay it out** across my machines | [Topologies](guides/topologies.md) |
 | **Configure a running container** — env vars, volumes | [Deployment](guides/deployment.md) |
@@ -32,7 +33,7 @@ Operating Loskai. Read in roughly this order the first time.
 
 | Page | When to read it |
 |---|---|
-| [install.md](guides/install.md) | Setting Loskai up from nothing. Walks the recommended Proxmox layout end to end — both LXCs, then the container — and carries a second walkthrough for split DNS, the recommendation without Proxmox. Start here. |
+| [install.md](guides/install.md) | Setting Loskai up from nothing. Loskai itself in three commands, then HTTPS names: AdGuard and Caddy with Proxmox or without, pointing your devices at AdGuard, trusting the certificate, the first name. Start here. |
 | [using-loskai.md](guides/using-loskai.md) | Right after installing. One section per tab — what it is for, with an example. |
 | [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which two are recommended, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |

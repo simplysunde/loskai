@@ -135,7 +135,7 @@ rebuild takes name resolution down LAN-wide.
 ### B — Split DNS: AdGuard separate, Caddy + Loskai together
 
 > **Recommended if you don't run Proxmox.** Shipping today as `compose.caddy-loskai.yml`;
-> [install.md](install.md#no-proxmox-install-layout-b--split-dns) walks it through.
+> [install.md](install.md#without-proxmox-caddy-beside-loskai) walks it through.
 
 AdGuard on its own small always-on box — a Raspberry Pi is the natural fit, as is a mini-PC,
 an old thin client, or a NAS that can run one container. Caddy and Loskai run as containers on

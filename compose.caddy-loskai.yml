@@ -3,7 +3,7 @@
 # docs/guides/topologies.md for why, and docs/guides/deployment.md for env vars and volumes.
 # Set AdGuard up on the other box first, then put ADGUARD_URL (its LAN IP) and CADDY_HOST_IP
 # (this host's LAN IP) in a .env. Walkthrough:
-# docs/guides/install.md#no-proxmox-install-layout-b--split-dns
+# docs/guides/install.md#without-proxmox-caddy-beside-loskai
 #
 #   mkdir -p data stacks && docker compose -f compose.caddy-loskai.yml up -d   # first run
 #   docker compose -f compose.caddy-loskai.yml pull && \
