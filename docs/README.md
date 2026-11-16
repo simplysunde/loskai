@@ -105,8 +105,8 @@ everywhere else.
 | Contributor | How do I change it? | [CONTRIBUTING.md](../CONTRIBUTING.md), then [Contributing](#contributing) |
 | Maintainer | Why is it built this way? | [Project](#project): plan, history, task list |
 
-**The app says *what* something is; the docs say *how* and *why*.** UI text stays a label
-or a one-line tooltip — never a paragraph.
+**The app says *what* something is; the guides say *how*; the agent docs say *why*.** UI
+text stays a label or a one-line tooltip — never a paragraph.
 
 ### Rules
 
@@ -117,7 +117,11 @@ or a one-line tooltip — never a paragraph.
 - **No hand-written tables of contents** except this index — GitHub shows an outline for
   every file.
 - **The repo README stays short** (about 100 lines). Anything longer belongs in a guide.
-- **Guides describe Loskai's behaviour; reference pages describe contracts.**
+- **Guides describe Loskai's behaviour; reference pages describe contracts.** The README
+  and the guides are written for someone running Loskai: a section per task, steps that end
+  on what you see, the app's words as on screen. How it works and why are the agent docs —
+  `CLAUDE.md`, [architecture.md](project/architecture.md), Reference, Contributing and
+  [HISTORY.md](project/HISTORY.md). The style in full: the `loskai-docs` skill, in `.claude/skills/`.
 - **These rules are checked.** `bash scripts/check-docs.sh` (or `make check-docs`) fails on
   a broken link or image, a dead heading anchor, a page this index doesn't reach, or a page
   missing its breadcrumb or `Read this when` line. Adding a page means adding it above.
