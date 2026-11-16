@@ -37,10 +37,9 @@ Settings › General, for everyone), and **Collapse** above that narrows the sid
 when you point at it — until you expand it again; the browser remembers which. On a phone
 the sidebar is a drawer, opened with the menu button at the top.
 
-## Dashboard
+![Loskai on a phone: the dashboard, routes, stacks and machines](../images/demo-phone.webp)
 
-![The dashboard on a computer](../images/demo-dashboard.webp)
-![The dashboard on a phone](../images/demo-dashboard-phone.webp)
+## Dashboard
 
 A launcher: one card per routed service or link, public so the whole household can use it.
 Hide a card with the eye on its Routing row; give it an icon with the image button on the
@@ -56,7 +55,7 @@ This page hands out that certificate with install steps per OS. Once per device 
 
 Your containers, grouped by compose project.
 
-![Docker: an app installed from its recipe, and routed](../images/demo-docker.webp)
+![Docker: a stack's logs, then an app installed from its recipe](../images/demo-docker.webp)
 
 - **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
   pull + update, edit, or delete — **Delete keeps `./data` unless you tick it**, so installing
@@ -93,7 +92,7 @@ Recipes come from git repos listed in **Settings › General**, plus any you dro
 
 ## Routing
 
-![Routing: a container gets its HTTPS name in one step](../images/demo-routing.webp)
+![From the dashboard: a container gets its HTTPS name in one step, and its card](../images/demo-routing.webp)
 
 Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has it) and
 **DNS** (AdGuard has it).
@@ -146,7 +145,7 @@ entry. A route doesn't turn back into a link: remove the route, then add the lin
 
 The computers on your network, by name — a name with no port.
 
-![Machines: a machine's overview and a terminal on it](../images/demo-machines.webp)
+![Machines: a machine's overview, a service restarted, Claude Code started](../images/demo-machines.webp)
 
 > *Example:* name `192.168.10.177` **proxmox** and it gets `proxmox.home.lan`. Add a route
 > for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the

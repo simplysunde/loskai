@@ -4,6 +4,31 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-16 — The animations, recorded again as four: none opens an app, one is a phone
+
+Sunde, on the README's first animation: start "with a overview of the dashboard, and then
+going into the routes to add an new route. (without opening a new page. we dont need to do
+that)". It had ended on Jellyfin's own setup page, which showed Jellyfin, not Loskai. So it
+now starts and ends on the dashboard: the cards, Routing from the sidebar, Add route, and
+back, where the new card is. No flow opens a name any more.
+
+The others, on his word. **Docker** opens a stack to its containers and their logs before it
+installs a recipe: managing, not only installing. **Machines** "should instead showcase the
+quick commads and service overviews and starting a claude code session": the overview, a
+service restarted in one click from the running list, Claude Code started in a project. **The
+desktop dashboard animation and the phone still went**, for "a quick overview of how the app
+looks like on a phone": a tour of the tabs from the menu, with a fingertip for a cursor.
+
+**The demo's machine runs systemd now.** Its running list was empty — a container with only
+sshd has no services — so it is a privileged container with real units, a file share and a
+web page, and two git projects. **`claude` there is a stand-in** that keeps its tmux session
+open: the real one needs an account, whose name would be in a public image. The flow shows
+Loskai's card — Start, running, Attach — and never attaches, so the stand-in's screen is never
+recorded; `demo.md` says so.
+
+The Docker and Machines flows run 27 seconds, past the 20 the page asked for, which now says
+half a minute; the Docker one is 1.4 MB, mostly the log view and the recipe's page of text.
+
 ## 2026-11-16 — A first run that sets Loskai up (Phase 61)
 
 Walking the README on a bare install (Phase 60) showed what a new user met: an empty

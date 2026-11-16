@@ -8,7 +8,7 @@
 A control panel for your homelab, in one container: an HTTPS name for every service, your
 Docker stacks, apps from recipes, and your machines over SSH.
 
-![Routing: a container gets its HTTPS name in one step](docs/images/demo-routing.webp)
+![From the dashboard: a container gets its HTTPS name in one step, and its card](docs/images/demo-routing.webp)
 
 ## Features
 
@@ -67,18 +67,18 @@ and nothing is exposed to the internet. Each device trusts it once, from Loskai'
 
 ## A look around
 
-**Docker** — an app installed from its recipe, and named.
+**Docker** — a stack's containers and logs, then an app installed from its recipe and named.
 
-![Docker: an app installed from its recipe](docs/images/demo-docker.webp)
+![Docker: a stack's logs, then an app installed from its recipe](docs/images/demo-docker.webp)
 
-**Machines** — a machine's overview, and a terminal on it.
+**Machines** — a machine's overview, a service restarted in one click, and Claude Code
+started in a project.
 
-![Machines: a machine's overview and a terminal on it](docs/images/demo-machines.webp)
+![Machines: a machine's overview, a service restarted, Claude Code started](docs/images/demo-machines.webp)
 
-**Dashboard** — on a computer and on a phone.
+**On a phone** — the same pages, laid out for a small screen.
 
-![The dashboard on a computer](docs/images/demo-dashboard.webp)
-![The dashboard on a phone](docs/images/demo-dashboard-phone.webp)
+![Loskai on a phone: the dashboard, routes, stacks and machines](docs/images/demo-phone.webp)
 
 ## Documentation
 

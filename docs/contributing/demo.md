@@ -11,9 +11,11 @@ Loskai, records each flow, and writes the images to `docs/images/`:
 | File | What it shows |
 |---|---|
 | `demo-routing.webp` | The dashboard, then Add route → a container → its HTTPS name, and its card on the dashboard |
-| `demo-docker.webp` | The install wizard: a recipe installed and routed from its last step |
-| `demo-machines.webp` | A machine's dialog — its overview over SSH — and a terminal on it |
-| `demo-dashboard.webp`, `demo-dashboard-phone.webp` | The public dashboard on a computer and a phone |
+| `demo-docker.webp` | A stack opened to its containers and their logs, then the install wizard: a recipe installed and named from its last step |
+| `demo-machines.webp` | A machine's dialog over SSH — its overview, a service restarted in one click, Claude Code started in a project |
+| `demo-phone.webp` | A phone: the dashboard, then Routing, Docker and Machines from the menu |
+
+None of them opens an app behind a name: what Jellyfin looks like is Jellyfin's to show.
 
 Rerun it after a change to what any of them shows, and commit the images with that change
 or right after it.
@@ -45,6 +47,11 @@ Nothing in it is real, so nothing real can end up in a public image:
 - **Its own LAN**, `192.168.50.0/24` (`DEMO_SUBNET=192.168.77` for another, when this host
   already routes that one): AdGuard at `.2`, a machine with only a name at `.30`
   (`homeassistant`), and a Debian machine with SSH at `.50` (`nas`, from `demo/machine/`).
+  It runs systemd, so what Loskai lists there are real services — a file share and a web
+  page — and it has two git projects.
+- **A stand-in for Claude Code** on that machine (`demo/machine/claude`): the real one needs
+  an account, whose name would be in a public image. It keeps its tmux session open, which
+  is all Loskai's card looks at, and the recording never attaches to it.
 - **Every app from the recipes**, installed through Loskai's own wizard endpoint — from
   the default recipe source, or `DEMO_RECIPES`. The Docker tab shows only what someone
   could install.
@@ -65,20 +72,24 @@ A flow in `record.mjs` is what a person does, step by step:
 
 ```js
 await record("routing", async (p, start) => {
-  await go(p, "/routing");
+  await go(p, "/");
   start();                                   // the animation begins here, after the page loaded
-  await caption(p, "Routing — every service with a name of its own");
+  await caption(p, "Your homelab — every service, one click away");
+  await click(p, tab(p, "Routing"));         // a tab, from the sidebar: the page never reloads
   await click(p, p.getByRole("button", { name: "Add route" }).first());
   …
 });
 ```
 
-- `click` glides the cursor to its target before clicking; `type` types at a person's
-  speed; `caption` sets the line at the top (an empty string hides it).
+- `click` glides the cursor to its target before clicking; `point` rests it there; `type`
+  types at a person's speed; `caption` sets the line at the top (an empty string hides it).
+  `tab` is a tab in the sidebar. A phone's flow passes `touch: true`: a fingertip, not an arrow.
 - Find things by what a person reads — a button's name, a title — as the tests do; never by
   a CSS class.
-- Keep a flow under about 20 seconds: an animation has no pause button, and git keeps every
-  version of it, so its size counts — `convert.sh` prints each one's.
+- Keep a flow under about half a minute: an animation has no pause button, and git keeps
+  every version of it, so its size counts — `convert.sh` prints each one's.
+- A run that drops down from the top (an automatic action) stays while the cursor is on it:
+  `point` at something else and wait for it to go before the next step.
 - Something the flow needs set up first goes in `setup.mjs`, through the API.
 - A new flow: add its row to the table above, and its image to the README and the guide
   where it belongs.
