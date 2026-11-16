@@ -74,14 +74,38 @@ async function caption(p, text) {
     c.style.opacity = t ? "1" : "0";
   }, text);
 }
-// Glide to the target, then click it — as a hand would.
-async function click(p, locator) {
+// The cursor moves as a hand moves it: slow off the mark, quick across, slow onto the
+// target; on a slight arc; longer the further it goes; and landing near the middle of
+// what it aims at, not on its exact centre. Playwright's own move is a straight line at one
+// speed.
+const at = new WeakMap(); // where each page's cursor is: Playwright doesn't say
+const ease = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+const near = (size, most) => (Math.random() - 0.5) * Math.min(size * 0.3, most);
+async function glide(p, locator) {
   await locator.waitFor({ state: "visible" });
   await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
-  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 25 });
-  await pause(p, 250);
-  await locator.click();
+  const to = { x: box.x + box.width / 2 + near(box.width, 24), y: box.y + box.height / 2 + near(box.height, 6) };
+  const view = p.viewportSize();
+  const from = at.get(p) ?? { x: view.width * 0.6, y: view.height * 0.45 };
+  const dx = to.x - from.x, dy = to.y - from.y, far = Math.hypot(dx, dy) || 1;
+  const ms = Math.min(720, 180 + far * 0.65);
+  const frames = Math.max(6, Math.round(ms / 16));
+  // The arc: the path's midpoint pushed a fourteenth of its length to one side.
+  const mid = { x: from.x + dx / 2 - (dy / far) * (far / 14), y: from.y + dy / 2 + (dx / far) * (far / 14) };
+  for (let i = 1; i <= frames; i++) {
+    const t = ease(i / frames), u = 1 - t;
+    await p.mouse.move(u * u * from.x + 2 * u * t * mid.x + t * t * to.x, u * u * from.y + 2 * u * t * mid.y + t * t * to.y);
+    await pause(p, ms / frames);
+  }
+  at.set(p, to);
+  return { x: to.x - box.x, y: to.y - box.y }; // within the target, for a click where the cursor is
+}
+// Glide to the target, then click it — as a hand would.
+async function click(p, locator) {
+  const position = await glide(p, locator);
+  await pause(p, 140);
+  await locator.click({ position });
   await pause(p, 400);
 }
 async function type(p, locator, text) {
@@ -98,11 +122,7 @@ const dialog = (p) => p.getByRole("dialog").last();
 // A tab, opened from the sidebar as a person would: the page never reloads.
 const tab = (p, name) => p.getByRole("navigation").getByRole("link", { name }).first();
 // Rest the cursor on something, to point at it.
-async function point(p, locator) {
-  await locator.waitFor({ state: "visible" });
-  const box = await locator.boundingBox();
-  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 25 });
-}
+const point = (p, locator) => glide(p, locator);
 
 const marks = [];
 async function record(name, flow, options) {
@@ -134,12 +154,12 @@ await record("routing", async (p, start) => {
   const cards = p.getByRole("main").getByRole("link");
   for (const card of (await cards.all()).slice(0, 3)) {
     await point(p, card);
-    await pause(p, 450);
+    await pause(p, 350);
   }
-  await pause(p, 800);
+  await pause(p, 300);
   await click(p, tab(p, "Routing"));
   await caption(p, "Routing — give a service a name of its own");
-  await pause(p, 1500);
+  await pause(p, 1100);
   await click(p, p.getByRole("button", { name: "Add route" }).first());
   await caption(p, "Add route → pick a container");
   await click(p, dialog(p).getByText("jellyfin-jellyfin-1"));
@@ -149,12 +169,12 @@ await record("routing", async (p, start) => {
   await dialog(p).waitFor({ state: "detached" });
   await p.getByText("jellyfin.home.lan").first().waitFor();
   await caption(p, "https://jellyfin.home.lan — routed, and in DNS");
-  await pause(p, 2200);
+  await pause(p, 1800);
   await click(p, tab(p, "Dashboard"));
   const jellyfin = cards.filter({ hasText: "Jellyfin" });
   await point(p, jellyfin);
   await caption(p, "…and on the dashboard, for everyone at home");
-  await pause(p, 3200);
+  await pause(p, 2800);
 });
 
 // Docker: a stack opened to its containers, then an app installed from its recipe and named
@@ -199,30 +219,30 @@ await record("machines", async (p, start) => {
   await go(p, "/machines");
   start();
   await caption(p, "Machines — your computers by name, and what runs on them");
-  await pause(p, 2000);
+  await pause(p, 1500);
   await click(p, p.getByRole("row").filter({ hasText: "nas.home.lan" }).getByTitle(/^Machine settings/));
   await caption(p, "Over SSH: its overview — system, memory, disks, updates");
-  await pause(p, 2600);
+  await pause(p, 2200);
   await click(p, section("Running"));
   await caption(p, "What runs on it — every service");
-  await pause(p, 1600);
+  await pause(p, 1200);
   await click(p, dialog(p).getByRole("button", { name: "Restart", exact: true }).first());
   await caption(p, "One click: it runs on the machine, and says how it went");
   await p.getByText("Done", { exact: true }).first().waitFor();
-  await pause(p, 1400);
+  await pause(p, 1000);
   // The run's drop-down stays while the cursor is on it: off it, it slides away.
   await point(p, section("Tools"));
   await p.getByText("Restart nginx").first().waitFor({ state: "hidden" });
   await click(p, section("Tools"));
   await caption(p, "Its tools — Git and Claude Code, for each project");
-  await pause(p, 1800);
+  await pause(p, 1300);
   await click(p, dialog(p).getByRole("button", { name: "Start", exact: true }).last());
   await caption(p, "Claude Code, started in that project");
   await p.getByText(/Claude runs in homelab/).first().waitFor();
-  await pause(p, 2200);
+  await pause(p, 1800);
   await point(p, dialog(p).getByRole("button", { name: "Attach", exact: true }).last());
   await caption(p, "It runs in the background — Attach to watch it");
-  await pause(p, 3000);
+  await pause(p, 2600);
 });
 
 // A phone: the same pages, laid out for a small screen — a tour of the tabs from the menu.

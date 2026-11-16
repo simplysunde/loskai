@@ -59,6 +59,12 @@ text is the costliest thing to show. Frames turned out to matter little — 15 a
 on: at 70 for 80, each animation is some 40% smaller with its text as readable. The four
 are 1.2 MB together, from 3.0.
 
+**And the cursor moves as a hand does** (Sunde: "are we able to make the mouce movement more
+human? easing in and out?"). It had travelled a straight line at one speed to the exact centre
+of each target. It now eases in and out, on a slight arc, for a time that grows with the
+distance, and lands a little off centre. Every move takes real time now, so the flows' pauses
+were shortened to keep them at 17 to 25 seconds.
+
 ## 2026-11-16 — A first run that sets Loskai up (Phase 61)
 
 Walking the README on a bare install (Phase 60) showed what a new user met: an empty
