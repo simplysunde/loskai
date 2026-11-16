@@ -85,7 +85,8 @@ await record("routing", async (p, start) => {
   types at a person's speed; `caption` sets the line at the top (an empty string hides it).
   The glide is a hand's: slow off the mark and onto the target, on a slight arc, longer the
   further it goes, landing near the middle of what it aims at (`glide`).
-  `tab` is a tab in the sidebar. A phone's flow passes `touch: true`: a fingertip, not an arrow.
+  `tab` is a tab in the sidebar. A phone's flow passes `touch: true`: no cursor, and each tap
+  a ring that spreads and fades where the finger lands.
 - Find things by what a person reads — a button's name, a title — as the tests do; never by
   a CSS class.
 - Keep a flow under about half a minute: an animation has no pause button, and git keeps

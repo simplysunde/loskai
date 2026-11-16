@@ -26,14 +26,8 @@ function overlay({ touch } = {}) {
       position: "fixed", left: "-40px", top: "-40px", zIndex: 2147483647, pointerEvents: "none",
       filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))", transition: "transform .12s",
     });
-    // On a phone there is no arrow: a fingertip, centred on where it touches.
-    if (touch) {
-      cursor.innerHTML = "";
-      Object.assign(cursor.style, {
-        width: "26px", height: "26px", margin: "-10px 0 0 -10px", borderRadius: "50%",
-        background: "rgba(255,255,255,.35)", border: "2px solid rgba(255,255,255,.8)",
-      });
-    }
+    // On a phone there is no cursor: a finger is seen only where it taps (`tap`, below).
+    if (touch) cursor.style.display = "none";
     const caption = document.createElement("div");
     caption.id = "demo-caption";
     Object.assign(caption.style, {
@@ -42,15 +36,30 @@ function overlay({ touch } = {}) {
       color: "#e2e8f0", font: `500 ${touch ? 14 : 16}px system-ui, sans-serif`, border: "1px solid rgba(45,212,191,.45)",
       maxWidth: "90vw", whiteSpace: "nowrap", opacity: "0", transition: "opacity .25s",
     });
+    // A tap: a ring that spreads from where the finger lands, and fades.
+    const tap = (x, y) => {
+      const ring = document.createElement("div");
+      Object.assign(ring.style, {
+        position: "fixed", left: `${x - 22}px`, top: `${y - 22}px`, width: "44px", height: "44px",
+        borderRadius: "50%", zIndex: 2147483647, pointerEvents: "none",
+        background: "rgba(255,255,255,.28)", border: "2px solid rgba(255,255,255,.85)",
+      });
+      document.body.append(ring);
+      ring.animate(
+        [{ transform: "scale(.45)", opacity: 1 }, { transform: "scale(1)", opacity: 0.9, offset: 0.35 }, { transform: "scale(1.5)", opacity: 0 }],
+        { duration: 650, easing: "ease-out" },
+      ).onfinish = () => ring.remove();
+    };
     document.body.append(cursor, caption);
     addEventListener("mousemove", (e) => { cursor.style.left = `${e.clientX - 3}px`; cursor.style.top = `${e.clientY - 2}px`; }, true);
-    addEventListener("mousedown", () => { cursor.style.transform = "scale(.8)"; }, true);
+    addEventListener("mousedown", (e) => { cursor.style.transform = "scale(.8)"; if (touch) tap(e.clientX, e.clientY); }, true);
     addEventListener("mouseup", () => { cursor.style.transform = ""; }, true);
   };
   if (document.body) add();
   else addEventListener("DOMContentLoaded", add);
 }
 
+const fingers = new WeakSet(); // the contexts that are a phone: taps, no cursor to glide
 async function newContext({ login = true, touch = false, ...options } = {}) {
   const ctx = await browser.newContext({
     viewport: SIZE, recordVideo: { dir: `${OUT}/raw`, size: options.viewport || SIZE },
@@ -58,6 +67,7 @@ async function newContext({ login = true, touch = false, ...options } = {}) {
   });
   ctx.setDefaultTimeout(30000);
   await ctx.addInitScript(overlay, { touch });
+  if (touch) fingers.add(ctx);
   if (!login) return ctx;
   // The context's API calls share its cookies: logging in here logs the page in.
   const r = await ctx.request.post(`${BASE}/api/login`, { data: { username: "admin", password: process.env.LOSKAI_PASSWORD } });
@@ -90,7 +100,8 @@ async function glide(p, locator) {
   const from = at.get(p) ?? { x: view.width * 0.6, y: view.height * 0.45 };
   const dx = to.x - from.x, dy = to.y - from.y, far = Math.hypot(dx, dy) || 1;
   const ms = Math.min(720, 180 + far * 0.65);
-  const frames = Math.max(6, Math.round(ms / 16));
+  // A finger lifts between taps: nothing to see until it lands.
+  const frames = fingers.has(p.context()) ? 1 : Math.max(6, Math.round(ms / 16));
   // The arc: the path's midpoint pushed a fourteenth of its length to one side.
   const mid = { x: from.x + dx / 2 - (dy / far) * (far / 14), y: from.y + dy / 2 + (dx / far) * (far / 14) };
   for (let i = 1; i <= frames; i++) {
@@ -245,7 +256,8 @@ await record("machines", async (p, start) => {
   await pause(p, 2600);
 });
 
-// A phone: the same pages, laid out for a small screen — a tour of the tabs from the menu.
+// A phone: the same pages, laid out for a small screen — a tour of the tabs from the menu,
+// each tap a ring where the finger lands.
 await record("phone", async (p, start) => {
   await go(p, "/");
   start();

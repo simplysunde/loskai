@@ -63,7 +63,9 @@ are 1.2 MB together, from 3.0.
 human? easing in and out?"). It had travelled a straight line at one speed to the exact centre
 of each target. It now eases in and out, on a slight arc, for a time that grows with the
 distance, and lands a little off centre. Every move takes real time now, so the flows' pauses
-were shortened to keep them at 17 to 25 seconds.
+were shortened to keep them at 17 to 25 seconds. On the phone there is no cursor at all: a
+finger lifts between taps, so each tap is a ring that spreads and fades where it lands
+(Sunde: "a tap indicator instead of the moveing circle").
 
 ## 2026-11-16 — A first run that sets Loskai up (Phase 61)
 
