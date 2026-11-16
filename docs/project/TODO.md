@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is open: the
+**Now:** **Phase 61** (below) — a first-run setup page, and the recipe list fetched the first time
+it opens — is in a worktree, waiting for Sunde's word. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is open: the
 README first, then the guides. **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
 merged on 2026-11-15. **Phase 58** — help is in `Hint`s
 a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
@@ -56,6 +57,47 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 61 — A first run that sets Loskai up
+
+Asked 2026-11-16, from walking the README on a bare install (60a): opening Loskai showed an
+empty Dashboard with the account form behind **Log in**, Machines refused a name until
+**Base Domain** was set, and the recipe list was empty until **Refresh recipes**. Sunde: "on
+an initiall setup the user should be meet with an simple introduction page for setting up a
+user, and filling in values that loskai cant find itself, which it also needs to function".
+
+**Decisions (2026-11-16, Sunde)**
+
+- **One page, three parts:** the account; the network — Base Domain and the Docker host's
+  LAN IP; and HTTPS names — Caddy's admin URL and AdGuard's URL, user and password, which
+  may be left empty (Sunde chose the network and the names parts together).
+- **What is already set is not asked** ("If using the loskai-caddy compose, or setting the
+  values in the env, i belibe they should be autodetected or auto filled"): a value from the
+  compose file or `.env` shows as set. The host's IP is filled from the address the page
+  was opened on, the one thing the browser knows that the container can't.
+- **Until an account exists, every address shows the page.** `LOSKAI_PASSWORD` in `.env`
+  makes the account, so that install never sees it — its settings are in `.env` too.
+- **One request:** the answers are checked before the account is made, so a mistyped address
+  can't leave an account behind with the page gone.
+- **The recipe list fetches itself the first time Install recipe opens** with a source that
+  has never synced. Later syncs stay on **Refresh recipes**: still no background fetching.
+- **Left alone:** every setting stays optional and in Settings; nothing is tested against
+  Caddy or AdGuard on the page — Routing says whether each is online.
+
+**Steps**
+
+- [ ] 61a Backend: `POST /api/auth/setup` takes the answers; `GET /api/auth/status` says
+      what is already set, while no account exists; tests; `api.md`
+- [ ] 61b The page (`Setup.tsx`), shown for every address until an account exists; `Login`
+      only logs in; tests
+- [ ] 61c Install recipe fetches a never-synced source when it opens; test
+- [ ] 61d Docs: the README's quick start, the install guide's first-run steps, Using Loskai,
+      `CHANGELOG.md`, `HISTORY.md`, `where-logic-lives.md`
+- [ ] 61e Live: a bare install walked in a browser, on a computer and at phone width —
+      with nothing set, and with the names part set by the compose file
+- [ ] 61f Merged on Sunde's word; `:8080` checked; the worktree removed
 
 ---
 
