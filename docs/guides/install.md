@@ -15,6 +15,7 @@ after it.
 | HTTPS names, and you run Proxmox | then [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) |
 | HTTPS names, without Proxmox | then [Without Proxmox](#without-proxmox-caddy-beside-loskai) |
 | Everything on one machine | then [Everything on one machine](#everything-on-one-machine) |
+| Settings in a file, not the UI | [Settings in a `.env` file](#settings-in-a-env-file) |
 
 ## Install Loskai
 
@@ -38,6 +39,9 @@ You need a machine with [Docker](https://docs.docker.com/engine/install/) and Co
 
 **Docker** and **Machines** work now, and **Add link** puts a service on the Dashboard by
 its address.
+
+Rather keep your settings in a file than type them in? See
+[Settings in a `.env` file](#settings-in-a-env-file).
 
 Until Loskai has an HTTPS name of its own, your password crosses your network unencrypted.
 That is fine on a network you trust. Otherwise go on to names, or reach Loskai over
@@ -212,12 +216,28 @@ on. Then follow [Without Proxmox](#without-proxmox-caddy-beside-loskai) from ste
 too. Finish AdGuard's setup at `http://<docker-host>:3000` with that username and password.
 [topologies.md](topologies.md#c--all-in-docker-composecolocatedyml) has what it costs.
 
-### Settings in a file
+### Settings in a `.env` file
 
-Everything the welcome page and **Settings** ask for can go in a `.env` beside `compose.yml`
-instead; a value set there shows locked, marked **env**. `LOSKAI_PASSWORD` there makes the
-admin account, and you see the login page in place of the welcome page. Every setting:
-[deployment.md](deployment.md#environment-variables).
+Everything the welcome page and **Settings** ask for can go in a file named `.env` beside
+`compose.yml` instead, which sets a machine up again without a click. With Proxmox it
+would be:
+
+```ini
+BASE_DOMAIN=home.lan
+HOST_IP=<this-machine's-address>
+CADDY_ADMIN_URL=http://<caddy-ip>:2019
+ADGUARD_URL=http://<adguard-ip>:3000
+ADGUARD_USER=<adguard-username>
+ADGUARD_PASSWORD=<adguard-password>
+```
+
+Run `docker compose up -d` after changing it. A value set there wins: it shows locked in
+**Settings**, marked **env**. With `LOSKAI_PASSWORD` in it the admin account is made for
+you, as `admin` or `LOSKAI_USERNAME`, and you see the login page in place of the welcome
+page.
+
+[`.env.example`](../../.env.example) lists every variable, ready to copy. What each one
+does: [deployment.md](deployment.md#environment-variables).
 
 ---
 
