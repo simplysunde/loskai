@@ -65,8 +65,9 @@ on a private one. For **each** of `loskai` and `loskai-caddy`:
 
 1. Open `https://github.com/users/simplysunde/packages/container/<name>/settings`.
 2. *Danger Zone* → *Change visibility* → **Public**, and type the name to confirm.
-3. On the package's own page, **Connect repository** → `simplysunde/loskai`, so the
-   package shows on the repo's page and the repo's README shows on the package's.
+3. The package's own page names `simplysunde/loskai` as its repository: the script writes
+   it into the image, with a description. If it shows **Connect repository** instead,
+   connect it there, so the package shows on the repo's page.
 
 Visibility is kept from then on: later releases need neither step.
 

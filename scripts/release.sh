@@ -71,13 +71,18 @@ EOF
 read -r -p "Publish? [y/N] " answer
 [[ "$answer" == [yY] ]] || die "nothing published"
 
-for image in loskai:. loskai-caddy:caddy; do
-	name="${image%%:*}"
-	context="${image#*:}"
+# The Dockerfiles' labels describe each platform's image; GitHub reads a multi-platform
+# package's repository and description from the index above them, so they go there too.
+for image in "loskai:.:A homelab control panel: HTTPS names, Docker stacks, recipes and machines" \
+	"loskai-caddy:caddy:Caddy with its internal CA, for Loskai's layouts B and C"; do
+	IFS=: read -r name context description <<<"$image"
 	log "Building $REGISTRY/$name:$VERSION ($PLATFORMS) from $commit"
 	docker buildx build --builder "$BUILDER" --platform "$PLATFORMS" \
 		--label "org.opencontainers.image.version=$VERSION" \
 		--label "org.opencontainers.image.revision=$commit" \
+		--annotation "index:org.opencontainers.image.source=https://github.com/simplysunde/loskai" \
+		--annotation "index:org.opencontainers.image.description=$description" \
+		--annotation "index:org.opencontainers.image.licenses=MIT" \
 		--tag "$REGISTRY/$name:$VERSION" --tag "$REGISTRY/$name:latest" \
 		--push "$context"
 done
