@@ -119,6 +119,7 @@ Everything so far:
   tool, or the Tailscale recipe on the Docker host. With the Docker host's
   Tailscale address in Settings › General (`HOST_TAILSCALE_IP`), the Machines tab manages
   machines on your tailnet too — from any browser, Tailscale or not. See the Tailscale guide.
+- **Its own icon**, in the browser tab and on a phone's home screen.
 - **The sidebar collapses** to its icons, and the browser remembers it.
 - **Help you can tap** — a word underlined with dots has more to say: point at it, or tap it
   on a phone, for a small box. A button that can't be used says why the same way.

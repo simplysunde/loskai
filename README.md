@@ -1,4 +1,4 @@
-# Loskai
+# <img src="frontend/public/icon/icon.svg" alt="" width="40"> Loskai
 
 **Safe passage for your Docker deployments.**
 
