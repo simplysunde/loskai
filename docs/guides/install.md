@@ -2,52 +2,21 @@
 
 # Install guide
 
-**Read this when** you are setting Loskai up from nothing: Loskai itself first, then HTTPS
-names for your services.
+**Read this when** you are setting Loskai up from nothing, with HTTPS names for your
+services or without.
 
-Loskai installs in three commands and works at once for Docker and your machines. Names like
-`https://jellyfin.home.lan` take two more programs and one network setting, in the sections
-after it.
+Choose how to run it first: each way installs once, from its own compose file. Loskai
+alone works at once for Docker and your machines; names like `https://jellyfin.home.lan`
+take two more programs and one network setting.
 
 | You want | Go to |
 |---|---|
+| To choose how to run it | [What HTTPS names need](#what-https-names-need) |
 | Loskai running | [Install Loskai](#install-loskai) |
-| HTTPS names, and you run Proxmox | [With Proxmox](#with-proxmox-adguard-and-caddy-in-lxcs) |
-| HTTPS names, with a small always-on machine for DNS | [With a small always-on machine](#with-a-small-always-on-machine-caddy-beside-loskai) |
-| HTTPS names, on this one machine | [One machine](#one-machine-all-three-in-docker) |
 | Your devices to find the names | [Point your devices at AdGuard](#point-your-devices-at-adguard) |
 | Names without a browser warning | [Trust the certificate](#trust-the-certificate) |
+| Names for a Loskai that runs alone | [Add names later](#add-names-later) |
 | Settings in a file, not the UI | [Settings in a `.env` file](#settings-in-a-env-file) |
-
-## Install Loskai
-
-You need a machine with [Docker](https://docs.docker.com/engine/install/) and Compose,
-`amd64` or `arm64`, at an address on your network that doesn't change.
-
-1. Make Loskai's folder and start it:
-
-   ```bash
-   mkdir loskai && cd loskai
-   mkdir data stacks    # made by you, so Loskai runs as you and not as root
-   curl -fsSLO https://raw.githubusercontent.com/simplysunde/loskai/main/compose.yml
-   docker compose up -d
-   ```
-
-2. Open `http://<this-machine>:8080`. You see **Welcome to Loskai**.
-3. Fill in **Your account**. Under **Your network**, keep **Base Domain** as `home.lan` or
-   type your own — it is what your names will end in — and check that **Docker Host LAN IP**
-   is this machine's address. Leave **I want secure HTTPS connections** unticked.
-4. Click **Start using Loskai**. You land on **Routing**.
-
-**Docker** and **Machines** work now, and **Add link** puts a service on the Dashboard by
-its address.
-
-Rather keep your settings in a file than type them in? See
-[Settings in a `.env` file](#settings-in-a-env-file).
-
-Until Loskai has an HTTPS name of its own, your password crosses your network unencrypted.
-That is fine on a network you trust. Otherwise go on to names, or reach Loskai over
-[Tailscale](tailscale.md).
 
 ## What HTTPS names need
 
@@ -60,13 +29,23 @@ Three things, each set up once:
 - **Your devices asking AdGuard.** Until a device does, the names don't exist for it:
   [Point your devices at AdGuard](#point-your-devices-at-adguard).
 
-Where the two programs run depends on what you have. A machine of its own for AdGuard keeps
-your network's DNS up while the Docker host restarts; one machine for everything is the
-least to run. [topologies.md](topologies.md#which-one-should-i-run) compares them.
+Where the two programs run depends on what you have:
+
+| You have | AdGuard and Caddy | Loskai's compose file |
+|---|---|---|
+| No need for names yet | none | `compose.yml` |
+| Proxmox | [each in an LXC](#with-proxmox-adguard-and-caddy-in-lxcs) | `compose.yml` |
+| A small always-on machine | [AdGuard on it, Caddy beside Loskai](#with-a-small-always-on-machine-caddy-beside-loskai) | `compose.caddy-loskai.yml` |
+| One machine | [both beside Loskai](#one-machine-all-three-in-docker) | `compose.colocated.yml` |
+
+A machine of its own for AdGuard keeps your network's DNS up while the Docker host restarts;
+one machine for everything is the least to run.
+[topologies.md](topologies.md#which-one-should-i-run) compares them.
 
 ## Install AdGuard and Caddy
 
-Follow the one section that fits, then go on to [Set AdGuard up](#set-adguard-up).
+Follow the one section that fits, then go on to [Install Loskai](#install-loskai). Loskai
+alone skips this.
 
 ### With Proxmox: AdGuard and Caddy in LXCs
 
@@ -86,58 +65,69 @@ To choose a container's ID or bridge, set it on the `bash` side:
 
 ### With a small always-on machine: Caddy beside Loskai
 
-1. On the small machine — a Raspberry Pi, a mini PC, a NAS that runs containers — install
-   AdGuard Home with
-   [its own installer](https://github.com/AdguardTeam/AdGuardHome#getting-started) or as a
-   container:
+On the small machine — a Raspberry Pi, a mini PC, a NAS that runs containers — install
+AdGuard Home with
+[its own installer](https://github.com/AdguardTeam/AdGuardHome#getting-started) or as a
+container:
 
-   ```yaml
-   services:
-     adguard:
-       image: adguard/adguardhome:latest
-       container_name: adguard
-       network_mode: host # the simplest way to own port 53 on a machine that does nothing else
-       volumes:
-         - ./work:/opt/adguardhome/work
-         - ./conf:/opt/adguardhome/conf
-       restart: unless-stopped
-   ```
+```yaml
+services:
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    network_mode: host # the simplest way to own port 53 on a machine that does nothing else
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+    restart: unless-stopped
+```
 
-2. On the Docker host, where ports 80 and 443 must be free, replace `compose.yml` in
-   Loskai's folder with the file that has Caddy too, and say where names should point —
-   this machine, where Caddy will listen:
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.caddy-loskai.yml -o compose.yml
-   echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
-   docker compose up -d
-   ```
-
-   `docker compose ps` lists `caddy` and `loskai`. Your account and settings are as they were.
-
-A container can then join Caddy's network and be routed without publishing a port:
+Caddy comes with Loskai, in its compose file: ports 80 and 443 must be free on the Docker
+host. A container can then join Caddy's network and be routed without publishing a port:
 [topologies.md](topologies.md#routing-a-container-without-publishing-a-port).
 
 ### One machine: all three in Docker
 
-Nothing else to buy or set up. What you trade for it: while that machine is down or
-restarting, so is your network's DNS.
+Nothing to install first: AdGuard and Caddy come with Loskai, in its compose file. What you
+trade for it: while that machine is down or restarting, so is your network's DNS.
 
 Ports 80, 443 and 3000 must be free on it. Port 53 only has to be free on its LAN address,
 where AdGuard's DNS goes: the resolver most Linux hosts run themselves is on another address
 and stays as it is.
 
-In Loskai's folder, replace `compose.yml` with the file that has all three, and say this
-machine's address:
+## Install Loskai
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.colocated.yml -o compose.yml
-echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
-docker compose up -d
-```
+You need a machine with [Docker](https://docs.docker.com/engine/install/) and Compose,
+`amd64` or `arm64`, at an address on your network that doesn't change.
 
-`docker compose ps` lists `adguard`, `caddy` and `loskai`. Your account and settings are as
-they were.
+1. Make Loskai's folder and download its compose file. Set `FILE` to the one for your way of
+   running it, from the table in [What HTTPS names need](#what-https-names-need):
+
+   ```bash
+   mkdir loskai && cd loskai
+   mkdir data stacks    # made by you, so Loskai runs as you and not as root
+   FILE=compose.yml     # or compose.caddy-loskai.yml, or compose.colocated.yml
+   curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/$FILE -o compose.yml
+   ```
+
+2. With a small always-on machine, or on one machine, say where names should point — this
+   machine, where Caddy listens:
+
+   ```bash
+   echo "CADDY_HOST_IP=<this-machine's-address>" >> .env
+   ```
+
+3. Start it:
+
+   ```bash
+   docker compose up -d
+   ```
+
+   `docker compose ps` lists `loskai`, with `caddy` beside it on a small always-on machine,
+   and `adguard` and `caddy` on one machine.
+
+With names, [set AdGuard up](#set-adguard-up) before you open Loskai: its welcome page asks
+for AdGuard's login. Loskai alone goes straight on to [Open Loskai](#open-loskai).
 
 ## Set AdGuard up
 
@@ -150,17 +140,31 @@ they were.
 3. Leave DNS on 53, and choose a username and password. You end on AdGuard's dashboard, at
    `http://<adguard-ip>:3000`.
 
-## Tell Loskai where they are
+## Open Loskai
 
-In **Settings** › **Network**, fill in what isn't there already. A compose file with Caddy
-or AdGuard in it has set theirs, marked **env**.
+1. Open `http://<docker-host>:8080`. You see **Welcome to Loskai**.
+2. Fill in **Your account**. Under **Your network**, keep **Base Domain** as `home.lan` or
+   type your own — it is what your names will end in — and check that **Docker Host LAN IP**
+   is this machine's address.
+3. Then, for your way of running it:
+   - **Loskai alone:** leave **I want secure HTTPS connections** unticked.
+   - **With Proxmox:** tick **I want secure HTTPS connections** and fill in **Caddy admin
+     URL** `http://<caddy-ip>:2019`, **AdGuard URL** `http://<adguard-ip>:3000`, and
+     AdGuard's username and password.
+   - **With a small always-on machine, or on one machine:** **Secure HTTPS connections**
+     is there already, with what the compose file set marked **env**. Fill in the rest:
+     AdGuard's username and password, and on a small machine its URL,
+     `http://<adguard-ip>:3000`.
+4. Click **Start using Loskai**. You land on **Routing**.
 
-- Caddy's **Admin URL**: `http://<caddy-ip>:2019`
-- AdGuard's **URL**: `http://<adguard-ip>:3000`, with its **Username** and **Password**
+With names, its **Caddy** and **AdGuard** rows say **online**; if one doesn't,
+[A module shows unreachable](troubleshooting.md#a-module-shows-unreachable). Everything on
+the welcome page can be changed later, in **Settings** › **Network**.
 
-Each saves as you leave it. On **Routing**, the **Caddy** and **AdGuard** rows say
-**online**; if one doesn't,
-[A module shows unreachable](troubleshooting.md#a-module-shows-unreachable).
+Loskai alone: **Docker** and **Machines** work now, and **Add link** puts a service on the
+Dashboard by its address. Until Loskai has an HTTPS name of its own, your password crosses
+your network unencrypted. That is fine on a network you trust. Otherwise add names, or reach
+Loskai over [Tailscale](tailscale.md).
 
 Where AdGuard or Caddy has a machine of its own, close its admin port to everyone else:
 they control your DNS and your routes. Allow AdGuard's `3000` and Caddy's `2019` only from
@@ -214,6 +218,18 @@ In Loskai's folder: `docker compose pull && docker compose up -d`
 ([Images and releases](deployment.md#images-and-releases)).
 
 ## Advanced
+
+### Add names later
+
+For a Loskai that runs alone, the README's *Quick start* among them:
+
+1. [Install AdGuard and Caddy](#install-adguard-and-caddy) for your way of running it.
+2. In Loskai's folder, download that way's compose file over `compose.yml`, add
+   `CADDY_HOST_IP` if it needs it, and run `docker compose up -d`, as in
+   [Install Loskai](#install-loskai). With Proxmox, `compose.yml` stays. Your account and
+   settings are as they were.
+3. [Set AdGuard up](#set-adguard-up), and fill in what isn't there in **Settings** ›
+   **Network**: Caddy's and AdGuard's URLs, AdGuard's username and password.
 
 ### AdGuard as your DHCP server
 

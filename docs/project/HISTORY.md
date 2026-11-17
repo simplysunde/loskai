@@ -4,6 +4,24 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-17 — The install guide: choose the layout, then install once
+
+The guide installed Loskai alone first, then had the two Docker layouts replace its
+`compose.yml` with theirs and run `up` again — and told Loskai where Caddy and AdGuard were
+in a step of its own, after the welcome page. Followed literally on a fresh host it worked
+(account and session survive the swap), but Sunde: "If we can simplyfi it and avoid the
+swaping logic then that might be better to do".
+
+Now the reader chooses first — a table in *What HTTPS names need*: Loskai alone, Proxmox, a
+small always-on machine, one machine, each with its compose file — and *Install Loskai* is
+one block with `FILE=` set to theirs. AdGuard is set up *before* Loskai is opened, so the
+welcome page takes its login: *Tell Loskai where they are* became step 3 of *Open Loskai*,
+and Settings › Network is only for later. The swap stays for one case, a Loskai already
+running alone (the README's Quick start), under Advanced › *Add names later*. Followed on
+fresh hosts for one machine and for a small always-on machine with AdGuard on its own box:
+the welcome page showed what the guide says it shows, a route was served over HTTPS to a
+device asking AdGuard.
+
 ## 2026-11-17 — `make release` does the whole release, after one yes
 
 Releasing was five commands, three of them around `make release`: install QEMU, run the
