@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-17 — `make release` does the whole release, after one yes
+
+Releasing was five commands, three of them around `make release`: install QEMU, run the
+script, push the tag it made. The script left QEMU and the tag push to the person running
+it, for reasons that didn't hold — they run the script, so its system change and its push
+are their decision either way. Sunde: "lets make it as easy as possible whilst making
+delibirate choices".
+
+So the script now installs QEMU when `arm64` is missing and pushes the tag to origin, and
+the decision is made once, explicitly: it lists the images, tags and platforms and asks
+**Publish? [y/N]**. Everything that would only fail after a long build is checked before it
+— the commit on origin's `main` (a tag must name a commit the repo has), the changelog
+heading, the registry login. The tag is still made last, so a failed run leaves none and
+reruns with the same version. Tried end to end into a local registry, with a bare repo as
+origin: each refusal, a "no", then a full two-platform release.
+
 ## 2026-11-16 — All-in-Docker needs nothing changed on the host: AdGuard's 53 on the LAN address
 
 Reading the rewritten install guide, Sunde stopped at the one-machine layout — "free port 53

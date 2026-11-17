@@ -33,7 +33,7 @@ visible without unpacking a phase back out. The checklists stay in
 - **Before publishing: push and release.** The code names <https://github.com/simplysunde>
   (`loskai`, `loskai-recipes`) everywhere — the seeded recipe source, the app's doc links,
   the install guide — so both repos must be pushed there before an install can work. Then
-  the first `make release` (once per boot, QEMU for arm64: the script says how), and make
+  the first `make release` (it installs QEMU for arm64 itself), and make
   both packages public on GitHub — the install guide's `docker compose pull` needs them.
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
@@ -171,7 +171,7 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       each for the hardware you have
       **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
       scripts' own text) and the published images (the release's clean install,
-      [releasing.md](../contributing/releasing.md) step 7, still to do)
+      [releasing.md](../contributing/releasing.md) step 5, still to do)
 - [ ] 60c `using-loskai.md`
 - [ ] 60d `troubleshooting.md`
 - [ ] 60e `certificate-setup.md`

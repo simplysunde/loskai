@@ -43,8 +43,8 @@ make check-docs                       # links, page headers, and the docs agains
 ## Releasing
 
 `make release VERSION=x.y.z` from a clean `main`: both images, for `amd64` and `arm64`, pushed
-to `ghcr.io/simplysunde` (or `LOSKAI_REGISTRY`), and the commit tagged `v<version>` — push the
-tag yourself. Move `CHANGELOG.md`'s Unreleased section under the version first.
+to `ghcr.io/simplysunde` (or `LOSKAI_REGISTRY`), and the commit tagged `v<version>` on origin,
+after one yes. Move `CHANGELOG.md`'s Unreleased section under the version first.
 [releasing.md](docs/contributing/releasing.md) has every step, the first release's included.
 
 The architecture and the reasons behind it are in [`architecture.md`](docs/project/architecture.md); what

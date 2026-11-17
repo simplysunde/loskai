@@ -43,8 +43,8 @@ Caddyfile). Both are built for `amd64` and `arm64`, tagged with the version and 
 - **Releasing** is `make release VERSION=x.y.z` from a clean checkout: it builds both images
   for both platforms, pushes them to `LOSKAI_REGISTRY` (`ghcr.io/simplysunde` unless set —
   your forge's registry works too), and tags the commit `v<version>`. It needs
-  `docker login` to the registry, and QEMU for the other platform — the script says how
-  when it is missing. Every step: [releasing.md](../contributing/releasing.md).
+  `docker login` to the registry, and installs QEMU for the other platform when it is
+  missing. Every step: [releasing.md](../contributing/releasing.md).
 
 ## Layouts
 

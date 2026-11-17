@@ -9,14 +9,13 @@ An install pulls two images, `loskai` (the `Dockerfile`) and `loskai-caddy`
 (`caddy/Dockerfile`), from `ghcr.io/simplysunde` unless `LOSKAI_REGISTRY` says otherwise
 ([deployment.md](../guides/deployment.md#images-and-releases)). `make release` builds both for
 `amd64` and `arm64` (a Raspberry Pi), pushes them tagged with the version *and* `latest`, and
-tags the commit `v<version>`.
+tags the commit `v<version>` on origin.
 
 ## Before
 
-- `main` is pushed to GitHub, and everything in the [checklist](../../CONTRIBUTING.md) passes.
+- Everything in the [checklist](../../CONTRIBUTING.md) passes.
 - [`CHANGELOG.md`](../../CHANGELOG.md): the Unreleased section is moved under
-  `## <version> — <date>`, and committed. The script refuses a tree with uncommitted changes,
-  so an image is always a commit.
+  `## <version> — <date>`, committed and pushed.
 - The animations match the UI ([demo.md](demo.md)).
 
 ## 1. A token that can push packages (*first time*)
@@ -40,38 +39,26 @@ echo '<token>' | docker login ghcr.io -u simplysunde --password-stdin
 `~/.docker/config.json`, base64-encoded but readable by anyone who can read that file, so
 `docker logout ghcr.io` after the release.
 
-## 3. QEMU, for the platform this machine isn't (once per boot)
-
-```bash
-docker run --privileged --rm tonistiigi/binfmt --install arm64
-```
-
-The script checks for this and says so if it's missing. `docker buildx ls` lists
-`linux/arm64` among the platforms once it's in.
-
-## 4. Build and push
+## 3. Release
 
 ```bash
 make release VERSION=0.1.0
 ```
 
-It makes a `docker-container` buildx builder called `loskai-release` the first time, builds
-`loskai` and then `loskai-caddy`, and pushes each as `:0.1.0` and `:latest`. The `arm64` half of
-`loskai` builds under emulation, the frontend's `npm ci` and build included, so expect it to
-take far longer than a normal build.
+Before building it checks, and stops with what to do: the tree is clean, its commit is on
+origin's `main`, the version isn't tagged, `CHANGELOG.md` has its heading, and you are
+logged in to the registry. If this machine can't build `arm64` it installs QEMU for it,
+which lasts until reboot. Then it lists what it will publish and asks **Publish? [y/N]**.
 
-It tags the commit `v0.1.0` only at the very end, so a run that fails partway can be rerun
-with the same version. Pushing a version again overwrites its tags in the registry.
+On a yes it builds `loskai` and then `loskai-caddy`, pushes each as `:0.1.0` and `:latest`,
+tags the commit `v0.1.0` and pushes that tag to origin. The `arm64` half builds under
+emulation, so expect it to take far longer than a normal build. The tag comes last, so a
+run that fails partway leaves none and can be rerun with the same version; pushing a version
+again overwrites its tags in the registry.
 
-## 5. Push the tag
+With a push mirror, sync it so the tag reaches GitHub too.
 
-```bash
-git push <github-remote> v0.1.0
-```
-
-Push it to every remote that has `main`.
-
-## 6. Make the packages public (*first time*)
+## 4. Make the packages public (*first time*)
 
 A package pushed to GHCR is private at first, and an install's `docker compose pull` fails
 on a private one. For **each** of `loskai` and `loskai-caddy`:
@@ -83,7 +70,7 @@ on a private one. For **each** of `loskai` and `loskai-caddy`:
 
 Visibility is kept from then on: later releases need neither step.
 
-## 7. Check it as a stranger would
+## 5. Check it as a stranger would
 
 Logged out, so your own access doesn't hide a private package:
 

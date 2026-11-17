@@ -73,7 +73,7 @@ For the page in hand:
    - `bash scripts/check-docs.sh` is **Docs OK**. It catches a link to a heading this page
      no longer has; fix the linking page, or keep the heading;
    - a page that is a procedure is followed for real: the install guide on a machine that
-     has never had Loskai (`docs/contributing/releasing.md`, step 7), the others against
+     has never had Loskai (`docs/contributing/releasing.md`, step 5), the others against
      `:8080` or a scratch backend. Every screen, button and message it names is there.
 6. **Commit** the page alone, its fates in the body (`moved: … → architecture.md#…`,
    `dropped: … (the setting was removed)`). Tick its box in the phase.
