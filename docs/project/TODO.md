@@ -30,11 +30,6 @@ visible without unpacking a phase back out. The checklists stay in
 [`todo-archive.md`](todo-archive.md)._
 
 - Phase 8b's Tier-3 integration rig + Forgejo CI are unchecked **by choice** — see the backlog
-- **Before publishing: push and release.** The code names <https://github.com/simplysunde>
-  (`loskai`, `loskai-recipes`) everywhere — the seeded recipe source, the app's doc links,
-  the install guide — so both repos must be pushed there before an install can work. Then
-  the first `make release` (it installs QEMU for arm64 itself), and make
-  both packages public on GitHub — the install guide's `docker compose pull` needs them.
 - **A tool setting's value is written to the SSH log** (`write_setting`) — fine for Git's name
   and email, the only settings today. A setting that holds a secret needs a `secret` flag in
   the tool schema that keeps its value out. From the 2026-11-05 review.
@@ -169,9 +164,15 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       that fixed, Sunde: recommend it "on equal grounds like the two other options" — it is a
       main section of the guide, and every page that ranked the layouts says all three,
       each for the hardware you have
+      — 2026-11-17, reworked: the reader chooses the layout first and installs once (`FILE=`
+      set to its compose file, in one block); AdGuard is set up before Loskai is opened, so
+      the welcome page takes Caddy's and AdGuard's details. The swap is left only under
+      Advanced › *Add names later*, for a Loskai already running alone
+      — live, with the published images: fresh dind hosts for one machine and for a small
+      always-on machine with AdGuard on its own box — each welcome page showed what the
+      guide says, and a route was served over HTTPS to a device asking AdGuard
       **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
-      scripts' own text) and the published images (the release's clean install,
-      [releasing.md](../contributing/releasing.md) step 5, still to do)
+      scripts' own text), and a real phone or laptop pointed at AdGuard
 - [ ] 60c `using-loskai.md`
 - [ ] 60d `troubleshooting.md`
 - [ ] 60e `certificate-setup.md`
