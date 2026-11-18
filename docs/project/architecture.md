@@ -389,7 +389,8 @@ Loskai can install (`tool.INSTALLERS`, the one place that says how to get each) 
 to add, which installs them. The machine's dialog has a card for each tool that applies, under Tools; every
 tool but the standard ones is also in the Tools menu on the machine's row, with how it stands
 there — what it shows, `not added`, or what it needs — and opens in a dialog
-(`MachineTools.tsx`). The one thing stored is a machine's **projects folder**
+(`MachineTools.tsx`). The cards and the menu come in one order on every machine, decided in
+`tool.ORDER`: Git, Claude Code, Tailscale, tmux, then any other. The one thing stored is a machine's **projects folder**
 (`projects_folder`, `~/projects` unless changed, set in the Git card's **Settings**), where the
 Claude Code tool's projects are. A tool's **settings** are the machine's own values, never
 stored: its card reads them with the main key (`connect.read_settings`, every `read` in one
@@ -401,6 +402,37 @@ only ever `$1` — refusing before anything runs when it can't run there. The ac
 the machine's terminal, inside a tmux session when the machine has tmux (so closing the tab
 doesn't stop an update, and running it again attaches), and the log records its command.
 The format is [tool-schema.md](../reference/tool-schema.md).
+
+**A machine's own SSH keys** (Phase 56 — the why is in HISTORY, 2026-11-14) are two views of
+one list, read by the status key: the public halves in `~/.ssh` of the user Loskai logs in
+as, every remote of each project and submodule, and what `ssh -G` resolves for each host they
+name ([ssh-status.md](../reference/ssh-status.md)). Loskai's own key is in neither view: it
+logs in *to* the machine, and is SSH setup's.
+
+- **The machine's dialog › SSH › Keys (n)** lists every key, with Copy and — where the
+  machine has Git, whose tool file holds the actions — Label and Delete.
+- **Git's card › Keys** is git's side: account keys and deploy keys, the remotes each is for,
+  a host field and Test on each, Add to …, and under the list Test key, Try every key, New key
+  for a host and, while there is no `id_*` key, New account key.
+- **What a key is for is written on it.** Every key Loskai makes is ed25519 with no
+  passphrase — pulls and pushes run unattended — and ends its comment `(loskai: account)`
+  (`id_ed25519`), `(loskai: for <host>)` (`~/.ssh/<host>`) or `(loskai: deploy <project>)`
+  (`deploy_<project>`). Label writes such a mark, or `(loskai: login)`, on any other key with
+  `ssh-keygen -c`: only the comment changes, so the key goes on working where it was added.
+  Without a mark a key is placed as far as its name, comment and remotes say (`ssh.ts`).
+- **Where a key is used is read, never stored.** A remote uses its project's own key
+  (`core.sshCommand`, set by Give it its own key), else what ssh offers that remote's host,
+  `~/.ssh/config`'s aliases included — shown as "via <alias>"; several keys ssh offers one host
+  are each "offered". A key used only by a script's `ssh -i` can't be seen. Over HTTP(S) no
+  key is used, and a project's override says so.
+- **A test is a connection per key, asked for by name.** It trusts a new host as first seen
+  (`accept-new`) and prompts for nothing; a key with a passphrase is not tried. Try every key
+  stops at 10 keys, or when the host stops answering: each refused key is a failed login a
+  forge's fail2ban counts. A first connection refused is reported as a wrong port. The answer
+  stays while Keys is open — a key that got in shows ✓ and the host, and loses its Add to … —
+  and nothing is kept after, except the hosts tested on, in the browser (`recentHosts.ts`).
+- **Delete** removes the file and puts a project that used it back on the machine's key. A
+  key `~/.ssh/config` names is refused: Loskai never edits that file.
 
 A set-up machine's row opens a **terminal** (`MachineTerminal`): a pty shell over SSH with
 the main key, behind the session, `Origin` and unlocked-key checks; closing it hangs up the

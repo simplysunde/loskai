@@ -49,7 +49,10 @@ One is enough — pick the box:
 
 On a machine with SSH set up, its dialog's **Tools** → **Add tool** → **Tailscale** installs
 it, with Tailscale's own installer. On its card, switch **Connected** on: the terminal shows
-a link to log it in. Then switch **Share this network** on: it asks for sudo's password,
+a link to log it in. It then shows the machine's Tailscale address — or **Waiting for your
+tailnet to approve this device**, with a link to **Approve** it, where your tailnet approves
+devices. Under the switches, **Tailnet** lists your other devices, each with its address and
+whether it is online. Then switch **Share this network** on: it asks for sudo's password,
 turns on IP forwarding and shares the network the machine is on — `192.168.10.0/24` for an
 address in `192.168.10.x`. It says **waiting for approval** until step 2.1 is done (its
 **Approve** link goes there), and links to **Split DNS** (step 2.2) after. Switching it off

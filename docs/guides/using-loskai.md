@@ -2,424 +2,654 @@
 
 # Using Loskai
 
-**Read this when** the install is done and you want to know what each tab is for.
+**Read this when** the install is done and you want to do something in Loskai: install an
+app, give a service a name, manage a machine.
 
-One section per tab, each with an example. The examples use `home.lan` as the base
-domain and `192.168.10.20` as the Docker host.
+One section per tab, a task at a time. The examples use `home.lan` as the base domain and
+`192.168.10.20` as the Docker host. A button that is only an icon is named by what it says
+when you point at it: the pencil (**Edit**).
 
-## The idea in one paragraph
+| You want to | Go to |
+|---|---|
+| Add a user, change your password | [Your account](#your-account) |
+| Install an app | [Install an app](#install-an-app) |
+| Change an app's settings or folders | [Change a stack](#change-a-stack) |
+| Give a service an HTTPS name | [Add a route](#add-a-route) |
+| Put a service on the Dashboard by its address | [Add a link](#add-a-link) |
+| Name a computer and manage it over SSH | [Name a machine](#name-a-machine), [Set up SSH](#set-up-ssh) |
+| Update your machines | [Update a machine](#update-reboot-or-shut-down-a-machine) |
+| Use git or Claude Code on a machine | [Git](#git), [Claude Code](#claude-code) |
+| Find a setting | [Settings](#settings) |
 
-Every service gets a name like `jellyfin.home.lan`. **Caddy** answers that name and
-forwards to the service (the *route*); **AdGuard** tells your devices where the name lives
-(the *DNS rewrite*). Loskai does both in one step and remembers it in `data/instances.json`.
-The rest of `data/` is its settings, accounts, SSH keys, logs and launcher icons — no
-database.
+## How it fits together
 
-## Accounts
+A service gets a name like `jellyfin.home.lan` in one step. **Caddy** serves the name over
+HTTPS and passes it on to the service: the *route*. **AdGuard** answers the name for your
+devices: the *DNS rewrite*. Loskai writes both. Without Caddy and AdGuard a service is a
+*link*: its address, on the Dashboard.
 
-The first time you open Loskai it shows **Welcome to Loskai**: you create the **admin**
-account — a username and a password — and check what it needs to know about your network.
-Everything on that page is in **Settings** afterwards. In **Settings › Users** an admin adds more, each with a **level**; each level
-adds to the ones before it:
+**Dashboard** and **Certificate** are open to everyone on your network. **Docker**,
+**Routing**, **Machines** and **Settings** need a login.
 
-1. **Routing** — routes and DNS names.
-2. **Docker** — stacks, containers and installing apps.
-3. **Machines** — the machines over SSH: terminals and tools.
-4. **Settings** — Settings, users and the logs: an admin, who can do everything.
+## Your account
 
-You stay signed in while a Loskai page is open, even in a background tab, and are signed
-out 2 hours after you close the last one (an admin changes that in Settings › Security).
-Your name at the bottom of the sidebar opens a menu: your level, **Change
-password**, and **Log out**, which signs you out on every device and back to the
-Dashboard; **Log in** is in its place then. **Light mode** / **Dark mode** above it switches
-the theme (the look itself, Simply Sunde's or the legacy one, is an admin's choice in
-Settings › General, for everyone), and **Collapse** above that narrows the sidebar to its icons — each tab named
-when you point at it — until you expand it again; the browser remembers which. On a phone
-the sidebar is a drawer, opened with the menu button at the top.
+The first account is made on the welcome page ([Open Loskai](install.md#open-loskai)) and is
+an admin.
+
+### Add a user
+
+Only an admin can.
+
+1. Open **Settings** › **Users** and click **Add user**.
+2. Type a username and a password of at least 8 characters, and pick a level. Each level
+   includes the ones before it:
+
+   | Level | Reaches |
+   |---|---|
+   | **1 — Routing** | Routes and DNS names |
+   | **2 — Docker** | Stacks, containers and recipe installs |
+   | **3 — Machines** | Machines over SSH: terminals and tools |
+   | **4 — Settings** | Settings, users and the logs: an admin |
+
+3. Click **Add user**. The account is in the table.
+
+On an account's row, the pencil (**Change their level**), the key (**Set a new password**)
+and the trash (**Remove**) change it. A new password or a removal ends that user's sessions.
+Loskai keeps one admin: the last one can't be removed or lowered.
+
+### Change your password, or log out
+
+Your name at the bottom of the sidebar opens a menu: your level, **Change password** and
+**Log out**.
+
+- **Change password** asks for the current one and the new one twice. You see **Changed.
+  Your other devices are signed out.**
+- **Log out** signs you out on every device and shows the Dashboard. **Log in** is where
+  your name was.
+
+You stay signed in while a Loskai page is open, even in a background tab, and are signed out
+2 hours after the last one closes. An admin changes that in **Settings** › **Security**.
+
+### Light or dark, a narrow sidebar, a phone
+
+- **Light mode** or **Dark mode**, above your name, switches the theme in this browser. The
+  look itself is for everyone: **Look** in **Settings** › **General**.
+- **Collapse** narrows the sidebar to its icons. Point at one to see its name. The browser
+  remembers.
+- On a phone the sidebar is behind the menu button at the top.
 
 ![Loskai on a phone: the dashboard, routes, stacks and machines](../images/demo-phone.webp)
 
 ## Dashboard
 
-A launcher: one card per routed service or link, public so the whole household can use it.
-Hide a card with the eye on its Routing row; give it an icon with the image button on the
-same row. A desktop app can build shortcuts from the same list (`GET /api/launcher`).
+One card per route or link. A card opens its service in a new tab. Anyone on your network
+can open the Dashboard without logging in. Machines get no card.
+
+A card is changed on its row in **Routing**:
+
+- **Hide it.** Click the eye (**Public on dashboard**). It turns into a crossed-out eye
+  (**Private — hidden from dashboard**) and the card is gone.
+- **Give it an icon.** Click the square left of the service's name (**Set a launcher icon**)
+  and pick a PNG, JPEG or WebP of at most 512 KB. The square shows it at once.
 
 ## Certificate
 
-Loskai's names use Caddy's own certificate authority, which your devices don't trust yet.
-This page hands out that certificate with install steps per OS. Once per device — see
-[certificate-setup.md](certificate-setup.md).
+Each device has to trust Caddy's certificate once, or every name opens with a warning. The
+**Certificate** tab has the file and the steps for Windows, macOS, iPhone and Linux:
+[Trust the certificate](install.md#trust-the-certificate).
+
+The tab isn't there without Caddy. To hide it, or show it only once logged in:
+[Hiding the tab](certificate-setup.md#hiding-the-tab).
 
 ## Docker
 
-Your containers, grouped by compose project.
+Your containers, grouped by stack. A **stack** is a folder in `stacks/` with a compose file:
+those are the ones Loskai manages. Click a stack's name to see its containers.
 
 ![Docker: a stack opened, then an app installed from its recipe](../images/demo-docker.webp)
 
-- **Stacks** are the projects Loskai manages, in `stacks/<name>/`. Toggle up/down, restart,
-  pull + update, edit, or delete — **Delete keeps `./data` unless you tick it**, so installing
-  again picks the data back up. Edit opens as a form: **Settings** (the `.env`, labelled
-  with the recipe's questions), **Folders** (host folder → path in the container, writable or
-  not), the recipe's **Options** (a GPU for transcoding, say — off until ticked) and **App** —
-  what `compose.yml` runs, shown but not edited, since it is the recipe's.
-  **Edit as text** opens the files themselves, a tab each; switching either way keeps what
-  you haven't saved yet. **Save** — greyed out until something changed — saves and
-  re-ups the stack.
+### Install an app
 
-  > *Example:* to give Jellyfin another library, Edit → Add folder → `/srv/media/books` →
-  > `/media/books` → Save.
-- **Other containers** were started elsewhere (another compose folder, `docker run`).
-  Start, stop and remove work; editing doesn't — the files aren't Loskai's.
-- Each container has **Logs** and, while it runs, a **Terminal** — a shell in it, with
-  one-click commands above it (processes, env vars, disk usage; `psql` on Postgres, say).
-- **New stack** makes one from a `compose.yml` you paste or write.
-- **Volumes** (the switch beside **Containers**) lists Docker volumes and which containers
-  use them. An unused one can be deleted.
+A recipe is a ready-made compose file plus the questions it needs answered.
 
-**Install recipe** opens the catalog. A recipe is a ready-made `compose.yml` plus the
-questions it needs answered. **Check for updates** lists what you installed from recipes and
-marks the ones whose recipe has a newer version: open one to see what changes, then Update.
-Only the recipe's `compose.yml` is replaced — your answers and `compose.override.yml` stay.
+1. Click **Install recipe**. The catalog opens. The first time, it fetches the list.
+2. Click an app, **Jellyfin** for example. **Review** shows what it will make. Click
+   **Continue**.
+3. Answer its questions. For Jellyfin, type your media folder under **Media folders**:
+   `/srv/media/films`. A folder has to exist on the Docker host already, since Loskai never
+   makes an empty one. Tick what you want under **Options**: hardware transcoding, say.
+4. Click **Deploy**. You see **Deployed.** If it says **Finished with errors — check the
+   output.**, **Output** shows what Docker said.
+5. Under **Route it**, keep the name or type another, and click **Add route**. You see
+   **Routed at** `https://jellyfin.home.lan`. Without Caddy the box is **Put it on the
+   Dashboard**: click **Add link**.
+6. Click **Done**. The stack `jellyfin` is under **Stacks**, and its files are in
+   `stacks/jellyfin/`.
 
-> *Example:* pick **Jellyfin**, add your media folder, press Install. Loskai writes
-> `stacks/jellyfin/`, runs it, and offers a prefix — type `jellyfin` and it is live at
-> `https://jellyfin.home.lan`.
+### Update an installed app
 
-Recipes come from git repos listed in **Settings › General**, plus any you drop into
-`data/recipes/`. The catalog fetches a repo the first time it opens; after that,
-**Refresh recipes** gets what is new ([recipe-schema.md](../reference/recipe-schema.md)).
+1. Click **Check for updates**. Each app installed from a recipe says **Update available**
+   or **Up to date**.
+2. Click one that says **Update available**. **What changed** lists what is new in its
+   recipe.
+3. Click **Update**. The row says **Up to date**.
+
+An update replaces the recipe's `compose.yml` and adds a line to `.env` for a new question.
+Your answers and `compose.override.yml` stay. If you changed `compose.yml` by hand, the app's
+entry says so: move the change into `compose.override.yml` first, or the update replaces it.
+
+For newer images of the same recipe, use **Pull + update** on the stack's row instead.
+
+### Change a stack
+
+1. On the stack's row, click the pencil (**Edit**).
+2. Change what you need:
+   - **Settings**: the answers you gave, kept in `.env`.
+   - **Folders**: folders on the Docker host, and where each shows inside the container.
+   - **Options**: the recipe's extras, off until ticked.
+
+   The card at the top shows what the recipe runs: image, ports, data. It isn't changed
+   here.
+3. To give Jellyfin another library, click **Add folder**, type `/srv/media/books` (on the
+   Docker host, where it already exists) and `/media/books` (in the container). Untick
+   **Writable** to mount it read-only.
+4. Click **Save**. It is greyed until something changed. The stack restarts with the change
+   and the dialog closes.
+
+If the stack doesn't start, the dialog stays open with what Docker said:
+[A stack won't start after Save](troubleshooting.md#a-stack-wont-start-after-save).
+
+**Edit as text** opens the files themselves, a tab each: `compose.yml`, `.env`,
+`compose.override.yml`. **Edit as form** goes back. What you haven't saved comes along.
+
+### Start, stop or restart a stack
+
+The icons on a stack's row: **Compose up** or **Compose down**, **Restart**, and
+**Pull + update**, which fetches newer images and restarts. The stack's pill says **up** or
+**down**.
+
+For one container, open the stack and click its **⋯**: **Stop**, **Restart**, **Remove**.
+
+### Delete a stack
+
+1. On the stack's row, click the trash (**Delete stack**).
+2. Leave **Also delete its data** unticked to keep what the app stored in its folder.
+   Installing it again picks the data back up. Ticked, the whole folder goes.
+3. Click **Delete**. The stack is gone from the list.
+
+Its compose file, `.env` and `compose.override.yml` go either way, so add your folders
+again after a reinstall. Docker volumes stay: [Volumes](#volumes).
+
+### Make a stack from your own compose file
+
+1. Click **New stack**.
+2. Type a name, and paste or write the compose file under `compose.yml`. Its variables go
+   under `.env`.
+3. Click **Create + up**. The stack is in the list.
+
+### Read a container's logs, or open a terminal in it
+
+Open a stack. On a container's row:
+
+- **Logs** shows its last 200 lines, then follows it.
+- **Terminal** opens a shell in it while it runs. The buttons above the shell each run one
+  command: **List processes**, **Env vars**, **Disk usage**, **List files**, and what fits
+  the image, such as **psql** on Postgres.
+
+### Containers Loskai didn't start
+
+Containers from another compose folder or from `docker run` are under **Other containers**.
+They can be started, stopped and removed, and have **Logs** and **Terminal**. They can't be
+edited: their files aren't Loskai's. To bring one in:
+[Bringing your existing containers into Loskai](migration.md).
+
+### Volumes
+
+**Volumes**, beside **Containers**, lists Docker's volumes with their size and the
+containers using each. One marked **unused** has a trash (**Delete volume**). Its data is
+gone for good.
+
+### Recipe sources
+
+Recipes come from the git repositories under **Recipe sources** in **Settings** ›
+**General**, and from any recipe folder you put in `data/recipes/`.
+
+- To add a source, paste its address and click **Add**. Untick a source to switch it off.
+  Where two sources have the same recipe, the first one listed wins.
+- The catalog fetches a source the first time it opens. After that, **Refresh recipes** in
+  the catalog gets what is new, and so does **Check for updates**.
+
+To write a recipe: [recipe-schema.md](../reference/recipe-schema.md).
 
 ## Routing
 
+One row per service: its name, where it runs, and whether Caddy and AdGuard have it.
+
 ![From the dashboard: a container gets its HTTPS name in one step, and its card](../images/demo-routing.webp)
 
-Every web address Loskai serves. Each row has two statuses: **Route** (Caddy has it) and
-**DNS** (AdGuard has it).
+### Add a route
 
-**Add route** has two lists to pick from, and fields that take any address:
+1. Click **Add route**.
+2. Say what to route:
+   - **Container** lists the containers on the Docker host that have no name yet.
+   - **Machines** lists what listens on each machine that has
+     [SSH set up](#set-up-ssh), a port each.
+   - Or type an address into **Host** and **Port**: `192.168.10.50` and `5000` for a NAS.
 
-| Pick from | For | Example |
+   Picking fills in the fields. **Clear** empties them again.
+3. Check **Subdomain prefix**. `jellyfin` gives the address shown under the fields:
+   `→ https://jellyfin.home.lan`.
+4. Tick **Backend speaks HTTPS** for a service that serves HTTPS itself, like Proxmox on
+   port 8006. Leave **Served over** on **HTTPS**, or choose **HTTP** or **Both** for a
+   device that can't install the certificate: a TV, a printer.
+5. Click **Add route**. You see `https://jellyfin.home.lan — route + DNS rewrite created.`,
+   and the row says **synced** under Route and **set** under DNS.
+
+If the name doesn't open: [A name doesn't resolve](troubleshooting.md#a-name-doesnt-resolve),
+[Certificate warning](troubleshooting.md#certificate-warning) or
+[502 Bad Gateway](troubleshooting.md#502-bad-gateway).
+
+**A container's route follows it**, where Loskai can tell its port. **Host** and **Port**
+are filled in and locked, and Loskai changes them when the container comes back on another
+port. **Set by hand** unlocks them.
+
+**The Machines list** is there for an account with the Machines tab. It lists only what
+Loskai can reach at the machine's own address. If a machine says **Its SSH user sees only its own
+services' ports — root, or sudo, sees the rest.**, log in to it as root or give that user
+`sudo` without a password. A Proxmox VM or LXC isn't listed: it is a machine of its own, so
+[name it](#see-what-runs-on-a-machine). The Docker host's own containers are under
+**Container**.
+
+**AdGuard's own page** has a button of its own: the chain in the **AdGuard** pill
+(**Route AdGuard**) makes it `adguard.home.lan` in one click.
+
+### Read a row's status
+
+| Column | Says | Means |
 |---|---|---|
-| Container | a container on this host | `whoami` → `whoami.home.lan` → `192.168.10.20:8081` |
-| Machines | a service or container on a machine with SSH set up, by the port it listens on | `proxmox.home.lan` → `192.168.10.10:8006` |
-| (type it) | anything else with an IP and port | `nas.home.lan` → `192.168.10.50:5000` |
+| Route | **synced** | Caddy has the route |
+| | **not pushed** | Loskai has it, Caddy doesn't: click **Sync** |
+| | **unknown** | Caddy can't be reached |
+| DNS | **set** | AdGuard answers the name with the right address |
+| | **missing** | AdGuard has no rewrite for it: click **Sync** |
+| | **conflict** | AdGuard has another answer for the name too. Remove that one in AdGuard: Loskai never removes a rewrite it didn't write |
+| | **unknown** | AdGuard can't be reached |
 
-Picking fills in the fields; **Clear** empties them again for an address of your own.
+The **AdGuard** and **Caddy** pills above the table say **online**, **degraded**,
+**unreachable** or **not configured**. Caddy's also shows the address every name answers
+with. When one isn't online:
+[A module shows unreachable](troubleshooting.md#a-module-shows-unreachable).
 
-Machines lists each machine's services by port, and only those Loskai can reach by the
-machine's address (not one only on its Tailscale address, not Proxmox's VMs and LXCs — they
-are machines of their own). Which service holds a port is something only root can read, so
-the machine's SSH user needs `sudo` without a password, or to be root, to see all of them.
-Its containers on this Docker host are the Container source instead. The WireGuard
-dashboard and the Certificate page are typed in by hand; AdGuard has its own button (below).
+**Sync** sends every route to Caddy again and adds the rewrites AdGuard lacks. It says
+**Synced.** Use it after Caddy or AdGuard was reinstalled or unreachable.
 
-A container route can **follow its container** (on by default when Loskai can work out its
-address): if it comes back on another port, the route is updated. Per route you can also
-pick **HTTPS** (the default), **HTTP** for a device that can't trust the certificate, or
-**Both**.
+A banner under the pills lists DNS warnings. Another lists each route whose container was
+removed, with **Delete** beside it.
 
-The two pills at the top: **AdGuard** shows whether DNS is reachable, and has a one-click
-button to route AdGuard's own UI; **Caddy** shows the address every name answers with.
-**Sync** re-pushes every Caddy route and adds any missing or stale AdGuard rewrite. Below
-the pills, a banner lists any DNS warnings, and another any route whose container was
-removed, with **Delete** beside each.
+### Change or remove a route
 
-On a row, **Remove route** takes its route and DNS rewrite away but keeps the entry, to
-assign a URL again later; **Delete instance** removes the entry too. Neither touches the
-service itself.
+On the route's row:
 
-### Links
+- The pencil (**Change URL**) opens the same fields. Change them and click **Assign**.
+- The broken link (**Remove route**) takes the name away and keeps the row, which then says
+  **not routed**. Its **+** (**Assign a URL**) gives it a name again.
+- The trash (**Delete instance**) removes the row with its route and DNS rewrite.
 
-A **link** is a name and an address — `Jellyfin` at `http://192.168.10.20:8096` — that the
-Dashboard opens directly: no HTTPS name, no Caddy route, no DNS rewrite. Add route offers
-**Route** or **Link**; without Caddy set up (Loskai alone) it makes links only, and the install
-wizard's last step offers one. A link to a container uses the Docker host's address and the
-port it's published on — the one a browser can open — and follows the container like a route.
+None of them touches the service itself.
 
-A link's row shows its address, tagged **link**: edit it with the pencil, hide it with the
-eye, or give it an HTTPS name with **+** once Caddy is set up — it becomes a route, the same
-entry. A route doesn't turn back into a link: remove the route, then add the link.
+### Add a link
+
+A link is a name and an address that the Dashboard opens directly: no HTTPS name, no Caddy,
+no AdGuard.
+
+1. Click **Add route**, then **Link**. Without Caddy the button says **Add link** and makes
+   nothing else.
+2. Pick a container, or type a **Name**, **Host** and **Port**. A container's link uses the
+   Docker host's address and the port it publishes, and follows it like a route.
+3. Tick **Opens over HTTPS** if the service serves HTTPS itself.
+4. Click **Add link**. You see `http://192.168.10.20:8096 — link saved — on the Dashboard.`,
+   and the row shows the address, tagged **link**.
+
+On a link's row, the pencil (**Edit link**) changes it and the eye hides its card. With
+Caddy, **+** (**Give it an HTTPS name**) turns it into a route, on the same row. A route
+doesn't turn back into a link: remove the route, then add the link.
+
+If it doesn't open:
+[A link doesn't open, or can't be made](troubleshooting.md#a-link-doesnt-open-or-cant-be-made).
 
 ## Machines
 
-The computers on your network, by name — a name with no port.
+The computers on your network, by name. A machine's name answers its address and has no
+port, so it works for SSH, a file share, anything. With SSH set up, Loskai also opens a
+terminal on the machine, shows what runs there and updates it.
 
 ![Machines: a machine's overview, a service restarted, Claude Code started](../images/demo-machines.webp)
 
+### Name a machine
+
+1. Click **Name a machine**.
+2. Type a **Machine name** and its **Machine IP**: `nas` and `192.168.10.50`. Under the name
+   you see `→ nas.home.lan`.
+3. To manage it over SSH, type an **SSH user**: the user Loskai logs in as. Leave it empty
+   for a name only.
+4. Click **Name machine**. The machine's dialog opens and says `nas.home.lan — DNS rewrite
+   saved.` With an SSH user, [Set up SSH](#set-up-ssh) opens over it.
+
+The machine's row shows its name under **URL**. A tag beside it, **DNS missing**,
+**DNS conflict** or **DNS unknown**, means the same as on
+[Routing](#read-a-rows-status). With no tag, AdGuard answers the name. Point at the row for
+the buttons that copy the name and the address.
+
+**Routes on a machine.** A route whose address is the machine's is listed under it: click
+the machine's name to open it. Closed, it shows how many. The route icon on its row
+(**Add a route on this machine**) adds one. Give the machine another **Address** in its
+dialog and its routes move with it, except a container's route that follows its container.
+
 > *Example:* name `192.168.10.177` **proxmox** and it gets `proxmox.home.lan`. Add a route
-> for its web UI on port 8006 *on that machine*. When the host moves to `.180`, edit the
-> machine once and the route moves with it.
+> on it for its web page on port 8006, as `pve`. When the host moves to `.180`, change the
+> machine's **Address** once: `pve.home.lan` goes on working.
 
-A machine's row has its name on the network under **URL**; while AdGuard doesn't answer
-that name with its address, a **DNS missing** (or **DNS conflict**, **DNS unknown** while
-AdGuard can't be read) tag sits beside it — set, nothing more is said. A small button after
-the name and after the address copies it (shown as you point at the row; always on a phone).
+**The Docker host**, where Loskai runs, is the first row before you name it: **Docker
+host**, **not named**, at the **Docker Host LAN IP** from **Settings** › **General**. Click
+the tag on its row (**Name it**) to name it. It is then a machine like the others, marked
+**Host**.
 
-Under each machine are the routes on its address — however they were made. A machine's
-row opens and closes like a stack on the Docker tab, showing how many it holds while
-closed. Moving the machine moves them all, except a container route that follows its
-container.
+### Set up SSH
 
-The machine Loskai runs on is listed before you name it, as **Docker host**, from the
-Docker host IP in Settings › General, with the routes on that address under it. **Name it**
-(the tag on its row) opens Name a machine with its address filled in. Once it has a name
-it is a machine like the others, with SSH, tools and its dialog. Named or not, it is always
-the first row, tinted, and once named it carries a **Host** tag.
+Loskai logs in with a key of its own, as the user you give it. A `loskai` user with `sudo`
+is a good choice, and root works.
 
-The **cog** on a machine's row opens its dialog, laid out like a settings window: every
-section in one scroll, and a menu down the side that jumps to one and marks where you are.
-Its search finds a section by what is in it and shows only those.
+1. Name the machine with an **SSH user**. For a machine you already named, click its cog
+   (**Machine settings**), switch **SSH** on, type the user and click **Turn on**. The
+   setup opens: **SSH —** and the machine's name.
+2. Under **Is this the machine's host key?**, compare the fingerprint with what this prints
+   on the machine, and click **Trust**:
 
-- **General** — its machine name (what DNS answers for) and address, then what the machine says
-  about itself: system, uptime, memory, disks, updates waiting, its Tailscale address. Beside
-  that, **Update**, **Reboot** and **Shut down** — the System tool's, done to the machine itself.
-- **SSH** — a switch beside the heading turns it on or off, each in a dialog that says what
-  happens. Then its user and port, side by side; whether it is set up (and the button to set
-  it up); and the **updates without a password** switch.
-- **Tools**, **Running** and, for an admin, **Log** — below.
+   ```bash
+   ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+   ```
 
-Each field saves when you press Enter or leave it, and Escape puts it back; a value that
-isn't valid says why and saves nothing. A machine set up before the overview existed says
-**Install again** there — one click.
+3. On your first machine you see **Loskai has no SSH key yet.** Type your own password and
+   click **Create key**. That takes an admin.
+4. Under **Install it for me**, type that user's password on the machine and click
+   **Install**. It is used once and not kept. Or choose **I'll add it myself**, add the two
+   lines shown to `~/.ssh/authorized_keys` on the machine, and click **Test connection**.
+5. You see **Loskai logs in with its key.** and how much is running. Click **Done**.
 
-**Tools** add buttons to a machine's dialog — the ones that fit what the machine has, with
-nothing to switch on, each as a card under its **Tools** — except **System**, which updates it
-(with its own package manager), reboots it or shuts it down from **General**;
-**Services** restarts or stops a service or container from the Running list; **Proxmox**
-reboots or shuts down a running LXC or VM. Each runs in the machine's terminal, so you see
-it; hovering a button shows the command. One that runs by itself — System's, Services,
-Proxmox, ending a tmux session, Claude's Start and Stop, Tailscale's switches, adding a tool — asks first for
-sudo's password in a dialog when sudo would, checks it on the machine, and runs in a small
-terminal that drops down from the top of the page instead of a dialog. Done, it stays three
-seconds so you can see what ran (hover to hold it, **Keep open** to keep it) and slides
-away; a failure stays, with its exit code. The others (a shell,
-tmux, attaching to Claude, connecting Tailscale) answer sudo in the terminal as usual. With
-`tmux` on the machine it keeps running if you close the tab, and clicking it again picks it
-back up.
+The machine's row now has a terminal, the wrench (**Tools**), the update arrow and
+**n running**. If a step fails:
+[A machine over SSH](troubleshooting.md#a-machine-over-ssh).
 
-A tool the machine doesn't have yet is under **Add tool**, on the right of the Tools
-heading — each says what it installs, and picking one installs it, in the terminal. The **Tools** button (the wrench) on the machine's row in the
-Machines tab lists the added tools — tmux, Git, Claude Code, Tailscale — with how each stands
-there, and opens one in a dialog: the tool itself, or, if it isn't added yet, what it needs
-and Add.
+**Your password unlocks the key.** The first thing you do that needs it opens **Unlock
+Loskai's key**: type your Loskai password and it goes on. The key stays unlocked for 15
+minutes. **Settings** › **SSH** changes how long, up to 24 hours, and whether it asks at
+all.
 
-- **tmux** lists the machine's sessions — yours, and the ones Loskai's actions run in;
-  Claude's are on their projects instead.
-  **Attach** opens one in the terminal (detach with Ctrl+B, then D, and it keeps running),
-  **End** ends it, and **New session** starts one with the name you type.
-- **Tailscale** is installed with Tailscale's own installer. Its card is two switches:
-  - **Connected** — on, it shows the machine's Tailscale address; off, **Logged out** or
-    **Waiting for your tailnet to approve this device** say what it is waiting for.
-    Switching it on brings Tailscale up in the terminal, which shows a link to log in the
-    first time; off disconnects it, after asking.
-  - **Share this network** — makes the machine a subnet router: it shares the network it
-    is on (`192.168.10.0/24`) with your tailnet, so your devices reach your homelab from
-    anywhere ([Tailscale](tailscale.md)). It says **waiting for approval** until you approve
-    it in Tailscale's admin console (**Approve** goes there), then links to **Split DNS**.
+### Open a terminal on a machine
 
-  Both ask for sudo's password, except connecting, which answers sudo in the terminal. Under
-  them, folded, the rest of your tailnet: each device, its address, and whether it is
-  online. The overview shows the machine's Tailscale address too. In an LXC, Tailscale needs
-  the container to have `/dev/net/tun`.
+Click the terminal icon on the machine's row, or **Terminal** in its dialog. The keyboard
+icon at the top lists its keys:
 
-- **Git** holds who the commits made on the machine are by — its **Name** and **Email**,
-  git's global `user.name` and `user.email` — and the machine's **projects folder**,
-  `~/projects` unless you change it (`~` or one folder in it), behind **Settings** in its
-  header: a dialog, read from the machine with Loskai's key (while it is locked, your
-  password first), whose Save writes what you changed. Beside the card's summary, who the
-  commits are by: `as Sunde`. It lists the git projects there, each with **Pull** (only when it
-  fast-forwards), **Push** and **Terminal** (a shell in it), and a cog opening its
-  **Project overrides**: its own **Name**, **Email** and SSH key — set in its `.git/config`,
-  in place of the global ones for that project only; empty, the global one applies (shown
-  greyed), and the cog is teal while one is set. A fresh clone starts without them. Under the projects' buttons,
-  **Pull all** pulls every project that has a remote, and **Push all** pushes every one
-  with commits its remote doesn't have yet (as of the last fetch — Pull all fetches),
-  and any without an upstream, which says so. **Clone** takes a repository's address — `https://…`,
-  `ssh://…` or `git@host:path` — into the projects folder. They run in the machine's
-  terminal as its SSH user, so the remote decides what happens there: over SSH, the
-  machine needs its own key for that user added at the forge (Loskai's key never leaves
-  Loskai), and the first time it asks you to trust the forge's host key; over HTTPS a
-  public repository just works, and a private one asks for its login in the terminal.
-  A machine's keys are listed plainly in its dialog, under SSH: the **Keys** row has **SSH
-  setup** — Loskai's way in, its host key and Loskai's key on it — and **Keys (n)**, every
-  key of the user Loskai logs in as (`~/.ssh`, public halves only), one line each: what it
-  is for (Account, Deploy, Login, or not labelled), its fingerprint, and **Copy**, **Label**
-  and **Delete**. Git's side of them is Git's: **Keys** in its card's header lists **Account
-  keys** — on your account, reaching every repository you can: ssh's own (`id_…`) where a
-  remote uses it, and a key for one platform, its platform beside it — and **Deploy keys**,
-  on one repository each, its repository beside it; the rest are a line, being the
-  machine's.
-  What a key is for is written on it: every key Loskai makes ends its comment with
-  `(loskai: account)`, `(loskai: for github.com)` or `(loskai: deploy site)`, and **Label**
-  puts that mark on any other — account (for a platform, or not), deploy (for a project), or
-  login. Only the comment changes (`ssh-keygen -c`); the key and its fingerprint stay the
-  same, so it goes on working wherever it was added. A key with no mark is placed as far
-  as its name, comment and remotes say. Each says in a line a remote what it does —
-  "Pushes projects › blog · github.com via github-blog" — or "No git remote here uses it", the reason in its tooltip
-  (it may still be on an account, or log in elsewhere: only git's use is seen), and its comment and fingerprint
-  (shortened; whole in its tooltip). Where it is used is every remote it is for, in
-  every project and submodule — fetch, push, or both — by the project's own key, else by
-  what ssh offers that remote's host, `~/.ssh/config`'s aliases included: a submodule that
-  pushes through `git@github-site:…`, an alias naming its own key, shows under that key,
-  "via github-site". A key `~/.ssh/config` names says so; Delete leaves it alone, since that
-  file is yours. A key used only by a script that runs `ssh -i` itself can't be seen. An **account** key (`id_…`) goes on your
-  GitHub or Forgejo account and reaches every repository you can; it is what a project
-  without its own uses. A **deploy** key (`deploy_<project>`) goes on one repository and
-  reaches only it. Each key has **Copy** — its public line, with its comment, onto the
-  clipboard, ready to paste — and a link, **Add to …** (GitHub, a host, repository), that
-  opens where it goes: a deploy key's repository's Deploy keys page, worked out from its
-  remote, or your account's SSH keys page on the platform its remotes are on (or its
-  comment's "for <host>"). Then a host and **Test**: the host is where the key came from —
-  filled in with that platform when it can be told, yours to type when not, `:port` for a
-  Forgejo whose SSH isn't on 22 — and Test tries that key alone there, dropping down with
-  ✓ and whom it gets in as, or ✗. While Keys is open, the answer stays: a key that got in
-  shows "✓ github.com" in its field's place — click it to test again — and its Add to …
-  goes, being there already; one refused keeps its field, outlined, and its Add to ….
-  Only a test can tell that: what the machine says is which key a remote would use, not
-  whether the platform has it. Nothing is kept once Keys closes — except, in this browser,
-  the hosts you tested on: clicking into a host field offers them, newest first, each with
-  ✕ to forget one that was wrong or is no longer used. A test whose first connection is
-  refused says nothing answers SSH on that port — check it against a repository's Clone ›
-  SSH address — rather than suspecting a ban. Keys sees a key's use by git only: `id_…`,
-  ssh's default, is also what this machine logs in to other computers with, which its row
-  says, and Delete's question warns of. Then **Delete**, which asks first, removes the file and
-  puts a project that used it back on the machine's key (GitHub or Forgejo still lists it until
-  you take it off there). While there is no account key, **New account key** makes one
-  (ed25519, no passphrase, so pulls and pushes run unattended; its private half never
-  leaves the machine). Each key shows its comment, which says what it is for — Loskai's
-  keys are made with one ("vm@codebox for github.com"; a deploy key's project) — and
-  Loskai keeps nothing about a key itself: what it is for travels with it, where ssh uses
-  it is read from your config, and whether a host takes it is a test you run. Under the
-  list, one host field — `github.com`, `codeberg.org`, an alias, or `host:port` for a
-  Forgejo whose SSH isn't on 22 — has three buttons. **Test key** tries the keys meant for
-  that host, each on its own: the ones ssh offers it, and any whose comment says it is for
-  it — a connection or two, saying which get in and as whom; the tests drop down from the
-  top, ✓ Done when a key gets in, ✗ Failed when none does, and ask nothing (a host ssh
-  hasn't met is trusted as first seen) ("gets in as sunde"; a deploy
-  key as its repository). **Try every key** tries every key, at most 10, to find which one
-  a host takes when nothing says; each refused key is a failed login there, so on a
-  self-hosted forge with fail2ban a few can get the machine banned for a while, and it
-  stops as soon as the host stops answering. A key with a passphrase isn't tried. One key
-  per platform is a `Host` block each in `~/.ssh/config`: **New key for a host** makes
-  `~/.ssh/<host>` and prints the block to paste there — Loskai doesn't edit that file.
-  Where ssh tries several keys on a host (no `IdentitiesOnly`), each shows as **offered**
-  there. A project's **Project overrides** say in a line which key it uses — "Uses the machine's
-  key", or "Uses its own key, deploy_<project>" — with the one button that changes it:
-  **Give it its own key** makes a deploy key (set as its `core.sshCommand`, so git uses that
-  key alone for this repository), shows it to add under the repository's Deploy keys, and
-  turns the cog teal like its own name; **Back to the machine's key** takes that line off,
-  keeping the file, so its own key can be taken up again. Over HTTP(S) no SSH key is used at
-  all: it says so, and the button waits for the remote to go over SSH. On a machine Claude works on by
-  itself, a deploy key keeps it to the one repository.
-- **Claude Code** lists the git projects in the machine's projects folder, set in the Git
-  card's **Settings**, with each one's
-  branch, commits not pushed yet, uncommitted changes, last commit and when Claude last
-  worked there. One Claude session per project, and its buttons follow it, in the same
-  places on every row — **Attach**, then **Start** or **Stop**:
-  - stopped: **Attach** is greyed; **Start** runs Claude in the background, the last conversation continued,
-    else a new one, in tmux with **Remote Control** on, so you carry on from the Claude
-    app or claude.ai/code. In a folder Claude was never told to trust, it stops at that
-    question; Start says so, and **Attach** is where you answer it;
-  - running: **Attach** shows the session, to watch it or take over (Ctrl+B, then D, leaves
-    it running), and **Stop** ends it — the conversation stays, and Start continues it.
+- Ctrl+Shift+C copies what you selected, and Ctrl+V pastes.
+- Shift+drag selects where a program uses the mouse itself: tmux, Claude Code.
+- What a program copies, in tmux or Claude Code, lands on your clipboard.
 
-  At the card's foot, **New project** makes the folder, starts a git repository and opens
-  Claude in it; **Update Claude** updates Claude Code (a running session keeps its version
-  until stopped and started again); **Stop all** stops every project's session — not a
-  tmux session of your own. Pulling, pushing and a shell in a project are on the Git card.
-  Claude Code has to be logged in on the machine — the first time, do that in the
-  terminal. Loskai holds no Claude login.
+### A machine's dialog
 
-The tool cards come in one order on every machine: Git, Claude Code, Tailscale, tmux, then
-any other.
+The cog on a machine's row (**Machine settings**) opens it. The menu down its side jumps to
+a section, and **Search** finds one by what is in it.
 
-Once a machine has SSH set up, a row above the machines holds what is done across them:
-**Projects** and **Update all**.
+| Section | What is there |
+|---|---|
+| **General** | **Machine name** and **Address**. Then what the machine says about itself: system, uptime, updates waiting, its Tailscale address, memory, disks. Beside that, **Update**, **Reboot** and **Shut down** |
+| **SSH** | A switch that turns it on or off. **Login**: the user and port. **Keys**: **SSH setup**, to run the setup again, and **Keys (n)**, [the machine's own keys](#a-machines-ssh-keys). **Updates without a password** |
+| **Tools** | A card per [tool](#tools), and **Add tool** |
+| **Running** | What runs there, with **Restart** and **Stop** |
+| **Log** | Every terminal and run on this machine. An admin's |
 
-**Update all** lists each such machine with the updates waiting on it and its own
-**Update**, and updates them all one after another — System's Update on each, the next
-starting once the last ends, each asking for its `sudo` password where it needs one
-(without, under *Updates without a password* — its switch is beside each machine there
-too, as **Passwordless sudo**, so Update all can go by without asking). **Stop after this one** leaves the rest.
-What waits on a machine is read again as its run ends.
+A field saves when you press Enter or leave it, and Escape puts it back. A value that isn't
+valid says why and saves nothing.
 
-**Projects** follows work across machines: each machine with projects — its address and
-Tailscale — with a table of its projects, each once: its git in columns (branch, commits
-not pushed and uncommitted changes, last commit) and its Claude session together, and the buttons both cards give it: Pull, Push, Terminal, Attach, Start or Stop, run in that machine's terminal.
-Under them is a table of its tmux sessions of your own (a Claude session is on its project), with
-tmux's Attach and End. A strip of the machines across the top jumps to one, and its search finds one by a
-project's name too. A
-machine with no projects isn't listed; one that can't be read says why at the top.
-**Machine** beside a machine's name opens its dialog over Projects — a project's own
-settings are there — and closing it comes back to Projects.
-**New project**, in the dialog's header, opens a dialog to make one on the machine you pick
-— any with Claude Code or Git, projects or not: a new folder (Git started and Claude opened
-in it) or a clone of a repository — then runs it in that machine's terminal.
+Where the dialog says **Its status line is older than this Loskai**, click **Install
+again** and install as in step 4 of [Set up SSH](#set-up-ssh).
 
-A machine set up before a tool's facts existed asks you to **Install again** in its dialog —
-one click, and its overview comes back with them.
+### See what runs on a machine
 
-Give a machine an **SSH user** and Loskai sets up SSH to it right after you save: check the
-host key it shows against the machine's, then type that user's password once and Loskai
-installs its key (**Install it for me**), or copy its two lines over yourself (**I'll add it
-myself**). The first time, it says "Loskai has no SSH key yet." — an admin's password makes
-it. Its dialog does this again, under SSH. Reaching a machine uses Loskai's key, which
-your password unlocks for a while (Settings › SSH): while it is locked, what you do that
-needs it — a terminal, a run, a change — asks for your password in one dialog and then
-goes on; a card that only reads shows **Locked** in place of a value, and asks when you
-click it. Once it's set up, a terminal button sits on its row and in its dialog, and the row
-gets **Update** (the download arrow) — System's update, run in that terminal. In it, what a program copies —
-tmux, Claude Code's `c`, an editor — lands on your clipboard (a long URL whole, however it
-wraps on screen); Shift+drag selects even where a program uses the mouse, and Ctrl+Shift+C
-copies that. From then on the row shows how much
-is **running** there — containers, your services and, on Proxmox, its VMs and LXCs — and
-clicking it lists them. On Proxmox, or where the user isn't in the `docker` group, give it
-`sudo` for `docker ps`, `pct list` and `qm list` to see those.
+Click **n running** on the machine's row. It lists the machine's containers, its services
+and, on Proxmox, its VMs and LXCs.
 
-From that list you can add what you see:
+- **+ :8080** beside a port opens [Add route](#add-a-route) with that port filled in. A
+  port that has a route shows its address instead.
+- **Name**, on a Proxmox VM or LXC, opens [Name a machine](#name-a-machine) with its name
+  and address filled in. A VM's address comes from its QEMU guest agent. Without one, type
+  it.
 
-- **A port** (`+ :8080`) opens Add route with it picked. One already routed shows its
-  name instead.
-- **Name**, on a Proxmox VM or LXC, opens Name a machine with its name and address filled
-  in. One already named shows that name. A VM's address comes from its QEMU guest agent;
-  without one, you type it.
+To restart or stop something, open the machine's dialog at **Running**: **Restart** and
+**Stop** on a service or container, **Reboot** and **Shut down** on a Proxmox VM or LXC.
+Each asks first.
 
-**Updates without a password**: System's Update otherwise asks for the user's `sudo`
-password in the terminal. Switching it on puts a sudo rule on the machine that lets Loskai's user
-run exactly the update commands for its package manager — and nothing else — without one;
-you give the password once, in the dialog, and it is used for that run only. Switching it
-off removes it, with no password. It is not needed where Loskai logs in as root (Proxmox).
+If the list says the user **may not list containers**, add the user to the `docker` group,
+log in as root, or give the user `sudo` without a password for everything. Loskai doesn't
+use a narrower `sudo` rule.
 
-**Turning SSH off** (the switch on the SSH heading) takes Loskai's sudo rule and key off the
-machine, as deleting it does, then its entry; the machine stays, by name. Turning it on asks
-for the user and port, then opens the setup.
+### Update, reboot or shut down a machine
 
-**Deleting** a machine is under the ⋮ on its row. A set-up one has Loskai's key taken off it first — its two lines in
-`authorized_keys`, nothing else — so it asks for your password if the key is locked.
-If the machine can't be reached it is deleted anyway, and Loskai tells you its lines are
-still there. Adding it again later installs the same key again.
+1. Click the update arrow on the machine's row, or **Update** in its dialog. It refreshes
+   the package lists and installs every update, with the machine's own package manager.
+2. If `sudo` needs a password there, a dialog asks for it. Type it and click **Run**. It is
+   checked on the machine and used for this run only.
+3. A panel drops down from the top of the page: **Running…**, then **Done**. It closes by
+   itself after three seconds. Point at it to hold it, or click **Keep open**. If it says
+   **Failed**, it stays, with the output.
+
+**Reboot** and **Shut down** are in the dialog, under **General**. Each asks first.
+
+### Updates without a password
+
+1. In the machine's dialog, under **SSH**, switch **Updates without a password** on.
+2. Type the user's `sudo` password once and click **Run**. You see **Done: Update no longer
+   asks for a password.**
+
+This puts a `sudo` rule on the machine that lets Loskai's user run the update commands, and
+take the rule off again, without a password. It allows nothing else. Switching it off
+removes the rule and asks for no password. Where Loskai logs in as root there is nothing to
+switch.
+
+### Update every machine
+
+**Update all** is above the machines once one has SSH set up.
+
+1. Click **Update all**. Each machine says how many updates wait, and has its own
+   **Update** and its **Passwordless sudo** switch, which is
+   [Updates without a password](#updates-without-a-password).
+2. Click **Update all**. The machines update one after another, each asking for its `sudo`
+   password where it needs one.
+
+**Stop after this one** leaves the rest. A machine that fails holds the others until you
+close its panel. What waits on a machine is read again when its run ends.
+
+### Tools
+
+A tool adds a card to a machine's dialog, under **Tools**, where the machine has its
+program: **Git**, **Claude Code**, **Tailscale**, **tmux**.
+
+- **Add one.** Click **Add tool** and pick it. Each says what it installs.
+- **Open one from the list.** The wrench (**Tools**) on a machine's row lists the four with
+  how each stands there, **not added** included, and opens the one you click.
+
+Point at a tool's button to see the command it runs. Some run by themselves in the panel at
+the top, like an update. The others open a terminal, where you answer what the program asks:
+`sudo`, a login. With tmux on the machine, an update, a pull or a clone keeps running if you
+close the tab, and clicking its button again picks it back up.
+
+#### tmux
+
+The card lists the machine's tmux sessions. Claude's are on their projects instead.
+
+- **Attach** opens one in the terminal. Ctrl+B, then D, leaves it running.
+- **End** ends it, after asking.
+- To start one, type a name and click **New session**.
+
+#### Tailscale
+
+Tailscale lets your devices reach your homelab from anywhere. Its card has two switches:
+
+- **Connected** puts the machine on your tailnet. The first time, the terminal shows a link
+  to log it in.
+- **Share this network** shares the machine's network with your tailnet. It needs two
+  settings in Tailscale's admin console as well.
+
+All the steps: [From the Machines tab](tailscale.md#from-the-machines-tab).
+
+#### Git
+
+The card lists the git projects in the machine's projects folder, `~/projects` unless you
+change it.
+
+- **Say who commits are by.** Click **Settings** on the card, fill in **Name** and
+  **Email**, and click **Save**. **Projects folder** is there too. The card's header then
+  says `as` and the name.
+- **Work on a project.** Each has **Pull**, which only fast-forwards, **Push**, and
+  **Terminal**, a shell in it. **Pull all** and **Push all** do every project that has
+  something to pull or push.
+- **Get a project.** Paste a repository's address beside **Clone** and click it.
+
+These run in the machine's terminal as its SSH user. Over HTTPS a public repository just
+works, and a private one asks for its login in the terminal. Over SSH the machine needs a
+key of its own that GitHub or your Forgejo knows, and the first time it asks you to trust
+that host's key. Loskai's key never leaves Loskai.
+
+**Give the machine a key for GitHub or Forgejo**
+
+1. On the Git card, click **Keys**, then **New account key**. A terminal shows the new
+   key's public line and where to add it. The key has no passphrase, so pulls and pushes
+   run unattended, and its private half stays on the machine.
+2. Back in **Keys**, click **Copy** on the key's row. Paste it under SSH keys in your
+   account's settings on GitHub or Forgejo. Where Loskai can tell the platform, the row has
+   a link to that page: **Add to GitHub**.
+3. Type the host in the field on the key's row, `github.com`, or `host:port` for a Forgejo
+   whose SSH isn't on 22, and click **Test**. The panel says the key **gets in**, and as
+   whom, and the row shows a tick and the host. **refused** means the key isn't on your
+   account there yet.
+
+An account key reaches every repository your account can.
+
+**Give one project a key of its own**
+
+A deploy key reaches one repository only: a good choice on a machine where Claude works by
+itself.
+
+1. On the project's row, click the cog (**Project overrides**), then **Give it its own
+   key**. A terminal shows the key.
+2. Add it to the repository on GitHub or Forgejo, under Settings › Deploy keys, with write
+   access if the project pushes.
+
+**Back to the machine's key**, in the same place, undoes it. The button waits while the
+project has no remote over SSH: over HTTPS no SSH key is used.
+
+A project's own **Name** and **Email** are in **Project overrides** too, kept in that clone
+only. Empty, the card's apply.
+
+**Find the key a host takes**
+
+Under the list in **Keys**, type a host after **For a host:**.
+
+- **Test key** tries the keys meant for that host and says which get in. A key with a
+  passphrase isn't tried.
+- **Try every key** tries every key on the machine, 10 at most. Each one the host refuses is
+  a failed login there, so a self-hosted forge with fail2ban may ban the machine for a
+  while.
+- **New key for a host** makes a key for that host alone and prints the `Host` block to
+  paste into `~/.ssh/config` on the machine. Loskai doesn't change that file.
+
+#### A machine's SSH keys
+
+In the machine's dialog, under **SSH**, click **Keys (n)**. It lists every key of the user
+Loskai logs in as, from `~/.ssh`.
+
+- **Copy** copies a key's public line.
+- **Label** writes on the key what it is for: an account, one project, or logging in to
+  other computers. The key itself doesn't change and goes on working where it was added.
+- **Delete** removes its file for good. GitHub or Forgejo still lists the key until you
+  take it off there. A key that `~/.ssh/config` names can't be deleted here: take it out of
+  that file first.
+
+**Label** and **Delete** are there where the machine has Git. Loskai's own key isn't in the
+list. It is on the machine to let Loskai in: **SSH setup**.
+
+#### Claude Code
+
+The card lists the same projects as Git, one Claude session each, with each project's
+branch, what isn't pushed or committed, and when Claude last worked there. Pull, push and a
+shell are on the Git card.
+
+- **Start** runs Claude in the project, in the background, and continues its last
+  conversation. Remote Control is on, so you carry on from the Claude app or
+  claude.ai/code.
+- **Attach** shows the running session in the terminal. Ctrl+B, then D, leaves it running.
+- **Stop** ends the session, after asking. The conversation stays, and **Start** continues
+  it.
+
+If Start says **Claude asks whether to trust** the project first, click **Attach** and
+answer it there.
+
+Under the list: type a name and click **New project** to make a folder with a git
+repository and open Claude in it. **Update Claude** updates Claude Code: a running session
+keeps its version until it is stopped and started. **Stop all** stops every Claude session,
+and no tmux session of your own.
+
+Claude Code has to be logged in on the machine. The first time, open the machine's
+**Terminal**, run `claude` and log in. Loskai holds no Claude login.
+
+### Projects on every machine
+
+**Projects** is above the machines once one has SSH set up. It lists each machine that has
+projects and, per project, its branch, what isn't pushed or committed, its last commit and
+its Claude session, with the buttons of both cards: **Pull**, **Push**, **Terminal**,
+**Attach**, **Start** or **Stop**. Under a machine's projects are its tmux sessions.
+
+- The strip of machines across the top jumps to one, and **Search** finds one by a
+  project's name too. A machine that can't be read says why at the top.
+- **Machine**, beside a machine's name, opens its dialog. Closing it comes back.
+- **New project** makes one on the machine you pick: a new folder with Claude opened in it,
+  or a clone of a repository.
+
+### Turn SSH off, or delete a machine
+
+- **Turn SSH off.** In the machine's dialog, switch **SSH** off and click **Turn off**.
+  Loskai's key and its `sudo` rule come off the machine. The machine keeps its name.
+- **Delete it.** Click **⋮** (**More**) on its row, then **Delete machine** and **Delete**.
+  Its name goes, and Loskai's key and `sudo` rule are taken off the machine first. The
+  routes on its address stay and go on working.
+
+A machine that can't be reached is deleted anyway. A banner then says what to remove from
+it by hand. Adding the machine again later installs the same key.
 
 ## Settings
 
-- **General** — base domain, the Docker host's IP, recipe sources, export a backup.
-- **Network** — where Caddy, AdGuard and WireGuard are, and who sees the Certificate page.
-  Each service is optional: one that is unset or down greys out only its own part of the UI.
-  **Clear rewrites** (under Reset rewrites) deletes every rewrite in AdGuard, hand-added ones
-  too, then writes Loskai's back — for an AdGuard that had rewrites before Loskai. Under
-  WireGuard, a reminder of the DNS to give each peer: AdGuard's IP.
-- **SSH** — Loskai's key (its fingerprint, New key), whether using it asks for your password
-  (**Ask for your password**: yes, unless you switch it off — fine for one person on a LAN or
-  tailnet over HTTPS, not for Loskai reachable from the internet), how long the password
-  unlocks it (15 minutes unless you pick 1, 3, 8 or 24 hours), and the SSH config for your
-  own computer.
-- **Users** — the accounts: add one, set its level, set its password, remove it.
-- **Security** — how long you stay signed in once no Loskai page is open (2 hours unless
-  changed).
-- **Logs** — each sign-in and wrong password (when, the username typed, from where — never
-  the password), and the SSH log: terminals, runs and installs, never what was typed.
+Settings is an admin's. A field saves when you press Enter or leave it. One that the
+compose file or `.env` sets is locked and marked **env**:
+[Environment variables](deployment.md#environment-variables).
 
-Settings is an admin's.
+| Page | What is there |
+|---|---|
+| **General** | **Base Domain**; **Docker Host LAN IP**; **Docker Host Tailscale IP**, for [a machine on your tailnet](tailscale.md#managing-a-machine-on-your-tailnet); **Look**; [**Recipe sources**](#recipe-sources); **Export config**, a file of your routes and DNS rewrites |
+| **Network** | Where AdGuard, Caddy and WireGuard are. Each is optional. **Certificate page in the sidebar**. Under WireGuard, the DNS server to give each peer |
+| **SSH** | **Loskai's key**, with its fingerprint and **New key**; **Ask for your password**; **Keep the key unlocked for**; **SSH config**, your machines in a file for the `ssh` on your own computer |
+| **Users** | [The accounts](#add-a-user) |
+| **Security** | **Sign out this long after the last page closes**: 2 hours unless you change it |
+| **Logs** | **Sign-ins**: each sign-in and wrong password, never the password. **SSH**: terminals, runs and installs, never what was typed |
+
+**New key** replaces Loskai's SSH key. Every machine then needs its
+[SSH setup](#set-up-ssh) run again.
+
+**Ask for your password** set to **No** lets anyone signed in with the Machines tab use the
+key at once. That is fine for one person on a home network or tailnet over HTTPS, and not
+for a Loskai that can be reached from the internet.
+
+**Clear rewrites**, under **Network**, is for an AdGuard that had rewrites before Loskai.
+It deletes every rewrite in AdGuard, the ones you added by hand too, and writes Loskai's
+back. A dialog lists what will be lost before you click **Clear and restore**.
 
 ---
 

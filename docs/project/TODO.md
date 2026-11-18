@@ -173,7 +173,30 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       guide says, and a route was served over HTTPS to a device asking AdGuard
       **Not followed:** the Proxmox scripts (no Proxmox here — their steps are from the
       scripts' own text), and a real phone or laptop pointed at AdGuard
-- [ ] 60c `using-loskai.md`
+- [x] 60c `using-loskai.md` — a task at a time under each tab, numbered where it is a
+      procedure, each step ending on what you see; a table of tasks at the top. Icon buttons
+      are named by their hint: the pencil (**Edit**). What a machine's own SSH keys are and
+      how they are read went to `architecture.md` (Machines), the Tailscale card's states to
+      `tailscale.md`
+      — checked against the source first (five readers, a slice each), which found the page
+      wrong in places: the wizard's button is **Deploy**; the stack form has no "App"
+      heading; no card shows **Locked**; `sudo` for `docker ps` alone is never used (only
+      root, the `docker` group, or `sudo` without a password for everything); **Install
+      again** opens SSH setup; **Label** and **Delete** are in the machine's Keys, not Git's
+      — live: the demo homelab (`KEEP=1 make demo`, recording nothing), walked in a browser
+      with the page's own words as the selectors: a user added; Jellyfin deleted, installed
+      again with a media folder and routed from the wizard's last step; a folder added in
+      Edit and found mounted in the container; a container, a typed address and a link
+      routed, edited, removed — `hello.home.lan` answered by AdGuard and served through
+      Caddy; a machine named and deleted; SSH turned off and set up again on the NAS; Update
+      with sudo's password asked, refused when wrong, and not asked once **Updates without a
+      password** was on; Git's settings, a new account key, its Test refused, Label and
+      Delete's dialogs; Claude's Start and Stop; a tmux session made, left and ended;
+      Projects and Update all
+      **Not followed:** SSH setup's first-key step ("Loskai has no SSH key yet." — the
+      rig's key exists), the Tailscale card (not installed there), a Proxmox guest, a deploy
+      key (the rig's projects have no remote), an update that has something to update, and a
+      phone beyond the drawer
 - [ ] 60d `troubleshooting.md`
 - [ ] 60e `certificate-setup.md`
 - [ ] 60f `tailscale.md`
