@@ -178,7 +178,7 @@ Names work at home but not over WireGuard, or the other way round.
   clients ask: **Settings** › **DNS settings** › **Access settings** in AdGuard. By default
   it lets everyone. A firewall rule on AdGuard's admin port, `3000`, doesn't touch DNS on
   `53`.
-- **To tell which:** look in AdGuard's **Query Log**. A question from the client's tunnel
+- **To tell which:** look in AdGuard's query log. A question from the client's tunnel
   address means DNS is fine. Nothing at all means **AllowedIPs** or routing.
 
 ---
