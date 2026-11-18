@@ -3,6 +3,11 @@
 What changed for someone running Loskai, newest first. The reasons behind each change are
 in [`HISTORY.md`](docs/project/HISTORY.md).
 
+## Unreleased
+
+- **Sync** says what didn't sync — a route Caddy didn't take, Caddy or AdGuard unreachable —
+  where it said **Synced.** whatever Caddy answered. An AdGuard that isn't set up isn't asked.
+
 ## 0.1.0 — 2026-11-17 — first public release
 
 Everything so far:

@@ -225,30 +225,36 @@ export function Routing() {
     ...reportsAs("Couldn't change who sees it"),
   });
 
+  // Sync is both pushes; it says Synced. only when Caddy took every route and AdGuard
+  // answered — otherwise what didn't. An AdGuard that isn't set up isn't asked.
+  const adguardSetUp = healthData?.adguard?.status !== "unconfigured";
   const push = useMutation({
     mutationFn: async () => {
       const [caddy, adguard] = await Promise.allSettled([
-        api.post<{ pushed: { status: string }[] }>("/api/caddy/push"),
-        api.post<{
-          added: string[];
-          deleted: string[];
-          swept: string[];
-          conflicts: unknown[];
-          errors: unknown[];
-        }>("/api/adguard/reconcile"),
+        api.post<{ pushed?: { id: string; status: string; detail?: string }[] }>("/api/caddy/push"),
+        adguardSetUp
+          ? api.post<{ swept?: string[]; errors?: { domain: string; detail: string }[] }>("/api/adguard/reconcile")
+          : Promise.resolve(null),
       ]);
       return { caddy, adguard };
     },
-    onSuccess: ({ adguard }) => {
+    onMutate: () => setFailed(null),
+    onSuccess: ({ caddy, adguard }) => {
       invalidate();
-      const ag = adguard.status === "fulfilled" ? adguard.value : null;
-      const swept = ag?.swept?.length ?? 0;
+      const problems: string[] = [];
+      if (caddy.status === "rejected") problems.push(`Caddy: ${apiMessage(caddy.reason)}`);
+      else
+        for (const r of caddy.value.pushed ?? [])
+          if (r.status !== "ok") problems.push(`${r.id}: ${r.detail ?? "not pushed"}`);
+      if (adguard.status === "rejected") problems.push(`AdGuard: ${apiMessage(adguard.reason)}`);
+      else for (const e of adguard.value?.errors ?? []) problems.push(`${e.domain}: ${e.detail}`);
+      if (problems.length > 0) {
+        setFailed({ title: "Sync didn't finish", detail: problems.join("\n") });
+        return;
+      }
+      const swept = adguard.status === "fulfilled" ? (adguard.value?.swept?.length ?? 0) : 0;
       setSyncNote(
-        ag === null
-          ? "Routes pushed. AdGuard was unreachable — DNS not reconciled."
-          : swept > 0
-            ? `Synced. Removed ${swept} orphaned DNS ${swept === 1 ? "rewrite" : "rewrites"}.`
-            : "Synced.",
+        swept > 0 ? `Synced. Removed ${swept} orphaned DNS ${swept === 1 ? "rewrite" : "rewrites"}.` : "Synced.",
       );
       setTimeout(() => setSyncNote(null), 4000);
     },

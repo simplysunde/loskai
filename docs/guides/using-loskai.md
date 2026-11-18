@@ -281,7 +281,8 @@ with. When one isn't online:
 [A module shows unreachable](troubleshooting.md#a-module-shows-unreachable).
 
 **Sync** sends every route to Caddy again and adds the rewrites AdGuard lacks. It says
-**Synced.** Use it after Caddy or AdGuard was reinstalled or unreachable.
+**Synced.**, or **Sync didn't finish** and what didn't. Use it after Caddy or AdGuard was
+reinstalled or unreachable.
 
 A banner under the pills lists DNS warnings. Another lists each route whose container was
 removed, with **Delete** beside it.

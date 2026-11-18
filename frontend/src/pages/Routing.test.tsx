@@ -125,3 +125,69 @@ test("without Caddy nothing offers a route — not AdGuard's pill either — and
   expect(screen.queryByRole("button", { name: "Route AdGuard" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Sync/ })).not.toBeInTheDocument();
 });
+
+function answering(method: string, path: string, body: unknown) {
+  const ok = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (p, init) =>
+    (init?.method ?? "GET") === method && String(p) === path ? json(body) : ok(p, init),
+  );
+}
+
+test("Sync says which routes Caddy didn't take, rather than Synced.", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  answering("POST", "/api/caddy/push", {
+    pushed: [{ id: "adguard", status: "error", detail: "connection refused" }],
+  });
+  answering("POST", "/api/adguard/reconcile", { added: [], deleted: [], swept: [], conflicts: [], errors: [] });
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Sync didn't finish");
+  expect(alert).toHaveTextContent("adguard: connection refused");
+  expect(screen.queryByText("Synced.")).not.toBeInTheDocument();
+});
+
+test("Sync says when Caddy can't be reached at all", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  failing("POST", "/api/caddy/push", "Caddy is unreachable");
+  answering("POST", "/api/adguard/reconcile", { added: [], deleted: [], swept: [], conflicts: [], errors: [] });
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Caddy: Caddy is unreachable");
+});
+
+test("Sync with everything taken says Synced.", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  answering("POST", "/api/caddy/push", { pushed: [{ id: "adguard", status: "ok" }] });
+  answering("POST", "/api/adguard/reconcile", { added: [], deleted: [], swept: [], conflicts: [], errors: [] });
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
+
+  expect(await screen.findByText("Synced.")).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("Sync doesn't ask an AdGuard that isn't set up", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  const ok = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (p, init) =>
+    String(p) === "/api/health"
+      ? json({ adguard: { status: "unconfigured" } })
+      : String(p) === "/api/caddy/push"
+        ? json({ pushed: [{ id: "adguard", status: "ok" }] })
+        : ok(p, init),
+  );
+  renderPage();
+
+  await screen.findAllByText("not configured");
+  fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
+
+  expect(await screen.findByText("Synced.")).toBeInTheDocument();
+  expect(calls.some((c) => c.path === "/api/adguard/reconcile")).toBe(false);
+});

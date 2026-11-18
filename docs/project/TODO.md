@@ -72,7 +72,7 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
 
 **Steps**
 
-- [ ] 62a **Sync** says what didn't sync: a route Caddy refused, Caddy or AdGuard
+- [x] 62a **Sync** says what didn't sync: a route Caddy refused, Caddy or AdGuard
       unreachable. It said **Synced.** whatever Caddy answered. AdGuard unset isn't asked
 - [ ] 62b **Route AdGuard** works for an AdGuard URL without a port (the port its scheme
       implies), and dials an `https://` one over TLS. It posted a host with no port, which
