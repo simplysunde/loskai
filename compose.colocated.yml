@@ -16,10 +16,14 @@ services:
     ports:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
       - "443:443"
-      # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
+      # :2019 (admin) stays internal — Loskai reaches it as caddy.loskai.internal:2019.
     volumes:
       - caddy-data:/data # the internal CA and its certificates
       - caddy-config:/config # the saved config, routes included — Caddy starts from it (--resume)
+    networks:
+      default:
+        aliases:
+          - caddy.loskai.internal # see loskai's environment below
     restart: unless-stopped
 
   adguard:
@@ -36,6 +40,10 @@ services:
     volumes:
       - adguard-work:/opt/adguardhome/work
       - adguard-conf:/opt/adguardhome/conf
+    networks:
+      default:
+        aliases:
+          - adguard.loskai.internal # see loskai's environment below
     restart: unless-stopped
 
   loskai:
@@ -61,8 +69,12 @@ services:
       - ${STACKS_DIR:-${PWD}/stacks}:${STACKS_DIR:-${PWD}/stacks}
       - ./data:/data # Loskai's own state: settings.json, instances.json, recipes/
     environment:
-      - CADDY_ADMIN_URL=http://caddy:2019
-      - ADGUARD_URL=http://adguard:3000
+      # Loskai reaches Caddy and AdGuard by these aliases, never as `caddy` or `adguard`: a name
+      # Docker doesn't know goes on to the LAN's DNS, and while a container is down a machine there
+      # with that name would answer — and get Loskai's routes, or AdGuard's password. `.internal` is
+      # never delegated, so with the container gone the name doesn't resolve.
+      - CADDY_ADMIN_URL=http://caddy.loskai.internal:2019
+      - ADGUARD_URL=http://adguard.loskai.internal:3000
       - ADGUARD_USER=${ADGUARD_USER:-}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD:-}
       - WIREGUARD_DASHBOARD_URL=${WIREGUARD_DASHBOARD_URL:-}

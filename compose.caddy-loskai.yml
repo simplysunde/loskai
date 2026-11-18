@@ -16,13 +16,19 @@ services:
     ports:
       - "80:80" # certificate-onboarding page (install the internal root once per device)
       - "443:443"
-      # :2019 (admin) stays internal — Loskai reaches it as caddy:2019.
+      # :2019 (admin) stays internal — Loskai reaches it as caddy.loskai.internal:2019.
     volumes:
       - caddy-data:/data # the internal CA and its certificates
       - caddy-config:/config # the saved config, routes included — Caddy starts from it (--resume)
     networks:
-      - default # Loskai reaches the admin API over this one
-      - loskai-edge # and managed stacks join this one to be routed — see below
+      default: # Loskai reaches the admin API over this one
+        # Loskai reaches Caddy as caddy.loskai.internal, never as `caddy`: a name Docker doesn't
+        # know goes on to the LAN's DNS, and while this container is down a machine there called
+        # `caddy` would answer — and get Loskai's routes. `.internal` is never delegated, so with
+        # Caddy gone the name doesn't resolve and Loskai says Caddy is unreachable.
+        aliases:
+          - caddy.loskai.internal
+      loskai-edge: # and managed stacks join this one to be routed — see below
     restart: unless-stopped
 
   loskai:
@@ -47,7 +53,7 @@ services:
       - ${STACKS_DIR:-${PWD}/stacks}:${STACKS_DIR:-${PWD}/stacks}
       - ./data:/data # Loskai's own state: settings.json, instances.json, recipes/
     environment:
-      - CADDY_ADMIN_URL=http://caddy:2019
+      - CADDY_ADMIN_URL=http://caddy.loskai.internal:2019 # the alias above, never plain `caddy`
       # AdGuard runs on the other box, so these are a LAN address and its credentials —
       # not a container name. Optional: leave unset and fill them in from Settings > Network.
       - ADGUARD_URL=${ADGUARD_URL:-}
@@ -83,7 +89,7 @@ services:
 
 networks:
   # Declared only because `caddy` names it explicitly above — same project-scoped network
-  # Compose would have created implicitly. It is what Loskai reaches caddy:2019 over.
+  # Compose would have created implicitly. It is what Loskai reaches Caddy's admin API over.
   default:
 
   # The shared edge network, and the one thing no other layout can do: a managed stack that

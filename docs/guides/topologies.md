@@ -158,7 +158,7 @@ protecting (DNS in its own fault domain) without asking for a hypervisor.
 - **Cost:** one more physical device than C. That device can be very small, and it is the
   only thing B asks for that C doesn't.
 
-`CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so `CADDY_HOST_IP` **must** be set
+`CADDY_ADMIN_URL` is a hostname (`http://caddy.loskai.internal:2019`), so `CADDY_HOST_IP` **must** be set
 explicitly — see [deployment.md](deployment.md#environment-variables).
 
 ### C — All-in-Docker (`compose.colocated.yml`)
@@ -169,7 +169,7 @@ explicitly — see [deployment.md](deployment.md#environment-variables).
 
 All three as containers on one host.
 
-`CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so `CADDY_HOST_IP` **must** be set
+`CADDY_ADMIN_URL` is a hostname (`http://caddy.loskai.internal:2019`), so `CADDY_HOST_IP` **must** be set
 explicitly — see [deployment.md](deployment.md#environment-variables).
 
 - **Win:** `2019` never leaves the Docker network.

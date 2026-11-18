@@ -86,8 +86,19 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
       **Back to the machine's key** names **Give it its own key**. The rule goes in
       `CLAUDE.md`'s UI line
 - [x] 62e The launcher icon's remove × is there on a phone, as the copy buttons are
-- [ ] 62f `using-loskai.md`, `CHANGELOG.md`, `HISTORY.md` with each; all checks; live on the
+- [x] 62f `using-loskai.md`, `CHANGELOG.md`, `HISTORY.md` with each; all checks; live on the
       demo homelab
+- [x] 62g Caddy and AdGuard by `caddy.loskai.internal` and `adguard.loskai.internal` in the
+      compose files: as `caddy`, with its container down, the demo's Loskai pushed its routes
+      into Sunde's real Caddy (HISTORY, 2026-11-18)
+      — live, on the demo homelab built from this checkout: Loskai reached Caddy by the alias
+      (healthy); with Caddy stopped, the alias resolved to nothing inside Loskai, where
+      `caddy` still gave 192.168.1.177; Sync then said **Sync didn't finish** for each route,
+      and Sunde's Caddy read byte-for-byte the same before and after. 62a–e on the same rig:
+      Route AdGuard posted `192.168.50.2:80` for a portless URL and it was taken; a route
+      removed became a link on its own row; the new titles, banner and delete dialogs; the
+      icon's × at 390 px, tapped, removed it. And the sudo rule: switched off with no
+      password, `/etc/sudoers.d/loskai` gone from the machine
 
 **Seen, not taken up** (from the same reading — for Sunde to decide):
 
@@ -100,6 +111,8 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
   Account keys says "None.".
 - Picking Proxmox from Add route's Machines list fills the prefix `pveproxy`, and leaves
   **Backend speaks HTTPS** unticked.
+- Caddy dials a docker-mode upstream (`jellyfin:8096`) by its bare name too: with the
+  container gone, a LAN machine of that name gets the traffic. Same fall-through as 62g.
 - Other dialogs list what happens underneath, e.g. Turn off SSH ("Loskai's key and its sudo
   rule come off the machine — … then its entry, user and port go, and its host key is
   forgotten"): a sweep under 62's rule.

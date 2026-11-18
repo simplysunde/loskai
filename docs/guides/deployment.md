@@ -58,13 +58,13 @@ Three compose files, same image:
   shell). `CADDY_ADMIN_URL` is a LAN IP, so the DNS-rewrite answer IP derives from it automatically.
 - **`compose.caddy-loskai.yml` — recommended with a small always-on box.** Split DNS: Caddy + Loskai as
   containers on the Docker host, AdGuard on its own small always-on box (a Raspberry Pi or
-  similar) reached over the LAN. `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so
+  similar) reached over the LAN. `CADDY_ADMIN_URL` is a hostname (`http://caddy.loskai.internal:2019`), so
   you **must** set `CADDY_HOST_IP` to this host's LAN IP. It declares the shared
   [`loskai-edge` network](topologies.md#routing-a-container-without-publishing-a-port), which
   lets a managed stack be routed without publishing a host port.
 - **`compose.colocated.yml` — recommended on one machine.** All-in-Docker: Loskai + Caddy +
   AdGuard as containers on one host, with no second machine at all.
-  Here `CADDY_ADMIN_URL` is a hostname (`http://caddy:2019`), so you **must** set
+  Here `CADDY_ADMIN_URL` is a hostname (`http://caddy.loskai.internal:2019`), so you **must** set
   `CADDY_HOST_IP` to the host's LAN IP (where Caddy's published `:443` actually lives for
   LAN clients).
 
@@ -100,7 +100,7 @@ Anything set in the environment takes priority and is shown read-only in the UI.
 | `LOSKAI_PASSWORD` | The first admin account's password, at first run (otherwise the setup page asks); only ever stored hashed. More accounts are made in Settings › Users. |
 | `LOSKAI_USERNAME` | That account's username — `admin` unless set. Lowercased; one that still isn't a username (letters, digits, `_ . -`, starting with a letter) stops Loskai starting, with a message saying so. |
 | `SESSION_IDLE_MINUTES` | How long a session lasts once no Loskai page is open (an open one keeps it): `30`, `60`, `120` (default), `480`, `1440` or `10080` minutes. Also in Settings › Security. |
-| `CADDY_ADMIN_URL` | Caddy Admin API. A LAN IP = external/preferred mode; a hostname (`http://caddy:2019`) = co-located mode. |
+| `CADDY_ADMIN_URL` | Caddy Admin API. A LAN IP = external/preferred mode; a hostname (`http://caddy.loskai.internal:2019`) = co-located mode. |
 | `ADGUARD_URL` | AdGuard Home REST API endpoint. |
 | `ADGUARD_USER` | AdGuard basic-auth user. |
 | `ADGUARD_PASSWORD` | AdGuard basic-auth password. |

@@ -4,6 +4,32 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-18 — Caddy and AdGuard by a `.internal` name: a bare one falls through to the LAN (Phase 62)
+
+Checking Sync's new failure message, the demo homelab's Caddy was stopped. Sync then said
+Synced. — and had written the demo's routes into Sunde's real Caddy. Its compose file had
+Loskai reach Caddy as `http://caddy:2019`. A name Docker's DNS doesn't know is passed on to
+the host's resolver: with the container gone, `caddy` became `caddy.lan` through the search
+domain, Sunde's homelab Caddy at 192.168.1.177. Pushing is delete-then-add by `@id`, so it
+replaced two of his routes whose ids the demo shared (`adguard`, `bambuddy`) and added a
+third; his Loskai's own push put them back.
+
+Dropping the search domain (`dns_search: .`) was the first fix, and wrong: the router
+answers the bare name `caddy` by itself, as home routers do for their DHCP hostnames. A
+machine called `caddy` or `adguard` is ordinary in a homelab, and for AdGuard it is worse —
+Loskai sends AdGuard's password. So the containers get aliases no network can have,
+`caddy.loskai.internal` and `adguard.loskai.internal`: `.internal` is reserved for private
+use and never delegated, and checked on this host, with nothing behind them they resolve
+to nothing where `caddy` resolved to the real Caddy. Loskai then says Caddy is unreachable,
+which is the truth. Layout A reaches its LXCs by address and was never exposed.
+
+Only a fresh compose file carries it; there is no warning in Loskai for an old one. Sunde:
+"if we simply push it now its fine, since noone is using it other them me yet".
+
+The same fall-through reaches Caddy's own upstreams — a route to `jellyfin:8096` whose
+container is gone is dialled at a LAN machine called `jellyfin` — left for now; TODO.md's
+Phase 62 has it.
+
 ## 2026-11-18 — A dialog says what the action does, not what happens underneath (Phase 62)
 
 Rewriting Using Loskai (60c) found dialogs that listed the machinery — Delete stack named

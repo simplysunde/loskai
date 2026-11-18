@@ -17,6 +17,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   opened it (**Change URL**, **Assign a URL**, **Give it an HTTPS name**), and Routing's and
   the Dashboard's empty pages point at **Add route**.
 - The launcher icon's remove **×** is there on a phone too; it showed only on hover.
+- **With Caddy beside Loskai, or all three on one machine:** Loskai reaches Caddy and AdGuard
+  as `caddy.loskai.internal` and `adguard.loskai.internal`. As `caddy` and `adguard`, while
+  their container was down, a machine on your network with that name could answer — and get
+  Loskai's routes, or AdGuard's password. Download your compose file again to get it.
 
 ## 0.1.0 — 2026-11-17 — first public release
 

@@ -66,7 +66,7 @@ bare IP (not `host:port`). Each `dns_only` instance can have a *different* answe
 **Where the proxy answer IP comes from:** `CADDY_HOST_IP` when it is set; otherwise the
 host of `CADDY_ADMIN_URL`, when that host is an IP (`http://192.168.10.101:2019` →
 `192.168.10.101`) — the Caddy admin host *is* the Caddy host, so no separate setting is
-needed for the normal (LAN) deployment. A hostname (`http://caddy:2019`, the Docker
+needed for the normal (LAN) deployment. A hostname (`http://caddy.loskai.internal:2019`, the Docker
 co-located mode) yields no client-usable LAN IP, so there `CADDY_HOST_IP` must be set. A
 loopback or `0.0.0.0` address, from either source, counts as unset. None of this applies
 to `dns_only` instances, which need no `CADDY_HOST_IP` at all — a LAN made entirely of

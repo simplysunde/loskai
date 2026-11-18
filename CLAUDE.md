@@ -300,6 +300,11 @@ with the machine or its SSH connection.
   env/compose-only, never UI-editable, and defaults to `${PWD}/stacks` — compose must be run
   from the project directory (`deploy.sh` `cd`s there). Loskai's own state is `./data:/data`.
   Both folders are tracked with a `.gitkeep` so Docker can't create them root-owned.
+- **Loskai reaches a container beside it by a `.loskai.internal` alias, never a bare name**
+  (`caddy.loskai.internal`, `adguard.loskai.internal` in the compose files). A name Docker's
+  DNS doesn't know goes on to the LAN's, so while the container is down a LAN machine called
+  `caddy` or `adguard` answers — and gets Loskai's routes, or AdGuard's password. `.internal`
+  is never delegated: with the container gone, the name doesn't resolve.
 - **The app runs as the owner of `./data`, not root** (`scripts/container-entrypoint.sh`
   drops to it, plus the socket's group). Anything written on the host must work owned by
   that user; anything holding a secret goes through `store.write_private` or `store.replace_private`
