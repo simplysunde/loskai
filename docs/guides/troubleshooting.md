@@ -293,9 +293,9 @@ way. So open the address itself first, on the same device. If that fails, so doe
 - **"… is routed at … — remove its route first"**: it has an HTTPS name already. Remove the
   route with the broken link (**Remove route**) on its row, then click the chain
   (**Make a link**).
-- **"… is the link … — give it this name with Assign a URL on its row"**: a link already has
-  that name. Click **+** (**Give it an HTTPS name**) on the link's row instead: the link
-  becomes the route.
+- **"… is the link … — use Give it an HTTPS name on its row"**: a link already has that
+  name. Click **+** (**Give it an HTTPS name**) on the link's row instead: the link becomes
+  the route.
 - **Only Add link, no Add route and no Sync:** Caddy isn't set up, so Loskai makes links
   only. Fill in Caddy's **Admin URL** in **Settings** › **Network** to route:
   [Add names later](install.md#add-names-later).

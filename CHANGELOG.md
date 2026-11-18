@@ -19,6 +19,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   opened it (**Change URL**, **Assign a URL**, **Give it an HTTPS name**), and Routing's and
   the Dashboard's empty pages point at **Add route**.
 - The launcher icon's remove **×** is there on a phone too; it showed only on hover.
+- A new route named like a link says to use **Give it an HTTPS name** on the link's row,
+  the button that is there; it said **Assign a URL**.
 - **With Caddy beside Loskai, or all three on one machine:** Loskai reaches Caddy and AdGuard
   as `caddy.loskai.internal` and `adguard.loskai.internal`. As `caddy` and `adguard`, while
   their container was down, a machine on your network with that name could answer — and get

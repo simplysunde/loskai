@@ -217,7 +217,8 @@ def test_a_new_route_named_like_a_link_says_how(client, no_caddy_no_adguard):
     r = client.post("/api/routes", json={"prefix": "jellyfin", "upstream": "192.168.10.220:8096"})
 
     assert r.status_code == 409
-    assert "Assign a URL" in r.json()["detail"]
+    # The link's row offers "Give it an HTTPS name": the refusal names that button.
+    assert r.json()["detail"] == "'jellyfin' is the link 'Jellyfin' — use Give it an HTTPS name on its row"
 
 
 def test_a_machine_that_moves_takes_its_links_along(client):

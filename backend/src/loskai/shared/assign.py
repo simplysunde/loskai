@@ -216,8 +216,8 @@ async def assign(
         if (clash := instances_store.get_instance(prefix)) is not None:
             if instances_store.is_link(clash):
                 raise AssignError(
-                    f"'{prefix}' is the link '{clash.name}' — give it this name with "
-                    "Assign a URL on its row", 409
+                    f"'{prefix}' is the link '{clash.name}' — use Give it an HTTPS name on its row",
+                    409,
                 )
             raise AssignError(f"instance id '{prefix}' already exists", 409)
         prev = None
