@@ -2,285 +2,300 @@
 
 # Troubleshooting
 
-**Read this when** something is broken: a 502, a redirect loop, a name that won't resolve, a
-module shown unreachable, a stack that won't start, a Dashboard link, SSH to a machine, or
-reaching it all from outside with Tailscale.
+**Read this when** something is broken: a name that shows a blank page, a 502 or a redirect
+loop, a name that won't resolve, Caddy or AdGuard shown unreachable, a stack that won't
+start, a machine over SSH, or a Dashboard link.
 
-Common failures once Loskai is routing traffic, and how to tell them apart. The recurring
-theme: **DNS, TLS, and the route can all be fine while the *upstream* (the backend Caddy
-dials) is misconfigured** — most "site won't load" reports are upstream problems, not Loskai,
-Caddy, or DNS.
+Find what you see, then follow its section. When a routed name fails, the name, its DNS and
+its certificate are usually fine, and the trouble is the address Caddy sends it on to: the
+*upstream*.
 
-Quickest triage — a name that's routed but failing almost always falls into one of these:
+| You see | Go to |
+|---|---|
+| A blank page: `200` with nothing in it | [A blank page, or an empty 200](#a-blank-page-or-an-empty-200) |
+| **502 Bad Gateway** | [502 Bad Gateway](#502-bad-gateway) |
+| "The page isn't redirecting properly" | [Redirect loop](#redirect-loop-on-an-https-only-backend) |
+| The name isn't found | [A name doesn't resolve](#a-name-doesnt-resolve) |
+| A certificate warning | [Certificate warning](#certificate-warning) |
+| Names work at home but not over WireGuard | [VPN clients aren't using AdGuard](#vpn-clients-arent-using-adguard) |
+| **unreachable** on Routing or Docker, or **Sync didn't finish** | [A module shows unreachable](#a-module-shows-unreachable) |
+| A stack fails after **Save** or an install | [A stack won't start after Save](#a-stack-wont-start-after-save) |
+| A machine's SSH setup, terminal or tool fails | [A machine over SSH](#a-machine-over-ssh) |
+| A Dashboard link doesn't open, or can't be added | [A link doesn't open](#a-link-doesnt-open-or-cant-be-made) |
+| Names don't work away from home | [Tailscale: when it doesn't work](tailscale.md#when-it-doesnt-work) |
 
-| Symptom | Layer | Jump to |
-|---|---|---|
-| **Blank page, `200` with an empty body** | route shadowed | [Empty 200](#a-blank-page-or-an-empty-200) |
-| **502 Bad Gateway** | upstream unreachable | [502](#502-bad-gateway) |
-| **Redirect loop** ("redirecting in a way that will never complete") | upstream scheme | [Redirect loop](#redirect-loop-on-an-https-only-backend) |
-| Name doesn't resolve at all | DNS | [Won't resolve](#a-name-doesnt-resolve) |
-| Cert warning / "not secure" | TLS trust | [Cert warning](#certificate-warning) |
-| VPN clients ignore AdGuard | routing | [VPN DNS](#vpn-clients-arent-using-adguard) |
-| Caddy, AdGuard or Docker shows unreachable | reachability | [Unreachable](#a-module-shows-unreachable) |
-| A stack fails after Save or install | the Docker host | [Stack won't start](#a-stack-wont-start-after-save) |
-| A machine's SSH, terminal or tool fails | SSH | [Machines](#a-machine-over-ssh) |
-| A Dashboard link doesn't open, or can't be added | the link's address | [Links](#a-link-doesnt-open-or-cant-be-made) |
-| Names don't work away from home | Tailscale | [The Tailscale guide](tailscale.md#when-it-doesnt-work) |
+Some checks below ask Caddy itself. Where Caddy runs decides how:
+
+| Caddy runs | Ask it with |
+|---|---|
+| In a Proxmox LXC | `pct exec <caddy-ctid> -- curl -s …` on the Proxmox host |
+| As a container beside Loskai | `docker exec caddy wget -qO- …` on the Docker host |
 
 ---
 
 ## A blank page, or an empty 200
 
-The name resolves, the cert is trusted, and Caddy answers **`200` with `content-length: 0`**
-and no `Via` header. Nothing is broken downstream: **your route never ran.** Something ahead
-of it in Caddy's `routes` array matched first and terminated.
+The name opens a blank page. `curl -skI https://<name>` shows `200`, `content-length: 0` and
+no `Via` header: Caddy answered, but the route never ran. A site in your Caddyfile matches
+the name ahead of it, most often a wildcard like `*.home.lan` added by hand.
 
-The usual something is a site block in the Caddyfile that matches the name — a wildcard
-like `*.home.example` added by hand, or the `*.{$BASE_DOMAIN}` block Loskai's own Caddyfile
-had until 2026-11-08. A site block adapts to a **`"terminal": true` route**, which the
-Caddyfile adapter places first; one with no handlers answers an empty `200`. Any route
-sitting behind it that it also matches is dead. Loskai's Caddyfile now has no site that
-matches a routed name — its `localhost` site only gives Caddy the `:443` server.
+1. List Caddy's routes on its `:443` server, in the order Caddy tries them:
 
-**Three responses from the same Caddy tell the three cases apart:**
+   ```bash
+   pct exec <caddy-ctid> -- curl -s localhost:2019/config/apps/http/servers/srv0/routes \
+     | jq '[.[] | {id: ."@id", host: .match[0].host, terminal}]'        # Caddy in an LXC
+   docker exec caddy wget -qO- localhost:2019/config/apps/http/servers/srv0/routes \
+     | jq '[.[] | {id: ."@id", host: .match[0].host, terminal}]'        # Caddy beside Loskai
+   ```
 
-| Response | Meaning |
+   If that answers nothing, the server has another name: the same command ending in
+   `…/config/apps/http/servers | jq keys` lists them.
+2. Find an entry with `"terminal": true` whose host matches the name, ahead of the route
+   whose `id` is the service's. That entry is the site that answers.
+3. Take that site out of the Caddyfile, or narrow it so it no longer matches your names.
+   Caddy starts from its saved config, not the Caddyfile, so clear that save:
+   [Caddy's saved config](deployment.md#caddys-saved-config). Then click **Sync** on
+   **Routing** to put Loskai's routes back.
+
+Two other answers tell other stories:
+
+| `curl` answers | Means |
 |---|---|
-| `200`, empty body, no `Via` | route shadowed — it never ran |
-| `502`, empty body | route ran; Caddy couldn't reach the upstream ([502](#502-bad-gateway)) |
-| TLS handshake failure (`curl` exit 35) | no route and no cert for that name at all |
-
-**Check the order directly:**
-
-```
-curl -s http://<caddy>:2019/config/apps/http/servers/srv0/routes | jq '[.[] | {id: ."@id", host: .match[0].host, terminal}]'
-```
-
-The `:443` server may not be called `srv0` — Loskai finds it by its listener;
-`curl -s http://<caddy>:2019/config/apps/http/servers | jq keys` lists the names. Every
-route Loskai pushes must come **before** any `terminal` entry that matches its host.
-Loskai has inserted at the head since 2026-09-05 (`PUT …/routes/0`); builds before that
-appended, so **every route was shadowed** wherever Caddy ran with the real `BASE_DOMAIN` in
-that block — the co-located and split-DNS layouts. Update, then re-push from
-**Routing → Sync**.
-
-A name you have *not* routed has no certificate, so the browser stops at the TLS handshake
-(`curl` exit 35, the last row above) — check Routing, or the spelling.
+| `502`, empty | The route ran; Caddy can't reach the service: [502 Bad Gateway](#502-bad-gateway) |
+| A TLS error (`curl` exit 35) | Caddy has no route for this name: check its row on **Routing**, and the spelling |
 
 ---
 
 ## 502 Bad Gateway
 
-Caddy matched the route and terminated TLS, but **couldn't reach the backend** it was told to
-dial. The route, cert, and DNS are all fine — the `upstream` value is wrong or the target is
-down.
+Caddy has the route but can't reach the service at its upstream: the address is wrong, or the
+service is down.
 
-**The rule (split-LXC / preferred layout):** Caddy runs in its **own LXC**, so every upstream
-must be reachable *from that box* — a **LAN `IP:port`**. These do **not** work in this layout:
-
-- a **Docker service name** (`jellyfin:8096`) — only resolves on the Docker network, which the
-  separate Caddy LXC doesn't share;
-- `localhost` / `127.0.0.1` — that's the Caddy LXC itself, not your service;
-- a container's **internal** port that isn't **published** on the host.
-
-Use the **Docker host's LAN IP + the container's published host port** (e.g.
-`192.168.10.50:8096`), and make sure the container actually publishes it (`ports: - "8096:8096"`).
-
-> **Tip:** set **`HOST_IP`** (Settings → *Docker Host LAN IP*, or the env var) once and Loskai
-> auto-fills this `<host_ip>:<published-port>` when you route a container — no need to type it
-> per service. (A container published to a *specific* IP is detected automatically.)
-
-> **When Caddy itself runs as a container**, a `name:port` upstream resolves **only** for
-> containers on a Docker network Caddy is actually attached to. Compose isolates every project
-> on its own `<project>_default`, so Caddy reaches the containers in *its own* compose file and
-> not the stacks Loskai manages — those are separate projects. For a managed stack, either use
-> the Docker host's LAN IP + published port as above, or attach Caddy and the target to a
-> shared network yourself.
->
-> Loskai's Add-Route hint checks whether Caddy's container and the target actually share a
-> Docker network, so it suggests `name:port` only where that resolves and the host's published
-> port everywhere else. A 502 here therefore points at the plumbing rather than the hint —
-> confirm with the test below. See
-> [topologies.md](topologies.md#docker-service-names-are-not-automatically-resolvable).
-
-> **A container's port changed since it was routed?** A route that **follows its container**
-> (the default for one routed from the Container source — its address is greyed out in the
-> form) is rewritten when the container starts on the new port, including after a re-up over
-> SSH. A route **set by hand** keeps the address it was given: open it under Routing and choose
-> *Follow the container*. If a following route still 502s, Docker can't name the port — the
-> form says so — and a `loskai.port` label fixes that
-> ([recipe-schema.md](../reference/recipe-schema.md#telling-loskai-the-port--loskaiport)).
-
-**The decisive test** — run it *from inside the Caddy LXC*; it separates config from plumbing:
+**Test the address from Caddy's machine.** It tells a wrong address from one Caddy can't
+reach:
 
 ```bash
-pct exec <caddy-ctid> -- curl -sv http://<target-ip>:<port>/
+pct exec <caddy-ctid> -- curl -sv http://<service-ip>:<port>/      # Caddy in an LXC
+docker exec caddy wget -qSO- http://<service-ip>:<port>/            # Caddy beside Loskai
 ```
 
-- **Succeeds** → the fix is the upstream value in the route (Routing tab → **Change URL**).
-- **Fails** → it's reachability (unpublished port, firewall, wrong IP); no route setting helps
-  until this `curl` works.
+- **It answers:** the route's address is wrong. On **Routing**, click the pencil
+  (**Change URL**) and fix **Host** and **Port**.
+- **It fails:** Caddy can't reach the service. Check the service runs, its port is published,
+  and no firewall is in the way. No route setting helps until this works.
 
-See exactly what Caddy is dialing for each route:
+**With Caddy in an LXC**, every upstream must be reachable from that LXC: the Docker host's
+LAN address and the port the container publishes, like `192.168.10.20:8096`. None of these
+work there:
 
-```bash
-pct exec <caddy-ctid> -- curl -s localhost:2019/config/ | jq '.apps.http.servers'
-```
+- a container's name, like `jellyfin:8096`: it exists only on the Docker host;
+- `localhost` or `127.0.0.1`: that is the LXC itself;
+- a port the container doesn't publish (`ports: - "8096:8096"` in its compose file).
+
+Set **Docker Host LAN IP** in **Settings** › **General** and **Add route** fills in the right
+address for a container itself.
+
+**With Caddy beside Loskai**, a container's name works only for containers on a network
+Caddy is on. Loskai's form offers a name only where it does. Otherwise, use the Docker
+host's address and the published port, or
+[put the container on Caddy's network](topologies.md#routing-a-container-without-publishing-a-port).
+
+**The container's port changed?** A route that follows its container changes with it. A route
+set by hand keeps its address: click its pencil, then **Follow the container**. If the form
+says **Docker can't name this container's port**, give the container a `loskai.port` label
+([recipe-schema.md](../reference/recipe-schema.md#telling-loskai-the-port--loskaiport)), or
+type the address.
 
 ---
 
 ## Redirect loop on an HTTPS-only backend
 
-"The page isn't redirecting properly" / "redirecting in a way that will never complete" on a
-backend that only speaks HTTPS (**Proxmox `:8006`**, some NAS UIs, etc.). Caddy defaults to
-dialing the upstream over **plain HTTP**; an HTTPS-only backend then bounces the request.
+The browser says "The page isn't redirecting properly", or "redirected you too many times",
+for a service that only speaks HTTPS: Proxmox on port 8006, some NAS pages. Caddy sends it
+plain HTTP, and the service sends it back.
 
-**Fix:** on that route, tick **"Backend speaks HTTPS"** (sets `upstream_tls` → Caddy dials over
-TLS with cert verification skipped, for the backend's self-signed cert). Upstream stays the LAN
-`IP:port`, e.g. `192.168.10.10:8006`.
+1. On **Routing**, click the route's pencil (**Change URL**).
+2. Tick **Backend speaks HTTPS** and click **Assign**. Keep **Host** and **Port** as they are,
+   like `192.168.10.10` and `8006`. Caddy then accepts the service's own self-signed
+   certificate.
+3. Open the name again. It shows the service's page.
 
-Verify from the Caddy LXC with the `-k` (insecure) + `https` form:
+To see that the service answers over HTTPS, from Caddy's machine:
 
 ```bash
-pct exec <caddy-ctid> -- curl -skv https://<target-ip>:8006/
+pct exec <caddy-ctid> -- curl -skv https://<service-ip>:8006/
 ```
 
 ---
 
 ## A name doesn't resolve
 
-`nslookup grafana.example.no` returns nothing / NXDOMAIN.
+The browser can't find `jellyfin.home.lan`, and `nslookup jellyfin.home.lan` finds nothing.
 
-- **Is the client using AdGuard?** `nslookup grafana.example.no <adguard-ip>` — if *that* works
-  but the default resolver doesn't, your device isn't pointed at AdGuard (see
-  [VPN DNS](#vpn-clients-arent-using-adguard) or
-  [Point your devices at AdGuard](install.md#point-your-devices-at-adguard)).
-- **Only the browser can't find it?** `nslookup` answers but the browser says the site can't be
-  reached: the browser is asking a DNS service of its own ("Secure DNS", "DNS over HTTPS" in
-  its settings). Turn that off for this network.
-- **Cold start:** a brand-new Caddy/AdGuard has no routes or rewrites yet. Reach Loskai directly
-  at `http://<docker-host>:8080` and click **Sync** on the Routing tab to seed every route +
-  DNS rewrite.
-- **Rewrite missing:** the AdGuard rewrite is best-effort on assign. On the Routing tab the
-  row's DNS column then says **missing** (or **conflict**, when AdGuard has another answer for
-  the name too); **Sync** adds it.
+1. Ask AdGuard directly: `nslookup jellyfin.home.lan <adguard-ip>`.
+   - **AdGuard answers:** your device asks another DNS server.
+     [Point your devices at AdGuard](install.md#point-your-devices-at-adguard), or for
+     WireGuard [VPN clients aren't using AdGuard](#vpn-clients-arent-using-adguard).
+   - **AdGuard doesn't:** go on to step 2.
+2. On **Routing**, look at the row's **DNS** column:
+   - **missing:** AdGuard has no answer for the name. Click **Sync**.
+   - **conflict:** AdGuard has another answer for the name too. Remove that one in AdGuard,
+     under **Filters** › **DNS rewrites**. Loskai never removes a rewrite it didn't write.
+   - **unknown:** Loskai can't reach AdGuard:
+     [A module shows unreachable](#a-module-shows-unreachable).
+
+**`nslookup` finds it, but the browser doesn't:** the browser asks a DNS service of its own.
+Turn off "Secure DNS" or "DNS over HTTPS" in its settings for this network.
+
+**Caddy or AdGuard was just installed again:** it has none of your names yet. Open Loskai by
+its address, `http://<docker-host>:8080`, and click **Sync** on **Routing**. It adds every
+route and name back.
 
 ---
 
 ## Certificate warning
 
-Browser warns the cert isn't trusted on `https://<name>.<domain>`. Expected in the default
-**internal-CA** mode — Caddy signs with its own root, which devices don't trust until you
-install it **once**. Open Loskai's Certificate page (`http://<docker-host>:8080/certificate`)
-on the device and follow it — or `http://<caddy-ip>/`, which works with Loskai stopped.
-Full walkthrough: [certificate-setup.md](certificate-setup.md).
+The browser warns that `https://<name>` isn't secure. Each device has to trust Caddy's
+certificate once.
+
+1. On that device, open `http://<docker-host>:8080/certificate`. While Loskai is down,
+   `http://<caddy-ip>/` has the same file.
+2. Download `caddy-root.crt` and follow the steps the page shows for the device.
+
+More, including phones and Firefox: [certificate-setup.md](certificate-setup.md).
 
 ---
 
 ## VPN clients aren't using AdGuard
 
-Names resolve on the LAN but not over WireGuard (or vice-versa).
+Names work at home but not over WireGuard, or the other way round.
 
-- Set `DNS = <adguard-ip>` in the client `[Interface]` (or your WG server's default-DNS).
-- **`AllowedIPs` must cover the AdGuard IP** — otherwise the DNS query never enters the tunnel.
-  Full tunnel (`0.0.0.0/0`) covers it; a split tunnel must include AdGuard's LAN subnet.
-- The WG server must route to AdGuard's LAN, and AdGuard's **DNS access settings** must allow
-  the VPN client range (default allows all; note this is `:53`, unaffected by the `:3000`
-  REST-API firewall rule).
-- Confirm via AdGuard's **Query Log** — the lookup should appear from the client's tunnel IP.
-  Empty log = a routing (`AllowedIPs`) problem, not the `DNS =` line.
+- **DNS:** set `DNS = <adguard-ip>` in the client's `[Interface]`, or as your WireGuard
+  server's default DNS for its clients.
+- **AllowedIPs must include AdGuard's address**, or the DNS question never enters the
+  tunnel. A full tunnel, `0.0.0.0/0`, does. A split tunnel must list AdGuard's LAN subnet.
+- **The WireGuard server must route to AdGuard's network**, and AdGuard must let the VPN's
+  clients ask: **Settings** › **DNS settings** › **Access settings** in AdGuard. By default
+  it lets everyone. A firewall rule on AdGuard's admin port, `3000`, doesn't touch DNS on
+  `53`.
+- **To tell which:** look in AdGuard's **Query Log**. A question from the client's tunnel
+  address means DNS is fine. Nothing at all means **AllowedIPs** or routing.
 
 ---
 
 ## A module shows unreachable
 
-When Loskai can't reach a service's API, the Routing tab's **Caddy** or **AdGuard** row says
-so, the Docker tab shows a banner for Docker, and the sidebar puts a dot by the tab. Each
-module degrades independently — one down never blocks the others.
+The **Caddy** or **AdGuard** pill on **Routing** says **unreachable**, the **Docker** tab
+shows a banner, or **Sync** says **Sync didn't finish** and **Caddy can't be reached** or
+**AdGuard can't be reached**. The rest of Loskai goes on working.
 
-- Re-check the service's URL in **Settings** (or the env var) and that the IP/port is right.
-- The API must be reachable **from the Docker host** (where Loskai runs). If you firewalled the
-  API to the Docker host, confirm that host is actually the source. AdGuard REST is `:3000`,
-  Caddy admin is `:2019`.
-- `curl` the API from the Docker host to confirm before blaming Loskai.
+1. **Is it running?** With Caddy or AdGuard beside Loskai, run `docker compose ps` in
+   Loskai's folder: each should say `Up`. Start one that isn't with `docker compose up -d`.
+2. **Is the address right?** Open **Settings** › **Network** and check Caddy's **Admin URL**
+   and AdGuard's **URL**. One marked **env** comes from the compose file or `.env`: change it
+   there, then `docker compose up -d`.
+3. **Can Loskai reach it?** Ask from Loskai's own container, with the two addresses from
+   step 2:
+
+   ```bash
+   docker exec loskai curl -s -o /dev/null -w '%{http_code}\n' <Admin URL>/config/
+   docker exec loskai curl -s -o /dev/null -w '%{http_code}\n' <AdGuard URL>/
+   ```
+
+   Any number but `000` means it is there. `000` means Loskai can't reach it: a wrong
+   address, or a firewall. If you closed Caddy's `2019` and AdGuard's `3000` to all but the
+   Docker host, check the rule allows the Docker host's own address.
+
+When the pill says **online** again, click **Sync** on **Routing**: it puts back what
+couldn't be sent while it was away. **Sync didn't finish** lists the real error after the
+words, and Loskai's log has it too: `docker logs loskai`.
 
 ---
 
 ## A stack won't start after Save
 
-Save (or the install wizard) writes the files, then runs `docker compose up -d`; when that
-fails, the editor shows Compose's output above **Cancel** and **Save**, and the files stay
-saved. The
-usual causes are on the Docker host, not in Loskai:
+**Save**, or **Deploy** in the install wizard, writes the stack's files, then starts it. When
+it doesn't start, the editor stays open with what Docker said, and the wizard says **Finished
+with errors — check the output.** Your changes are saved either way. The cause is usually
+on the Docker host:
 
-- **`bind source path does not exist`** — a folder under Folders isn't there, or is
-  mistyped. Loskai mounts folders with `create_host_path: false` on purpose, so a typo fails
-  instead of mounting an empty folder. Create it on the Docker host, or fix the row.
-- **`error gathering device information`** — an option passes a device the host lacks
-  (Jellyfin's Intel/AMD transcoding needs `/dev/dri/renderD128`; `ls /dev/dri` shows it).
-- **`could not select device driver "nvidia"`** — the NVIDIA option is ticked but the host
-  has no NVIDIA driver or Container Toolkit; `nvidia-smi` must work there first.
+- **`bind source path does not exist`:** a folder under **Folders** isn't on the Docker
+  host, or is mistyped. Loskai never makes an empty one in its place. Make the folder, or fix
+  the row.
+- **`error gathering device information`:** an option needs a device the Docker host
+  doesn't have. Jellyfin's **Hardware transcoding (Intel/AMD)** needs `/dev/dri/renderD128`:
+  `ls /dev/dri` on the host shows whether it is there.
+- **`could not select device driver "nvidia"`:** **Hardware transcoding (NVIDIA)** is
+  ticked, but the host has no NVIDIA driver or Container Toolkit. `nvidia-smi` has to work
+  on the host first.
 
-Either way, untick the option (or fix the folder) under Edit and Save again. An option is
-never required: unticked, Jellyfin still runs and transcodes on the CPU.
+Fix the folder, or untick the option, under the stack's pencil (**Edit**), and **Save**
+again. No option is required: without one, Jellyfin transcodes on the CPU.
 
 ---
 
 ## A machine over SSH
 
-- **"Loskai's key is locked"** — your password unlocks it for you, for 15 minutes unless
-  Settings › SSH says longer. A dialog asks for it when you do something that needs it; a
-  **Locked** field asks when clicked. Cancelled, the action is not done.
-- **"This machine's host key has changed."** — the machine was reinstalled, or something
-  else answers at its address. **Trust the new key** only if you know why.
-- **"Its status line is older than this Loskai — install again"** — press **Install again**
-  beside it.
-- **"sudo didn't accept that password for …"** — an automatic run checks sudo's password on
-  the machine before it starts; type it again. "may not use sudo there" means the user has
-  no sudo at all.
-- **"… may not list containers — give it the rights, or sudo."** — add the user to the
-  `docker` group, or give it `sudo` for `docker ps` (`pct list` and `qm list` on Proxmox).
+- **SSH setup says `Can't reach <host>:22`:** the machine is off, its SSH server isn't
+  running, or its port is another. Check the port beside the user, under **SSH** › **Login**
+  in the machine's dialog.
+- **`… refused the password`:** **Install it for me** needs the password of the user you
+  gave Loskai, on that machine.
+- **`… refused the key`:** Loskai's lines aren't in that user's `~/.ssh/authorized_keys` yet.
+  Click **SSH setup** in the machine's dialog and install them again.
+- **"This machine's host key has changed."** The machine was reinstalled, or something else
+  answers at its address. Click **Trust the new key** only if you know which.
+- **"Its status line is older than this Loskai"**, with **Install again**: click it. SSH setup
+  opens: install Loskai's lines again, as the first time.
+- **"sudo didn't accept that password for …"**: an update or another run checks `sudo`'s
+  password on the machine before it starts. Type it again. **may not use sudo there** means
+  that user has no `sudo` at all.
+- **"… may not list containers — give it the rights, or sudo."**: add the user to the
+  `docker` group, log in as root, or give the user `sudo` without a password for everything.
+  Loskai uses no narrower `sudo` rule for this.
+- **Unlock Loskai's key** keeps asking: your password unlocks it for 15 minutes. **Settings** ›
+  **SSH** › **Keep the key unlocked for** makes that longer.
 
-**A machine on your tailnet** (added by its `100.x` address):
+**A machine on your tailnet**, added by its `100.x` address:
 
-- **The keys install, then the test right after fails** — the machine sees Loskai's
-  connection come from the Docker host's Tailscale address, and its keys only allow the LAN
-  one. Set **Docker Host Tailscale IP** in Settings › General (beside **Docker Host LAN IP**,
-  which it needs), then run its SSH setup again. A machine set up before the field was
-  filled keeps its old lines until then.
-- **It can't be reached at all** — the Docker host isn't on the tailnet (`tailscale status`
-  there), or your tailnet's access rules don't let it reach the machine's port 22. Tailscale
-  in the recipe doesn't count: it leaves the host itself off the tailnet.
-- **Loskai's limits don't seem to apply** — Tailscale SSH is on there (`tailscale up
-  --ssh`): it answers SSH on the Tailscale address itself and ignores `authorized_keys`,
-  Loskai's lines included. `tailscale set --ssh=false` on the machine turns it off.
+- **The keys install, then the test right after fails:** the machine sees Loskai come from the
+  Docker host's Tailscale address, and Loskai's lines there allow only its LAN one. Set
+  **Docker Host Tailscale IP** in **Settings** › **General**, beside **Docker Host LAN IP**,
+  which it needs too. Then run the machine's **SSH setup** again.
+- **It can't be reached at all:** the Docker host isn't on your tailnet (`tailscale status`
+  on it), or your tailnet's access rules keep it from the machine's port 22. The Tailscale
+  recipe doesn't put the host itself on the tailnet.
+- **Loskai's limits don't seem to apply:** Tailscale SSH is on there (`tailscale up --ssh`).
+  It answers SSH on the Tailscale address itself and ignores `authorized_keys`, Loskai's
+  lines too. `tailscale set --ssh=false` on the machine turns it off.
 
-More in [Managing a machine on your tailnet](tailscale.md#managing-a-machine-on-your-tailnet).
+More: [Managing a machine on your tailnet](tailscale.md#managing-a-machine-on-your-tailnet).
 
 ---
 
 ## A link doesn't open, or can't be made
 
-A link is opened by your browser, straight at its address — Caddy, AdGuard and Loskai are
-not in the way. So first open the address itself, or `curl -sI http://<ip>:<port>` from the
-same device: if that fails, so will the card.
+Your browser opens a link straight at its address: Caddy, AdGuard and Loskai aren't in the
+way. So open the address itself first, on the same device. If that fails, so does the card.
 
-- **It opens on some devices only** — a `100.x` (Tailscale) address opens only on devices
-  running Tailscale; a LAN address from outside only through a
-  [subnet router](tailscale.md). Link the LAN address for the household.
-- **A certificate warning, or an error page from the app** — **Opens over HTTPS** may not
-  match it: ticked for one that speaks plain HTTP, or unticked for one that only speaks
-  HTTPS (Proxmox, `:8006`). Edit the link and flip it. A self-signed app warns once per device.
-- **"Loskai doesn't know this host's LAN IP"** (the install's last step) — set **Docker Host
-  LAN IP** in Settings › General, so Loskai can say where a browser reaches a container.
+- **It opens on some devices only:** a `100.x` address opens only on devices running
+  Tailscale, and a LAN address away from home only through a [subnet router](tailscale.md).
+  Link the LAN address for the household.
+- **A certificate warning, or an error page from the app:** **Opens over HTTPS** doesn't
+  match the app. Ticked, the app must speak HTTPS; unticked, plain HTTP. Proxmox on `8006`
+  speaks only HTTPS. Click the link's pencil (**Edit link**) and change it. An app with its
+  own self-signed certificate warns once per device.
+- **"Loskai doesn't know this host's LAN IP"**, at an install's last step: set **Docker Host
+  LAN IP** in **Settings** › **General**.
 - **"It has no single port a browser can reach"**, or **"… has no single published port on a
-  known address"** — the container publishes no port, or several, or only on `127.0.0.1`
-  (which opens on each viewer's own device). Publish one port, give it a `loskai.port`
-  label, or type the address.
-- **"… is routed at … — remove its route first"** — it has an HTTPS name already. A route
-  doesn't turn into a link: **Remove route** on its row, then add the link.
-- **"… is the link … — give it this name with Assign a URL"** — a new route was given a
-  link's name. Use **+** on the link's row instead: it becomes the route, the same entry.
-- **Only Add link, no Add route, no Sync** — Caddy isn't set up, so Loskai makes only links
-  ([Install Loskai](install.md#install-loskai)). Give it Caddy's
-  address in Settings › Network to route.
+  known address"**: the container publishes no port, several, or one only on `127.0.0.1`.
+  Publish one port, give the container a `loskai.port` label, or type the address.
+- **"… is routed at … — remove its route first"**: it has an HTTPS name already. Remove the
+  route with the broken link (**Remove route**) on its row, then click the chain
+  (**Make a link**).
+- **"… is the link … — give it this name with Assign a URL on its row"**: a link already has
+  that name. Click **+** (**Give it an HTTPS name**) on the link's row instead: the link
+  becomes the route.
+- **Only Add link, no Add route and no Sync:** Caddy isn't set up, so Loskai makes links
+  only. Fill in Caddy's **Admin URL** in **Settings** › **Network** to route:
+  [Add names later](install.md#add-names-later).

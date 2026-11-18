@@ -261,7 +261,25 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       rig's key exists), the Tailscale card (not installed there), a Proxmox guest, a deploy
       key (the rig's projects have no remote), an update that has something to update, and a
       phone beyond the drawer
-- [ ] 60d `troubleshooting.md`
+- [x] 60d `troubleshooting.md` — what you see, then its section, each a check or numbered
+      steps; one table says how to ask Caddy in an LXC (`pct exec … curl`) and beside Loskai
+      (`docker exec caddy wget`, the image has no curl). The why of a shadowed route, the
+      2026-09-05 insert-at-head and the old wildcard Caddyfile went to `caddy-api.md`,
+      `architecture.md` and HISTORY (there already). Three of its instructions were wrong:
+      a changed Caddyfile isn't read while Caddy's saved config exists; the reachability
+      `curl` to `2019` can't work from the Docker host when Caddy is a container (now asked
+      from Loskai's own container); `sudo` for `docker ps` alone is never used. Added: SSH
+      setup's three failures, Sync didn't finish, `docker compose ps`
+      — live, on the demo homelab (layout B, built from this checkout): the routes listing
+      and its `jq` (Loskai's three routes ahead of the `localhost` site), the server names,
+      a routed name's `200` and an unrouted one's exit 35, the 502 test answering for a
+      published port and refused for a dead one, `docker compose ps`, and step 3 printing
+      `200`/`302` with AdGuard up and `000` with it stopped — then Sync's AdGuard half said
+      "AdGuard can't be reached — ConnectTimeout", the pill **unreachable**, the log the same
+      line
+      **Not followed:** the `pct exec` commands (no Proxmox here), the redirect loop (no
+      HTTPS-only service on the rig; its steps are the Change URL dialog walked in 60c), the
+      VPN section (no WireGuard)
 - [ ] 60e `certificate-setup.md`
 - [ ] 60f `tailscale.md`
 - [ ] 60g `migration.md`
