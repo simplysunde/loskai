@@ -85,7 +85,7 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
       (Change URL, Assign a URL, Give it an HTTPS name) and an edit's banner says "saved";
       **Back to the machine's key** names **Give it its own key**. The rule goes in
       `CLAUDE.md`'s UI line
-- [ ] 62e The launcher icon's remove × is there on a phone, as the copy buttons are
+- [x] 62e The launcher icon's remove × is there on a phone, as the copy buttons are
 - [ ] 62f `using-loskai.md`, `CHANGELOG.md`, `HISTORY.md` with each; all checks; live on the
       demo homelab
 

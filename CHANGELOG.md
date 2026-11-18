@@ -16,6 +16,7 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   **Delete machine** that Loskai's access is taken off it. The route dialog is titled by what
   opened it (**Change URL**, **Assign a URL**, **Give it an HTTPS name**), and Routing's and
   the Dashboard's empty pages point at **Add route**.
+- The launcher icon's remove **×** is there on a phone too; it showed only on hover.
 
 ## 0.1.0 — 2026-11-17 — first public release
 

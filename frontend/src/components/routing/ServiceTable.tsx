@@ -342,7 +342,9 @@ function IconPicker({
         <button
           onClick={() => onClear(row)}
           title="Remove the launcher icon"
-          className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-slate-800 p-0.5 text-slate-400 hover:text-rose-300 group-hover:block"
+          aria-label="Remove the launcher icon"
+          // Shown on hover (or focus) — always on a phone, which has no hover, as the copy buttons are.
+          className="absolute -right-1.5 -top-1.5 rounded-full bg-slate-800 p-0.5 text-slate-400 hover:text-rose-300 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         >
           <X className="h-2.5 w-2.5" />
         </button>

@@ -38,6 +38,9 @@ break the phone, nor the other way round.
 - **Buttons beside a name** go under it below `sm` (`flex-col … sm:flex-row`), or the name
   gets a minimum width (`max-sm:min-w-32`) and the buttons wrap to the next line when both
   don't fit.
+- **A control shown on hover is always shown on a phone**, which has no hover:
+  `focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100` — a machine's copy buttons,
+  the launcher icon's remove ×. Never `hidden group-hover:block`, which a phone never shows.
 - **A detail cut with an ellipsis needs another way to be read.** A phone has no hover, so
   its tooltip is out of reach. Give it a line of its own (Routing's AdGuard and Caddy rows),
   or leave it out where another section shows it (a machine's address in its dialog's
