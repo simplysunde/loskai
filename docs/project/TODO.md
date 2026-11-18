@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 61** (below) — a first-run setup page, and the recipe list fetched the first time
+**Now:** **Phase 62** (below) — fixes found while rewriting Using Loskai — is open, before
+60d. **Phase 61** (below) — a first-run setup page, and the recipe list fetched the first time
 it opens — is done, merged on 2026-11-16. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is open: the
 README first, then the guides. **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
 merged on 2026-11-15. **Phase 58** — help is in `Hint`s
@@ -52,6 +53,56 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 62 — What the Using Loskai pass found
+
+Asked 2026-11-18. Checking `using-loskai.md` against the source (60c) turned up problems in
+Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshooting.md?"
+
+**Decisions (2026-11-18, Sunde)**
+
+- **A dialog says what the action does, not what happens underneath** ("dialogs and
+  explaining text should say what the function, button or action does, not necessaryly list
+  all the technical aspects of what happens in the background. like telling the user that
+  you compose override will be deleted, that is for the ai agent and developer to know based
+  on the code and the docs"). Delete stack says it removes the stack and keeps its data;
+  which files go stays in `CLAUDE.md` and the code.
+
+**Steps**
+
+- [ ] 62a **Sync** says what didn't sync: a route Caddy refused, Caddy or AdGuard
+      unreachable. It said **Synced.** whatever Caddy answered. AdGuard unset isn't asked
+- [ ] 62b **Route AdGuard** works for an AdGuard URL without a port (the port its scheme
+      implies), and dials an `https://` one over TLS. It posted a host with no port, which
+      the backend refuses
+- [ ] 62c **Make a link** on an unrouted row with Caddy set up too: removing a route, then
+      adding the link by hand, made a second row for the same service
+- [ ] 62d Words: Delete stack and Delete machine say what they do (Delete machine said
+      "nothing else on it changes" while the sudo rule came off too); Routing's and the
+      Dashboard's empty text name **Add route**; the route dialog is titled by what opened it
+      (Change URL, Assign a URL, Give it an HTTPS name) and an edit's banner says "saved";
+      **Back to the machine's key** names **Give it its own key**. The rule goes in
+      `CLAUDE.md`'s UI line
+- [ ] 62e The launcher icon's remove × is there on a phone, as the copy buttons are
+- [ ] 62f `using-loskai.md`, `CHANGELOG.md`, `HISTORY.md` with each; all checks; live on the
+      demo homelab
+
+**Seen, not taken up** (from the same reading — for Sunde to decide):
+
+- Routing's DNS warnings banner lists machines' warnings too, against "a status only on
+  the tab that owns it".
+- The orphans banner says "orphaned routes" but lists unrouted records and links whose
+  container is gone.
+- The tmux card hides a session of your own named `claude-…`.
+- **New account key** is hidden while an unlabelled `id_` key no remote uses exists, and
+  Account keys says "None.".
+- Picking Proxmox from Add route's Machines list fills the prefix `pveproxy`, and leaves
+  **Backend speaks HTTPS** unticked.
+- Other dialogs list what happens underneath, e.g. Turn off SSH ("Loskai's key and its sudo
+  rule come off the machine — … then its entry, user and port go, and its host key is
+  forgotten"): a sweep under 62's rule.
 
 ---
 
