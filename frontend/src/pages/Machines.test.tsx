@@ -1192,10 +1192,10 @@ test("Tailscale says which networks it shares, and which wait for approval", asy
 
     expect(await screen.findByRole("switch", { name: "Share this network" })).toBeChecked();
     const shared = screen.getByText("192.168.10.0/24").parentElement as HTMLElement;
-    expect(within(shared).getByRole("link", { name: "Split DNS" })).toHaveAttribute("href", "https://login.tailscale.com/admin/dns");
+    expect(within(shared).getByRole("link", { name: "Split DNS" })).toHaveAttribute("href", "https://console.tailscale.com/admin/dns");
     const waiting = screen.getByText("10.0.0.0/24").parentElement as HTMLElement;
     expect(waiting).toHaveTextContent("waiting for approval");
-    expect(within(waiting).getByRole("link", { name: "Approve" })).toHaveAttribute("href", "https://login.tailscale.com/admin/machines");
+    expect(within(waiting).getByRole("link", { name: "Approve" })).toHaveAttribute("href", "https://console.tailscale.com/admin/machines");
   } finally {
     facts = FACTS;
   }

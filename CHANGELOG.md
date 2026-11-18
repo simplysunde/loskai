@@ -19,6 +19,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   opened it (**Change URL**, **Assign a URL**, **Give it an HTTPS name**), and Routing's and
   the Dashboard's empty pages point at **Add route**.
 - The launcher icon's remove **×** is there on a phone too; it showed only on hover.
+- The Tailscale card's **Approve** and **Split DNS** links go to Tailscale's console at its
+  current address, `console.tailscale.com`, with hints that match its menus.
 - The Certificate page has an **Android** tab, picked on an Android phone, which was shown
   Linux's commands; the iPhone steps install the profile before trusting it. Caddy's own
   page says the same.

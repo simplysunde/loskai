@@ -172,7 +172,7 @@ export function ToolCard({ tool, ctx, titled = true }: { tool: Tool; ctx: ToolCo
   );
 }
 
-const TAILSCALE_ADMIN = "https://login.tailscale.com/admin";
+const TAILSCALE_ADMIN = "https://console.tailscale.com/admin";
 const OUT_LINK = "text-teal-400 hover:text-teal-300 hover:underline";
 
 function TailscaleAdminLink({ path, title, children }: { path: string; title: string; children: ReactNode }) {
@@ -216,7 +216,7 @@ function TailscaleSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
           ) : state === "approval" ? (
             <span className="text-amber-300">
               Waiting for your tailnet to approve this device ·{" "}
-              <TailscaleAdminLink path="machines" title="Machines › this device › Approve">Approve</TailscaleAdminLink>
+              <TailscaleAdminLink path="machines" title="Network › Machines › this device › Approve">Approve</TailscaleAdminLink>
             </span>
           ) : state === "login" ? (
             <span className="text-amber-300">Logged out — connecting shows a link to log in</span>
@@ -263,7 +263,7 @@ function TailscaleSettings({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
                       <span className="font-mono">{net}</span> waiting for approval ·{" "}
                       <TailscaleAdminLink
                         path="machines"
-                        title="Machines › this machine's ⋯ menu › Edit route settings — approve it. Disable key expiry there too."
+                        title="Network › Machines › this machine › Subnets: approve it under Awaiting Approval. Disable key expiry on its ⋯ menu too."
                       >
                         Approve
                       </TailscaleAdminLink>

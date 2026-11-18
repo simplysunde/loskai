@@ -309,9 +309,15 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       table lost its Why column. "Why a subnet router" went to HISTORY 2026-11-11 (there
       already). Checked against the recipe (`TS_BOOT_TIMEOUT=1h`, the hour from 2026-11-11),
       `tailscale.yml` (forwarding left on when sharing stops) and the Tailscale card's words
-      **Not followed:** anything that needs a Tailscale account — logging a machine in,
-      approving it, split DNS, a phone away from home — the same live checks *Open, not in
-      flight* holds for Sunde's machines
+      — Tailscale's console checked against Sunde's (2026-11-18, his screenshots): it lives at
+      `console.tailscale.com` (the old address redirects), Machines and DNS are under
+      **Network**, a network is approved on the machine's page under **Subnets** ›
+      **Awaiting Approval** › **Edit**, and a done router shows **Expiry disabled** and
+      **Subnets**, a done split DNS its domain with a **Split DNS** tag. The card's links and
+      hints follow. Not seen: the ⋯ menu's **Disable key expiry** and the Custom nameserver
+      dialog's **Restrict to domain** (their results were)
+      **Not followed:** logging a machine in, a phone away from home — the same live checks
+      *Open, not in flight* holds for Sunde's machines
 - [ ] 60g `migration.md`
 - [ ] 60h `topologies.md`
 - [ ] 60i `deployment.md`

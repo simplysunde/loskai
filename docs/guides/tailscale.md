@@ -92,18 +92,20 @@ data** logs it out.
 
 ## 2. Two settings in Tailscale's admin console
 
-At [login.tailscale.com/admin](https://login.tailscale.com/admin):
+At [console.tailscale.com/admin](https://console.tailscale.com/admin):
 
-1. **Machines** › the router's **⋯** menu › **Edit route settings**: approve the network it
-   shares. Until then, nothing goes through it. On the same menu, click **Disable key
-   expiry**, or the router logs itself out after 180 days and the way in closes without a
-   word.
-2. **DNS** › **Nameservers** › **Add nameserver** › **Custom**: your AdGuard's address. Turn
-   on **Restrict to domain** and give your base domain, `home.lan`. Only your names go to
-   AdGuard; everything else resolves as before.
+1. **Network** › **Machines**, and click the router. Under **Subnets**, click **Edit** below
+   **Awaiting Approval** and approve the network it shares: it moves to **Approved**. Until
+   then, nothing goes through it. In the router's **⋯** menu, click **Disable key expiry**,
+   or it logs itself out after 180 days and the way in closes without a word. Its status
+   then shows **Expiry disabled** and **Subnets**.
+2. **Network** › **DNS** › **Nameservers** › **Add nameserver** › **Custom**: your AdGuard's
+   address. Turn on **Restrict to domain** and give your base domain, `home.lan`. Under
+   **Nameservers**, your domain then shows with a **Split DNS** tag and AdGuard's address.
+   Only your names go to AdGuard; everything else resolves as before.
 
-On the router's Tailscale card, **Share this network** now shows the network and a link to
-**Split DNS**.
+On the router's Tailscale card in Loskai, **Share this network** now shows the network and
+a link to **Split DNS**.
 
 ## 3. Check it
 
@@ -164,7 +166,8 @@ with `502`.
   container's **Logs**. A Tailscale recipe installed before 2026-11-11 waited a minute only:
   **Check for updates** gives it the hour.
 - **It worked for months, then stopped:** the router's key expired, after 180 days by default.
-  Log it in again, and click **Disable key expiry** on its ⋯ menu (step 2.1).
+  Log it in again, and click **Disable key expiry** in its **⋯** menu (step 2.1). The
+  machine's page says **Key expiry**: **No expiry** once it is off.
 - **A link to a `100.x` address doesn't open:** that device isn't running Tailscale. For
   everyone at home, link the home address, or
   [route it](#routing-to-a-machine-on-your-tailnet).
