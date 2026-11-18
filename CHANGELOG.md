@@ -7,6 +7,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 - **Sync** says what didn't sync — a route Caddy didn't take, Caddy or AdGuard unreachable —
   where it said **Synced.** whatever Caddy answered. An AdGuard that isn't set up isn't asked.
+- **Route AdGuard** works when AdGuard's URL names no port (it takes the one the scheme
+  implies), and reaches an `https://` AdGuard over HTTPS. It failed with "upstream must
+  include a port".
 
 ## 0.1.0 — 2026-11-17 — first public release
 

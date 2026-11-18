@@ -22,7 +22,7 @@ import { AddRouteModal, type NewLink, type NewRoute } from "../components/routin
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
 import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusPill";
-import { ADGUARD_SERVICE, urlToUpstream } from "../components/routing/networkServices";
+import { ADGUARD_SERVICE, urlToUpstream, urlUsesTls } from "../components/routing/networkServices";
 import { LinkModal, type LinkPayload } from "../components/routing/LinkModal";
 import type { SaveResult } from "../components/routing/useSaveMachine";
 import { ServiceTable, type Instance } from "../components/routing/ServiceTable";
@@ -322,7 +322,7 @@ export function Routing() {
                     routeAdguard.mutate({
                       prefix: ADGUARD_SERVICE.prefix,
                       upstream: adguardUpstream,
-                      upstream_tls: false,
+                      upstream_tls: urlUsesTls(healthData?.adguard?.url),
                       scheme: "https",
                       origin: ADGUARD_SERVICE.origin,
                       name: ADGUARD_SERVICE.name,

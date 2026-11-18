@@ -74,7 +74,7 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
 
 - [x] 62a **Sync** says what didn't sync: a route Caddy refused, Caddy or AdGuard
       unreachable. It said **Synced.** whatever Caddy answered. AdGuard unset isn't asked
-- [ ] 62b **Route AdGuard** works for an AdGuard URL without a port (the port its scheme
+- [x] 62b **Route AdGuard** works for an AdGuard URL without a port (the port its scheme
       implies), and dials an `https://` one over TLS. It posted a host with no port, which
       the backend refuses
 - [ ] 62c **Make a link** on an unrouted row with Caddy set up too: removing a route, then
