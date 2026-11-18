@@ -1,166 +1,74 @@
 [Docs](../README.md) › [Guides](../README.md#guides)
 
-# Certificate onboarding (internal-CA mode)
+# Trusting the certificate
 
-**Read this when** a browser warns about the certificate on a Loskai name.
+**Read this when** a browser warns that one of your names isn't secure, or a new device
+joins your network.
 
-Loskai's **default** TLS mode is Caddy's **internal CA** (`local_certs` / `tls internal`) —
-Caddy signs every `*.BASE_DOMAIN` name with its own root, with no real domain or ACME/DNS
-token required. Publicly trusted certs are a possible future alternative — see the
-[backlog](../project/TODO.md#backlog--future-ideas) — but Loskai ships no mode for them: it never writes the Caddyfile, so that choice is
-made in Caddy's own config.
+Caddy makes the certificates for your names itself, so there is no domain to buy. Your
+devices don't know Caddy yet: each trusts Caddy's root certificate once, and then every name
+opens without a warning, the ones you add later too.
 
-Teaching a *backend* to serve a certificate your devices already trust — Proxmox on `:8006`,
-a NAS admin UI — is the mirror image of this page and lives in
-[backend-certificates.md](backend-certificates.md).
-Browsers don't trust that root, so LAN devices get a cert warning until they install it
-**once**. Install the root on a device once and **every** `*.BASE_DOMAIN` name is trusted,
-including ones you add later: one internal root signs each name's certificate.
+## Trust the certificate on a device
 
-There are **two ways to get the root**, and they exist for different reasons:
+1. On the device, open `http://<docker-host>:8080/certificate`. Use the address, not a
+   name: the device doesn't trust the names yet. No login is needed.
+2. Under **Download the certificate**, click **caddy-root.crt**. The browser may warn that
+   you are installing something: the file is a certificate, not a program.
+3. Under **Add it to your trust store**, the tab for this device is picked. Follow its steps:
+   - **Windows:** open the file, **Install Certificate**, **Local Machine**, then **Place all
+     certificates in the following store** › **Trusted Root Certification Authorities**.
+   - **macOS:** run the command the tab shows, in Terminal. It asks for your password.
+   - **iPhone and iPad:** open the file, then switch it on under Settings › General › About ›
+     Certificate Trust Settings. The steps are on the **macOS** tab.
+   - **Linux:** run the commands for your distribution. Chrome and Chromium keep a store of
+     their own on Linux: the tab has the command for it too.
+   - **Firefox**, on any system, keeps its own store as well: Settings › Privacy & Security ›
+     Certificates › View Certificates › Authorities › Import. Tick "Trust this CA to identify
+     websites".
+4. Open one of your names over `https://`. The browser shows a padlock. A tab that was open
+   before needs a reload.
 
-| | [Loskai's Certificate page](#loskais-certificate-page-primary) | [Caddy's `:80` site](#caddys-80-onboarding-site-fallback) |
-|---|---|---|
-| Reached at | `/certificate` on Loskai | `http://<caddy-ip>/` |
-| Works when | always — any topology | Caddy shares a host you can reach on `:80` |
-| Source of the root | Caddy's Admin API | Caddy's own data volume |
-| If you ever move to publicly trusted certs | survives — says "nothing to install" | becomes pointless, and `:80` may be wanted for an HTTP-01 challenge |
+If the page says **Nothing to install.**, Caddy doesn't use certificates of its own and your
+names are trusted already. If it says **Couldn't reach Caddy to fetch the root certificate**:
+[A module shows unreachable](troubleshooting.md#a-module-shows-unreachable).
 
-Prefer the Certificate page. The `:80` site still ships because it works with Loskai
-stopped, which is worth having on the day you're setting the machine up.
+## When Loskai is down
 
-> Loskai handles no certificate **key** material and is not in the issuance path — that
-> stays entirely with Caddy. It does now *serve* the root CA, which is public by
-> definition (the whole point is that every device installs it). Unrelated to the
-> deferred "Cert Status" (public-cert expiry) feature.
+Caddy has the same page itself, at `http://<caddy-ip>/`: the Caddy LXC's address, or the
+Docker host's when Caddy runs beside Loskai. Use the address: a name there is sent on to
+HTTPS.
 
-## Loskai's Certificate page (primary)
+If its **caddy-root.crt** isn't found, Caddy hasn't made its root certificate yet. It does the
+first time it serves a name over HTTPS: open one of your names once, then try again.
 
-`/certificate` in the Loskai UI: a download button plus per-OS trust instructions. It is
-**public, like the Dashboard** — a device that doesn't trust the internal CA yet can't be
-asked to log in over the HTTPS route to fix exactly that, so reach Loskai directly at
-`http://<host-ip>:8080/certificate` and hand that link to any new device.
+## Hiding the tab
 
-The PEM comes from Caddy's Admin API (`GET /pki/ca/local` → Loskai's
-[`GET /api/caddy/root-certificate`](../reference/api.md#caddy--apicaddy-read--push-only-never-assigns)),
-so it works in **every** topology — including split-LXC, where Caddy's data volume is on
-another machine entirely. The download is served by Loskai itself rather than linked to
-Caddy's `:80` file, because a plain-HTTP download from an HTTPS page is blocked outright
-by Chrome and Edge, and silently.
+**Settings** › **Network** › **Certificate page in the sidebar** decides who sees the
+**Certificate** tab:
 
-If Caddy isn't using an internal CA, the page says there's nothing to install rather than
-erroring — a public-ACME deployment is already trusted.
+- **Everyone — including logged-out visitors**, the default;
+- **Only once logged in**;
+- **Never — using publicly trusted certs**.
 
-### Hiding the tab
+`CERTIFICATE_TAB` in `.env` sets the same, as `public`, `admin` or `hidden`. Only the link
+moves: `/certificate` opens for everyone, since the certificate is public. Without Caddy
+there is no tab.
 
-`CERTIFICATE_TAB` (or Settings → Network → Caddy) controls where the sidebar links it:
-`public` (default), `admin` (only once logged in), or `hidden`. Set it to `hidden` once
-you're on publicly trusted certs. This moves a **link**, not a lock: `/certificate` and
-its download stay public in every mode, because the root CA is public material.
+## Update Caddy's page
 
-## Caddy's `:80` onboarding site (fallback)
+With Caddy beside Loskai, the page comes with Caddy's image: updating Loskai updates it.
 
-A standalone page (`caddy/setup/index.html`) and the live root cert, served by a
-**plain-HTTP site on `:80`** configured in Caddy's bootstrap Caddyfile — *not* pushed
-through Loskai's API, and reachable with Loskai stopped. HTTP on purpose: the page's job
-is to fix the untrusted-cert warning, so it can't sit behind that same untrusted cert.
-Reach it **by IP** (no DNS or trust needed first).
-
-> **It listens on the whole of `:80`, but no longer swallows your names.** The block starts
-> by redirecting every host that isn't an IP address to HTTPS, so typing `grafana.home.lan`
-> with no scheme redirects as you would expect; the page answers only Caddy reached **by
-> IP**. Matched on the shape of the host rather than on a name or this host's IP: Caddy
-> isn't given the domain, and a bridged container cannot detect its own host IP.
->
-> **This does not override a `scheme: "http"` route.** Loskai pushes those into this same
-> `:80` server at index 0, ahead of everything in the Caddyfile, so they proxy normally
-> — see [api.md](../reference/api.md) (`POST /api/routes`, `scheme`).
->
-> When you move to public ACME, this block has to go — the HTTP-01 challenge needs `:80`.
-
-```caddyfile
-:80 {
-	# A name belongs to HTTPS (an http-scheme route Loskai pushes wins first); the page is by IP
-	@name not header_regexp Host ^(\d{1,3}(\.\d{1,3}){3}|\[[0-9A-Fa-f:.]+\])(:\d+)?$
-	handle @name {
-		redir https://{host}{uri}
-	}
-
-	# Caddy's internal root CA, streamed live from its PKI (unique per install — never committed)
-	handle /caddy-root.crt {
-		root * /data/caddy/pki/authorities/local
-		rewrite * /root.crt
-		header Content-Type application/x-x509-ca-cert
-		file_server
-	}
-	# Everything else → the onboarding page
-	handle {
-		root * /srv/setup
-		file_server
-	}
-}
-```
-
-The page is at `/srv/setup`: baked into the co-located Caddy image, fetched into the LXC by
-`create-caddy-lxc.sh`, and mounted read-only from `./caddy/setup` in dev. The PKI path is
-already inside Caddy's `/data` volume. The `/caddy-root.crt` file appears once Caddy has initialised
-its `local` CA (on first internal-cert issuance — hit any HTTPS name once if it 404s).
-
-### Separate server — why it's safe
-
-The `:80` site is a **separate Caddy server** from the `:443` routing server. Loskai
-discovers the routing server by its `:443` listener (`service.select_server_name`), so it
-never pushes reverse-proxy routes into this static site, and the orphan sweep never touches
-it (it has no `@id`).
-
-## Reaching it
-
-- **Dev:** <http://127.0.0.1:8081/> (compose maps `8081:80`).
-- **Prod (Caddy LXC):** `http://<caddy-lxc-ip>/`.
-
-  The shipped file already keeps your real names redirecting to HTTPS (see the note
-  above). Scoping the whole site to the LXC IP is still an option if you would rather it
-  answered nothing else at all:
-
-  ```caddyfile
-  http://192.168.10.100 {   # the Caddy LXC's IP
-  	handle /caddy-root.crt { … }
-  	handle { root * /srv/setup; file_server }
-  }
-  ```
-
-## A friendly `setup.<domain>` name (optional, later)
-
-By design this is **by-IP only** for now. A bare `setup.<BASE_DOMAIN>` → Caddy-IP rewrite
-added straight into AdGuard would be reclaimed by Loskai's orphan sweep (a `<label>.<base>`
-rewrite at the Caddy IP that no routed instance owns). If you want the friendly name, create
-it as an ordinary **external instance** in Loskai with upstream `<caddy-ip>:80` — Caddy then
-proxies to its own `:80` file server. Being an owned, routed instance, it's sweep-safe. It's
-served over HTTPS, so first-timers still use the by-IP link; the name is a post-trust
-convenience.
-
-## The two pages say the same thing
-
-The `:80` page is a static copy of Loskai's Certificate page — the same three steps, the
-same per-OS tabs and wording, the same look — so a device sees one set of instructions
-whichever it reached. Neither names anything domain-specific, so there is nothing to
-customise. It is hand-kept in step: change `frontend/src/pages/Certificate.tsx`, change
-`caddy/setup/index.html` too.
-
-**Updating a running Caddy.** The co-located container bakes the page into its image, so
-rebuild it. A Caddy LXC fetched it once at creation (`create-caddy-lxc.sh`); re-run that
-fetch inside the LXC — `file_server` reads the file fresh, so no restart is needed:
+A Caddy LXC fetched the page once, when it was made. To update it, in the LXC:
 
 ```bash
-REPO_RAW_BASE=<the base URL you gave create-caddy-lxc.sh>   # not set inside the LXC
+REPO_RAW_BASE=https://raw.githubusercontent.com/simplysunde/loskai/main
 curl -fsSL "$REPO_RAW_BASE/caddy/setup/index.html" -o /srv/setup/index.html
 ```
 
-## Trust-store commands differ by distro
+Caddy reads the file fresh, so nothing needs restarting.
 
-Worth knowing, since both pages carry these and one wrong command reads as "this doesn't
-work": `update-ca-certificates` is a **Debian** tool and does not exist on Fedora, which
-uses `/etc/pki/ca-trust/source/anchors/` + `update-ca-trust`. Separately, Chrome and
-Chromium on Linux read their own NSS database rather than the system store, so a
-system-wide install alone leaves the warning in place in the browser most people use.
-Both pages now cover all of it.
+---
+
+**Next:** a backend's own page, like Proxmox on `:8006`, warns too?
+[Backend certificates →](backend-certificates.md)

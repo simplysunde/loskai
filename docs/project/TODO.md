@@ -280,7 +280,20 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       **Not followed:** the `pct exec` commands (no Proxmox here), the redirect loop (no
       HTTPS-only service on the rig; its steps are the Change URL dialog walked in 60c), the
       VPN section (no WireGuard)
-- [ ] 60e `certificate-setup.md`
+- [x] 60e `certificate-setup.md` — "Trusting the certificate": trust it on a device (each
+      system's steps as the Certificate page has them), Caddy's own page when Loskai is down,
+      hiding the tab, updating the LXC's copy. Where the root comes from, the `:80` site, the
+      two pages kept in step and the distributions went to `architecture.md` (Dashboard and
+      Certificate page); the dev rig's `:8081` and the `:80` server's separation were in
+      `dev-testing.md` and `caddy-api.md` already. Dropped: the friendly `setup.<domain>`
+      route, which loops since the `:80` site redirects names to HTTPS
+      — live, on the demo homelab: Caddy's page and `caddy-root.crt` by address (`200`,
+      `application/x-x509-ca-cert`), a name on `:80` → `308` to HTTPS, Loskai's
+      `/certificate` and its root logged out (`caddy-root.crt`, "Caddy Local Authority"),
+      the sidebar setting at `admin` with the download still public; the `setup` route →
+      `308` to itself, five times over
+      **Not followed:** the per-system install steps on real devices (no Windows, Mac,
+      phone here); the LXC update command (no Proxmox)
 - [ ] 60f `tailscale.md`
 - [ ] 60g `migration.md`
 - [ ] 60h `topologies.md`
