@@ -241,13 +241,19 @@ export function Routing() {
     onMutate: () => setFailed(null),
     onSuccess: ({ caddy, adguard }) => {
       invalidate();
-      const problems: string[] = [];
-      if (caddy.status === "rejected") problems.push(`Caddy: ${apiMessage(caddy.reason)}`);
+      // One line per reason, naming what it hit: Caddy gone fails every route the same way.
+      const byReason = new Map<string, string[]>();
+      const add = (reason: string, what?: string) =>
+        byReason.set(reason, [...(byReason.get(reason) ?? []), ...(what ? [what] : [])]);
+      // A reason that doesn't name its service gets it in front.
+      const from = (name: string, msg: string) => (msg.startsWith(name) ? msg : `${name}: ${msg}`);
+      if (caddy.status === "rejected") add(from("Caddy", apiMessage(caddy.reason)));
       else
         for (const r of caddy.value.pushed ?? [])
-          if (r.status !== "ok") problems.push(`${r.id}: ${r.detail ?? "not pushed"}`);
-      if (adguard.status === "rejected") problems.push(`AdGuard: ${apiMessage(adguard.reason)}`);
-      else for (const e of adguard.value?.errors ?? []) problems.push(`${e.domain}: ${e.detail}`);
+          if (r.status !== "ok") add(from("Caddy", r.detail ?? "not pushed"), r.id);
+      if (adguard.status === "rejected") add(from("AdGuard", apiMessage(adguard.reason)));
+      else for (const e of adguard.value?.errors ?? []) add(from("AdGuard", e.detail), e.domain);
+      const problems = [...byReason].map(([reason, what]) => (what.length ? `${reason} (${what.join(", ")})` : reason));
       if (problems.length > 0) {
         setFailed({ title: "Sync didn't finish", detail: problems.join("\n") });
         return;

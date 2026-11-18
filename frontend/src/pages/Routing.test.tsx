@@ -145,7 +145,7 @@ test("Sync says which routes Caddy didn't take, rather than Synced.", async () =
 
   const alert = await screen.findByRole("alert");
   expect(alert).toHaveTextContent("Sync didn't finish");
-  expect(alert).toHaveTextContent("adguard: connection refused");
+  expect(alert).toHaveTextContent("Caddy: connection refused (adguard)");
   expect(screen.queryByText("Synced.")).not.toBeInTheDocument();
 });
 
@@ -158,7 +158,8 @@ test("Sync says when Caddy can't be reached at all", async () => {
   fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
 
   const alert = await screen.findByRole("alert");
-  expect(alert).toHaveTextContent("Caddy: Caddy is unreachable");
+  expect(alert).toHaveTextContent("Caddy is unreachable");
+  expect(alert).not.toHaveTextContent("Caddy: Caddy");
 });
 
 test("Sync with everything taken says Synced.", async () => {
@@ -198,4 +199,23 @@ test("the route dialog is titled by what opened it", async () => {
 
   fireEvent.click(await screen.findByTitle("Change URL"));
   expect(screen.getByRole("heading", { name: "Change URL" })).toBeInTheDocument();
+});
+
+test("Caddy gone fails every route alike: Sync says it once, naming them", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  const gone = "Caddy can't be reached — [Errno -2] Name or service not known";
+  answering("POST", "/api/caddy/push", {
+    pushed: [
+      { id: "adguard", status: "error", detail: gone },
+      { id: "jellyfin", status: "error", detail: gone },
+    ],
+  });
+  answering("POST", "/api/adguard/reconcile", { added: [], deleted: [], swept: [], conflicts: [], errors: [] });
+  renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: /Sync/ }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent(`${gone} (adguard, jellyfin)`);
+  expect(alert.textContent!.split("Caddy can't be reached").length - 1).toBe(1);
 });

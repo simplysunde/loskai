@@ -7,6 +7,7 @@ auto-corrects. `route_mode: "dns_only"` instances have a subdomain but are exclu
 this projection entirely — they resolve via AdGuard alone, never through Caddy.
 """
 
+import logging
 from ipaddress import ip_address
 from urllib.parse import urlparse
 
@@ -15,6 +16,11 @@ import httpx
 from ...shared import instances as instances_store
 from ...shared.instances import Instance
 from .client import CaddyClient, CaddyError, describe_error
+
+logger = logging.getLogger(__name__)
+
+# What a push says when Caddy doesn't answer at all: that first, in words, then the error.
+UNREACHABLE = "Caddy can't be reached"
 
 
 # --- Pure builders (no I/O — unit-tested directly) ---
@@ -259,6 +265,11 @@ async def push_all(client: CaddyClient, base_domain: str | None) -> list[dict]:
         try:
             await upsert_route(client, inst, base_domain)
             results.append({"id": inst.id, "status": "ok"})
+        except httpx.TransportError as exc:
+            detail = f"{UNREACHABLE} — {describe_error(exc)}"
+            logger.warning("push %s: %s", inst.id, detail)
+            results.append({"id": inst.id, "status": "error", "detail": detail})
         except (httpx.HTTPError, CaddyError, ValueError) as exc:
+            logger.warning("push %s refused: %s", inst.id, describe_error(exc))
             results.append({"id": inst.id, "status": "error", "detail": describe_error(exc)})
     return results

@@ -1,5 +1,6 @@
 """Tier-1: Caddy pure logic — FQDN, route JSON, mode."""
 
+import httpx
 import pytest
 
 from loskai.modules.caddy import service
@@ -322,3 +323,38 @@ async def test_an_http_only_row_syncs_on_its_own_id(data_dir):
 
     assert rows[0]["synced"] is True
     assert rows[0]["scheme"] == "http"
+
+
+# --- push_all: a Caddy that can't be reached says so in words first, then the error ---
+
+
+class UnreachableCaddy(FakeCaddy):
+    async def delete_route(self, route_id):
+        raise httpx.ConnectError("[Errno -2] Name or service not known")
+
+
+async def test_push_all_says_caddy_cant_be_reached_and_logs_why(caplog):
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker",
+                 subdomain="grafana", upstream="192.168.10.100:3000")
+    )
+    with caplog.at_level("WARNING"):
+        results = await service.push_all(UnreachableCaddy(), BASE_DOMAIN)
+
+    assert results == [{
+        "id": "grafana", "status": "error",
+        "detail": "Caddy can't be reached — [Errno -2] Name or service not known",
+    }]
+    assert "Caddy can't be reached — [Errno -2] Name or service not known" in caplog.text
+
+
+async def test_push_all_keeps_caddys_own_reason_for_a_route_it_refused(caplog):
+    instances_store.upsert_instance(
+        Instance(id="grafana", name="Grafana", type="docker", subdomain="grafana",
+                 upstream="192.168.10.100:3000", scheme="http")
+    )
+    with caplog.at_level("WARNING"):
+        results = await service.push_all(FakeCaddy(has_http_server=False), BASE_DOMAIN)
+
+    assert results[0]["detail"] == "Caddy has no :80 server — a plain-HTTP route has nowhere to go"
+    assert "grafana" in caplog.text

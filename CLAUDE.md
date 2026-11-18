@@ -46,7 +46,9 @@ homelab.
   existing pattern rather than a variant; never show something that looks like an address
   but isn't (show the real address or the full FQDN); show a status only on the tab that owns it;
   a dialog or a line of help says what the action does for the reader, not what happens
-  underneath — which files, keys or entries go is the code's and the docs' to say.
+  underneath — which files, keys or entries go is the code's and the docs' to say; a failure
+  says what happened in words first ("Caddy can't be reached"), the technical error after it,
+  and the log gets both.
   The same layout works on a phone — its patterns and traps: `docs/contributing/phone-layout.md`.
 
 ## Code map

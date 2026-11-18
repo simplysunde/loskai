@@ -44,7 +44,10 @@ So a dialog says the effect the reader cares about — the stack goes, its data 
 reinstall picks it up; Loskai's access comes off the machine — and the list of files and
 entries stays where it can't drift from what runs: the code, `CLAUDE.md`'s invariants and
 `architecture.md`. A list in a dialog is a second copy of a decision, and it was the copy
-that was wrong. It is the UI line in `CLAUDE.md` now. Dialogs written before it (Turn off
+that was wrong. It is the UI line in `CLAUDE.md` now. A failure follows the same rule, with
+one addition from Sunde: "starting with caddy cant be reached, and then adding the rest of
+the more tecnical stuff is fine" — words first, the error after, and Loskai's log keeps it
+(a failed push logged nothing before). Dialogs written before it (Turn off
 SSH, among others) are left for a sweep; TODO.md's Phase 62 lists them.
 
 ## 2026-11-17 — The install guide: choose the layout, then install once

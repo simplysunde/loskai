@@ -6,6 +6,8 @@ directly over HTTP (see docs/project/architecture.md: the AdGuard module is read
 is the explicit reset, /rewrites/clear, which deletes every rewrite (hand-added ones
 included) and reconciles Loskai's own back; it writes nothing of its own choosing."""
 
+import logging
+
 import httpx
 from fastapi import APIRouter, HTTPException
 
@@ -19,6 +21,7 @@ from .client import AdGuardError, adguard, describe_error
 _UNREACHABLE = (AdGuardError, httpx.HTTPError)
 
 router = APIRouter(prefix="/api/adguard", tags=["adguard"])
+logger = logging.getLogger(__name__)
 
 
 async def _health_payload() -> dict:
@@ -80,5 +83,10 @@ async def reconcile() -> dict:
     base, answer_ip = settings_store.dns_context()
     try:
         return await service.reconcile(adguard, base, answer_ip)
+    except httpx.TransportError as exc:
+        # In words first, then what actually happened — in the answer and the log.
+        detail = f"AdGuard can't be reached — {describe_error(exc)}"
+        logger.warning("reconcile: %s", detail)
+        raise HTTPException(status_code=502, detail=detail)
     except _UNREACHABLE as exc:
         raise HTTPException(status_code=502, detail=describe_error(exc))
