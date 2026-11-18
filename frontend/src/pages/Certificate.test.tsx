@@ -102,3 +102,28 @@ test("reports an unreachable Caddy instead of a silent empty page", async () => 
 
   expect(await screen.findByText(/Couldn't reach Caddy/)).toBeInTheDocument();
 });
+
+// An Android phone was shown the Linux tab: a desktop's sudo commands. It gets its own,
+// with Settings' path, and where browsers and apps part ways.
+test("an Android phone opens on the Android tab, with Settings' path", async () => {
+  const ua = vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36",
+  );
+  await renderPage();
+
+  expect(await screen.findByText(/Encryption & credentials/)).toBeInTheDocument();
+  expect(screen.getByText("Install a certificate")).toBeInTheDocument();
+  expect(screen.getByText(/Use third party CA certificates/)).toBeInTheDocument();
+  expect(screen.queryByText(/update-ca-certificates/)).not.toBeInTheDocument();
+  // Desktop Firefox's menus aren't Android's: that box stays on the other tabs.
+  expect(screen.queryByText(/View Certificates/)).not.toBeInTheDocument();
+  ua.mockRestore();
+});
+
+test("the iPhone steps install the profile before trusting it", async () => {
+  await renderPage();
+  fireEvent.click(await screen.findByRole("button", { name: "macOS" }));
+
+  expect(screen.getByText(/VPN & Device Management/)).toBeInTheDocument();
+  expect(screen.getByText(/Certificate Trust Settings/)).toBeInTheDocument();
+});

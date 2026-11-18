@@ -113,6 +113,9 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
   **Backend speaks HTTPS** unticked.
 - Caddy dials a docker-mode upstream (`jellyfin:8096`) by its bare name too: with the
   container gone, a LAN machine of that name gets the traffic. Same fall-through as 62g.
+- **Caddy's `:80` certificate page** (`caddy/setup/index.html`), kept in step with the
+  Certificate page by hand: Sunde, 2026-11-18, "we really dont need to maintain the caddy
+  local site". A candidate for removal — what it gives is the page while Loskai is down.
 - Other dialogs list what happens underneath, e.g. Turn off SSH ("Loskai's key and its sudo
   rule come off the machine — … then its entry, user and port go, and its host key is
   forgotten"): a sweep under 62's rule.
@@ -294,6 +297,12 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       `308` to itself, five times over
       **Not followed:** the per-system install steps on real devices (no Windows, Mac,
       phone here); the LXC update command (no Proxmox)
+      — then, on Sunde's word ("add this into the docs and loskai's certificate page"): an
+      **Android** tab on the Certificate page and Caddy's copy, picked from the user agent
+      ahead of Linux, with Firefox's and apps' limits; the iPhone steps gained installing the
+      profile; desktop Firefox's box stays off the Android tab. Seen on `:8080` and Caddy's
+      copy at 390 px with an Android user agent: the tab picked, no sideways scroll, no
+      errors. **Not tried on a phone** — Sunde to try it on his
 - [ ] 60f `tailscale.md`
 - [ ] 60g `migration.md`
 - [ ] 60h `topologies.md`

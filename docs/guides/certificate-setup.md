@@ -19,15 +19,26 @@ opens without a warning, the ones you add later too.
    - **Windows:** open the file, **Install Certificate**, **Local Machine**, then **Place all
      certificates in the following store** › **Trusted Root Certification Authorities**.
    - **macOS:** run the command the tab shows, in Terminal. It asks for your password.
-   - **iPhone and iPad:** open the file, then switch it on under Settings › General › About ›
-     Certificate Trust Settings. The steps are on the **macOS** tab.
+   - **iPhone and iPad:** open the file in Safari, install it under Settings › General › VPN &
+     Device Management, then switch it on under Settings › General › About › Certificate
+     Trust Settings. The steps are on the **macOS** tab.
+   - **Android:** opening the file doesn't install it. Go to Settings › Security & privacy ›
+     More security & privacy › Encryption & credentials › Install a certificate › CA
+     certificate, tap **Install anyway** and pick the file. Android asks for a screen lock
+     first if the phone has none, and afterwards shows a notice that the network may be
+     monitored: that is any certificate you install yourself.
    - **Linux:** run the commands for your distribution. Chrome and Chromium keep a store of
      their own on Linux: the tab has the command for it too.
-   - **Firefox**, on any system, keeps its own store as well: Settings › Privacy & Security ›
-     Certificates › View Certificates › Authorities › Import. Tick "Trust this CA to identify
-     websites".
+   - **Firefox** keeps its own store as well. On a computer: Settings › Privacy & Security ›
+     Certificates › View Certificates › Authorities › Import, and tick "Trust this CA to
+     identify websites". On Android: turn on **Use third party CA certificates** under
+     Settings › Secret Settings, shown after tapping the logo in About Firefox five times.
 4. Open one of your names over `https://`. The browser shows a padlock. A tab that was open
    before needs a reload.
+
+**Apps on a phone may still refuse a name** that the phone's browser opens: many Android apps
+don't trust a certificate you installed yourself. For those, serve the name over **Both** or
+**HTTP** as well: **Served over**, in [Add a route](using-loskai.md#add-a-route).
 
 If the page says **Nothing to install.**, Caddy doesn't use certificates of its own and your
 names are trusted already. If it says **Couldn't reach Caddy to fetch the root certificate**:

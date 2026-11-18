@@ -17,12 +17,13 @@ interface RootCert {
   filename: string;
 }
 
-type Platform = "windows" | "macos" | "linux";
+type Platform = "windows" | "macos" | "linux" | "android";
 
 const PLATFORMS: { id: Platform; label: string }[] = [
   { id: "windows", label: "Windows" },
   { id: "macos", label: "macOS" },
   { id: "linux", label: "Linux" },
+  { id: "android", label: "Android" },
 ];
 
 // Preselect a tab from the user agent. Only a guess — every tab stays one click away,
@@ -31,6 +32,7 @@ const PLATFORMS: { id: Platform; label: string }[] = [
 function detectPlatform(): Platform {
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
   if (/Windows/i.test(ua)) return "windows";
+  if (/Android/i.test(ua)) return "android"; // before Linux: Android's user agent names both
   if (/Mac OS X|Macintosh|iPhone|iPad/i.test(ua)) return "macos";
   return "linux";
 }
@@ -131,16 +133,20 @@ export function Certificate() {
             {platform === "windows" && <Windows file={cert.data.filename} />}
             {platform === "macos" && <MacOS file={cert.data.filename} />}
             {platform === "linux" && <Linux file={cert.data.filename} />}
+            {platform === "android" && <Android file={cert.data.filename} />}
 
-            <Notice tone="info">
-              <strong className="font-medium text-slate-200">Firefox</strong> keeps its
-              own trust store and ignores the system one on every platform. Open{" "}
-              <span className="text-slate-300">
-                Settings → Privacy &amp; Security → Certificates → View Certificates →
-                Authorities → Import
-              </span>
-              , pick the file, and tick “Trust this CA to identify websites”.
-            </Notice>
+            {/* Desktop Firefox's menus; the Android tab has its own line. */}
+            {platform !== "android" && (
+              <Notice tone="info">
+                <strong className="font-medium text-slate-200">Firefox</strong> keeps its
+                own trust store and ignores the system one on every platform. Open{" "}
+                <span className="text-slate-300">
+                  Settings → Privacy &amp; Security → Certificates → View Certificates →
+                  Authorities → Import
+                </span>
+                , pick the file, and tick “Trust this CA to identify websites”.
+              </Notice>
+            )}
           </Step>
 
           <Step n={3} title="Check it worked">
@@ -199,9 +205,47 @@ function MacOS({ file }: { file: string }) {
         {`sudo security add-trusted-cert -d -r trustRoot \\\n  -k /Library/Keychains/System.keychain ~/Downloads/${file}`}
       </Code>
       <p className="mb-3 mt-2 text-sm text-slate-400">
-        That covers Safari and Chrome. iPhone and iPad need a second step: after opening
-        the file, go to Settings → General → About → Certificate Trust Settings and switch
-        it on.
+        That covers Safari and Chrome. On an iPhone or iPad, open the file in Safari, then
+        install it under Settings → General → VPN &amp; Device Management, and switch it on
+        under Settings → General → About → Certificate Trust Settings.
+      </p>
+    </>
+  );
+}
+
+// Android installs a CA certificate from Settings only — since Android 11, opening the file
+// does nothing — and asks for a screen lock first. Browsers then trust it; Firefox only once
+// told to, and many apps never (Android 7 left user certificates to each app to accept).
+function Android({ file }: { file: string }) {
+  return (
+    <>
+      <ol className="mb-4 list-decimal space-y-1.5 pl-5 text-sm text-slate-400">
+        <li>
+          Download <span className="font-mono text-slate-300">{file}</span> above. Opening
+          it doesn't install it.
+        </li>
+        <li>
+          Open Settings ›{" "}
+          <strong className="font-medium text-slate-200">Security &amp; privacy</strong> ›{" "}
+          <strong className="font-medium text-slate-200">More security &amp; privacy</strong> ›{" "}
+          <strong className="font-medium text-slate-200">Encryption &amp; credentials</strong> ›{" "}
+          <strong className="font-medium text-slate-200">Install a certificate</strong> ›{" "}
+          <strong className="font-medium text-slate-200">CA certificate</strong>. On a Samsung:
+          Security and privacy › More security settings › Install from device storage › CA
+          certificate.
+        </li>
+        <li>
+          Tap <strong className="font-medium text-slate-200">Install anyway</strong>, then pick{" "}
+          <span className="font-mono text-slate-300">{file}</span> from Downloads. Without a
+          screen lock, Android asks you to set one first.
+        </li>
+      </ol>
+      <p className="mb-3 text-sm text-slate-400">
+        A notice then says the network may be monitored: that is any certificate you install
+        yourself. Chrome and Samsung Internet trust it now. Firefox does once you turn on{" "}
+        <span className="text-slate-300">Use third party CA certificates</span> under Settings ›
+        Secret Settings (tap the logo in About Firefox five times to show them). Many apps
+        never trust it: for those, serve the name over HTTP too.
       </p>
     </>
   );

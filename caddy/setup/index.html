@@ -165,6 +165,7 @@
       <button role="tab" data-platform="windows">Windows</button>
       <button role="tab" data-platform="macos">macOS</button>
       <button role="tab" data-platform="linux">Linux</button>
+      <button role="tab" data-platform="android">Android</button>
     </div>
 
     <div class="platform" id="windows" hidden>
@@ -187,8 +188,9 @@
         <div class="code-box"><pre>sudo security add-trusted-cert -d -r trustRoot \
   -k /Library/Keychains/System.keychain ~/Downloads/caddy-root.crt</pre></div>
       </div>
-      <p>That covers Safari and Chrome. iPhone and iPad need a second step: after opening the
-        file, go to Settings → General → About → Certificate Trust Settings and switch it on.</p>
+      <p>That covers Safari and Chrome. On an iPhone or iPad, open the file in Safari, then
+        install it under Settings → General → VPN &amp; Device Management, and switch it on
+        under Settings → General → About → Certificate Trust Settings.</p>
     </div>
 
     <!-- The distro split matters: update-ca-certificates is a Debian tool and simply
@@ -219,7 +221,25 @@ sudo update-ca-trust</pre></div>
         or <span class="mono">libnss3-tools</span> (Debian).</p>
     </div>
 
-    <div class="notice">
+    <div class="platform" id="android" hidden>
+      <ol>
+        <li>Download <span class="mono">caddy-root.crt</span> above. Opening it doesn't install it.</li>
+        <li>Open Settings › <strong>Security &amp; privacy</strong> › <strong>More security &amp;
+          privacy</strong> › <strong>Encryption &amp; credentials</strong> › <strong>Install a
+          certificate</strong> › <strong>CA certificate</strong>. On a Samsung: Security and
+          privacy › More security settings › Install from device storage › CA certificate.</li>
+        <li>Tap <strong>Install anyway</strong>, then pick <span class="mono">caddy-root.crt</span>
+          from Downloads. Without a screen lock, Android asks you to set one first.</li>
+      </ol>
+      <p>A notice then says the network may be monitored: that is any certificate you install
+        yourself. Chrome and Samsung Internet trust it now. Firefox does once you turn on
+        <span style="color:var(--slate-300)">Use third party CA certificates</span> under
+        Settings › Secret Settings (tap the logo in About Firefox five times to show them).
+        Many apps never trust it: for those, serve the name over HTTP too.</p>
+    </div>
+
+    <!-- Desktop Firefox; the Android tab has its own line. -->
+    <div class="notice" id="firefox-desktop">
       <strong>Firefox</strong> keeps its own trust store and ignores the system one on every
       platform. Open <span style="color:var(--slate-300)">Settings → Privacy &amp; Security →
       Certificates → View Certificates → Authorities → Import</span>, pick the file, and tick
@@ -240,6 +260,7 @@ sudo update-ca-trust</pre></div>
   function detect() {
     const ua = navigator.userAgent;
     if (/Windows/i.test(ua)) return "windows";
+    if (/Android/i.test(ua)) return "android"; // before Linux: Android's user agent names both
     if (/Mac OS X|Macintosh|iPhone|iPad/i.test(ua)) return "macos";
     return "linux";
   }
@@ -251,6 +272,7 @@ sudo update-ca-trust</pre></div>
     document.querySelectorAll(".platform").forEach((p) => {
       p.hidden = p.id !== platform;
     });
+    document.getElementById("firefox-desktop").hidden = platform === "android";
   }
 
   document.querySelectorAll(".tabs button").forEach((b) => {
