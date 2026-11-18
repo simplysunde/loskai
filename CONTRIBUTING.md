@@ -1,5 +1,15 @@
 # Contributing
 
+Loskai is a personal project: built for one homelab, and shared as it is.
+
+- **Issues are welcome**: a bug, or an idea. Say what you did, what you saw, and which
+  version of Loskai (the image tag, or the commit).
+- **Pull requests aren't accepted.** A change from outside, however good, is code the
+  project would have to keep up with. If you want Loskai to work differently, fork it: the
+  [MIT licence](LICENSE) lets you change your copy as you like, and the rest of this page is
+  how.
+- **A security problem** goes privately, not in an issue: [SECURITY.md](SECURITY.md).
+
 ## Run it from source
 
 ```bash
@@ -11,7 +21,7 @@ make frontend     # UI on :5173, proxies /api to :8000
 To point it at a real Caddy and AdGuard without a homelab, see
 [dev-testing.md](docs/contributing/dev-testing.md).
 
-## Before you open a pull request
+## Before you commit
 
 There is no CI, so run the checks yourself:
 

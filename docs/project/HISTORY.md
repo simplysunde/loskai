@@ -4,6 +4,21 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-18 — Issues welcome, pull requests not: Loskai is a personal project
+
+`CONTRIBUTING.md` read as an invitation: "Before you open a pull request", checks to run for
+one. Sunde: "contribution.md feeks kinda wrong since for the most part im not really open
+for collaboration and implementing other poples work into my app". Of three stances offered
+he chose issues welcome, pull requests not accepted, and a fork under the MIT licence for
+anyone who wants it different. The page says so first; how to run it from source and the
+checks stay below it, now for one's own changes and forks.
+
+`SECURITY.md` in the same pass: it now names the Tailscale address beside the Docker host's
+in the keys' `from=`, the `.loskai.internal` names and what the older compose files risked,
+and only the latest release as supported. Its private reporting form was switched off on
+GitHub (the API said `"enabled": false`); Sunde switches it on, and the page keeps sending
+reports there.
+
 ## 2026-11-18 — Caddy and AdGuard by a `.internal` name: a bare one falls through to the LAN (Phase 62)
 
 Checking Sync's new failure message, the demo homelab's Caddy was stopped. Sync then said

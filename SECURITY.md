@@ -13,6 +13,11 @@ your network. Read this before deciding where it runs and who can reach it.
   usually root.
 - **It writes your Caddy routes and AdGuard DNS rewrites.** It deletes only the rewrites it
   made, matched by name *and* answer — except Settings › Network's confirmed "clear all".
+  With Caddy or AdGuard in Docker beside it, Loskai reaches them as `caddy.loskai.internal`
+  and `adguard.loskai.internal`, names no network has: while one of those containers is
+  down, nothing else answers in its place. Compose files from before 2026-11-18 used
+  `caddy` and `adguard`, which a machine of that name on your network could answer — and
+  receive Loskai's routes, or AdGuard's password. Download yours again.
 - **It holds an SSH key to the machines you give it** (once its public key is on them).
   The key is an owner-only file in `data/ssh/`, as a key in `~/.ssh` is, so protect
   `data/` and its backups. Loskai uses it only for a while after you type your password —
@@ -25,8 +30,9 @@ your network. Read this before deciding where it runs and who can reach it.
   plain `http://` on a shared network, or a computer others use. More Machines-level
   accounts mean more sessions that could be. (With asking on it is a speed bump rather than
   a wall: a session with the Docker tab can mount `data/` and read the key.) It works only from the Docker host
-  when its IP is set — the line Loskai gives you starts with `from=` (on the Docker host
-  itself, also from Loskai's own Docker networks). Give Loskai's login
+  when its IP is set — the line Loskai gives you starts with `from=` — and from its Tailscale
+  address when that is set too (on the Docker host itself, also from Loskai's own Docker
+  networks). Give Loskai's login
   user on each machine only the `sudo` you want it to have.
 - **A second, status-only key** is used without unlocking, so each machine's running list
   and overview work without your password. The machine itself limits it to one command that
@@ -117,4 +123,5 @@ your network. Read this before deciding where it runs and who can reach it.
 ## Reporting a vulnerability
 
 Report it privately through the repository's **Security → Report a vulnerability** form,
-not a public issue. Only the latest `main` is supported.
+not a public issue. Only the latest release is supported: check the problem is still there
+in it.
