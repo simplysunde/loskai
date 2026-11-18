@@ -35,13 +35,13 @@ Operating Loskai. Read in roughly this order the first time.
 |---|---|
 | [install.md](guides/install.md) | Setting Loskai up from nothing. Loskai itself in three commands, then HTTPS names: AdGuard and Caddy with Proxmox or without, pointing your devices at AdGuard, trusting the certificate, the first name. Start here. |
 | [using-loskai.md](guides/using-loskai.md) | Right after installing, and whenever you want to do something in it. One section per tab, a task at a time: install an app, add a route or a link, name a machine and manage it over SSH. |
-| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which suits the hardware you have, and records the arrangements that were considered and rejected. |
-| [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
+| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Which of the three layouts suits the hardware you have, one table comparing them, what each asks of you, and routing a container without publishing a port. |
+| [deployment.md](guides/deployment.md) | Looking after a running Loskai: updating it, every env var and where it is in Settings, where its files live and who owns them, Caddy's saved config, and a cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | A browser warns about one of your names, or a new device joins. Trusting Caddy's certificate once per device — phones and Firefox too — Caddy's own page for when Loskai is down, and who sees the Certificate tab. |
 | [backend-certificates.md](guides/backend-certificates.md) | Optional, and not part of Loskai: only if you open a service on its own port — Proxmox `:8006`, a NAS page — and want no warning there. Caddy hands the service a certificate your devices already trust. Tried once on a test setup; Loskai doesn't use or support it. |
 | [migration.md](guides/migration.md) | Bringing containers you already run into Loskai — installing the recipe over your data, moving a compose folder, or writing a `docker run` container a compose file — and when not to bother. Also covers relocating Loskai itself. |
 | [tailscale.md](guides/tailscale.md) | Reaching your routed names away from home. A Tailscale subnet router — **Share this network** on a machine's Tailscale tool, or the recipe on the Docker host — and the two settings in Tailscale's admin console. |
-| [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Symptom-indexed: 502s, redirect loops, DNS, certs, VPN, greyed-out module cards, a stack that won't start. |
+| [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Find what you see: a blank page, a 502, a redirect loop, a name that won't resolve, a certificate warning, VPN DNS, Caddy or AdGuard unreachable, a stack that won't start, a machine over SSH, a link. |
 
 ## Reference
 

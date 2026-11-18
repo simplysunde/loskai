@@ -354,7 +354,9 @@ a test using both keys (`connect.py`). The main key is unlocked by each user's o
 password, typed again (`unlock.py`) — for 15 minutes, or up to 24 hours as Settings › SSH says
 (`ssh_unlock_minutes`) — and locked by logout. The page asks for it in one place,
 `UnlockPrompt`, and only for what you did: a change refused `423` asks and is sent again
-(`api.ts`); a read made as a card opens shows **Locked** instead, asking when clicked; a
+(`api.ts`); a read made as a card opens asks nothing — Git's settings show `(locked)` in
+their button's hover and ask when it is clicked, and what the status key reads (the
+overview, what runs) never locks; a
 terminal shows only the prompt until it is unlocked (a WebSocket's `4423` too). Each set-up machine's row shows how
 much runs there — read with the **status key** through its forced command and parsed by
 `status.parse_running` — and clicking lists it, with a button to route each port
