@@ -248,6 +248,20 @@ test("without Caddy nothing offers a route; an unrouted row offers a link", () =
   expect(onLink).toHaveBeenCalledWith(unrouted);
 });
 
+// A route removed is an unrouted row: it can get a name again, or become a link — the same
+// record, never a second row for the same service.
+test("with Caddy, an unrouted row offers a URL and a link", () => {
+  const onLink = vi.fn();
+  const onAssign = vi.fn();
+  const unrouted = row({ id: "nas", name: "nas", subdomain: null, fqdn: null, routed: false, synced: null });
+  render(<ServiceTable rows={[unrouted]} onLink={onLink} onAssign={onAssign} />);
+
+  fireEvent.click(screen.getByTitle("Assign a URL"));
+  fireEvent.click(screen.getByTitle("Make a link"));
+  expect(onAssign).toHaveBeenCalledWith(unrouted);
+  expect(onLink).toHaveBeenCalledWith(unrouted);
+});
+
 // Without Caddy the page's one button is Add link: the empty table names that, not a URL.
 test("an empty table says how to add the first one, by what the page offers", () => {
   const { rerender } = render(<ServiceTable rows={[]} />);

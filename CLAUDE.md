@@ -226,7 +226,8 @@ record); route → link is refused until the route is removed.
   row, the picker starts on what runs there, with its address in the host field.
 - **Change URL** on a Routing row edits that route (by `instance_id`); on an unrouted row
   the same button reads **Assign a URL**, and on a link **Give it an HTTPS name**. A link
-  is edited in `LinkModal`, which also makes one of an unrouted row while Caddy isn't set up.
+  is edited in `LinkModal`, which also makes one of an unrouted row (**Make a link**) — how a
+  route removed becomes a link on the same record.
 - Every row, route or link, opens at the server's **`url`** (`RouteLink`) — no form or table
   builds a URL of its own.
 - The **Docker tab creates a route in one place only**: the install wizard's last step — a

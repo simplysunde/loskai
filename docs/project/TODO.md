@@ -77,7 +77,7 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
 - [x] 62b **Route AdGuard** works for an AdGuard URL without a port (the port its scheme
       implies), and dials an `https://` one over TLS. It posted a host with no port, which
       the backend refuses
-- [ ] 62c **Make a link** on an unrouted row with Caddy set up too: removing a route, then
+- [x] 62c **Make a link** on an unrouted row with Caddy set up too: removing a route, then
       adding the link by hand, made a second row for the same service
 - [ ] 62d Words: Delete stack and Delete machine say what they do (Delete machine said
       "nothing else on it changes" while the sudo rule came off too); Routing's and the

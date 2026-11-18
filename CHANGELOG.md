@@ -10,6 +10,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 - **Route AdGuard** works when AdGuard's URL names no port (it takes the one the scheme
   implies), and reaches an `https://` AdGuard over HTTPS. It failed with "upstream must
   include a port".
+- **Make a link** is on every row without a route, with Caddy set up too: a route removed
+  becomes a link on the same row. Adding the link by hand made a second row for the service.
 
 ## 0.1.0 — 2026-11-17 — first public release
 

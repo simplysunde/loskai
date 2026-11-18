@@ -1,4 +1,4 @@
-import { Eye, EyeOff, HardDrive, ImagePlus, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import { Eye, EyeOff, HardDrive, ImagePlus, Link as LinkIcon, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 
 import { CARD_TABLE } from "../../lib/ui";
 import { dnsFine } from "../../lib/routes";
@@ -216,9 +216,11 @@ export function ServiceTable({
                           {row.routed ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                         </IconButton>
                       )}
-                      {!caddySetUp && !row.routed && !link && onLink && (
+                      {/* A row with no route — never routed, or its route removed — becomes a
+                          link on the same record, with Caddy set up or not. */}
+                      {!row.routed && !link && onLink && (
                         <IconButton title="Make a link" onClick={() => onLink(row)}>
-                          <Plus className="h-3.5 w-3.5" />
+                          <LinkIcon className="h-3.5 w-3.5" />
                         </IconButton>
                       )}
                       {row.routed && onRemoveRoute && (

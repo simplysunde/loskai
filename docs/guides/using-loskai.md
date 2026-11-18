@@ -293,7 +293,8 @@ On the route's row:
 
 - The pencil (**Change URL**) opens the same fields. Change them and click **Assign**.
 - The broken link (**Remove route**) takes the name away and keeps the row, which then says
-  **not routed**. Its **+** (**Assign a URL**) gives it a name again.
+  **not routed**. Its **+** (**Assign a URL**) gives it a name again, and the chain
+  (**Make a link**) makes it a link.
 - The trash (**Delete instance**) removes the row with its route and DNS rewrite.
 
 None of them touches the service itself.
@@ -313,7 +314,8 @@ no AdGuard.
 
 On a link's row, the pencil (**Edit link**) changes it and the eye hides its card. With
 Caddy, **+** (**Give it an HTTPS name**) turns it into a route, on the same row. A route
-doesn't turn back into a link: remove the route, then add the link.
+doesn't turn back into a link directly: remove the route, then click the chain on its row
+(**Make a link**).
 
 If it doesn't open:
 [A link doesn't open, or can't be made](troubleshooting.md#a-link-doesnt-open-or-cant-be-made).
