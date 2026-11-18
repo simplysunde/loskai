@@ -20,7 +20,7 @@ question they answer.
 | **Configure a running container** — env vars, volumes | [Deployment](guides/deployment.md) |
 | **Fix a 502**, a redirect loop, a name that won't resolve | [Troubleshooting](guides/troubleshooting.md) |
 | Stop my browser **warning about the certificate** | [Trusting the certificate](guides/certificate-setup.md) |
-| Reach Proxmox or a NAS **directly** on its own port, without a warning | [Backend certificates](guides/backend-certificates.md) |
+| Reach Proxmox or a NAS **directly** on its own port, without a warning (optional, outside Loskai) | [Backend certificates](guides/backend-certificates.md) |
 | **Bring the containers you already run** into Loskai | [Migration](guides/migration.md) |
 | **Reach it from outside**, on a phone or laptop away from home | [Tailscale](guides/tailscale.md) |
 | **Run the code locally** and change it | [Dev & testing](contributing/dev-testing.md) |
@@ -38,7 +38,7 @@ Operating Loskai. Read in roughly this order the first time.
 | [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Compares the three layouts on port ownership, says which suits the hardware you have, and records the arrangements that were considered and rejected. |
 | [deployment.md](guides/deployment.md) | Running the container: every env var, the two volume couplings that bite if you get them wrong, and cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | A browser warns about one of your names, or a new device joins. Trusting Caddy's certificate once per device — phones and Firefox too — Caddy's own page for when Loskai is down, and who sees the Certificate tab. |
-| [backend-certificates.md](guides/backend-certificates.md) | Only if you open a backend on its own port — Proxmox `:8006`, a NAS UI. Runs Caddy as an ACME server for its own CA so the backend serves a certificate your devices already trust. Loskai is not involved; this is Caddy and the backend. |
+| [backend-certificates.md](guides/backend-certificates.md) | Optional, and not part of Loskai: only if you open a service on its own port — Proxmox `:8006`, a NAS page — and want no warning there. Caddy hands the service a certificate your devices already trust. Tried once on a test setup; Loskai doesn't use or support it. |
 | [migration.md](guides/migration.md) | Bringing containers you already run into Loskai — installing the recipe over your data, moving a compose folder, or writing a `docker run` container a compose file — and when not to bother. Also covers relocating Loskai itself. |
 | [tailscale.md](guides/tailscale.md) | Reaching your routed names away from home. A Tailscale subnet router — **Share this network** on a machine's Tailscale tool, or the recipe on the Docker host — and the two settings in Tailscale's admin console. |
 | [troubleshooting.md](guides/troubleshooting.md) | Something is broken. Symptom-indexed: 502s, redirect loops, DNS, certs, VPN, greyed-out module cards, a stack that won't start. |

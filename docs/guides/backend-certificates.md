@@ -5,6 +5,11 @@
 **Read this when** you open a service on its own port, like Proxmox on `:8006` or a NAS's
 page, and want no warning there either.
 
+> **Not part of Loskai.** This is an optional setup of Caddy and your services, outside
+> Loskai: nothing in Loskai uses it, and Loskai doesn't support it. It was tried once, on a
+> test setup with `certbot`, not with Proxmox. Most people don't need it: a route through
+> Caddy already opens without a warning.
+
 Some services serve HTTPS themselves, with a certificate of their own: Proxmox, a NAS's admin
 page, a server's management board. The usual way is a route with **Backend speaks HTTPS**
 ticked: Caddy reaches the service and your browser trusts Caddy. Nothing here replaces that.

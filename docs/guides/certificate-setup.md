@@ -81,5 +81,5 @@ Caddy reads the file fresh, so nothing needs restarting.
 
 ---
 
-**Next:** a backend's own page, like Proxmox on `:8006`, warns too?
-[Backend certificates →](backend-certificates.md)
+A service's own page, like Proxmox on `:8006`, still warns when opened directly. That is
+optional to fix, and outside Loskai: [Backend certificates](backend-certificates.md).
