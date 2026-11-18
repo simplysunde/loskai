@@ -330,7 +330,19 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       found, the recipes' data folders
       **Not followed** on a rig: the moves themselves (a copied `/opt` project, a volume
       carried between machines)
-- [ ] 60h `topologies.md`
+- [x] 60h `topologies.md` — "Choosing a layout": which one for the hardware you have, one
+      comparison table in the reader's terms (machines, DNS while the Docker host restarts,
+      `2019`, published ports, the ports the Docker host gives up), each layout's things to
+      do, and routing without a published port as steps. The port-contention framing and the
+      merged container's case went to HISTORY 2026-09-02 (there already; the page keeps a
+      paragraph and the link, so CLAUDE.md's "single source" holds); how Loskai finds Caddy's
+      container and a container's port to `architecture.md`'s Routing; the loopback
+      `CADDY_ADMIN_URL` to `adguard-api.md` (there already)
+      — live, on the demo homelab (layout B): a stack of its own on `loskai-edge` with no
+      `ports:`, its container pre-filled `hello:80`, routed following it, `edge.home.lan`
+      answered through Caddy; and `docker compose config` merging a recipe's `compose.yml`
+      with an override that adds the network. Corrected on the way: the lines go in
+      `compose.override.yml` for a recipe's app, whose `compose.yml` an update replaces
 - [ ] 60i `deployment.md`
 - [ ] 60j `backend-certificates.md`
 
