@@ -343,7 +343,15 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       answered through Caddy; and `docker compose config` merging a recipe's `compose.yml`
       with an override that adds the network. Corrected on the way: the lines go in
       `compose.override.yml` for a recipe's app, whose `compose.yml` an update replaces
-- [ ] 60i `deployment.md`
+- [x] 60i `deployment.md` — looking after a running Loskai: updating and pinning, one env
+      var table with each one's place in **Settings** (all checked against `config.py` and
+      `settings.py`), where its files live, who owns them, Caddy's saved config, a cold start.
+      Moved to `architecture.md`: the `${PWD}/stacks` trap and the `/data` coupling (Docker),
+      the entrypoint's hand-back and the socket's group (Security). Already elsewhere, so
+      deleted: the layouts and their ports (`topologies.md`), releasing (`releasing.md`),
+      the `/opt/loskai` upgrade (HISTORY 2026-09-05 — no released install had it)
+      — checked: `docker compose config` with an override moving `data/` replaces the mount;
+      `deploy.sh` pulls before it builds
 - [ ] 60j `backend-certificates.md`
 
 ---

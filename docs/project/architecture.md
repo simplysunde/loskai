@@ -582,7 +582,16 @@ the name can't lead back to it: a container is matched to its stack by its `work
 label — the folder compose ran in — never by project name. `STACKS_DIR` is bind-mounted **at
 the same path** inside and out, because the compose CLI hands bind paths to the host
 daemon; it defaults to `./stacks` beside Loskai's compose file, so compose must be run from
-that directory (`deploy.sh` does). Each health poll checks the folder is really mounted, and
+that directory (`deploy.sh` does). The default is `${PWD}/stacks` because Compose has no
+variable for the project directory: run from elsewhere (`-f ~/loskai/compose.yml`, a systemd
+unit with no `WorkingDirectory=`) it points at `<that directory>/stacks`, which Docker creates,
+so the Docker tab shows no stacks rather than an error. An absolute `STACKS_DIR` in `.env`
+pins it. A tidy `/stacks` inside instead would hand a stack's `./library` to the host daemon
+as `/stacks/<name>/library`, at the host's root. `./data` has no such trap: Compose resolves
+it against the project directory, and the app reads it at `/data`, which `LOSKAI_DATA_DIR`
+names in the Dockerfile and in every compose file beside the mount — change the mount's
+right side and that line together, or Loskai writes to an unmounted folder and loses it on
+the next recreate. Each health poll checks the folder is really mounted, and
 so does creating or installing a stack before it writes: if not, health says so and the
 write is refused rather than made where the host can't see it — the container list still
 works.
@@ -833,7 +842,13 @@ third-party secret Loskai stores, because it must replay it, and only an admin r
 back. Files holding secrets are written owner-only.
 
 **The process runs as the owner of `./data`**, not root — the entrypoint drops to it and the
-socket's group — so anything Loskai writes on the host is the user's.
+socket's group — so anything Loskai writes on the host is the user's. The socket's group is
+read (`stat -c %g`), not set: it differs per host. On the way the entrypoint hands back what
+an older, root-run Loskai left — all of `./data`, and in each stack the folder, its compose
+files and `.env` — **never deeper**: `stacks/<name>/data/` belongs to the user the app inside
+runs as (a database's files are often uid 999). **Delete with data** removes those through a
+throwaway container from Loskai's own image, as root. A `./data` owned by root, or `user:` on
+the service, runs as that (`scripts/container-entrypoint.sh`).
 
 **Boundaries outside Loskai:** Caddy's `:2019` and AdGuard's `:3000` firewalled to the Docker
 host; Loskai the only container with the socket; Loskai reachable only on the LAN, with
