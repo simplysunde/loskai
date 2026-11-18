@@ -352,7 +352,19 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       the `/opt/loskai` upgrade (HISTORY 2026-09-05 — no released install had it)
       — checked: `docker compose config` with an override moving `data/` replaces the mount;
       `deploy.sh` pulls before it builds
-- [ ] 60j `backend-certificates.md`
+- [x] 60j `backend-certificates.md` — steps from a name for the ACME server to a
+      certificate in hand. The page as it was couldn't work: a Caddyfile change isn't read
+      while Caddy's saved config exists; in Docker the Caddyfile is in the image (now copied
+      out and mounted); `acme.<domain>` had no DNS name, and one added in AdGuard by hand is
+      swept by Sync (now: name Caddy's address on the Machines tab); and Caddy itself must
+      ask AdGuard to check the service's name
+      — live, on the demo homelab (layout B): a mounted Caddyfile with `pki` and an
+      `acme_server` site, the save removed, Sync putting Loskai's routes back beside it, the
+      directory over HTTPS trusting only Caddy's root, and `certbot` on the Debian machine
+      ordering a certificate for `nas.home.lan`: issued by "Caddy Local Authority - ECC
+      Intermediate", valid 7 days. Without AdGuard, `nas.home.lan` doesn't resolve there
+      **Not followed:** the Proxmox commands (no Proxmox; from Proxmox's documentation, as the
+      page had them) — Sunde to try on his
 
 ---
 

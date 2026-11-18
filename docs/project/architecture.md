@@ -266,6 +266,11 @@ same request and the same pre-fill. A container linked to a route but since remo
   built and then deleted: Loskai never needed its token, and a second mode was the source of
   every bug in it. A backend that wants a trusted certificate of its own can get one from
   Caddy's ACME server ([`backend-certificates.md`](../guides/backend-certificates.md)).
+- **Caddy's leg to an HTTPS backend stays unverified** (`insecure_skip_verify`), even for
+  one holding a certificate from Caddy's own ACME server: pinning each backend's CA buys
+  little against someone already on the LAN (todo-archive.md, Phase 13). The ACME server is a
+  Caddyfile site, outside Loskai: Sync leaves it alone, having no `@id`, and the name it
+  answers by is a machine's, so the orphan sweep keeps it.
 - **Synced status is a read-only comparison** — shown, never auto-corrected, so it can't
   become a reconcile loop. Sync is the explicit correction.
 - **No route has an enable/disable state**: it exists or it doesn't.
