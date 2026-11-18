@@ -303,7 +303,15 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       profile; desktop Firefox's box stays off the Android tab. Seen on `:8080` and Caddy's
       copy at 390 px with an Android user agent: the tab picked, no sideways scroll, no
       errors. **Not tried on a phone** — Sunde to try it on his
-- [ ] 60f `tailscale.md`
+- [x] 60f `tailscale.md` — the page was task-shaped already: the Machines tab's paragraph
+      became steps (the LXC's TUN device first), the recipe's too, with its three questions
+      as the wizard asks them and **Waiting for its link…** / **Open its link**; the device
+      table lost its Why column. "Why a subnet router" went to HISTORY 2026-11-11 (there
+      already). Checked against the recipe (`TS_BOOT_TIMEOUT=1h`, the hour from 2026-11-11),
+      `tailscale.yml` (forwarding left on when sharing stops) and the Tailscale card's words
+      **Not followed:** anything that needs a Tailscale account — logging a machine in,
+      approving it, split DNS, a phone away from home — the same live checks *Open, not in
+      flight* holds for Sunde's machines
 - [ ] 60g `migration.md`
 - [ ] 60h `topologies.md`
 - [ ] 60i `deployment.md`
