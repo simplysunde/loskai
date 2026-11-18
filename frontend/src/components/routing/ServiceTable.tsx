@@ -6,6 +6,7 @@ import { Hint } from "../shared/Hint";
 import { IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { StatusBadge } from "../shared/StatusBadge";
+import { assignLabel } from "../../lib/routes";
 import { isMachine, machineAt, machineLabel } from "./machine";
 
 const MACHINE_HINT = "The machine at this address — the route moves with it";
@@ -293,13 +294,6 @@ export function DnsCell({
       {conflict && <StatusBadge status="degraded" label={<>{dns}conflict</>} />}
     </div>
   );
-}
-
-// What the route action on a row is called — its button's hint, and the title of the dialog
-// it opens: editing a route, naming a row that has none, or giving a link a name.
-export function assignLabel(row: Instance | null): string {
-  if (!row) return "Assign a URL";
-  return row.routed ? "Change URL" : row.route_mode === "direct" ? "Give it an HTTPS name" : "Assign a URL";
 }
 
 // The launcher icon, edited where the service is named rather than behind a dialog: the

@@ -7,6 +7,13 @@ import type { SaveResult } from "../components/routing/useSaveMachine";
 
 // Add route's submit, to the endpoint for what it made: a route goes through Caddy and
 // AdGuard (/api/routes), a link is only saved (/api/links).
+// What the route action on a row is called — its button's hint, and the title of the dialog
+// it opens: editing a route, naming a row that has none, or giving a link a name.
+export function assignLabel(row: Instance | null): string {
+  if (!row) return "Assign a URL";
+  return row.routed ? "Change URL" : row.route_mode === "direct" ? "Give it an HTTPS name" : "Assign a URL";
+}
+
 export function saveNew(r: NewRoute | NewLink) {
   if ("kind" in r) {
     const { kind: _kind, ...link } = r;

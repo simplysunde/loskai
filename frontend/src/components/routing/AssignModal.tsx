@@ -55,7 +55,7 @@ export function AssignModal({
   // The host dropdown's other entries, beside the named machines in `rows`.
   dockerHost?: string | null;
   containerHost?: string | null;
-  // What opened it — Change URL, Assign a URL, Give it an HTTPS name (ServiceTable.assignLabel).
+  // What opened it — Change URL, Assign a URL, Give it an HTTPS name (routes.assignLabel).
   title?: string;
 }) {
   const [scheme, setScheme] = useState<Scheme>(initialScheme);

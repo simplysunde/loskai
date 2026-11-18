@@ -15,7 +15,7 @@ import {
 import { api, apiMessage } from "../lib/api";
 import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
-import { refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
+import { assignLabel, refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { answerHost, useCaddySetUp, useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
@@ -25,7 +25,7 @@ import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusP
 import { ADGUARD_SERVICE, urlToUpstream, urlUsesTls } from "../components/routing/networkServices";
 import { LinkModal, type LinkPayload } from "../components/routing/LinkModal";
 import type { SaveResult } from "../components/routing/useSaveMachine";
-import { assignLabel, ServiceTable, type Instance } from "../components/routing/ServiceTable";
+import { ServiceTable, type Instance } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
