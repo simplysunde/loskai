@@ -25,7 +25,7 @@ export function Dashboard() {
         </div>
       ) : services.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">
-          No services published yet. Assign a URL to a service to see it here.
+          No services published yet. Add a route or a link on the Routing tab to see it here.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

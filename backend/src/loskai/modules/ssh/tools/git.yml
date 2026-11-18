@@ -62,7 +62,7 @@ actions:
     session: false
     run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
   # A project's own key, in its settings: Machine's key takes it off again and keeps the
-  # file, so Own key takes the same one up — a key already on the repository's Deploy keys.
+  # file, so Give it its own key takes the same one up — a key already on the repository's Deploy keys.
   own-key:
     label: Own key
     description: >-
@@ -96,7 +96,7 @@ actions:
       git -C "$PROJECTS/$1" config --local --unset core.sshCommand; s=$?;
       if [ $s = 5 ]; then echo "$1 already uses the machine's key."; exit 0; fi; [ $s = 0 ] || exit $s;
       echo "$1 uses the machine's key again.";
-      [ -f ~/.ssh/deploy_$1 ] && echo "Its own key stays, in Keys: Own key takes it up again; Delete there when done with it."; exit 0
+      [ -f ~/.ssh/deploy_$1 ] && echo "Its own key stays, in Keys: Give it its own key takes it up again; Delete there when done with it."; exit 0
   pull-all:
     label: Pull all
     description: Pull every project that has a remote — each only when it fast-forwards.

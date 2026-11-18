@@ -274,11 +274,10 @@ export function Machines() {
           if (confirmDelete) remove.mutate(confirmDelete);
         }}
       >
-        This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>{" "}
-        and its DNS rewrite{confirmDelete?.subdomain && sshHosts[confirmDelete.subdomain] ? " and SSH entry" : ""}.
+        This deletes <span className="font-medium text-slate-200">{confirmDelete?.name}</span>
         {confirmDelete && takesKeysOff(ssh.data, confirmDelete.id)
-          ? " Loskai's key is taken off the machine first; nothing else on it changes."
-          : " The machine itself isn't affected."}
+          ? " and takes Loskai's access off the machine first. Nothing else on it changes."
+          : ". The machine itself isn't affected."}
         {deleteError && <span className="mt-2 block text-rose-400">{deleteError}</span>}
         {/* Deleting a machine doesn't break what runs on it: nothing links those routes,
             so they keep the address they already have. */}

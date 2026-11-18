@@ -12,6 +12,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   include a port".
 - **Make a link** is on every row without a route, with Caddy set up too: a route removed
   becomes a link on the same row. Adding the link by hand made a second row for the service.
+- Dialogs say what an action does: **Delete stack** that the stack goes and its data stays,
+  **Delete machine** that Loskai's access is taken off it. The route dialog is titled by what
+  opened it (**Change URL**, **Assign a URL**, **Give it an HTTPS name**), and Routing's and
+  the Dashboard's empty pages point at **Add route**.
 
 ## 0.1.0 — 2026-11-17 — first public release
 

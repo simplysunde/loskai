@@ -84,7 +84,7 @@ export function ServiceTable({
     return (
       <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
         {caddySetUp
-          ? "No services yet. Assign a URL to add one."
+          ? "No services yet. Add route gives one a name."
           : "No services yet. Add a link to put one on the Dashboard."}
       </div>
     );
@@ -210,7 +210,7 @@ export function ServiceTable({
                       )}
                       {onAssign && caddySetUp && (
                         <IconButton
-                          title={row.routed ? "Change URL" : link ? "Give it an HTTPS name" : "Assign a URL"}
+                          title={assignLabel(row)}
                           onClick={() => onAssign(row)}
                         >
                           {row.routed ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
@@ -293,6 +293,13 @@ export function DnsCell({
       {conflict && <StatusBadge status="degraded" label={<>{dns}conflict</>} />}
     </div>
   );
+}
+
+// What the route action on a row is called — its button's hint, and the title of the dialog
+// it opens: editing a route, naming a row that has none, or giving a link a name.
+export function assignLabel(row: Instance | null): string {
+  if (!row) return "Assign a URL";
+  return row.routed ? "Change URL" : row.route_mode === "direct" ? "Give it an HTTPS name" : "Assign a URL";
 }
 
 // The launcher icon, edited where the service is named rather than behind a dialog: the

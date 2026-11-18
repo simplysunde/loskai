@@ -4,6 +4,23 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-18 — A dialog says what the action does, not what happens underneath (Phase 62)
+
+Rewriting Using Loskai (60c) found dialogs that listed the machinery — Delete stack named
+`compose.yml` and `.env`, and so left out `compose.override.yml`, which goes too; Delete
+machine said "nothing else on it changes" while the sudo rule came off as well. The first
+fix offered was to list the missing files. Sunde: "dialogs and explaining text should say
+what the function, button or action does, not necessaryly list all the technical aspects of
+what happens in the background. like telling the user that you compose override will be
+deleted, that is for the ai agent and developer to know based on the code and the docs".
+
+So a dialog says the effect the reader cares about — the stack goes, its data stays and a
+reinstall picks it up; Loskai's access comes off the machine — and the list of files and
+entries stays where it can't drift from what runs: the code, `CLAUDE.md`'s invariants and
+`architecture.md`. A list in a dialog is a second copy of a decision, and it was the copy
+that was wrong. It is the UI line in `CLAUDE.md` now. Dialogs written before it (Turn off
+SSH, among others) are left for a sweep; TODO.md's Phase 62 lists them.
+
 ## 2026-11-17 — The install guide: choose the layout, then install once
 
 The guide installed Loskai alone first, then had the two Docker layouts replace its

@@ -79,7 +79,7 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
       the backend refuses
 - [x] 62c **Make a link** on an unrouted row with Caddy set up too: removing a route, then
       adding the link by hand, made a second row for the same service
-- [ ] 62d Words: Delete stack and Delete machine say what they do (Delete machine said
+- [x] 62d Words: Delete stack and Delete machine say what they do (Delete machine said
       "nothing else on it changes" while the sudo rule came off too); Routing's and the
       Dashboard's empty text name **Add route**; the route dialog is titled by what opened it
       (Change URL, Assign a URL, Give it an HTTPS name) and an edit's banner says "saved";

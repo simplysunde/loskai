@@ -7,7 +7,7 @@ import { SchemeSelect, type Scheme } from "./SchemeSelect";
 import { hostOptions } from "./hostOptions";
 import { Overlay } from "../shared/Modal";
 
-// Assign URL form: a single-label prefix + an upstream host:port, with where it will open
+// The route form for a row: a single-label prefix + an upstream host:port, with where it will open
 // shown live. Presentational — submit is handed to onSubmit (wired to /api/routes). The
 // upstream hint follows the Caddy mode (Docker names vs LAN IPs). Re-pointing a *machine*
 // is a different form entirely and goes to AddMachineModal (Phase 21e).
@@ -27,6 +27,7 @@ export function AssignModal({
   follow,
   dockerHost = null,
   containerHost = null,
+  title = "Assign a URL",
 }: {
   open: boolean;
   baseDomain: string | null;
@@ -54,6 +55,8 @@ export function AssignModal({
   // The host dropdown's other entries, beside the named machines in `rows`.
   dockerHost?: string | null;
   containerHost?: string | null;
+  // What opened it — Change URL, Assign a URL, Give it an HTTPS name (ServiceTable.assignLabel).
+  title?: string;
 }) {
   const [scheme, setScheme] = useState<Scheme>(initialScheme);
   const [following, setFollowing] = useState(follow?.initial ?? false);
@@ -72,7 +75,7 @@ export function AssignModal({
 
   return (
     <Overlay onClose={onClose}>
-      <h2 className="text-base font-semibold text-slate-100">Assign URL</h2>
+      <h2 className="text-base font-semibold text-slate-100">{title}</h2>
 
       <RouteFields
         fields={fields}

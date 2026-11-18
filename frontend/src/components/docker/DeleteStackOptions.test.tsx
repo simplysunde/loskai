@@ -41,5 +41,12 @@ test("a stack with nothing beside its compose file offers no choice", () => {
   render(<Harness stack={{ name: "whoami", services: ["whoami"], status: "up", data: [] }} />);
 
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-  expect(screen.getByText(/the folder goes too/)).toBeInTheDocument();
+  expect(screen.getByText(/and removes it/)).toBeInTheDocument();
+});
+
+// What it does, not the files it takes (Phase 62): those are the code's and the docs'.
+test("the dialog says what Delete does, not which files go", () => {
+  render(<Harness stack={WITH_DATA} />);
+
+  expect(screen.queryByText(/compose\.yml|\.env|override/)).not.toBeInTheDocument();
 });

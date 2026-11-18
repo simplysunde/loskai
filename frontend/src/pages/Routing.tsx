@@ -25,7 +25,7 @@ import { PILL_BUTTON, InfraStatusPill } from "../components/routing/InfraStatusP
 import { ADGUARD_SERVICE, urlToUpstream, urlUsesTls } from "../components/routing/networkServices";
 import { LinkModal, type LinkPayload } from "../components/routing/LinkModal";
 import type { SaveResult } from "../components/routing/useSaveMachine";
-import { ServiceTable, type Instance } from "../components/routing/ServiceTable";
+import { assignLabel, ServiceTable, type Instance } from "../components/routing/ServiceTable";
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -455,6 +455,7 @@ export function Routing() {
       <AssignModal
         key={`${assignTarget?.id ?? "new"}:${assignOpen}`}
         open={assignOpen}
+        title={assignLabel(assignTarget)}
         baseDomain={baseDomain}
         upstreamMode={assignMode}
         pending={assign.isPending}

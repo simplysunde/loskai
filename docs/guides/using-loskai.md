@@ -177,8 +177,8 @@ For one container, open the stack and click its **⋯**: **Stop**, **Restart**, 
    Installing it again picks the data back up. Ticked, the whole folder goes.
 3. Click **Delete**. The stack is gone from the list.
 
-Its compose file, `.env` and `compose.override.yml` go either way, so add your folders
-again after a reinstall. Docker volumes stay: [Volumes](#volumes).
+The folders and options you added in **Edit** go either way: add them again after a
+reinstall. Docker volumes stay: [Volumes](#volumes).
 
 ### Make a stack from your own compose file
 
@@ -242,7 +242,7 @@ One row per service: its name, where it runs, and whether Caddy and AdGuard have
 4. Tick **Backend speaks HTTPS** for a service that serves HTTPS itself, like Proxmox on
    port 8006. Leave **Served over** on **HTTPS**, or choose **HTTP** or **Both** for a
    device that can't install the certificate: a TV, a printer.
-5. Click **Add route**. You see `https://jellyfin.home.lan — route + DNS rewrite created.`,
+5. Click **Add route**. You see `https://jellyfin.home.lan — route + DNS rewrite saved.`,
    and the row says **synced** under Route and **set** under DNS.
 
 If the name doesn't open: [A name doesn't resolve](troubleshooting.md#a-name-doesnt-resolve),
@@ -620,10 +620,10 @@ its Claude session, with the buttons of both cards: **Pull**, **Push**, **Termin
 ### Turn SSH off, or delete a machine
 
 - **Turn SSH off.** In the machine's dialog, switch **SSH** off and click **Turn off**.
-  Loskai's key and its `sudo` rule come off the machine. The machine keeps its name.
+  Loskai's access comes off the machine. The machine keeps its name.
 - **Delete it.** Click **⋮** (**More**) on its row, then **Delete machine** and **Delete**.
-  Its name goes, and Loskai's key and `sudo` rule are taken off the machine first. The
-  routes on its address stay and go on working.
+  Its name goes, and Loskai's access is taken off the machine first. The routes on its
+  address stay and go on working.
 
 A machine that can't be reached is deleted anyway. A banner then says what to remove from
 it by hand. Adding the machine again later installs the same key.

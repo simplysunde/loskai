@@ -409,7 +409,7 @@ test("deleting a set-up machine with the key locked asks for your password in th
 
   fireEvent.click(within(nasRow()).getByTitle("More"));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete machine" }));
-  expect(screen.getByText(/Loskai's key is taken off the machine first/)).toBeInTheDocument();
+  expect(screen.getByText(/takes Loskai's access off the machine first/)).toBeInTheDocument();
   // No password field of its own: the server says it is locked, and the one dialog asks.
   expect(screen.queryByLabelText("Your password")).toBeNull();
   lockedOnce("/api/instances/nas");

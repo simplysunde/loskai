@@ -44,7 +44,9 @@ homelab.
 - **UI:** minimal visible text, details out of sight — help on a word is a `Hint` (dotted
   underline, a box on hover or a tap), and a `title` only names an icon button; one layout, reusing the
   existing pattern rather than a variant; never show something that looks like an address
-  but isn't (show the real address or the full FQDN); show a status only on the tab that owns it.
+  but isn't (show the real address or the full FQDN); show a status only on the tab that owns it;
+  a dialog or a line of help says what the action does for the reader, not what happens
+  underneath — which files, keys or entries go is the code's and the docs' to say.
   The same layout works on a phone — its patterns and traps: `docs/contributing/phone-layout.md`.
 
 ## Code map

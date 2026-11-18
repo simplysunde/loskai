@@ -191,3 +191,11 @@ test("Sync doesn't ask an AdGuard that isn't set up", async () => {
   expect(await screen.findByText("Synced.")).toBeInTheDocument();
   expect(calls.some((c) => c.path === "/api/adguard/reconcile")).toBe(false);
 });
+
+test("the route dialog is titled by what opened it", async () => {
+  stubApi([ADGUARD_ROUTE]);
+  renderPage();
+
+  fireEvent.click(await screen.findByTitle("Change URL"));
+  expect(screen.getByRole("heading", { name: "Change URL" })).toBeInTheDocument();
+});

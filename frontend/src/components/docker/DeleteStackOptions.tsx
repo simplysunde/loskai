@@ -1,9 +1,9 @@
 import type { Stack } from "./groupByStack";
 
-// What Delete on a stack will do, and the one choice it offers. Recipes keep their data
-// beside the compose file (./data), so by default Delete removes only compose.yml and
-// .env and leaves the rest — installing the same thing again picks it back up. Taking the
-// data too is a deliberate tick, never the default.
+// What Delete on a stack does, in the reader's terms, and the one choice it offers. Which
+// files go is the code's and CLAUDE.md's (stacks.delete_stack): the dialog says the stack
+// goes and its data stays, which a reinstall picks back up. Taking the data too is a
+// deliberate tick, never the default.
 export function DeleteStackOptions({
   stack,
   deleteData,
@@ -16,14 +16,8 @@ export function DeleteStackOptions({
   const data = stack.data ?? [];
   return (
     <span className="block">
-      Stops its containers and removes <span className="font-mono">compose.yml</span> and{" "}
-      <span className="font-mono">.env</span> from{" "}
-      <span className="font-medium text-slate-200">{stack.name}</span>.
-      {data.length === 0 ? (
-        <span className="mt-2 block text-slate-500">
-          Nothing else is in its folder, so the folder goes too.
-        </span>
-      ) : (
+      Stops <span className="font-medium text-slate-200">{stack.name}</span> and removes it.
+      {data.length > 0 && (
         <>
           <label className="mt-3 flex items-start gap-2 text-slate-300">
             <input
@@ -39,8 +33,8 @@ export function DeleteStackOptions({
           </label>
           <span className={`mt-2 block text-xs ${deleteData ? "text-rose-300" : "text-slate-500"}`}>
             {deleteData
-              ? "The whole folder is removed. This cannot be undone."
-              : `Kept in its folder — installing ${stack.name} again picks it back up.`}
+              ? "Its data is deleted too. This cannot be undone."
+              : `Its data is kept — installing ${stack.name} again picks it back up.`}
           </span>
         </>
       )}

@@ -16,7 +16,7 @@ export function SaveBanner({ result }: { result: SaveResult }) {
           ? "link saved — on the Dashboard."
           : result.caddy === "skipped"
             ? "DNS rewrite saved."
-            : "route + DNS rewrite created.")}
+            : "route + DNS rewrite saved.")}
       {result.moved && result.moved.length > 0 && <> Moved {result.moved.join(", ")} with it.</>}
     </div>
   );
