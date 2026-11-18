@@ -318,7 +318,18 @@ written, and how one is rewritten, is the `loskai-docs` skill.
       dialog's **Restrict to domain** (their results were)
       **Not followed:** logging a machine in, a phone away from home — the same live checks
       *Open, not in flight* holds for Sunde's machines
-- [ ] 60g `migration.md`
+- [x] 60g `migration.md` — the three ways in as numbered steps, each ending on what you
+      see (**Picked up the data already in its folder.**, the stack's pill **up**), and moving
+      Loskai with its three catches. The move test's table went to `todo-archive.md` (there
+      already), *Why absolute paths* into the folder steps, the field names `host_ip` and
+      `caddy_host_ip` to their labels. Corrected: "no bulk re-derive" — routes that follow
+      their container are rewritten when Loskai starts (`follow.reconcile_all`), so only
+      routes set by hand need **Change URL**; the same for a stack moved onto `loskai-edge`.
+      Checked against the code: the install taking over a folder and the route
+      (`install.py`, its refusal while the old container exists), the compose-file names
+      found, the recipes' data folders
+      **Not followed** on a rig: the moves themselves (a copied `/opt` project, a volume
+      carried between machines)
 - [ ] 60h `topologies.md`
 - [ ] 60i `deployment.md`
 - [ ] 60j `backend-certificates.md`

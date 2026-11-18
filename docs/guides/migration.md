@@ -5,243 +5,201 @@
 **Read this when** you already run containers on the Docker host and want Loskai to manage
 them, or are moving Loskai itself.
 
-Loskai sees every container on its Docker host from the start: the ones it doesn't manage
-are listed on the **Docker** tab under **Other containers**. You can route any of them right
-away (Routing › **Add route** › Container) without moving anything. Managing one — start,
-stop, edit, update from the browser — needs it to be a **stack**: a folder in `STACKS_DIR`
-(`stacks/` beside Loskai's compose file) holding a compose file. Loskai keeps no database
-of stacks; the folder is the stack.
-
-This guide gets what you already run into that folder. It also covers the other direction:
-[moving Loskai itself](#moving-loskai-itself) to a new path or a new machine.
+Loskai sees every container on its Docker host from the start. The ones it doesn't manage are
+on the **Docker** tab under **Other containers**, and you can route any of them right away
+(**Add route** › **Container**) without moving anything. To start, stop, edit and update one
+from Loskai, it has to be a **stack**: a folder in `stacks/`, beside Loskai's compose file,
+with a compose file in it.
 
 | What you have | Do this |
 |---|---|
-| An app the recipe catalog has (Docker › **Install recipe**) | [Install the recipe and bring your data](#an-app-the-catalog-has) — recommended |
+| An app the recipe catalog has (Docker › **Install recipe**) | [Install the recipe and bring your data](#an-app-the-catalog-has), recommended |
 | A compose project in its own folder | [Move the folder](#a-compose-project-in-its-own-folder) |
 | A container started with `docker run`, or a Portainer stack | [Write it a compose file](#a-container-with-no-compose-folder) |
+| Loskai itself, to another folder or machine | [Moving Loskai itself](#moving-loskai-itself) |
 
 ---
 
 ## Should you bring it in at all?
 
-It's **optional**. Leaving a container where it is costs nothing but the start/stop/edit
-buttons — it stays listed, and its route works the same.
+It's optional. A container left where it is keeps its route and stays listed; it only lacks
+Loskai's start, stop and edit buttons.
 
 **Leave it where it is if:**
 
-- It's managed by something else you mean to keep (a git repo you `git pull`, Ansible,
-  Portainer). Two tools fighting over one container is how you lose an evening.
-- It isn't a container (a package or a systemd service) — route it as an external service
-  instead (Add route: pick it from the Machines list, or type its address and port).
-- It runs on a different host than the Docker daemon Loskai talks to — Loskai is
-  single-host.
+- something else manages it that you mean to keep: a git repository you `git pull`, Ansible,
+  Portainer. Two tools managing one container fight;
+- it isn't a container, like a package or a systemd service: route it by its address instead
+  ([Add a route](using-loskai.md#add-a-route));
+- it runs on another Docker host: Loskai manages the one it runs on.
 
 ---
 
 ## Before you start
 
-These hold whichever way you come in:
-
-- **Stop it first**, so the data is at rest. A database copied mid-write can come out
+- **Stop it first**, so its data is at rest. A database copied while it writes can come out
   corrupt.
-- **Know where its data is.** Every way in below is about keeping it:
+- **Know where its data is.** This lists what the container mounts:
 
   ```bash
   docker inspect -f '{{range .Mounts}}{{.Type}} {{.Name}}{{.Source}} → {{.Destination}}{{"\n"}}{{end}}' <container>
   ```
 
-  A `bind` is a folder on the host; a `volume` is a named volume, which lives in Docker's
-  own storage and is tied to a project name. See
-  [why absolute paths are the thing to watch](#why-absolute-paths-are-the-thing-to-watch).
-- **Keep the paths inside the container the same.** Apps store them — Jellyfin's
-  libraries, an *arr's root folders. Data mounted at a new container path comes up looking
-  empty, although nothing is lost.
+  A `bind` is a folder on the host. A `volume` is a Docker volume: it lives in Docker's own
+  storage, under a name that starts with its project's.
+- **Keep the paths inside the container the same.** Apps store them: Jellyfin's libraries,
+  an *arr's root folders. Data mounted at a new path inside the container looks empty to the
+  app, although nothing is lost.
 
 ---
 
 ## An app the catalog has
 
-Installing the recipe gives you everything a fresh install would: the form with labelled
-settings, its options (a GPU, say), **Check for updates**, its icon, and a route from the
-wizard's last step. The trick is putting your data where the recipe expects it *before*
-installing — the install takes over a stack folder that has data but no compose file, and
-says **"Picked up the data already in its folder"**.
+Installing the recipe gives you what a fresh install has: **Edit** with labelled settings, the
+recipe's options, **Check for updates**, its icon, and a route from the wizard's last step.
+The trick is putting your data where the recipe expects it *before* installing.
 
-Example — a Jellyfin you run from `~/jellyfin`, with its config in `~/jellyfin/config`:
+The example moves a Jellyfin run from `~/jellyfin`, with its config in `~/jellyfin/config`,
+into a Loskai in `~/loskai`.
 
-**1. See where the recipe keeps its data.** Its `compose.yml` in the recipe source
-(listed under Settings › General › Recipe sources) — the `./…` entries under `volumes:`. Jellyfin's is
-`./config:/config`; Bambuddy's `./data` and `./logs`.
+1. **See where the recipe keeps its data:** the `./…` lines under `volumes:` in its
+   `compose.yml`, in the [recipes repository](https://github.com/simplysunde/loskai-recipes).
+   Jellyfin's is `./config`; Bambuddy's are `./data` and `./logs`.
+2. **Stop and remove the old container.** It has to be gone, not only stopped: the new one
+   takes its port, and its route.
 
-**2. Stop and remove the old container.** Removed, not only stopped: the new one uses the
-same port, and a route already pointing at the old one moves over only once it's gone
-(below).
+   ```bash
+   cd ~/jellyfin && docker compose down     # or: docker rm -f jellyfin
+   ```
 
-```bash
-cd ~/jellyfin && docker compose down     # or: docker rm -f jellyfin
-```
+3. **Make the stack's folder, named as the recipe is, and copy the data in:**
 
-**3. Make the stack's folder, named as the recipe is, and copy the data into place:**
+   ```bash
+   mkdir -p ~/loskai/stacks/jellyfin
+   cp -a ~/jellyfin/config ~/loskai/stacks/jellyfin/config   # -a keeps the owners the app expects
+   ```
 
-```bash
-mkdir -p ~/loskai/stacks/jellyfin
-cp -a ~/jellyfin/config ~/loskai/stacks/jellyfin/config   # -a keeps the owners the app expects
-```
+   Data in a Docker volume is copied out through a throwaway container:
 
-Data in a **named volume** instead is copied out through a throwaway container:
+   ```bash
+   docker run --rm -v jellyfin_config:/from -v ~/loskai/stacks/jellyfin/config:/to alpine cp -a /from/. /to/
+   ```
 
-```bash
-docker run --rm -v jellyfin_config:/from -v ~/loskai/stacks/jellyfin/config:/to alpine cp -a /from/. /to/
-```
+4. **Install it:** Docker › **Install recipe** › **Jellyfin**, answering as the old setup was,
+   like the same port. Add your media folders under **Media folders**. Click **Deploy**. The
+   last step says **Picked up the data already in its folder.**
+5. **Put each folder where the old container had it.** The wizard mounts a folder at a path
+   of the recipe's choosing, `/media/<name>`. If the old container used another, change it
+   under the stack's pencil (**Edit**) › **Folders**, and **Save**.
 
-**4. Install it** from Docker › **Install recipe**, answering as the old setup was (the same port, for
-instance). Folders the recipe asks for — Jellyfin's media folders — are added in the
-wizard; each lands at a path of the recipe's choosing (`/media/<name>`). If the old
-container mounted them elsewhere, set each folder's container path back to the old one
-afterwards (**Edit** on the stack › Folders), so the app's stored paths still match.
+**The route.** A route under the recipe's name, `jellyfin`, that pointed at the old container
+moves to the new one, with its icon and settings. If the old container still exists, the
+install refuses, with **is already the name of the route to container**: remove the old
+container first. A route under another name stays with the removed container: delete it on
+**Routing** and add the route from the wizard's last step.
 
-**The route.** If you had already routed the old container under the recipe's name
-(`jellyfin.<your domain>`), the install takes that route over — address, icon, settings —
-and points it at the new container. One under another name stays linked to the container
-you removed: remove it on the Routing tab and route the new one from the wizard's last step.
-
-Nothing above deletes the original: `~/jellyfin` is still there until you remove it, and a
-named volume until you `docker volume rm` it. Keep both until the new install has run a
-while.
+Nothing above deletes the original. `~/jellyfin` stays until you remove it, and a Docker
+volume until `docker volume rm`. Keep both until the new install has run for a while.
 
 ### Keeping your own compose file instead
 
-You can also bring in your own compose file ([as below](#a-compose-project-in-its-own-folder))
-in a folder **named as the recipe is**. Loskai then treats it as the recipe's: the form
-labels its settings and offers the recipe's options (for the services your file has).
+You can bring in your own compose file, [as below](#a-compose-project-in-its-own-folder), in
+a folder named as the recipe is. Loskai then treats it as the recipe's: **Edit** labels its
+settings and offers the recipe's options, for the services your file has.
 
-**Check for updates** lists it as **Differs from the recipe**, and that needs care: an
-update *replaces* your `compose.yml` with the recipe's. If your data is mounted
-differently — `./jellyfin-config` where the recipe has `./config` — the app starts with its
-data unmounted. Nothing is deleted, but it looks like a fresh install. Read the diff's
-`volumes:` lines before you update, and move anything you want to keep into
-`compose.override.yml` first (Edit on the stack).
+**Check for updates** lists it as **Differs from the recipe**, and an update *replaces* your
+`compose.yml` with the recipe's. If your data is mounted elsewhere, like `./jellyfin-config`
+where the recipe has `./config`, the app then starts without it. Nothing is deleted, but it
+looks like a fresh install. Read the update's `volumes:` lines first, and move what you want
+to keep into `compose.override.yml` under **Edit** › **Edit as text**.
 
 ---
 
 ## A compose project in its own folder
 
-Example — a project at `/opt/immich`, into a `STACKS_DIR` of `~/loskai/stacks`.
+The example moves a project at `/opt/immich` into `~/loskai/stacks`.
 
-**1. Stop it.**
+1. **Stop it:**
 
-```bash
-docker compose -f /opt/immich/docker-compose.yml down
-```
+   ```bash
+   docker compose -f /opt/immich/docker-compose.yml down
+   ```
 
-**2. Move or copy the whole folder** (compose file, `.env`, and any supporting files) into
-`STACKS_DIR`, keeping the folder name:
+2. **Move or copy the whole folder** into `stacks/`, its compose file, `.env` and anything
+   else with it, **keeping its name**:
 
-```bash
-# Option A — move: clean relocation, nothing left behind
-mv /opt/immich ~/loskai/stacks/immich
+   ```bash
+   mv /opt/immich ~/loskai/stacks/immich      # move: nothing left behind
+   cp -a /opt/immich ~/loskai/stacks/immich   # or copy: the original stays as a fallback
+   ```
 
-# Option B — copy: leaves the original in place as a fallback (uses extra disk)
-cp -r /opt/immich ~/loskai/stacks/immich
-```
+   The name matters: Compose names the project after the folder, and the project's Docker
+   volumes after the project. Another name starts with empty volumes.
+3. **Check its paths.** In the compose file and `.env`, look at what it mounts. For Immich,
+   `UPLOAD_LOCATION` and `DB_DATA_LOCATION` in `.env`:
+   - **A relative path**, like `./library`, moved with the folder. Nothing to do.
+   - **An absolute path**, like `/opt/immich/library`, still points where it did. Leave it to
+     keep using the data there, or change it if you moved the data too.
 
-Keep the name (`immich`). Compose derives the project name from the folder name; keeping it
-the same means the project reuses its existing named volumes rather than creating empty ones.
-
-**3. Fix absolute paths, if any.** Open the compose file and `.env` and look at the volume /
-bind-mount paths (for Immich, `UPLOAD_LOCATION` and `DB_DATA_LOCATION` in `.env`):
-
-- **Relative paths** (`./library:/data`) — nothing to do. They resolve next to the compose
-  file, so the data moved/copied along with the folder.
-- **Absolute paths** (`/opt/immich/library:/data`) — decide one of two things:
-  - *Leave them* to keep using the original data in place (the data doesn't move; the
-    folder is just the compose definition), or
-  - *Update them* to point into the new location if you also moved/copied the data there.
-
-That decision is the only real work here. Any of `compose.yml`, `compose.yaml`,
-`docker-compose.yml` or `docker-compose.yaml` is found; there's no need to rename it.
-
-**4. Start it from Loskai.** The stack now appears on the Docker tab — hit **Compose up**.
+   Any of `compose.yml`, `compose.yaml`, `docker-compose.yml` or `docker-compose.yaml` is
+   found: there is no need to rename it.
+4. **Start it from Loskai.** On the **Docker** tab the stack is under **Stacks**. Click its
+   play button (**Compose up**). Its pill says **up**.
 
 ---
 
 ## A container with no compose folder
 
-A container started with `docker run` has no compose file to move, and a Portainer stack
-keeps its file in Portainer's own data. Either way you give Loskai one:
+A container started with `docker run` has no compose file to move, and a Portainer stack keeps
+its file in Portainer's data. Either way, you give Loskai one.
 
-**1. Write the compose file.** For a `docker run` container, describe the same image, ports,
-volumes and environment — `docker inspect <container>` shows them all. For a Portainer
-stack, copy the file from Portainer's editor.
+1. **Write the compose file.** For a `docker run` container, the same image, ports, mounts and
+   environment: `docker inspect <container>` shows them all. For a Portainer stack, copy the
+   file from Portainer's editor.
+2. **Keep its Docker volumes.** Compose names a volume after the stack, so `config` in a stack
+   called `jellyfin` is `jellyfin_config`: a new, empty one unless that's already its name. To
+   use the one you have, name it:
 
-**2. Keep its named volumes.** Compose prefixes a volume's name with the project, so
-`config` in a stack called `jellyfin` is `jellyfin_config` — a new, empty volume unless
-that's what it was already called. To use the one you have under its existing name, say so:
+   ```yaml
+   volumes:
+     config:
+       external: true
+       name: my_jellyfin_config   # the name `docker volume ls` shows
+   ```
 
-```yaml
-volumes:
-  config:
-    external: true
-    name: my_jellyfin_config   # the name `docker volume ls` shows
-```
-
-A Portainer stack's volumes already carry its stack name as their prefix, so naming the
-Loskai stack the same keeps them without this.
-
-**3. Remove the old container** (`docker rm -f <name>`, or remove the stack in Portainer —
-keeping its volumes), so the new one can take its port.
-
-**4. Create the stack** — Docker › **New stack**, paste the file. Data you want kept beside
-it can be copied into `stacks/<name>/` first: a new stack takes over a folder that has no
-compose file yet, as an install does.
+   A Portainer stack's volumes already start with its name, so naming the Loskai stack the
+   same keeps them without this.
+3. **Remove the old container**, with `docker rm -f <name>` or by removing the stack in
+   Portainer, keeping its volumes, so the new one can take its port.
+4. **Create the stack:** Docker › **New stack**, type the name, paste the file, click **Create
+   + up**. To keep data beside it, copy it into `stacks/<name>/` first: a new stack takes over
+   a folder that has no compose file yet.
 
 ---
 
-## Optional — stop publishing host ports (split DNS)
+## Optional: stop publishing its ports
 
-If you run [layout B](topologies.md#b--split-dns-adguard-separate-caddy--loskai-together),
-Caddy is a container on this host, so a migrated stack can be routed **without publishing a
-host port at all**: join it to the shared `loskai-edge` network and delete its `ports:`.
-A migration is the natural moment — the stack is already down and you already have the
-compose file open. The stanzas are in
-[topologies.md](topologies.md#routing-a-container-without-publishing-a-port).
+With Caddy beside Loskai and AdGuard on its own box
+([layout B](topologies.md#b--split-dns-adguard-separate-caddy--loskai-together)), a moved
+stack can be routed without publishing a port at all: join it to Caddy's network,
+`loskai-edge`, and delete its `ports:`. The lines are in
+[Routing a container without publishing a port](topologies.md#routing-a-container-without-publishing-a-port).
 
-Two things to expect:
-
-- **The service stops answering on `<host-ip>:<port>`.** Anything bookmarked there, or any
-  other tool dialling it directly, breaks — after this it is reachable only through its
-  HTTPS route (and from containers on the same network).
-- **An existing route needs repointing.** A route created before the move holds
-  `<host_ip>:<published-port>` as its upstream, which no longer resolves. Use **Change URL**
-  on the Routing tab and set it to `<service>:<port>`.
-
----
-
-## Why absolute paths are the thing to watch
-
-Bind-mount paths are the only part of a compose project that cares *where the folder lives*:
-
-- **Relative** binds and **named volumes** travel cleanly — relative binds move with the
-  folder, and named volumes are keyed by project name (not location), so both survive a
-  copy untouched.
-- **Absolute** binds are pinned to a fixed host path and ignore the folder's new location.
-  They keep working, but the data is now decoupled from the folder — which is fine as long
-  as you *know* that's the case. That's why the one instruction that matters is: check for
-  absolute paths and decide whether to repoint them.
+- **It stops answering at `<docker-host>:<port>`.** A bookmark or another tool using that
+  address breaks: it is reached only through its route, and from containers on the same
+  network.
+- **A route set by hand needs its address changed:** on **Routing**, its pencil (**Change
+  URL**), to the container's name and port, like `immich-server:2283`. A route that follows
+  its container changes by itself when the stack starts.
 
 ---
 
 ## Moving Loskai itself
 
-Different question from the one above: not adopting a project, but relocating the whole
-install. All of Loskai's own state lives in two directories beside the compose file —
-`data/` (settings, instances, accounts, logs, session secret, Loskai's SSH keys, recipes
-and their cache) and `stacks/` (the managed stacks). There is no database and nothing in `/opt`.
+All of Loskai's state is in two folders beside its compose file: `data/`, everything Loskai
+stores, and `stacks/`, the stacks. Plus the `.env` file, if you made one.
 
-### To a new path on the same machine — safe
-
-Stop everything, move the directory, bring it back up:
+### To another folder on the same machine
 
 ```bash
 docker compose down
@@ -249,69 +207,41 @@ mv ~/loskai /srv/loskai
 cd /srv/loskai && docker compose up -d
 ```
 
-Nothing needs editing. `STACKS_DIR` defaults to `./stacks` beside the compose file, so it
-re-resolves at the new location and the same-path mount still holds. Verified end to end
-on a stack carrying both a relative bind and a named volume:
+Nothing needs changing: `stacks/` is found beside the compose file wherever it is, and each
+stack keeps its data. **Don't rename a stack's folder**, though: its name is the project's, and
+`immich/` renamed to `photos/` starts with empty volumes, looking healthy.
 
-| | before | after |
-|---|---|---|
-| relative bind | `<old>/stacks/demo/payload` | `<new>/stacks/demo/payload` |
-| named volume | `demo_dbdata` | `demo_dbdata` |
+### To another machine
 
-Both kept their data. The bind follows because it resolves against the compose file; the
-named volume reattaches because Compose derives the project name from the **stack
-directory's basename**, which the move didn't change.
+Copy the folder, with `data/`, `stacks/` and `.env`, and start it. Then three things:
 
-> **Don't rename a stack's directory.** That basename *is* the project name. Renaming
-> `immich/` to `photos/` orphans the `immich_*` volumes and Compose creates empty
-> `photos_*` ones — the stack comes up looking healthy with no data. Move the folder
-> anywhere you like; leave its name alone.
+1. **Docker volumes don't come along.** They live in Docker's own storage, not in `stacks/`,
+   so a stack whose database is in a volume starts healthy and empty. Copy each across:
 
-### To a new machine — three things bite
+   ```bash
+   # on the old machine, per volume
+   docker run --rm -v immich_dbdata:/from -v "$PWD":/to alpine tar czf /to/immich_dbdata.tgz -C /from .
+   # on the new one, after `docker compose up -d` has made the empty volume
+   docker run --rm -v immich_dbdata:/to -v "$PWD":/from alpine tar xzf /from/immich_dbdata.tgz -C /to
+   ```
 
-**1. Named volumes do not travel.** They live in `/var/lib/docker/volumes/`, not in
-`stacks/`, so `mv`-ing the folders carries the compose files and every *relative* bind
-while silently leaving the databases behind. Most real stacks keep Postgres in a named
-volume, so the stack comes up healthy and empty. Migrate them explicitly:
-
-```bash
-# on the old machine, per volume
-docker run --rm -v immich_dbdata:/from -v "$PWD":/to alpine tar czf /to/immich_dbdata.tgz -C /from .
-# on the new one, after `docker compose up -d` has created the empty volume
-docker run --rm -v immich_dbdata:/to -v "$PWD":/from alpine tar xzf /from/immich_dbdata.tgz -C /to
-```
-
-Or convert those stacks to relative binds first, so the data lives inside `stacks/` and
-moves with everything else.
-
-**2. Stored upstreams pin the old host IP.** Each instance records its upstream verbatim
-in `data/instances.json`, e.g. `192.168.10.220:8081`, and `host_ip` / `caddy_host_ip` sit
-in `data/settings.json`. On a machine with a different LAN IP all of them are wrong and
-every route returns a `502`. Fix `host_ip` (**Docker Host LAN IP**, Settings → General)
-and `caddy_host_ip` (**LAN IP** under Caddy, Settings → Network) first, then repoint each
-route with **Change URL** on the Routing tab — there is no bulk re-derive. Containers
-reachable by name (split DNS, on `loskai-edge`) are unaffected; they were never pinned to an
-address.
-
-Machines accept Loskai's SSH keys only `from=` the old host's IP, so after fixing the Docker
-Host LAN IP, run **SSH setup** again in each machine's dialog, under SSH.
-
-**3. `.env` is in neither directory.** It sits beside the compose file, not inside `data/`
-or `stacks/`. Settings made in the UI live in `settings.json` and travel with `data/`, but
-the env-only ones — `STACKS_DIR`, `LOSKAI_USERNAME` and `LOSKAI_PASSWORD` — do not, nor does
-any value set in `.env`: it is read from there, never written to `settings.json`. Copy
-`.env` across too, or re-enter what you need. (`LOSKAI_DATA_DIR` needs no copying: it is set in the compose file
-beside the mount it has to match, so it travels with that.)
+   Or change those stacks to relative folders first, so their data is in `stacks/` and moves
+   with it.
+2. **Routes point at the old machine's address**, and give `502`. Set **Docker Host LAN IP**
+   in **Settings** › **General**, and Caddy's **LAN IP** in **Settings** › **Network**, to the
+   new address. One set in `.env` (`HOST_IP`, `CADDY_HOST_IP`) is changed there. Then restart
+   Loskai, `docker compose restart loskai`: routes that follow their container are rewritten
+   as it starts. Change the others with their pencil (**Change URL**) on **Routing**.
+3. **Your machines let Loskai in only from the old address.** Run **SSH setup** again in each
+   machine's dialog, under **SSH**.
 
 ---
 
-## Verify
+## Check it
 
-- The stack shows on the Docker tab among the managed stacks, **up**, with its containers
-  running — no longer under Other containers.
-- If the service had an assigned URL, confirm it still resolves (the route is tied to the
-  container's upstream, not to the folder location).
+- The stack is on the **Docker** tab under **Stacks**, its pill **up**, and no longer under
+  **Other containers**.
+- Its name opens as before.
 
-**Rollback** — if you copied, the original is untouched: stop the new stack, delete it, and
-start the original again. If you moved the folder, move it back and bring it up there.
-Nothing else needs undoing — Loskai stores no stack state of its own, beyond the route.
+**To go back:** if you copied, the original is untouched. Delete the new stack, without its
+data, and start the original again. If you moved it, move it back and start it there.
