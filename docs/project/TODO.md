@@ -4,10 +4,12 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 62** (below) — fixes found while rewriting Using Loskai — is open, before
-60d. **Phase 61** (below) — a first-run setup page, and the recipe list fetched the first time
-it opens — is done, merged on 2026-11-16. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is open: the
-README first, then the guides. **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
+**Now:** **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
+done on 2026-11-18, every guide followed on the demo homelab where it could be; what wasn't
+(Proxmox, real phones, a Tailscale account) is in each page's step. **Phase 62** — the fixes
+that pass found, and Caddy and AdGuard by a `.loskai.internal` name — is done too; its
+*Seen, not taken up* list waits for Sunde. **Phase 61** (below) — a first-run setup page, and
+the recipe list fetched the first time it opens — is done, merged on 2026-11-16. **Phase 59** (below) — the Simply Sunde look, Loskai's default, beside the legacy one — is done,
 merged on 2026-11-15. **Phase 58** — help is in `Hint`s
 a phone can open, not `title` tooltips — is done, merged on 2026-11-15. **Phase 57** — the rename pass, names only — is done, merged on 2026-11-15. **Phase 56** (below) gave a machine's SSH keys a place — a plain list in its SSH settings, git's side in Git's Keys — written down after the fact; its check on Sunde's machines is left. **Phase 55** put every machine's projects in one dialog. **Phase 54** gave Claude Code's card Start, Attach and Stop, following each session — its check through the page on a real machine is left. **Phase 49** gave a project's git to the Git tool; Phase 48
 fixed the open bugs before a release; Phase 47 split the big files where a seam is. Phases
