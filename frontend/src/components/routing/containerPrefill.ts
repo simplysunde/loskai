@@ -9,7 +9,7 @@ export interface PrefillSource {
   name: string;
   suggested_upstream?: string | null;
   // The host half, known even when the port is not (host networking, several published
-  // ports): the Docker host's IP, or the service name when Caddy shares the network.
+  // ports): the Docker host's IP, or the service name on the network Caddy shares with it.
   suggested_host?: string | null;
   // The linked instance's id — for a recipe install, the recipe's own name.
   instance_id?: string | null;

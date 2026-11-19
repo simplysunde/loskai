@@ -4,6 +4,25 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-19 — Caddy dials a container by its name on the network (Phase 62h)
+
+The fall-through 62g closed for Loskai reaching Caddy and AdGuard was still open one step
+on: a container on a network Caddy shares (`loskai-edge`, layout B) was routed as
+`jellyfin:8096`, and with the container gone Docker's DNS passes `jellyfin` to the LAN's,
+where a machine of that name gets the route's traffic — the user's session cookies with it.
+
+Aliases like 62g's can't be given here: they belong in the compose file, and these are the
+user's stacks. Docker's DNS also answers `<name>.<network>` — checked on Docker 29.10, for a
+container name and a network alias, and NXDOMAIN with the container gone — and no machine on
+a LAN has a hostname with the network's in it. So `logic._dial_host_port` takes the network
+Caddy shares (`shared_network`, the first by name when there are several, so a following
+route doesn't flap) in place of the `docker`/`lan` mode, and on one dials
+`<service>.<network>`; with none it dials the published port. A bare name can't be produced
+any more, and an unset network is the published-port form, where an unset mode had been
+the name form. `upstream_mode` stays as the API's word for the frontend's copy. Routes that
+follow their container are rewritten by the follower; one set by hand keeps its old address
+until it is changed.
+
 ## 2026-11-18 — Issues welcome, pull requests not: Loskai is a personal project
 
 `CONTRIBUTING.md` read as an invitation: "Before you open a pull request", checks to run for

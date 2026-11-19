@@ -234,11 +234,12 @@ def matches_hostname(
     return h in {a.lower() for a in network_aliases(attrs)}
 
 
-def shares_docker_network(
+def shared_network(
     caddy_networks: set[str] | None, container_networks: set[str] | None
-) -> bool:
-    """Whether Caddy can dial this container by name — i.e. they share a network Docker's
-    embedded DNS actually serves.
+) -> str | None:
+    """The network Caddy can dial this container on by name — one they share that Docker's
+    embedded DNS serves — or None. The first by name when they share several, so the
+    upstream a route follows doesn't change between listings.
 
     `host` and `none` are subtracted rather than intersected. Two containers on
     `network_mode: host` both report `{"host"}`, and a plain intersection would read that as
@@ -249,29 +250,24 @@ def shares_docker_network(
     An unknown Caddy (`None`) shares nothing: it is not a container this daemon can see.
     """
     if caddy_networks is None:
-        return False
-    return bool(
-        (caddy_networks - NON_RESOLVING_NETWORKS)
-        & ((container_networks or set()) - NON_RESOLVING_NETWORKS)
+        return None
+    shared = (caddy_networks - NON_RESOLVING_NETWORKS) & (
+        (container_networks or set()) - NON_RESOLVING_NETWORKS
     )
+    return min(shared) if shared else None
 
 
-def upstream_mode(
-    caddy_networks: set[str] | None, container_networks: set[str] | None
-) -> str:
-    """How Caddy has to dial one container: `docker` (by name) or `lan` (published port).
+def upstream_mode(network: str | None) -> str:
+    """How Caddy has to dial one container, given `shared_network`'s answer: `docker` (by
+    name) or `lan` (published port) — the word the frontend's hint copy reads.
 
-    This is the Phase 16 Stage A fix. It replaces `caddy_mode`, which answered "is
-    CADDY_ADMIN_URL's host an IP?" — a *per-deployment* answer to a *per-container*
-    question. The two diverge whenever Caddy is a container beside managed stacks: Compose
-    isolates every project on its own `<project>_default`, so Caddy resolves names in its
-    own project and nowhere else, and a `name:port` pre-filled for a managed stack 502s.
-
-    An unresolvable Caddy falls to `lan`, never to the name form. It means Caddy is not a
-    container this daemon can see — an external LXC, or a hostname pointing off-box — and in
-    every one of those cases the published host port is the reachable answer.
+    Per container, not per deployment (Phase 16 Stage A): Compose isolates every project on
+    its own `<project>_default`, so Caddy beside Loskai resolves names in its own project
+    and nowhere else, and a `name:port` pre-filled for a managed stack 502s. A Caddy this
+    daemon can't see — an external LXC, a hostname pointing off-box — shares nothing, and
+    the published host port is the reachable answer.
     """
-    return "docker" if shares_docker_network(caddy_networks, container_networks) else "lan"
+    return "docker" if network else "lan"
 
 
 # The one Loskai-specific label a container can carry: the port its service listens on, as
@@ -296,17 +292,21 @@ def _dial_host_port(
     container_name: str,
     service: str | None,
     ports: dict | None,
-    mode: str | None,
+    network: str | None,
     host_ip: str | None,
     labels: dict | None,
     host_network: bool,
 ) -> tuple[str | None, str | None]:
     """`(host, port)` Caddy dials for this container — either half may be None. The single
-    resolver behind `suggested_host` and `suggested_upstream`, so they cannot disagree."""
+    resolver behind `suggested_host` and `suggested_upstream`, so they cannot disagree.
+
+    On a shared network the name is qualified with it — `grafana.loskai-edge`, never bare
+    `grafana`. Docker's DNS answers both while the container runs, but with it gone a bare
+    name goes on to the LAN's DNS, and a machine there called `grafana` would get the
+    route's traffic; no machine on a LAN has a name with the network in it."""
     label = label_port(labels)
-    if mode != "lan":
-        # Shared network: Docker DNS resolves the name; the port is the container's own.
-        return service or container_name, label or suggested_container_port(ports)
+    if network:
+        return f"{service or container_name}.{network}", label or suggested_container_port(ports)
     if label and host_network:
         # The container is in the host's own namespace: its port *is* a host port.
         return host_ip, label
@@ -325,30 +325,30 @@ def suggested_host(
     container_name: str,
     service: str | None,
     ports: dict | None,
-    mode: str | None = None,
+    network: str | None = None,
     host_ip: str | None = None,
     labels: dict | None = None,
     host_network: bool = False,
 ) -> str | None:
     """The host half of an upstream — which is known far more often than the port.
 
-    `lan`: the concrete IP a port was published to, else the configured `host_ip`. That is
-    the Docker host itself, so it holds even when no single port can be named: a
-    host-networked container publishes nothing at all, and several published ports are
-    ambiguous, but either way Caddy dials the same host. `docker`: the service name (else
-    the container name), which Docker DNS resolves on the shared network.
+    No shared `network`: the concrete IP a port was published to, else the configured
+    `host_ip`. That is the Docker host itself, so it holds even when no single port can be
+    named: a host-networked container publishes nothing at all, and several published ports
+    are ambiguous, but either way Caddy dials the same host. On a shared network: the
+    service name (else the container name), qualified with the network.
 
-    None only in `lan` mode with no `host_ip` configured — a bridged Loskai cannot detect
-    its own host's LAN IP.
+    None only off a shared network with no `host_ip` configured — a bridged Loskai cannot
+    detect its own host's LAN IP.
     """
-    return _dial_host_port(container_name, service, ports, mode, host_ip, labels, host_network)[0]
+    return _dial_host_port(container_name, service, ports, network, host_ip, labels, host_network)[0]
 
 
 def suggested_upstream(
     container_name: str,
     service: str | None,
     ports: dict | None,
-    mode: str | None = None,
+    network: str | None = None,
     host_ip: str | None = None,
     labels: dict | None = None,
     host_network: bool = False,
@@ -357,16 +357,15 @@ def suggested_upstream(
     forms' pre-fill and what a route that follows its container is rewritten to — one
     function, so the two cannot drift.
 
-    In `docker` mode (Caddy shares the Docker network) this is `<service-or-name>:<port>` —
-    the name resolves to the container's network IP via Docker DNS (robust across restarts).
+    On a `network` Caddy shares this is `<service-or-name>.<network>:<port>` — Docker DNS
+    resolves it to the container's IP on that network (robust across restarts).
 
-    In `lan` mode Caddy runs on its own LXC and *cannot* resolve container names, so it needs
-    the Docker host's LAN IP + the *published host port*: `<host_ip>:<host_port>`.
+    Off one, Caddy cannot resolve container names, so it needs the Docker host's LAN IP +
+    the *published host port*: `<host_ip>:<host_port>`.
 
     A `loskai.port` label names the port when Docker can't (host networking) or can't choose
-    (several published), and is resolved to whatever Caddy dials. `mode` unset falls back to
-    the docker-name form (co-located default)."""
-    host, port = _dial_host_port(container_name, service, ports, mode, host_ip, labels, host_network)
+    (several published), and is resolved to whatever Caddy dials."""
+    host, port = _dial_host_port(container_name, service, ports, network, host_ip, labels, host_network)
     return f"{host}:{port}" if host and port else None
 
 
@@ -382,7 +381,7 @@ def published_upstream(
     `lan` dial, the Docker host and the published port, never a Docker service name. None
     for a port published only on loopback: that address opens on the viewer's own device,
     and the port isn't reachable at the Docker host's LAN IP either."""
-    host, port = _dial_host_port(container_name, service, ports, "lan", host_ip, labels, host_network)
+    host, port = _dial_host_port(container_name, service, ports, None, host_ip, labels, host_network)
     if not host or not port:
         return None
     try:

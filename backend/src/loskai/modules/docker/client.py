@@ -77,7 +77,7 @@ class DockerClient:
             state = attrs.get("State", {})
             running = c.status == "running"
             labels = c.labels or {}
-            upstream_mode = logic.upstream_mode(caddy_nets, logic.container_networks(attrs))
+            network = logic.shared_network(caddy_nets, logic.container_networks(attrs))
             service = labels.get("com.docker.compose.service")
             ports = (attrs.get("NetworkSettings") or {}).get("Ports")
             host_network = "host" in logic.container_networks(attrs)
@@ -100,9 +100,9 @@ class DockerClient:
                 # How Caddy has to dial *this* container, decided from the networks the
                 # two actually share — not from a deployment-wide guess. See
                 # logic.upstream_mode; the frontend uses it for the upstream hint copy.
-                "upstream_mode": upstream_mode,
+                "upstream_mode": logic.upstream_mode(network),
                 "suggested_upstream": logic.suggested_upstream(
-                    c.name, service, ports, upstream_mode, host_ip, labels, host_network
+                    c.name, service, ports, network, host_ip, labels, host_network
                 ),
                 # Where anything on the LAN reaches it — a browser, a link (Phase 45): the
                 # Docker host and the published port, whatever Caddy uses. The same as
@@ -113,7 +113,7 @@ class DockerClient:
                 # The half that is known even when the port is not — the form pre-fills
                 # `<host>:` and leaves only the port to type.
                 "suggested_host": logic.suggested_host(
-                    c.name, service, ports, upstream_mode, host_ip, labels, host_network
+                    c.name, service, ports, network, host_ip, labels, host_network
                 ),
             }
             out.append(summary)
@@ -148,7 +148,7 @@ class DockerClient:
         """Caddy's attached networks, or None when no container answers to `caddy_admin_host`.
 
         None is the honest answer for layout A (Caddy on its own LXC) and for any hostname
-        pointing off-box — logic.upstream_mode reads it as "not reachable by name".
+        pointing off-box — logic.shared_network reads it as "not reachable by name".
         """
         if not caddy_admin_host:
             return None

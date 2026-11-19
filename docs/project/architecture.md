@@ -205,9 +205,10 @@ Loskai's own back in the same call.
 by both route forms (`RouteFields`). The host takes any address, and its list offers the
 Docker host, the picked container's host and the named machines — picking one types its
 address in, nothing more. For a
-container the form pre-fills through `containerPrefill`: `<service>:<port>` when Caddy
-shares a Docker network with the container (Compose isolates projects, so this is decided
-per container), `<host_ip>:<published port>` otherwise, or just `<host>:` when the port is
+container the form pre-fills through `containerPrefill`: `<service>.<network>:<port>` when
+Caddy shares a Docker network with the container (Compose isolates projects, so this is
+decided per container; the network is in the name because a bare name Docker's DNS doesn't
+know — the container is down — goes on to the LAN's, where a machine of that name answers), `<host_ip>:<published port>` otherwise, or just `<host>:` when the port is
 ambiguous. A `loskai.port` label names a port Docker can't see or can't choose; without one,
 the port is the container's single published or exposed one (`logic._dial_host_port`).
 Caddy's container is found from `CADDY_ADMIN_URL`'s host by container name, compose

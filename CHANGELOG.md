@@ -3,6 +3,13 @@
 What changed for someone running Loskai, newest first. The reasons behind each change are
 in [`HISTORY.md`](docs/project/HISTORY.md).
 
+## Unreleased
+
+- **A container on Caddy's network** (`loskai-edge`, layout B) is routed by its name on that
+  network, like `grafana.loskai-edge:3000`, where it was `grafana:3000`. While the container
+  was down, a machine on your network called `grafana` could get the route's traffic. A
+  route that follows its container changes by itself; one set by hand, change its address.
+
 ## 0.1.1 — 2026-11-19
 
 - **Sync** says what didn't sync — "Caddy can't be reached", then the error, once for the

@@ -101,6 +101,12 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
       removed became a link on its own row; the new titles, banner and delete dialogs; the
       icon's × at 390 px, tapped, removed it. And the sudo rule: switched off with no
       password, `/etc/sudoers.d/loskai` gone from the machine
+- [x] 62h Caddy dials a container on a network it shares as `<service>.<network>:<port>`
+      (`jellyfin.loskai-edge:8096`), never the bare name — the same fall-through as 62g, for
+      routes (HISTORY, 2026-11-19)
+      — live, on a scratch network: Caddy proxied `caddy.lskprobe:80` to a container with
+      the alias `caddy`; with it removed, that name was NXDOMAIN and Caddy answered `502`,
+      where bare `caddy` from the same Caddy resolved to `caddy.lan`, 192.168.1.177
 
 **Seen, not taken up** (from the same reading — for Sunde to decide):
 
@@ -113,8 +119,6 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
   Account keys says "None.".
 - Picking Proxmox from Add route's Machines list fills the prefix `pveproxy`, and leaves
   **Backend speaks HTTPS** unticked.
-- Caddy dials a docker-mode upstream (`jellyfin:8096`) by its bare name too: with the
-  container gone, a LAN machine of that name gets the traffic. Same fall-through as 62g.
 - **Caddy's `:80` certificate page** (`caddy/setup/index.html`), kept in step with the
   Certificate page by hand: Sunde, 2026-11-18, "we really dont need to maintain the caddy
   local site". A candidate for removal — what it gives is the page while Loskai is down.

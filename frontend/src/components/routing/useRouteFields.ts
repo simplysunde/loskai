@@ -76,7 +76,7 @@ export function useRouteFields({
     portOk,
     upstreamOk: hostOk && portOk,
     valid: prefixOk && hostOk && portOk,
-    hostHint: upstreamMode === "docker" ? "jellyfin" : "192.168.10.100",
+    hostHint: upstreamMode === "docker" ? "jellyfin.loskai-edge" : "192.168.10.100",
     upstreamHelp:
       upstreamMode === "docker"
         ? "Caddy shares a Docker network with this container, so it can dial it by name."

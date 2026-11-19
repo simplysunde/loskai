@@ -82,7 +82,7 @@ test("the HTTPS-backend checkbox sets upstream_tls", () => {
 
 test("uses the Docker upstream hint in docker mode", () => {
   renderModal({ upstreamMode: "docker" });
-  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
+  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin.loskai-edge");
 });
 
 test("prefills prefix, upstream, and TLS when re-assigning an instance", () => {

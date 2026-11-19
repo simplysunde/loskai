@@ -89,7 +89,8 @@ machine, run C. The reasoning in full:
 ## Routing a container without publishing a port
 
 In layout B, Caddy is on a Docker network called `loskai-edge`. A stack that joins it is
-reached by its name, like `grafana:3000`, and needs no published port. Without it, Caddy
+reached by its name on that network, like `grafana.loskai-edge:3000`, and needs no
+published port. Without it, Caddy
 can't see the stack: Compose gives every stack a network of its own.
 
 1. Bring Loskai's stack up first: it makes `loskai-edge`.
@@ -113,9 +114,13 @@ can't see the stack: Compose gives every stack a network of its own.
 
 3. Click **Save**. The stack starts on both networks.
 4. On **Routing**, **Add route** › **Container**, and pick it. **Host** and **Port** fill in
-   as `grafana` and `3000`.
+   as `grafana.loskai-edge` and `3000`.
 
 The port is the container's own: its `loskai.port` label if it has one, else the one port it
 publishes or exposes. A container with several, and no label, leaves **Port** empty: type it.
+
+The name carries the network so it can't reach the wrong machine. While the container is
+down, plain `grafana` is asked of your network's DNS, and a machine there called `grafana`
+would get the route's traffic; `grafana.loskai-edge` is found only inside Docker.
 
 If the route gives `502`: [502 Bad Gateway](troubleshooting.md#502-bad-gateway).

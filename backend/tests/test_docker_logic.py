@@ -135,63 +135,78 @@ def test_suggested_container_port_ambiguous():
     assert logic.suggested_container_port(ports) is None
 
 
-def test_suggested_upstream_uses_service_name():
+def test_suggested_upstream_uses_service_name_on_the_shared_network():
     ports = {"3000/tcp": [{"HostPort": "3000"}], "53/tcp": None}
-    assert logic.suggested_upstream("loskai-dev-adguard", "adguard", ports) == "adguard:3000"
+    assert logic.suggested_upstream("loskai-dev-adguard", "adguard", ports, "loskai-edge") == (
+        "adguard.loskai-edge:3000"
+    )
     # No compose service -> container name.
-    assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}) == "myapp:8080"
-    assert logic.suggested_upstream("x", "x", {}) is None
-    # Explicit docker mode matches the default.
-    assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}, "docker") == "myapp:8080"
+    assert logic.suggested_upstream("myapp", None, {"8080/tcp": None}, "loskai-edge") == (
+        "myapp.loskai-edge:8080"
+    )
+    assert logic.suggested_upstream("x", "x", {}, "loskai-edge") is None
+
+
+def test_caddy_never_dials_a_bare_container_name():
+    """A bare name Docker's DNS doesn't know — the container is down — goes on to the LAN's
+    DNS, so a machine there called `jellyfin` would get the route's traffic. Qualified
+    with the network, the name resolves only inside Docker; with no network to qualify it,
+    the form is the published port."""
+    ports = {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, "loskai-edge") == (
+        "jellyfin.loskai-edge:8096"
+    )
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports) is None  # no host_ip: unknown
+    assert logic.suggested_host("jellyfin", "jellyfin", ports) is None
 
 
 def test_suggested_upstream_lan_mode_uses_host_ip_and_published_port():
     # Split-LXC: Caddy dials the Docker host's LAN IP + the *published host* port, never the
     # container name (which would 502).
     ports = {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}
-    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, "lan", "192.168.10.50") == (
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, None, "192.168.10.50") == (
         "192.168.10.50:8096"
     )
     # A concrete published bind IP wins over the configured host_ip (no setting needed).
     concrete = {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}
-    assert logic.suggested_upstream("pve", None, concrete, "lan", None) == "192.168.10.9:8006"
+    assert logic.suggested_upstream("pve", None, concrete, None, None) == "192.168.10.9:8006"
     # No host_ip and only 0.0.0.0 bindings -> can't infer a LAN IP -> blank for the user.
-    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, "lan", None) is None
+    assert logic.suggested_upstream("jellyfin", "jellyfin", ports, None, None) is None
     # Ambiguous (several published ports) -> None even with a host_ip.
     two = {"80/tcp": [{"HostPort": "80"}], "443/tcp": [{"HostPort": "443"}]}
-    assert logic.suggested_upstream("web", None, two, "lan", "192.168.10.50") is None
+    assert logic.suggested_upstream("web", None, two, None, "192.168.10.50") is None
 
 
 def test_suggested_host_is_known_when_the_port_is_not():
     """The case that left the Assign form empty: Bambuddy runs with host networking, so
     Docker reports no ports at all — but Caddy still dials the Docker host, whose IP is
     configured. The host half is known; only the port is left to type."""
-    assert logic.suggested_upstream("bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.50") is None
-    assert logic.suggested_host("bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.50") == (
+    assert logic.suggested_upstream("bambuddy-bambuddy-1", "bambuddy", {}, None, "192.168.10.50") is None
+    assert logic.suggested_host("bambuddy-bambuddy-1", "bambuddy", {}, None, "192.168.10.50") == (
         "192.168.10.50"
     )
     # Several published ports: ambiguous port, same host.
     two = {"80/tcp": [{"HostPort": "80"}], "443/tcp": [{"HostPort": "443"}]}
-    assert logic.suggested_host("web", None, two, "lan", "192.168.10.50") == "192.168.10.50"
+    assert logic.suggested_host("web", None, two, None, "192.168.10.50") == "192.168.10.50"
 
 
 def test_suggested_host_follows_the_same_rules_as_the_full_upstream():
     # A concrete bind IP wins over the configured host_ip, as for suggested_upstream.
     concrete = {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}
-    assert logic.suggested_host("pve", None, concrete, "lan", "192.168.10.50") == "192.168.10.9"
-    # docker mode: the service name, else the container name — never an IP.
-    assert logic.suggested_host("app-web-1", "web", {}, "docker", "192.168.10.50") == "web"
-    assert logic.suggested_host("myapp", None, {}) == "myapp"
-    # The one unknowable case: lan mode with no host_ip configured.
-    assert logic.suggested_host("jellyfin", "jellyfin", {}, "lan", None) is None
+    assert logic.suggested_host("pve", None, concrete, None, "192.168.10.50") == "192.168.10.9"
+    # On a shared network: the service name, else the container name — never an IP.
+    assert logic.suggested_host("app-web-1", "web", {}, "edge", "192.168.10.50") == "web.edge"
+    assert logic.suggested_host("myapp", None, {}, "edge") == "myapp.edge"
+    # The one unknowable case: no shared network and no host_ip configured.
+    assert logic.suggested_host("jellyfin", "jellyfin", {}, None, None) is None
 
 
 def test_a_full_suggestion_is_always_the_host_plus_a_port():
     """suggested_upstream is built from suggested_host, so the two cannot disagree."""
     cases = [
-        ("jellyfin", "jellyfin", {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}, "lan", "192.168.10.50"),
-        ("pve", None, {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}, "lan", None),
-        ("adguard", "adguard", {"3000/tcp": [{"HostPort": "3000"}]}, "docker", None),
+        ("jellyfin", "jellyfin", {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}, None, "192.168.10.50"),
+        ("pve", None, {"8006/tcp": [{"HostIp": "192.168.10.9", "HostPort": "8006"}]}, None, None),
+        ("adguard", "adguard", {"3000/tcp": [{"HostPort": "3000"}]}, "loskai-edge", None),
     ]
     for args in cases:
         full = logic.suggested_upstream(*args)
@@ -207,7 +222,7 @@ def test_host_networking_with_a_port_label_is_fully_dialable():
     """Bambuddy with its label: nothing published, but the label names the port, and in
     the host's own namespace a container port is a host port."""
     assert logic.suggested_upstream(
-        "bambuddy-bambuddy-1", "bambuddy", {}, "lan", "192.168.10.220", LABEL, host_network=True
+        "bambuddy-bambuddy-1", "bambuddy", {}, None, "192.168.10.220", LABEL, host_network=True
     ) == "192.168.10.220:8000"
 
 
@@ -215,7 +230,7 @@ def test_a_label_resolves_to_its_published_host_port_in_lan_mode():
     """The label is the container-side port; off-box, Caddy dials what it's published as."""
     ports = {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8081"}]}
     assert logic.suggested_upstream(
-        "web", None, ports, "lan", "192.168.10.50", {"loskai.port": "80"}
+        "web", None, ports, None, "192.168.10.50", {"loskai.port": "80"}
     ) == "192.168.10.50:8081"
 
 
@@ -226,24 +241,26 @@ def test_a_label_picks_one_port_out_of_several():
         "9000/tcp": [{"HostPort": "9000"}],
     }
     # Without it: ambiguous.
-    assert logic.suggested_upstream("app", None, ports, "lan", "192.168.10.50") is None
+    assert logic.suggested_upstream("app", None, ports, None, "192.168.10.50") is None
     assert logic.suggested_upstream(
-        "app", None, ports, "lan", "192.168.10.50", {"loskai.port": "9000"}
+        "app", None, ports, None, "192.168.10.50", {"loskai.port": "9000"}
     ) == "192.168.10.50:9000"
 
 
 def test_a_label_naming_an_unpublished_port_is_not_dialable_off_box():
     ports = {"80/tcp": [{"HostPort": "8081"}], "3000/tcp": None}
     labels = {"loskai.port": "3000"}
-    assert logic.suggested_upstream("app", None, ports, "lan", "192.168.10.50", labels) is None
+    assert logic.suggested_upstream("app", None, ports, None, "192.168.10.50", labels) is None
     # The host is still known.
-    assert logic.suggested_host("app", None, ports, "lan", "192.168.10.50", labels) == "192.168.10.50"
+    assert logic.suggested_host("app", None, ports, None, "192.168.10.50", labels) == "192.168.10.50"
 
 
 def test_on_a_shared_network_the_label_is_the_port_by_name():
     exposed = {"3000/tcp": None, "3002/tcp": None, "8000/tcp": None}
-    assert logic.suggested_upstream("x", "bambuddy", exposed, "docker") is None  # ambiguous
-    assert logic.suggested_upstream("x", "bambuddy", exposed, "docker", None, LABEL) == "bambuddy:8000"
+    assert logic.suggested_upstream("x", "bambuddy", exposed, "edge") is None  # ambiguous
+    assert logic.suggested_upstream("x", "bambuddy", exposed, "edge", None, LABEL) == (
+        "bambuddy.edge:8000"
+    )
 
 
 def test_an_invalid_label_is_ignored_not_trusted():
@@ -252,7 +269,7 @@ def test_an_invalid_label_is_ignored_not_trusted():
         assert logic.label_port({"loskai.port": bad}) is None
         # Falls back to the unlabelled answer.
         assert logic.suggested_upstream(
-            "web", None, ports, "lan", "192.168.10.50", {"loskai.port": bad}
+            "web", None, ports, None, "192.168.10.50", {"loskai.port": bad}
         ) == "192.168.10.50:8081"
 
 
@@ -308,52 +325,60 @@ def test_orphaned_instances_ignores_external_and_containerless():
 
 def test_shares_network_only_when_a_resolving_network_is_common():
     # Caddy's own compose project — resolvable by name.
-    assert logic.shares_docker_network({"loskai_default"}, {"loskai_default"}) is True
+    assert logic.shared_network({"loskai_default"}, {"loskai_default"}) == "loskai_default"
     # A managed stack on its own project network — the case that 502s today.
-    assert logic.shares_docker_network({"loskai_default"}, {"media_default"}) is False
+    assert logic.shared_network({"loskai_default"}, {"media_default"}) is None
     # A stack deliberately joined to the shared edge network (Phase 16 Stage B).
-    assert logic.shares_docker_network(
+    assert logic.shared_network(
         {"loskai_default", "loskai-edge"}, {"media_default", "loskai-edge"}
-    ) is True
+    ) == "loskai-edge"
+
+
+def test_of_several_shared_networks_the_same_one_is_always_chosen():
+    """A route following its container is rewritten whenever the derived upstream differs —
+    so the choice can't depend on set order."""
+    assert logic.shared_network({"b", "a", "c"}, {"c", "a"}) == "a"
 
 
 def test_host_networking_is_never_treated_as_shared():
     """D2: two containers on network_mode: host both report {"host"}, so a plain
     intersection would call that shared — but host networking has no embedded DNS, so
     name:port would not resolve. They are reachable at the published host port instead."""
-    assert logic.shares_docker_network({"host"}, {"host"}) is False
-    assert logic.shares_docker_network({"host"}, {"media_default"}) is False
-    assert logic.shares_docker_network({"loskai_default"}, {"host"}) is False
+    assert logic.shared_network({"host"}, {"host"}) is None
+    assert logic.shared_network({"host"}, {"media_default"}) is None
+    assert logic.shared_network({"loskai_default"}, {"host"}) is None
     # `none` (no networking at all) is excluded on the same grounds.
-    assert logic.shares_docker_network({"none"}, {"none"}) is False
+    assert logic.shared_network({"none"}, {"none"}) is None
 
 
 def test_unknown_caddy_shares_nothing():
     """Caddy isn't a container this daemon can see — an external LXC, or a hostname
     pointing off-box. Either way there is no shared network to find."""
-    assert logic.shares_docker_network(None, {"media_default"}) is False
-    assert logic.shares_docker_network({"loskai_default"}, None) is False
+    assert logic.shared_network(None, {"media_default"}) is None
+    assert logic.shared_network({"loskai_default"}, None) is None
 
 
 def test_upstream_mode_is_per_container():
     """One deployment, two containers, two different correct answers — which is precisely
     what a single deployment-wide `mode` could not express."""
     caddy = {"loskai_default"}
-    assert logic.upstream_mode(caddy, {"loskai_default"}) == "docker"
-    assert logic.upstream_mode(caddy, {"media_default"}) == "lan"
+    assert logic.upstream_mode(logic.shared_network(caddy, {"loskai_default"})) == "docker"
+    assert logic.upstream_mode(logic.shared_network(caddy, {"media_default"})) == "lan"
 
 
 def test_unknown_caddy_falls_back_to_lan_not_the_name_form():
     """The fallback direction matters: guessing name:port for an unreachable Caddy is the
     exact failure being fixed, while the published host port works from anywhere."""
-    assert logic.upstream_mode(None, {"media_default"}) == "lan"
+    assert logic.upstream_mode(logic.shared_network(None, {"media_default"})) == "lan"
 
 
-def test_upstream_mode_feeds_suggested_upstream_end_to_end():
+def test_shared_network_feeds_suggested_upstream_end_to_end():
     ports = {"3000/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3000"}]}
-    shared = logic.upstream_mode({"edge"}, {"edge"})
-    assert logic.suggested_upstream("stack-grafana-1", "grafana", ports, shared) == "grafana:3000"
-    isolated = logic.upstream_mode({"loskai_default"}, {"media_default"})
+    shared = logic.shared_network({"edge"}, {"edge"})
+    assert logic.suggested_upstream("stack-grafana-1", "grafana", ports, shared) == (
+        "grafana.edge:3000"
+    )
+    isolated = logic.shared_network({"loskai_default"}, {"media_default"})
     assert logic.suggested_upstream(
         "stack-grafana-1", "grafana", ports, isolated, "192.168.10.50"
     ) == "192.168.10.50:3000"
@@ -456,7 +481,7 @@ def test_a_link_s_address_is_the_published_port_never_loopback(bind, expected):
 
 
 def test_a_link_s_address_is_never_a_service_name():
-    # Where Caddy would dial `web:80` on a shared network, a browser gets the host's port.
+    # Where Caddy would dial `web.edge:80` on a shared network, a browser gets the host's port.
     ports = {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]}
-    assert logic.suggested_upstream("web-1", "web", ports, "docker", "192.168.10.220") == "web:80"
+    assert logic.suggested_upstream("web-1", "web", ports, "edge", "192.168.10.220") == "web.edge:80"
     assert logic.published_upstream("web-1", "web", ports, "192.168.10.220") == "192.168.10.220:8080"

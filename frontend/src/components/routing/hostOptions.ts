@@ -27,7 +27,7 @@ export function hostOptions({
     else options.push({ address, label });
   };
   add(dockerHost, "Docker host");
-  // On a shared Docker network this is the service name; off it, the Docker host again.
+  // On a shared Docker network this is the service name on it; off it, the Docker host again.
   add(containerHost, "This container");
   rows
     .filter((r) => isMachine(r) && r.upstream)

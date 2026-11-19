@@ -189,7 +189,8 @@ stack can be routed without publishing a port at all: join it to Caddy's network
   address breaks: it is reached only through its route, and from containers on the same
   network.
 - **A route set by hand needs its address changed:** on **Routing**, its pencil (**Change
-  URL**), to the container's name and port, like `immich-server:2283`. A route that follows
+  URL**), to the container's name on that network and its port, like
+  `immich-server.loskai-edge:2283`. A route that follows
   its container changes by itself when the stack starts.
 
 ---

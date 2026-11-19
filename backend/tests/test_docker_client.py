@@ -165,7 +165,7 @@ def test_upstream_uses_the_name_form_only_on_a_shared_network(monkeypatch, data_
 
     rows = {r["name"]: r for r in DockerClient().list_containers(caddy_admin_host="caddy")}
 
-    assert rows["grafana"]["suggested_upstream"] == "grafana:80"
+    assert rows["grafana"]["suggested_upstream"] == "grafana.loskai_default:80"
     assert rows["grafana"]["upstream_mode"] == "docker"
     # The 502 this phase exists to stop: Caddy cannot resolve a name in another project.
     assert rows["sonarr"]["upstream_mode"] == "lan"

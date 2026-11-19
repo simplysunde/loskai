@@ -317,7 +317,7 @@ test("Clear drops a picked container: its mode, its fields and its link", async 
   fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
   // Back to the deployment-wide "docker" hint — a stale lan hint would misdescribe it.
-  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
+  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin.loskai-edge");
   expect(prefixInput()).toHaveValue("");
   expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
@@ -335,7 +335,7 @@ test("a pick belongs to its list: showing the other one clears it", async () => 
   fireEvent.click(screen.getByRole("button", { name: /Machines/ }));
 
   // Its mode and fields go with it, and an address typed now is not the container's.
-  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin");
+  expect(hostInput()).toHaveAttribute("placeholder", "jellyfin.loskai-edge");
   expect(prefixInput()).toHaveValue("");
   fireEvent.change(prefixInput(), { target: { value: "tv" } });
   typeUpstream("192.168.10.77", "8080");

@@ -94,7 +94,7 @@ networks:
 
   # The shared edge network, and the one thing no other layout can do: a managed stack that
   # joins it is reachable from Caddy by service name, so it never has to publish a host port.
-  # Loskai detects that per container and pre-fills `name:port` instead of an IP.
+  # Loskai detects that per container and pre-fills `name.loskai-edge:port` instead of an IP.
   #
   # `name:` pins the real network name — Compose would otherwise prefix the project — which
   # is what lets a stack in another project attach to it:
