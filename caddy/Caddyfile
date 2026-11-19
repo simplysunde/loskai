@@ -1,13 +1,13 @@
 # Caddyfile for every Caddy Loskai ships: the Caddy container built from caddy/Dockerfile
 # (compose.caddy-loskai.yml, compose.colocated.yml) and the Caddy LXC, which fetches this
-# file (scripts/create-caddy-lxc.sh). Admin endpoint, TLS setup, and the
-# certificate-onboarding page — no routes. Loskai pushes every specific-host route at runtime
+# file (scripts/create-caddy-lxc.sh). Admin endpoint, TLS setup and the two servers — no
+# routes. Loskai pushes every specific-host route at runtime
 # via the Admin API (in a container, reached as caddy.loskai.internal:2019 on the internal
 # Docker network — never a bare `caddy`, which falls through to the LAN's DNS).
 #
-# TLS is Caddy's internal CA (local_certs) — no domain or ACME/DNS token needed. The
-# onboarding page (served on :80) lets LAN devices trust the internal root once. Public ACME
-# certs were removed deliberately — see caddy/Dockerfile.
+# TLS is Caddy's internal CA (local_certs) — no domain or ACME/DNS token needed. A device
+# trusts its root from Loskai's Certificate page. Public ACME certs were removed
+# deliberately — see caddy/Dockerfile.
 {
 	# Internal to the Docker network — Loskai reaches this as caddy.loskai.internal:2019. Not published.
 	admin 0.0.0.0:2019
@@ -22,28 +22,11 @@ localhost {
 	respond "Loskai's Caddy — nothing is routed here." 404
 }
 
-# Certificate-onboarding page on :80 — plain HTTP so a LAN device can install the internal
-# root before it's trusted. The static page is baked into the image at /srv/setup by
-# caddy/Dockerfile; /data is the caddy-data volume.
+# Gives Caddy the plain-HTTP server Loskai adds a route served over HTTP to, at index 0 —
+# matched before anything here. Any other name is sent on to HTTPS; Caddy reached by its
+# address, which has no certificate, gets the same answer as `localhost`.
 :80 {
-	# A name belongs to HTTPS — or to a plain-HTTP route Loskai pushes at index 0 of this
-	# server, which is matched before anything in this file. Without this first handle the
-	# catch-all below swallowed names, so typing `grafana.example.no` with no scheme landed on
-	# the onboarding page instead of redirecting. The page is for a device reaching Caddy by
-	# its IP, so every other host is sent to HTTPS.
 	@name not header_regexp Host ^(\d{1,3}(\.\d{1,3}){3}|\[[0-9A-Fa-f:.]+\])(:\d+)?$
-	handle @name {
-		redir https://{host}{uri}
-	}
-
-	handle /caddy-root.crt {
-		root * /data/caddy/pki/authorities/local
-		rewrite * /root.crt
-		header Content-Type application/x-x509-ca-cert
-		file_server
-	}
-	handle {
-		root * /srv/setup
-		file_server
-	}
+	redir @name https://{host}{uri}
+	respond "Loskai's Caddy — nothing is routed here." 404
 }

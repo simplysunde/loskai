@@ -44,15 +44,6 @@ If the page says **Nothing to install.**, Caddy doesn't use certificates of its 
 names are trusted already. If it says **Couldn't reach Caddy to fetch the root certificate**:
 [A module shows unreachable](troubleshooting.md#a-module-shows-unreachable).
 
-## When Loskai is down
-
-Caddy has the same page itself, at `http://<caddy-ip>/`: the Caddy LXC's address, or the
-Docker host's when Caddy runs beside Loskai. Use the address: a name there is sent on to
-HTTPS.
-
-If its **caddy-root.crt** isn't found, Caddy hasn't made its root certificate yet. It does the
-first time it serves a name over HTTPS: open one of your names once, then try again.
-
 ## Hiding the tab
 
 **Settings** › **Network** › **Certificate page in the sidebar** decides who sees the
@@ -65,19 +56,6 @@ first time it serves a name over HTTPS: open one of your names once, then try ag
 `CERTIFICATE_TAB` in `.env` sets the same, as `public`, `admin` or `hidden`. Only the link
 moves: `/certificate` opens for everyone, since the certificate is public. Without Caddy
 there is no tab.
-
-## Update Caddy's page
-
-With Caddy beside Loskai, the page comes with Caddy's image: updating Loskai updates it.
-
-A Caddy LXC fetched the page once, when it was made. To update it, in the LXC:
-
-```bash
-REPO_RAW_BASE=https://raw.githubusercontent.com/simplysunde/loskai/main
-curl -fsSL "$REPO_RAW_BASE/caddy/setup/index.html" -o /srv/setup/index.html
-```
-
-Caddy reads the file fresh, so nothing needs restarting.
 
 ---
 

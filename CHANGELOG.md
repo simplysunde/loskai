@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Caddy's own certificate page**, at Caddy's address on port 80, is gone, and with it the
+  Caddy row's link and **Copy cert page link** on **Routing**. Loskai's **Certificate** page
+  is the one place to trust the certificate. Caddy at its address now answers "nothing is
+  routed here"; a name typed there is still sent on to HTTPS.
 - **A container on Caddy's network** (`loskai-edge`, layout B) is routed by its name on that
   network, like `grafana.loskai-edge:3000`, where it was `grafana:3000`. While the container
   was down, a machine on your network called `grafana` could get the route's traffic. A

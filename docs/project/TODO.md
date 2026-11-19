@@ -107,6 +107,8 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
       — live, on a scratch network: Caddy proxied `caddy.lskprobe:80` to a container with
       the alias `caddy`; with it removed, that name was NXDOMAIN and Caddy answered `502`,
       where bare `caddy` from the same Caddy resolved to `caddy.lan`, 192.168.1.177
+- [x] 62i Caddy's `:80` certificate page removed, with its root file and the Caddy pill's
+      link to it (Sunde, 2026-11-19: "remove it"; HISTORY, 2026-11-19)
 
 **Seen, not taken up** (from the same reading — for Sunde to decide):
 
@@ -119,9 +121,6 @@ Loskai itself; Sunde: "Can you do the fixes before we proceed with trubleshootin
   Account keys says "None.".
 - Picking Proxmox from Add route's Machines list fills the prefix `pveproxy`, and leaves
   **Backend speaks HTTPS** unticked.
-- **Caddy's `:80` certificate page** (`caddy/setup/index.html`), kept in step with the
-  Certificate page by hand: Sunde, 2026-11-18, "we really dont need to maintain the caddy
-  local site". A candidate for removal — what it gives is the page while Loskai is down.
 - Other dialogs list what happens underneath, e.g. Turn off SSH ("Loskai's key and its sudo
   rule come off the machine — … then its entry, user and port go, and its host key is
   forgotten"): a sweep under 62's rule.

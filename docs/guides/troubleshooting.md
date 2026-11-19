@@ -158,8 +158,7 @@ route and name back.
 The browser warns that `https://<name>` isn't secure. Each device has to trust Caddy's
 certificate once.
 
-1. On that device, open `http://<docker-host>:8080/certificate`. While Loskai is down,
-   `http://<caddy-ip>/` has the same file.
+1. On that device, open `http://<docker-host>:8080/certificate`.
 2. Download `caddy-root.crt` and follow the steps the page shows for the device.
 
 More, including phones and Firefox: [certificate-setup.md](certificate-setup.md).

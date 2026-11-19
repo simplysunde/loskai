@@ -18,8 +18,7 @@
 #
 # TLS is Caddy's internal CA (local_certs): each name Loskai routes gets its own cert, and
 # Caddy never needs the domain — that is Loskai's setting alone. LAN devices
-# install its root once via the onboarding page at http://<lxc-ip>/ — or Loskai's own
-# /certificate page. Public ACME certs were supported here until 2026-09-27 and removed
+# install its root once from Loskai's Certificate page. Public ACME certs were supported here until 2026-09-27 and removed
 # deliberately (see docs/project/HISTORY.md): Loskai only inserts routes by @id and never writes this
 # Caddyfile, so anyone wanting DNS-01 can add a `tls` block themselves without Loskai caring.
 #
@@ -68,8 +67,7 @@ CT_DISK="${CT_DISK:-4}"
 CT_STORAGE="${CT_STORAGE:-$(detect_storage rootdir local-lvm)}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
 TEMPLATE="${TEMPLATE:-$(detect_template "$TEMPLATE_STORAGE")}"
-# Raw base URL of the Loskai repo. The script fetches caddy/Caddyfile + the onboarding page
-# from here, so this LXC and the Caddy container share ONE config (no drift). Override for
+# Raw base URL of the Loskai repo. The script fetches caddy/Caddyfile from here, so this LXC and the Caddy container share ONE config (no drift). Override for
 # a fork or a mirror: the raw URL of its branch, e.g. https://raw.githubusercontent.com/<you>/loskai/main
 REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/simplysunde/loskai/main}"
 
@@ -233,22 +231,15 @@ APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 AUTOUPGRADES
 
-# --- Bootstrap Caddyfile (admin + TLS + onboarding, no routes) ---
-# Reuses the SAME config as the co-located container: fetch caddy/Caddyfile and the
-# onboarding page from the repo (single source of truth, no inline duplicate). The Caddyfile
-# expects Caddy's data at /data/caddy and the page at /srv/setup — both satisfied by
-# XDG_DATA_HOME=/data in the systemd unit below and this mkdir.
-log "Fetching Caddyfile + onboarding page from $REPO_RAW_BASE"
-pct exec "$CTID" -- mkdir -p /srv/setup
-pct exec "$CTID" -- bash -euo pipefail -c "
-	curl -fsSL '$REPO_RAW_BASE/caddy/Caddyfile' -o /etc/caddy/Caddyfile
-	curl -fsSL '$REPO_RAW_BASE/caddy/setup/index.html' -o /srv/setup/index.html
-"
+# --- Bootstrap Caddyfile (admin + TLS, no routes) ---
+# Reuses the SAME config as the co-located container: fetch caddy/Caddyfile from the repo
+# (single source of truth, no inline duplicate).
+log "Fetching the Caddyfile from $REPO_RAW_BASE"
+pct exec "$CTID" -- curl -fsSL "$REPO_RAW_BASE/caddy/Caddyfile" -o /etc/caddy/Caddyfile
 
 # --- systemd unit: run as root with --resume; the XDG dirs pin data and config ---
 # Root is fine here — the unprivileged LXC is the security boundary, and it drops the caddy
-# user / CAP_NET_BIND_SERVICE ceremony. XDG_DATA_HOME pins Caddy's data dir to /data/caddy,
-# matching the /data/caddy/pki path the fetched Caddyfile serves the root cert from;
+# user / CAP_NET_BIND_SERVICE ceremony. XDG_DATA_HOME pins Caddy's data dir to /data/caddy;
 # XDG_CONFIG_HOME puts the saved config --resume starts from at /config/caddy — the same
 # paths as the Caddy container.
 pct exec "$CTID" -- bash -c "cat > /etc/systemd/system/caddy.service" <<'UNIT'
@@ -279,9 +270,8 @@ cat <<NEXT
 Caddy is up on DHCP IP: ${CT_IP_ADDR}  (assign it a static lease/IP next).
 
 Next steps (Caddy is its own CA):
-  1. On each LAN device, open http://${CT_IP_ADDR}/ and follow the onboarding page to install
-     the root certificate (or fetch it directly at http://${CT_IP_ADDR}/caddy-root.crt).
+  1. Firewall Caddy's admin API: allow :2019 only from the Docker host (where Loskai runs).
+  2. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019.
+  3. On each LAN device, open Loskai's Certificate page and install the root certificate.
      One-time, per device — after that every name under your domain is trusted.
-  2. Firewall Caddy's admin API: allow :2019 only from the Docker host (where Loskai runs).
-  3. On the Docker host, point Loskai at CADDY_ADMIN_URL=http://${CT_IP_ADDR}:2019.
 NEXT

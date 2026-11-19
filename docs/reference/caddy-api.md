@@ -42,7 +42,7 @@ hardcodes `srv0`.
 
 **A second server is discovered the same way**: the plain-HTTP one, by its `:80` listener
 (`<http-server>` below). It is deliberately a *separate* selector rather than a loosening of
-the first — a reverse-proxy route pushed into the `:80` cert-setup site would be served
+the first — a reverse-proxy route pushed into the `:80` server would be served
 without TLS by accident. Only an instance whose `scheme` asks for it is pushed there, and a
 Caddy with no `:80` server simply cannot serve `scheme: "http"` (Loskai raises rather than
 falling back to the routing server).
@@ -97,9 +97,9 @@ PUT /config/apps/http/servers/<http-server>/routes/0
 
 The same route object under a different `@id` — `<instance-id>-http` — pushed into the `:80`
 server. Two things make index 0 mandatory here, one more than on `:443`: that server's
-cert-setup site ends in a **catch-all** `handle` (an appended route is never reached), and
+own site ends in a **catch-all** `respond` (an appended route is never reached), and
 Caddy's automatic HTTP→HTTPS **redirect** routes live there too and would otherwise answer
-first. The setup site's own routes carry no `@id`, so Sync keeps ignoring them.
+first. The site's own routes carry no `@id`, so Sync keeps ignoring them.
 
 `scheme: "http"` also means the name must be **absent from the `:443` server**: that absence
 is what stops Caddy trying to issue a certificate for it. `upsert_route` therefore deletes the
@@ -201,8 +201,7 @@ than an unreachable upstream. A CA that answers without a well-formed root PEM i
 too ("no root certificate yet"); any other failure is `502`.
 
 > Reading the PEM off disk (`/data/caddy/pki/authorities/local/root.crt`) is the other way
-> to get this, and is what the Caddyfile's `:80` onboarding site does. Loskai uses the API
-> instead because it holds in **every** topology: in split-LXC (A) Caddy's data volume is on
+> to get this. Loskai uses the API instead because it holds in **every** topology: in split-LXC (A) Caddy's data volume is on
 > another machine entirely, while the Admin API is reachable by definition — Loskai cannot
 > function without it.
 
@@ -229,7 +228,8 @@ own UI and AdGuard, since both are ordinary instances (Loskai is a discovered co
 AdGuard an `external` instance routed from the Routing tab's AdGuard pill, `origin:
 "adguard"`) rather than hand-written Caddyfile routes. The bootstrap Caddyfile defines **no
 service routes** — only the admin endpoint, the internal CA (`local_certs`), the
-`localhost` site that gives Caddy its `:443` server, and the `:80` onboarding site. Caddy
+`localhost` site that gives Caddy its `:443` server, and the `:80` site that gives it the
+plain-HTTP one. Caddy
 isn't given the domain: each routed name gets its own internal cert as its route lands.
 
 The only thing Loskai leaves alone is a route a human adds directly to Caddy with an

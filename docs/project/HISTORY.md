@@ -4,6 +4,24 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-19 — Caddy's `:80` certificate page removed (Phase 62i)
+
+Caddy served its own copy of the Certificate page on `:80`, by address, with the root file
+beside it (`/caddy-root.crt`) — for a device to trust the certificate while Loskai is down.
+It was a second copy kept in step by hand: the Android tab and the iPhone steps of 0.1.1 were
+written twice. Sunde, 2026-11-18: "we really dont need to maintain the caddy local site";
+priced on 2026-11-19 (what is lost is the page while Loskai is down), and "remove it".
+
+The page, the root file, the Routing tab's Caddy link and **Copy cert page link** (which
+pointed at it), the image's copy and the LXC script's fetch go. The `:80` site stays: it is
+the plain-HTTP server Loskai pushes a route served over HTTP into. A name there is still
+sent on to HTTPS, and Caddy reached by its address answers like `localhost`, `404`. The
+root file went too rather than staying on its own — half of the second copy is still a
+second copy; a backend takes the file saved from the Certificate page instead
+(`backend-certificates.md`). A Caddy started with `--resume` keeps serving its saved `:80`
+site until the save is removed; its page's files are gone from a new image, so it answers
+`404` there.
+
 ## 2026-11-19 — Caddy dials a container by its name on the network (Phase 62h)
 
 The fall-through 62g closed for Loskai reaching Caddy and AdGuard was still open one step

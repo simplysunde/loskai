@@ -17,7 +17,7 @@ import { useMe } from "../lib/useAuth";
 import { useContainers } from "../lib/containers";
 import { assignLabel, refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
-import { answerHost, useCaddySetUp, useHealth } from "../lib/useHealth";
+import { useCaddySetUp, useHealth } from "../lib/useHealth";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
 import { AssignModal } from "../components/routing/AssignModal";
 import { containerPrefill } from "../components/routing/containerPrefill";
@@ -29,7 +29,6 @@ import { ServiceTable, type Instance } from "../components/routing/ServiceTable"
 import { isMachine } from "../components/routing/machine";
 import { ActionError } from "../components/shared/ActionError";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
-import { CopyButton } from "../components/shared/CopyButton";
 import { Hint } from "../components/shared/Hint";
 import { SaveBanner } from "../components/routing/SaveBanner";
 
@@ -86,9 +85,6 @@ export function Routing() {
   const upstreamMode = healthData?.caddy?.mode ?? null;
   const consistency = healthData?.consistency ?? [];
 
-  // The cert-onboarding page is served by Caddy over plain HTTP on :80 at its LAN IP —
-  // deliberately by-IP and not behind the route, since its whole job is fixing the untrusted
-  // -cert warning. AdGuard's answer IP *is* the Caddy host, so it's the one source for both.
   // Per-container where the row is a container, else the deployment-wide summary — the
   // other rows have no container to ask.
   const assignContainer = assignTarget?.container
@@ -105,8 +101,6 @@ export function Routing() {
       }
     : undefined;
 
-  const caddyHost = answerHost(healthData?.adguard?.answer_ip);
-  const certUrl = caddyHost ? `http://${caddyHost}/` : null;
 
   // Once AdGuard is routed (from its pill, which sets `origin`), its link-out
   // opens the name, not the address. Loskai itself still talks to AdGuard by its URL setting.
@@ -363,9 +357,6 @@ export function Routing() {
             icon={<Lock className="h-4 w-4" />}
             name="Caddy"
             health={healthData?.caddy}
-            url={certUrl}
-            linkLabel={`Cert page — share it to trust *.${baseDomain ?? "domain"}`}
-            action={<CopyCertLink url={certUrl} />}
           >
             {healthData?.adguard?.answer_ip && (
               <Hint
@@ -546,11 +537,4 @@ export function Routing() {
       </ConfirmDialog>
     </div>
   );
-}
-
-// Copy the by-IP cert-page URL — the thing you paste to a phone or TV when onboarding it
-// onto the LAN, which is why this lives next to the link rather than in settings.
-function CopyCertLink({ url }: { url: string | null }) {
-  if (!url) return null;
-  return <CopyButton text={url} title={`Copy ${url}`} label="Copy cert page link" className={PILL_BUTTON} />;
 }

@@ -36,7 +36,7 @@ export function InfraStatusPill({
   name: string;
   health?: ModuleHealth;
   url?: string | null;
-  linkLabel: string;
+  linkLabel?: string;
   action?: ReactNode;
   // Whether to offer Configure — Settings, an admin's.
   configurable?: boolean;

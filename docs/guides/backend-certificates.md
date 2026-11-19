@@ -124,12 +124,13 @@ network with guests.
 
 ## 3. Prepare the service's machine
 
-1. **Trust Caddy's root certificate**, so the machine can talk to Caddy over HTTPS. On a
-   Debian-based machine, like Proxmox:
+1. **Trust Caddy's root certificate**, so the machine can talk to Caddy over HTTPS. Copy
+   the `caddy-root.crt` you saved in step 5 above onto it. On a Debian-based machine, like
+   Proxmox:
 
    ```bash
-   curl -fsSL http://<caddy-ip>/caddy-root.crt -o /usr/local/share/ca-certificates/caddy-root.crt
-   update-ca-certificates
+   scp caddy-root.crt root@<machine>:/usr/local/share/ca-certificates/
+   ssh root@<machine> update-ca-certificates
    ```
 
 2. **Ask AdGuard for names**, so it finds `caddy.home.lan`. Proxmox often asks another DNS

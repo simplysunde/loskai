@@ -707,36 +707,16 @@ because the device that needs it can't yet log in over HTTPS
 
 **Where the root comes from.** Caddy's Admin API (`GET /pki/ca/local`) through Loskai's
 `GET /api/caddy/root-certificate`, so it works in every layout — in A, Caddy's data is on
-another machine. Loskai serves the download itself rather than linking Caddy's `:80` file:
+another machine. Loskai serves the download itself, never a link to Caddy over plain HTTP:
 Chrome and Edge silently block a plain-HTTP download from an HTTPS page. Caddy with no
 internal CA answers 404 there, and the page says there is nothing to install. Loskai holds
 no key and is not in the issuance path; the root is public by definition.
 
-**Caddy's `:80` onboarding site** is the fallback that works with Loskai stopped: a static
-copy of the page (`caddy/setup/index.html` at `/srv/setup` — baked into the Caddy image,
-fetched into the LXC by `create-caddy-lxc.sh`, mounted from `./caddy/setup` in the dev rig)
-and the live root from `/data/caddy/pki/authorities/local/root.crt`, served by a plain-HTTP
-site in the bootstrap Caddyfile, never through Loskai's API. Plain HTTP on purpose: it fixes
-the untrusted-certificate warning, so it can't sit behind that certificate. It answers only
-Caddy reached **by IP**: any other `Host` is redirected to HTTPS, matched on the host's shape
-(`header_regexp Host`), since Caddy isn't given the domain and a bridged container can't
-know its host's IP. A `scheme: "http"` route still wins, pushed at index 0 of this same
-server ([`caddy-api.md`](../reference/caddy-api.md)); Sync never touches the site's own
-routes, which carry no `@id`. Scoping the site to one address (`http://192.168.10.100 { … }`)
-is possible and was never needed. The root file appears once Caddy has initialised its
-`local` CA, on its first internal certificate.
-
-**The two pages say the same thing** — the same three steps, per-OS tabs and wording — kept
-in step by hand: a change to `frontend/src/pages/Certificate.tsx` is made in
-`caddy/setup/index.html` too. Both carry per-distribution Linux commands
-(`update-ca-certificates` is Debian's; Fedora uses `/etc/pki/ca-trust/source/anchors/` and
-`update-ca-trust`) and Chrome's own NSS store on Linux, which a system-wide install alone
-leaves out.
-
-**No friendly name for it.** A `setup.<base>` rewrite added in AdGuard by hand is swept as
-an orphan (it points at Caddy's IP and no instance owns it), and a Loskai route to
-`<caddy-ip>:80` loops: Caddy passes the name on as the `Host`, and the `:80` site redirects
-every name to HTTPS — `308` to itself (checked 2026-11-18). The page is reached by address.
+**Its Linux steps are per distribution** (`update-ca-certificates` is Debian's; Fedora uses
+`/etc/pki/ca-trust/source/anchors/` and `update-ca-trust`) and cover Chrome's own NSS store on
+Linux, which a system-wide install alone leaves out. Caddy once served a copy of the page on
+`:80`, for while Loskai is down; it was kept in step by hand and removed on 2026-11-19
+([HISTORY](HISTORY.md#2026-11-19--caddys-80-certificate-page-removed-phase-62i)).
 
 ### Settings
 

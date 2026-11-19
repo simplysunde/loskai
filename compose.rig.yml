@@ -18,7 +18,6 @@ services:
       - "8443:443" # https (optional — Caddy serves an internal cert)
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # the same Caddyfile as production
-      - ./caddy/setup:/srv/setup:ro # cert-onboarding page served on :80 (Phase 10a)
       - caddy-data:/data # the internal CA and its certificates — routes don't survive a restart
         # here (no --resume, unlike caddy/Dockerfile): Sync puts them back
     restart: unless-stopped

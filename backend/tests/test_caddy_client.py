@@ -119,8 +119,8 @@ async def test_http_server_is_discovered_separately_from_the_routing_one(httpx_m
 
 
 async def test_push_http_route_inserts_at_head_of_the_80_server(httpx_mock):
-    """Index 0 again, for two reasons this time: the `:80` server's cert-setup site ends in
-    a catch-all `handle` (an appended route is never reached), and Caddy's automatic
+    """Index 0 again, for two reasons this time: the `:80` server's own site ends in
+    a catch-all `respond` (an appended route is never reached), and Caddy's automatic
     HTTP→HTTPS redirect routes live there and would otherwise win over a plain-HTTP route."""
     client = _client()
     client._http_server_name = "srv1"

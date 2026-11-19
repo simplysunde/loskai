@@ -47,7 +47,7 @@ class CaddyClient:
         self._server_name = service.select_server_name(servers) if servers else None
 
     async def server_name(self) -> str:
-        """The routing server's key, cached — never the static :80 cert-setup server.
+        """The routing server's key, cached — never the plain-HTTP :80 server.
         Raises when Caddy has no servers at all."""
         if not self._server_name:
             self._discover(await self._servers())
@@ -84,8 +84,7 @@ class CaddyClient:
         never reached: Caddy answered the block's empty 200 instead of proxying. Its only
         :443 site is `localhost` now, but a hand-added wildcard site would do the same. That fails as a *success*, which is why unit and
         contract tests never saw it and the 2026-09-05 live smoke did. The `:80` server
-        needs the head for one more reason: its cert-setup site ends in a catch-all
-        `handle`, and Caddy's automatic HTTP→HTTPS redirect routes live there too and
+        needs the head for one more reason: its own site ends in a catch-all `respond`, and Caddy's automatic HTTP→HTTPS redirect routes live there too and
         would otherwise win over a plain-HTTP route.
 
         `PUT .../routes/0` inserts ahead of it (and is a plain insert on an empty array).

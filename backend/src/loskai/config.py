@@ -43,8 +43,7 @@ class Settings(BaseSettings):
     adguard_password: str | None = None
     wireguard_dashboard_url: str | None = None
     base_domain: str | None = None
-    # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted. Also the
-    # host of the by-IP cert-onboarding link (http://<caddy_host_ip>/).
+    # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted.
     caddy_host_ip: str | None = None
     # This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in
     # split-LXC, and per container elsewhere (logic.upstream_mode) — a route needs

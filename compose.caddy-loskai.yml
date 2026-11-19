@@ -14,7 +14,7 @@ services:
     image: ${LOSKAI_REGISTRY:-ghcr.io/simplysunde}/loskai-caddy:${LOSKAI_VERSION:-latest} # caddy/Dockerfile
     container_name: caddy
     ports:
-      - "80:80" # certificate-onboarding page (install the internal root once per device)
+      - "80:80" # routes served over plain HTTP; any other name is sent on to HTTPS
       - "443:443"
       # :2019 (admin) stays internal — Loskai reaches it as caddy.loskai.internal:2019.
     volumes:

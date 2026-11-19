@@ -81,8 +81,8 @@ def _listen_port(addr: str) -> str:
 
 def select_server_name(servers: dict) -> str:
     """Pick the server Loskai pushes routes into. Prefer one listening on the HTTPS port
-    (`:443`) — that's the routing server; a static `:80` cert-setup site is a *separate*
-    Caddy server we must never push reverse-proxy routes into. Fall back to a server that
+    (`:443`) — that's the routing server; the plain-HTTP `:80` one is a *separate*
+    Caddy server only a route served over HTTP goes into. Fall back to a server that
     already carries routes, then to the first key. Raises if there are none.
 
     This replaces a blind `next(iter(servers))`, which broke once a second server existed."""
@@ -102,7 +102,7 @@ def select_http_server_name(servers: dict) -> str | None:
     """The plain-HTTP server (`:80`), or None if this Caddy has none.
 
     A *second* selector rather than loosening `select_server_name`: that one must keep
-    excluding `:80`, since a reverse-proxy route pushed into the cert-setup site would be
+    excluding `:80`, since a reverse-proxy route pushed into the `:80` server would be
     served without TLS by accident. Here the `:80` server is exactly what we want — and only
     for instances whose scheme explicitly asks for it."""
     if not servers:
