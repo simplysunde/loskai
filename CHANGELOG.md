@@ -3,7 +3,7 @@
 What changed for someone running Loskai, newest first. The reasons behind each change are
 in [`HISTORY.md`](docs/project/HISTORY.md).
 
-## Unreleased
+## 0.1.1 — 2026-11-19
 
 - **Sync** says what didn't sync — "Caddy can't be reached", then the error, once for the
   routes it hit; a route Caddy refused; AdGuard unreachable — where it said **Synced.**
