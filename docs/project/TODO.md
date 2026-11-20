@@ -5,7 +5,7 @@
 **Read this when** you want what is being built now, or the backlog.
 
 **Now:** **Phase 63** (below) — choosing a setup, then following it, in the install guide
-and the README. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
+and the README — is done on 2026-11-20. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
 done on 2026-11-18, every guide followed on the demo homelab where it could be; what wasn't
 (Proxmox, real phones, a Tailscale account) is in each page's step. **Phase 62** — the fixes
 that pass found, and Caddy and AdGuard by a `.loskai.internal` name — is done too; its
@@ -85,7 +85,10 @@ Loskai with a bullet per setup), so no setup reads start to finish.
 - [x] 63a `install.md` — the intro and the choice, then a section per setup: Loskai alone, With
       Proxmox, With a small always-on machine, On one machine, each start to finish; devices,
       the certificate and the first name shared after them
-- [ ] 63b `README.md` — **Quick start** as the intro and the choice, Loskai alone inline
+- [x] 63b `README.md` — the opening says what Loskai is and that it drives Docker, Caddy,
+      AdGuard and SSH; **Features** as plain facts, the local certificates and the Docker
+      socket among them (the old *Good to know*, merged); **Quick start** is what you need,
+      the setup table linking into the install guide, and Loskai standalone inline
 
 ---
 
