@@ -46,7 +46,7 @@ is taken only on the host's LAN address, so the resolver most Linux hosts run th
 
 AdGuard and Caddy each in an LXC of their own, made by Loskai's scripts; Loskai in Docker on
 the Docker host. Walkthrough:
-[With Proxmox](install.md#with-proxmox-adguard-and-caddy-in-lxcs).
+[With Proxmox](install.md#with-proxmox).
 
 - **Close Caddy's `2019` and AdGuard's `3000` to all but the Docker host.** They reach your
   whole network here, and anyone who can reach `2019` can change Caddy's routes.
@@ -58,7 +58,7 @@ the Docker host. Walkthrough:
 
 AdGuard on a small always-on box: a Raspberry Pi, a mini PC, a NAS that runs a container.
 Caddy and Loskai in Docker on the Docker host. Walkthrough:
-[With a small always-on machine](install.md#with-a-small-always-on-machine-caddy-beside-loskai).
+[With a small always-on machine](install.md#with-a-small-always-on-machine).
 
 - **Set `CADDY_HOST_IP`** in `.env`: the Docker host's LAN address, where your names point.
   The compose file asks for it.
@@ -69,7 +69,7 @@ Caddy and Loskai in Docker on the Docker host. Walkthrough:
 ### C — All-in-Docker (`compose.colocated.yml`)
 
 All three in Docker on one host. Walkthrough:
-[One machine](install.md#one-machine-all-three-in-docker).
+[One machine](install.md#on-one-machine).
 
 - **Set `CADDY_HOST_IP`** in `.env`: the host's LAN address. AdGuard answers DNS there, and
   your names point there.

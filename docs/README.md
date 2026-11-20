@@ -14,7 +14,7 @@ question they answer.
 | I want to… | Go to |
 |---|---|
 | **Install Loskai** for the first time | [Install guide](guides/install.md) |
-| Get **HTTPS names** working — AdGuard, Caddy, my devices' DNS | [Install guide](guides/install.md#what-https-names-need) |
+| Get **HTTPS names** working — AdGuard, Caddy, my devices' DNS | [Install guide](guides/install.md#choose-your-setup) |
 | Know **what each tab does** once it's running | [Using Loskai](guides/using-loskai.md) |
 | **Decide how to lay it out** across my machines | [Topologies](guides/topologies.md) |
 | **Configure a running container** — env vars, volumes | [Deployment](guides/deployment.md) |

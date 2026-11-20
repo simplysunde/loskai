@@ -82,7 +82,9 @@ Loskai with a bullet per setup), so no setup reads start to finish.
 
 **Steps**
 
-- [ ] 63a `install.md` — the intro and the choice, then a section per setup
+- [x] 63a `install.md` — the intro and the choice, then a section per setup: Loskai alone, With
+      Proxmox, With a small always-on machine, On one machine, each start to finish; devices,
+      the certificate and the first name shared after them
 - [ ] 63b `README.md` — **Quick start** as the intro and the choice, Loskai alone inline
 
 ---

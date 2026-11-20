@@ -33,7 +33,7 @@ devices: the *DNS rewrite*. Loskai writes both. Without Caddy and AdGuard a serv
 
 ## Your account
 
-The first account is made on the welcome page ([Open Loskai](install.md#open-loskai)) and is
+The first account is made on the welcome page ([Install guide](install.md#choose-your-setup)) and is
 an admin.
 
 ### Add a user
