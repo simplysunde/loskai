@@ -161,7 +161,7 @@ def test_caddy_never_dials_a_bare_container_name():
 
 
 def test_suggested_upstream_lan_mode_uses_host_ip_and_published_port():
-    # Split-LXC: Caddy dials the Docker host's LAN IP + the *published host* port, never the
+    # Proxmox: Caddy dials the Docker host's LAN IP + the *published host* port, never the
     # container name (which would 502).
     ports = {"8096/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8096"}]}
     assert logic.suggested_upstream("jellyfin", "jellyfin", ports, None, "192.168.10.50") == (

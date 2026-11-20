@@ -5,7 +5,7 @@
 **Read this when** you are looking after a running Loskai: updating it, a setting in `.env`,
 where its files live and who owns them, or Caddy after a change.
 
-Installing it: [install.md](install.md). Choosing a layout:
+Installing it: [install.md](install.md). Choosing a setup:
 [topologies.md](topologies.md). Running the code yourself:
 [dev-testing.md](../contributing/dev-testing.md).
 
@@ -19,7 +19,7 @@ in Docker, `ghcr.io/simplysunde/loskai-caddy`. Both are built for `amd64` and `a
   `latest` again.
 - **Keep your own changes** in `compose.override.yml` beside `compose.yml`: Compose merges
   the two, and an update replaces only `compose.yml`.
-- **Another layout's file is still `compose.yml`:** download it under that name, like
+- **Another setup's file is still `compose.yml`:** download it under that name, like
   `curl -fsSL https://raw.githubusercontent.com/simplysunde/loskai/main/compose.caddy-loskai.yml -o compose.yml`,
   so the commands and your override work the same.
 - **From a checkout of the code:** `bash scripts/deploy.sh` pulls the latest code, builds

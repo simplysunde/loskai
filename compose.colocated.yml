@@ -1,4 +1,4 @@
-# All-in-Docker layout (C): Loskai + Caddy + AdGuard as containers on one host — the
+# The All-in-one setup: Loskai + Caddy + AdGuard as containers on one host — the
 # recommended layout when one machine is all you have. Also the basis for the Tier-3 test
 # rig. See docs/guides/deployment.md for env vars, the co-located port notes, and why
 # CADDY_HOST_IP is required here — set it in a .env. It is also where AdGuard's DNS is

@@ -220,7 +220,7 @@ def test_a_host_networked_recipe_install_still_prefills_host_and_prefix(monkeypa
 
 
 def test_unmatched_caddy_host_falls_back_to_lan(monkeypatch, data_dir):
-    """An IP admin URL (layout A) or a hostname pointing off-box matches nothing here."""
+    """An IP admin URL (the Proxmox setup) or a hostname pointing off-box matches nothing here."""
     fake = FakeDocker([FakeContainer("grafana", networks={"media_default": []})])
     _use(monkeypatch, fake)
 

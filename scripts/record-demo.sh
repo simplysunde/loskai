@@ -122,7 +122,7 @@ for image in loskai loskai-caddy; do
   docker exec "$DIND" sh -c "docker tag $TAG/$image:demo $TAG/$image:latest && docker rmi $TAG/$image:demo" >/dev/null
 done
 
-log "Installing Loskai on the Docker host (layout B, as the install guide does)"
+log "Installing Loskai on the Docker host (Loskai + Caddy, as the install guide does)"
 cp compose.caddy-loskai.yml "$W/loskai/compose.yml"
 cat > "$W/loskai/.env" <<EOF
 LOSKAI_PASSWORD=$LOSKAI_PASSWORD

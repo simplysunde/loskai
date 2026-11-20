@@ -1,51 +1,51 @@
 [Docs](../README.md) › [Guides](../README.md#guides)
 
-# Choosing a layout
+# Choosing a setup
 
 **Read this when** you are deciding where AdGuard, Caddy and Loskai should run, before
 installing.
 
 Loskai uses two programs for HTTPS names: **AdGuard**, your network's DNS server, and
 **Caddy**, which serves each name over HTTPS. Loskai itself runs on your Docker host. Where
-the other two run is the layout. Each comes with its own compose file, and
-[install.md](install.md) installs all three. Env vars and volumes are in
+the other two run is your setup. Each comes with its own compose file, and
+[install.md](install.md) installs each. Env vars and volumes are in
 [deployment.md](deployment.md).
 
 ## Which one should I run?
 
 All three are recommended, each for the hardware you have:
 
-- **Running Proxmox? [A — split LXC](#a--split-lxc-composeyml).** AdGuard and Caddy each
-  get an LXC of their own: the most isolated, and every port is free.
-- **A small always-on box beside your Docker host?
-  [B — split DNS](#b--split-dns-adguard-separate-caddy--loskai-together).** AdGuard on the
-  small box, a Raspberry Pi or a mini PC; Caddy beside Loskai in Docker. The DNS box does one
-  job and is never touched again; everything else is one `docker compose` command away.
-- **One machine? [C — all-in-Docker](#c--all-in-docker-composecolocatedyml).** All three in
-  Docker on one host: nothing else to buy or set up. Your network's names go while that
-  machine is down or restarting. A small box added later turns it into B.
+- **Running Proxmox? [Proxmox](#proxmox).** AdGuard and Caddy each get an LXC of their own:
+  the most isolated, and every port is free.
+- **A small always-on box beside your Docker host? [Loskai + Caddy](#loskai--caddy).**
+  AdGuard on the small box, a Raspberry Pi or a mini PC; Caddy beside Loskai in Docker. The
+  DNS box does one job and is never touched again; everything else is one `docker compose`
+  command away.
+- **One machine? [All-in-one](#all-in-one).** All three in Docker on one host: nothing else
+  to buy or set up. Your network's names go while that machine is down or restarting. A
+  small box added later turns it into Loskai + Caddy.
 
 ## The comparison
 
-| | A: split LXC | B: split DNS | C: all-in-Docker |
+| | Proxmox | Loskai + Caddy | All-in-one |
 |---|---|---|---|
 | Compose file | `compose.yml` | `compose.caddy-loskai.yml` | `compose.colocated.yml` |
 | Machines | Proxmox: 2 LXCs and the Docker host | a small DNS box and the Docker host | 1 |
 | DNS while the Docker host restarts | works | works | down |
-| Caddy's admin port `2019` | on your network: [firewall it](#a--split-lxc-composeyml) | inside Docker | inside Docker |
+| Caddy's admin port `2019` | on your network: [firewall it](#proxmox) | inside Docker | inside Docker |
 | A routed container must publish a port | yes | [no, if it joins Caddy's network](#routing-a-container-without-publishing-a-port) | yes |
 | Ports the Docker host gives up | `8080` | `8080`, `80`, `443` | `8080`, `80`, `443`, `3000`, and `53` on its LAN address |
 
-Ports on the Docker host are the ones that clash with what already runs there. Port `53` in C
-is taken only on the host's LAN address, so the resolver most Linux hosts run themselves, on
+Ports on the Docker host are the ones that clash with what already runs there. Port `53` in
+All-in-one is taken only on the host's LAN address, so the resolver most Linux hosts run themselves, on
 `127.0.0.53`, stays as it is.
 
-## The layouts
+## The setups
 
-### A — Split LXC (`compose.yml`)
+### Proxmox
 
 AdGuard and Caddy each in an LXC of their own, made by Loskai's scripts; Loskai in Docker on
-the Docker host. Walkthrough:
+the Docker host, from `compose.yml`. Walkthrough:
 [Proxmox](install.md#proxmox).
 
 - **Close Caddy's `2019` and AdGuard's `3000` to all but the Docker host.** They reach your
@@ -54,10 +54,10 @@ the Docker host. Walkthrough:
   address: **Docker Host LAN IP** in **Settings** › **General** fills it in.
 - Restarting or breaking Caddy never touches DNS: they are separate machines.
 
-### B — Split DNS: AdGuard separate, Caddy + Loskai together
+### Loskai + Caddy
 
 AdGuard on a small always-on box: a Raspberry Pi, a mini PC, a NAS that runs a container.
-Caddy and Loskai in Docker on the Docker host. Walkthrough:
+Caddy and Loskai in Docker on the Docker host, from `compose.caddy-loskai.yml`. Walkthrough:
 [Loskai + Caddy](install.md#loskai--caddy).
 
 - **Set `CADDY_HOST_IP`** in `.env`: the Docker host's LAN address, where your names point.
@@ -66,9 +66,9 @@ Caddy and Loskai in Docker on the Docker host. Walkthrough:
   [below](#routing-a-container-without-publishing-a-port).
 - Caddy restarts with the Docker host; DNS doesn't.
 
-### C — All-in-Docker (`compose.colocated.yml`)
+### All-in-one
 
-All three in Docker on one host. Walkthrough:
+All three in Docker on one host, from `compose.colocated.yml`. Walkthrough:
 [All-in-one](install.md#all-in-one).
 
 - **Set `CADDY_HOST_IP`** in `.env`: the host's LAN address. AdGuard answers DNS there, and
@@ -83,12 +83,12 @@ All three in Docker on one host. Walkthrough:
 **All three in one container** comes up often. It was considered and rejected: it fixes no
 port clash, since the only one, `53`, is the host's against AdGuard, and it puts DNS, HTTPS
 and Loskai's access to Docker in one container that restarts as one. If you want one
-machine, run C. The reasoning in full:
+machine, run All-in-one. The reasoning in full:
 [HISTORY, 2026-09-02](../project/HISTORY.md#2026-09-02--topologies-cut-to-three-the-merged-container-is-rejected).
 
 ## Routing a container without publishing a port
 
-In layout B, Caddy is on a Docker network called `loskai-edge`. A stack that joins it is
+In Loskai + Caddy, Caddy is on a Docker network called `loskai-edge`. A stack that joins it is
 reached by its name on that network, like `grafana.loskai-edge:3000`, and needs no
 published port. Without it, Caddy
 can't see the stack: Compose gives every stack a network of its own.

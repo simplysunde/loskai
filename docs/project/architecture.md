@@ -62,10 +62,10 @@ routing works belongs to the component.
 
 ## Deployment in brief
 
-Loskai runs on the Docker host. Caddy and AdGuard run wherever the chosen layout puts them:
+Loskai runs on the Docker host. Caddy and AdGuard run wherever the chosen setup puts them:
 
 ```
-Proxmox host (layout A)
+Proxmox host (the Proxmox setup)
 ├── LXC — AdGuard Home        :53 DNS, :3000 UI + API
 ├── LXC — Caddy               :80/:443, :2019 Admin API (firewalled to the Docker host)
 ├── LXC — WireGuard           (optional; wg-easy or similar)
@@ -74,14 +74,14 @@ Proxmox host (layout A)
     └── your app containers
 ```
 
-Three layouts ship: **A** split LXCs (above), **B** split DNS (AdGuard on its own small box,
-Caddy beside Loskai in Docker), **C** all-in-Docker. Each is recommended for its hardware:
-A with Proxmox, B with a small always-on box, C on one machine. In A and B, AdGuard is kept
-apart because Caddy is the thing Loskai constantly reconfigures, and restarting it there
-never takes LAN DNS down with it; in C the two are still separate containers. A
-fourth layout — all three merged into one container — was considered and rejected: it
+Three setups ship: **Proxmox** (above: AdGuard and Caddy in LXCs), **Loskai + Caddy**
+(AdGuard on its own small box, Caddy beside Loskai in Docker) and **All-in-one** (all three in
+Docker). Each is recommended for its hardware. In the first two, AdGuard is kept apart
+because Caddy is the thing Loskai constantly reconfigures, and restarting it there never
+takes LAN DNS down with it; in All-in-one the two are still separate containers. A fourth
+layout — all three merged into one container — was considered and rejected: it
 fixes no port conflict and puts DNS, TLS and the Docker socket in one blast radius.
-[`topologies.md`](../guides/topologies.md) is the single source for layouts; env vars and
+[`topologies.md`](../guides/topologies.md) is the single source for setups; env vars and
 volumes are in [`deployment.md`](../guides/deployment.md).
 
 **One image, one process, one port.** FastAPI serves the API and the built React bundle on
@@ -215,7 +215,7 @@ Caddy's container is found from `CADDY_ADMIN_URL`'s host by container name, comp
 service label or network alias — the alias is how `caddy.loskai.internal` finds it — and
 `network_mode: host` never counts as shared: it has no embedded DNS, though both sides
 report the same "network". An IP `CADDY_ADMIN_URL`, or a name for another machine, is
-"not reachable by name": the published port is used, which is layout A. A picked
+"not reachable by name": the published port is used, as in the Proxmox setup. A picked
 machine fills only the host — the route is a service *on* it, so its name and port are
 the route's own — and the list of machines is not filtered by whether one is routed: the
 address is reused, not routed.
@@ -706,7 +706,7 @@ because the device that needs it can't yet log in over HTTPS
 `settings.certificate_tab`'s to decide: the setting, and hidden while Caddy isn't set up.
 
 **Where the root comes from.** Caddy's Admin API (`GET /pki/ca/local`) through Loskai's
-`GET /api/caddy/root-certificate`, so it works in every layout — in A, Caddy's data is on
+`GET /api/caddy/root-certificate`, so it works in every setup — with Proxmox, Caddy's data is on
 another machine. Loskai serves the download itself, never a link to Caddy over plain HTTP:
 Chrome and Edge silently block a plain-HTTP download from an HTTPS page. Caddy with no
 internal CA answers 404 there, and the page says there is nothing to install. Loskai holds
@@ -901,7 +901,7 @@ Forgejo Actions is in the backlog). Every check runs by hand before a change is 
 | Loskai down | Nothing can be changed; everything keeps running | Loskai is never in the data path |
 | Caddy restarts | Routes come back by themselves | Autosave + `--resume`; Sync if the autosave is lost |
 | AdGuard down | Names stop resolving; routes still created | Rewrites are best-effort; a fallback DNS in clients |
-| Docker host reboots | Its containers restart; in layout A, DNS and HTTPS stay up | Caddy and AdGuard on their own boxes |
+| Docker host reboots | Its containers restart; with Proxmox, DNS and HTTPS stay up | Caddy and AdGuard on their own boxes |
 | Docker daemon away | The follower waits and catches up | Backoff, catch-up on reconnect |
 
 ---

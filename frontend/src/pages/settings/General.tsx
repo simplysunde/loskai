@@ -20,7 +20,7 @@ const APP_FIELDS: FieldDef[] = [
   {
     key: "host_ip",
     label: "Docker Host LAN IP",
-    hint: "auto-fills container upstreams in split-LXC mode, e.g. 192.168.10.50",
+    hint: "auto-fills a container's address in a route, e.g. 192.168.10.50",
   },
   {
     key: "host_tailscale_ip",

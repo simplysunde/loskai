@@ -180,7 +180,7 @@ its file in Portainer's data. Either way, you give Loskai one.
 ## Optional: stop publishing its ports
 
 With Caddy beside Loskai and AdGuard on its own box
-([layout B](topologies.md#b--split-dns-adguard-separate-caddy--loskai-together)), a moved
+([Loskai + Caddy](topologies.md#loskai--caddy)), a moved
 stack can be routed without publishing a port at all: join it to Caddy's network,
 `loskai-edge`, and delete its `ports:`. The lines are in
 [Routing a container without publishing a port](topologies.md#routing-a-container-without-publishing-a-port).

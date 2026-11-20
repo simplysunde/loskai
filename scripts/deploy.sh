@@ -9,9 +9,9 @@
 # released ones, so `docker compose pull` would put those back; `--build` makes sure the new
 # code is what runs.
 #
-# Defaults to compose.yml (split LXC). Override for either other layout via env:
-#   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh   # split DNS
-#   COMPOSE_FILE=compose.colocated.yml    bash scripts/deploy.sh   # all-in-Docker
+# Defaults to compose.yml (Proxmox, or Loskai standalone). Override for either other setup via env:
+#   COMPOSE_FILE=compose.caddy-loskai.yml bash scripts/deploy.sh   # Loskai + Caddy
+#   COMPOSE_FILE=compose.colocated.yml    bash scripts/deploy.sh   # All-in-one
 
 set -euo pipefail
 

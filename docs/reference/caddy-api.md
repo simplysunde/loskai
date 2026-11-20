@@ -201,7 +201,7 @@ than an unreachable upstream. A CA that answers without a well-formed root PEM i
 too ("no root certificate yet"); any other failure is `502`.
 
 > Reading the PEM off disk (`/data/caddy/pki/authorities/local/root.crt`) is the other way
-> to get this. Loskai uses the API instead because it holds in **every** topology: in split-LXC (A) Caddy's data volume is on
+> to get this. Loskai uses the API instead because it holds in **every** setup: with Proxmox, Caddy's data volume is on
 > another machine entirely, while the Admin API is reachable by definition — Loskai cannot
 > function without it.
 

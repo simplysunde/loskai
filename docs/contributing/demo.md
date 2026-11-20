@@ -42,7 +42,7 @@ Nothing in it is real, so nothing real can end up in a public image:
 
 - **Its own Docker daemon** — a privileged `docker:dind` container at `.20`, the "Docker
   host" — so this machine's containers never show in it. Inside it, Loskai and its Caddy
-  run from `compose.caddy-loskai.yml`, as layout B installs them, on images built from the
+  run from `compose.caddy-loskai.yml`, as the Loskai + Caddy setup installs them, on images built from the
   checkout: the animations always show the code as it is.
 - **Its own LAN**, `192.168.50.0/24` (`DEMO_SUBNET=192.168.77` for another, when this host
   already routes that one): AdGuard at `.2`, a machine with only a name at `.30`

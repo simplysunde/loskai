@@ -90,8 +90,8 @@ hooks, `docs.ts` — the repo's address, for links to the docs). `frontend/vendo
 the Simply Sunde brand's theme and fonts, copied in and never edited here — the look `html.brand`
 in `index.css` remaps to their tokens.
 
-Root: `compose.yml` (layout A), `compose.caddy-loskai.yml` (B), `compose.colocated.yml`
-(C), `compose.rig.yml` (Caddy + AdGuard for a dev Loskai on the host — `compose.dev.yml` in older
+Root: `compose.yml` (Proxmox, and Loskai standalone), `compose.caddy-loskai.yml` (Loskai +
+Caddy), `compose.colocated.yml` (All-in-one), `compose.rig.yml` (Caddy + AdGuard for a dev Loskai on the host — `compose.dev.yml` in older
 `HISTORY.md`/`TODO.md` entries, until 2026-11-14, when `make live` became `make dev`), `compose.build.yml` (on
 top of any of them: build Loskai from the checkout instead of pulling it), `compose.dev.yml`
 (on top of those: the working tree, live-reloading — `make dev`), `caddy/` (the
@@ -384,11 +384,12 @@ with the machine or its SSH connection.
   integration. If a guide and a reference page disagree, the reference wins.
 - **`recipe-schema.md` is copied to the recipes repo's root.** Edit it here only, then run
   `bash scripts/sync-recipe-schema.sh`; the docs check fails while the copy differs.
-- **`docs/guides/topologies.md` is the single source for deployment layouts**: A split-LXC,
-  B split DNS, C all-in-Docker — all three shipped and recommended, each for the hardware
-  you have (C since 2026-11-16, when its port 53 stopped needing the host changed). A
-  merged single-container layout was considered and rejected; don't re-propose it. The
-  letters were reassigned on 2026-09-04 (B↔C), so a letter in an older `HISTORY.md` or
-  `TODO.md` entry may be the old one.
+- **`docs/guides/topologies.md` is the single source for deployment setups**: Proxmox,
+  Loskai + Caddy, All-in-one — all three shipped and recommended, each for the hardware you
+  have (All-in-one since 2026-11-16, when its port 53 stopped needing the host changed). A
+  merged single-container layout was considered and rejected; don't re-propose it. Older
+  `HISTORY.md` and `TODO.md` entries name them by letter — A Proxmox (split LXC), B Loskai +
+  Caddy (split DNS), C All-in-one (all-in-Docker) — and before 2026-09-04 B and C were
+  swapped.
 - **The app links to the docs** through `frontend/src/lib/docs.ts`, which holds the repo's
   forge address — cite a page there by its `docs/…` path so the docs check sees it.

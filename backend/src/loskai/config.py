@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # DNS-rewrite answer IP; derived from caddy_admin_url's host when omitted.
     caddy_host_ip: str | None = None
     # This Docker host's LAN IP. Wherever Caddy can't reach a container by name — always in
-    # split-LXC, and per container elsewhere (logic.upstream_mode) — a route needs
+    # the Proxmox setup, and per container elsewhere (logic.upstream_mode) — a route needs
     # <host_ip>:<published-port>; a bridged container can't detect its own host IP, so it's
     # set here once and used to auto-fill those upstreams.
     host_ip: str | None = None

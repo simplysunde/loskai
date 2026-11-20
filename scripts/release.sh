@@ -74,7 +74,7 @@ read -r -p "Publish? [y/N] " answer
 # The Dockerfiles' labels describe each platform's image; GitHub reads a multi-platform
 # package's repository and description from the index above them, so they go there too.
 for image in "loskai:.:A homelab control panel: HTTPS names, Docker stacks, recipes and machines" \
-	"loskai-caddy:caddy:Caddy with its internal CA, for Loskai's layouts B and C"; do
+	"loskai-caddy:caddy:Caddy with its internal CA, for the Loskai + Caddy and All-in-one setups"; do
 	IFS=: read -r name context description <<<"$image"
 	log "Building $REGISTRY/$name:$VERSION ($PLATFORMS) from $commit"
 	docker buildx build --builder "$BUILDER" --platform "$PLATFORMS" \

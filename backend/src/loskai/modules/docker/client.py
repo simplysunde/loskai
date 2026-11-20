@@ -147,7 +147,7 @@ class DockerClient:
     def _caddy_networks(containers: list, caddy_admin_host: str | None) -> set[str] | None:
         """Caddy's attached networks, or None when no container answers to `caddy_admin_host`.
 
-        None is the honest answer for layout A (Caddy on its own LXC) and for any hostname
+        None is the honest answer for the Proxmox setup (Caddy on its own LXC) and for any hostname
         pointing off-box — logic.shared_network reads it as "not reachable by name".
         """
         if not caddy_admin_host:

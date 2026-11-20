@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-20 — The setups are named for what runs where (Phase 63)
+
+The install guide's rewrite named the setups by what runs where — **Loskai standalone**,
+**Proxmox**, **Loskai + Caddy**, **All-in-one** — while `topologies.md`, `docs/README.md`'s
+conventions and the agent docs said A split-LXC, B split DNS, C all-in-Docker. Sunde: "Unify
+the names please". The new names everywhere current, the UI's one mention ("split-LXC mode",
+a hint in Settings › General) included; "setup" is the word for one in the user pages. The
+letters stay only in the records, and `docs/README.md` and `CLAUDE.md` give the key: A
+Proxmox, B Loskai + Caddy, C All-in-one.
+
 ## 2026-11-20 — The LXCs' console is a shell, not a login (`--cmode shell`)
 
 Sunde couldn't get into the Caddy LXC: "I would prefer if that created an root only so login

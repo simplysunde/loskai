@@ -33,9 +33,9 @@ Operating Loskai. Read in roughly this order the first time.
 
 | Page | When to read it |
 |---|---|
-| [install.md](guides/install.md) | Setting Loskai up from nothing. Loskai itself in three commands, then HTTPS names: AdGuard and Caddy with Proxmox or without, pointing your devices at AdGuard, trusting the certificate, the first name. Start here. |
+| [install.md](guides/install.md) | Setting Loskai up from nothing. Choose your setup — Loskai standalone, Proxmox, Loskai + Caddy or All-in-one — and follow it step by step; then point your devices at AdGuard, trust the certificate and give a service its name. Start here. |
 | [using-loskai.md](guides/using-loskai.md) | Right after installing, and whenever you want to do something in it. One section per tab, a task at a time: install an app, add a route or a link, name a machine and manage it over SSH. |
-| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Which of the three layouts suits the hardware you have, one table comparing them, what each asks of you, and routing a container without publishing a port. |
+| [topologies.md](guides/topologies.md) | **Before** installing, if you're unsure where each piece should run. Which of the three setups with names suits the hardware you have, one table comparing them, what each asks of you, and routing a container without publishing a port. |
 | [deployment.md](guides/deployment.md) | Looking after a running Loskai: updating it, every env var and where it is in Settings, where its files live and who owns them, Caddy's saved config, and a cold start. The reference you return to. |
 | [certificate-setup.md](guides/certificate-setup.md) | A browser warns about one of your names, or a new device joins. Trusting Caddy's certificate once per device — phones and Firefox too — and who sees the Certificate tab. |
 | [backend-certificates.md](guides/backend-certificates.md) | Optional, and not part of Loskai: only if you open a service on its own port — Proxmox `:8006`, a NAS page — and want no warning there. Caddy hands the service a certificate your devices already trust. Tried once on a test setup; Loskai doesn't use or support it. |
@@ -126,9 +126,9 @@ text stays a label or a one-line tooltip — never a paragraph.
 - **These rules are checked.** `bash scripts/check-docs.sh` (or `make check-docs`) fails on
   a broken link or image, a dead heading anchor, a page this index doesn't reach, or a page
   missing its breadcrumb or `Read this when` line. Adding a page means adding it above.
-- Layouts are named consistently across all pages — **A** split-LXC (three-way split),
-  **B** split DNS (two-way split), **C** all-in-Docker (one box). All three ship;
-  [topologies.md](guides/topologies.md) defines them and records the one merged-container
-  arrangement that was considered and rejected. **The letters were reassigned 2026-09-04**
-  (split DNS B↔C all-in-Docker), so an older `HISTORY.md`/`TODO.md` entry naming a letter
-  means the pre-swap one.
+- Setups are named the same on every page — **Loskai standalone**, **Proxmox**, **Loskai +
+  Caddy**, **All-in-one** — as the install guide's table has them.
+  [topologies.md](guides/topologies.md) compares the three with names and records the one
+  merged-container arrangement that was considered and rejected. Older `HISTORY.md` and
+  `TODO.md` entries name them by letter: **A** Proxmox (split LXC), **B** Loskai + Caddy
+  (split DNS), **C** All-in-one (all-in-Docker); before 2026-09-04, B and C were swapped.
