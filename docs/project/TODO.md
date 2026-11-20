@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
+**Now:** **Phase 63** (below) — choosing a setup, then following it, in the install guide
+and the README. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
 done on 2026-11-18, every guide followed on the demo homelab where it could be; what wasn't
 (Proxmox, real phones, a Tailscale account) is in each page's step. **Phase 62** — the fixes
 that pass found, and Caddy and AdGuard by a `.loskai.internal` name — is done too; its
@@ -55,6 +56,34 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 63 — Installing: choose a setup, then follow it start to finish
+
+Asked 2026-11-20. Sunde: "its not mentioned or referenced that there are thtree methods to
+install, and im struggeling to find the caddy section … the quick install guide is too
+limited, and dosnt actually explain what options and what needs to be done … we should have
+a quick intro to the setups, and then link twards the different setups based on that, so
+multipe choise actions". The README's Quick start installs Loskai alone and leaves the
+setups to a paragraph under it; `install.md` names them in a table, then spreads each over
+five sections (the two programs, Install Loskai with a `FILE=` choice, Set AdGuard up, Open
+Loskai with a bullet per setup), so no setup reads start to finish.
+
+**Decisions (2026-11-20)**
+
+- **A short intro, then a choice** (Sunde): what Loskai needs for names, and a link per
+  setup — Loskai alone, Proxmox, a small always-on machine, one machine.
+- **One path per setup, start to finish**, on one page: each its own numbered steps, its own
+  compose file and its own welcome-page fields, with no `FILE=` to choose. What every setup
+  with names ends on — devices asking AdGuard, the certificate, the first name — stays
+  shared, after the paths. Chosen over a page per setup, which would copy those three.
+- The `loskai-docs` skill's order: `install.md` first, then the README, which links into it.
+
+**Steps**
+
+- [ ] 63a `install.md` — the intro and the choice, then a section per setup
+- [ ] 63b `README.md` — **Quick start** as the intro and the choice, Loskai alone inline
 
 ---
 
