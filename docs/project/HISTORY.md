@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-20 — The LXCs' console is a shell, not a login (`--cmode shell`)
+
+Sunde couldn't get into the Caddy LXC: "I would prefer if that created an root only so login
+and user is not something we have to do anything with". The scripts never set a password;
+since 2026-08-12 they logged root in automatically on the console, with systemd drop-ins for
+`getty@tty1` and `container-getty@1` — the console works only while the getty Proxmox
+attaches to is one of those two, and otherwise shows a login no password answers.
+
+Proxmox has the setting for it: `cmode: shell` "simply invokes a shell inside the container
+(no login)" (`pct(1)`), for `pct console` and the web UI's Console alike. Both scripts
+create the container with `--cmode shell` and the drop-ins are gone: there is no getty in
+the path, root stays the only user, and no password exists to lose. An LXC made before takes
+it with `pct set <ID> --cmode shell`. Not tried on a Proxmox host from here.
+
 ## 2026-11-19 — Caddy's `:80` certificate page removed (Phase 62i)
 
 Caddy served its own copy of the Certificate page on `:80`, by address, with the root file

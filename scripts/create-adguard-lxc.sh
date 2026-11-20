@@ -121,6 +121,7 @@ create_container() {
 			--net0 "name=eth0,bridge=$CT_BRIDGE,ip=dhcp" \
 			--features nesting=1 \
 			--unprivileged 1 \
+			--cmode shell \
 			--onboot 1 2>&1)"; then
 			return 0
 		fi
@@ -174,24 +175,6 @@ create_container
 pct start "$CTID"
 wait_for_ready # wait for 'running' + network before apt (replaces a blind sleep)
 
-# --- Console autologin as root (matches the other LXCs on this host — pct console/enter
-# should drop straight into a root shell, no login prompt). getty@tty1 covers `pct console`,
-# container-getty@1 covers the pts fallback it sometimes lands on.
-log "Enabling root autologin on the console"
-pct exec "$CTID" -- mkdir -p /etc/systemd/system/getty@tty1.service.d /etc/systemd/system/container-getty@1.service.d
-pct exec "$CTID" -- bash -c "cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf" <<'AUTOLOGIN'
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
-AUTOLOGIN
-pct exec "$CTID" -- bash -c "cat > /etc/systemd/system/container-getty@1.service.d/autologin.conf" <<'AUTOLOGIN'
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin root --noclear pts/%I $TERM
-AUTOLOGIN
-pct exec "$CTID" -- systemctl daemon-reload
-pct exec "$CTID" -- systemctl restart getty@tty1 container-getty@1 2>/dev/null || true
-
 # --- Install AdGuard Home (official installer — runs as root, enables the service) ---
 log "Installing AdGuard Home inside the container"
 pct exec "$CTID" -- bash -euo pipefail -c "
@@ -216,6 +199,7 @@ log "Done."
 cat <<NEXT
 
 AdGuard is up on DHCP IP: ${CT_IP_ADDR}  (assign it a static lease/IP next).
+Its console (pct console ${CTID}, or Console in the web UI) is a root shell: no login.
 
 Next steps (AdGuard):
   1. Open AdGuard setup at http://${CT_IP_ADDR}:3000 and finish first-time config

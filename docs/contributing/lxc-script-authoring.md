@@ -57,8 +57,7 @@ per service.
 | Hardening helpers | `require_*`, `ensure_subid_maps`, `download_template`, `create_container`, `wait_for_ready` | fixed |
 | Preflight | exists-check → `require_bridge` → `require_storage_content` → `ensure_subid_maps` | fixed |
 | Template ensure | `pveam update` + download if missing (with retry) | fixed |
-| Create + start | `create_container` → `pct start` → `wait_for_ready` | fixed |
-| Console autologin | root autologin on `getty@tty1` and `container-getty@1`, so `pct console` opens a shell | fixed |
+| Create + start | `create_container` → `pct start` → `wait_for_ready`. `--cmode shell`: the console — `pct console` and the web UI's — is a root shell, with no login, user or password | fixed |
 | **Install** | `pct exec` block that installs + configures the service | ✎ **write this** |
 | Post-config | systemd unit, config files, unattended-upgrades | ✎ edit |
 | `container_ip` + "Next steps" | Report the DHCP IP and manual follow-ups | ✎ edit |
@@ -153,6 +152,7 @@ create_container() {
 			--net0 "name=eth0,bridge=$CT_BRIDGE,ip=dhcp" \
 			--features nesting=1 \
 			--unprivileged 1 \
+			--cmode shell \
 			--onboot 1 2>&1)"; then
 			return 0
 		fi

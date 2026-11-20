@@ -63,6 +63,9 @@ curl -fsSL $BASE/scripts/create-caddy-lxc.sh | bash
 To choose a container's ID or bridge, set it on the `bash` side:
 `… | CTID=110 CT_BRIDGE=vmbr0 bash`.
 
+Each LXC has only `root`, and no password: its **Console** in Proxmox opens a root shell
+without asking.
+
 ### With a small always-on machine: Caddy beside Loskai
 
 On the small machine — a Raspberry Pi, a mini PC, a NAS that runs containers — install

@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **The AdGuard and Caddy LXCs' Console** in Proxmox opens a root shell, with no login. It
+  relied on logging root in automatically, which could leave a login prompt no password
+  answers. For an LXC made before: `pct set <ID> --cmode shell` on the Proxmox host.
 - **Caddy's own certificate page**, at Caddy's address on port 80, is gone, and with it the
   Caddy row's link and **Copy cert page link** on **Routing**. Loskai's **Certificate** page
   is the one place to trust the certificate. Caddy at its address now answers "nothing is
