@@ -255,6 +255,26 @@ again. No option is required: without one, Jellyfin transcodes on the CPU.
 - **Unlock Loskai's key** keeps asking: your password unlocks it for 15 minutes. **Settings** ›
   **SSH** › **Keep the key unlocked for** makes that longer.
 
+**A machine with no password**, like an LXC made by Loskai's scripts: **Install it for me**
+can't log in, since root has no password and SSH refuses one for root anyway. Add Loskai's
+keys from the machine's console instead:
+
+1. In **SSH setup**, click **I'll add it myself**, then the copy button beside the two lines.
+2. Open the machine's console. For an LXC: its **Console** in Proxmox, which opens as root.
+3. Run:
+
+   ```bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+   nano ~/.ssh/authorized_keys
+   ```
+
+   Paste the two lines at the end of the file (**Ctrl+Shift+V**, or right-click › **Paste**),
+   then save and quit: **Ctrl+O**, **Enter**, **Ctrl+X**. Use an editor, not `cat` or
+   `echo`: the second line is about 8,000 characters, and a terminal cuts a typed line off at
+   4,095.
+4. Run `chmod 600 ~/.ssh/authorized_keys`.
+5. In Loskai, click **Test connection**.
+
 **A machine on your tailnet**, added by its `100.x` address:
 
 - **The keys install, then the test right after fails:** the machine sees Loskai come from the
