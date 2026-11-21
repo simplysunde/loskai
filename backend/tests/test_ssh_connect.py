@@ -773,6 +773,44 @@ def test_a_typed_name_reaches_the_command_as_1_and_tmux_itself_is_not_wrapped_in
     assert _closed_with(api, TERMINAL + "&tool=tmux&action=new&target=a%3Bid") == (4409, "Not a session: 'a;id'")
 
 
+def _custom(api):
+    return [x for x in api.get("/api/ssh").json()["git_sites"] if not x["builtin"]]
+
+
+def test_git_sites_are_the_built_in_ones_and_those_kept_in_loskai_for_every_machine(api):
+    sites = api.get("/api/ssh").json()["git_sites"]
+    assert [x["name"] for x in sites] == ["GitHub", "GitLab", "Codeberg"]
+    assert sites[0] == {"name": "GitHub", "web": "https://github.com", "ssh": "github.com",
+                        "keys": "https://github.com/settings/ssh/new", "builtin": True}
+    forgejo = {"name": "Forgejo", "web": "http://192.168.1.216:3000", "ssh": "192.168.1.216:222"}
+
+    assert api.put("/api/ssh/git-sites", json={"sites": [forgejo]}).json() == {"sites": [forgejo]}
+    # Its keys page is a Forgejo's (or Gitea's), on its web address.
+    assert _custom(api) == [{**forgejo, "keys": "http://192.168.1.216:3000/user/settings/keys", "builtin": False}]
+    # Trailing slashes and spaces are never meant.
+    tidy = {"name": " Forgejo ", "web": "http://192.168.1.216:3000/", "ssh": "192.168.1.216:222"}
+    assert api.put("/api/ssh/git-sites", json={"sites": [tidy]}).json() == {"sites": [forgejo]}
+
+
+@pytest.mark.parametrize("site", [
+    {"name": "", "web": "http://forge.lan", "ssh": "forge.lan"},
+    {"name": "Forge", "web": "forge.lan", "ssh": "forge.lan"},  # no scheme
+    {"name": "Forge", "web": "javascript:alert(1)", "ssh": "forge.lan"},
+    {"name": "Forge", "web": "http://forge.lan", "ssh": "-oProxyCommand=x"},  # never an option to ssh
+    {"name": "Forge", "web": "http://forge.lan", "ssh": "git@forge.lan"},
+    {"name": "GitHub", "web": "http://forge.lan", "ssh": "forge.lan"},  # a built-in's name
+])
+def test_a_git_site_that_isn_t_one_is_refused_and_nothing_is_kept(api, site):
+    assert api.put("/api/ssh/git-sites", json={"sites": [site]}).status_code == 422
+    assert _custom(api) == []
+
+
+def test_two_git_sites_can_t_share_a_name(api):
+    a = {"name": "Forge", "web": "http://a.lan", "ssh": "a.lan"}
+    b = {"name": "forge", "web": "http://b.lan", "ssh": "b.lan"}
+    assert api.put("/api/ssh/git-sites", json={"sites": [a, b]}).status_code == 422
+
+
 def test_a_machine_s_projects_folder_is_set_on_its_page_and_kept_through_an_edit(api):
     assert api.get("/api/ssh").json()["projects"] == {"nas": "~/projects"}
     assert api.put("/api/ssh/machines/nas/projects", json={"folder": "~/code"}).json() == {"folder": "~/code"}

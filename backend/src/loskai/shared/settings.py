@@ -35,6 +35,7 @@ CONFIGURABLE_KEYS = [
     "host_ip",
     "host_tailscale_ip",
     "recipes_repos",
+    "git_sites",
     "certificate_tab",
     "ssh_unlock_minutes",
     "ssh_ask_password",
@@ -54,12 +55,15 @@ SETUP_KEYS = ("base_domain", "host_ip", "caddy_admin_url", "adguard_url", "adgua
 # on `config.Settings`); this names them so the three-places enumeration test can tell a
 # deliberately stored-only key from one forgotten in `config.Settings`.
 #
-# `recipes_repos` is the only one. It is a list of rows managed in Settings > General, and
+# `git_sites` is the other: the git sites added in Git's Keys (`PUT /api/ssh/git-sites`),
+# checked by the SSH module, which owns what one is (`tool.parse_git_sites`).
+#
+# `recipes_repos` is a list of rows managed in Settings > General, and
 # nothing about recipe sources is needed before the UI is reachable — unlike a service URL
 # or the admin password, which are the reason the env layer exists at all. Giving it one
 # would mean two ways to say the same thing, and would let the editor go read-only for a
 # value you can always just edit.
-STORED_ONLY_KEYS = {"recipes_repos"}
+STORED_ONLY_KEYS = {"recipes_repos", "git_sites"}
 
 # Where the Certificate page appears in the nav. This is presentation, not a security
 # boundary: the root CA it hands out is public material (every LAN device installs it),
@@ -289,6 +293,12 @@ def _validate(key: str, val: Any) -> None:
     if key in _CHOICES and val not in _CHOICES[key][0]:
         choices, _, refusal = _CHOICES[key]
         raise ValueError(refusal.format(", ".join(choices)))
+    if key == "git_sites":
+        # Imported here: the SSH module is above this one, and imports it.
+        from ..modules.ssh.tool import parse_git_sites
+
+        if parse_git_sites(val) != val:  # a refusal is a ToolError, a ValueError
+            raise ValueError("Git sites are stored as PUT /api/ssh/git-sites keeps them")
     if key == "recipes_repos":
         if not isinstance(val, list):
             raise ValueError("Recipe sources must be a list")

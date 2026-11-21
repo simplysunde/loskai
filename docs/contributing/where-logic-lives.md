@@ -90,7 +90,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | Writing a file that holds a secret: owner-only | `shared/store.py` `write_private` `replace_private` | `modules/docker/install.py` `modules/docker/stackform.py` `modules/docker/stacks.py` `modules/docker/updates.py` `modules/ssh/client.py` `shared/auth.py` |
 | The Docker host's address, guessed from the address the page was opened on | `lib/setup.ts` `hostFromAddress` | `pages/Setup.tsx` |
 | What first-run setup asks for, and which of it is already set | `shared/settings.py` `SETUP_KEYS` `setup_view` | `shared/auth.py` |
-| A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 12 files: `python3 scripts/where-used.py resolve value` |
+| A setting's value: env var, then `settings.json`, then unset | `shared/settings.py` `resolve` `value` | 13 files: `python3 scripts/where-used.py resolve value` |
 | Whether Loskai's SSH key is unlocked, and for whom | `modules/ssh/unlock.py` `unlocked_key` | `modules/ssh/connect.py` |
 | Asking for your password to unlock it — when, and once for the page | `lib/unlock.ts` `requestUnlock` | `components/machines/MachineTerminal.tsx` `components/machines/ToolSettings.tsx` `lib/api.ts` |
 
@@ -113,6 +113,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | sudo's password for an automatic run: checked, held for one run | `modules/ssh/connect.py` `prepare` `take_password` | `modules/ssh/router.py` |
 | Which SSH keys a machine's user has, and which key git uses for each project | `modules/ssh/status.py` `_FACTS` (`#=keys`, a project's `key`) `parse_facts` | |
 | Which remotes a key is for — a project's own key, else what ssh offers the remote's host | `lib/ssh.ts` `keyUses` `remoteSshHost` | `components/machines/SshKeys.tsx` `components/machines/ToolSettings.tsx` |
+| The git sites a key is added to — the built-ins and those added in Loskai — what one may be, and its keys page | `modules/ssh/tool.py` `parse_git_sites` `git_sites` | `modules/ssh/router.py` `shared/settings.py` |
 | Where a key goes, to paste it — a deploy key's repository, or the account on its platform — and which list it is in | `lib/ssh.ts` `keyPage` `webOf` `keyGroup` `keyHost` `keyLabel` | `components/machines/SshKeys.tsx` |
 | What a key is (account, deploy, other), by its name | `lib/ssh.ts` `keyKind` | `components/machines/SshKeys.tsx` |
 | Whether a machine's updates-without-a-password switch applies, and what it runs | `components/machines/SudoRuleSwitch.tsx` `SudoRuleSwitch` | `components/machines/MachineDialog.tsx` `components/machines/UpdateAll.tsx` |

@@ -89,7 +89,7 @@ SSH on `:222`.
 
 **Steps**
 
-- [ ] 64a `git_sites`: validated, stored-only; `GET /api/ssh` returns it,
+- [x] 64a `git_sites`: validated, stored-only; `GET /api/ssh` returns it,
       `PUT /api/ssh/git-sites` replaces it; `api.md`
 - [ ] 64b Git's tool: `account-key` (makes the account key, or renames it) replaces
       `ssh-key`; `host-key` removed; `tool-schema.md`

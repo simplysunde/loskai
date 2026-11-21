@@ -54,7 +54,10 @@ def _write_config(ssh_dir, text):
 
 
 def test_no_key_until_one_is_made(client):
-    assert client.get("/api/ssh").json() == {"key": None, "hosts": {}, "trusted": {}, "targets": {}, "projects": {}}
+    view = client.get("/api/ssh").json()
+    assert {k: v for k, v in view.items() if k != "git_sites"} == {
+        "key": None, "hosts": {}, "trusted": {}, "targets": {}, "projects": {},
+    }
 
 
 def test_the_key_is_made_and_never_returned(client, ssh_dir):

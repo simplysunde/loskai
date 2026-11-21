@@ -59,7 +59,7 @@ def _known() -> dict[str, bool]:
 def ssh_status() -> dict:
     """Loskai's key (null before one is made), each `Host` in the config, which machines
     have a trusted host key, how each machine with an SSH user is reached
-    (`connect.target_of`), and each machine's projects folder."""
+    (`connect.target_of`), each machine's projects folder, and the git sites (`tool.git_sites`)."""
     hosts = logic.hosts(client.read_config())
     machines = [i for i in instances_store.list_instances() if instances_store.is_machine(i)]
     return {
@@ -68,6 +68,7 @@ def ssh_status() -> dict:
         "trusted": _known(),
         "targets": {i.id: t.shown() for i in machines if (t := connect.target_of(i, hosts))},
         "projects": {i.id: tool.show_projects_folder(i.projects_folder) for i in machines},
+        "git_sites": tool.git_sites(settings_store.resolve("git_sites")[0] or []),
     }
 
 
@@ -152,6 +153,18 @@ async def facts(machine_id: str) -> dict:
 def tools() -> list[dict]:
     """Every tool in the image, with its actions and their commands."""
     return [tool.view(t) for t in tool.load().values()]
+
+
+class GitSitesRequest(BaseModel):
+    sites: list[dict]
+
+
+@router.put("/git-sites")
+def set_git_sites(body: GitSitesRequest) -> dict:
+    """Replace the git sites added in Loskai — every machine's Keys offers them."""
+    sites = tool.parse_git_sites(body.sites)
+    settings_store.update({"git_sites": sites})
+    return {"sites": sites}
 
 
 class ProjectsRequest(BaseModel):

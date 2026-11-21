@@ -51,7 +51,7 @@ Exact contracts. Two kinds, and the difference matters:
 
 | Page | When to read it |
 |---|---|
-| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 76 routes; the live `/docs` (Swagger) is authoritative. |
+| [api.md](reference/api.md) | Adding or changing an endpoint, or wiring up frontend calls. Human-readable overview of all 77 routes; the live `/docs` (Swagger) is authoritative. |
 | [ssh-status.md](reference/ssh-status.md) | Reading something new from a machine without anyone unlocking the SSH key — the status key's forced command, its requests, output and versions. |
 | [tool-schema.md](reference/tool-schema.md) | Adding a tool or an action to one — what a machine's dialog can run over SSH. Tools are data, validated, ship in the image, and apply where the machine has what they need. |
 | [recipe-schema.md](reference/recipe-schema.md) | Authoring a `recipe.yml`, or changing the install wizard's validation. Recipes are declarative data — validated, never executed. |

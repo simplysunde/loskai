@@ -95,6 +95,55 @@ TARGETS = {
 }
 
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+
+# The git sites Git's Keys offers to add a machine's key to: these, then the ones added in
+# Loskai (`git_sites`, stored-only) — a name, the web address its pages are on, and the SSH
+# address git reaches it by, `host[:port]` as the `host` kind takes it. `keys` is the page an
+# account's SSH keys are added on; an added site's is a Forgejo's (or Gitea's).
+BUILTIN_GIT_SITES = (
+    {"name": "GitHub", "web": "https://github.com", "ssh": "github.com", "keys": "https://github.com/settings/ssh/new"},
+    {"name": "GitLab", "web": "https://gitlab.com", "ssh": "gitlab.com", "keys": "https://gitlab.com/-/user_settings/ssh_keys"},
+    {"name": "Codeberg", "web": "https://codeberg.org", "ssh": "codeberg.org", "keys": "https://codeberg.org/user/settings/keys"},
+)
+MAX_GIT_SITES = 20
+_SITE_NAME = re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,40}(?<=\S)$")
+_SITE_WEB = re.compile(r"^https?://[A-Za-z0-9][A-Za-z0-9.-]{0,252}(?::\d{1,5})?(?:/[A-Za-z0-9._~%/-]*)?$")
+
+
+def parse_git_sites(value: object) -> list[dict[str, str]]:
+    """The added git sites as kept: each `{name, web, ssh}`, trimmed — a web address without
+    its trailing `/` — or a `ToolError` (422) saying which isn't one. Names are unique, the
+    built-ins' included, ignoring case."""
+    if not isinstance(value, list):
+        raise ToolError("Git sites must be a list", 422)
+    if len(value) > MAX_GIT_SITES:
+        raise ToolError(f"At most {MAX_GIT_SITES} git sites", 422)
+    taken = {s["name"].lower() for s in BUILTIN_GIT_SITES}
+    sites = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            raise ToolError("A git site is a name, a web address and an SSH address", 422)
+        name = str(entry.get("name") or "").strip()
+        web = str(entry.get("web") or "").strip().rstrip("/")
+        ssh = str(entry.get("ssh") or "").strip()
+        if not _SITE_NAME.match(name):
+            raise ToolError("A git site needs a name, up to 40 characters", 422)
+        if name.lower() in taken:
+            raise ToolError(f"There is a git site named {name} already", 422)
+        if not _SITE_WEB.match(web):
+            raise ToolError(f"{name}'s web address must start http:// or https:// — got '{web}'", 422)
+        if not TARGETS["host"].match(ssh):
+            raise ToolError(f"{name}'s SSH address is a host, with :port when it isn't 22 — got '{ssh}'", 422)
+        taken.add(name.lower())
+        sites.append({"name": name, "web": web, "ssh": ssh})
+    return sites
+
+
+def git_sites(added: list[dict[str, str]]) -> list[dict[str, object]]:
+    """Every git site, the built-ins first, each with its keys page and whether it is built in."""
+    return [{**s, "builtin": True} for s in BUILTIN_GIT_SITES] + [
+        {**s, "keys": f"{s['web']}/user/settings/keys", "builtin": False} for s in added
+    ]
 # The rows a setting can be a value of: those `read_settings_script` can list on the machine.
 SETTING_TARGETS = ("project",)
 
