@@ -144,7 +144,22 @@ export function MachineTable({
     return (kind, name, port) => {
       const s = services.find((x) => x.kind === kind && x.name === name && x.upstream === `${machine.upstream}:${port}`);
       if (!s || !onRouteService) return null;
-      if (s.route?.url) return <RouteLink url={s.route.url} />;
+      // The route's icon, opening it; its name on hover — the chip has no room for it.
+      if (s.route?.url) {
+        const name = s.route.url.replace(/^https?:\/\//, "");
+        return (
+          <a
+            href={s.route.url}
+            target="_blank"
+            rel="noreferrer"
+            title={name}
+            aria-label={name}
+            className="flex h-full items-center rounded-r-md px-1.5 text-teal-300 hover:bg-teal-500/15"
+          >
+            <RouteIcon className="h-3 w-3" />
+          </a>
+        );
+      }
       const what = `${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`;
       return (
         <button
