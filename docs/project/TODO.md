@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 63** (below) — choosing a setup, then following it, in the install guide
+**Now:** **Phase 64** (below) — a key for a git site in one dialog — is in flight.
+**Phase 63** (below) — choosing a setup, then following it, in the install guide
 and the README — is done on 2026-11-20. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
 done on 2026-11-18, every guide followed on the demo homelab where it could be; what wasn't
 (Proxmox, real phones, a Tailscale account) is in each page's step. **Phase 62** — the fixes
@@ -56,6 +57,45 @@ visible without unpacking a phase back out. The checklists stay in
   fallbacks; the steps are in Phase 28 in [`todo-archive.md`](todo-archive.md).
 - **Phase 29's last check — the Docker daemon restarted mid-run**, the next time one happens
   anyway; what to look for is in Phase 29 in [`todo-archive.md`](todo-archive.md).
+
+---
+
+## Phase 64 — A key for a git site: pick the site, name the key, copy it
+
+Asked 2026-11-21. Sunde, after adding codebox's key to their Forgejo: "this proccess whas
+really confusing, can we make the process simply be pick the site, name the key, and copy
+what is needed to paste into the site ssh/GPG keys". Git's Keys had **New account key** and
+**New key for a host** side by side, each printing its steps into a terminal; the second
+had you paste a `Host` block into `~/.ssh/config`, and guessed the Forgejo's page as
+`https://<ssh host>/user/settings/keys` — wrong for a Forgejo on `http://…:3000` with its
+SSH on `:222`.
+
+**Decisions (2026-11-21)**
+
+- **One dialog, three steps** (Sunde): the site, the key's name, then the public line to
+  copy, a link to the site's SSH keys page, and **Test** on the site's SSH address.
+- **The machine's account key**, `~/.ssh/id_*`, which ssh offers every host by itself — so
+  no `~/.ssh/config`. Made if there is none; there is one, its name (the comment) is changed
+  to the one given. **New key for a host is removed** (Sunde: "Remove it"); a deploy key
+  stays the narrower choice. **Test key** and **Try every key** stay, below, for finding
+  which key a host takes.
+- **Sites**: GitHub, GitLab and Codeberg built in; others added from the same drop-down —
+  **Add a site…** asks a name, its web address and its SSH address (Sunde: "if its a new
+  one add a dialog where we input the address"). Kept in Loskai (`git_sites`, stored-only in
+  `settings.json`), so every machine and browser has them; saved by
+  `PUT /api/ssh/git-sites`, at the Machines level like the rest of `/api/ssh` — Settings'
+  own save is an admin's.
+- A key's **Add to …** link uses a site's web address when its SSH host is one of the sites.
+
+**Steps**
+
+- [ ] 64a `git_sites`: validated, stored-only; `GET /api/ssh` returns it,
+      `PUT /api/ssh/git-sites` replaces it; `api.md`
+- [ ] 64b Git's tool: `account-key` (makes the account key, or renames it) replaces
+      `ssh-key`; `host-key` removed; `tool-schema.md`
+- [ ] 64c Keys: **Add to a git site** — the site (with **Add a site…**), the name, then
+      Copy, the link and Test — in place of the two buttons; **Add to …** from the sites
+- [ ] 64d `using-loskai.md`, CHANGELOG, HISTORY
 
 ---
 
