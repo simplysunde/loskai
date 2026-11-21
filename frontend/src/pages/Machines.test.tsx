@@ -641,7 +641,7 @@ test("the Docker host is listed before it is named, with the routes on its addre
     expect(within(row).queryByRole("button", { name: "More" })).not.toBeInTheDocument();
 
     fireEvent.click(within(row).getByTitle(/Name it/));
-    expect(screen.getByPlaceholderText("192.168.10.50")).toHaveValue("192.168.10.220");
+    expect(screen.getByPlaceholderText("192.168.1.x")).toHaveValue("192.168.10.220");
     fireEvent.change(screen.getByPlaceholderText("rack1.vm3"), { target: { value: "dockerhost" } });
     fireEvent.click(screen.getByRole("button", { name: "Name machine" }));
 
@@ -673,7 +673,7 @@ test("naming a machine with an SSH user opens its page, starting its SSH setup",
 
   fireEvent.click(screen.getByRole("button", { name: /Name a machine/ }));
   fireEvent.change(screen.getByPlaceholderText("rack1.vm3"), { target: { value: "nas" } });
-  fireEvent.change(screen.getByPlaceholderText("192.168.10.50"), { target: { value: "192.168.10.50" } });
+  fireEvent.change(screen.getByPlaceholderText("192.168.1.x"), { target: { value: "192.168.10.50" } });
   fireEvent.change(screen.getByPlaceholderText("none"), { target: { value: "loskai" } });
   // The save writes the SSH config, so the refetch after it has the entry.
   sshHosts = { nas: { hostname: "192.168.10.50", user: "loskai", port: 22 } };
@@ -889,7 +889,28 @@ test("a Proxmox guest on the running list is named from there, or shows the mach
   fireEvent.click(within(card).getByRole("button", { name: "Name" }));
 
   expect(await screen.findByPlaceholderText("rack1.vm3")).toHaveValue("home-assistant");
-  expect(screen.getByPlaceholderText("192.168.10.50")).toHaveValue("192.168.10.60");
+  expect(screen.getByPlaceholderText("192.168.1.x")).toHaveValue("192.168.10.60");
+  expect(screen.queryByText(/couldn't read its address/)).not.toBeInTheDocument();
+});
+
+test("a guest whose address can't be read opens Name a machine saying why its IP is empty", async () => {
+  sshSetUp();
+  sshHosts = { ...sshHosts, pve: { hostname: "192.168.10.10", user: "root", port: 22 } };
+  sshTrusted = { nas: true, pve: true };
+  runningReply = {
+    pve: {
+      ok: true, checked: 0, containers: [], services: [], listening: [], denied: [],
+      guests: [{ id: "103", name: "dockers", kind: "vm", addresses: [] }],
+    },
+  };
+  renderPage();
+
+  const pveRow = (await screen.findByText("pve")).closest("tr") as HTMLElement;
+  fireEvent.click(await within(pveRow).findByRole("button", { name: "1 running" }));
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Running" })).getByRole("button", { name: "Name" }));
+
+  expect(await screen.findByPlaceholderText("192.168.1.x")).toHaveValue("");
+  expect(screen.getByText("Loskai couldn't read its address — a VM needs the QEMU guest agent.")).toBeInTheDocument();
 });
 
 test("a tool the machine lacks is offered to add, when Loskai can install what it needs", async () => {

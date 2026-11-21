@@ -36,7 +36,7 @@ export function Machines() {
   const { id: openId, section } = useParams();
   // Naming a machine — the Docker host's address when named from its row, a Proxmox guest's
   // name and address from a running list; editing one is in its dialog.
-  const [naming, setNaming] = useState<{ address?: string; name?: string } | null>(null);
+  const [naming, setNaming] = useState<{ address?: string; name?: string; unknown?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Instance | null>(null);
@@ -215,6 +215,7 @@ export function Machines() {
         baseDomain={baseDomain}
         address={naming?.address}
         name={naming?.name}
+        unknown={naming?.unknown}
         pending={save.isPending}
         error={error}
         onSubmit={(m) => save.mutate(m)}

@@ -19,7 +19,7 @@ function renderModal(overrides = {}) {
 
 const submit = () => screen.getByRole("button", { name: "Name machine" });
 const hostname = () => screen.getByPlaceholderText("rack1.vm3");
-const address = () => screen.getByPlaceholderText("192.168.10.50");
+const address = () => screen.getByPlaceholderText("192.168.1.x");
 
 test("a machine hostname may be dotted, and is still lowercased", () => {
   // A machine has no certificate, which is why dots are allowed here and not on a route.

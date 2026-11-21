@@ -27,6 +27,7 @@ export function AddMachineModal({
   baseDomain,
   address: initialAddress = "",
   name: initialName = "",
+  unknown,
   pending = false,
   error,
   onSubmit,
@@ -38,6 +39,8 @@ export function AddMachineModal({
   // running list (its name too).
   address?: string;
   name?: string;
+  // Why the address isn't filled in, when it was asked for and couldn't be read.
+  unknown?: string;
   pending?: boolean;
   error?: string | null;
   onSubmit: (machine: NewMachine) => void;
@@ -99,9 +102,10 @@ export function AddMachineModal({
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="192.168.10.50"
+          placeholder="192.168.1.x"
           className={INPUT}
         />
+        {unknown && !address && <span className="mt-1 block text-xs text-amber-300">{unknown}</span>}
         <span className="mt-1 block text-xs text-slate-500">
           The address the name resolves to. DNS maps names to addresses, so no port here.
         </span>

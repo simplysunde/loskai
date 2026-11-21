@@ -91,7 +91,7 @@ export function MachineTable({
   // beside Add route — no SSH, DNS or settings until it is a machine.
   onName?: (machine: Instance) => void;
   // A Proxmox guest on its running list: Name a machine, with its name and address.
-  onNameGuest?: (guest: { name: string; address: string }) => void;
+  onNameGuest?: (guest: { name: string; address: string; unknown?: string }) => void;
   // The Docker host's address: its containers are the Container source, not buttons here.
   dockerHost?: string | null;
   // The tools in the image: a set-up machine's row opens each added one in a dialog.
@@ -125,7 +125,13 @@ export function MachineTable({
         return (
           <button
             title={address ? `Name it as a machine, at ${address}` : "Name it as a machine — its address isn't known (a VM without the QEMU guest agent)"}
-            onClick={() => onNameGuest({ name: guestHostname(guest.name), address })}
+            onClick={() =>
+              onNameGuest({
+                name: guestHostname(guest.name),
+                address,
+                unknown: address ? undefined : UNKNOWN_ADDRESS[guest.kind],
+              })
+            }
             className={RUNNING_BUTTON}
           >
             <HardDrive className="h-3 w-3" />
@@ -386,6 +392,13 @@ export function MachineTable({
 }
 
 
+
+// Why a guest's address couldn't be read: a VM's comes from its QEMU guest agent, an LXC's
+// from lxc-info, which needs root on the Proxmox host.
+const UNKNOWN_ADDRESS = {
+  vm: "Loskai couldn't read its address — a VM needs the QEMU guest agent.",
+  lxc: "Loskai couldn't read its address — that needs root on the Proxmox host.",
+};
 
 const RUNNING_BUTTON =
   "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800";
