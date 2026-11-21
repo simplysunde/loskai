@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { useEscape } from "../../lib/useEscape";
@@ -9,6 +9,9 @@ const PANEL = "w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p
 
 // What every dialog stands on: the backdrop, which closes it when clicked, the page frozen
 // behind it, and Escape closing the one opened last. Mount it to open the dialog.
+// A click is the backdrop's only when pressed *and* released on it: a drag between the
+// dialog and the backdrop (selecting a terminal's text past its edge) clicks their common
+// ancestor, the backdrop, too.
 export function Overlay({
   onClose,
   label,
@@ -22,8 +25,17 @@ export function Overlay({
 }) {
   useScrollLock(true);
   useEscape(true, onClose);
+  const pressed = useRef(false);
+  const released = useRef(false);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4"
+      onMouseDown={(e) => (pressed.current = e.target === e.currentTarget)}
+      onMouseUp={(e) => (released.current = e.target === e.currentTarget)}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressed.current && released.current) onClose();
+      }}
+    >
       <div role="dialog" aria-modal="true" aria-label={label} className={className} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>

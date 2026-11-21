@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **A dialog stays open when you drag out of it**, or into it: selecting a terminal's text
+  past its edge closed it. A click outside still closes it.
 - **Copy a port's address** from a machine's **n running** list: each port beside a
   container or a service copies the machine's address with it, like `192.168.10.50:8096`.
 - **The AdGuard and Caddy LXCs' Console** in Proxmox opens a root shell, with no login. It
