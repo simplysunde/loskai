@@ -145,7 +145,7 @@ export function Machines() {
           {canUpdate && (
             <button
               onClick={() => setUpdating(true)}
-              title="Bring every machine up to date, one after another — what waits on each first"
+              title="Perform system updates quickly on each machine"
               className={ACROSS_BUTTON}
             >
               <Download className="h-3.5 w-3.5" /> Update all
