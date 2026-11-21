@@ -93,7 +93,7 @@ SSH on `:222`.
       `PUT /api/ssh/git-sites` replaces it; `api.md`
 - [x] 64b Git's tool: `account-key` (makes the account key, or renames it) replaces
       `ssh-key`; `host-key` removed; `tool-schema.md`
-- [ ] 64c Keys: **Add to a git site** — the site (with **Add a site…**), the name, then
+- [x] 64c Keys: **Add to a git site** — the site (with **Add a site…**), the name, then
       Copy, the link and Test — in place of the two buttons; **Add to …** from the sites
 - [ ] 64d `using-loskai.md`, CHANGELOG, HISTORY
 

@@ -30,6 +30,17 @@ export interface SshStatus {
   trusted: Record<string, boolean>; // machine ids with a trusted host key
   targets: Record<string, string>; // how the server reaches each machine with a user: "user@host[:port]"
   projects: Record<string, string>; // each machine's projects folder: "~/projects", "~"
+  git_sites: GitSite[]; // GitHub, GitLab, Codeberg, then those added in Loskai
+}
+
+// A git site a machine's key is added to: where its pages are (`web`), how git reaches it
+// (`ssh`, `host[:port]`), and the page an account's SSH keys are added on (`keys`).
+export interface GitSite {
+  name: string;
+  web: string;
+  ssh: string;
+  keys: string;
+  builtin: boolean;
 }
 
 // Whether removing a machine, or its SSH connection, takes Loskai's things off it first — it is
@@ -112,7 +123,11 @@ export function webOf(url: string, hostname?: string): string | null {
 // repository it is used for (its Deploy keys page, the same path on GitHub and Forgejo);
 // any other on your account, on the platform its remotes are on (or its comment's "for
 // <host>"). Null where that can't be told.
-export function keyPage(key: MachineKey, uses: KeyUse[] | null): { url: string; where: string; label: string } | null {
+export function keyPage(
+  key: MachineKey,
+  uses: KeyUse[] | null,
+  sites: GitSite[] = [],
+): { url: string; where: string; label: string } | null {
   const repos = [...new Set((uses ?? []).map((u) => webOf(u.url, u.hostname)).filter(Boolean))] as string[];
   if (isDeploy(key)) {
     return repos.length === 1
@@ -121,8 +136,9 @@ export function keyPage(key: MachineKey, uses: KeyUse[] | null): { url: string; 
   }
   const host = keyHost(key, uses);
   if (!host) return null;
-  if (host === "github.com") return { url: "https://github.com/settings/ssh/new", where: "your GitHub account's SSH keys", label: "Add to GitHub" };
-  if (host === "gitlab.com") return { url: "https://gitlab.com/-/user_settings/ssh_keys", where: "your GitLab account's SSH keys", label: "Add to GitLab" };
+  // A git site's own page (`sites`, as the server lists them); else a Forgejo's, on the host.
+  const site = sites.find((s) => s.ssh.replace(/:\d+$/, "") === host);
+  if (site) return { url: site.keys, where: `your ${site.name} account's SSH keys`, label: `Add to ${site.name}` };
   return { url: `https://${host}/user/settings/keys`, where: `your account's SSH keys on ${host}`, label: `Add to ${host}` };
 }
 

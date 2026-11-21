@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { commentText, factsQuery, keyGroup, keyLabel, keyPage, keyUnlocked, keyUses, remoteSshHost, takesKeysOff, webOf, type Facts, type KeyUse, type MachineKey, type SshStatus } from "./ssh";
 
 const later = new Date(Date.now() + 60_000).toISOString();
-const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {} });
+const status = (key: SshStatus["key"], trusted: Record<string, boolean>): SshStatus => ({ key, hosts: {}, trusted, targets: {}, projects: {}, git_sites: [] });
 const KEY = { public_key: "ssh-ed25519 AAAA loskai", fingerprint: "SHA256:x", lines: [], from: null, unlocked_until: null };
 
 test("removing a set-up machine takes Loskai's key off it — not one never set up, or with no key", () => {
@@ -87,8 +87,18 @@ test("where a key goes: a deploy key to its repository, another to the account o
   expect(keyPage(key("simplysunde-site", "simplysunde.github.io deploy key (vm)"), [use("git@gh-site:me/page.git", "github.com")])?.url).toBe(
     "https://github.com/me/page/settings/keys",
   );
-  expect(keyPage(key("id_ed25519"), [use("git@github.com:me/a.git", "github.com")])?.url).toBe("https://github.com/settings/ssh/new");
-  expect(keyPage(key("id_ed25519"), [use("git@forgejo.lan:me/a.git", "forgejo.lan")])?.url).toBe("https://forgejo.lan/user/settings/keys");
+  // An account key: the page of the git site its host is — as the server lists them.
+  const sites = [
+    { name: "GitHub", web: "https://github.com", ssh: "github.com", keys: "https://github.com/settings/ssh/new", builtin: true },
+    { name: "Forgejo", web: "http://192.168.1.216:3000", ssh: "192.168.1.216:222", keys: "http://192.168.1.216:3000/user/settings/keys", builtin: false },
+  ];
+  expect(keyPage(key("id_ed25519"), [use("git@github.com:me/a.git", "github.com")], sites)).toEqual({
+    url: "https://github.com/settings/ssh/new", where: "your GitHub account's SSH keys", label: "Add to GitHub" });
+  // A Forgejo added there: its own web address, not one guessed from its SSH host.
+  expect(keyPage(key("id_ed25519"), [use("ssh://git@192.168.1.216:222/me/a.git", "192.168.1.216")], sites)?.url).toBe(
+    "http://192.168.1.216:3000/user/settings/keys");
+  // One that isn't: a Forgejo's page, guessed on its host.
+  expect(keyPage(key("id_ed25519"), [use("git@forgejo.lan:me/a.git", "forgejo.lan")], sites)?.url).toBe("https://forgejo.lan/user/settings/keys");
   // Used nowhere yet: its comment's "for <host>", else nothing to say.
   expect(keyPage(key("codeberg.org", "vm@box for codeberg.org"), [])?.url).toBe("https://codeberg.org/user/settings/keys");
   expect(keyPage(key("id_ed25519"), [])).toBeNull();

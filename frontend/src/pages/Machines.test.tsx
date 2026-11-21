@@ -98,6 +98,13 @@ const FACTS = {
 };
 let facts: unknown = FACTS;
 let factsStatus = 200;
+const BUILTIN_SITES = [
+  { name: "GitHub", web: "https://github.com", ssh: "github.com", keys: "https://github.com/settings/ssh/new", builtin: true },
+  { name: "GitLab", web: "https://gitlab.com", ssh: "gitlab.com", keys: "https://gitlab.com/-/user_settings/ssh_keys", builtin: true },
+  { name: "Codeberg", web: "https://codeberg.org", ssh: "codeberg.org", keys: "https://codeberg.org/user/settings/keys", builtin: true },
+];
+const FORGEJO = { name: "Forgejo", web: "http://forgejo.lan:3000", ssh: "forgejo.lan", keys: "http://forgejo.lan:3000/user/settings/keys", builtin: false };
+let gitSites = [...BUILTIN_SITES, FORGEJO];
 let settingsReply: unknown = {};
 const RUNNING = {
   nas: { ok: true, checked: 0, containers: [{ name: "plex-1", image: "plex", status: "Up 2 days", ports: [] }], services: [], guests: [] },
@@ -207,6 +214,7 @@ beforeEach(() => {
   sshKey = null;
   deleteReply = { deleted: true, instance_id: "nas", warning: null };
   gitStatus = 200;
+  gitSites = [...BUILTIN_SITES, FORGEJO];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -239,7 +247,15 @@ beforeEach(() => {
                       .map(([id, h]) => [id, `${h.user}@${h.hostname}`]),
                   ),
                   projects: { nas: "~/projects", pve: "~/projects" },
+                  git_sites: gitSites,
                 }
+            : path === "/api/ssh/git-sites"
+              ? (() => {
+                  // As the server keeps them: the built-ins, then those sent, each with its page.
+                  const sent = JSON.parse(String(init?.body ?? "{}")).sites as { name: string; web: string; ssh: string }[];
+                  gitSites = [...BUILTIN_SITES, ...sent.map((x) => ({ ...x, keys: `${x.web}/user/settings/keys`, builtin: false }))];
+                  return { sites: sent };
+                })()
             : path === "/api/instances/nas" && init?.method === "DELETE"
               ? deleteReply
             : path === "/api/ssh/tools"
@@ -1591,6 +1607,74 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
   fireEvent.click(button);
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
+});
+
+// --- Add to a git site (Phase 64) ---
+
+async function addToSite() {
+  fireEvent.click(within(await gitKeys()).getByRole("button", { name: "Add to a git site" }));
+  return screen.findByRole("dialog", { name: "Add to a git site" });
+}
+
+test("Add to a git site: the site, the key's name, then the key to copy, the site's page and a Test there", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await addToSite();
+
+  // The machine's account key, already named: copy it, paste it on the site picked.
+  expect(within(dialog).getByRole("combobox")).toHaveValue("GitHub"); // where its remotes go
+  expect(within(dialog).getByRole("textbox")).toHaveValue("loskai@nas");
+  expect(within(dialog).getByText(/ssh-ed25519 AAAAmach loskai@nas/)).toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("link", { name: /GitHub's SSH keys/ })).toHaveAttribute("href", "https://github.com/settings/ssh/new");
+
+  // Another site: its own page, and the Test on its SSH address.
+  fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "Forgejo" } });
+  expect(within(dialog).getByRole("link", { name: /Forgejo's SSH keys/ })).toHaveAttribute("href", "http://forgejo.lan:3000/user/settings/keys");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Test" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40forgejo.lan")).toBeInTheDocument();
+});
+
+test("Add to a git site renames the account key to the name given, or makes one when there is none", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await addToSite();
+  fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "codebox laptop" } });
+  // Until it has that name, there is nothing to copy.
+  expect(within(dialog).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Rename the key to codebox laptop" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=account-key&target=codebox+laptop")).toBeInTheDocument();
+});
+
+test("Add to a git site makes the account key when the machine has none", async () => {
+  sshSetUp();
+  facts = { ...FACTS, ssh_keys: [] };
+  renderPage("/machines/nas/tools");
+  const dialog = await addToSite();
+  expect(within(dialog).getByRole("textbox")).toHaveValue("loskai@nas");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Make the key" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=account-key&target=loskai%40nas")).toBeInTheDocument();
+});
+
+test("Add a site… keeps a site of your own in Loskai, and picks it", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await addToSite();
+  fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "add" } });
+  const add = await screen.findByRole("dialog", { name: "Add a site" });
+  fireEvent.change(within(add).getByPlaceholderText("Forgejo"), { target: { value: "Home Gitea" } });
+  fireEvent.change(within(add).getByPlaceholderText("https://git.example.com"), { target: { value: "http://gitea.lan:3000" } });
+  fireEvent.change(within(add).getByPlaceholderText("git.example.com:222"), { target: { value: "gitea.lan:222" } });
+  fireEvent.click(within(add).getByRole("button", { name: "Add site" }));
+
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a site" })).not.toBeInTheDocument());
+  // The ones there were, and the new one — never the built-ins, which the server keeps itself.
+  expect(calls.find((c) => c.path === "/api/ssh/git-sites")?.body).toEqual({ sites: [
+    { name: "Forgejo", web: "http://forgejo.lan:3000", ssh: "forgejo.lan" },
+    { name: "Home Gitea", web: "http://gitea.lan:3000", ssh: "gitea.lan:222" },
+  ] });
+  await waitFor(() => expect(within(dialog).getByRole("combobox")).toHaveValue("Home Gitea"));
+  expect(within(dialog).getByRole("link", { name: /Home Gitea's SSH keys/ })).toHaveAttribute("href", "http://gitea.lan:3000/user/settings/keys");
 });
 
 test("Keys says when there is no key yet", async () => {

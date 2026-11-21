@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Check, ExternalLink, KeyRound, RotateCw, Tag, X } from "lucide-react";
 
-import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, remoteSshHost, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
+import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, remoteSshHost, useSsh, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
@@ -9,6 +9,7 @@ import { TOOL_BUTTON } from "../../lib/ui";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
+import { AddToSite } from "./AddToSite";
 import { Hint, ReasonButton } from "../shared/Hint";
 
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
@@ -110,6 +111,8 @@ export function SshKeys({
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
   const run = ctx.onRun;
+  const [adding, setAdding] = useState(false);
+  const canAdd = git && tool.actions.some((a) => a.ask === "key-comment");
 
   return (
     <Overlay
@@ -164,6 +167,18 @@ export function SshKeys({
           Loskai's own key isn't here: it logs in to this machine, from Loskai — see SSH setup.
         </p>
       )}
+      {canAdd && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+          >
+            <KeyRound className="h-4 w-4" /> Add to a git site
+          </button>
+        </div>
+      )}
+      {adding && <AddToSite tool={tool} ctx={ctx} onClose={() => setAdding(false)} />}
       {beside.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {/* What asks for the same kind of value shares one field: a host, for New key for a
@@ -229,7 +244,8 @@ function KeyRow({
   const { group, tag } = keyGroup(info, uses);
   const [labelling, setLabelling] = useState(false);
   // Where to add it — git's view, until a Test has seen it get in.
-  const page = git && info.public && !tested?.ok ? keyPage(info, uses) : null;
+  const sites = useSsh().data?.git_sites;
+  const page = git && info.public && !tested?.ok ? keyPage(info, uses, sites) : null;
   // The machine's view says what it is for in a word or two.
   const purpose = { account: "Account", deploy: "Deploy", login: "Login", other: null }[group];
   return (
