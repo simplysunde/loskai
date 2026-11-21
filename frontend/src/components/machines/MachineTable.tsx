@@ -252,7 +252,7 @@ export function MachineTable({
                     </td>
                     <td className={`px-4 py-2 ${running[machine.id] ? "" : "max-sm:hidden"}`}>
                       {running[machine.id] ? (
-                        <RunningPill running={running[machine.id]} user={sshEntry?.user} actions={runningActions(machine)} />
+                        <RunningPill running={running[machine.id]} user={sshEntry?.user} address={machine.upstream} actions={runningActions(machine)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}

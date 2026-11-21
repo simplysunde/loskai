@@ -297,7 +297,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         ) : !runningHere ? (
           <Loader2 className="m-3 h-4 w-4 animate-spin text-slate-500" />
         ) : runningHere.ok ? (
-          <RunningList running={runningHere} user={sshEntry?.user} actions={rowActions} />
+          <RunningList running={runningHere} user={sshEntry?.user} address={machine.upstream} actions={rowActions} />
         ) : (
           <p className="p-3 text-amber-300">Unreachable: {runningHere.error}</p>
         )}

@@ -2,6 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { RunningPill } from "./RunningPill";
+import { copyText } from "../../lib/clipboard";
+
+vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(async () => true) }));
 
 const RUNNING = {
   ok: true,
@@ -74,4 +77,24 @@ test("a machine that can't be read says why in its hint", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "unreachable" }));
   expect(screen.getByRole("tooltip")).toHaveTextContent("Can't reach 192.168.10.50:22");
+});
+
+test("a port something listens on is copied as the machine's address and that port, card left open", async () => {
+  const running = {
+    ...RUNNING,
+    listening: [
+      { service: "nginx", port: 80, host: "" },
+      // Only on another of its addresses (a tailnet's): not reachable at this one.
+      { service: "nginx", port: 8443, host: "100.64.0.5" },
+    ],
+  };
+  render(<RunningPill running={running} address="192.168.10.50" />);
+  fireEvent.click(screen.getByRole("button", { name: "3 running" }));
+
+  fireEvent.click(screen.getByRole("button", { name: "Copy 192.168.10.50:8096" }));
+  expect(copyText).toHaveBeenCalledWith("192.168.10.50:8096");
+  fireEvent.click(screen.getByRole("button", { name: "Copy 192.168.10.50:80" }));
+  expect(copyText).toHaveBeenCalledWith("192.168.10.50:80");
+  expect(screen.queryByRole("button", { name: /8443/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Running" })).toBeInTheDocument();
 });

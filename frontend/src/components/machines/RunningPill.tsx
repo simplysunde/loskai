@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import type { TargetKind } from "../../lib/tools";
 import { runningCount, type Running } from "../../lib/ssh";
+import { CopyButton } from "../shared/CopyButton";
 import { Hint } from "../shared/Hint";
 
 const DENIED: Record<string, string> = {
@@ -14,14 +15,16 @@ const DENIED: Record<string, string> = {
 // How many things run on a machine; a click lists them all, with what can be done to each
 // (`actions`: a route on a port, naming a guest). The card is portalled to the body and
 // `fixed` at the pill, because the table scrolls sideways and would clip it. Esc, a click
-// outside it, or one of its buttons closes it.
+// outside it, or one of its buttons closes it — except a copy button.
 export function RunningPill({
   running,
   user,
+  address,
   actions,
 }: {
   running: Running;
   user?: string;
+  address?: string | null;
   actions?: (target: TargetKind, id: string) => React.ReactNode;
 }) {
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
@@ -81,11 +84,14 @@ export function RunningPill({
             role="dialog"
             aria-label="Running"
             // A button in it opens a dialog of its own (Add route, Name a machine), so it goes.
-            onClick={(e) => (e.target as HTMLElement).closest("button") && setAt(null)}
+            onClick={(e) => {
+              const button = (e.target as HTMLElement).closest("button");
+              if (button && !button.closest("[data-copy]")) setAt(null);
+            }}
             style={{ left: at.left, top: at.top, width }}
             className="fixed z-50 max-h-80 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
           >
-            <RunningList running={running} user={user} actions={actions} />
+            <RunningList running={running} user={user} address={address} actions={actions} />
           </div>,
           document.body,
         )}
@@ -95,23 +101,53 @@ export function RunningPill({
 
 // Everything that runs on a machine, by kind, as a table — the pill's card, and the
 // machine's page, where `actions` adds a column with the buttons of the tools that apply.
+// With the machine's `address`, each port a row listens on there gets a button copying
+// `address:port`.
 export function RunningList({
   running,
   user,
+  address,
   actions,
 }: {
   running: Running;
   user?: string;
+  address?: string | null;
   actions?: (target: TargetKind, id: string) => React.ReactNode;
 }) {
   const containers = running.containers ?? [];
   const services = running.services ?? [];
   const guests = running.guests ?? [];
   const columns = actions ? 3 : 2;
-  const row = (key: string, name: string, status: React.ReactNode, buttons: React.ReactNode, title?: string) => (
+  // A service listening on every address, or on this one; not one bound only to another
+  // (a tailnet's), which this address doesn't reach.
+  const servicePorts = (service: string) =>
+    (running.listening ?? []).filter((l) => l.service === service && (l.host === "" || l.host === address)).map((l) => l.port);
+  const copies = (ports: number[]) =>
+    address &&
+    [...new Set(ports)].sort((a, b) => a - b).map((port) => (
+      <CopyButton
+        key={port}
+        text={`${address}:${port}`}
+        title={`Copy ${address}:${port}`}
+        label={`Copy ${address}:${port}`}
+        shown={`:${port}`}
+        className="flex shrink-0 items-center gap-1 rounded px-1 py-0.5 font-mono text-[11px] text-slate-500 hover:bg-slate-800 hover:text-slate-200 [&_svg]:h-3 [&_svg]:w-3"
+      />
+    ));
+  const row = (
+    key: string,
+    name: string,
+    status: React.ReactNode,
+    buttons: React.ReactNode,
+    title?: string,
+    ports: number[] = [],
+  ) => (
     <tr key={key} className="border-t border-slate-800 hover:bg-slate-900/40">
-      <td title={title} className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">
-        {name}
+      <td title={title} className="max-w-0 px-4 py-2 text-sm text-slate-200">
+        <span data-copy className="flex items-center gap-1">
+          <span className="min-w-0 truncate">{name}</span>
+          {copies(ports)}
+        </span>
         {/* On a phone the status goes under the name, leaving the name the room. */}
         {status && <span className="block truncate text-xs text-slate-500 sm:hidden">{status}</span>}
       </td>
@@ -136,7 +172,7 @@ export function RunningList({
           </colgroup>
           {containers.length > 0 && (
             <Group title={`Containers (${containers.length})`} columns={columns}>
-              {containers.map((c) => row(c.name, c.name, c.status, actions?.("container", c.name), c.image))}
+              {containers.map((c) => row(c.name, c.name, c.status, actions?.("container", c.name), c.image, c.ports ?? []))}
             </Group>
           )}
           {guests.length > 0 && (
@@ -148,7 +184,7 @@ export function RunningList({
           )}
           {services.length > 0 && (
             <Group title={`Services (${services.length})`} columns={columns}>
-              {services.map((s) => row(s, s, "", actions?.("service", s)))}
+              {services.map((s) => row(s, s, "", actions?.("service", s), undefined, servicePorts(s)))}
             </Group>
           )}
         </table>

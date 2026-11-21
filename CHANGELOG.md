@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Copy a port's address** from a machine's **n running** list: each port beside a
+  container or a service copies the machine's address with it, like `192.168.10.50:8096`.
 - **The AdGuard and Caddy LXCs' Console** in Proxmox opens a root shell, with no login. It
   relied on logging root in automatically, which could leave a login prompt no password
   answers. For an LXC made before: `pct set <ID> --cmode shell` on the Proxmox host.
