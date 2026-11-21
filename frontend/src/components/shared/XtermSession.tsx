@@ -31,6 +31,7 @@ export function XtermSession({
   onOutput,
   toolbar,
   height = "h-[55vh]",
+  keys = true,
 }: {
   url: string;
   // Sent before anything else once the socket opens — a run's ticket for sudo's password,
@@ -42,6 +43,9 @@ export function XtermSession({
   onOutput?: (text: string) => void;
   toolbar?: (run: (command: string) => void) => ReactNode;
   height?: string;
+  // The keyboard icon listing the terminal's keys; the quick terminal leaves it out, and
+  // with it the row above the terminal, unless something is copied.
+  keys?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -169,26 +173,30 @@ export function XtermSession({
 
   return (
     <>
-      <div className="mb-2 flex items-start gap-2">
-        <div className="min-w-0 flex-1">{toolbar?.(run)}</div>
-        {copied?.ok && (
-          <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-300">
-            <Check className="h-3.5 w-3.5" /> Copied {copied.text.length} characters
-          </span>
-        )}
-        {copied && !copied.ok && (
-          <button
-            title="The browser didn't let the terminal copy by itself — this copies it"
-            onClick={() => void copyText(copied.text).then((ok) => ok && setCopied(null))}
-            className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 px-1.5 py-0.5 text-xs text-amber-300 hover:bg-amber-500/10"
-          >
-            <Copy className="h-3.5 w-3.5" /> Copy {copied.text.length} characters
-          </button>
-        )}
-        <Hint text={KEYS_HINT} className="shrink-0 text-slate-500">
-          <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
-        </Hint>
-      </div>
+      {(keys || toolbar || copied) && (
+        <div className="mb-2 flex items-start gap-2">
+          <div className="min-w-0 flex-1">{toolbar?.(run)}</div>
+          {copied?.ok && (
+            <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-300">
+              <Check className="h-3.5 w-3.5" /> Copied {copied.text.length} characters
+            </span>
+          )}
+          {copied && !copied.ok && (
+            <button
+              title="The browser didn't let the terminal copy by itself — this copies it"
+              onClick={() => void copyText(copied.text).then((ok) => ok && setCopied(null))}
+              className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 px-1.5 py-0.5 text-xs text-amber-300 hover:bg-amber-500/10"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy {copied.text.length} characters
+            </button>
+          )}
+          {keys && (
+            <Hint text={KEYS_HINT} className="shrink-0 text-slate-500">
+              <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
+            </Hint>
+          )}
+        </div>
+      )}
       <div ref={hostRef} className={`${height} rounded-lg bg-slate-950 p-2`} />
     </>
   );

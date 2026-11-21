@@ -135,7 +135,8 @@ export function MachineTerminal({
             key={session}
             url={`/api/ssh/machines/${machine.id}/terminal${query}`}
             first={ticket}
-            height="h-[22vh]"
+            height="h-[15vh] min-h-24"
+            keys={false}
             onOutput={(text) => {
               tail.current = (tail.current + text).slice(-400);
               const failed = FAILED.exec(plain(tail.current));
