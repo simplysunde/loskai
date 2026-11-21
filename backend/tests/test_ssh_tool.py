@@ -25,12 +25,14 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "ssh-key", "host-key", "test-key", "every-key", "own-key",
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "account-key", "test-key", "every-key", "own-key",
             "machine-key", "key-on-host", "label-key", "delete-key"} == set(tools["git"].actions)
     assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
-    # The tests drop down, their answer Done or Failed; what makes a key stays open to read.
-    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "key-on-host"))
-    assert not any(tools["git"].actions[a].automatic for a in ("ssh-key", "host-key", "delete-key"))
+    # The tests drop down, their answer Done or Failed, and so does making the account key —
+    # Keys shows it; deleting one stays open to read.
+    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "key-on-host", "account-key"))
+    assert tools["git"].actions["account-key"].ask == "key-comment"
+    assert not tools["git"].actions["delete-key"].automatic
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
     assert tools["system"].actions["reboot"].confirm
     assert tools["proxmox"].requires == ("pct", "qm")
@@ -65,25 +67,53 @@ def test_test_key_refuses_an_option_a_user_or_anything_else(host):
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_ssh_key_makes_one_once_and_shows_the_public_half(tmp_path):
-    run = tool.load()["git"].actions["ssh-key"].run
+def test_the_account_key_is_made_once_with_its_name_and_renamed_after(tmp_path):
+    run = tool.load()["git"].actions["account-key"].run
     env = {**os.environ, "HOME": str(tmp_path)}
 
-    first = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
+    def name(value):
+        return subprocess.run(["sh", "-c", run, "sh", value], capture_output=True, text=True, env=env, timeout=30)
+
+    first = name("sunde@codebox")
     assert first.returncode == 0, first.stderr
     pub = (tmp_path / ".ssh" / "id_ed25519.pub").read_text()
-    assert pub.startswith("ssh-ed25519 ") and pub.strip() in first.stdout and "Made a new key" in first.stdout
+    assert pub.startswith("ssh-ed25519 ") and pub.strip().endswith(" sunde@codebox (loskai: account)")
     assert not (tmp_path / ".ssh" / "id_ed25519").read_text().count("ENCRYPTED")  # no passphrase
     assert (tmp_path / ".ssh" / "id_ed25519").stat().st_mode & 0o077 == 0
     assert "PRIVATE" not in first.stdout
 
-    # Again: the same key, shown — never a second.
-    again = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
-    assert again.returncode == 0 and pub.strip() in again.stdout and "Made a new key" not in again.stdout
+    # Again, with another name: the same key, renamed — never a second.
+    again = name("codebox laptop")
+    renamed = (tmp_path / ".ssh" / "id_ed25519.pub").read_text()
+    assert again.returncode == 0 and renamed.split()[1] == pub.split()[1]
+    assert renamed.strip().endswith(" codebox laptop (loskai: account)")
+    assert sorted(p.name for p in (tmp_path / ".ssh").iterdir()) == ["id_ed25519", "id_ed25519.pub"]
     # A key with its public half lost gets it back, not replaced.
     (tmp_path / ".ssh" / "id_ed25519.pub").unlink()
-    back = subprocess.run(["sh", "-c", run], capture_output=True, text=True, env=env, timeout=30)
-    assert back.returncode == 0 and pub.split()[1] in back.stdout
+    back = name("codebox")
+    assert back.returncode == 0 and (tmp_path / ".ssh" / "id_ed25519.pub").read_text().split()[1] == pub.split()[1]
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_an_account_key_with_a_passphrase_is_kept_as_it_is(tmp_path):
+    (tmp_path / ".ssh").mkdir()
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "secret", "-C", "me@laptop",
+                    "-f", str(tmp_path / ".ssh" / "id_ed25519")], check=True)
+    out = subprocess.run(["sh", "-c", tool.load()["git"].actions["account-key"].run, "sh", "codebox"],
+                         capture_output=True, text=True, env={**os.environ, "HOME": str(tmp_path)}, timeout=30)
+
+    assert out.returncode == 0 and "passphrase" in out.stdout
+    assert (tmp_path / ".ssh" / "id_ed25519.pub").read_text().strip().endswith(" me@laptop")
+
+
+@pytest.mark.parametrize("value", ["sunde@codebox", "codebox laptop", "work-pc_2.home"])
+def test_a_key_s_name_is_plain_words(value):
+    assert tool.TARGETS["key-comment"].fullmatch(value)
+
+
+@pytest.mark.parametrize("value", ["", " lead", "trail ", "a(b)", "a\nb", "x" * 61, "it's", "a$b"])
+def test_a_key_s_name_refuses_the_mark_s_brackets_and_anything_else(value):
+    assert not tool.TARGETS["key-comment"].fullmatch(value)
 
 
 def _forge(tmp_path, keys: dict[str, tuple[str, str]], config: str, greetings: dict[str, str]):
@@ -237,11 +267,10 @@ def test_a_keys_own_test_tries_it_alone_on_the_host_named(tmp_path):
 def test_every_key_loskai_makes_says_what_it_is_for(tmp_path):
     a = tool.load()["git"].actions
     home, projects, run = _home_with_projects(tmp_path, {"site": "git@github.com:me/site.git"})
-    for script, args in ((a["ssh-key"].run, ()), (a["host-key"].run, ("git.home.lan:2222",)), (a["own-key"].run, ("site",))):
+    for script, args in ((a["account-key"].run, ("me@box",)), (a["own-key"].run, ("site",))):
         assert run(script, *args).returncode == 0
     comment = lambda name: (home / ".ssh" / f"{name}.pub").read_text().split(" ", 2)[2].strip()  # noqa: E731
     assert comment("id_ed25519").endswith("(loskai: account)")
-    assert comment("git.home.lan").endswith("(loskai: for git.home.lan)")
     assert comment("deploy_site").endswith("(loskai: deploy site)")
 
 
@@ -288,11 +317,8 @@ def test_a_key_label_refuses_anything_else(value):
 SSH_FILES = ["authorized_keys", "authorized_keys2", "known_hosts", "known_hosts.old", "config", "environment", "rc"]
 
 
-def test_new_key_for_a_host_refuses_the_same_files_the_key_kind_does():
-    """One list, in two languages: status.SSH_FILES, and New key for a host's case."""
+def test_ssh_s_own_files_are_the_ones_the_key_kind_refuses():
     assert sorted(status.SSH_FILES) == sorted(SSH_FILES)
-    case = re.search(r'case "\$h" in ([^)]*)\)', tool.load()["git"].actions["host-key"].run).group(1)
-    assert sorted(case.split("|")) == sorted(SSH_FILES)
 
 
 @pytest.mark.parametrize("name", SSH_FILES)
@@ -303,9 +329,8 @@ def test_a_key_is_never_one_of_sshs_own_files(name):
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_delete_and_new_key_for_a_host_touch_only_key_pairs(tmp_path):
-    """Delete acts on a key with its public half, never another file there; New key for a
-    host never writes over, or as, one of ssh's own files."""
+def test_delete_touches_only_key_pairs(tmp_path):
+    """Delete acts on a key with its public half, never another file there."""
     a = tool.load()["git"].actions
     ssh = tmp_path / ".ssh"
     ssh.mkdir()
@@ -321,8 +346,6 @@ def test_delete_and_new_key_for_a_host_touch_only_key_pairs(tmp_path):
         out = run("delete-key", name)
         assert out.returncode == 1 and "isn't a key" in out.stdout
         assert (ssh / name).exists()
-    out = run("host-key", "config")
-    assert out.returncode == 1 and not (ssh / "config").exists()
     assert (ssh / "authorized_keys").read_text() == "ssh-ed25519 AAAA loskai\n"
 
 
@@ -361,21 +384,6 @@ def test_test_key_and_try_every_key_try_a_key_the_same_way():
 
     assert one_key(a["test-key"].run) == one_key(a["every-key"].run) == one_key(a["key-on-host"].run)
     assert "Connection refused" in one_key(a["test-key"].run)
-
-
-@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_a_key_for_a_host_is_made_once_with_the_lines_to_add_to_ssh_config(tmp_path):
-    run = tool.load()["git"].actions["host-key"].run
-    env = {**os.environ, "HOME": str(tmp_path)}
-
-    made = subprocess.run(["sh", "-c", run, "sh", "git.home.lan:2222"], capture_output=True, text=True, env=env, timeout=30)
-
-    assert made.returncode == 0, made.stderr
-    assert (tmp_path / ".ssh" / "git.home.lan.pub").read_text().strip() in made.stdout
-    assert "Host git.home.lan\n  IdentityFile ~/.ssh/git.home.lan\n  IdentitiesOnly yes\n  Port 2222\n" in made.stdout
-    assert not (tmp_path / ".ssh" / "config").exists()  # printed, never written
-    again = subprocess.run(["sh", "-c", run, "sh", "git.home.lan"], capture_output=True, text=True, env=env, timeout=30)
-    assert again.returncode == 1 and "already" in again.stdout
 
 
 def _home_with_projects(tmp_path, remotes: dict[str, str]):
@@ -445,7 +453,7 @@ def test_delete_takes_the_key_off_and_its_project_back_to_the_machines(tmp_path)
     a = git_tool.actions
     home, projects, run = _home_with_projects(tmp_path, {
         "site": "ssh://git@forgejo.lan:2222/sunde/site.git", "blog": "git@github.com:sunde/blog.git"})
-    assert run(a["ssh-key"].run).returncode == 0
+    assert run(a["account-key"].run, "me@box").returncode == 0
     assert run(a["own-key"].run, "site").returncode == 0
 
     # Delete: the files go, and site goes back to the machine's key.
@@ -872,7 +880,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     git = tool.load()["git"].actions
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
-        "ssh-key": (None, "keys"), "host-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
+        "account-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
         "key-on-host": (None, "keys"), "label-key": (None, "keys"), "delete-key": ("key", "card")}
 
 

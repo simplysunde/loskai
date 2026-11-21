@@ -141,6 +141,7 @@ What a row action is on, and what its target must look like (`tool.TARGETS`):
 | `key` | each SSH key in the user's `~/.ssh`, in Git's Keys dialog — never on the card | its file's name without `.pub`, `id_ed25519`, `deploy_site`: a letter or digit, then letters, digits, `.`, `_` and `-` — never a path, and never one of ssh's own files there (`config`, `known_hosts`, `authorized_keys`, … — `status.SSH_FILES`) |
 | `key-host` | only with `ask` (a key's own Test, in Git's Keys): a key and a host to try it on, `<key>@<host>`, the page joining the key's name and the host typed on its row | each half held to the `key` and `host` kinds — `deploy_site@github.com`, `id_ed25519@git.home.lan:2222` |
 | `key-label` | only with `ask` (a key's Label, in Git's Keys): a key and what it is for, `<key>@<what>` | `<what>` is `account`, `login`, `for:<host>` or `deploy:<project>`, each part held to its kind — `work@for:github.com`, `id_ed25519@login` |
+| `key-comment` | only with `ask` (Git's Account key, from **Add to a git site** in Keys): what the account key is called — its comment, before Loskai's `(loskai: account)` | up to 60 letters, digits, spaces, `.`, `_`, `@`, `+` and `-`, not starting or ending with a space — `sunde@codebox`, `codebox laptop`; never a bracket or a quote |
 | `host` | only with `ask` (Git's Test key): a field for a host to reach over SSH | a name, an address or an ssh alias starting with a letter or digit, then letters, digits, `.`, `_` and `-`, and `:port` optionally — `github.com`, `git.home.lan:2222`; never a user or an option |
 | `repo` | only with `ask` (Git's Clone): a field for a repository's address | `https://…`, `http://…`, `ssh://…`, `git://…` (a user and a host that each start with a letter or digit), or `user@host:path` — never another transport (`ext::` runs a command) |
 
@@ -259,8 +260,8 @@ Where an action is offered, and the dialog closes as it runs:
   one (`tool.SETTING_TARGETS`), so `place: settings` with another `target` is refused.
 - **`keys`** — on no row, beside the list in **Keys**: the dialog of the SSH user's keys,
   from Git's card header — git's view of the keys; the machine's SSH settings list them all
-  plainly, with a key's Label and Delete — for a tool with an action on a `key` (Git's **New account key**,
-  shown only while there is no account key, and **Test key**). An action on a `key` is on
+  plainly, with a key's Label and Delete — for a tool with an action on a `key` (Git's **Test key** and **Try every key**; its
+  **Account key** is run by **Add to a git site** there, not shown as a button). An action on a `key` is on
   that key's row there; `place: keys` with a `target` is refused.
 
 ### `automatic`

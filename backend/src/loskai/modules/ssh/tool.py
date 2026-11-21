@@ -89,6 +89,9 @@ TARGETS = {
         "^" + KEY_PART + r"@(?:account|login|for:[A-Za-z0-9][A-Za-z0-9._-]{0,252}"
         r"|deploy:[A-Za-z0-9][A-Za-z0-9._-]{0,99})$"
     ),
+    # What a key is called — its comment, before the `(loskai: …)` mark: words, a name and a
+    # machine, as a forge shows it in its list of keys. No brackets (the mark's), no quotes.
+    "key-comment": re.compile(r"^(?=\S)[A-Za-z0-9 ._@+-]{1,60}(?<=\S)$"),
     # A setting's values: a person's name as git writes it on a commit, and an address.
     "git-name": re.compile(r"^(?=\S)[^\x00-\x1f\x7f<>]{1,100}(?<=\S)$"),
     "email": re.compile(r"^[^\s@<>\x00-\x1f\x7f]{1,64}@[^\s@<>\x00-\x1f\x7f]{1,190}$"),

@@ -162,8 +162,7 @@ const TOOLS = [
       { id: "pull-all", label: "Pull all", description: "Pull each.", target: null, ask: null, confirm: null, run: "git pull" },
       { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
-      { id: "ssh-key", label: "New account key", description: "Make one.", target: null, ask: null, confirm: null, session: false, place: "keys", run: "ssh-keygen" },
-      { id: "host-key", label: "New key for a host", description: "Make one.", target: null, ask: "host", confirm: null, session: false, place: "keys", run: "ssh-keygen" },
+      { id: "account-key", label: "Account key", description: "Make or name it.", target: null, ask: "key-comment", confirm: null, session: false, place: "keys", automatic: true, run: "ssh-keygen" },
       { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "key-on-host", label: "Test", description: "Try it there.", target: null, ask: "key-host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T" },
@@ -1585,7 +1584,7 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   const host = within(dialog).getByLabelText("Host");
   expect(host).toHaveAttribute("placeholder", "github.com");
   const button = within(dialog).getByRole("button", { name: "Test key" });
-  for (const name of ["New key for a host", "Test key", "Try every key"]) {
+  for (const name of ["Test key", "Try every key"]) {
     expect(within(dialog).getByRole("button", { name })).toBeDisabled();
   }
   expect(button.querySelector("svg")).toHaveClass("lucide-plug-zap");
@@ -1594,23 +1593,12 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
 });
 
-test("New key for a host, in Keys, makes one for the host typed", async () => {
-  sshSetUp();
-  renderPage("/machines/nas/tools");
-  const dialog = await gitKeys();
-  fireEvent.change(within(dialog).getByLabelText("Host"), { target: { value: "github.com" } });
-  fireEvent.click(within(dialog).getByRole("button", { name: "New key for a host" }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=host-key&target=github.com")).toBeInTheDocument();
-});
-
-test("Keys offers New account key while there is none, and says when the status line can't list them", async () => {
+test("Keys says when there is no key yet", async () => {
   sshSetUp();
   facts = { ...FACTS, ssh_keys: [] };
   renderPage("/machines/nas/tools");
   const dialog = await gitKeys();
   expect(within(dialog).getByText("No SSH key here yet.")).toBeInTheDocument();
-  fireEvent.click(within(dialog).getByRole("button", { name: "New account key" }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=ssh-key")).toBeInTheDocument();
 });
 
 test("an older status line: Keys says to install it again — for the keys, or for where they are used", async () => {

@@ -101,10 +101,9 @@ export function SshKeys({
   const labelAction = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
-  const hasAccount = (keys ?? []).some((k) => keyKind(k.name) === "account");
-  // New account key only while there is none.
+  // Under the list: what tests keys on a host. The account key is Add to a git site's.
   const beside = git
-    ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && !(a.id === "ssh-key" && hasAccount))
+    ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && a.ask !== "key-comment")
     : [];
   const order = (k: MachineKey) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
   const notGit = (keys ?? []).filter((k) => !["account", "deploy"].includes(keyGroup(k, usesOf(k)).group));

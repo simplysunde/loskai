@@ -5,7 +5,7 @@ import { api } from "./api";
 // What a machine's page can run, from the tool files in the image
 // (docs/reference/tool-schema.md). The commands come along so what runs can be read.
 // `repo` is only asked for (Clone's address), never a row.
-export type TargetKind = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host" | "key" | "key-host" | "key-label";
+export type TargetKind = "service" | "container" | "lxc" | "vm" | "session" | "project" | "repo" | "host" | "key" | "key-host" | "key-label" | "key-comment";
 
 export interface ToolAction {
   id: string;

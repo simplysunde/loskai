@@ -426,12 +426,19 @@ logs in *to* the machine, and is SSH setup's.
 - **The machine's dialog › SSH › Keys (n)** lists every key, with Copy and — where the
   machine has Git, whose tool file holds the actions — Label and Delete.
 - **Git's card › Keys** is git's side: account keys and deploy keys, the remotes each is for,
-  a host field and Test on each, Add to …, and under the list Test key, Try every key, New key
-  for a host and, while there is no `id_*` key, New account key.
+  a host field and Test on each, Add to …, and under the list **Add to a git site**, Test key
+  and Try every key. **Add to a git site** is the one way to make a key for an account: the
+  site — GitHub, GitLab, Codeberg, or one added in Loskai (`git_sites`, `PUT
+  /api/ssh/git-sites`, kept for every machine) — then the name, which Account key writes on
+  the machine's `id_*` key (making it if there is none, renaming it otherwise), then its line
+  to copy, the site's keys page and Test on the site's SSH address. The account key, because
+  ssh offers it every host by itself: nothing goes in `~/.ssh/config`, which Loskai never
+  edits — a key per host, which needed a `Host` block pasted there, was removed on
+  2026-11-21.
 - **What a key is for is written on it.** Every key Loskai makes is ed25519 with no
   passphrase — pulls and pushes run unattended — and ends its comment `(loskai: account)`
-  (`id_ed25519`), `(loskai: for <host>)` (`~/.ssh/<host>`) or `(loskai: deploy <project>)`
-  (`deploy_<project>`). Label writes such a mark, or `(loskai: login)`, on any other key with
+  (`id_ed25519`) or `(loskai: deploy <project>)` (`deploy_<project>`); `(loskai: for
+  <host>)` is Label's, and on keys a removed button made. Label writes such a mark, or `(loskai: login)`, on any other key with
   `ssh-keygen -c`: only the comment changes, so the key goes on working where it was added.
   Without a mark a key is placed as far as its name, comment and remotes say (`ssh.ts`).
 - **Where a key is used is read, never stored.** A remote uses its project's own key

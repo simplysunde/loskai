@@ -133,49 +133,28 @@ actions:
 # Done or Failed, a refused key failing — so nothing in them may prompt: a host ssh hasn't
 # met is trusted as it is first seen (StrictHostKeyChecking=accept-new; a changed key still
 # fails). What makes a key, or deletes one, stays open to read.
-  ssh-key:
-    label: New account key
+  # The machine's account key, named: `~/.ssh/id_*`, which ssh offers every host by itself —
+  # so a key added to an account works there with no ~/.ssh/config. Made (ed25519, no
+  # passphrase) when there is none; otherwise the one there is renamed — its comment, the
+  # name a forge lists it by — and stays the same key. Keys shows it, to copy.
+  account-key:
+    label: Account key
     description: >-
-      Make this machine's account key for its user — ed25519, no passphrase, so pulls and
-      pushes run unattended — and show it, to add to your GitHub or Forgejo account.
+      Make this machine's account key, or rename the one it has — ed25519, no passphrase, so
+      pulls and pushes run unattended — to add to your account on a git site.
+    ask: key-comment
+    automatic: true
     session: false
     place: keys
     run: >-
       command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
-      k=; for t in ed25519 ecdsa rsa; do if [ -f ~/.ssh/id_$t ]; then k=~/.ssh/id_$t;
-      [ -f "$k.pub" ] || ssh-keygen -y -f "$k" > "$k.pub" || exit 1; break; fi; done;
+      c="$1 (loskai: account)"; k=; for t in ed25519 ecdsa rsa; do [ -f ~/.ssh/id_$t ] && { k=~/.ssh/id_$t; break; }; done;
       if [ -z "$k" ]; then k=~/.ssh/id_ed25519; mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
-      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: account)" -f "$k" </dev/null || exit 1;
-      echo "Made a new key for $(id -un) on $(hostname), with no passphrase:";
-      else echo "$(id -un)'s key on $(hostname), $k.pub:"; fi;
-      echo; cat "$k.pub"; echo;
-      echo "Add this line to your account — GitHub: https://github.com/settings/ssh/new";
-      echo "Forgejo: <your Forgejo>/user/settings/keys"
-  # A key for one host — the usual way to keep one per platform: made as ~/.ssh/<host>, and
-  # the Host block that has ssh use it printed, to paste into ~/.ssh/config yourself —
-  # Loskai doesn't edit that file. Keys sees it once it is there.
-  host-key:
-    label: New key for a host
-    description: >-
-      Make a key for one host — github.com, your Forgejo (host:port when its SSH isn't on
-      22) — and show it, with the lines to add to ~/.ssh/config so ssh uses it there.
-    ask: host
-    session: false
-    place: keys
-    run: >-
-      command -v ssh-keygen >/dev/null || { echo "No ssh-keygen on this machine: install OpenSSH's client."; exit 1; };
-      h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac; k="$HOME/.ssh/$h";
-      case "$h" in config|known_hosts|known_hosts.old|authorized_keys|authorized_keys2|environment|rc)
-      echo "$h is one of ssh's own files in ~/.ssh, not a name for a key."; exit 1;; esac;
-      if [ -e "$k" ] || [ -e "$k.pub" ]; then echo "There is a key named $h already: Copy, on its row in Keys."; exit 1; fi;
-      mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
-      ssh-keygen -q -t ed25519 -N "" -C "$(id -un)@$(hostname) (loskai: for $h)" -f "$k" </dev/null || exit 1;
-      echo "Made a key for $h, with no passphrase:"; echo; cat "$k.pub"; echo;
-      echo "1. Add it to your account on $h — GitHub: https://github.com/settings/ssh/new;";
-      echo "   Forgejo: https://$h/user/settings/keys";
-      echo "2. Add these lines to ~/.ssh/config, above any Host * block — Loskai doesn't edit it:"; echo;
-      printf 'Host %s\n  IdentityFile ~/.ssh/%s\n  IdentitiesOnly yes\n' "$h" "$h"; [ -n "$p" ] && printf '  Port %s\n' "$p";
-      echo; echo "3. Test key, in Keys, with $1: this key should get in there."
+      ssh-keygen -q -t ed25519 -N "" -C "$c" -f "$k" </dev/null || exit 1; echo "Made ${k##*/}, named $1.";
+      elif ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then
+      [ -f "$k.pub" ] || ssh-keygen -y -P '' -f "$k" > "$k.pub" || exit 1;
+      ssh-keygen -q -c -P '' -C "$c" -f "$k" >/dev/null || exit 1; echo "Named ${k##*/} $1.";
+      else echo "${k##*/} has a passphrase: it keeps its name ($(cut -d' ' -f3- "$k.pub" 2>/dev/null))."; fi
   # A key tried alone on a host — which get in, and as whom: GitHub, Forgejo and GitLab name
   # the account (or, for a deploy key, its repository) in the greeting they answer an SSH
   # login with, and ssh exits 1 even then. The host is resolved once (`ssh -G`: an alias's
@@ -188,7 +167,7 @@ actions:
   #
   # Test key: only those meant for the host — what ssh offers it (its config's IdentityFile,
   # else ssh's own defaults), and any whose comment says it is for it ("… for github.com",
-  # as New key for a host writes) — so a test makes a connection or two, not one a key.
+  # as Label writes) — so a test makes a connection or two, not one a key.
   test-key:
     label: Test key
     description: >-
@@ -224,7 +203,7 @@ actions:
       *) printf '  %-24s refused\n' "$name";; esac;
       done;
       [ $n = 0 ] && { echo "  None here: ssh offers it no key in ~/.ssh, and none is made for it."; echo;
-      echo "Try every key finds out which get in — or New key for a host makes one."; exit 1; };
+      echo "Try every key finds out which get in — or add this machine's account key to the site, in Keys."; exit 1; };
       [ $ok -gt 0 ] || { echo; echo "None gets in: add one to your account there (Copy, on its row), or Try every key."; exit 1; }
   # Try every key: each key in ~/.ssh, at most 10 — to find which a host takes when nothing
   # says. A key a host refuses is a failed login there; this one is asked for.
