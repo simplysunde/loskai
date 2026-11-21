@@ -612,6 +612,22 @@ _READ_PASSWORD = "IFS= read -r p; stty echo 2>/dev/null; "
 PASSWORD_WAIT = 30  # seconds
 
 
+def _last_lines(session: str) -> tuple[str, str]:
+    """For an automatic run in tmux: the pane's last lines, kept when it succeeds — `(saved,
+    shown)`. tmux clears its screen as it exits, and a run that succeeded exits without
+    waiting, so the terminal would be left blank. `saved` goes in the pane before it exits
+    (its trailing blank rows dropped); `shown`, after tmux in the terminal's own shell,
+    takes tmux's `[exited]` line back and prints them. Kept in the user's own `~/.cache`,
+    where no other user can put a file in the way."""
+    last = f'"$HOME/.cache/loskai/{session}.last"'
+    saved = (
+        f"mkdir -p \"$HOME/.cache/loskai\" && tmux capture-pane -pJ -S -50 "
+        f"| awk 'NF{{for(;n>0;n--)print \"\";print;next}}{{n++}}' | tail -n 20 > {last}; "
+    )
+    shown = f"; if [ -s {last} ]; then printf '\\033[1A\\033[K'; cat {last}; fi; rm -f {last}"
+    return saved, shown
+
+
 def _pane_reads_password() -> str:
     """The pane's start: it reads the password from the FIFO in its folder, then removes
     the folder and goes home — or, sent nothing within `PASSWORD_WAIT`, removes it and
@@ -639,15 +655,16 @@ def terminal_command(
     checked it). It is never in a command line: read into a shell variable, and handed to
     `sudo -S -v` in the tty the run is in — a tmux pane is another tty, so there it goes
     through a FIFO in a folder of its own, read once and removed; a pane sent nothing ends (`PASSWORD_WAIT`)."""
+    saved, shown = _last_lines(session) if automatic and session else ("", "")
     body = USER_PATH + _projects_env(projects_folder) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target_name)}" if target_name else "")
     if automatic:
-        job += "; s=$?; [ $s = 0 ] && exit 0; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
+        job += f"; s=$?; [ $s = 0 ] && {{ {saved}exit 0; }}; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
     else:
         job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
     if not password:
         if session:
-            return f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}"
+            return f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}" + shown
         return job
     if not session:
         return _READ_PASSWORD + _SUDO_VALIDATE + "; " + job
@@ -659,7 +676,7 @@ def terminal_command(
         _READ_PASSWORD + 'd=$(mktemp -d) && mkfifo "$d/p" && '
         f'if tmux new-session -d -s {name} -c "$d" {shlex.quote(inner)} 2>/dev/null; '
         """then printf '%s\\n' "$p" > "$d/p"; fi; p=; rm -rf "$d"; """
-        f"exec tmux attach-session -t ={name}"
+        + (f"tmux attach-session -t ={name}" + shown if shown else f"exec tmux attach-session -t ={name}")
     )
 
 

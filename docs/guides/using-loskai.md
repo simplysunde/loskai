@@ -443,8 +443,8 @@ use a narrower `sudo` rule.
    the package lists and installs every update, with the machine's own package manager.
 2. If `sudo` needs a password there, a dialog asks for it. Type it and click **Run**. It is
    checked on the machine and used for this run only.
-3. A panel drops down from the top of the page: **Running…**, then **Done**. It closes by
-   itself after three seconds. Point at it to hold it, or click **Keep open**. If it says
+3. A panel drops down from the top of the page: **Running…**, then **Done**, with the run's
+   last lines. It closes by itself after three seconds. Point at it to hold it, or click **Keep open**. If it says
    **Failed**, it stays, with the output.
 
 **Reboot** and **Shut down** are in the dialog, under **General**. Each asks first.

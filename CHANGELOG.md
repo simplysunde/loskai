@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **An update that finished shows its last lines** in the panel that drops down, where it
+  was blank once tmux closed.
 - **A dialog stays open when you drag out of it**, or into it: selecting a terminal's text
   past its edge closed it. A click outside still closes it.
 - **Copy a port's address** from a machine's **n running** list: each port beside a

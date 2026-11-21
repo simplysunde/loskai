@@ -651,13 +651,31 @@ def test_sudo_s_password_is_read_first_and_handed_to_sudo_never_put_in_a_command
     assert out.stdout == "ran\n" and "hunter22" not in command
 
 
+@pytest.mark.skipif(shutil.which("tmux") is None or shutil.which("script") is None, reason="needs tmux and script")
+@pytest.mark.parametrize("password", [False, True])
+def test_an_automatic_action_in_tmux_leaves_its_last_lines_on_screen(tmp_path, password):
+    """tmux clears its screen as it exits, so a run that ended by itself would leave a
+    blank terminal: its last lines are printed again after it, in the terminal's own."""
+    command = tool.terminal_command("echo first; echo second", None, "loskai-test-run", automatic=True,
+                                    password=password)
+    env = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "TMUX_TMPDIR": str(tmp_path), "TERM": "xterm-256color"}
+    stdin = "secret\n" if password else ""
+
+    out = subprocess.run(["script", "-qfec", command, "/dev/null"], input=stdin, capture_output=True, text=True,
+                         timeout=20, env=env).stdout
+
+    after = out.rsplit("\x1b[?1049l", 1)[-1]  # what stays once tmux has left its screen
+    assert "first" in after and "second" in after
+    assert not any((tmp_path / ".cache" / "loskai").glob("*"))
+
+
 def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_session_is_attached():
     command = tool.terminal_command("true", None, "loskai-system-update", automatic=True, password=True)
 
     assert command.startswith("IFS= read -r p; stty echo")
     assert 'mkfifo "$d/p"' in command and 'rm -rf "$d"' in command
     assert "tmux new-session -d -s loskai-system-update" in command
-    assert command.endswith("exec tmux attach-session -t =loskai-system-update")
+    assert "tmux attach-session -t =loskai-system-update" in command
 
 
 _STUB_CLAUDE = """#!/bin/sh
