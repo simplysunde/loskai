@@ -526,18 +526,21 @@ that host's key. Loskai's key never leaves Loskai.
 
 **Give the machine a key for GitHub or Forgejo**
 
-1. On the Git card, click **Keys**, then **New account key**. A terminal shows the new
-   key's public line and where to add it. The key has no passphrase, so pulls and pushes
-   run unattended, and its private half stays on the machine.
-2. Back in **Keys**, click **Copy** on the key's row. Paste it under SSH keys in your
-   account's settings on GitHub or Forgejo. Where Loskai can tell the platform, the row has
-   a link to that page: **Add to GitHub**.
-3. Type the host in the field on the key's row, `github.com`, or `host:port` for a Forgejo
-   whose SSH isn't on 22, and click **Test**. The panel says the key **gets in**, and as
-   whom, and the row shows a tick and the host. **refused** means the key isn't on your
-   account there yet.
+1. On the Git card, click **Keys**, then **Add to a git site**.
+2. **Site**: pick GitHub, GitLab or Codeberg. For a Forgejo or Gitea of your own, pick
+   **Add a site…** and fill in its name, its web address (`http://192.168.10.30:3000`) and
+   its SSH address, the host in a repository's **Clone › SSH** with `:port` when it isn't 22
+   (`192.168.10.30:222`). Every machine offers it from then on.
+3. **Key name**: how the site lists the key, `you@machine` to start with. Click **Make the
+   key**, or **Rename the key to …** when the machine has one by another name. The key has
+   no passphrase, so pulls and pushes run unattended, and its private half stays on the
+   machine.
+4. Click **Copy**, then **Paste it in GitHub's SSH keys**, which opens that page on the
+   site. Paste it there and save.
+5. Click **Test**. **It gets in.** means it works; **Refused** means the site doesn't have
+   it yet.
 
-An account key reaches every repository your account can.
+An account key reaches every repository your account can, on every site you add it to.
 
 **Give one project a key of its own**
 
@@ -564,8 +567,6 @@ Under the list in **Keys**, type a host after **For a host:**.
 - **Try every key** tries every key on the machine, 10 at most. Each one the host refuses is
   a failed login there, so a self-hosted forge with fail2ban may ban the machine for a
   while.
-- **New key for a host** makes a key for that host alone and prints the `Host` block to
-  paste into `~/.ssh/config` on the machine. Loskai doesn't change that file.
 
 #### A machine's SSH keys
 

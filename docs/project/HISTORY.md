@@ -4,6 +4,29 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
+
+Adding codebox's key to Sunde's Forgejo went through **New key for a host**: a terminal
+printed the key, a guessed page (`https://<ssh host>/user/settings/keys`, wrong for a
+Forgejo on `http://…:3000`) and a `Host` block to paste into `~/.ssh/config` with the port
+typed (`2222`, where the Forgejo's SSH is on `222`). Sunde: "this proccess whas really
+confusing, can we make the process simply be pick the site, name the key, and copy what is
+needed". **Add to a git site** in Keys does that, with the machine's **account key** —
+`id_*`, which ssh offers every host by itself — so nothing goes in `~/.ssh/config`, which
+Loskai still never edits. **New key for a host** is removed (Sunde: "Remove it"): its only
+gain over the account key was one key per platform, and it was the one path that needed
+that file edited. A deploy key stays the narrower choice. **New account key** became
+**Account key**, which takes the name and renames a key the machine already has (the comment
+only, so it keeps working where it was added).
+
+A self-hosted site's web address can't be told from its SSH address, so sites are kept:
+GitHub, GitLab and Codeberg built in (`tool.BUILTIN_GIT_SITES`, with their keys pages), and
+the ones added from the drop-down (Sunde: "if its a new one add a dialog where we input the
+address") stored-only in `settings.json` as `git_sites` — in Loskai, not the browser, so
+every machine and browser has them. They are saved by `PUT /api/ssh/git-sites`, at the
+Machines level like the rest of `/api/ssh`: Settings' own save is an admin's, and the
+dialog is a Machines-tab one. A key row's **Add to …** takes its page from the sites too.
+
 ## 2026-11-20 — The setups are named for what runs where (Phase 63)
 
 The install guide's rewrite named the setups by what runs where — **Loskai standalone**,

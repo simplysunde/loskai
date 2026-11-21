@@ -4,7 +4,8 @@
 
 **Read this when** you want what is being built now, or the backlog.
 
-**Now:** **Phase 64** (below) — a key for a git site in one dialog — is in flight.
+**Now:** **Phase 64** (below) — a key for a git site in one dialog — is done on 2026-11-21;
+its check on codebox and Sunde's Forgejo is left.
 **Phase 63** (below) — choosing a setup, then following it, in the install guide
 and the README — is done on 2026-11-20. **Phase 60** (below) — the user pages rewritten task-first, one page per pass — is
 done on 2026-11-18, every guide followed on the demo homelab where it could be; what wasn't
@@ -95,7 +96,7 @@ SSH on `:222`.
       `ssh-key`; `host-key` removed; `tool-schema.md`
 - [x] 64c Keys: **Add to a git site** — the site (with **Add a site…**), the name, then
       Copy, the link and Test — in place of the two buttons; **Add to …** from the sites
-- [ ] 64d `using-loskai.md`, CHANGELOG, HISTORY
+- [x] 64d `using-loskai.md`, CHANGELOG, HISTORY
 
 ---
 
