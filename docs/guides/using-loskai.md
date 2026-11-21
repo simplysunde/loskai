@@ -421,10 +421,9 @@ again** and install as in step 4 of [Set up SSH](#set-up-ssh).
 Click **n running** on the machine's row. It lists the machine's containers, its services
 and, on Proxmox, its VMs and LXCs.
 
-- **:8080** beside a name copies the machine's address with that port, like
-  `192.168.10.50:8080`.
-- **+ :8080** beside a port opens [Add route](#add-a-route) with that port filled in. A
-  port that has a route shows its address instead.
+- Each port is one chip. **:8080** copies the machine's address with that port, like
+  `192.168.10.50:8080`; its **+** opens [Add route](#add-a-route) with that port filled in.
+  A port that has a route shows the route's name in place of **+**.
 - **Name**, on a Proxmox VM or LXC, opens [Name a machine](#name-a-machine) with its name
   and address filled in. A VM's address comes from its QEMU guest agent. Without one, type
   it.

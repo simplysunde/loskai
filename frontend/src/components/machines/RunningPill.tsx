@@ -21,11 +21,13 @@ export function RunningPill({
   user,
   address,
   actions,
+  portAction,
 }: {
   running: Running;
   user?: string;
   address?: string | null;
   actions?: (target: TargetKind, id: string) => React.ReactNode;
+  portAction?: PortAction;
 }) {
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   const pill = useRef<HTMLButtonElement>(null);
@@ -60,7 +62,7 @@ export function RunningPill({
   }
 
   // Wider with a column of buttons; on a screen too narrow for it (a phone), 8px from each side.
-  const width = actions ? 448 : 384;
+  const width = actions || portAction ? 448 : 384;
   const toggle = (el: HTMLElement) => {
     if (at) return setAt(null);
     const r = el.getBoundingClientRect();
@@ -91,7 +93,7 @@ export function RunningPill({
             style={{ left: at.left, top: at.top, width }}
             className="fixed z-50 max-h-80 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 shadow-2xl"
           >
-            <RunningList running={running} user={user} address={address} actions={actions} />
+            <RunningList running={running} user={user} address={address} actions={actions} portAction={portAction} />
           </div>,
           document.body,
         )}
@@ -101,62 +103,72 @@ export function RunningPill({
 
 // Everything that runs on a machine, by kind, as a table — the pill's card, and the
 // machine's page, where `actions` adds a column with the buttons of the tools that apply.
-// With the machine's `address`, each port a row listens on there gets a button copying
-// `address:port`.
+// With the machine's `address`, each port a row listens on there is a chip in that column:
+// its left half copies `address:port`, its right half is `portAction`'s (a route to it).
 export function RunningList({
   running,
   user,
   address,
   actions,
+  portAction,
 }: {
   running: Running;
   user?: string;
   address?: string | null;
   actions?: (target: TargetKind, id: string) => React.ReactNode;
+  portAction?: PortAction;
 }) {
   const containers = running.containers ?? [];
   const services = running.services ?? [];
   const guests = running.guests ?? [];
-  const columns = actions ? 3 : 2;
+  const buttonColumn = Boolean(actions || portAction || address);
+  const columns = buttonColumn ? 3 : 2;
   // A service listening on every address, or on this one; not one bound only to another
   // (a tailnet's), which this address doesn't reach.
   const servicePorts = (service: string) =>
     (running.listening ?? []).filter((l) => l.service === service && (l.host === "" || l.host === address)).map((l) => l.port);
-  const copies = (ports: number[]) =>
+  const chips = (kind: PortKind, name: string, ports: number[]) =>
     address &&
-    [...new Set(ports)].sort((a, b) => a - b).map((port) => (
-      <CopyButton
-        key={port}
-        text={`${address}:${port}`}
-        title={`Copy ${address}:${port}`}
-        label={`Copy ${address}:${port}`}
-        shown={`:${port}`}
-        className="flex shrink-0 items-center gap-1 rounded px-1 py-0.5 font-mono text-[11px] text-slate-500 hover:bg-slate-800 hover:text-slate-200 [&_svg]:h-3 [&_svg]:w-3"
-      />
-    ));
+    [...new Set(ports)].sort((a, b) => a - b).map((port) => {
+      const extra = portAction?.(kind, name, port);
+      return (
+        <span key={port} className="flex max-w-full items-stretch rounded-md border border-slate-700 text-[11px]">
+          <span data-copy className="flex">
+            <CopyButton
+              text={`${address}:${port}`}
+              title={`Copy ${address}:${port}`}
+              label={`Copy ${address}:${port}`}
+              shown={`:${port}`}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-slate-200 hover:bg-slate-800 [&_svg]:h-3 [&_svg]:w-3 [&_svg]:text-slate-500"
+            />
+          </span>
+          {extra && <span className="flex min-w-0 items-center border-l border-slate-700">{extra}</span>}
+        </span>
+      );
+    });
   const row = (
     key: string,
     name: string,
     status: React.ReactNode,
     buttons: React.ReactNode,
     title?: string,
-    ports: number[] = [],
+    ports?: { kind: PortKind; ports: number[] },
   ) => (
     <tr key={key} className="border-t border-slate-800 hover:bg-slate-900/40">
-      <td title={title} className="max-w-0 px-4 py-2 text-sm text-slate-200">
-        <span data-copy className="flex items-center gap-1">
-          <span className="min-w-0 truncate">{name}</span>
-          {copies(ports)}
-        </span>
+      <td title={title} className="max-w-0 truncate px-4 py-2 text-sm text-slate-200">
+        {name}
         {/* On a phone the status goes under the name, leaving the name the room. */}
         {status && <span className="block truncate text-xs text-slate-500 sm:hidden">{status}</span>}
       </td>
       <td className="whitespace-nowrap py-2 text-slate-500 sm:px-4">
         <span className="hidden sm:inline">{status}</span>
       </td>
-      {actions && (
+      {buttonColumn && (
         <td className="py-2 pr-3 sm:px-4">
-          <span className="flex flex-wrap justify-end gap-1.5">{buttons}</span>
+          <span className="flex flex-wrap justify-end gap-1.5">
+            {ports && chips(ports.kind, name, ports.ports)}
+            {buttons}
+          </span>
         </td>
       )}
     </tr>
@@ -168,11 +180,11 @@ export function RunningList({
           <colgroup>
             <col />
             <col className="w-0 sm:w-36" />
-            {actions && <col className="w-36 sm:w-44" />}
+            {buttonColumn && <col className="w-36 sm:w-44" />}
           </colgroup>
           {containers.length > 0 && (
             <Group title={`Containers (${containers.length})`} columns={columns}>
-              {containers.map((c) => row(c.name, c.name, c.status, actions?.("container", c.name), c.image, c.ports ?? []))}
+              {containers.map((c) => row(c.name, c.name, c.status, actions?.("container", c.name), c.image, { kind: "container", ports: c.ports ?? [] }))}
             </Group>
           )}
           {guests.length > 0 && (
@@ -184,7 +196,7 @@ export function RunningList({
           )}
           {services.length > 0 && (
             <Group title={`Services (${services.length})`} columns={columns}>
-              {services.map((s) => row(s, s, "", actions?.("service", s), undefined, servicePorts(s)))}
+              {services.map((s) => row(s, s, "", actions?.("service", s), undefined, { kind: "service", ports: servicePorts(s) }))}
             </Group>
           )}
         </table>
@@ -201,6 +213,10 @@ export function RunningList({
     </>
   );
 }
+
+type PortKind = "container" | "service";
+// What goes in a port's chip after its copy half — `null` for nothing.
+export type PortAction = (kind: PortKind, name: string, port: number) => React.ReactNode;
 
 // A kind's rows, under a heading row like the Machines table's header.
 function Group({ title, columns, children }: { title: string; columns: number; children: React.ReactNode }) {

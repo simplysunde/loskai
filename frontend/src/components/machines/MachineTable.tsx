@@ -30,7 +30,7 @@ import { splitUpstream } from "../../lib/validation";
 import { DOCKER_HOST_ID, routesOn } from "../routing/machine";
 import { ToolsMenu } from "./MachineTools";
 import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "../routing/machineServices";
-import { RunningPill } from "./RunningPill";
+import { RunningPill, type PortAction } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
 import { DNS_HINT, DnsCell, type Instance } from "../routing/ServiceTable";
 import { Hint } from "../shared/Hint";
@@ -111,12 +111,10 @@ export function MachineTable({
     );
   }
 
-  // The buttons on each row of a machine's running list: a route per port (or the route or
-  // link it has) — a link while Caddy isn't set up — and naming a guest (or the machine it
+  // The button on a guest's row of a machine's running list: naming it (or the machine it
   // already is).
   const runningActions = (machine: Instance) => {
     const r = running[machine.id];
-    const services = servicesOn(machine, r, rows, dockerHost);
     return (target: TargetKind, id: string): React.ReactNode => {
       if (target === "lxc" || target === "vm") {
         const guest = r?.guests?.find((g) => g.id === id);
@@ -135,18 +133,29 @@ export function MachineTable({
           </button>
         );
       }
-      if (!onRouteService) return null;
-      return services
-        .filter((s) => s.kind === target && s.name === id)
-        .map((s) =>
-          s.route?.url ? (
-            <RouteLink key={s.key} url={s.route.url} />
-          ) : (
-            <button key={s.key} title={`${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`} onClick={() => onRouteService(machine, s)} className={RUNNING_BUTTON}>
-              <Plus className="h-3 w-3" />:{s.upstream.split(":").pop()}
-            </button>
-          ),
-        );
+      return null;
+    };
+  };
+
+  // The right half of a port's chip on the running list: a route to it — a link while Caddy
+  // isn't set up — or the route or link it has.
+  const portAction = (machine: Instance): PortAction => {
+    const services = servicesOn(machine, running[machine.id], rows, dockerHost);
+    return (kind, name, port) => {
+      const s = services.find((x) => x.kind === kind && x.name === name && x.upstream === `${machine.upstream}:${port}`);
+      if (!s || !onRouteService) return null;
+      if (s.route?.url) return <RouteLink url={s.route.url} />;
+      const what = `${caddySetUp ? "Add a route" : "Add a link"} to ${s.upstream}`;
+      return (
+        <button
+          title={what}
+          aria-label={what}
+          onClick={() => onRouteService(machine, s)}
+          className="flex h-full items-center rounded-r-md px-1.5 text-slate-200 hover:bg-slate-800"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      );
     };
   };
 
@@ -252,7 +261,7 @@ export function MachineTable({
                     </td>
                     <td className={`px-4 py-2 ${running[machine.id] ? "" : "max-sm:hidden"}`}>
                       {running[machine.id] ? (
-                        <RunningPill running={running[machine.id]} user={sshEntry?.user} address={machine.upstream} actions={runningActions(machine)} />
+                        <RunningPill running={running[machine.id]} user={sshEntry?.user} address={machine.upstream} actions={runningActions(machine)} portAction={portAction(machine)} />
                       ) : (
                         <span className="text-xs text-slate-600">—</span>
                       )}

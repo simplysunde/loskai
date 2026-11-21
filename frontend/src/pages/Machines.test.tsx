@@ -858,7 +858,7 @@ test("a port on the running list adds a route there, already picked; a routed on
   const card = screen.getByRole("dialog", { name: "Running" });
   // plex is routed at 192.168.10.50:32400 already: its name, not a button.
   expect(within(card).getByRole("link", { name: "plex.example.no" })).toBeInTheDocument();
-  fireEvent.click(within(card).getByRole("button", { name: ":8080" }));
+  fireEvent.click(within(card).getByRole("button", { name: "Add a route to 192.168.10.50:8080" }));
 
   expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
   expect(screen.getByRole("textbox", { name: "Port" })).toHaveValue("8080");
