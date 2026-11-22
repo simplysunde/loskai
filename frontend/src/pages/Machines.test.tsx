@@ -1356,14 +1356,13 @@ test("Git's Keys: git's keys — the remotes each is for, a Test, where to add i
   expect(row("work")).not.toHaveTextContent("Fetches");
   // The fingerprint, shortened; whole in its tooltip.
   expect(within(row("id_ed25519")).getByTitle("ED25519 256: SHA256:mach")).toBeInTheDocument();
-  // Git's buttons only — Copy and Test — the same on every row; Label and Delete are the
-  // machine's, in its SSH settings.
+  // Copy, Test and Delete, the same on every row; Label is the machine's, in its SSH settings.
   for (const li of within(dialog).getAllByRole("listitem")) {
     const name = li.querySelector(".font-mono")?.textContent;
     // A hint is a button too; these are the row's actions.
     const buttons = within(li).getAllByRole("button").filter((b) => !b.hasAttribute("data-hint"));
-    expect(buttons).toHaveLength(2);
-    ["Copy", "Test"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
+    expect(buttons).toHaveLength(3);
+    ["Copy", "Test", "Delete"].forEach((verb, i) => expect(buttons[i]).toHaveAccessibleName(`${verb} ${name}`));
   }
   // An account key exists: no New account key.
   expect(within(dialog).queryByRole("button", { name: "New account key" })).toBeNull();
@@ -1577,6 +1576,18 @@ test("Delete, in Keys, asks first and then runs on the key", async () => {
   renderPage("/machines/nas/tools");
 
   const dialog = await machineKeys();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete deploy_blog" }));
+  expect(await screen.findByText("Its file goes for good.")).toBeInTheDocument();
+  expect(screen.queryByText(/shell at .*delete-key/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=deploy_blog")).toBeInTheDocument();
+});
+
+test("Delete, in Git's Keys, asks first and then runs on the key", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+
+  const dialog = await gitKeys();
   fireEvent.click(within(dialog).getByRole("button", { name: "Delete deploy_blog" }));
   expect(await screen.findByText("Its file goes for good.")).toBeInTheDocument();
   expect(screen.queryByText(/shell at .*delete-key/)).toBeNull();

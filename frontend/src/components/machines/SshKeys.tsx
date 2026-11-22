@@ -54,7 +54,7 @@ const GROUPS = [
 // Two views of the one list, each where it belongs. `machine`, from the machine's SSH
 // settings: every key, what it is for, its fingerprint — Copy, Label, Delete — and nothing
 // else. `git`, from Git's card: git's keys only — the remotes each is for, a Test on a host,
-// where to add it, and what makes or tests a key for a host. The buttons are Git's tool's.
+// where to add it, Delete, and what makes or tests a key for a host. The buttons are Git's tool's.
 export function SshKeys({
   tool,
   ctx,
@@ -83,7 +83,7 @@ export function SshKeys({
           uses={usesOf(k)}
           inSshConfig={inSshConfig.has(k.name)}
           facts={ctx.facts}
-          actions={git ? [] : keyActions}
+          actions={git ? keyActions.filter((a) => a.id === "delete-key") : keyActions}
           tool={tool}
           onRun={run}
           testAction={git ? testAction : undefined}

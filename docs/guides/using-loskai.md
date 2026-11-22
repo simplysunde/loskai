@@ -542,6 +542,8 @@ that host's key. Loskai's key never leaves Loskai.
    it yet.
 
 An account key reaches every repository your account can, on every site you add it to.
+**Delete**, on a key's row in **Keys**, removes a key you no longer use, as in the machine's
+SSH keys below.
 
 **Give one project a key of its own**
 
