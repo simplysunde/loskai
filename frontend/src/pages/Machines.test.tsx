@@ -1677,6 +1677,24 @@ test("Add a site… keeps a site of your own in Loskai, and picks it", async () 
   expect(within(dialog).getByRole("link", { name: /Home Gitea's SSH keys/ })).toHaveAttribute("href", "http://gitea.lan:3000/user/settings/keys");
 });
 
+test("Add a site fills the SSH address from the web address, until it is typed in", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await addToSite();
+  fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "add" } });
+  const add = await screen.findByRole("dialog", { name: "Add a site" });
+  const web = within(add).getByPlaceholderText("https://git.example.com");
+  const ssh = within(add).getByPlaceholderText("git.example.com:222");
+
+  fireEvent.change(web, { target: { value: "http://192.168.1.216:3000/" } });
+  expect(ssh).toHaveValue("192.168.1.216");
+  fireEvent.change(web, { target: { value: "http://192.168" } });
+  expect(ssh).toHaveValue("192.168");
+  fireEvent.change(ssh, { target: { value: "192.168.1.216:222" } });
+  fireEvent.change(web, { target: { value: "http://192.168.1.216:3000" } });
+  expect(ssh).toHaveValue("192.168.1.216:222");
+});
+
 test("Keys says when there is no key yet", async () => {
   sshSetUp();
   facts = { ...FACTS, ssh_keys: [] };

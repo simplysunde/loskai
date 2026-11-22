@@ -7,9 +7,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 - **Add to a git site**, in Git's **Keys**: pick the site, name the key, copy it, and open the
   site's SSH keys page to paste it. GitHub, GitLab and Codeberg are there; **Add a site…**
-  keeps your own Forgejo or Gitea, with its web and SSH addresses, for every machine. It
-  replaces **New account key** and **New key for a host**; a key made for one host keeps
-  working where `~/.ssh/config` names it.
+  keeps your own Forgejo or Gitea for every machine, its SSH address filled in from the web
+  one. It replaces **New account key** and **New key for a host**; a key made for one host
+  keeps working where `~/.ssh/config` names it.
 - **An update that finished shows its last lines** in the panel that drops down, where it
   was blank once tmux closed.
 - **A dialog stays open when you drag out of it**, or into it: selecting a terminal's text

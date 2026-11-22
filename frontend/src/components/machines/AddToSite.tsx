@@ -23,6 +23,9 @@ export function accountKey(keys: MachineKey[] | null | undefined): MachineKey | 
 // A git site's SSH address without its port: the host a remote names.
 const hostOf = (ssh: string) => ssh.replace(/:\d+$/, "");
 
+// A web address's host: where its SSH usually is too, on 22 unless the site says otherwise.
+const webHost = (web: string) => web.trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/:?#]/)[0];
+
 // Add to a git site, from Git's Keys: the site, the key's name, then the key to copy, the
 // site's page to paste it on, and a Test there. The key is the machine's account key, which
 // ssh offers every host by itself — Account key makes it, or renames it to the name given.
@@ -170,7 +173,13 @@ function AddSite({ sites, onClose, onAdded }: { sites: GitSite[]; onClose: () =>
   const [site, setSite] = useState({ name: "", web: "", ssh: "" });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const set = (k: keyof typeof site) => (e: React.ChangeEvent<HTMLInputElement>) => setSite({ ...site, [k]: e.target.value });
+  // The SSH address follows the web address's host until it is typed in.
+  const [sshTyped, setSshTyped] = useState(false);
+  const set = (k: keyof typeof site) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (k === "ssh") setSshTyped(true);
+    setSite({ ...site, [k]: value, ...(k === "web" && !sshTyped ? { ssh: webHost(value) } : {}) });
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -203,7 +212,7 @@ function AddSite({ sites, onClose, onAdded }: { sites: GitSite[]; onClose: () =>
           <span className={LABEL}>SSH address</span>
           <input value={site.ssh} onChange={set("ssh")} placeholder="git.example.com:222" className={`${FIELD} font-mono`} />
           <span className="mt-1 block text-xs text-slate-500">
-            The host in a repository's Clone › SSH address, with :port when it isn't 22.
+            Filled in from the web address. Add :port when its SSH isn't on 22.
           </span>
         </label>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}

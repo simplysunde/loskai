@@ -529,8 +529,9 @@ that host's key. Loskai's key never leaves Loskai.
 1. On the Git card, click **Keys**, then **Add to a git site**.
 2. **Site**: pick GitHub, GitLab or Codeberg. For a Forgejo or Gitea of your own, pick
    **Add a site…** and fill in its name, its web address (`http://192.168.10.30:3000`) and
-   its SSH address, the host in a repository's **Clone › SSH** with `:port` when it isn't 22
-   (`192.168.10.30:222`). Every machine offers it from then on.
+   its SSH address, filled in from the web address: add `:port` when its SSH isn't on 22
+   (`192.168.10.30:222`), as when Docker publishes it on another port. Every machine offers
+   it from then on.
 3. **Key name**: how the site lists the key, `you@machine` to start with. Click **Make the
    key**, or **Rename the key to …** when the machine has one by another name. The key has
    no passphrase, so pulls and pushes run unattended, and its private half stays on the
