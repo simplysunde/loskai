@@ -72,6 +72,8 @@ export function SshKeys({
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
   const inSshConfig = new Set(ctx.facts.ssh_config_keys ?? []);
+  // A key it names that isn't here: ssh offers nothing in its place where IdentitiesOnly says so.
+  const missing = keys ? [...inSshConfig].filter((n) => !keys.some((k) => k.name === n)) : [];
   const keyActions = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: MachineKey) => (uses ? (uses.get(k.name) ?? []) : null);
   const list = (ks: MachineKey[]) => (
@@ -127,6 +129,13 @@ export function SshKeys({
       {git && ctx.facts.ssh_match_exec && (
         <p className="mt-1 text-xs text-amber-300/90">
           This machine's ssh config may run a command to choose keys (Match exec, or a file it includes that Loskai can't follow), so Loskai doesn't ask ssh which key each remote uses: it only reads.
+        </p>
+      )}
+      {git && missing.length > 0 && (
+        <p className="mt-1 text-xs text-amber-300/90">
+          ~/.ssh/config names <span className="font-mono">{missing.join(", ")}</span>, which{" "}
+          {missing.length === 1 ? "isn't" : "aren't"} on this machine: ssh can't use{" "}
+          {missing.length === 1 ? "it" : "them"}, and a host it's for may refuse every key.
         </p>
       )}
       <div className="mt-4 min-h-0 overflow-auto">

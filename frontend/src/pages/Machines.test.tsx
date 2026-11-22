@@ -1603,6 +1603,22 @@ for (const [view, open] of [["the machine's", machineKeys], ["Git's", gitKeys]] 
   });
 }
 
+test("Git's Keys says when ~/.ssh/config names a key that isn't on the machine", async () => {
+  sshSetUp();
+  facts = { ...FACTS, ssh_config_keys: ["work", "id_ed25519_forgejo"] };
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  expect(dialog).toHaveTextContent(
+    "~/.ssh/config names id_ed25519_forgejo, which isn't on this machine: ssh can't use it, and a host it's for may refuse every key.",
+  );
+});
+
+test("Git's Keys says nothing of ~/.ssh/config when every key it names is here", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  expect(await gitKeys()).not.toHaveTextContent("isn't on this machine");
+});
+
 test("Delete, in Git's Keys, asks first and then runs on the key", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
