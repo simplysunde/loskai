@@ -526,7 +526,7 @@ that host's key. Loskai's key never leaves Loskai.
 
 **Give the machine a key for GitHub or Forgejo**
 
-1. On the Git card, click **Keys**, then **Add to a git site**.
+1. On the Git card, click **Keys**, then **Create key**.
 2. **Site**: pick GitHub, GitLab or Codeberg. For a Forgejo or Gitea of your own, pick
    **Add a site…** and fill in its name, its web address (`http://192.168.10.30:3000`) and
    its SSH address, filled in from the web address: add `:port` when its SSH isn't on 22
@@ -575,7 +575,7 @@ Under the list in **Keys**, type a host after **For a host:**.
 
 In the machine's dialog, under **SSH**, click **Keys (n)**. It lists every key of the user
 Loskai logs in as, from `~/.ssh`: each under the name a site lists it by (the **Key name**
-from **Add to a git site**), with its file beside it, and what uses it, such as **Fetches
+from **Create key**), with its file beside it, and what uses it, such as **Fetches
 and pushes loskai**, or **No git remote here uses it**.
 
 - **Copy** copies a key's public line.

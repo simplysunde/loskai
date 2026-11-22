@@ -102,7 +102,7 @@ export function SshKeys({
   const labelAction = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
-  // Under the list: what tests keys on a host. The account key is Add to a git site's.
+  // Under the list: what tests keys on a host. The account key is Create key's.
   const beside = git
     ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && a.ask !== "key-comment")
     : [];
@@ -174,7 +174,7 @@ export function SshKeys({
             onClick={() => setAdding(true)}
             className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
           >
-            <KeyRound className="h-4 w-4" /> Add to a git site
+            <KeyRound className="h-4 w-4" /> Create key
           </button>
         </div>
       )}
@@ -242,7 +242,7 @@ function KeyRow({
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const { group, tag } = keyGroup(info, uses);
-  // Its comment, without Loskai's mark: what Add to a git site names it, and the site lists.
+  // Its comment, without Loskai's mark: what Create key names it, and the site lists.
   const title = commentText(info.comment);
   const [labelling, setLabelling] = useState(false);
   // Where to add it — git's view, until a Test has seen it get in.

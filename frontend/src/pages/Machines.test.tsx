@@ -1640,14 +1640,14 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
 });
 
-// --- Add to a git site (Phase 64) ---
+// --- Create key (Phase 64) ---
 
 async function addToSite() {
-  fireEvent.click(within(await gitKeys()).getByRole("button", { name: "Add to a git site" }));
-  return screen.findByRole("dialog", { name: "Add to a git site" });
+  fireEvent.click(within(await gitKeys()).getByRole("button", { name: "Create key" }));
+  return screen.findByRole("dialog", { name: "Create key" });
 }
 
-test("Add to a git site: the site, the key's name, then the key to copy, the site's page and a Test there", async () => {
+test("Create key: the site, the key's name, then the key to copy, the site's page and a Test there", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await addToSite();
@@ -1666,7 +1666,7 @@ test("Add to a git site: the site, the key's name, then the key to copy, the sit
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40forgejo.lan")).toBeInTheDocument();
 });
 
-test("Add to a git site renames the account key to the name given, or makes one when there is none", async () => {
+test("Create key renames the account key to the name given, or makes one when there is none", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await addToSite();
@@ -1677,7 +1677,7 @@ test("Add to a git site renames the account key to the name given, or makes one 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=account-key&target=codebox+laptop")).toBeInTheDocument();
 });
 
-test("Add to a git site makes the account key when the machine has none", async () => {
+test("Create key makes the account key when the machine has none", async () => {
   sshSetUp();
   facts = { ...FACTS, ssh_keys: [] };
   renderPage("/machines/nas/tools");
