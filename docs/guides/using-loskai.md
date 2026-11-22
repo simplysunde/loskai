@@ -574,7 +574,9 @@ Under the list in **Keys**, type a host after **For a host:**.
 #### A machine's SSH keys
 
 In the machine's dialog, under **SSH**, click **Keys (n)**. It lists every key of the user
-Loskai logs in as, from `~/.ssh`.
+Loskai logs in as, from `~/.ssh`: each under the name a site lists it by (the **Key name**
+from **Add to a git site**), with its file beside it, and what uses it, such as **Fetches
+and pushes loskai**, or **No git remote here uses it**.
 
 - **Copy** copies a key's public line.
 - **Label** writes on the key what it is for: an account, one project, or logging in to

@@ -193,7 +193,10 @@ export function keyGroup(
   // ssh's own, unlabelled, is git's only where a remote uses it (or the line is too old to
   // say): otherwise it is anyone's — a login, as likely as not.
   const gits = keyKind(key.name) === "account" && (uses == null || uses.length > 0);
-  return label || host || gits ? { group: "account", tag: host } : { group: "other", tag: null };
+  // Its tag is where its remotes go, never what its label or comment says it was for: an
+  // unused key mustn't look like the one in use.
+  const used = [...new Set((uses ?? []).map((u) => u.hostname))];
+  return label || host || gits ? { group: "account", tag: used.length === 1 ? used[0] : null } : { group: "other", tag: null };
 }
 
 // What a key is, by its name: ssh's own (`id_…`) the account key, which it offers wherever

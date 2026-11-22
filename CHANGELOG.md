@@ -10,6 +10,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   keeps your own Forgejo or Gitea for every machine, its SSH address filled in from the web
   one. It replaces **New account key** and **New key for a host**; a key made for one host
   keeps working where `~/.ssh/config` names it. Each key there has **Delete** too.
+- A machine's **Keys** shows each key under its name, its file beside it, and what uses it,
+  as Git's **Keys** does; its tag names only a site something uses it on, so an unused key
+  no longer looks like the one in use.
 - **An update that finished shows its last lines** in the panel that drops down, where it
   was blank once tmux closed.
 - **A dialog stays open when you drag out of it**, or into it: selecting a terminal's text

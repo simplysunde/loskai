@@ -1394,11 +1394,12 @@ test("the machine's SSH settings: Keys beside SSH setup lists every key plainly 
   expect(row("id_ed25519")).toHaveTextContent("Account · github.com");
   expect(row("deploy_blog")).toHaveTextContent("Deploy · me/blog");
   expect(row("server")).toHaveTextContent("Login");
-  // Its comment without the mark.
-  expect(row("server")).toHaveTextContent("admin@nas ·");
+  // Its comment without the mark, as its title; a login key isn't git's, so no line on remotes.
+  expect(within(row("server")).getByText("admin@nas")).toBeInTheDocument();
   expect(row("server")).not.toHaveTextContent("(loskai:");
-  // Nothing of git's: no remotes, no Test, no host field, no Add to.
-  expect(dialog).not.toHaveTextContent("Fetches");
+  expect(row("server")).not.toHaveTextContent("No git remote");
+  // What uses each, as in Git's Keys; but no Test, no host field, no Add to.
+  expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog · forgejo.lan");
   expect(within(dialog).queryByRole("link", { name: /Add to/ })).toBeNull();
   expect(within(dialog).queryByLabelText("Host")).toBeNull();
   for (const li of within(dialog).getAllByRole("listitem")) {
@@ -1582,6 +1583,25 @@ test("Delete, in Keys, asks first and then runs on the key", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=deploy_blog")).toBeInTheDocument();
 });
+
+// One New key for a host made: named after its host, labelled for it, used by nothing.
+const OLD_KEY = { name: "192.168.1.216", bits: 256, fingerprint: "SHA256:old", comment: "vm@codebox (loskai: for 192.168.1.216)", type: "ED25519", public: "ssh-ed25519 AAAAold" };
+
+for (const [view, open] of [["the machine's", machineKeys], ["Git's", gitKeys]] as const) {
+  test(`${view} Keys titles each key by its name, the file beside it, and says what uses it`, async () => {
+    sshSetUp();
+    facts = { ...FACTS, ssh_keys: [...FACTS.ssh_keys, OLD_KEY] };
+    renderPage("/machines/nas/tools");
+    const dialog = await open();
+    const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+    // The name the site lists it by is its title; the file, beside it.
+    const title = within(row("deploy_blog")).getByText("loskai@nas blog");
+    expect(title.compareDocumentPosition(within(row("deploy_blog")).getByText("deploy_blog")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Nothing uses the old one, and nothing says it is for a host.
+    expect(row("192.168.1.216")).toHaveTextContent("No git remote here uses it");
+    expect(row("192.168.1.216")).not.toHaveTextContent("· 192.168.1.216");
+  });
+}
 
 test("Delete, in Git's Keys, asks first and then runs on the key", async () => {
   sshSetUp();

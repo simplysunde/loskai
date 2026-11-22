@@ -242,6 +242,8 @@ function KeyRow({
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
   const { group, tag } = keyGroup(info, uses);
+  // Its comment, without Loskai's mark: what Add to a git site names it, and the site lists.
+  const title = commentText(info.comment);
   const [labelling, setLabelling] = useState(false);
   // Where to add it — git's view, until a Test has seen it get in.
   const sites = useSsh().data?.git_sites;
@@ -252,7 +254,9 @@ function KeyRow({
     <li className="flex gap-3 px-3 py-2 text-xs max-sm:flex-col">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-sm text-slate-100">{info.name}</span>
+          {/* The name the site lists it by, when it has one; its file beside it. */}
+          {title && <span className="text-sm text-slate-100">{title}</span>}
+          <span className={title ? "font-mono text-[11px] text-slate-500" : "font-mono text-sm text-slate-100"}>{info.name}</span>
           {!git && (
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${purpose ? "bg-slate-800 text-slate-300" : "text-slate-500"}`}>
               {purpose ? `${purpose}${tag ? ` · ${tag}` : ""}` : "not labelled"}
@@ -265,12 +269,11 @@ function KeyRow({
             </span>
           )}
         </div>
-        {git && <UsedBy uses={uses} inSshConfig={inSshConfig} account={group === "account"} isSshDefault={keyKind(info.name) === "account"} facts={facts} />}
-        {/* Its comment says what it is for and travels with the key; its fingerprint is the
-            one GitHub and Forgejo list beside a key; then where to paste it. */}
+        {group !== "login" && <UsedBy uses={uses} inSshConfig={inSshConfig} account={group === "account"} isSshDefault={keyKind(info.name) === "account"} facts={facts} />}
+        {/* Its fingerprint is the one GitHub and Forgejo list beside a key; then where to
+            paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
           <span className="min-w-0 truncate">
-            {commentText(info.comment) && `${commentText(info.comment)} · `}
             <span title={`${info.type} ${info.bits}: ${info.fingerprint}`} className="cursor-help font-mono">
               {info.fingerprint.slice(0, 19)}…
             </span>

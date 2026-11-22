@@ -113,8 +113,9 @@ test("what a key is for, written on it, comes before any guess", () => {
   expect(keyLabel("vm@box deploy key")).toBeNull();
   expect(commentText("vm@box (loskai: account)")).toBe("vm@box");
   const key = (name: string, comment: string) => ({ name, comment }) as MachineKey;
-  // Named deploy_, labelled for a platform: the label wins.
-  expect(keyGroup(key("deploy_site", "vm@box (loskai: for github.com)"), [])).toEqual({ group: "account", tag: "github.com" });
+  // Named deploy_, labelled for a platform: the label wins — but the platform is a tag only
+  // while a remote uses it there, so an unused key never looks like a live one.
+  expect(keyGroup(key("deploy_site", "vm@box (loskai: for github.com)"), [])).toEqual({ group: "account", tag: null });
   // An odd name, labelled a deploy key: its project, with no remote to say its repository.
   expect(keyGroup(key("odd", "vm@box (loskai: deploy site)"), [])).toEqual({ group: "deploy", tag: "site" });
   expect(keyGroup(key("id_ed25519", "vm@box (loskai: login)"), [])).toEqual({ group: "login", tag: null });
