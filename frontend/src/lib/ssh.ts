@@ -254,6 +254,15 @@ export function keyUses(facts: Facts): Map<string, KeyUse[]> | null {
   return uses;
 }
 
+// One key's uses, from `keyUses`: null where they can't be said — a status line too old to
+// send them, or a key no project names on a machine where ssh wasn't asked (Match exec),
+// which is unknown, not unused.
+export function usesOfKey(facts: Facts, uses: Map<string, KeyUse[]> | null, name: string): KeyUse[] | null {
+  if (!uses) return null;
+  const found = uses.get(name) ?? [];
+  return found.length === 0 && facts.ssh_match_exec ? null : found;
+}
+
 export interface Facts {
   ok: boolean;
   error?: string;
@@ -352,7 +361,7 @@ export function keysSummary(facts: Facts): string {
   const uses = keyUses(facts);
   const counts = new Map<string, number>();
   for (const k of keys) {
-    const { group } = keyGroup(k, uses ? (uses.get(k.name) ?? []) : null);
+    const { group } = keyGroup(k, usesOfKey(facts, uses, k.name));
     counts.set(group, (counts.get(group) ?? 0) + 1);
   }
   const parts = ["account", "deploy", "login", "other"].filter((g) => counts.get(g)).map((g) => `${counts.get(g)} ${g === "other" ? "unlabelled" : g}`);

@@ -1572,6 +1572,22 @@ test("a machine whose ssh config has Match exec: Git's Keys says which remotes u
   expect(await gitKeys()).toHaveTextContent("This machine's ssh config may run a command to choose keys (Match exec");
 });
 
+for (const [view, open] of [["the machine's", machineKeys], ["Git's", gitKeys]] as const) {
+  test(`Match exec: ${view} Keys says it didn't ask which remotes use a key — never that none does`, async () => {
+    // Found on a real machine (Fedora's ssh config includes twice): every key said "No git
+    // remote here uses it", the one its clones use too.
+    sshSetUp();
+    facts = { ...FACTS, ssh_hosts: {}, ssh_match_exec: true };
+    renderPage("/machines/nas/tools");
+    const dialog = await open();
+    const row = (name: string) => within(dialog).getByText(name).closest("li") as HTMLElement;
+    expect(row("id_ed25519")).toHaveTextContent("Loskai didn't ask which remotes use it");
+    expect(dialog).not.toHaveTextContent("No git remote here uses it");
+    // A project's own key is its project's to say, asked or not.
+    expect(row("deploy_blog")).toHaveTextContent("Fetches and pushes projects/blog");
+  });
+}
+
 test("Delete, in Keys, asks first and then runs on the key", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");

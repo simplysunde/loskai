@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Check, ExternalLink, KeyRound, RotateCw, Tag, X } from "lucide-react";
 
-import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, remoteSshHost, useSsh, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
+import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, usesOfKey, remoteSshHost, useSsh, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
 import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
@@ -75,7 +75,7 @@ export function SshKeys({
   // A key it names that isn't here: ssh offers nothing in its place where IdentitiesOnly says so.
   const missing = keys ? [...inSshConfig].filter((n) => !keys.some((k) => k.name === n)) : [];
   const keyActions = tool.actions.filter((a) => a.target === "key");
-  const usesOf = (k: MachineKey) => (uses ? (uses.get(k.name) ?? []) : null);
+  const usesOf = (k: MachineKey) => usesOfKey(ctx.facts, uses, k.name);
   const list = (ks: MachineKey[]) => (
     <ul className="mt-1.5 divide-y divide-slate-800 rounded-lg border border-slate-800">
       {ks.map((k) => (
@@ -352,6 +352,14 @@ function UsedBy({
   isSshDefault: boolean;
   facts: Facts;
 }) {
+  if (!uses && facts.ssh_match_exec)
+    return (
+      <p className="mt-0.5 w-fit text-slate-500">
+        <Hint text="This machine's ssh config may run a command to choose keys (Match exec, or a file it includes that Loskai can't follow), so Loskai doesn't ask ssh: it only reads.">
+          Loskai didn't ask which remotes use it
+        </Hint>
+      </p>
+    );
   if (!uses) return <p className="mt-0.5 text-slate-500">Install the status line again to see where it's used.</p>;
   if (uses.length === 0) {
     // Only git's use of it is seen: it may be on an account, or log in elsewhere — so the

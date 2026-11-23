@@ -112,7 +112,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | What the sudo rule for updates allows | `modules/ssh/tool.py` `update_commands` `allow_script` | `modules/ssh/connect.py` |
 | sudo's password for an automatic run: checked, held for one run | `modules/ssh/connect.py` `prepare` `take_password` | `modules/ssh/router.py` |
 | Which SSH keys a machine's user has, and which key git uses for each project | `modules/ssh/status.py` `_FACTS` (`#=keys`, a project's `key`) `parse_facts` | |
-| Which remotes a key is for — a project's own key, else what ssh offers the remote's host | `lib/ssh.ts` `keyUses` `remoteSshHost` | `components/machines/AddToSite.tsx` `components/machines/SshKeys.tsx` `components/machines/ToolSettings.tsx` |
+| Which remotes a key is for — a project's own key, else what ssh offers the remote's host; unknown where ssh wasn't asked | `lib/ssh.ts` `keyUses` `usesOfKey` `remoteSshHost` | `components/machines/AddToSite.tsx` `components/machines/SshKeys.tsx` `components/machines/ToolSettings.tsx` |
 | The git sites a key is added to — the built-ins and those added in Loskai — what one may be, and its keys page | `modules/ssh/tool.py` `parse_git_sites` `git_sites` | `modules/ssh/router.py` `shared/settings.py` `components/machines/AddToSite.tsx` `components/machines/SshKeys.tsx` `lib/ssh.ts` |
 | Where a key goes, to paste it — a deploy key's repository, or the account on its platform — and which list it is in | `lib/ssh.ts` `keyPage` `webOf` `keyGroup` `keyHost` `keyLabel` | `components/machines/SshKeys.tsx` |
 | What a key is (account, deploy, other), by its name | `lib/ssh.ts` `keyKind` | `components/machines/SshKeys.tsx` |
