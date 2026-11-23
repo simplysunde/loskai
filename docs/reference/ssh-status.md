@@ -101,7 +101,7 @@ The Add route picker's Machines source offers these ports
 | `#=uptime` | `/proc/uptime` | `uptime`, seconds |
 | `#=memory` | `MemTotal`, `MemAvailable` from `/proc/meminfo` | `memory`, bytes |
 | `#=disks` | `df -P -k` | `disks` — block devices and `/` only, each device once, no loop devices and no pseudo filesystem (`tmpfs`, `overlay`, … — `_PSEUDO_FS`) |
-| `#=updates` | `<manager> <count>` | `updates` — from the machine's package lists as last refreshed; nothing is fetched |
+| `#=updates` | `<manager> <count>`, or `rpm-ostree` alone | `updates` — from the machine's package lists as last refreshed; nothing is fetched. An image-based system (`rpm-ostree`, from v16) updates itself: no count, and its dnf isn't asked |
 | `#=tools` | one name per line, from `PROGRAMS` | `programs` — what tools require |
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
@@ -192,7 +192,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 13 | `#=keys` carries each key's public half, its type and data — public, to copy and paste into GitHub or Forgejo (Git's Keys) |
 | 14 | `#=sshhosts` isn't asked where an ssh config has `Match exec` — `ssh -G` would run that command — and says `!match-exec` instead |
 | 15 | `#=remotes` names each remote (`origin.url`), so a pushurl is its own remote's; `#=sshhosts` isn't asked where a file the ssh config `Include`s has `Match exec`, or includes again |
-| 16 | `#=sshhosts` follows `Include`s 4 levels down, not one: Fedora's own config (`ssh_config.d/50-redhat.conf` → the crypto policy's file) nests two, so it was never asked there. A file 4 levels down that includes more isn't followed, and then nothing is asked |
+| 16 | `#=sshhosts` follows `Include`s 4 levels down, not one: Fedora's own config (`ssh_config.d/50-redhat.conf` → the crypto policy's file) nests two, so it was never asked there. A file 4 levels down that includes more isn't followed, and then nothing is asked. `#=updates` names `rpm-ostree` alone, with no count, where the machine has it (Bazzite, Silverblue) — its dnf counted nothing it can install, and took seconds |
 
 ## Adding a fact
 

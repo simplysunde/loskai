@@ -1,4 +1,4 @@
-import type { Facts } from "../../lib/ssh";
+import { updatesItself, type Facts } from "../../lib/ssh";
 import type { ToolStart } from "../../lib/toolRows";
 import { Switch } from "../shared/SettingRow";
 import { Hint } from "../shared/Hint";
@@ -29,6 +29,11 @@ export function SudoRuleSwitch({
     return short ? null : <span className="text-xs text-slate-500">needs its overview — see General</span>;
   }
   const on = facts.sudo_rule === "on";
+  // Nothing to update without a password where the system updates itself — a rule already
+  // there can still be taken off.
+  if (updatesItself(facts) && !on) {
+    return <span className="text-xs text-slate-500">not used — it updates itself</span>;
+  }
   return (
     <>
       {facts.sudo_rule !== "on" && facts.sudo_rule !== "off" && (

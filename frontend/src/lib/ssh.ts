@@ -276,7 +276,8 @@ export interface Facts {
   uptime?: number | null; // seconds
   memory?: { total: number; available: number | null } | null; // bytes
   disks?: { mount: string; device: string; size: number; used: number }[]; // bytes
-  updates?: { manager: string; count: number } | null;
+  // `count` null where the system updates itself (`updatesItself`).
+  updates?: { manager: string; count: number | null } | null;
   programs?: string[]; // what tools require (lib/tools.ts)
   // `tool`: the tool whose shared session it is (`claude-site` is Claude Code's), else null.
   tmux?: { name: string; created: number; attached: boolean; windows: number; tool: string | null }[];
@@ -368,3 +369,10 @@ export function keysSummary(facts: Facts): string {
   return `${keys.length} ${keys.length === 1 ? "key" : "keys"}${parts.length ? `: ${parts.join(", ")}` : ""}`;
 }
 
+// An image-based system (rpm-ostree: Bazzite, Silverblue) updates itself, whole, with its own
+// updater: the machine names its updater with no count. Loskai doesn't update it — no Update,
+// no password rule — and says why.
+export const SELF_UPDATING_REASON = "It updates itself, with its own updater";
+export function updatesItself(facts: Facts | undefined): boolean {
+  return facts?.updates?.count === null;
+}

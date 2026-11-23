@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 import { formatBytes, formatUptime } from "../../lib/format";
-import { tailscaleStatus, type Facts } from "../../lib/ssh";
+import { SELF_UPDATING_REASON, tailscaleStatus, updatesItself, type Facts } from "../../lib/ssh";
 import { Hint } from "../shared/Hint";
 
 const UPDATES_HINT = "From the machine's own package lists, as last refreshed — nothing is fetched.";
@@ -53,6 +53,13 @@ export function MachineOverview({
         <dd className="text-slate-300">
           {!updates ? (
               "—"
+            ) : updatesItself(facts) ? (
+              <span>
+                updates itself{" "}
+                <Hint text={`${SELF_UPDATING_REASON} (${updates.manager}), applied when it restarts — Loskai leaves it alone`} className="text-xs text-slate-500">
+                  ({updates.manager})
+                </Hint>
+              </span>
             ) : updates.count === 0 ? (
               "up to date"
             ) : (

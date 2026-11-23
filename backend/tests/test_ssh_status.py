@@ -624,6 +624,25 @@ def test_a_key_without_a_comment_has_none_and_a_security_key_is_listed():
     assert keys["yubi"]["type"] == "ED25519-SK" and keys["yubi"]["public"].startswith("sk-ssh-ed25519@openssh.com ")
 
 
+def test_an_image_based_system_updates_itself_and_its_dnf_isnt_asked(tmp_path):
+    """Bazzite, Silverblue: rpm-ostree, and a dnf that counts nothing it can install — slow,
+    too (8 s on a real machine). Said as the manager with no count."""
+    home, bin_ = tmp_path / "home", tmp_path / "bin"
+    home.mkdir()
+    bin_.mkdir()
+    for name, body in (("rpm-ostree", "exit 0"), ("dnf", f"touch {tmp_path}/dnf-ran")):
+        (bin_ / name).write_text(f"#!/bin/sh\n{body}\n")
+        (bin_ / name).chmod(0o755)
+    env = {"PATH": f"{bin_}:{os.environ['PATH']}", "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
+    out = status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
+                                            env=env, cwd=tmp_path, timeout=30).stdout)
+    assert out["updates"] == {"manager": "rpm-ostree", "count": None}
+    assert not (tmp_path / "dnf-ran").exists()
+    # Read from a line: the manager alone; a count after any other is still needed.
+    assert status.parse_facts("#loskai-status 16\n#=updates\nrpm-ostree\n")["updates"] == {"manager": "rpm-ostree", "count": None}
+    assert status.parse_facts("#loskai-status 16\n#=updates\ndnf\n")["updates"] is None
+
+
 def _facts_in(home, tmp_path):
     env = {"PATH": os.environ["PATH"], "HOME": str(home), "SSH_ORIGINAL_COMMAND": "facts"}
     return status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,

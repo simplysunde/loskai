@@ -148,8 +148,11 @@ _FACTS = (
     "echo '#=memory'; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; "
     "echo '#=disks'; df -P -k 2>/dev/null; "
     # From the machine's own package lists, as they were last refreshed — nothing is fetched.
+    # An image-based system (rpm-ostree: Bazzite, Silverblue) updates itself, whole, with its
+    # own updater: named alone, no count — its dnf can't install, and takes seconds to count (v16).
     "echo '#=updates'; "
-    "if command -v apt-get >/dev/null; then "
+    "if command -v rpm-ostree >/dev/null; then echo rpm-ostree; "
+    "elif command -v apt-get >/dev/null; then "
     "echo apt $(apt-get -s -o Debug::NoLocking=1 dist-upgrade 2>/dev/null | grep -c '^Inst '); "
     "elif command -v dnf >/dev/null; then "
     "echo dnf $(dnf -C -q check-update 2>/dev/null | grep -c '^[[:alnum:]]'); "
@@ -452,7 +455,7 @@ def parse_facts(output: str) -> dict:
     `os` is os-release's PRETTY_NAME; `os_id`/`os_like` its ID and ID_LIKE (which package
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
     `{mount, device, size, used}` in bytes, real storage only and one row per device;
-    `updates` `{manager, count}` or None; `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
+    `updates` `{manager, count}` or None — `count` None where the system updates itself (`SELF_UPDATING`); `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
     `{name, created, attached, windows}`; `tailscale` its Tailscale IPv4 address, or None
     (not installed, or not connected); `tailnet` the devices `tailscale status` lists,
     `{ip, name, os, online, self, status}`, this machine first; `tailscale_self` this
@@ -558,9 +561,15 @@ def _disks(lines: list[str]) -> list[dict]:
     return out
 
 
+# The one system that updates itself, named with no count (v16).
+SELF_UPDATING = "rpm-ostree"
+
+
 def _updates(lines: list[str]) -> dict | None:
     for line in lines:
         manager, _, count = line.partition(" ")
+        if manager == SELF_UPDATING and not count:
+            return {"manager": manager, "count": None}
         if manager and _number(count) is not None:
             return {"manager": manager, "count": _number(count)}
     return None

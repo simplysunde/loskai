@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Plus, Wrench } from "lucide-react";
 
-import { tailscaleState, useFacts, useSsh, type Facts } from "../../lib/ssh";
+import { SELF_UPDATING_REASON, tailscaleState, updatesItself, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
 import { isLive, listsOf, toolContext, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
@@ -102,7 +102,7 @@ export function OwnButtons({ tool, ctx, small = false }: { tool: Tool; ctx: Tool
       return (
         <ReasonButton
           key={a.id}
-          reason={command ? null : `No command for ${manager ?? "this machine"}'s package manager`}
+          reason={command ? null : updatesItself(ctx.facts) ? SELF_UPDATING_REASON : `No command for ${manager ?? "this machine"}'s package manager`}
           title={`${a.description}\n$ ${command}`}
           onClick={() => ctx.onRun({ tool: tool.id, action: a.id, title: a.label }, a)}
           className={small ? ROW_BUTTON : BUTTON}

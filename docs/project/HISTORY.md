@@ -49,6 +49,14 @@ failed — where a Start failed while its session went on running, which is what
 looks like, so no message is parsed. Kept in the browser (`waiting.ts`), like the hosts
 tested before, and gone at the next click on the row.
 
+throne (Bazzite) took 8 s to read where the others take under 1.5: `dnf -C check-update`,
+counting packages an image-based system can't install that way — and System's Update would
+have run `sudo dnf upgrade`, which fails there. Sunde considered running Bazzite's own
+updater and declined: "those types of machines are mostly daily drivers … we will always
+have access to the system update … leave bazzite alone". The status line (v16, not yet
+installed anywhere, so folded in) names `rpm-ostree` with no count; the page says **updates
+itself**, greys Update and offers no password rule (`updatesItself`).
+
 ## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
 
 Adding codebox's key to Sunde's Forgejo went through **New key for a host**: a terminal

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 
-import { useFacts, useSsh } from "../../lib/ssh";
+import { SELF_UPDATING_REASON, updatesItself, useFacts, useSsh } from "../../lib/ssh";
 import { commandFor, MACHINE_TOOL, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
 import { SudoRuleSwitch } from "./SudoRuleSwitch";
@@ -121,6 +121,8 @@ function MachineUpdate({
           <span className="text-amber-300">{machineFacts.error}</span>
         ) : !machineFacts.updates ? (
           "—"
+        ) : updatesItself(machineFacts) ? (
+          "updates itself"
         ) : machineFacts.updates.count === 0 ? (
           "up to date"
         ) : (
@@ -151,7 +153,7 @@ function MachineUpdate({
           "Queued"
         ) : (
           <ReasonButton
-            reason={command ? null : "No command for its package manager"}
+            reason={command ? null : updatesItself(machineFacts) ? SELF_UPDATING_REASON : "No command for its package manager"}
             disabled={busy}
             onClick={() => action && runner.start(RUN, action)}
             title={`${action?.description}\n$ ${command}`}

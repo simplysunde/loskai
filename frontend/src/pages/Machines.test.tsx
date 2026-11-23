@@ -2215,6 +2215,25 @@ test("updates without a password are allowed in the machine's terminal, and take
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?sudo=allow")).toBeInTheDocument();
 });
 
+test("an image-based system updates itself: said so, its Update greyed, no password rule to add", async () => {
+  sshSetUp();
+  facts = { ...FACTS, updates: { manager: "rpm-ostree", count: null }, sudo_rule: "off" };
+  renderPage("/machines/nas");
+
+  const general = await screen.findByRole("region", { name: "General" });
+  expect(await within(general).findByText("updates itself")).toBeInTheDocument();
+  const update = within(general).getByRole("button", { name: "Update" });
+  expect(update).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(update);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("It updates itself, with its own updater");
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByText(/shell at .*action=update/)).toBeNull();
+
+  const ssh = screen.getByRole("region", { name: "SSH" });
+  expect(within(ssh).queryByRole("switch", { name: "Updates without a password" })).toBeNull();
+  expect(within(ssh).getByText("not used — it updates itself")).toBeInTheDocument();
+});
+
 test("a machine with the rule on offers to take it off", async () => {
   sshSetUp();
   facts = { ...FACTS, sudo_rule: "on" };
