@@ -417,16 +417,18 @@ the machine's terminal, inside a tmux session when the machine has tmux (so clos
 doesn't stop an update, and running it again attaches), and the log records its command.
 The format is [tool-schema.md](../reference/tool-schema.md).
 
-**A machine's own SSH keys** (Phase 56 — the why is in HISTORY, 2026-11-14) are two views of
-one list, read by the status key: the public halves in `~/.ssh` of the user Loskai logs in
-as, every remote of each project and submodule, and what `ssh -G` resolves for each host they
-name ([ssh-status.md](../reference/ssh-status.md)). Loskai's own key is in neither view: it
-logs in *to* the machine, and is SSH setup's.
+**A machine's own SSH keys** (Phase 56 — the why is in HISTORY, 2026-11-14 and 2026-11-23)
+are listed in one place, Git's card › Keys, read by the status key: the public halves in
+`~/.ssh` of the user Loskai logs in as, every remote of each project and submodule, and what
+`ssh -G` resolves for each host they name ([ssh-status.md](../reference/ssh-status.md)).
+Loskai's own key isn't there: it logs in *to* the machine, and is SSH setup's.
 
-- **The machine's dialog › SSH › Keys (n)** lists every key, with Copy and — where the
-  machine has Git, whose tool file holds the actions — Label and Delete.
-- **Git's card › Keys** is git's side: account keys and deploy keys, the remotes each is for,
-  a host field and Test on each, Add to …, and under the list **Add SSH key**. **Add SSH key** is the one way to make a key for an account: the
+- **Git's card › Keys** lists account keys and deploy keys, then — only when there are any —
+  the keys nothing says are git's yet (no remote uses them, no mark claims them), so a key
+  made by hand can still be copied and labelled. A key marked `(loskai: login)` isn't git's
+  nor Loskai's, and isn't listed. Each row: the remotes it is for, Copy, a host field and
+  Test, Label, Delete, Add to …; under the lists, **Add SSH key**. The machine's dialog had
+  a second, plain list of every key in its SSH settings until 2026-11-23. **Add SSH key** is the one way to make a key for an account: the
   site — GitHub, GitLab, Codeberg, or one added in Loskai (`git_sites`, `PUT
   /api/ssh/git-sites`, kept for every machine) — then the name, which Account key writes on
   the machine's `id_*` key (making it if there is none, renaming it otherwise), then its line

@@ -13,9 +13,13 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 - **Test key** and **Try every key**, under the list in Git's **Keys**, are gone: test a key
   with **Test** on its own row. Its host field lists the git sites again, filled in or not,
   with **Add a site…** at the bottom.
-- A machine's **Keys** shows each key under its name, its file beside it, and what uses it,
-  as Git's **Keys** does; its tag names only a site something uses it on, so an unused key
-  no longer looks like the one in use.
+- Git's **Keys** shows each key under its name, its file beside it, and what uses it; its
+  tag names only a site something uses it on, so an unused key no longer looks like the one
+  in use.
+- **A machine's SSH keys are in one place, Git's Keys.** The **Keys (n)** button in the
+  machine's SSH settings is gone. Git's **Keys** now has **Label** on every key, and lists a
+  key nothing claims yet, such as a new machine's own, under **Not used by git yet**; a key
+  labelled for logging in to other computers isn't listed.
 - Claude's **Start** says when Claude isn't logged in on the machine, instead of starting a
   session whose Remote Control never connects.
 - **On Fedora and Bazzite, Keys says which remotes use each key**, where it said Loskai

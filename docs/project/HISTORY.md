@@ -57,6 +57,17 @@ have access to the system update … leave bazzite alone". The status line (v16,
 installed anywhere, so folded in) names `rpm-ostree` with no count; the page says **updates
 itself**, greys Update and offers no password rule (`updatesItself`).
 
+The machine's own **Keys (n)**, in its SSH settings, is removed: Git's **Keys** is the one
+list. On throne it showed the one key Git's **Keys** did, under "Loskai's own key isn't
+here", a note that raised the question it meant to answer. Sunde asked whether the other
+keys were any use to see; for Loskai they aren't — its own key is SSH setup's, and the rest
+are git's or someone's logins elsewhere. The one gap was a key no remote uses yet, a new
+machine's `id_ed25519` before its first clone, the key to paste into a site: it is listed
+apart in Git's **Keys** (**Not used by git yet**), with **Label**, which moved there from the
+removed list. A key labelled for logins isn't listed; its comment's `(loskai: login)` is
+what hides it, so `ssh-keygen -c` on the machine brings it back. A machine without git lists
+no keys. The commit that removed it restores it.
+
 ## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
 
 Adding codebox's key to Sunde's Forgejo went through **New key for a host**: a terminal

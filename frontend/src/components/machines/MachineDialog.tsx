@@ -16,7 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { apiMessage } from "../../lib/api";
 import { useInstances } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { keysSummary, useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { toolContext } from "../../lib/toolRows";
 import { applies, MACHINE_TOOL, useTools, type TargetKind } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
@@ -34,7 +34,6 @@ import { AddToolMenu, MachineTools, OwnButtons, RowButtons } from "./MachineTool
 import { EnableSshModal } from "./EnableSshModal";
 import { RunningList } from "./RunningPill";
 import { SaveBanner } from "../routing/SaveBanner";
-import { SshKeys } from "./SshKeys";
 import { SshSetupModal } from "./SshSetupModal";
 import { useSaveMachine, type SaveResult } from "../routing/useSaveMachine";
 import { useToolRunner } from "./useToolRunner";
@@ -76,8 +75,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const [setup, setSetup] = useState(Boolean(handed.setup));
   const [removing, setRemoving] = useState(false);
   const [enabling, setEnabling] = useState(false);
-  // Its own SSH keys, every one, in the dialog Git's Keys opens — from the SSH section.
-  const [ownKeys, setOwnKeys] = useState(false);
   // Your password, when removing the connection needs Loskai's key unlocked.
 
   const routes = useInstances();
@@ -134,7 +131,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const here = (tools.data ?? []).filter((t) => applies(t, programs));
   // What a tool's card needs — once the overview and the tools are in.
   const ctx = toolContext(id, tools.data, facts.data, ssh.data, runner.start);
-  const gitTool = tools.data?.find((t) => t.id === "git");
   // System's Update, Reboot and Shut down are the machine's own: on General, by its overview.
   const system = here.find((t) => t.id === MACHINE_TOOL);
   const rowActions = (target: TargetKind, name: string) => (
@@ -245,7 +241,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
           </SettingRow>
         )}
         {sshEntry?.user && (
-          <SettingRow label="Keys" description="Its host key and Loskai's key on it — SSH setup; and its own keys, in ~/.ssh.">
+          <SettingRow label="Keys" description="Its host key and Loskai's key on it. The keys git uses are in Git's Keys.">
             {trusted ? (
               <span className="text-xs text-emerald-300">set up</span>
             ) : (
@@ -254,18 +250,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
             <button onClick={() => setSetup(true)} className={`${BUTTON} text-slate-200`}>
               {trusted ? "SSH setup" : "Set up SSH"}
             </button>
-            {/* Its own keys — every one, as Git's Keys shows git's. Their buttons are Git's
-                tool's, so a machine without git lists them only. */}
-            {ctx && facts.data?.ok && (
-              <button
-                onClick={() => setOwnKeys(true)}
-                aria-haspopup="dialog"
-                title={facts.data.ssh_keys ? `Its own SSH keys: ${keysSummary(facts.data)}` : "Its own SSH keys — its status line is older: install it again to list them"}
-                className={`${BUTTON} text-slate-200`}
-              >
-                <KeyRound className="h-3.5 w-3.5" /> Keys{facts.data.ssh_keys ? ` (${facts.data.ssh_keys.length})` : ""}
-              </button>
-            )}
           </SettingRow>
         )}
         {sshEntry?.user && trusted && (
@@ -402,14 +386,6 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         />
       )}
 
-      {ownKeys && ctx && gitTool && (
-        <SshKeys
-          tool={applies(gitTool, ctx.facts.programs ?? []) ? gitTool : { ...gitTool, actions: [] }}
-          ctx={ctx}
-          mode="machine"
-          onClose={() => setOwnKeys(false)}
-        />
-      )}
       {runner.ui}
     </>
   );

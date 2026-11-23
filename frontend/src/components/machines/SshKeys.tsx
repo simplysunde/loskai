@@ -29,44 +29,29 @@ export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
       >
         <KeyRound className="h-3.5 w-3.5" /> Keys
       </button>
-      {open && <SshKeys tool={tool} ctx={ctx} mode="git" onClose={() => setOpen(false)} />}
+      {open && <SshKeys tool={tool} ctx={ctx} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-// The lists, each with a line saying what its keys are: git's two, then logins, then those
-// nothing says.
+// The lists, each with a line saying what its keys are: git's two, then those nothing says
+// are git's yet. A login key — labelled for logging in to other computers — is neither git's
+// nor Loskai's, so it isn't listed.
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
   { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
-  { id: "login", title: "Login keys", hint: "for logging in to other computers" },
-  { id: "other", title: "Other keys", hint: "not labelled — Label says what one is for" },
+  { id: "other", title: "Not used by git yet", hint: "no remote uses them, and no label says — Label one that is git's" },
 ] as const;
 
 
 
-// Every key in the SSH user's ~/.ssh, as the overview reads them (public halves only), a
-// card each: its name and what it is, in words; what it does — each remote it is for —
-// written out in full; its comment and fingerprint; and its buttons: Copy and Add to …
-// (from the page), Test and Delete (in the machine's terminal). Under the
-// list, what makes or tests a key for a host. A run's terminal opens over it.
-// Two views of the one list, each where it belongs. `machine`, from the machine's SSH
-// settings: every key, what it is for, its fingerprint — Copy, Label, Delete — and nothing
-// else. `git`, from Git's card: git's keys only — the remotes each is for, a Test on a host,
-// where to add it, Delete, and what makes or tests a key for a host. The buttons are Git's tool's.
-export function SshKeys({
-  tool,
-  ctx,
-  mode,
-  onClose,
-}: {
-  tool: Tool;
-  ctx: ToolContext;
-  mode: "machine" | "git";
-  onClose: () => void;
-}) {
+// Git's keys in the SSH user's ~/.ssh, as the overview reads them (public halves only), a
+// card each: its name; what it does — each remote it is for — written out in full; its
+// comment and fingerprint; and its buttons: Copy and Add to … (from the page), Test, Label and
+// Delete (in the machine's terminal). Under the lists, Add SSH key. A run's terminal opens
+// over it. The machine's other keys aren't Loskai's business; its own key is SSH setup's.
+export function SshKeys({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
   const keys = ctx.facts.ssh_keys;
-  const git = mode === "git";
   // Where each is used, through every remote in the home folder; null on an older line.
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
@@ -85,12 +70,11 @@ export function SshKeys({
           uses={usesOf(k)}
           inSshConfig={inSshConfig.has(k.name)}
           facts={ctx.facts}
-          actions={git ? keyActions.filter((a) => a.id === "delete-key") : keyActions}
+          actions={keyActions.filter((a) => a.id === "delete-key")}
           tool={tool}
           onRun={run}
-          testAction={git ? testAction : undefined}
-          labelAction={git ? undefined : labelAction}
-          git={git}
+          testAction={testAction}
+          labelAction={labelAction}
           tested={tested[k.name]}
           onTested={onTested}
         />
@@ -104,13 +88,11 @@ export function SshKeys({
   const labelAction = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
-  const order = (k: MachineKey) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
-  const notGit = (keys ?? []).filter((k) => !["account", "deploy"].includes(keyGroup(k, usesOf(k)).group));
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
   // comes back here, and the list follows what it did (the overview is read again then).
   const run = ctx.onRun;
   const [adding, setAdding] = useState(false);
-  const canAdd = git && tool.actions.some((a) => a.ask === "key-comment");
+  const canAdd = tool.actions.some((a) => a.ask === "key-comment");
 
   return (
     <Overlay
@@ -118,16 +100,14 @@ export function SshKeys({
       label="SSH keys"
       className="flex max-h-full w-full max-w-3xl flex-col rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:max-h-[85vh]"
     >
-      <h2 className="text-base font-semibold text-slate-100">{git ? "SSH keys for git" : "SSH keys"}</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {git ? "The keys git uses here, and where." : "Every key of the user Loskai logs in as, in ~/.ssh — public halves only."}
-      </p>
-      {git && ctx.facts.ssh_match_exec && (
+      <h2 className="text-base font-semibold text-slate-100">SSH keys for git</h2>
+      <p className="mt-1 text-sm text-slate-400">The keys git uses here, and where.</p>
+      {ctx.facts.ssh_match_exec && (
         <p className="mt-1 text-xs text-amber-300/90">
           This machine's ssh config may run a command to choose keys (Match exec, or a file it includes that Loskai can't follow), so Loskai doesn't ask ssh which key each remote uses: it only reads.
         </p>
       )}
-      {git && missing.length > 0 && (
+      {missing.length > 0 && (
         <p className="mt-1 text-xs text-amber-300/90">
           ~/.ssh/config names {missing.length === 1 ? "a key" : "keys"} Loskai can't find here:{" "}
           <span className="font-mono">{missing.join(", ")}</span> (no .pub in ~/.ssh). A host{" "}
@@ -141,13 +121,12 @@ export function SshKeys({
           </p>
         ) : keys.length === 0 ? (
           <p className="text-sm text-slate-500">No SSH key here yet.</p>
-        ) : !git ? (
-          // The machine's: one plain list, git's keys first.
-          list([...keys].sort((a, b) => order(a) - order(b)))
         ) : (
           <div className="space-y-4">
-            {GROUPS.filter((g) => g.id === "account" || g.id === "deploy").map((g) => {
+            {GROUPS.map((g) => {
               const inIt = keys.filter((k) => keyGroup(k, usesOf(k)).group === g.id);
+              // Nothing unclaimed: no section saying so.
+              if (g.id === "other" && inIt.length === 0) return null;
               return (
                 <section key={g.id} aria-label={g.title}>
                   <h3 className="text-xs font-medium text-slate-200">
@@ -157,21 +136,9 @@ export function SshKeys({
                 </section>
               );
             })}
-            {notGit.length > 0 && (
-              <p className="text-xs text-slate-500">
-                {notGit.length} more {notGit.length === 1 ? "key" : "keys"} on this machine, not git's — in its SSH settings.
-              </p>
-            )}
           </div>
         )}
       </div>
-      {/* The machine's view: these log in from here. Loskai's own key is the other way —
-          it logs in to this machine, from Loskai — and is SSH setup's. */}
-      {!git && (
-        <p className="mt-3 text-xs text-slate-500">
-          Loskai's own key isn't here: it logs in to this machine, from Loskai — see SSH setup.
-        </p>
-      )}
       {canAdd && (
         <div className="mt-4">
           <button
@@ -195,7 +162,7 @@ export function SshKeys({
 
 // A key, in two columns: on the left its name and tags, what it does, and its comment,
 // fingerprint and where to add it; on the right, top-aligned, the same buttons on every row
-// — Copy, Test, Delete — so they line up down the list.
+// — Copy, Test, Label, Delete — so they line up down the list.
 function KeyRow({
   info,
   uses,
@@ -206,7 +173,6 @@ function KeyRow({
   onRun,
   testAction,
   labelAction,
-  git,
   tested,
   onTested,
 }: {
@@ -219,7 +185,6 @@ function KeyRow({
   onRun: ToolStart;
   testAction?: ToolAction;
   labelAction?: ToolAction;
-  git: boolean;
   tested?: Tested;
   onTested: (name: string, host: string, ok: boolean) => void;
 }) {
@@ -227,11 +192,9 @@ function KeyRow({
   // Its comment, without Loskai's mark: what Add SSH key names it, and the site lists.
   const title = commentText(info.comment);
   const [labelling, setLabelling] = useState(false);
-  // Where to add it — git's view, until a Test has seen it get in.
+  // Where to add it, until a Test has seen it get in.
   const sites = useSsh().data?.git_sites;
-  const page = git && info.public && !tested?.ok ? keyPage(info, uses, sites) : null;
-  // The machine's view says what it is for in a word or two.
-  const purpose = { account: "Account", deploy: "Deploy", login: "Login", other: null }[group];
+  const page = info.public && !tested?.ok ? keyPage(info, uses, sites) : null;
   return (
     <li className="flex gap-3 px-3 py-2 text-xs max-sm:flex-col">
       <div className="min-w-0 flex-1">
@@ -239,19 +202,14 @@ function KeyRow({
           {/* The name the site lists it by, when it has one; its file beside it. */}
           {title && <span className="min-w-0 break-words text-sm text-slate-100">{title}</span>}
           <span className={title ? "font-mono text-[11px] text-slate-500" : "font-mono text-sm text-slate-100"}>{info.name}</span>
-          {!git && (
-            <span className={`rounded px-1.5 py-0.5 text-[10px] ${purpose ? "bg-slate-800 text-slate-300" : "text-slate-500"}`}>
-              {purpose ? `${purpose}${tag ? ` · ${tag}` : ""}` : "not labelled"}
-            </span>
-          )}
-          {git && tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
+          {tag && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">{tag}</span>}
           {inSshConfig && (
             <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
               <Hint text="~/.ssh/config names it — Delete leaves it alone">~/.ssh/config</Hint>
             </span>
           )}
         </div>
-        {group !== "login" && <UsedBy uses={uses} inSshConfig={inSshConfig} account={group === "account"} isSshDefault={keyKind(info.name) === "account"} facts={facts} />}
+        <UsedBy uses={uses} inSshConfig={inSshConfig} account={group === "account"} isSshDefault={keyKind(info.name) === "account"} facts={facts} />
         {/* Its fingerprint is the one GitHub and Forgejo list beside a key; then where to
             paste it. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
@@ -735,7 +693,7 @@ function LabelKey({
             <input type="radio" name="kind" checked={kind === "login"} onChange={() => setKind("login")} className="mt-1 accent-teal-500" />
             <span>
               Login key
-              <span className="block text-xs text-slate-500">For logging in to other computers.</span>
+              <span className="block text-xs text-slate-500">For logging in to other computers — not git's, so Keys stops listing it.</span>
             </span>
           </label>
         </fieldset>

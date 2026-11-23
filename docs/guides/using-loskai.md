@@ -405,7 +405,7 @@ a section, and **Search** finds one by what is in it.
 | Section | What is there |
 |---|---|
 | **General** | **Machine name** and **Address**. Then what the machine says about itself: system, uptime, updates waiting, its Tailscale address, memory, disks. Beside that, **Update**, **Reboot** and **Shut down** |
-| **SSH** | A switch that turns it on or off. **Login**: the user and port. **Keys**: **SSH setup**, to run the setup again, and **Keys (n)**, [the machine's own keys](#a-machines-ssh-keys). **Updates without a password** |
+| **SSH** | A switch that turns it on or off. **Login**: the user and port. **Keys**: **SSH setup**, to run the setup again. **Updates without a password** |
 | **Tools** | A card per [tool](#tools), and **Add tool** |
 | **Running** | What runs there, with **Restart** and **Stop** |
 | **Log** | Every terminal and run on this machine. An admin's |
@@ -542,8 +542,27 @@ that host's key. Loskai's key never leaves Loskai.
    it yet.
 
 An account key reaches every repository your account can, on every site you add it to.
-**Delete**, on a key's row in **Keys**, removes a key you no longer use, as in the machine's
-SSH keys below.
+
+**What Keys lists**
+
+**Keys** lists the keys in the machine's `~/.ssh` that git uses, under the name a site lists
+each by, with its file beside it and what uses it, such as **Fetches and pushes loskai**:
+
+- **Account keys** and **Deploy keys**.
+- **Not used by git yet**: a key no remote uses and no label claims, such as a new machine's
+  `id_ed25519` before its first clone over SSH. **Label** one that is git's to move it up.
+
+On each row:
+
+- **Copy** copies a key's public line.
+- **Label** writes on the key what it is for: an account, one project, or logging in to other
+  computers. The key itself doesn't change and goes on working where it was added. A key
+  labelled for logging in to other computers isn't git's, so **Keys** stops listing it.
+- **Delete** removes its file for good. GitHub or Forgejo still lists the key until you take
+  it off there. A key that `~/.ssh/config` names can't be deleted here: take it out of that
+  file first.
+
+Loskai's own key isn't in **Keys**: it lets Loskai in to the machine, and is in **SSH setup**.
 
 If **Keys** says `~/.ssh/config` names a key Loskai can't find here, check `~/.ssh` for it.
 If it's gone, fix that line in `~/.ssh/config` or delete its `Host` block: `ssh` may not use
@@ -571,23 +590,6 @@ In **Keys**, each key's row has a host field and **Test**. Click into the field:
 the hosts you tested on before, then the git sites, then **Add a site…** for one of your own.
 Pick one, or type the host, and click **Test**: it tries that key alone and says whether it gets in, and as
 whom. A key with a passphrase isn't tried.
-
-#### A machine's SSH keys
-
-In the machine's dialog, under **SSH**, click **Keys (n)**. It lists every key of the user
-Loskai logs in as, from `~/.ssh`: each under the name a site lists it by (the **Key name**
-from **Add SSH key**), with its file beside it, and what uses it, such as **Fetches
-and pushes loskai**, or **No git remote here uses it**.
-
-- **Copy** copies a key's public line.
-- **Label** writes on the key what it is for: an account, one project, or logging in to
-  other computers. The key itself doesn't change and goes on working where it was added.
-- **Delete** removes its file for good. GitHub or Forgejo still lists the key until you
-  take it off there. A key that `~/.ssh/config` names can't be deleted here: take it out of
-  that file first.
-
-**Label** and **Delete** are there where the machine has Git. Loskai's own key isn't in the
-list. It is on the machine to let Loskai in: **SSH setup**.
 
 #### Claude Code
 
