@@ -545,9 +545,9 @@ An account key reaches every repository your account can, on every site you add 
 **Delete**, on a key's row in **Keys**, removes a key you no longer use, as in the machine's
 SSH keys below.
 
-If **Keys** says `~/.ssh/config` names a key that isn't on this machine, fix that line in
-`~/.ssh/config` or delete its `Host` block: `ssh` won't use another key in its place, so that
-host refuses the machine.
+If **Keys** says `~/.ssh/config` names a key Loskai can't find here, check `~/.ssh` for it.
+If it's gone, fix that line in `~/.ssh/config` or delete its `Host` block: `ssh` may not use
+another key in its place, so that host refuses the machine.
 
 **Give one project a key of its own**
 

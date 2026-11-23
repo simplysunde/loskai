@@ -72,7 +72,8 @@ export function SshKeys({
   const uses = keyUses(ctx.facts);
   // One ~/.ssh/config names is yours to take out: Delete leaves it alone.
   const inSshConfig = new Set(ctx.facts.ssh_config_keys ?? []);
-  // A key it names that isn't here: ssh offers nothing in its place where IdentitiesOnly says so.
+  // A key it names that Keys can't find — no .pub: gone, ssh offers nothing in its place where
+  // IdentitiesOnly says so. A private key without its .pub may still be there, so it says only that.
   const missing = keys ? [...inSshConfig].filter((n) => !keys.some((k) => k.name === n)) : [];
   const keyActions = tool.actions.filter((a) => a.target === "key");
   const usesOf = (k: MachineKey) => usesOfKey(ctx.facts, uses, k.name);
@@ -133,9 +134,9 @@ export function SshKeys({
       )}
       {git && missing.length > 0 && (
         <p className="mt-1 text-xs text-amber-300/90">
-          ~/.ssh/config names <span className="font-mono">{missing.join(", ")}</span>, which{" "}
-          {missing.length === 1 ? "isn't" : "aren't"} on this machine: ssh can't use{" "}
-          {missing.length === 1 ? "it" : "them"}, and a host it's for may refuse every key.
+          ~/.ssh/config names {missing.length === 1 ? "a key" : "keys"} Loskai can't find here:{" "}
+          <span className="font-mono">{missing.join(", ")}</span> (no .pub in ~/.ssh). A host{" "}
+          {missing.length === 1 ? "it's" : "they're"} for may refuse every key.
         </p>
       )}
       <div className="mt-4 min-h-0 overflow-auto">

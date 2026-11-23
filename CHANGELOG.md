@@ -17,8 +17,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   session whose Remote Control never connects.
 - A run Loskai refuses before its terminal opens, such as a tool missing on the machine, is
   in the machine's **Log** with why, and in the server's log.
-- Git's **Keys** says when `~/.ssh/config` names a key that isn't on the machine — a host it
-  is for refuses every key while it does.
+- Git's **Keys** says when `~/.ssh/config` names a key it can't find on the machine — a host
+  it is for may refuse every key while it does.
 - **An update that finished shows its last lines** in the panel that drops down, where it
   was blank once tmux closed.
 - **A dialog stays open when you drag out of it**, or into it: selecting a terminal's text
