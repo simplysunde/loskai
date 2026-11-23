@@ -996,6 +996,14 @@ avoided when possible")**
 ---
 
 ## Backlog / Future ideas
+- **A Codex tool, once Codex can continue a CLI session remotely** (Sunde, 2026-11-23: "if
+  that isnt an option we can forget about implementing it") — a card like Claude Code's
+  (Attach, Start, Stop per project in tmux; Update; Add tool installs it with its git and
+  tmux), which is only worth it with something like Claude's `--remote-control`. As of
+  2026-11-23 Codex's phone access needs the ChatGPT desktop app on macOS or Windows, and
+  attaching to a running CLI session is still asked for in
+  [openai/codex#27565](https://github.com/openai/codex/issues/27565). Needs `codex` in
+  `status.PROGRAMS` (a status line version) and its installer in `tool.INSTALLERS`
 - **More than one Claude session on a project** (Sunde, 2026-11-14: for now one session's
   own parallel agents — `claude agents` — are the way) — safely, a git worktree per extra
   session: `claude --worktree <name>` makes one and starts in it. On the card, a **+ Session**
