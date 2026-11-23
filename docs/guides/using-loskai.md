@@ -567,8 +567,9 @@ only. Empty, the card's apply.
 
 **Find the key a host takes**
 
-In **Keys**, each key's row has a host field and **Test**. Type the host, or pick one from
-its list, and click **Test**: it tries that key alone and says whether it gets in, and as
+In **Keys**, each key's row has a host field and **Test**. Click into the field: it lists
+the hosts you tested on before, then the git sites, then **Add a site…** for one of your own.
+Pick one, or type the host, and click **Test**: it tries that key alone and says whether it gets in, and as
 whom. A key with a passphrase isn't tried.
 
 #### A machine's SSH keys

@@ -158,7 +158,7 @@ export function AddToSite({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext
           onClose={() => setAdding(false)}
           onAdded={(s) => {
             setAdding(false);
-            setPicked(s);
+            setPicked(s.name);
             setTested(null);
           }}
         />
@@ -167,8 +167,9 @@ export function AddToSite({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext
   );
 }
 
-// A git site of your own — a Forgejo, a Gitea — kept in Loskai for every machine.
-function AddSite({ sites, onClose, onAdded }: { sites: GitSite[]; onClose: () => void; onAdded: (name: string) => void }) {
+// A git site of your own — a Forgejo, a Gitea — kept in Loskai for every machine: from Add SSH
+// key's site, or a key's host field.
+export function AddSite({ sites, onClose, onAdded }: { sites: GitSite[]; onClose: () => void; onAdded: (site: GitSite) => void }) {
   const qc = useQueryClient();
   const [site, setSite] = useState({ name: "", web: "", ssh: "" });
   const [error, setError] = useState<string | null>(null);
@@ -186,9 +187,9 @@ function AddSite({ sites, onClose, onAdded }: { sites: GitSite[]; onClose: () =>
     setError(null);
     try {
       const added = sites.filter((s) => !s.builtin).map(({ name, web, ssh }) => ({ name, web, ssh }));
-      const kept = await api.put<{ sites: { name: string }[] }>("/api/ssh/git-sites", { sites: [...added, site] });
+      const kept = await api.put<{ sites: GitSite[] }>("/api/ssh/git-sites", { sites: [...added, site] });
       await qc.invalidateQueries({ queryKey: ["ssh"] });
-      onAdded(kept.sites[kept.sites.length - 1].name);
+      onAdded(kept.sites[kept.sites.length - 1]);
     } catch (err) {
       setError(apiMessage(err, "Couldn't add it"));
       setSaving(false);

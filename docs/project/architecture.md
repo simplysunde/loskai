@@ -450,7 +450,9 @@ logs in *to* the machine, and is SSH setup's.
   Try every key, which tried several keys on one host, were removed on 2026-11-23: a key's
   own Test answers the same question one key at a time. A connection refused is reported as a wrong port. The answer
   stays while Keys is open — a key that got in shows ✓ and the host, and loses its Add to … —
-  and nothing is kept after, except the hosts tested on, in the browser (`recentHosts.ts`).
+  and nothing is kept after, except the hosts tested on, in the browser (`recentHosts.ts`). A
+  key's host field lists those, then the git sites, then Add a site… (the same dialog as Add
+  SSH key's).
 - **Delete** removes the file and puts a project that used it back on the machine's key. A
   key `~/.ssh/config` names is refused: Loskai never edits that file.
 

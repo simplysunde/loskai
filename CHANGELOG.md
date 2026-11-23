@@ -11,7 +11,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   one. It replaces **New account key** and **New key for a host**; a key made for one host
   keeps working where `~/.ssh/config` names it. Each key there has **Delete** too.
 - **Test key** and **Try every key**, under the list in Git's **Keys**, are gone: test a key
-  with **Test** on its own row.
+  with **Test** on its own row. Its host field lists the git sites again, filled in or not,
+  with **Add a site…** at the bottom.
 - A machine's **Keys** shows each key under its name, its file beside it, and what uses it,
   as Git's **Keys** does; its tag names only a site something uses it on, so an unused key
   no longer looks like the one in use.

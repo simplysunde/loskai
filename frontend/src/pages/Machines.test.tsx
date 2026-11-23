@@ -1530,19 +1530,56 @@ test("a host tested before is offered in every host field, newest first, and for
   // Another field, clicked into: both, newest first.
   fireEvent.change(field("id_ed25519"), { target: { value: "" } });
   fireEvent.focus(field("id_ed25519"));
-  const offered = screen.getByRole("list", { name: "Hosts tested before" });
-  expect(within(offered).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["codeberg.org", "git.home.lan:2222"]);
+  const offered = screen.getByRole("list", { name: "Hosts" });
+  const recent = () => within(screen.getByRole("list", { name: "Hosts" })).queryAllByRole("button", { name: /^Forget / }).map((b) => b.getAttribute("aria-label"));
+  expect(recent()).toEqual(["Forget codeberg.org", "Forget git.home.lan:2222"]);
   fireEvent.click(within(offered).getByRole("button", { name: "git.home.lan:2222" }));
   expect(field("id_ed25519")).toHaveValue("git.home.lan:2222");
-  expect(screen.queryByRole("list", { name: "Hosts tested before" })).toBeNull();
+  expect(screen.queryByRole("list", { name: "Hosts" })).toBeNull();
 
   // One no longer wanted: forgotten, here and in the browser.
   fireEvent.focus(field("deploy_blog"));
   fireEvent.change(field("deploy_blog"), { target: { value: "" } });
-  fireEvent.click(within(screen.getByRole("list", { name: "Hosts tested before" })).getByRole("button", { name: "Forget codeberg.org" }));
-  expect(within(screen.getByRole("list", { name: "Hosts tested before" })).getAllByRole("listitem").map((li) => li.textContent))
-    .toEqual(["git.home.lan:2222"]);
+  fireEvent.click(within(screen.getByRole("list", { name: "Hosts" })).getByRole("button", { name: "Forget codeberg.org" }));
+  expect(recent()).toEqual(["Forget git.home.lan:2222"]);
   expect(JSON.parse(localStorage.getItem("loskai-recent-hosts")!)).toEqual(["git.home.lan:2222"]);
+});
+
+test("a key's host field lists the git sites, filled or not, and Add a site… at the bottom", async () => {
+  localStorage.removeItem("loskai-recent-hosts");
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  const dialog = await gitKeys();
+  const field = () => within(dialog).getByLabelText("Host to test id_ed25519 on");
+
+  // Clicked into with a host in it already: every site, by name and SSH address.
+  fireEvent.change(field(), { target: { value: "gitlab.com" } });
+  fireEvent.blur(field());
+  fireEvent.focus(field());
+  const list = screen.getByRole("list", { name: "Hosts" });
+  const items = within(list).getAllByRole("listitem");
+  expect(items.map((li) => li.textContent)).toEqual([
+    "GitHubgithub.com", "GitLabgitlab.com", "Codebergcodeberg.org", "Forgejoforgejo.lan", "Add a site…",
+  ]);
+  fireEvent.click(within(list).getByRole("button", { name: /Codeberg/ }));
+  expect(field()).toHaveValue("codeberg.org");
+
+  // Typed in: only what matches, Add a site… still there.
+  fireEvent.focus(field());
+  fireEvent.change(field(), { target: { value: "forg" } });
+  expect(within(screen.getByRole("list", { name: "Hosts" })).getAllByRole("listitem").map((li) => li.textContent))
+    .toEqual(["Forgejoforgejo.lan", "Add a site…"]);
+
+  // Add a site…: the site is kept, and its SSH address goes in the field.
+  fireEvent.click(within(screen.getByRole("list", { name: "Hosts" })).getByRole("button", { name: "Add a site…" }));
+  const add = await screen.findByRole("dialog", { name: "Add a site" });
+  fireEvent.change(within(add).getByPlaceholderText("Forgejo"), { target: { value: "Home Gitea" } });
+  fireEvent.change(within(add).getByPlaceholderText("https://git.example.com"), { target: { value: "http://gitea.lan:3000" } });
+  fireEvent.change(within(add).getByPlaceholderText("git.example.com:222"), { target: { value: "gitea.lan:222" } });
+  fireEvent.click(within(add).getByRole("button", { name: "Add site" }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a site" })).not.toBeInTheDocument());
+  expect(field()).toHaveValue("gitea.lan:222");
+  expect(screen.getByRole("dialog", { name: "SSH keys" })).toBeInTheDocument();
 });
 
 test("Label, on a key: what it is for, picked in a dialog and written on the key", async () => {

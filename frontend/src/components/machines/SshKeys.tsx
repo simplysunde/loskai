@@ -8,7 +8,7 @@ import { hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
-import { AddToSite } from "./AddToSite";
+import { AddSite, AddToSite } from "./AddToSite";
 import { Hint, ReasonButton } from "../shared/Hint";
 
 // A key's Test, as it last came out while Keys is open: the host, and whether it got in.
@@ -524,9 +524,11 @@ function KeyTest({
   );
 }
 
-// A host field that offers the hosts keys were tested on before, newest first — in this
-// browser — once it is clicked into: a click on one fills it in, ✕ forgets it. The list
-// is placed from the field, fixed, so a scrolling list of keys can't cut it off.
+// A key's host field, and the list it opens once clicked into: the hosts keys were tested on
+// before, newest first — in this browser, ✕ forgetting one — then the git sites, by name
+// and SSH address, then Add a site…, which keeps a new one in Loskai and fills it in. All of
+// them while the field holds what was there; what matches, once typed in. The list is placed
+// from the field, fixed, so a scrolling list of keys can't cut it off.
 function HostInput({
   label,
   value,
@@ -543,27 +545,54 @@ function HostInput({
   className: string;
 }) {
   const { hosts, forget, refresh } = useRecentHosts();
+  const sites = useSsh().data?.git_sites ?? [];
   const field = useRef<HTMLInputElement>(null);
   const [at, setAt] = useState<{ top: number; left: number; width: number } | null>(null);
-  const typed = value.trim();
-  const shown = hosts.filter((h) => h !== typed && h.includes(typed));
+  const [typing, setTyping] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const typed = value.trim().toLowerCase();
+  const matches = (...texts: string[]) => !typing || texts.some((t) => t.toLowerCase().includes(typed));
+  const siteOf = (h: string) => sites.find((s) => s.ssh === h);
+  const recent = hosts.filter((h) => matches(h, siteOf(h)?.name ?? ""));
+  const others = sites.filter((s) => !hosts.includes(s.ssh) && matches(s.ssh, s.name));
   const open = () => {
     refresh();
+    setTyping(false);
     const r = field.current?.getBoundingClientRect();
-    if (r) setAt({ top: r.bottom + 4, left: r.left, width: r.width });
+    // At least 200px wide, and kept inside the window: the field is at a row's right end.
+    if (r) {
+      const width = Math.max(r.width, 200);
+      setAt({ top: r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width });
+    }
   };
+  const pick = (h: string) => {
+    onChange(h);
+    setAt(null);
+  };
+  const ITEM = "flex min-w-0 flex-1 items-baseline gap-2 px-2 py-1 text-left text-[11px]";
+  // mousedown kept from the field, so it stays open and focused
+  const keep = (e: React.MouseEvent) => e.preventDefault();
+  const shown = (h: string, name?: string) => (
+    <>
+      {name && <span className="text-slate-200">{name}</span>}
+      <span className={`truncate font-mono ${name ? "text-slate-500" : "text-slate-200"}`}>{h}</span>
+    </>
+  );
   return (
     <>
       <input
         ref={field}
         aria-label={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          setTyping(true);
+          onChange(e.target.value);
+        }}
         onFocus={open}
         onBlur={() => setAt(null)}
         onKeyDown={(e) => {
           // Escape closes the list, not the dialog under it.
-          if (e.key === "Escape" && at && shown.length > 0) {
+          if (e.key === "Escape" && at) {
             e.preventDefault();
             setAt(null);
           } else if (e.key === "Enter") {
@@ -574,31 +603,22 @@ function HostInput({
         placeholder={placeholder}
         className={className}
       />
-      {at && shown.length > 0 && (
+      {at && (
         <ul
-          aria-label="Hosts tested before"
-          style={{ top: at.top, left: at.left, minWidth: Math.max(at.width, 160) }}
-          className="fixed z-[55] max-h-48 overflow-auto rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl"
+          aria-label="Hosts"
+          style={{ top: at.top, left: at.left, minWidth: at.width }}
+          className="fixed z-[55] max-h-56 overflow-auto rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl"
         >
-          {shown.map((h) => (
+          {recent.map((h) => (
             <li key={h} className="flex items-center hover:bg-slate-800">
-              {/* mousedown kept from the field, so it stays open and focused */}
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onChange(h);
-                  setAt(null);
-                }}
-                className="min-w-0 flex-1 truncate px-2 py-1 text-left font-mono text-[11px] text-slate-200"
-              >
-                {h}
+              <button type="button" onMouseDown={keep} onClick={() => pick(h)} className={ITEM}>
+                {shown(h, siteOf(h)?.name)}
               </button>
               <button
                 type="button"
                 aria-label={`Forget ${h}`}
                 title="Forget it — wrong, or no longer used"
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={keep}
                 onClick={() => forget(h)}
                 className="px-1.5 py-1 text-slate-500 hover:text-rose-300"
               >
@@ -606,7 +626,37 @@ function HostInput({
               </button>
             </li>
           ))}
+          {others.map((s) => (
+            <li key={s.name} className="flex items-center hover:bg-slate-800">
+              <button type="button" onMouseDown={keep} onClick={() => pick(s.ssh)} className={ITEM}>
+                {shown(s.ssh, s.name)}
+              </button>
+            </li>
+          ))}
+          <li className="mt-1 flex items-center border-t border-slate-800 pt-1 hover:bg-slate-800">
+            <button
+              type="button"
+              onMouseDown={keep}
+              onClick={() => {
+                setAt(null);
+                setAdding(true);
+              }}
+              className={`${ITEM} text-teal-300`}
+            >
+              Add a site…
+            </button>
+          </li>
         </ul>
+      )}
+      {adding && (
+        <AddSite
+          sites={sites}
+          onClose={() => setAdding(false)}
+          onAdded={(s) => {
+            setAdding(false);
+            onChange(s.ssh);
+          }}
+        />
       )}
     </>
   );
