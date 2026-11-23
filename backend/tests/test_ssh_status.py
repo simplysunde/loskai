@@ -640,12 +640,46 @@ def test_match_exec_in_an_included_file_isnt_run_either(tmp_path):
     (home / ".ssh" / "config.d" / "plain").write_text("Host example.invalid\n  User git\n")
     # An Include without Match exec: asked, as before.
     assert _facts_in(home, tmp_path)["ssh_match_exec"] is False
-    # One that has it — and one that includes yet another file, which isn't followed: not asked.
+    # One that has it: not asked.
     (home / ".ssh" / "config.d" / "work").write_text('Match host * exec "touch $HOME/ran"\n')
     out = _facts_in(home, tmp_path)
     assert out["ssh_match_exec"] is True and out["ssh_hosts"] == {} and not (home / "ran").exists()
+    # One that includes a file that isn't there: followed, nothing in it — asked (v16).
     (home / ".ssh" / "config.d" / "work").write_text("Include ~/elsewhere\n")
+    assert _facts_in(home, tmp_path)["ssh_match_exec"] is False
+
+
+@pytest.mark.skipif(not shutil.which("ssh"), reason="needs ssh")
+def test_includes_are_followed_down_as_fedora_nests_them_and_match_exec_found_there_too(tmp_path):
+    """Fedora's (Bazzite's) ssh_config.d/50-redhat.conf includes the crypto policy's file: two
+    levels, which v15 didn't follow, so it never asked. Followed now, 4 levels deep."""
+    home = tmp_path / "home"
+    (home / ".ssh" / "config.d").mkdir(parents=True)
+    (home / "policy").mkdir()
+    subprocess.run(["git", "init", "-q", str(home / "projects" / "site")], check=True)
+    subprocess.run(["git", "-C", str(home / "projects" / "site"), "remote", "add", "origin", "git@example.invalid:me/site.git"], check=True)
+    (home / ".ssh" / "config").write_text("Include config.d/*.conf\n")
+    (home / ".ssh" / "config.d" / "50-redhat.conf").write_text("Match final all\n  Include ~/policy/openssh.config\n")
+    (home / "policy" / "openssh.config").write_text("Ciphers aes256-gcm@openssh.com\n")
+    out = _facts_in(home, tmp_path)
+    assert out["ssh_match_exec"] is False and set(out["ssh_hosts"]) == {"example.invalid"}
+
+    # Match exec two levels down: found, and nothing asked.
+    (home / "policy" / "openssh.config").write_text('Match host * exec "touch $HOME/ran"\n')
+    out = _facts_in(home, tmp_path)
+    assert out["ssh_match_exec"] is True and out["ssh_hosts"] == {} and not (home / "ran").exists()
+
+    # Deeper than 4 — or a file that includes itself — isn't followed to the end: not asked.
+    (home / "policy" / "openssh.config").write_text("Include ~/policy/openssh.config\n")
     assert _facts_in(home, tmp_path)["ssh_match_exec"] is True
+    (home / "policy" / "openssh.config").write_text("Include ~/policy/a\n")
+    (home / "policy" / "a").write_text("Include ~/policy/b\n")
+    (home / "policy" / "b").write_text("Include ~/policy/c\n")
+    (home / "policy" / "c").write_text("Ciphers aes256-gcm@openssh.com\n")
+    assert _facts_in(home, tmp_path)["ssh_match_exec"] is True
+    # 4 levels exactly: config.d, policy, a, b — c would be the fifth.
+    (home / "policy" / "b").write_text("Ciphers aes256-gcm@openssh.com\n")
+    assert _facts_in(home, tmp_path)["ssh_match_exec"] is False
 
 
 def test_each_remote_says_its_name_from_v15():

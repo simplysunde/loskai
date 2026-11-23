@@ -18,6 +18,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   no longer looks like the one in use.
 - Claude's **Start** says when Claude isn't logged in on the machine, instead of starting a
   session whose Remote Control never connects.
+- **On Fedora and Bazzite, Keys says which remotes use each key**, where it said Loskai
+  didn't ask: the system's own ssh config nests its includes deeper than Loskai followed.
+  Each machine asks you to click **Install again** once.
 - When Claude's **Start** stops at a question, such as whether to trust the folder, that
   project's **Attach** turns amber until you click it, even after a reload.
 - A run Loskai refuses before its terminal opens, such as a tool missing on the machine, is

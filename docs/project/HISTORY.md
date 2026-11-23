@@ -22,7 +22,8 @@ Using Phase 64 on codebox and throne changed five of its choices.
   didn't say what either was for. Sunde: "its hard to know what the first one is and where
   it comse from". The key's comment, the name **Add SSH key** gives it, is the row's title,
   the file beside it. Where ssh wasn't asked (`Match exec`, or an include Loskai doesn't
-  follow — Fedora's own config does), a key no project names is *unknown*, not unused:
+  follow — Fedora's own config did, until v16 followed includes 4 levels down instead of
+  one), a key no project names is *unknown*, not unused:
   `usesOfKey`, after its row said "No git remote here uses it" of the key throne's clones use.
 - **A key `~/.ssh/config` names that Keys can't find is said.** throne's config named
   `id_ed25519_forgejo`, a file it never had, with `IdentitiesOnly`; ssh offered nothing in

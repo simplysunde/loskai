@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE_VERSION = 15
+STATUS_LINE_VERSION = 16
 STATUS_HEAD = f"#loskai-status {STATUS_LINE_VERSION}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -214,13 +214,17 @@ _FACTS = (
     # resolves aliases, Host *, Include and Match as a connection would), without connecting:
     # `host|hostname|identitiesonly|file…`. Not where an ssh config has `Match exec`: there
     # ssh would run that command to answer, and this only reads — `!match-exec` says so (v14).
-    # The files the user's and the system's config `Include` are looked in too (v15), one
-    # level: a file they include that includes again isn't followed, so it isn't asked.
-    "echo '#=sshhosts'; i=; for c in $HOME/.ssh/config /etc/ssh/ssh_config; do [ -f $c ] || continue; d=${c%/*}; "
-    "for p in $(awk -v I=include 'tolower($1)==I{for(n=2;n<=NF;n++)print $n}' $c 2>/dev/null); do "
-    "case $p in /*) ;; [~]/*) p=$HOME/${p#??};; *) p=$d/$p;; esac; i=$i' '$p; done; done; "
-    "if grep -qis '^[[:space:]]*match[^#]*exec' $HOME/.ssh/config /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*.conf $i "
-    "|| { case $i in ?*) grep -qis '^[[:space:]]*include' $i;; *) false;; esac; }; "
+    # The files the user's and the system's config `Include` are looked in too, and the files
+    # those include, 4 levels down (v16; v15 only one, and Fedora's own config nests two). A
+    # relative one is from the folder of the config it started in, as ssh reads it. A file
+    # that deep including more — as one that includes itself does — isn't followed, and then
+    # nothing is asked.
+    "echo '#=sshhosts'; i=; deep=; for c in $HOME/.ssh/config /etc/ssh/ssh_config; do [ -f $c ] || continue; d=${c%/*}; f=$c; n=0; "
+    "while [ $n -lt 5 ] && [ ${f:+x} ]; do "
+    "f=$(awk -v I=include 'tolower($1)==I{for(k=2;k<=NF;k++)print $k}' $f 2>/dev/null | while read -r p; do "
+    "case $p in /*) ;; [~]/*) p=$HOME/${p#??};; *) p=$d/$p;; esac; echo $p; done); i=$i' '$f; n=$((n+1)); done; "
+    "[ ${f:+x} ] && deep=1; done; "
+    "if [ ${deep:+x} ] || grep -qis '^[[:space:]]*match[^#]*exec' $HOME/.ssh/config /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*.conf $i; "
     "then echo '!match-exec'; elif command -v ssh >/dev/null; then for l in $r; do u=${l##*|}; "
     "case $u in ssh://*) h=${u#ssh://}; h=${h#*@}; h=${h%%/*}; h=${h%%:*};; *://*) continue;; *@*:*) h=${u%%:*}; h=${h#*@};; *) continue;; esac; "
     "case $h in ''|*[!A-Za-z0-9._-]*) continue;; esac; echo $h; done | sort -u | head -n 30 | while read h; do "

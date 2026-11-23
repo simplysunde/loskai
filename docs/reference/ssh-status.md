@@ -192,6 +192,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 13 | `#=keys` carries each key's public half, its type and data — public, to copy and paste into GitHub or Forgejo (Git's Keys) |
 | 14 | `#=sshhosts` isn't asked where an ssh config has `Match exec` — `ssh -G` would run that command — and says `!match-exec` instead |
 | 15 | `#=remotes` names each remote (`origin.url`), so a pushurl is its own remote's; `#=sshhosts` isn't asked where a file the ssh config `Include`s has `Match exec`, or includes again |
+| 16 | `#=sshhosts` follows `Include`s 4 levels down, not one: Fedora's own config (`ssh_config.d/50-redhat.conf` → the crypto policy's file) nests two, so it was never asked there. A file 4 levels down that includes more isn't followed, and then nothing is asked |
 
 ## Adding a fact
 
