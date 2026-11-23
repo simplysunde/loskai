@@ -202,12 +202,21 @@ async def _plan(machine_id: str, r: RunRequest, password: bool = False) -> tuple
 
 
 @router.post("/machines/{machine_id}/run")
-async def prepare_run(machine_id: str, body: RunRequest) -> dict:
+async def prepare_run(machine_id: str, body: RunRequest, request: Request) -> dict:
     """Before a run's terminal opens: whether it is automatic, and whether sudo needs a
     password for it (`connect.prepare`). Given the `password`, sudo checks it, and the
-    answer carries the `ticket` the terminal takes — once, within a minute."""
-    _, details, automatic = await _plan(machine_id, body)
-    return await connect.prepare(machine_id, details, automatic, body.password)
+    answer carries the `ticket` the terminal takes — once, within a minute. A refusal is
+    logged with why, as a terminal's is: the page may be all that said so otherwise."""
+    try:
+        _, details, automatic = await _plan(machine_id, body)
+        return await connect.prepare(machine_id, details, automatic, body.password)
+    except LoskaiError as exc:
+        asked = (
+            {"tool": body.tool, "action": "install" if body.install else body.action, "target": body.target}
+            if body.tool else {"sudo": body.sudo} if body.sudo else {}
+        )
+        connect.log("refused", machine_id, auth.peer(request), error=exc.detail, **asked)
+        raise
 
 
 @router.get("/machines/{machine_id}/tools/{tool_id}/settings")
@@ -232,7 +241,8 @@ async def set_tool_setting(machine_id: str, tool_id: str, setting_id: str, body:
 
 @router.get("/log")
 def session_log(limit: int = 200, machine: str | None = None) -> list[dict]:
-    """The SSH log, newest first: terminals opened, closed and refused, runs and installs —
+    """The SSH log, newest first: terminals opened, closed and refused, runs (and those refused
+    before their terminal) and installs —
     one machine's, given one (its dialog) — an admin's, as every log is (access.py)."""
     return client.read_log(max(1, min(limit, store.LOG_KEEP)), machine)
 

@@ -10,7 +10,11 @@ const SIGN_INS = [
   { at: "2026-11-06T10:01:00+00:00", user: "admin", from: "10.0.0.5", ok: true },
   { at: "2026-11-06T10:00:00+00:00", user: "root", from: "10.0.0.9", ok: false },
 ];
-const SSH_LOG = [{ at: "2026-11-06T09:00:00+00:00", event: "open", machine: "nas", from: "10.0.0.5", user: "admin", target: "loskai@nas" }];
+const SSH_LOG = [
+  { at: "2026-11-06T09:02:00+00:00", event: "refused", machine: "nas", from: "10.0.0.5", user: "admin", tool: "claude", action: "start", target: "site", error: "Claude Code needs claude — add it first" },
+  { at: "2026-11-06T09:01:00+00:00", event: "refused", machine: "nas", from: "10.0.0.5", user: "admin", error: "Loskai's key is locked — enter your password" },
+  { at: "2026-11-06T09:00:00+00:00", event: "open", machine: "nas", from: "10.0.0.5", user: "admin", target: "loskai@nas" },
+];
 
 test("both logs, a wrong password by the name typed, and what asked for it", async () => {
   vi.stubGlobal(
@@ -29,4 +33,7 @@ test("both logs, a wrong password by the name typed, and what asked for it", asy
   expect(screen.getByText("Signed in")).toBeInTheDocument();
   expect(screen.getByText("Wrong password (SSH unlock)")).toBeInTheDocument();
   expect(await screen.findByText("Terminal opened (loskai@nas)")).toBeInTheDocument();
+  // A refusal says what was asked for, when it was a tool's action; a terminal's, as before.
+  expect(screen.getByText("Refused claude › start on site: Claude Code needs claude — add it first")).toHaveClass("text-amber-300");
+  expect(screen.getByText("Terminal refused: Loskai's key is locked — enter your password")).toBeInTheDocument();
 });

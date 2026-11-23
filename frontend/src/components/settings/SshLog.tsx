@@ -31,7 +31,9 @@ function what(e: LogEntry): string {
     case "close":
       return `Terminal closed after ${duration(e.seconds ?? 0)}`;
     case "refused":
-      return `Terminal refused: ${e.error ?? ""}`;
+      return e.tool
+        ? `Refused ${e.tool} › ${e.action}${e.target ? ` on ${e.target}` : ""}: ${e.error ?? ""}`
+        : `Terminal refused: ${e.error ?? ""}`;
     case "install":
       return e.ok ? "Keys installed" : `Install failed: ${e.error ?? ""}`;
     case "action":

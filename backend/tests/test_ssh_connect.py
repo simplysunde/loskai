@@ -928,6 +928,21 @@ def test_no_password_is_asked_for_root_or_what_the_sudo_rule_covers(api, machine
     assert _prepare(api, action="reboot").json()["needs_password"] is False
 
 
+def test_a_run_refused_before_its_terminal_is_logged_with_why(api, machine_net, caplog):
+    # Found on a real machine: a Start refused with a 409, and nothing said why but the page.
+    _ready(api, machine_net)  # no claude there
+
+    r = _prepare(api, tool="claude", action="start", target="site")
+
+    assert r.status_code == 409
+    entry = api.get("/api/ssh/log").json()[0]
+    assert entry["event"] == "refused" and entry["machine"] == "nas"
+    assert (entry["tool"], entry["action"], entry["target"]) == ("claude", "start", "site")
+    assert entry["error"] == r.json()["detail"] and "needs claude" in entry["error"]
+    # And the server's log, for whoever reads the container's.
+    assert any("claude start" in m and "needs claude" in m for m in caplog.messages)
+
+
 def test_a_wrong_password_is_said_before_the_terminal_and_a_user_without_sudo_too(api, machine_net):
     _ready(api, machine_net)
 

@@ -304,6 +304,10 @@ def log(event: str, machine_id: str, peer: str | None, **details) -> None:
     if (me := auth.current_user()) is not None:
         entry["user"] = me.username
     entry.update(details)
+    # A refusal goes to the server's log too, in words: what was asked, and why not.
+    if event == "refused":
+        asked = " ".join(str(details[k]) for k in ("tool", "action", "target", "sudo") if details.get(k))
+        logger.warning("SSH refused on %s%s: %s", machine_id, f" ({asked})" if asked else "", details.get("error"))
     try:
         client.append_log(entry)
     except OSError as exc:
