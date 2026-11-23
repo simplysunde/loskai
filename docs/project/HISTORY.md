@@ -4,6 +4,35 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-23 — Keys after Phase 64: Add SSH key, Delete in Git's Keys, a key's use shown everywhere
+
+Using Phase 64 on codebox and throne changed four of its choices.
+
+- **Add to a git site is Add SSH key.** Sunde found the name wrong for a dialog that mostly
+  renames or copies a key that exists; it was **Create key** for a day, which was already
+  SSH setup's button for Loskai's own key. Add SSH key is the step it ends in, in the sites'
+  own words (GitHub's **New SSH key**, Forgejo's **Add key**). Not "SSH / GPG keys", the
+  sites' page: GPG keys sign commits, and Loskai doesn't make them.
+- **Delete is in Git's Keys too.** Phase 64 kept it in the machine's own Keys only; Sunde:
+  "there is no delete option for keys, we should add that". The same action, the same
+  refusal for a key `~/.ssh/config` names. **Label** stays the machine's.
+- **A key's row says what uses it, in both views, and its tag comes only from that.** An
+  unused key **New key for a host** made, named `192.168.1.216`, carried the same
+  **Account · 192.168.1.216** as the key in use — from its label — and the machine's Keys
+  didn't say what either was for. Sunde: "its hard to know what the first one is and where
+  it comse from". The key's comment, the name **Add SSH key** gives it, is the row's title,
+  the file beside it. Where ssh wasn't asked (`Match exec`, or an include Loskai doesn't
+  follow — Fedora's own config does), a key no project names is *unknown*, not unused:
+  `usesOfKey`, after its row said "No git remote here uses it" of the key throne's clones use.
+- **A key `~/.ssh/config` names that Keys can't find is said.** throne's config named
+  `id_ed25519_forgejo`, a file it never had, with `IdentitiesOnly`; ssh offered nothing in
+  its place and every clone was refused. Loskai still never edits that file. It sees a key
+  by its `.pub`, so the line says it can't find one, not that it is gone.
+
+Also from throne: Claude's **Start** asks `claude auth status` first (10 s at most) — logged
+out, Claude starts but Remote Control never connects — and a run refused before its terminal
+goes in the SSH log and the server's log with why, where it had been a bare `409`.
+
 ## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
 
 Adding codebox's key to Sunde's Forgejo went through **New key for a host**: a terminal
