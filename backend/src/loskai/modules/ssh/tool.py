@@ -74,7 +74,7 @@ TARGETS = {
         r"|[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*:[A-Za-z0-9._~][A-Za-z0-9._~/+-]*"
         r")$"
     ),
-    # A git host to reach over SSH (Git's Test key): a name, an address or an ssh alias (which
+    # A git host to reach over SSH (a git site's SSH address): a name, an address or an ssh alias (which
     # may hold `_`), and a port when its SSH isn't on 22 — never an option to ssh.
     "host": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}(?::\d{1,5})?$"),
     # A key in the SSH user's ~/.ssh, as the overview lists them (Git's Keys).
@@ -165,7 +165,7 @@ OTHERWISE = ("hidden", "disabled")
 # Where an action is offered: on its tool's card (or its row); in the settings dialog — the
 # card's, or a row's for an action on one — for one set up once and rarely run again (a
 # project's own key); or in Keys, beside the list of the user's SSH keys (`key` rows, never
-# on the card) — Git's New account key and Test key.
+# on the card) — Git's Account key.
 PLACES = ("card", "settings", "keys")
 
 

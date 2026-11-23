@@ -567,13 +567,9 @@ only. Empty, the card's apply.
 
 **Find the key a host takes**
 
-Under the list in **Keys**, type a host after **For a host:**.
-
-- **Test key** tries the keys meant for that host and says which get in. A key with a
-  passphrase isn't tried.
-- **Try every key** tries every key on the machine, 10 at most. Each one the host refuses is
-  a failed login there, so a self-hosted forge with fail2ban may ban the machine for a
-  while.
+In **Keys**, each key's row has a host field and **Test**. Type the host, or pick one from
+its list, and click **Test**: it tries that key alone and says whether it gets in, and as
+whom. A key with a passphrase isn't tried.
 
 #### A machine's SSH keys
 

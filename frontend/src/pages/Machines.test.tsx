@@ -170,8 +170,6 @@ const TOOLS = [
       { id: "push-all", label: "Push all", description: "Push each.", target: null, ask: null, confirm: null, run: "git push" },
       { id: "clone", label: "Clone", description: "Clone one.", target: null, ask: "repo", confirm: null, run: "git clone -- \"$1\"" },
       { id: "account-key", label: "Account key", description: "Make or name it.", target: null, ask: "key-comment", confirm: null, session: false, place: "keys", automatic: true, run: "ssh-keygen" },
-      { id: "test-key", label: "Test key", description: "Try it.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
-      { id: "every-key", label: "Try every key", description: "Try each.", target: null, ask: "host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T \"git@$1\"" },
       { id: "key-on-host", label: "Test", description: "Try it there.", target: null, ask: "key-host", confirm: null, session: false, place: "keys", automatic: true, run: "ssh -T" },
       { id: "label-key", label: "Label", description: "What it is for.", target: null, ask: "key-label", confirm: null, session: false, place: "keys", automatic: true, run: "ssh-keygen -c" },
       { id: "delete-key", label: "Delete", description: "Delete it.", target: "key", ask: null, confirm: "Its file goes for good.", session: false, run: "rm" },
@@ -1519,28 +1517,28 @@ test("a host tested before is offered in every host field, newest first, and for
   const dialog = await gitKeys();
   const field = (name: string) => within(dialog).getByLabelText(`Host to test ${name} on`);
 
-  // Tested on two hosts: id_ed25519's row, then the field under the list.
-  fireEvent.change(field("id_ed25519"), { target: { value: "git.home.lan:2222" } });
-  fireEvent.keyDown(field("id_ed25519"), { key: "Enter" });
-  fireEvent.click(within(await screen.findByRole("region", { name: /Test: id_ed25519/ })).getByRole("button", { name: "Close" }));
-  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test: id_ed25519/ })).toBeNull());
-  fireEvent.change(within(dialog).getByLabelText("Host"), { target: { value: "codeberg.org" } });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Test key" }));
-  fireEvent.click(within(await screen.findByRole("region", { name: /Test key: codeberg.org/ })).getByRole("button", { name: "Close" }));
-  await vi.waitFor(() => expect(screen.queryByRole("region", { name: /Test key/ })).toBeNull());
+  const test = async (name: string, host: string) => {
+    fireEvent.change(field(name), { target: { value: host } });
+    fireEvent.keyDown(field(name), { key: "Enter" });
+    fireEvent.click(within(await screen.findByRole("region", { name: new RegExp(`Test: ${name}`) })).getByRole("button", { name: "Close" }));
+    await vi.waitFor(() => expect(screen.queryByRole("region", { name: new RegExp(`Test: ${name}`) })).toBeNull());
+  };
+  // Tested on two hosts, on two rows.
+  await test("id_ed25519", "git.home.lan:2222");
+  await test("deploy_blog", "codeberg.org");
 
-  // Another key's field, clicked into: both, newest first.
-  fireEvent.change(field("deploy_blog"), { target: { value: "" } });
-  fireEvent.focus(field("deploy_blog"));
+  // Another field, clicked into: both, newest first.
+  fireEvent.change(field("id_ed25519"), { target: { value: "" } });
+  fireEvent.focus(field("id_ed25519"));
   const offered = screen.getByRole("list", { name: "Hosts tested before" });
   expect(within(offered).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["codeberg.org", "git.home.lan:2222"]);
   fireEvent.click(within(offered).getByRole("button", { name: "git.home.lan:2222" }));
-  expect(field("deploy_blog")).toHaveValue("git.home.lan:2222");
+  expect(field("id_ed25519")).toHaveValue("git.home.lan:2222");
   expect(screen.queryByRole("list", { name: "Hosts tested before" })).toBeNull();
 
   // One no longer wanted: forgotten, here and in the browser.
-  fireEvent.focus(field("id_ed25519"));
-  fireEvent.change(field("id_ed25519"), { target: { value: "" } });
+  fireEvent.focus(field("deploy_blog"));
+  fireEvent.change(field("deploy_blog"), { target: { value: "" } });
   fireEvent.click(within(screen.getByRole("list", { name: "Hosts tested before" })).getByRole("button", { name: "Forget codeberg.org" }));
   expect(within(screen.getByRole("list", { name: "Hosts tested before" })).getAllByRole("listitem").map((li) => li.textContent))
     .toEqual(["git.home.lan:2222"]);
@@ -1648,29 +1646,14 @@ test("Delete, in Git's Keys, asks first and then runs on the key", async () => {
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=delete-key&target=deploy_blog")).toBeInTheDocument();
 });
 
-test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on it; Settings has neither", async () => {
+test("Git's Keys tests a key on its own row only: no host field under the list", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
-
-  const tools = await screen.findByRole("region", { name: "Tools" });
-  fireEvent.click(await within(tools).findByRole("button", { name: "Git settings" }));
-  const settings = await screen.findByRole("dialog", { name: "Git settings" });
-  expect(within(settings).queryByRole("button", { name: "Test key" })).toBeNull();
-  fireEvent.click(within(settings).getByRole("button", { name: "Cancel" }));
-
   const dialog = await gitKeys();
-  // One host field, for each action that asks for a host — none runs until one is typed.
-  expect(within(dialog).getAllByLabelText("Host")).toHaveLength(1);
-  const host = within(dialog).getByLabelText("Host");
-  expect(host).toHaveAttribute("placeholder", "github.com");
-  const button = within(dialog).getByRole("button", { name: "Test key" });
-  for (const name of ["Test key", "Try every key"]) {
-    expect(within(dialog).getByRole("button", { name })).toBeDisabled();
-  }
-  expect(button.querySelector("svg")).toHaveClass("lucide-plug-zap");
-  fireEvent.change(host, { target: { value: "git.home.lan:2222" } });
-  fireEvent.click(button);
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
+  expect(within(dialog).queryByText("For a host:")).toBeNull();
+  expect(within(dialog).queryByLabelText("Host")).toBeNull();
+  for (const name of ["Test key", "Try every key"]) expect(within(dialog).queryByRole("button", { name })).toBeNull();
+  expect(within(dialog).getByLabelText("Host to test id_ed25519 on")).toBeInTheDocument();
 });
 
 // --- Add SSH key (Phase 64) ---

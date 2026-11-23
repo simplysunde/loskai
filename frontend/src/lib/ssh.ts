@@ -224,7 +224,7 @@ export interface KeyUse {
   host: string;
   hostname: string; // where the host goes: an alias's HostName
   // One of several keys ssh tries on that host (no IdentitiesOnly, no project key of its
-  // own): which gets in, only Test key on the host can say.
+  // own): which gets in, only each one's Test on the host can say.
   offered: boolean;
 }
 

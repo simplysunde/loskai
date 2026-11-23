@@ -4,8 +4,7 @@ import { Check, ExternalLink, KeyRound, RotateCw, Tag, X } from "lucide-react";
 import { commentText, keyGroup, keyHost, keyKind, keyLabel, keyPage, keyUses, usesOfKey, remoteSshHost, useSsh, type Facts, type KeyUse, type MachineKey } from "../../lib/ssh";
 import type { ToolContext, ToolStart } from "../../lib/toolRows";
 import { useRecentHosts } from "../../lib/recentHosts";
-import { askedOf, hasKeys, type Tool, type ToolAction } from "../../lib/tools";
-import { TOOL_BUTTON } from "../../lib/ui";
+import { hasKeys, type Tool, type ToolAction } from "../../lib/tools";
 import { CopyButton } from "../shared/CopyButton";
 import { Overlay } from "../shared/Modal";
 import { ActionIcon } from "./ToolIcon";
@@ -105,10 +104,6 @@ export function SshKeys({
   const labelAction = tool.actions.find((a) => a.ask === "key-label");
   const [tested, setTested] = useState<Record<string, Tested>>({});
   const onTested = (name: string, host: string, ok: boolean) => setTested((t) => ({ ...t, [name]: { host, ok } }));
-  // Under the list: what tests keys on a host. The account key is Add SSH key's.
-  const beside = git
-    ? tool.actions.filter((a) => a.place === "keys" && a.ask !== "key-host" && a.ask !== "key-label" && a.ask !== "key-comment")
-    : [];
   const order = (k: MachineKey) => GROUPS.findIndex((g) => g.id === keyGroup(k, usesOf(k)).group);
   const notGit = (keys ?? []).filter((k) => !["account", "deploy"].includes(keyGroup(k, usesOf(k)).group));
   // Each runs in the machine's terminal, over this dialog, which stays: closing the terminal
@@ -189,29 +184,6 @@ export function SshKeys({
         </div>
       )}
       {adding && <AddToSite tool={tool} ctx={ctx} onClose={() => setAdding(false)} />}
-      {beside.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {/* What asks for the same kind of value shares one field: a host, for New key for a
-              host, Test key and Try every key. */}
-          <span className="text-xs text-slate-400">For a host:</span>
-          {[...new Set(beside.flatMap((a) => (a.ask ? [a.ask] : [])))].map((kind) => (
-            <AskGroup key={kind} tool={tool} actions={beside.filter((a) => a.ask === kind)} onRun={run} />
-          ))}
-          {beside.map((a) =>
-            a.ask ? null : (
-              <button
-                key={a.id}
-                type="button"
-                title={a.description}
-                onClick={() => run({ tool: tool.id, action: a.id, title: a.label }, a)}
-                className={TOOL_BUTTON}
-              >
-                <ActionIcon tool={tool.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
-              </button>
-            ),
-          )}
-        </div>
-      )}
       <div className="mt-5 flex justify-end">
         <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
           Close
@@ -404,7 +376,7 @@ function UsedBy({
           {u.offered && (
             <span className="text-amber-300/80">
               {" · "}
-              <Hint text={`One of several keys ssh offers there — Test key with ${u.host} says which gets in`}>offered</Hint>
+              <Hint text={`One of several keys ssh offers there — each one's Test with ${u.host} says which gets in`}>offered</Hint>
             </span>
           )}
         </p>
@@ -446,48 +418,6 @@ function KeyButton({
     >
       <ActionIcon tool={tool.id} action={action.id} /> {action.label}
     </ReasonButton>
-  );
-}
-
-// One field for the actions that ask for the same kind of value, a button each — Enter
-// runs none, since which is meant only its button says.
-function AskGroup({ tool, actions, onRun }: { tool: Tool; actions: ToolAction[]; onRun: ToolStart }) {
-  const [value, setValue] = useState("");
-  const { remember } = useRecentHosts();
-  const asked = askedOf(actions[0].ask);
-  const v = value.trim();
-  const asksHost = actions[0].ask === "host";
-  const field = {
-    label: asked.what.replace(/^./, (c) => c.toUpperCase()),
-    value,
-    placeholder: asked.placeholder,
-    className: `${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`,
-  };
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {/* A host is offered from the ones tested before; Enter runs none — which, only its
-          button says. */}
-      {asksHost ? (
-        <HostInput {...field} onChange={setValue} onEnter={() => {}} />
-      ) : (
-        <input aria-label={field.label} value={value} onChange={(e) => setValue(e.target.value)} placeholder={field.placeholder} className={field.className} />
-      )}
-      {actions.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          disabled={!v}
-          title={a.description}
-          onClick={() => {
-            if (asksHost) remember(v);
-            onRun({ tool: tool.id, action: a.id, target: v, title: `${a.label}: ${v}` }, a);
-          }}
-          className={TOOL_BUTTON}
-        >
-          <ActionIcon tool={tool.id} action={a.id} className="h-3.5 w-3.5" /> {a.label}
-        </button>
-      ))}
-    </div>
   );
 }
 

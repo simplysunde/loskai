@@ -426,8 +426,7 @@ logs in *to* the machine, and is SSH setup's.
 - **The machine's dialog › SSH › Keys (n)** lists every key, with Copy and — where the
   machine has Git, whose tool file holds the actions — Label and Delete.
 - **Git's card › Keys** is git's side: account keys and deploy keys, the remotes each is for,
-  a host field and Test on each, Add to …, and under the list **Add SSH key**, Test key
-  and Try every key. **Add SSH key** is the one way to make a key for an account: the
+  a host field and Test on each, Add to …, and under the list **Add SSH key**. **Add SSH key** is the one way to make a key for an account: the
   site — GitHub, GitLab, Codeberg, or one added in Loskai (`git_sites`, `PUT
   /api/ssh/git-sites`, kept for every machine) — then the name, which Account key writes on
   the machine's `id_*` key (making it if there is none, renaming it otherwise), then its line
@@ -447,9 +446,9 @@ logs in *to* the machine, and is SSH setup's.
   are each "offered". A key used only by a script's `ssh -i` can't be seen. Over HTTP(S) no
   key is used, and a project's override says so.
 - **A test is a connection per key, asked for by name.** It trusts a new host as first seen
-  (`accept-new`) and prompts for nothing; a key with a passphrase is not tried. Try every key
-  stops at 10 keys, or when the host stops answering: each refused key is a failed login a
-  forge's fail2ban counts. A first connection refused is reported as a wrong port. The answer
+  (`accept-new`) and prompts for nothing; a key with a passphrase is not tried. Test key and
+  Try every key, which tried several keys on one host, were removed on 2026-11-23: a key's
+  own Test answers the same question one key at a time. A connection refused is reported as a wrong port. The answer
   stays while Keys is open — a key that got in shows ✓ and the host, and loses its Add to … —
   and nothing is kept after, except the hosts tested on, in the browser (`recentHosts.ts`).
 - **Delete** removes the file and puts a project that used it back on the machine's key. A

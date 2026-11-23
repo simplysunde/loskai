@@ -6,7 +6,7 @@
 
 ## 2026-11-23 — Keys after Phase 64: Add SSH key, Delete in Git's Keys, a key's use shown everywhere
 
-Using Phase 64 on codebox and throne changed four of its choices.
+Using Phase 64 on codebox and throne changed five of its choices.
 
 - **Add to a git site is Add SSH key.** Sunde found the name wrong for a dialog that mostly
   renames or copies a key that exists; it was **Create key** for a day, which was already
@@ -28,6 +28,12 @@ Using Phase 64 on codebox and throne changed four of its choices.
   `id_ed25519_forgejo`, a file it never had, with `IdentitiesOnly`; ssh offered nothing in
   its place and every clone was refused. Loskai still never edits that file. It sees a key
   by its `.pub`, so the line says it can't find one, not that it is gone.
+- **Test key and Try every key are removed.** The row under the list — **For a host:**, a
+  field and the two buttons — tried several keys on one host; Sunde: "redundant and
+  unnecessary, its good enough to have the test on the individual keys". Each key's own
+  **Test** answers the same, one key at a time, and makes fewer failed logins a forge's
+  fail2ban counts. They were `test-key` and `every-key` in `git.yml`; the commit that removed
+  them restores them.
 
 Also from throne: Claude's **Start** asks `claude auth status` first (10 s at most) — logged
 out, Claude starts but Remote Control never connects — and a run refused before its terminal

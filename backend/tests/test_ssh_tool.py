@@ -25,12 +25,12 @@ def test_every_shipped_tool_is_valid():
     assert set(tools["claude"].actions) == {"start", "attach", "stop", "new", "update", "stop-all"}
     assert {a.id: (a.when, a.otherwise) for a in tools["claude"].actions.values() if a.when} == {
         "attach": ("running", "disabled"), "start": ("stopped", "hidden"), "stop": ("running", "hidden")}
-    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "account-key", "test-key", "every-key", "own-key",
+    assert {"pull", "push", "terminal", "pull-all", "push-all", "clone", "account-key", "own-key",
             "machine-key", "key-on-host", "label-key", "delete-key"} == set(tools["git"].actions)
-    assert tools["git"].actions["clone"].ask == "repo" and tools["git"].actions["test-key"].ask == "host"
+    assert tools["git"].actions["clone"].ask == "repo"
     # The tests drop down, their answer Done or Failed, and so does making the account key —
     # Keys shows it; deleting one stays open to read.
-    assert all(tools["git"].actions[a].automatic for a in ("test-key", "every-key", "key-on-host", "account-key"))
+    assert all(tools["git"].actions[a].automatic for a in ("key-on-host", "account-key"))
     assert tools["git"].actions["account-key"].ask == "key-comment"
     assert not tools["git"].actions["delete-key"].automatic
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False
@@ -161,87 +161,13 @@ GREETINGS = {
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_test_key_tries_only_the_keys_meant_for_the_host_each_alone(tmp_path):
-    run = _forge(tmp_path, {
-        "github.com": ("", "vm@box for github.com"),  # made for it (New key for a host)
-        "deploy_site": ("", "vm@box site"), "old": ("", "vm@box"), "locked": ("secret", "vm@box"),
-    }, "Host gh\n  HostName github.com\n  Port 2222\n", GREETINGS)
-
-    out, lines, calls = run("test-key", "gh")
-
-    assert out.returncode == 0, out.stdout + out.stderr
-    assert lines[0][:4] == ["gh", "(github.com,", "port", "2222)"]
-    # ssh offers gh its defaults — none of them here — and one key is made for github.com:
-    # that one alone is tried. Not deploy_site, which a forge may count as a failed login.
-    assert lines[1:] == [["github.com", "gets", "in", "as", "sunde"]]
-    # One connection: that key alone, on the alias's host and port, nothing from the config
-    # added, and nothing that could prompt.
-    assert len(calls) == 1 and "git@github.com" in calls[0]
-    for option in ("-F /dev/null", "IdentitiesOnly=yes", "-p 2222", "BatchMode=yes", "StrictHostKeyChecking=accept-new"):
-        assert option in calls[0]
-
-    # A host none is meant for says so, and tries nothing.
-    none, _, calls = run("test-key", "codeberg.org")
-    assert none.returncode == 1 and "None here" in none.stdout and "Try every key" in none.stdout
-    assert all("-i" not in c.split() for c in calls)
-
-
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_test_key_finds_the_key_new_key_for_a_host_made_by_its_mark(tmp_path):
-    """New key for a host writes `(loskai: for <host>)`; Test key, its next step, tries it."""
-    run = _forge(tmp_path, {"github.com": ("", "vm@box (loskai: for github.com)")}, "", GREETINGS)
-    out, lines, _ = run("test-key", "github.com")
-    assert out.returncode == 0, out.stdout
-    assert lines[1:] == [["github.com", "gets", "in", "as", "sunde"]]
-
-
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_a_skipped_passphrase_key_isnt_counted_as_tried(tmp_path):
-    """The first key has a passphrase and isn't tried; the next is refused at once: the port, not a ban."""
-    run = _forge(tmp_path, {"a-locked": ("secret", "vm@box"), "b-open": ("", "vm@box")}, "", {})
+def test_a_keys_own_test_skips_a_passphrase_and_says_when_nothing_answers(tmp_path):
+    run = _forge(tmp_path, {"locked": ("secret", "vm@box"), "open": ("", "vm@box")}, "", {})
+    locked, lines, calls = run("key-on-host", "locked@github.com")
+    assert locked.returncode == 1 and ["locked", "has", "a", "passphrase:", "not", "tried"] in lines and calls == []
     (tmp_path / "blocked").touch()
-    out, _, calls = run("every-key", "github.com")
-    assert out.returncode == 1 and "Nothing answers SSH on github.com" in out.stdout and "fail2ban" not in out.stdout
-    assert len(calls) == 1
-
-
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_test_key_tries_the_key_ssh_config_names_for_an_alias(tmp_path):
-    run = _forge(tmp_path, {"site-key": ("", "vm@box"), "old": ("", "vm@box")},
-                 "Host gh-site\n  HostName github.com\n  IdentityFile ~/.ssh/site-key\n  IdentitiesOnly yes\n",
-                 {"site-key": GREETINGS["deploy_site"]})
-    out, lines, _ = run("test-key", "gh-site")
-    assert out.returncode == 0 and lines[1:] == [["site-key", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"]]
-
-
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_try_every_key_tries_each_says_which_get_in_and_stops_where_the_host_does(tmp_path):
-    run = _forge(tmp_path, {
-        "github.com": ("", "vm@box for github.com"), "deploy_site": ("", "vm@box site"),
-        "old": ("", "vm@box"), "locked": ("secret", "vm@box"),
-    }, "Host gh\n  HostName github.com\n  Port 2222\n", GREETINGS)
-
-    out, lines, calls = run("every-key", "gh")
-
-    assert out.returncode == 0, out.stdout + out.stderr
-    assert ["deploy_site", "gets", "in", "as", "sunde/site", "(a", "deploy", "key)"] in lines
-    assert ["github.com", "gets", "in", "as", "sunde"] in lines
-    assert ["old", "refused"] in lines
-    assert ["locked", "has", "a", "passphrase:", "not", "tried"] in lines
-    assert len(calls) == 3  # one a key; the passphrase key isn't tried
-
-    # A host that stops answering ends it: the rest aren't tried.
-    (tmp_path / "blocked").touch()
-    stopped, _, calls = run("every-key", "gh")
-    # The first one refused: nothing answers there — the port, not a ban.
-    assert stopped.returncode == 1 and "Nothing answers SSH on github.com, port 2222" in stopped.stdout
-    assert "fail2ban" not in stopped.stdout and len(calls) == 1
-    # One answered, then it stopped: that may be a ban, and the rest aren't tried.
-    (tmp_path / "blocked").unlink()
-    (tmp_path / "blocked-after").write_text("1")
-    banned, _, calls = run("every-key", "gh")
-    assert banned.returncode == 1 and "stopped answering after 2" in banned.stdout and "fail2ban" in banned.stdout
-    assert len(calls) == 2
+    out, _, calls = run("key-on-host", "open@github.com")
+    assert out.returncode == 1 and "Nothing answers SSH on github.com, port 22" in out.stdout and len(calls) == 1
 
 
 @pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
@@ -365,25 +291,6 @@ def test_a_key_and_a_host_are_taken_together(value):
 @pytest.mark.parametrize("value", ["github.com", "id@-oProxyCommand=x", "-x@github.com", "../id@github.com", "id@a b", "id@h@h"])
 def test_a_key_and_a_host_refuse_an_option_a_path_or_anything_else(value):
     assert not tool.TARGETS["key-host"].fullmatch(value)
-
-
-@pytest.mark.skipif(not (shutil.which("ssh-keygen") and shutil.which("ssh")), reason="needs ssh and ssh-keygen")
-def test_try_every_key_stops_at_ten(tmp_path):
-    run = _forge(tmp_path, {f"k{i:02}": ("", "vm@box") for i in range(12)}, "", {})
-    out, lines, calls = run("every-key", "github.com")
-    assert ["Stopped", "at", "10", "keys."] in lines and len(calls) == 10
-
-
-def test_test_key_and_try_every_key_try_a_key_the_same_way():
-    """They differ in which keys; the part that tries one is the same, word for word."""
-    a = tool.load()["git"].actions
-
-    def one_key(run):
-        start = run.index("name=${k##*/}")
-        return run[start:run.index("esac; done", start)]
-
-    assert one_key(a["test-key"].run) == one_key(a["every-key"].run) == one_key(a["key-on-host"].run)
-    assert "Connection refused" in one_key(a["test-key"].run)
 
 
 def _home_with_projects(tmp_path, remotes: dict[str, str]):
@@ -893,8 +800,7 @@ def test_an_action_is_on_its_card_in_a_settings_dialog_or_in_keys():
     git = tool.load()["git"].actions
     assert {a.id: (a.target, a.place) for a in git.values() if a.place != "card" or a.target == "key"} == {
         "own-key": ("project", "settings"), "machine-key": ("project", "settings"),
-        "account-key": (None, "keys"), "test-key": (None, "keys"), "every-key": (None, "keys"),
-        "key-on-host": (None, "keys"), "label-key": (None, "keys"), "delete-key": ("key", "card")}
+        "account-key": (None, "keys"), "key-on-host": (None, "keys"), "label-key": (None, "keys"), "delete-key": ("key", "card")}
 
 
 @pytest.mark.parametrize("name", ["id_ed25519", "deploy_site", "deploy_my.site", "work-laptop"])

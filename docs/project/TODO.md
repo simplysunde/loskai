@@ -78,8 +78,8 @@ SSH on `:222`.
 - **The machine's account key**, `~/.ssh/id_*`, which ssh offers every host by itself — so
   no `~/.ssh/config`. Made if there is none; there is one, its name (the comment) is changed
   to the one given. **New key for a host is removed** (Sunde: "Remove it"); a deploy key
-  stays the narrower choice. **Test key** and **Try every key** stay, below, for finding
-  which key a host takes.
+  stays the narrower choice. **Test key** and **Try every key**, under the list, were removed
+  on 2026-11-23 (Sunde: "redundant … its good enough to have the test on the individual keys").
 - **Sites**: GitHub, GitLab and Codeberg built in; others added from the same drop-down —
   **Add a site…** asks a name, its web address and its SSH address (Sunde: "if its a new
   one add a dialog where we input the address"). Kept in Loskai (`git_sites`, stored-only in

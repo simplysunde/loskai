@@ -155,96 +155,13 @@ actions:
       [ -f "$k.pub" ] || ssh-keygen -y -P '' -f "$k" > "$k.pub" || exit 1;
       ssh-keygen -q -c -P '' -C "$c" -f "$k" >/dev/null || exit 1; echo "Named ${k##*/} $1.";
       else echo "${k##*/} has a passphrase: it keeps its name ($(cut -d' ' -f3- "$k.pub" 2>/dev/null))."; fi
-  # A key tried alone on a host — which get in, and as whom: GitHub, Forgejo and GitLab name
-  # the account (or, for a deploy key, its repository) in the greeting they answer an SSH
-  # login with, and ssh exits 1 even then. The host is resolved once (`ssh -G`: an alias's
-  # HostName and Port), then each key goes on its own (-F /dev/null, so the config adds
-  # none). Nothing may prompt (BatchMode; a new host trusted as first seen), and a key with
-  # a passphrase is left out.
-  # A host that stops answering — refused, reset, timed out — ends it: fail2ban, say, on a
-  # self-hosted forge counts each refused key. Test key and Try every key share the part
-  # that tries one key, word for word (test_ssh_tool checks it); they differ in which keys.
-  #
-  # Test key: only those meant for the host — what ssh offers it (its config's IdentityFile,
-  # else ssh's own defaults), and any whose comment says it is for it ("… for github.com",
-  # as Label writes) — so a test makes a connection or two, not one a key.
-  test-key:
-    label: Test key
-    description: >-
-      Try the keys meant for a git host — the ones ssh offers it, and any made for it — one
-      at a time, and see which get in, and as whom.
-    ask: host
-    automatic: true
-    session: false
-    place: keys
-    run: >-
-      h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac;
-      g=$(ssh -G ${p:+-p "$p"} "$h" 2>/dev/null </dev/null);
-      H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
-      H=${H:-$h}; P=${P:-${p:-22}};
-      ks=$( { printf '%s\n' "$g" | awk '$1=="identityfile"{print $2}' | sed "s,^~,$HOME,";
-      for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue;
-      case " $(cut -d' ' -f3- "$f" | tr '()' '  ') " in *" for $h "*|*" for $H "*) echo "${f%.pub}";; esac; done; } | sort -u);
-      [ "$H" = "$h" ] && echo "$h, port $P — the keys meant for it:" || echo "$h ($H, port $P) — the keys meant for it:";
-      n=0; t=0; ok=0; for k in $ks; do [ -f "$k" ] && [ -f "$k.pub" ] || continue;
-      name=${k##*/}; n=$((n+1));
-      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi; t=$((t+1));
-      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
-      -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
-      who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
-      -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
-      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
-      case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
-      printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
-      *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
-      *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      if [ $t = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
-      else echo "  $H stopped answering after $t — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
-      *) printf '  %-24s refused\n' "$name";; esac;
-      done;
-      [ $n = 0 ] && { echo "  None here: ssh offers it no key in ~/.ssh, and none is made for it."; echo;
-      echo "Try every key finds out which get in — or add this machine's account key to the site, in Keys."; exit 1; };
-      [ $ok -gt 0 ] || { echo; echo "None gets in: add one to your account there (Copy, on its row), or Try every key."; exit 1; }
-  # Try every key: each key in ~/.ssh, at most 10 — to find which a host takes when nothing
-  # says. A key a host refuses is a failed login there; this one is asked for.
-  every-key:
-    label: Try every key
-    description: >-
-      Try every key in ~/.ssh on a git host, one at a time — at most 10, stopping if it stops
-      answering. Each refused key is a failed login there: on a self-hosted forge with
-      fail2ban, a few of them can get this machine banned for a while.
-    ask: host
-    automatic: true
-    session: false
-    place: keys
-    run: >-
-      h=${1%:*}; p=; case "$1" in *:*) p=${1##*:};; esac;
-      g=$(ssh -G ${p:+-p "$p"} "$h" 2>/dev/null </dev/null);
-      H=$(printf '%s\n' "$g" | awk '$1=="hostname"{print $2; exit}'); P=$(printf '%s\n' "$g" | awk '$1=="port"{print $2; exit}');
-      H=${H:-$h}; P=${P:-${p:-22}};
-      [ "$H" = "$h" ] && echo "$h, port $P — every key:" || echo "$h ($H, port $P) — every key:";
-      n=0; t=0; ok=0; for f in "$HOME"/.ssh/*.pub; do [ -f "$f" ] || continue; k=${f%.pub}; [ -f "$k" ] || continue;
-      [ $t -ge 10 ] && { echo "  Stopped at 10 keys."; break; };
-      name=${k##*/}; n=$((n+1));
-      if ! ssh-keygen -y -P '' -f "$k" >/dev/null 2>&1; then printf '  %-24s has a passphrase: not tried\n' "$name"; continue; fi; t=$((t+1));
-      out=$(ssh -F /dev/null -T -p "$P" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes
-      -o ConnectTimeout=10 -i "$k" "git@$H" 2>&1 </dev/null);
-      who=$(printf '%s\n' "$out" | sed -n -e '/^Hi there!/d' -e 's/^Hi there, \([^!]*\)!.*/\1/p' -e 's/^Hi \([^!]*\)!.*/\1/p'
-      -e 's/^Welcome to GitLab, @\{0,1\}\([^!]*\)!.*/\1/p' | head -n 1);
-      case "$out" in *"successfully authenticated"*|*"Welcome to GitLab"*) ok=$((ok+1));
-      case "$out$who" in *"deploy key"*|*/*) what=" (a deploy key)";; *) what=;; esac;
-      printf '  %-24s gets in%s%s\n' "$name" "${who:+ as $who}" "$what";;
-      *"Host key verification failed"*) echo "  $H's host key isn't the one ssh knows — it changed, or something is in between. Nothing was tried."; exit 1;;
-      *"Connection refused"*|*"timed out"*|*"Connection reset"*|*"No route to host"*|*"kex_exchange_identification"*|*"Connection closed by"*)
-      if [ $t = 1 ]; then echo "  Nothing answers SSH on $H, port $P — is that the right port? A repository's Clone › SSH address shows it.";
-      else echo "  $H stopped answering after $t — it may be limiting this machine (fail2ban?), so the rest weren't tried."; fi; exit 1;;
-      *) printf '  %-24s refused\n' "$name";; esac;
-      done;
-      [ $n = 0 ] && { echo "  No key in ~/.ssh yet."; exit 1; };
-      [ $ok -gt 0 ] || { echo; echo "No key here gets in: add one to your account there (Copy, on its row)."; exit 1; }
-  # One key on a host you name — where it came from: its row's Test in Keys, the host field
-  # beside it filled with the platform its remotes go to, or that its comment names. The
-  # page sends `<key>@<host>[:port]`; the key is tried alone, as Test key tries each.
+  # One key, tried alone on a host you name — its row's Test in Keys, the host field beside it
+  # filled with the platform its remotes go to, or that its comment names. The page sends
+  # `<key>@<host>[:port]`. GitHub, Forgejo and GitLab name the account (or, for a deploy key,
+  # its repository) in the greeting they answer an SSH login with, and ssh exits 1 even then.
+  # The host is resolved once (`ssh -G`: an alias's HostName and Port), then the key goes on
+  # its own (-F /dev/null, so the config adds none). Nothing may prompt (BatchMode; a new
+  # host trusted as first seen), and a key with a passphrase isn't tried.
   key-on-host:
     label: Test
     description: Try this key alone on a host — does it get in there, and as whom.

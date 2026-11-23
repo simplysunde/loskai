@@ -147,7 +147,7 @@ export function commandFor(action: ToolAction, manager: string | null | undefine
 }
 
 // What an asked-for value looks like, in its field: a name, a repository's address (Clone),
-// or a host (Test key).
+// or a host.
 const ASKED: Partial<Record<TargetKind, { placeholder: string; width: string; what: string }>> = {
   repo: { placeholder: "https://… or git@host:path", width: "w-56", what: "repository" },
   host: { placeholder: "github.com", width: "w-36", what: "host" },
