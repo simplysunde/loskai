@@ -1673,14 +1673,14 @@ test("Test key, in Keys, asks for a host — a plug, not a plus — and runs on 
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=test-key&target=git.home.lan%3A2222")).toBeInTheDocument();
 });
 
-// --- Create key (Phase 64) ---
+// --- Add SSH key (Phase 64) ---
 
 async function addToSite() {
-  fireEvent.click(within(await gitKeys()).getByRole("button", { name: "Create key" }));
-  return screen.findByRole("dialog", { name: "Create key" });
+  fireEvent.click(within(await gitKeys()).getByRole("button", { name: "Add SSH key" }));
+  return screen.findByRole("dialog", { name: "Add SSH key" });
 }
 
-test("Create key: the site, the key's name, then the key to copy, the site's page and a Test there", async () => {
+test("Add SSH key: the site, the key's name, then the key to copy, the site's page and a Test there", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await addToSite();
@@ -1699,7 +1699,7 @@ test("Create key: the site, the key's name, then the key to copy, the site's pag
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=key-on-host&target=id_ed25519%40forgejo.lan")).toBeInTheDocument();
 });
 
-test("Create key renames the account key to the name given, or makes one when there is none", async () => {
+test("Add SSH key renames the account key to the name given, or makes one when there is none", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
   const dialog = await addToSite();
@@ -1710,7 +1710,7 @@ test("Create key renames the account key to the name given, or makes one when th
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=account-key&target=codebox+laptop")).toBeInTheDocument();
 });
 
-test("Create key makes the account key when the machine has none", async () => {
+test("Add SSH key makes the account key when the machine has none", async () => {
   sshSetUp();
   facts = { ...FACTS, ssh_keys: [] };
   renderPage("/machines/nas/tools");

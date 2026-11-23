@@ -26,7 +26,7 @@ const hostOf = (ssh: string) => ssh.replace(/:\d+$/, "");
 // A web address's host: where its SSH usually is too, on 22 unless the site says otherwise.
 const webHost = (web: string) => web.trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/:?#]/)[0];
 
-// Create key, from Git's Keys: the site, the key's name, then the key to copy, the
+// Add SSH key, from Git's Keys: the site, the key's name, then the key to copy, the
 // site's page to paste it on, and a Test there. The key is the machine's account key, which
 // ssh offers every host by itself — Account key makes it, or renames it to the name given.
 export function AddToSite({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext; onClose: () => void }) {
@@ -58,8 +58,8 @@ export function AddToSite({ tool, ctx, onClose }: { tool: Tool; ctx: ToolContext
     );
 
   return (
-    <Overlay onClose={onClose} label="Create key">
-      <h2 className="text-base font-semibold text-slate-100">Create key</h2>
+    <Overlay onClose={onClose} label="Add SSH key">
+      <h2 className="text-base font-semibold text-slate-100">Add SSH key</h2>
       <p className="mt-1 text-xs text-slate-500">
         This machine's key, on your account there: every repository you can reach, it can pull and push.
       </p>

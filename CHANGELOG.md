@@ -5,7 +5,7 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
-- **Create key**, in Git's **Keys**: pick the site, name the key, copy it, and open the
+- **Add SSH key**, in Git's **Keys**: pick the site, name the key, copy it, and open the
   site's SSH keys page to paste it. GitHub, GitLab and Codeberg are there; **Add a site…**
   keeps your own Forgejo or Gitea for every machine, its SSH address filled in from the web
   one. It replaces **New account key** and **New key for a host**; a key made for one host
