@@ -8,7 +8,8 @@ import { ActionIcon } from "./ToolIcon";
 
 
 // An action that runs on a name typed for it — a new session, a new project. The server
-// checks the name; it reaches the command as `$1`.
+// checks the name; it reaches the command as `$1`. A name has no spaces, so each run of them
+// becomes a dash as it is typed (`lima vm` → `lima-vm`), as tmux itself turns `.` into `_`.
 export function ToolAsk({ tool, action, onRun }: { tool: Tool; action: ToolAction; onRun: ToolStart }) {
   const [name, setName] = useState("");
   const asked = askedOf(action.ask);
@@ -25,7 +26,7 @@ export function ToolAsk({ tool, action, onRun }: { tool: Tool; action: ToolActio
       <input
         aria-label={`${action.label} — ${asked.what}`}
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => setName(asked.what === "name" ? e.target.value.replace(/^\s+/, "").replace(/\s+/g, "-") : e.target.value)}
         placeholder={asked.placeholder}
         className={`${asked.width} min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-200`}
       />

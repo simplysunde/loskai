@@ -1301,6 +1301,22 @@ test("an action that asks for a name runs on what is typed", async () => {
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=new&target=work")).toBeInTheDocument();
 });
 
+test("a name typed with spaces gets dashes, as it is typed: a session or project name has none", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+
+  const session = await screen.findByLabelText("New session — name");
+  fireEvent.change(session, { target: { value: " lima vm  wrapper" } });
+  expect(session).toHaveValue("lima-vm-wrapper");
+  const project = screen.getByLabelText("New project — name");
+  fireEvent.change(project, { target: { value: "my site" } });
+  expect(project).toHaveValue("my-site");
+  // A repository's address is left as typed.
+  const repo = screen.getByLabelText("Clone — repository");
+  fireEvent.change(repo, { target: { value: "git@a:b c" } });
+  expect(repo).toHaveValue("git@a:b c");
+});
+
 test("Clone asks for a repository's address and runs on it; Git's card has the projects too", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");

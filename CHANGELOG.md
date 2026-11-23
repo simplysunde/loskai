@@ -21,6 +21,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 - **On Fedora and Bazzite, Keys says which remotes use each key**, where it said Loskai
   didn't ask: the system's own ssh config nests its includes deeper than Loskai followed.
   Each machine asks you to click **Install again** once.
+- **A tmux session or project name typed with spaces gets dashes** as you type
+  (`lima vm wrapper` → `lima-vm-wrapper`), instead of being refused when you click.
 - When Claude's **Start** stops at a question, such as whether to trust the folder, that
   project's **Attach** turns amber until you click it, even after a reload.
 - A run Loskai refuses before its terminal opens, such as a tool missing on the machine, is
