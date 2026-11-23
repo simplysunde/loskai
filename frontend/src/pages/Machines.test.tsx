@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -1899,6 +1899,43 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
   fireEvent.click(idle);
   expect(screen.getByRole("tooltip")).toHaveTextContent("Not running — Start it first");
   fireEvent.pointerDown(document.body);
+});
+
+test("a Start that failed with its session running marks Attach until it is clicked, across a reload", async () => {
+  localStorage.removeItem("loskai-waiting");
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+  await screen.findAllByText("blog");
+  const claude = (name: string) =>
+    screen.getAllByText(name).map((el) => el.closest("li") as HTMLElement).find((li) => !within(li).queryByRole("button", { name: "Pull" }))!;
+  const attach = () => within(claude("blog")).getByRole("button", { name: "Attach" });
+  const WAITING = /asks something first/;
+  expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING));
+
+  // Start stops at Claude's trust question: it fails, and its session runs, waiting.
+  fireEvent.click(within(claude("blog")).getByRole("button", { name: "Start" }));
+  facts = { ...FACTS, live: { claude: { project: ["site", "blog"] } } };
+  fireEvent.click(await screen.findByRole("button", { name: "end: failed" }));
+  // Closed: what runs there is read again.
+  fireEvent.click(within(await screen.findByRole("region", { name: /Start blog/ })).getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(attach()).toHaveAttribute("title", expect.stringMatching(WAITING)));
+  expect(attach().className).toMatch(/amber/);
+  // Only that row's.
+  expect(within(claude("site")).getByRole("button", { name: "Attach" })).not.toHaveAttribute("title", expect.stringMatching(WAITING));
+
+  // A reload keeps it.
+  cleanup();
+  renderPage("/machines/nas/tools");
+  await screen.findAllByText("blog");
+  await waitFor(() => expect(attach()).toHaveAttribute("title", expect.stringMatching(WAITING)));
+
+  // Attached: gone, and stays gone.
+  fireEvent.click(attach());
+  await waitFor(() => expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING)));
+  cleanup();
+  renderPage("/machines/nas/tools");
+  await screen.findAllByText("blog");
+  expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING));
 });
 
 test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {

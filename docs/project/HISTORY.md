@@ -40,6 +40,14 @@ out, Claude starts but Remote Control never connects; its input is `/dev/null`, 
 Start's terminal it waits on it and never answers, which stalled every Start — and a run refused before its terminal
 goes in the SSH log and the server's log with why, where it had been a bare `409`.
 
+A Start that stopped at Claude's trust question said so only in the panel that drops down,
+a notice gone once closed. Sunde weighed an Attach button in that panel against marking the
+row's own: "highlight will be the cleanest … since its mainly supposed to be a notification
+banner", and asked for it to outlast a reload. **Attach** turns amber — waiting on you, not
+failed — where a Start failed while its session went on running, which is what a question
+looks like, so no message is parsed. Kept in the browser (`waiting.ts`), like the hosts
+tested before, and gone at the next click on the row.
+
 ## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
 
 Adding codebox's key to Sunde's Forgejo went through **New key for a host**: a terminal

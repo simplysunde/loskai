@@ -18,6 +18,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   no longer looks like the one in use.
 - Claude's **Start** says when Claude isn't logged in on the machine, instead of starting a
   session whose Remote Control never connects.
+- When Claude's **Start** stops at a question, such as whether to trust the folder, that
+  project's **Attach** turns amber until you click it, even after a reload.
 - A run Loskai refuses before its terminal opens, such as a tool missing on the machine, is
   in the machine's **Log** with why, and in the server's log.
 - Git's **Keys** says when `~/.ssh/config` names a key it can't find on the machine — a host

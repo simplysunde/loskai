@@ -25,6 +25,7 @@ import { ToolAsk } from "./ToolAsk";
 import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Hint, ReasonButton } from "../shared/Hint";
+import { useWaiting, waitingKey } from "../../lib/waiting";
 
 const BUTTON = TOOL_BUTTON;
 
@@ -37,39 +38,57 @@ const ROW_BUTTON =
 // only while the row's session is running, or only while it isn't, as `facts` says — the
 // rest of the time hidden (Start and Stop, taking turns in one place) or, with `otherwise:
 // disabled`, greyed (Attach), so every row keeps the same buttons in the same places.
+// A Start that failed while its session went on running stopped at a question there (Claude's
+// "trust this folder?"): the button that opens the session is amber until a button on the
+// row is clicked — remembered in this browser, so a reload keeps it.
 export function RowButtons({
+  machine,
   here,
   kind,
   name,
   onRun,
   facts,
 }: {
+  machine: string;
   here: Tool[];
   kind: TargetKind;
   name: string;
   onRun: ToolStart;
   facts?: Facts;
 }) {
-  const fits = (t: Tool, a: ToolAction) =>
-    !a.when || (facts !== undefined && (a.when === "running") === isLive(t, kind, name, facts));
-  return here.flatMap((tool) =>
-    tool.actions
+  const { waiting, mark, clear } = useWaiting();
+  const live = (t: Tool) => facts !== undefined && isLive(t, kind, name, facts);
+  const fits = (t: Tool, a: ToolAction) => !a.when || (facts !== undefined && (a.when === "running") === live(t));
+  return here.flatMap((tool) => {
+    const key = waitingKey(machine, tool.id, kind, name);
+    const asks = waiting(key) && live(tool);
+    return tool.actions
       .filter((a) => a.target === kind && isOnCard(a) && (fits(tool, a) || a.otherwise === "disabled"))
-      .map((a) => (
-        <ReasonButton
-          key={`${tool.id}-${a.id}`}
-          reason={fits(tool, a) ? null : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"}
-          title={`${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
-          onClick={() => onRun({ tool: tool.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
-          className={`flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] hover:bg-slate-800 aria-disabled:opacity-40 aria-disabled:hover:bg-transparent ${
-            a.confirm ? "text-rose-300" : "text-slate-200"
-          }`}
-        >
-          <ActionIcon tool={tool.id} action={a.id} />
-          {a.label}
-        </ReasonButton>
-      )),
-  );
+      .map((a) => {
+        const opens = asks && a.when === "running" && !!a.session;
+        return (
+          <ReasonButton
+            key={`${tool.id}-${a.id}`}
+            reason={fits(tool, a) ? null : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"}
+            title={opens ? `It asks something first — ${a.label} to answer it` : `${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
+            onClick={() => {
+              clear(key);
+              onRun({ tool: tool.id, action: a.id, target: name, title: `${a.label} ${name}` }, a, (ok) => {
+                if (!ok && a.when === "stopped") mark(key);
+              });
+            }}
+            className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] aria-disabled:opacity-40 aria-disabled:hover:bg-transparent ${
+              opens
+                ? "border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                : `border-slate-700 hover:bg-slate-800 ${a.confirm ? "text-rose-300" : "text-slate-200"}`
+            }`}
+          >
+            <ActionIcon tool={tool.id} action={a.id} />
+            {a.label}
+          </ReasonButton>
+        );
+      });
+  });
 }
 
 // A tool's actions on the machine itself (Update, Pull all): small like a row's buttons, at a
@@ -143,7 +162,7 @@ export function ToolCard({ tool, ctx, titled = true }: { tool: Tool; ctx: ToolCo
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
                 <span className="flex flex-wrap items-center gap-1">
-                  <RowButtons here={[tool]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
+                  <RowButtons machine={ctx.machineId} here={[tool]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
                   {rowSettingsOf(tool, kind).length > 0 && (
                     <ToolSettingsButton tool={tool} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ kind, name: r.name })} />
                   )}
