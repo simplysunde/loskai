@@ -13,6 +13,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 - A machine's **Keys** shows each key under its name, its file beside it, and what uses it,
   as Git's **Keys** does; its tag names only a site something uses it on, so an unused key
   no longer looks like the one in use.
+- Claude's **Start** says when Claude isn't logged in on the machine, instead of starting a
+  session whose Remote Control never connects.
 - Git's **Keys** says when `~/.ssh/config` names a key that isn't on the machine — a host it
   is for refuses every key while it does.
 - **An update that finished shows its last lines** in the panel that drops down, where it

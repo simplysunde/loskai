@@ -687,6 +687,11 @@ def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_sess
 
 
 _STUB_CLAUDE = """#!/bin/sh
+if [ "$1" = auth ]; then case "$(basename "$PWD")" in
+  nologin) printf '{\n  "loggedIn": false,\n  "authMethod": "none"\n}\n'; exit 1 ;;
+  old) echo "error: unknown command 'auth'" >&2; exit 1 ;;
+  *) printf '{\n  "loggedIn": true\n}\n'; exit 0 ;;
+esac; fi
 echo "$(basename "$PWD") $*" >> "$HOME/args"
 case "$(basename "$PWD")" in
   dies) exit 1 ;;
@@ -700,10 +705,11 @@ esac
 def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all_keeps_your_own(tmp_path):
     """Claude's Start and Stop all as a machine runs them, on a tmux server of the test's own,
     with a stand-in claude: one that asks to trust its folder (as Claude does in one it was
-    never told to trust — found on a real machine), one that exits at once."""
+    never told to trust — found on a real machine), one that exits at once, one not logged in
+    (Remote Control then never connects — found on a real machine), and one too old to say."""
     home = tmp_path / "h"
     (home / "bin").mkdir(parents=True)
-    for project in ("site", "my.blog", "dies"):
+    for project in ("site", "my.blog", "dies", "nologin", "old"):
         (home / "projects" / project / ".git").mkdir(parents=True)
     stub = home / "bin" / "claude"
     stub.write_text(_STUB_CLAUDE)
@@ -725,12 +731,16 @@ def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all
         return subprocess.run(["tmux", *args], env=env, capture_output=True, text=True)
 
     try:
-        started = {p: run("start", p) for p in ("site", "my.blog", "dies")}
+        started = {p: run("start", p) for p in ("site", "my.blog", "dies", "nologin", "old")}
         said = {p: proc.communicate(timeout=30)[0] for p, proc in started.items()}
         assert said["site"].startswith("Claude runs in site, with Remote Control on.")
         assert "Claude asks whether to trust my.blog first: Attach to answer it." in said["my.blog"]
         assert "[failed, exit 1]" in said["my.blog"]
         assert "Claude stopped at once." in said["dies"] and "[failed, exit 1]" in said["dies"]
+        assert said["nologin"].startswith("Claude isn't logged in on this machine")
+        assert "[failed, exit 1]" in said["nologin"]
+        # An older Claude, without auth status, starts as before.
+        assert said["old"].startswith("Claude runs in old, with Remote Control on.")
         args = sorted((home / "args").read_text().splitlines())
         assert f"site --continue --remote-control {os.uname().nodename}: site" in args
         assert f"my.blog --remote-control {os.uname().nodename}: my.blog" in args
@@ -738,7 +748,7 @@ def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all
 
         # A session of your own whose name starts like Claude's isn't a project's.
         tmux("new-session", "-d", "-s", "claude-notes", "sleep 60")
-        assert run("stop-all").communicate(timeout=30)[0].startswith("Stopped 2 Claude sessions.")
+        assert run("stop-all").communicate(timeout=30)[0].startswith("Stopped 3 Claude sessions.")
         assert tmux("ls", "-F", "#S").stdout.split() == ["claude-notes"]
     finally:
         tmux("kill-server")

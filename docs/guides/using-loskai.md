@@ -606,7 +606,8 @@ shell are on the Git card.
   it.
 
 If Start says **Claude asks whether to trust** the project first, click **Attach** and
-answer it there.
+answer it there. If it says **Claude isn't logged in on this machine**, open a **Terminal**,
+run `claude`, and log in with `/login`; then click **Start** again.
 
 Under the list: type a name and click **New project** to make a folder with a git
 repository and open Claude in it. **Update Claude** updates Claude Code: a running session
