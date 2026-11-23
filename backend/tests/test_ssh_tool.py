@@ -594,7 +594,8 @@ def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_sess
 
 
 _STUB_CLAUDE = """#!/bin/sh
-if [ "$1" = auth ]; then case "$(basename "$PWD")" in
+# auth status, given a terminal, waits on it, as Claude 2.1 does: answered only when it has none.
+if [ "$1" = auth ]; then read -r _; case "$(basename "$PWD")" in
   nologin) printf '{\n  "loggedIn": false,\n  "authMethod": "none"\n}\n'; exit 1 ;;
   old) echo "error: unknown command 'auth'" >&2; exit 1 ;;
   hangs) sleep 60 ;;
@@ -632,15 +633,30 @@ def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all
 
     def run(action, target=None):
         command = tool.terminal_command(tool.action_script(claude, action, "apt"), target, None, "projects", automatic=True)
-        return subprocess.Popen(["sh", "-c", command], env=env, stdin=subprocess.DEVNULL,
+        # Its input held open, as a terminal's is; Enter given only where a failed run asks.
+        terminal, enter = os.pipe()
+        proc = subprocess.Popen(["sh", "-c", command], env=env, stdin=terminal,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        os.close(terminal)
+        proc.enter = enter
+        return proc
+
+    def said_by(proc):
+        out = []
+        for line in proc.stdout:
+            out.append(line)
+            if "Enter closes this" in line:
+                os.write(proc.enter, b"\n")
+        proc.wait(timeout=30)
+        os.close(proc.enter)
+        return "".join(out)
 
     def tmux(*args):
         return subprocess.run(["tmux", *args], env=env, capture_output=True, text=True)
 
     try:
         started = {p: run("start", p) for p in ("site", "my.blog", "dies", "nologin", "old", "hangs")}
-        said = {p: proc.communicate(timeout=30)[0] for p, proc in started.items()}
+        said = {p: said_by(proc) for p, proc in started.items()}
         assert said["site"].startswith("Claude runs in site, with Remote Control on.")
         assert "Claude asks whether to trust my.blog first: Attach to answer it." in said["my.blog"]
         assert "[failed, exit 1]" in said["my.blog"]
@@ -654,11 +670,11 @@ def test_claude_starts_in_the_background_says_when_it_waits_or_dies_and_stop_all
         args = sorted((home / "args").read_text().splitlines())
         assert f"site --continue --remote-control {os.uname().nodename}: site" in args
         assert f"my.blog --remote-control {os.uname().nodename}: my.blog" in args
-        assert run("start", "site").communicate(timeout=30)[0].startswith("Claude already runs in site.")
+        assert said_by(run("start", "site")).startswith("Claude already runs in site.")
 
         # A session of your own whose name starts like Claude's isn't a project's.
         tmux("new-session", "-d", "-s", "claude-notes", "sleep 60")
-        assert run("stop-all").communicate(timeout=30)[0].startswith("Stopped 4 Claude sessions.")
+        assert said_by(run("stop-all")).startswith("Stopped 4 Claude sessions.")
         assert tmux("ls", "-F", "#S").stdout.split() == ["claude-notes"]
     finally:
         tmux("kill-server")

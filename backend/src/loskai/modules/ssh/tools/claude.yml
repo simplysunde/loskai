@@ -35,11 +35,12 @@ actions:
     # never trusted, Claude stops at its question, unseen — so it is looked for. Logged out,
     # it starts but Remote Control never connects: asked first (`auth status`; an older
     # Claude without it, or one that doesn't answer in 10 s, says nothing and starts as before).
+    # Its input is /dev/null: given the terminal Start runs in, it waits on it and never answers.
     run: >-
       cd "$PROJECTS/$1" && s="claude-$(printf %s "$1" | tr . _)" &&
       if tmux has-session -t "=$s" 2>/dev/null; then echo "Claude already runs in $1."; exit 0; fi &&
       c=$(command -v claude) &&
-      if timeout 10 "$c" auth status --json 2>/dev/null | grep -q '"loggedIn": *false'; then
+      if timeout 10 "$c" auth status --json </dev/null 2>/dev/null | grep -q '"loggedIn": *false'; then
       echo "Claude isn't logged in on this machine, so Remote Control can't connect: open a Terminal, run claude, and log in with /login."; exit 1; fi &&
       if ls ~/.claude/projects/"$(pwd | sed 's,[^A-Za-z0-9],-,g')"/*.jsonl >/dev/null 2>&1;
       then tmux new-session -d -s "$s" -c "$PWD" "$c" --continue --remote-control "$(hostname): $1";

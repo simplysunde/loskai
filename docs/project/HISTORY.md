@@ -36,7 +36,8 @@ Using Phase 64 on codebox and throne changed five of its choices.
   them restores them.
 
 Also from throne: Claude's **Start** asks `claude auth status` first (10 s at most) — logged
-out, Claude starts but Remote Control never connects — and a run refused before its terminal
+out, Claude starts but Remote Control never connects; its input is `/dev/null`, since given
+Start's terminal it waits on it and never answers, which stalled every Start — and a run refused before its terminal
 goes in the SSH log and the server's log with why, where it had been a bare `409`.
 
 ## 2026-11-21 — A key for a git site in one dialog; a key per host removed (Phase 64)
