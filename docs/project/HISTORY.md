@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-24 — Install again with Loskai's own key
+
+Sunde couldn't get the Caddy machine onto v17: it has no password login, so they added the
+lines by hand, and it didn't stick. The hand tab said "Add both lines", and ssh uses the
+first line in `authorized_keys` with a key — an old `loskai-status` line above the new one
+keeps answering with the old forced command. Install it for me replaces Loskai's lines
+(`INSTALL_SCRIPT`), but needed the machine's password. Its main key already gets in on any
+machine set up before — the terminal opens with it — so an install without a password now
+logs in with that key (`connect.install`, still behind the unlock), and the setup offers it
+whenever the host key was trusted before it opened; the password is asked for only when the
+machine refuses the key. The hand tab says to put the lines in place of the old ones.
+
 ## 2026-11-24 — A machine's cog is amber while its status can't be read, or is out of date
 
 After v17, every machine needed Install again, and nothing on the Machines tab said so: the

@@ -375,8 +375,9 @@ is a good choice, and root works.
 3. On your first machine you see **Loskai has no SSH key yet.** Type your own password and
    click **Create key**. That takes an admin.
 4. Under **Install it for me**, type that user's password on the machine and click
-   **Install**. It is used once and not kept. Or choose **I'll add it myself**, add the two
-   lines shown to `~/.ssh/authorized_keys` on the machine, and click **Test connection**.
+   **Install**. It is used once and not kept. Or choose **I'll add it myself**, put the two
+   lines shown in `~/.ssh/authorized_keys` on the machine, in place of any old lines ending
+   in `loskai` or `loskai-status`, and click **Test connection**.
 5. You see **Loskai logs in with its key.** and how much is running. Click **Done**.
 
 The machine's row now has **n running**, a button for each [tool](#tools) it has, and a
@@ -415,8 +416,9 @@ valid says why and saves nothing.
 
 A machine's cog turns amber when Loskai can't read its status, or reads it from a status
 line older than this Loskai; its tooltip says which. In the dialog, **Keys** under **SSH** says
-**out of date** or **can't be read**: click **Install again** there and install as in step 4
-of [Set up SSH](#set-up-ssh).
+**out of date** or **can't be read**: click **Install again** there, then **Install**. Loskai's
+own key does it, with no password; only if the machine refuses that key, type the machine's
+password, as in step 4 of [Set up SSH](#set-up-ssh).
 
 ### See what runs on a machine
 

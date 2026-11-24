@@ -123,10 +123,15 @@ async def trust(machine_id: str, body: TrustRequest) -> dict:
     return await connect.trust(machine_id, body.fingerprint)
 
 
+class InstallRequest(BaseModel):
+    password: str | None = None
+
+
 @router.post("/machines/{machine_id}/install")
-async def install(machine_id: str, body: PasswordRequest, request: Request) -> dict:
-    """Install it for me: the machine's password, used once to add Loskai's lines, then a
-    test with the keys. Needs a trusted host key (`409`) and the key unlocked (`423`)."""
+async def install(machine_id: str, body: InstallRequest, request: Request) -> dict:
+    """Install it for me: the machine's password, used once to add Loskai's lines — or, without
+    one, Loskai's key, on a machine it already gets into — then a test with the keys. Needs a
+    trusted host key (`409`) and the key unlocked (`423`)."""
     try:
         result = await connect.install(machine_id, body.password)
     except connect.SshError as exc:

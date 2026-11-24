@@ -218,16 +218,24 @@ def authorized_keys_lines(target: Target | None = None) -> list[str]:
     ]
 
 
-async def install(machine_id: str, password: str) -> dict:
-    """Log in once with the machine's password, put Loskai's lines in `authorized_keys`
-    (replacing any it put there before), then prove both keys work. The password is used
-    for that one connection and kept nowhere."""
+async def install(machine_id: str, password: str | None = None) -> dict:
+    """Put Loskai's lines in `authorized_keys` (replacing any it put there before), then prove
+    both keys work. Logs in once with the machine's password — used for that one connection
+    and kept nowhere — or, without one, with Loskai's key: a machine set up before gets a
+    newer status line with no password, and no hand edit that leaves the old line first."""
     target = require_target(machine_id)
     _main_key()  # locked → ask for your password before the machine's is used
-    result = await _run(
-        target, logic.INSTALL_SCRIPT,
-        password=password, stdin="\n".join(await asyncio.to_thread(authorized_keys_lines, target)) + "\n",
-    )
+    lines = "\n".join(await asyncio.to_thread(authorized_keys_lines, target)) + "\n"
+    try:
+        result = await _run(target, logic.INSTALL_SCRIPT, password=password or None, stdin=lines)
+    except SshError as exc:
+        # Loskai's key no longer gets in: only the machine's password, or a hand edit, can.
+        if password or not exc.detail.endswith("refused the key"):
+            raise
+        raise SshError(
+            f"{target.user}@{target.host} refused Loskai's key — install with the machine's password, or add the lines yourself",
+            502,
+        ) from exc
     if result.exit_status != 0:
         raise SshError(f"Adding Loskai's key on {target.host} failed: {_last_error_line(result)}", 502)
     return await test(machine_id)

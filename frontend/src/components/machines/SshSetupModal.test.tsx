@@ -73,6 +73,37 @@ test("a new machine's host key is shown first, and nothing else is offered until
 
   expect(await screen.findByLabelText("Machine password")).toBeInTheDocument();
   expect(calls.find((c) => c.path.endsWith("/trust"))?.body).toEqual({ fingerprint: FP });
+  // A machine new to Loskai: its key isn't there yet, so the password is needed.
+  expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+});
+
+test("a machine set up before installs again with Loskai's key — no password, no hand edit", async () => {
+  renderModal(UNLOCKED, {
+    "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted" } },
+    "/install": { body: TESTED },
+  });
+
+  expect(await screen.findByText(/Loskai's key logs in to replace its lines/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+  expect(await screen.findByText("Loskai logs in with its key.")).toBeInTheDocument();
+  expect(calls.filter((c) => c.path.endsWith("/install"))).toEqual([{ path: "/api/ssh/machines/nas/install", body: {} }]);
+});
+
+test("Loskai's key refused, the install again takes the machine's password", async () => {
+  const refused = "loskai@192.168.10.50 refused Loskai's key — install with the machine's password, or add the lines yourself";
+  renderModal(UNLOCKED, {
+    "/scan": { body: { fingerprint: FP, type: "ssh-ed25519", state: "trusted" } },
+    "/install": [{ status: 502, body: { detail: refused } }, { body: TESTED }],
+  });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+  expect(await screen.findByText(refused)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Machine password"), { target: { value: "machine-pw" } });
+  fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+  await screen.findByText("Loskai logs in with its key.");
+  expect(calls.filter((c) => c.path.endsWith("/install")).at(-1)?.body).toEqual({ password: "machine-pw" });
 });
 
 test("a changed host key is a warning, and trusting it is spelled out", async () => {
@@ -147,7 +178,10 @@ test("I'll add it myself shows this machine's lines, then tests without any pass
   });
 
   fireEvent.click(await screen.findByRole("tab", { name: "I'll add it myself" }));
-  expect(screen.getByText(/loskai-status/)).toHaveTextContent('from="192.168.10.216,172.18.0.0/16"');
+  expect(screen.getByText(/restrict,… loskai-status/)).toHaveTextContent('from="192.168.10.216,172.18.0.0/16"');
+  // In place of the old ones: ssh uses the first line with a key, so one added below an old
+  // status line is never read.
+  expect(screen.getByText(/in place of any lines ending in/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
 
   await screen.findByText("Loskai logs in with its key.");

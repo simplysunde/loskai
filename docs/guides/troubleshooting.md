@@ -244,8 +244,9 @@ again. No option is required: without one, Jellyfin transcodes on the CPU.
   Click **SSH setup** in the machine's dialog and install them again.
 - **"This machine's host key has changed."** The machine was reinstalled, or something else
   answers at its address. Click **Trust the new key** only if you know which.
-- **"Its status line is older than this Loskai"**, with **Install again**: click it. SSH setup
-  opens: install Loskai's lines again, as the first time.
+- **"Its status line is older than this Loskai"**, with **Install again**: click it, then
+  **Install**. Loskai's own key replaces its lines, with no password — the machine's password
+  only if the machine refuses that key.
 - **"sudo didn't accept that password for …"**: an update or another run checks `sudo`'s
   password on the machine before it starts. Type it again. **may not use sudo there** means
   that user has no `sudo` at all.
@@ -256,8 +257,9 @@ again. No option is required: without one, Jellyfin transcodes on the CPU.
   **SSH** › **Keep the key unlocked for** makes that longer.
 
 **A machine with no password**, like an LXC made by Loskai's scripts: **Install it for me**
-can't log in, since root has no password and SSH refuses one for root anyway. Add Loskai's
-keys from the machine's console instead:
+can't log in the first time, since root has no password and SSH refuses one for root anyway.
+Add Loskai's keys from the machine's console instead. After that, **Install again** uses
+Loskai's own key, so you only do this once:
 
 1. In **SSH setup**, click **I'll add it myself**, then the copy button beside the two lines.
 2. Open the machine's console. For an LXC: its **Console** in Proxmox, which opens as root.
@@ -268,6 +270,8 @@ keys from the machine's console instead:
    nano ~/.ssh/authorized_keys
    ```
 
+   Delete any old lines ending in `loskai` or `loskai-status` (**Ctrl+K** cuts the line the
+   cursor is on): ssh uses the first one, so a new line below an old one is never read.
    Paste the two lines at the end of the file (**Ctrl+Shift+V**, or right-click › **Paste**),
    then save and quit: **Ctrl+O**, **Enter**, **Ctrl+X**. Use an editor, not `cat` or
    `echo`: the second line is about 8,000 characters, and a terminal cuts a typed line off at

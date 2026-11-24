@@ -62,6 +62,8 @@ def machine_net(monkeypatch):
                                 "password": password, "key": client_key, "stdin": stdin})
         if state["fail"]:
             raise state["fail"]
+        if state.get("key_refused") and client_key is not None and client_key.get_comment() == "loskai":
+            raise asyncssh.PermissionDenied("no")
         if password is not None and password != state["password"]:
             raise asyncssh.PermissionDenied("no")
         if client_key is not None and client_key.get_comment() == "loskai-status":
@@ -182,6 +184,44 @@ def test_install_adds_both_lines_with_the_password_then_proves_both_keys(api, ma
     assert second["password"] is None and second["key"].get_comment() == "loskai"
     assert third["password"] is None and third["key"].get_comment() == "loskai-status"
     assert "machine-pw" not in r.text
+
+
+def test_install_again_without_a_password_replaces_the_lines_with_loskai_s_key(api, machine_net):
+    # A machine set up before: its key gets in, so no machine password is needed — the same
+    # script replaces Loskai's old lines (a newer status line) without a hand edit.
+    _with_key(api)
+    _trust(api)
+
+    r = api.post("/api/ssh/machines/nas/install", json={})
+
+    assert r.status_code == 200, r.text
+    first = machine_net["logins"][0]
+    assert first["command"] == logic.INSTALL_SCRIPT
+    assert first["password"] is None and first["key"].get_comment() == "loskai"
+    main, status = first["stdin"].splitlines()
+    assert main.endswith(" loskai") and status.endswith(" loskai-status")
+
+
+def test_install_with_loskai_s_key_needs_it_unlocked(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    unlock.lock()
+
+    assert api.post("/api/ssh/machines/nas/install", json={}).status_code == 423
+    assert machine_net["logins"] == []
+
+
+def test_install_with_loskai_s_key_refused_says_to_use_the_password(api, machine_net):
+    _with_key(api)
+    _trust(api)
+    machine_net["key_refused"] = True
+
+    r = api.post("/api/ssh/machines/nas/install", json={})
+
+    assert r.status_code == 502
+    assert r.json()["detail"] == (
+        "loskai@192.168.10.50 refused Loskai's key — install with the machine's password, or add the lines yourself"
+    )
 
 
 def test_a_wrong_machine_password_says_so_without_echoing_it(api, machine_net):

@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Install again uses Loskai's own key** on a machine it already gets into: no machine
+  password, and no hand edit. **I'll add it myself** now says to replace Loskai's old lines,
+  since a new line added below an old one is never used.
 - **A machine's cog turns amber when Loskai can't read its status**, or reads it from an
   older status line; its tooltip says what happened and to **Install again**. In the
   machine's dialog, **Keys** under **SSH** says **out of date** or **can't be read**, with

@@ -29,8 +29,9 @@ const PRIMARY =
 
 // Setting a machine up for SSH, in the order that keeps a password safe: its host key is
 // shown and trusted first, so a password only ever goes to the machine whose fingerprint
-// was accepted. Then Loskai's lines go on it — with the machine's password, used once, or
-// pasted by hand — and a test with the keys proves it.
+// was accepted. Then Loskai's lines go on it — with the machine's password, used once, with
+// Loskai's own key on a machine set up before, or pasted by hand — and a test with the keys
+// proves it.
 export function SshSetupModal({
   machine,
   user,
@@ -58,6 +59,9 @@ export function SshSetupModal({
     gcTime: 0,
   });
   const isTrusted = trusted || scan.data?.state === "trusted";
+  // Set up before (its host key trusted when this opened): Loskai's key gets in, and replaces
+  // its own lines — the machine's password only if the machine refuses that key.
+  const again = !trusted && scan.data?.state === "trusted";
 
   const trust = useMutation({
     mutationFn: (fingerprint: string) =>
@@ -82,7 +86,7 @@ export function SshSetupModal({
   const connect = useMutation({
     mutationFn: () =>
       mode === "install"
-        ? api.post<Tested>(`/api/ssh/machines/${machine.id}/install`, { password: machinePassword })
+        ? api.post<Tested>(`/api/ssh/machines/${machine.id}/install`, machinePassword ? { password: machinePassword } : {})
         : api.post<Tested>(`/api/ssh/machines/${machine.id}/test`),
     onSuccess: () => {
       setMachinePassword("");
@@ -94,7 +98,7 @@ export function SshSetupModal({
 
   const machineLines = scan.data?.lines ?? sshKey?.lines ?? [];
   const canConnect =
-    (mode === "manual" || machinePassword) && !connect.isPending;
+    (mode === "manual" || again || machinePassword) && !connect.isPending;
 
   return (
     <Modal
@@ -220,14 +224,24 @@ export function SshSetupModal({
           {mode === "install" ? (
             <>
               <p className="mt-3 text-xs text-slate-500">
-                Used once to add Loskai's keys to <code className="text-slate-400">~/.ssh/authorized_keys</code>,
-                then forgotten.
+                {again ? (
+                  <>
+                    Loskai's key logs in to replace its lines in{" "}
+                    <code className="text-slate-400">~/.ssh/authorized_keys</code>. If the machine refuses it,
+                    give its password — used once, then forgotten.
+                  </>
+                ) : (
+                  <>
+                    Used once to add Loskai's keys to <code className="text-slate-400">~/.ssh/authorized_keys</code>,
+                    then forgotten.
+                  </>
+                )}
               </p>
               <input
                 type="password"
                 autoComplete="off"
                 aria-label="Machine password"
-                placeholder={`Password for ${user}`}
+                placeholder={again ? `Password for ${user} — only if its key is refused` : `Password for ${user}`}
                 value={machinePassword}
                 onChange={(e) => setMachinePassword(e.target.value)}
                 className={`mt-2 ${INPUT}`}
@@ -236,8 +250,9 @@ export function SshSetupModal({
           ) : (
             <>
               <p className="mt-3 text-xs text-slate-500">
-                Add both lines to <code className="text-slate-400">~/.ssh/authorized_keys</code> for{" "}
-                {user} on the machine. The second only lists what runs.
+                Put both lines in <code className="text-slate-400">~/.ssh/authorized_keys</code> for {user} on
+                the machine, in place of any lines ending in <code className="text-slate-400">loskai</code> or{" "}
+                <code className="text-slate-400">loskai-status</code>. The second only lists what runs.
               </p>
               <div className="mt-2 flex items-start gap-2">
                 <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-2 text-[11px] text-slate-400">
