@@ -1,5 +1,6 @@
 import { formatAgo } from "./format";
-import { tailscaleStatus, type Facts, type SshStatus } from "./ssh";
+import { tailscaleState, tailscaleStatus, type Facts, type SshStatus } from "./ssh";
+import { waitingKey } from "./waiting";
 import type { Tool, ToolAction, ToolRun, TargetKind } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
@@ -118,6 +119,29 @@ export function toolSummary(t: Tool, ctx: ToolContext): string {
       return `${rows.length} ${noun}${rows.length === 1 ? "" : "s"}${live ? `, ${live} running` : ""}`;
     })
     .join(" · ");
+}
+
+// How many of a tool's sessions run, for the count on its row button: a list of sessions is
+// what runs (tmux's), else the rows whose shared session runs (Claude's projects).
+export function runningCount(t: Tool, ctx: ToolContext): number {
+  return listsOf(t, ctx).reduce(
+    (n, { kind, rows }) => n + (kind === "session" ? rows.length : rows.filter((r) => isLive(t, kind, r.name, ctx.facts)).length),
+    0,
+  );
+}
+
+// What on a tool waits on you, in a few words, or null — its row button turns amber. A row
+// whose Start stopped at a question (`waiting`, in this browser) while its session still
+// runs; Tailscale logged out, or waiting for approval — not off, which is a choice.
+export function waitsOnYou(t: Tool, ctx: ToolContext, waiting: (key: string) => boolean): string | null {
+  if (t.requires.includes("tailscale")) {
+    return ["login", "approval"].includes(tailscaleState(ctx.facts)) ? tailscaleStatus(ctx.facts) : null;
+  }
+  const asking = listsOf(t, ctx).flatMap(({ kind, rows }) =>
+    rows.filter((r) => isLive(t, kind, r.name, ctx.facts) && waiting(waitingKey(ctx.machineId, t.id, kind, r.name))).map((r) => r.name),
+  );
+  if (asking.length === 0) return null;
+  return `${asking.length === 1 ? `${asking[0]} asks` : `${asking.length} ask`} something first: open it and Attach`;
 }
 
 // A row whose shared session is running, as the server says: opening it attaches.

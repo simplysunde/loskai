@@ -1258,6 +1258,50 @@ test("a tool's dialog on an older status line goes straight to installing it aga
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
+test("a tool's row button counts what runs there, small, and turns amber where something waits on you", async () => {
+  sshSetUp();
+  localStorage.removeItem("loskai-waiting");
+  renderPage();
+  await screen.findByText("Storage box");
+  const button = async (name: RegExp) => within(nasRow()).findByRole("button", { name });
+  // A count of its running sessions, out of the button's name, as its card has them: Claude's
+  // one; tmux's one — build, claude-site being Claude's.
+  const claude = await button(/^Claude Code/);
+  expect(claude).toHaveTextContent(/^1$/);
+  expect(await button(/^tmux/)).toHaveTextContent(/^1$/);
+  // None running: no count.
+  expect(await button(/^Git/)).toHaveTextContent(/^$/);
+  expect(claude).not.toHaveClass("text-amber-300");
+  cleanup();
+
+  // A Start stopped at Claude's question, in this browser: amber, and why.
+  localStorage.setItem("loskai-waiting", JSON.stringify(["nas/claude/project/site", "nas/claude/project/blog"]));
+  try {
+    renderPage();
+    await screen.findByText("Storage box");
+    const waits = await button(/^Claude Code/);
+    expect(waits).toHaveClass("text-amber-300");
+    // blog's session isn't running: its mark is old, and not counted.
+    expect(waits).toHaveAccessibleName("Claude Code — site asks something first: open it and Attach");
+    expect(await button(/^tmux/)).not.toHaveClass("text-amber-300");
+  } finally {
+    localStorage.removeItem("loskai-waiting");
+  }
+});
+
+test("Tailscale's row button turns amber logged out or waiting for approval, not when it is off", async () => {
+  sshSetUp();
+  for (const [state, amber] of [["login", true], ["approval", true], ["off", false]] as const) {
+    facts = { ...FACTS, tailscale: null, tailscale_self: { state, shared: [], approved: [] } };
+    renderPage();
+    await screen.findByText("Storage box");
+    const tailscale = await within(nasRow()).findByRole("button", { name: /^Tailscale/ });
+    if (amber) expect(tailscale).toHaveClass("text-amber-300");
+    else expect(tailscale).not.toHaveClass("text-amber-300");
+    cleanup();
+  }
+});
+
 for (const [why, reply, status] of [
   ["its status line is older", { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" }, 200],
   ["its request fails", { detail: "Storage box has no SSH user" }, 409],

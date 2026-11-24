@@ -16,6 +16,14 @@ key, read-only; not polled), where it read it only while the menu was open — a
 a machine since v16, which also lets a machine's dialog open on it at once. A machine whose
 overview can't be read has no tool buttons; its dialog says why.
 
+Sunde then asked whether a tool's button should be coloured when it has sessions running.
+Running is the usual state of a machine in use, so a colour for it would be on most of the
+time and say nothing; amber, as on the cog of a machine whose SSH isn't set up, is kept for
+what waits on you (`waitsOnYou`): a session Attach is amber for, Tailscale logged out or
+waiting for approval. Running is a small count in the button's corner (`runningCount`), as
+the card counts it — tmux's leaves out Claude's sessions. The Claude mark lives in the
+browser that started the session, so another browser shows no amber for it.
+
 ## 2026-11-23 — Keys after Phase 64: Add SSH key, Delete in Git's Keys, a key's use shown everywhere
 
 Using Phase 64 on codebox and throne changed five of its choices.

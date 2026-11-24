@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 import { SELF_UPDATING_REASON, tailscaleState, updatesItself, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
-import { isLive, listsOf, toolContext, toolSummary, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { isLive, listsOf, runningCount, toolContext, toolSummary, waitsOnYou, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
   applies,
@@ -373,7 +373,8 @@ export function AddToolMenu({ ctx }: { ctx: ToolContext }) {
 
 // A set-up machine's row: a button per tool it has, beyond the standard ones (System's
 // Update is in the row's More), in the tools' order, each opening its dialog and saying how it
-// stands in its title. From the machine's overview, read for the row and not polled: until it
+// stands in its title, a small count of its running sessions, amber where something waits on
+// you (`waitsOnYou`). From the machine's overview, read for the row and not polled: until it
 // answers, or where it can't be read, the row has none. Adding one is the machine's dialog's.
 export function RowTools({
   machineId,
@@ -386,6 +387,7 @@ export function RowTools({
 }) {
   const facts = useFacts(machineId, true, false);
   const ssh = useSsh();
+  const { waiting } = useWaiting();
   if (!facts.data?.ok) return null;
   const programs = facts.data.programs ?? [];
   const ctx = toolContext(machineId, tools, facts.data, ssh.data);
@@ -394,9 +396,16 @@ export function RowTools({
       {tools
         .filter((t) => !isStandard(t) && applies(t, programs))
         .map((t) => {
-          const summary = ctx && toolSummary(t, ctx);
+          const waits = ctx && waitsOnYou(t, ctx, waiting);
+          const said = waits || (ctx && toolSummary(t, ctx));
           return (
-            <IconButton key={t.id} title={summary ? `${t.name} — ${summary}` : t.name} onClick={() => onPick(t.id)}>
+            <IconButton
+              key={t.id}
+              title={said ? `${t.name} — ${said}` : t.name}
+              tone={waits ? "warn" : "plain"}
+              count={ctx ? runningCount(t, ctx) : 0}
+              onClick={() => onPick(t.id)}
+            >
               <ToolIcon id={t.id} />
             </IconButton>
           );
