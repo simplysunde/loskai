@@ -95,7 +95,7 @@ export function MachineOverview({
       </div>
 
       {facts.outdated && (
-        <p className="w-fit text-xs text-slate-500">
+        <p className="w-fit text-xs text-amber-300">
           Its status line is{" "}
           <Hint text="Still read as before. Installing again brings what changed since.">
             older than this Loskai

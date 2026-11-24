@@ -4,6 +4,22 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-24 — A machine's cog is amber while its status can't be read, or is out of date
+
+After v17, every machine needed Install again, and nothing on the Machines tab said so: the
+note was a grey line in the dialog's overview, and a machine whose line was too old to read
+just had no tool buttons. Sunde asked whether the machines should light up — the cog at
+least — and nothing for a machine without SSH. The cog, not the tool buttons: the fix is
+the machine's (Install again, in its dialog), and amber on a tool keeps meaning that tool
+waits on you. Its tooltip says what happened, then what to do (Sunde: guide the user), from
+the server's own error where it can't be read — a machine that can't be reached is amber too,
+since its status is as unread as one refusing the key. Inside the dialog, SSH's Keys row
+says it (**out of date**, **can't be read**) with **Install again** in place of **SSH
+setup**, and the overview's note is amber. One function words it (`statusProblem`); the cog
+reads the overview the row's tool buttons already read, so it costs no request. Each new
+status line version lights every set-up machine until it is installed again — accurate, since
+each lacks what the new line reads.
+
 ## 2026-11-24 — A machine's row: a button per tool; Add a route and Update in More
 
 The row's wrench opened a menu of every tool, added or not. Sunde wanted the tools on the

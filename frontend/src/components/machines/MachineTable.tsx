@@ -22,7 +22,7 @@ import { dnsFine } from "../../lib/routes";
 import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu, type RowMenuItem } from "../shared/RowMenu";
-import type { Running, SshHost } from "../../lib/ssh";
+import { statusProblem, useFacts, type Running, type SshHost } from "../../lib/ssh";
 import type { Tool, TargetKind } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { useCaddySetUp } from "../../lib/useHealth";
@@ -320,15 +320,14 @@ export function MachineTable({
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
-                        {/* Its dialog: name, address, SSH, what runs there. Amber while it has
-                            an SSH user but isn't set up yet. */}
-                        {!unnamed && <IconButton
-                          title={hasSshLogin && !trusted[machine.id] ? "Machine settings — SSH not set up yet" : "Machine settings"}
-                          tone={hasSshLogin && !trusted[machine.id] ? "warn" : "plain"}
-                          onClick={() => onOpen(machine)}
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </IconButton>}
+                        {!unnamed && (
+                          <SettingsButton
+                            machineId={machine.id}
+                            sshLogin={hasSshLogin}
+                            trusted={Boolean(trusted[machine.id])}
+                            onClick={() => onOpen(machine)}
+                          />
+                        )}
                         {/* What a row does less often: a route on its address, its system's
                             update, and — once named — deleting it. */}
                         {menu.length > 0 && <RowMenu
@@ -397,3 +396,26 @@ const UNKNOWN_ADDRESS = {
 
 const RUNNING_BUTTON =
   "flex items-center gap-1 rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800";
+
+// A machine's dialog: name, address, SSH, what runs there. Amber while something there needs
+// you — its SSH user isn't set up yet, or its status can't be read or is out of date — and
+// its title says what to do. The status is the one its tool buttons read: no request of its own.
+function SettingsButton({
+  machineId,
+  sshLogin,
+  trusted,
+  onClick,
+}: {
+  machineId: string;
+  sshLogin: boolean;
+  trusted: boolean;
+  onClick: () => void;
+}) {
+  const facts = useFacts(machineId, sshLogin && trusted, false);
+  const problem = !sshLogin ? null : !trusted ? "SSH not set up yet" : statusProblem(facts.data)?.detail;
+  return (
+    <IconButton title={problem ? `Machine settings — ${problem}` : "Machine settings"} tone={problem ? "warn" : "plain"} onClick={onClick}>
+      <Settings className="h-3.5 w-3.5" />
+    </IconButton>
+  );
+}

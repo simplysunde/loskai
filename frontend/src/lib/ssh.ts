@@ -345,6 +345,15 @@ export function factsQuery(machineId: string, poll = true) {
   };
 }
 
+// What is wrong with reading a machine's status, or null: `short` beside its SSH keys,
+// `detail` — what happened, then what to do — on its row's cog, which turns amber with it.
+export function statusProblem(facts: Facts | undefined): { short: string; detail: string } | null {
+  if (!facts) return null;
+  if (!facts.ok) return { short: "can't be read", detail: `can't read its status: ${facts.error}` };
+  if (facts.outdated) return { short: "out of date", detail: "its status line is out of date: open it and Install again, under SSH" };
+  return null;
+}
+
 // What Tailscale is doing on the machine: the line's own state (v9), or before it, whether
 // it has an address.
 export function tailscaleState(facts: Facts): "on" | "off" | "login" | "approval" {

@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **A machine's cog turns amber when Loskai can't read its status**, or reads it from an
+  older status line; its tooltip says what happened and to **Install again**. In the
+  machine's dialog, **Keys** under **SSH** says **out of date** or **can't be read**, with
+  **Install again** beside it.
 - **Add SSH key**, in Git's **Keys**: pick the site, name the key, copy it, and open the
   site's SSH keys page to paste it. GitHub, GitLab and Codeberg are there; **Add a site…**
   keeps your own Forgejo or Gitea for every machine, its SSH address filled in from the web

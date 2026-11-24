@@ -780,7 +780,8 @@ test("a machine on the older status line is offered the reinstall for its overvi
   facts = { ok: false, old: true, checked: 0, error: "Its status line predates the overview — install again" };
   renderPage("/machines/nas/overview");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Install again" }));
+  await screen.findByText(/predates the overview/);
+  fireEvent.click(within(category("General")).getByRole("button", { name: "Install again" }));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
@@ -800,8 +801,9 @@ test("an overview read from an older status line says so, and offers the reinsta
   renderPage("/machines/nas/overview");
 
   expect(await screen.findByText("Debian GNU/Linux 12 (bookworm)")).toBeInTheDocument();
-  expect(screen.getByText((_, el) => el?.tagName === "P" && /^Its status line is older than this Loskai\./.test(el.textContent ?? ""))).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Install again" }));
+  const note = screen.getByText((_, el) => el?.tagName === "P" && /^Its status line is older than this Loskai\./.test(el.textContent ?? ""));
+  expect(note).toHaveClass("text-amber-300");
+  fireEvent.click(within(category("General")).getByRole("button", { name: "Install again" }));
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
@@ -1306,10 +1308,63 @@ for (const [why, reply, status] of [
     factsStatus = status;
     renderPage();
     await screen.findByText("Storage box");
-    await vi.waitFor(() => expect(within(nasRow()).getByTitle("Machine settings")).toBeInTheDocument());
+    await vi.waitFor(() => expect(within(nasRow()).getByTitle(/^Machine settings/)).toBeInTheDocument());
     expect(within(nasRow()).queryByRole("button", { name: /^(tmux|Git|Claude Code)/ })).toBeNull();
   });
 }
+
+for (const [why, reply, title] of [
+  ["its status line is out of date", { ...FACTS, outdated: true }, "Machine settings — its status line is out of date: open it and Install again, under SSH"],
+  ["its status line is too old to read", { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" }, "Machine settings — can't read its status: Its status line is older than this Loskai — install again"],
+  ["it refuses the status key", { ok: false, checked: 0, error: "The machine doesn't accept the status key — install again" }, "Machine settings — can't read its status: The machine doesn't accept the status key — install again"],
+] as const) {
+  test(`a machine whose status ${why}: an amber cog that says what to do`, async () => {
+    sshSetUp();
+    facts = reply;
+    renderPage();
+    await screen.findByText("Storage box");
+    const cog = await within(nasRow()).findByTitle(title);
+    expect(cog).toHaveClass("text-amber-300");
+  });
+}
+
+test("a machine read from the current status line has a plain cog", async () => {
+  sshSetUp();
+  renderPage();
+  await screen.findByText("Storage box");
+  await within(nasRow()).findByRole("button", { name: /^tmux/ });
+  expect(within(nasRow()).getByTitle("Machine settings")).not.toHaveClass("text-amber-300");
+});
+
+test("inside the machine, SSH says its status line is out of date, with Install again", async () => {
+  sshSetUp();
+  facts = { ...FACTS, outdated: true };
+  renderPage("/machines/nas/ssh");
+
+  const ssh = await screen.findByText("out of date");
+  expect(ssh).toHaveClass("text-amber-300");
+  expect(within(category("SSH")).queryByText("set up")).toBeNull();
+  fireEvent.click(within(category("SSH")).getByRole("button", { name: "Install again" }));
+  expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
+});
+
+test("inside the machine, SSH says when its status can't be read", async () => {
+  sshSetUp();
+  facts = { ok: false, checked: 0, error: "The machine doesn't accept the status key — install again" };
+  renderPage("/machines/nas/ssh");
+
+  expect(await screen.findByText("can't be read")).toHaveClass("text-amber-300");
+  expect(within(category("SSH")).getByRole("button", { name: "Install again" })).toBeInTheDocument();
+});
+
+test("inside the machine, SSH read from the current line just says set up", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/ssh");
+
+  expect(await screen.findByText("set up")).toHaveClass("text-emerald-300");
+  await screen.findByText("Debian GNU/Linux 12 (bookworm)");
+  expect(within(category("SSH")).getByRole("button", { name: "SSH setup" })).toBeInTheDocument();
+});
 
 test("a tool's card lists its rows, each with its buttons — not another tool's sessions", async () => {
   sshSetUp();

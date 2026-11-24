@@ -405,7 +405,7 @@ a section, and **Search** finds one by what is in it.
 | Section | What is there |
 |---|---|
 | **General** | **Machine name** and **Address**. Then what the machine says about itself: system, uptime, updates waiting, its Tailscale address, memory, disks. Beside that, **Update**, **Reboot** and **Shut down** |
-| **SSH** | A switch that turns it on or off. **Login**: the user and port. **Keys**: **SSH setup**, to run the setup again. **Updates without a password** |
+| **SSH** | A switch that turns it on or off. **Login**: the user and port. **Keys**: **SSH setup**, to run the setup again — **Install again** when its status needs it. **Updates without a password** |
 | **Tools** | A card per [tool](#tools), and **Add tool** |
 | **Running** | What runs there, with **Restart** and **Stop** |
 | **Log** | Every terminal and run on this machine. An admin's |
@@ -413,8 +413,10 @@ a section, and **Search** finds one by what is in it.
 A field saves when you press Enter or leave it, and Escape puts it back. A value that isn't
 valid says why and saves nothing.
 
-Where the dialog says **Its status line is older than this Loskai**, click **Install
-again** and install as in step 4 of [Set up SSH](#set-up-ssh).
+A machine's cog turns amber when Loskai can't read its status, or reads it from a status
+line older than this Loskai; its tooltip says which. In the dialog, **Keys** under **SSH** says
+**out of date** or **can't be read**: click **Install again** there and install as in step 4
+of [Set up SSH](#set-up-ssh).
 
 ### See what runs on a machine
 

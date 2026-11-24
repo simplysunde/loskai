@@ -16,7 +16,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { apiMessage } from "../../lib/api";
 import { useInstances } from "../../lib/routes";
 import { useSettings } from "../../lib/settings";
-import { useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { statusProblem, useFacts, useRunning, useSsh } from "../../lib/ssh";
+import { Hint } from "../shared/Hint";
 import { toolContext } from "../../lib/toolRows";
 import { applies, MACHINE_TOOL, useTools, type TargetKind } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
@@ -127,6 +128,8 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   const sshEntry = machine.subdomain ? ssh.data?.hosts[machine.subdomain] : undefined;
   const hostname = machine.subdomain ?? machine.id;
   const baseDomain = settings.data?.base_domain?.value ?? null;
+  // Reading its status failed, or its line is out of date: SSH says so, by its keys.
+  const problem = trusted ? statusProblem(facts.data) : null;
   const programs = facts.data?.programs ?? [];
   const here = (tools.data ?? []).filter((t) => applies(t, programs));
   // What a tool's card needs — once the overview and the tools are in.
@@ -242,13 +245,17 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
         )}
         {sshEntry?.user && (
           <SettingRow label="Keys" description="Its host key and Loskai's key on it. The keys git uses are in Git's Keys.">
-            {trusted ? (
-              <span className="text-xs text-emerald-300">set up</span>
-            ) : (
+            {!trusted ? (
               <span className="text-xs text-amber-300">not set up</span>
+            ) : problem ? (
+              <Hint text={problem.detail} className="text-xs text-amber-300">
+                {problem.short}
+              </Hint>
+            ) : (
+              <span className="text-xs text-emerald-300">set up</span>
             )}
             <button onClick={() => setSetup(true)} className={`${BUTTON} text-slate-200`}>
-              {trusted ? "SSH setup" : "Set up SSH"}
+              {!trusted ? "Set up SSH" : problem ? "Install again" : "SSH setup"}
             </button>
           </SettingRow>
         )}
