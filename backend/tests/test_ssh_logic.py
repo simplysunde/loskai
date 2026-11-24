@@ -176,6 +176,39 @@ def test_install_keeps_your_keys_and_replaces_only_loskai_s(tmp_path):
     assert not (tmp_path / ".ssh" / "authorized_keys.loskai-new").exists()
 
 
+def _linked(home):
+    """A Proxmox host's root: `~/.ssh/authorized_keys` a link to the cluster's shared file."""
+    shared = home / "etc-pve-priv"
+    shared.mkdir()
+    (shared / "authorized_keys").write_text("ssh-rsa NODE root@pve\n")
+    (home / ".ssh").mkdir(mode=0o700)
+    (home / ".ssh" / "authorized_keys").symlink_to(shared / "authorized_keys")
+    return shared / "authorized_keys"
+
+
+def test_install_writes_through_a_linked_authorized_keys_and_keeps_the_link(tmp_path):
+    shared = _linked(tmp_path)
+
+    _install(tmp_path, None, "ssh-ed25519 NEW loskai\n")
+    _install(tmp_path, None, "ssh-ed25519 NEWER loskai\n")
+
+    link = tmp_path / ".ssh" / "authorized_keys"
+    assert link.is_symlink() and link.resolve() == shared
+    assert shared.read_text() == "ssh-rsa NODE root@pve\nssh-ed25519 NEWER loskai\n"
+    assert not any(p.name.endswith(".loskai-new") for p in [*shared.parent.iterdir(), *link.parent.iterdir()])
+
+
+def test_uninstall_writes_through_a_linked_authorized_keys_and_keeps_the_link(tmp_path):
+    shared = _linked(tmp_path)
+    _install(tmp_path, None, "ssh-ed25519 NEW loskai\n")
+
+    _uninstall(tmp_path)
+
+    link = tmp_path / ".ssh" / "authorized_keys"
+    assert link.is_symlink() and link.resolve() == shared
+    assert shared.read_text() == "ssh-rsa NODE root@pve\n"
+
+
 def _uninstall(home):
     import subprocess
 

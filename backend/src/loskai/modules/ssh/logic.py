@@ -196,12 +196,17 @@ def remove_sudo_rule(on_fail: str) -> str:
         f"elif ! sudo -n rm -f {SUDO_RULE} 2>/dev/null && [ -e {SUDO_RULE} ]; then {on_fail}; fi"
     )
 
+# A linked `authorized_keys` is written where it points, and the link kept: a Proxmox host's
+# root has `/etc/pve/priv/authorized_keys`, the cluster's shared file, behind it, and a file
+# renamed over the link would cut the node off from it (2026-11-24).
+_RESOLVE_LINK = 'if [ -L "$f" ]; then f=$(readlink -f "$f"); fi; '
+
 # Adds Loskai's lines to `authorized_keys`, replacing any it added before (they end in its
 # key comments), so a reinstall after "New key" or a new Docker host IP leaves no stale
 # line. The lines arrive on stdin; the file is rebuilt beside itself and renamed over it,
 # so a failure halfway leaves the old file whole.
 INSTALL_SCRIPT = (
-    "set -e; umask 077; mkdir -p ~/.ssh; f=~/.ssh/authorized_keys; touch \"$f\"; "
+    "set -e; umask 077; mkdir -p ~/.ssh; f=~/.ssh/authorized_keys; " + _RESOLVE_LINK + "touch \"$f\"; "
     "t=\"$f.loskai-new\"; "
     "{ grep -v -e ' loskai$' -e ' loskai-status$' \"$f\" || [ $? -eq 1 ]; cat; } > \"$t\"; "
     "mv \"$t\" \"$f\""
@@ -212,7 +217,7 @@ INSTALL_SCRIPT = (
 # `authorized_keys` — the same lines, the same way, and nothing else.
 UNINSTALL_SCRIPT = (
     remove_sudo_rule("echo '!sudo-rule'") + "; "
-    "set -e; umask 077; f=~/.ssh/authorized_keys; [ -f \"$f\" ] || exit 0; "
+    "set -e; umask 077; f=~/.ssh/authorized_keys; [ -f \"$f\" ] || exit 0; " + _RESOLVE_LINK +
     "t=\"$f.loskai-new\"; "
     "{ grep -v -e ' loskai$' -e ' loskai-status$' \"$f\" || [ $? -eq 1 ]; } > \"$t\"; "
     "mv \"$t\" \"$f\""

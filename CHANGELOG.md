@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Installing Loskai's keys on a Proxmox host keeps its `authorized_keys` link.** Root's
+  `~/.ssh/authorized_keys` there links to the cluster's `/etc/pve/priv/authorized_keys`;
+  an install, or removing SSH, now writes that file and leaves the link, where before it put
+  an ordinary file in the link's place.
 - **Install again uses Loskai's own key** on a machine it already gets into: no machine
   password, and no hand edit. **I'll add it myself** now says to replace Loskai's old lines,
   since a new line added below an old one is never used.

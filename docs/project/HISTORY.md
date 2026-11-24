@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-24 — Loskai's lines go through a linked `authorized_keys`
+
+On a Proxmox host, root's `~/.ssh/authorized_keys` is a link to `/etc/pve/priv/authorized_keys`,
+the file the cluster shares between its nodes. The install and uninstall scripts rebuild the
+file beside itself and rename it over the original — for a failure halfway to leave the old
+file whole — and a rename over a link replaces the link: Sunde's pve was left with an
+ordinary file after an Install again, the shared one no longer read. Both scripts now
+resolve a link first (`readlink -f`) and do the same rebuild and rename where it points,
+so the link stays and the rename is still atomic; Proxmox itself writes `/etc/pve` files by
+a temporary file and a rename the same way.
+
 ## 2026-11-24 — Install again with Loskai's own key
 
 Sunde couldn't get the Caddy machine onto v17: it has no password login, so they added the
