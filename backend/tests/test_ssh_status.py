@@ -4,6 +4,7 @@ parsers of what it answers."""
 import os
 import shutil
 import subprocess
+import time
 
 import pytest
 
@@ -270,7 +271,7 @@ def test_the_overview_reads_os_memory_disks_updates_tools_and_tmux():
     assert out["disks"][1] == {"mount": "/mnt/data", "device": "/dev/sda2", "size": 97411380 * 1024, "used": 34403488 * 1024}
     assert out["updates"] == {"manager": "apt", "count": 12}
     assert out["programs"] == ["tmux", "docker", "pct"]
-    assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2}]
+    assert out["tmux"] == [{"name": "build", "created": 1793212547, "attached": True, "windows": 2, "asks": False}]
     assert out["tailscale"] == "100.101.102.103"
     assert out["tailnet"] == [
         {"ip": "100.101.102.103", "name": "codebox", "os": "linux", "online": True, "self": True, "status": "-"},
@@ -641,6 +642,31 @@ def test_an_image_based_system_updates_itself_and_its_dnf_isnt_asked(tmp_path):
     # Read from a line: the manager alone; a count after any other is still needed.
     assert status.parse_facts("#loskai-status 16\n#=updates\nrpm-ostree\n")["updates"] == {"manager": "rpm-ostree", "count": None}
     assert status.parse_facts("#loskai-status 16\n#=updates\ndnf\n")["updates"] is None
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="needs tmux")
+def test_a_tmux_session_stopped_at_claudes_trust_question_is_said_to_ask(tmp_path):
+    """Seen on the machine, so every browser and every account sees the same (v17): Claude's
+    "trust this folder?" on a session's screen. A session with something else on it doesn't."""
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "TMUX_TMPDIR": str(tmp_path), "SSH_ORIGINAL_COMMAND": "facts"}
+    tmux = lambda *a: subprocess.run(["tmux", *a], env=env, check=True)
+    tmux("new-session", "-d", "-s", "claude-site", "printf 'Do you trust this folder?'; sleep 60")
+    tmux("new-session", "-d", "-s", "work", "printf 'trusting nothing'; sleep 60")
+    try:
+        out = None
+        for _ in range(50):  # until the first screen has its line
+            out = status.parse_facts(subprocess.run(["sh", "-c", status.STATUS_COMMAND], capture_output=True, text=True,
+                                                    env=env, cwd=tmp_path, timeout=30).stdout)
+            if any(s["asks"] for s in out["tmux"]):
+                break
+            time.sleep(0.1)
+        assert {s["name"]: s["asks"] for s in out["tmux"]} == {"claude-site": True, "work": False}
+    finally:
+        subprocess.run(["tmux", "kill-server"], env=env)
+    # Read from a line: the sessions under `#=asks`; a line before v17 has none, and none asks.
+    line = "#loskai-status 17\n#=tmux\nclaude-site|1|0|1\nwork|1|0|1\n#=asks\nclaude-site\n"
+    assert [s["asks"] for s in status.parse_facts(line)["tmux"]] == [True, False]
+    assert [s["asks"] for s in status.parse_facts(line.replace("#=asks\nclaude-site\n", ""))["tmux"]] == [False, False]
 
 
 def _facts_in(home, tmp_path):

@@ -27,7 +27,7 @@ from .logic import SUDO_RULE
 # line still answers `running`, without what came later (ports v6, guest addresses v7);
 # `facts` before v5 asks for a reinstall. v8 asks sudo without being logged, and lists a
 # Proxmox host's guests once.
-STATUS_LINE_VERSION = 16
+STATUS_LINE_VERSION = 17
 STATUS_HEAD = f"#loskai-status {STATUS_LINE_VERSION}"
 # The first line whose `facts` this Loskai reads (v6 to v8 and v10 changed nothing it
 # reads), and the first with a `#listen` section where the machine has `ss`.
@@ -161,6 +161,10 @@ _FACTS = (
     f"echo '#=tools'; for c in {' '.join(PROGRAMS)}; do command -v $c >/dev/null 2>&1 && echo $c; done; "
     "echo '#=tmux'; "
     "tmux ls -F '#{session_name}|#{session_created}|#{session_attached}|#{session_windows}' 2>/dev/null; "
+    # The sessions stopped at Claude's trust question, read off their screen (v17) — as
+    # claude.yml's Start looks for it once. By its id: a session name may have a space.
+    "echo '#=asks'; tmux ls -F '#{session_id} #{session_name}' 2>/dev/null | while read -r i n; do "
+    "tmux capture-pane -p -t $i 2>/dev/null | grep -q 'trust this folder' && echo $n; done; "
     "if command -v tailscale >/dev/null; then echo '#=tailscale'; tailscale ip -4 2>/dev/null | head -n 1; "
     # The tailnet as this machine sees it, itself first — read-only, and no root needed.
     "echo '#=tailnet'; tailscale status 2>/dev/null | head -n 100; "
@@ -456,7 +460,8 @@ def parse_facts(output: str) -> dict:
     manager, for tools); `uptime` seconds; `memory` `{total, available}` in bytes; `disks`
     `{mount, device, size, used}` in bytes, real storage only and one row per device;
     `updates` `{manager, count}` or None — `count` None where the system updates itself (`SELF_UPDATING`); `programs` the `PROGRAMS` present (the `#=tools` section); `tmux`
-    `{name, created, attached, windows}`; `tailscale` its Tailscale IPv4 address, or None
+    `{name, created, attached, windows, asks}` — `asks` whether its screen shows Claude's
+    trust question (v17; False before); `tailscale` its Tailscale IPv4 address, or None
     (not installed, or not connected); `tailnet` the devices `tailscale status` lists,
     `{ip, name, os, online, self, status}`, this machine first; `tailscale_self` this
     machine on the tailnet, `{state, shared, approved}` — `state` "on", "off", "login" (logged
@@ -504,7 +509,7 @@ def parse_facts(output: str) -> dict:
         "disks": _disks(sections.get("disks", [])),
         "updates": _updates(sections.get("updates", [])),
         "programs": [t for t in sections.get("tools", []) if t in PROGRAMS],
-        "tmux": [s for s in map(_tmux_session, sections.get("tmux", [])) if s],
+        "tmux": [{**s, "asks": s["name"] in sections.get("asks", [])} for s in map(_tmux_session, sections.get("tmux", [])) if s],
         "tailscale": next(iter(sections.get("tailscale", [])), None),
         "tailnet": _tailnet(sections.get("tailnet", [])),
         "tailscale_self": _tailscale_self(sections.get("tsself")),

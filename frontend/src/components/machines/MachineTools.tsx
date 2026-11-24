@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 import { SELF_UPDATING_REASON, tailscaleState, updatesItself, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
-import { isLive, listsOf, runningCount, toolContext, toolSummary, waitsOnYou, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { isAsking, isLive, listsOf, runningCount, toolContext, toolSummary, waitsOnYou, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
   applies,
@@ -26,7 +26,6 @@ import { ToolAsk } from "./ToolAsk";
 import { CardKeys } from "./SshKeys";
 import { TOOL_BUTTON } from "../../lib/ui";
 import { Hint, ReasonButton } from "../shared/Hint";
-import { useWaiting, waitingKey } from "../../lib/waiting";
 
 const BUTTON = TOOL_BUTTON;
 
@@ -39,30 +38,25 @@ const ROW_BUTTON =
 // only while the row's session is running, or only while it isn't, as `facts` says — the
 // rest of the time hidden (Start and Stop, taking turns in one place) or, with `otherwise:
 // disabled`, greyed (Attach), so every row keeps the same buttons in the same places.
-// A Start that failed while its session went on running stopped at a question there (Claude's
-// "trust this folder?"): the button that opens the session is amber until a button on the
-// row is clicked — remembered in this browser, so a reload keeps it.
+// A row whose session is stopped at a question there (Claude's "trust this folder?"), as the
+// machine says: the button that opens the session is amber, for everyone, while it asks.
 export function RowButtons({
-  machine,
   here,
   kind,
   name,
   onRun,
   facts,
 }: {
-  machine: string;
   here: Tool[];
   kind: TargetKind;
   name: string;
   onRun: ToolStart;
   facts?: Facts;
 }) {
-  const { waiting, mark, clear } = useWaiting();
   const live = (t: Tool) => facts !== undefined && isLive(t, kind, name, facts);
   const fits = (t: Tool, a: ToolAction) => !a.when || (facts !== undefined && (a.when === "running") === live(t));
   return here.flatMap((tool) => {
-    const key = waitingKey(machine, tool.id, kind, name);
-    const asks = waiting(key) && live(tool);
+    const asks = facts !== undefined && isAsking(tool, kind, name, facts);
     return tool.actions
       .filter((a) => a.target === kind && isOnCard(a) && (fits(tool, a) || a.otherwise === "disabled"))
       .map((a) => {
@@ -72,12 +66,7 @@ export function RowButtons({
             key={`${tool.id}-${a.id}`}
             reason={fits(tool, a) ? null : a.when === "running" ? "Not running — Start it first" : "Running — Stop it first"}
             title={opens ? `It asks something first — ${a.label} to answer it` : `${a.description}\n$ ${typeof a.run === "string" ? a.run : ""}`.trim()}
-            onClick={() => {
-              clear(key);
-              onRun({ tool: tool.id, action: a.id, target: name, title: `${a.label} ${name}` }, a, (ok) => {
-                if (!ok && a.when === "stopped") mark(key);
-              });
-            }}
+            onClick={() => onRun({ tool: tool.id, action: a.id, target: name, title: `${a.label} ${name}` }, a)}
             className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] aria-disabled:opacity-40 aria-disabled:hover:bg-transparent ${
               opens
                 ? "border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
@@ -163,7 +152,7 @@ export function ToolCard({ tool, ctx, titled = true }: { tool: Tool; ctx: ToolCo
                   <span className="block truncate text-slate-500">{r.detail}</span>
                 </span>
                 <span className="flex flex-wrap items-center gap-1">
-                  <RowButtons machine={ctx.machineId} here={[tool]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
+                  <RowButtons here={[tool]} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
                   {rowSettingsOf(tool, kind).length > 0 && (
                     <ToolSettingsButton tool={tool} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ kind, name: r.name })} />
                   )}
@@ -387,7 +376,6 @@ export function RowTools({
 }) {
   const facts = useFacts(machineId, true, false);
   const ssh = useSsh();
-  const { waiting } = useWaiting();
   if (!facts.data?.ok) return null;
   const programs = facts.data.programs ?? [];
   const ctx = toolContext(machineId, tools, facts.data, ssh.data);
@@ -396,7 +384,7 @@ export function RowTools({
       {tools
         .filter((t) => !isStandard(t) && applies(t, programs))
         .map((t) => {
-          const waits = ctx && waitsOnYou(t, ctx, waiting);
+          const waits = ctx && waitsOnYou(t, ctx);
           const said = waits || (ctx && toolSummary(t, ctx));
           return (
             <IconButton

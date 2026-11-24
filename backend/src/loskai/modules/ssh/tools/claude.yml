@@ -32,7 +32,8 @@ actions:
     # Claude Code keeps a folder's conversations in ~/.claude/projects/<its path, every
     # other character a ->; --continue fails where there are none. Claude's own path is
     # looked up here: a tmux server started elsewhere may have another PATH. In a folder
-    # never trusted, Claude stops at its question, unseen — so it is looked for. Logged out,
+    # never trusted, Claude stops at its question, unseen — so it is looked for (the status
+    # line looks for it too, so Attach is amber while it waits: status.py `#=asks`). Logged out,
     # it starts but Remote Control never connects: asked first (`auth status`; an older
     # Claude without it, or one that doesn't answer in 10 s, says nothing and starts as before).
     # Its input is /dev/null: given the terminal Start runs in, it waits on it and never answers.

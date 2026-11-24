@@ -453,10 +453,7 @@ Loskai's own key isn't there: it logs in *to* the machine, and is SSH setup's.
   own Test answers the same question one key at a time. A connection refused is reported as a wrong port. The answer
   stays while Keys is open — a key that got in shows ✓ and the host, and loses its Add to … —
   and nothing is kept after, except the hosts tested on, in the browser (`recentHosts.ts`).
-  The same way, `waiting.ts` keeps the rows whose Start failed while their session went on
-  running — stopped at a question, Claude's trust prompt — and their Attach is amber until
-  a button on the row is clicked. A
-  key's host field lists those, then the git sites, then Add a site… (the same dialog as Add
+  A key's host field lists those, then the git sites, then Add a site… (the same dialog as Add
   SSH key's).
 - **Delete** removes the file and puts a project that used it back on the machine's key. A
   key `~/.ssh/config` names is refused: Loskai never edits that file.

@@ -752,6 +752,21 @@ def test_the_overview_says_whose_each_session_is_and_which_rows_run():
     assert tool.claim_sessions({"ok": True, "tmux": None, "projects": None}, tools)["live"] == {}
 
 
+def test_a_session_that_asks_is_its_rows_to_answer():
+    """Claude stopped at a question in site's session: site asks, by tool and kind as `live`
+    is — what the page turns Attach and the tool's row button amber for, for everyone."""
+    tools = {"claude": tool.parse("claude", {"name": "C", "description": "d", "actions": {
+        "open": {"label": "Open", "description": "d", "target": "project", "session": "claude", "run": "true"},
+    }})}
+    facts = {"ok": True, "projects": [{"name": "site"}, {"name": "blog"}],
+             "tmux": [{"name": "claude-site", "asks": True}, {"name": "claude-blog", "asks": False},
+                      {"name": "work", "asks": True}]}
+    view = tool.claim_sessions(facts, tools)
+    assert view["live"] == {"claude": {"project": ["blog", "site"]}}
+    assert view["asks"] == {"claude": {"project": ["site"]}}
+    assert tool.claim_sessions({"ok": True, "tmux": None, "projects": None}, tools)["asks"] == {}
+
+
 def test_ask_and_session_are_checked():
     doc = {"name": "T", "description": "d", "actions": {
         "a": {"label": "A", "description": "d", "run": "true", "ask": "colour"},

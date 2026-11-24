@@ -749,21 +749,25 @@ def _tmux_name(name: str) -> str:
 def claim_sessions(facts: dict, tools: dict[str, Tool]) -> dict:
     """The overview with what its tmux sessions are, so the page never names one: each
     session's `tool`, the one whose shared `session` it is (`claude-site` is Claude Code's),
-    else None; and `live`, by tool and kind, the rows whose shared session is running —
-    `{"claude": {"project": ["site"]}}`."""
+    else None; `live`, by tool and kind, the rows whose shared session is running —
+    `{"claude": {"project": ["site"]}}`; and `asks`, the same for those whose session is
+    stopped at a question (the session's `asks`)."""
     sessions = facts.get("tmux") or []
     names = {s["name"] for s in sessions}
+    asking = {s["name"] for s in sessions if s.get("asks")}
     rows = {"project": [p["name"] for p in facts.get("projects") or []],
             "session": [s["name"] for s in sessions]}
     shared = [(tool, a) for tool in tools.values() for a in tool.actions.values() if isinstance(a.session, str)]
     live: dict[str, dict[str, list[str]]] = {}
+    asks: dict[str, dict[str, list[str]]] = {}
     for tool, a in shared:
-        running = [r for r in rows.get(a.target or "", []) if session_name(tool, a, r) in names]
-        if running:
-            kinds = live.setdefault(tool.id, {})
-            kinds[a.target] = sorted(set(kinds.get(a.target, [])) | set(running))
+        for found, among in ((live, names), (asks, asking)):
+            hits = [r for r in rows.get(a.target or "", []) if session_name(tool, a, r) in among]
+            if hits:
+                kinds = found.setdefault(tool.id, {})
+                kinds[a.target] = sorted(set(kinds.get(a.target, [])) | set(hits))
 
     def owner(name: str) -> str | None:
         return next((tool.id for tool, a in shared if name.startswith(_tmux_name(a.session) + "-")), None)
 
-    return {**facts, "tmux": [{**s, "tool": owner(s["name"])} for s in sessions], "live": live}
+    return {**facts, "tmux": [{**s, "tool": owner(s["name"])} for s in sessions], "live": live, "asks": asks}

@@ -134,7 +134,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   // System's Update, Reboot and Shut down are the machine's own: on General, by its overview.
   const system = here.find((t) => t.id === MACHINE_TOOL);
   const rowActions = (target: TargetKind, name: string) => (
-    <RowButtons machine={id} here={here} kind={target} name={name} onRun={runner.start} />
+    <RowButtons here={here} kind={target} name={name} onRun={runner.start} />
   );
   const runningHere = running.data?.[id];
 

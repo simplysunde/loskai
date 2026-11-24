@@ -21,8 +21,17 @@ Running is the usual state of a machine in use, so a colour for it would be on m
 time and say nothing; amber, as on the cog of a machine whose SSH isn't set up, is kept for
 what waits on you (`waitsOnYou`): a session Attach is amber for, Tailscale logged out or
 waiting for approval. Running is a small count in the button's corner (`runningCount`), as
-the card counts it — tmux's leaves out Claude's sessions. The Claude mark lives in the
-browser that started the session, so another browser shows no amber for it.
+the card counts it — tmux's leaves out Claude's sessions.
+
+That amber came from a mark kept in the browser that clicked Start (`waiting.ts`), so
+another browser, the phone, or another account never saw it. Sunde wanted it everywhere, and
+asked how it would work for several users: a project's session is one tmux session on the
+machine, run as the one user Loskai logs in as, so the question is the machine's, not a
+person's — whoever looks first attaches and answers it. The status line now reads it off the
+session's screen (v17, `#=asks`, the same `trust this folder` claude.yml's Start looks for),
+the server sorts it by tool and row like `live` (`asks`), and the page shows it for as long
+as it is there. The mark is removed: it also missed a question asked after Start, and
+outlived one answered elsewhere.
 
 ## 2026-11-23 — Keys after Phase 64: Add SSH key, Delete in Git's Keys, a key's use shown everywhere
 

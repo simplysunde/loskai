@@ -104,6 +104,7 @@ The Add route picker's Machines source offers these ports
 | `#=updates` | `<manager> <count>`, or `rpm-ostree` alone | `updates` — from the machine's package lists as last refreshed; nothing is fetched. An image-based system (`rpm-ostree`, from v16) updates itself: no count, and its dnf isn't asked |
 | `#=tools` | one name per line, from `PROGRAMS` | `programs` — what tools require |
 | `#=tmux` | `name\|created\|attached\|windows` (`tmux ls -F`) | `tmux` |
+| `#=asks` | the name of each tmux session whose screen shows Claude's trust question (`trust this folder`, read with `tmux capture-pane` by session id), from v17 | each `tmux` session's `asks` — `false` with no section |
 | `#=tailscale` | `tailscale ip -4`, only where `tailscale` is | `tailscale` — the address, or `null` when it isn't connected |
 | `#=tailnet` | `tailscale status`, at most 100 lines, only where `tailscale` is | `tailnet` — `{ip, name, os, online, self, status}` per device, this machine first; other lines (`Logged out.`, health checks) skipped |
 | `#=tsself` | `state <BackendState>` (from `tailscale status --json --peers=false`), `shared <cidr>…` (`tailscale get advertise-routes`; an older Tailscale without `get` shows none) and `approved <cidr>…` (its own `PrimaryRoutes`, from the same status), only where `tailscale` is | `tailscale_self` — `{state, shared, approved}`: `state` `on` (Running), `off` (Stopped), `login` (NeedsLogin), `approval` (NeedsMachineAuth) or `null`; the networks without an exit node's `0.0.0.0/0` and `::/0`. `null` with no section (no Tailscale, or a line before v9) |
@@ -193,6 +194,7 @@ number back. Changing what the command runs means each machine needs the new lin
 | 14 | `#=sshhosts` isn't asked where an ssh config has `Match exec` — `ssh -G` would run that command — and says `!match-exec` instead |
 | 15 | `#=remotes` names each remote (`origin.url`), so a pushurl is its own remote's; `#=sshhosts` isn't asked where a file the ssh config `Include`s has `Match exec`, or includes again |
 | 16 | `#=sshhosts` follows `Include`s 4 levels down, not one: Fedora's own config (`ssh_config.d/50-redhat.conf` → the crypto policy's file) nests two, so it was never asked there. A file 4 levels down that includes more isn't followed, and then nothing is asked. `#=updates` names `rpm-ostree` alone, with no count, where the machine has it (Bazzite, Silverblue) — its dnf counted nothing it can install, and took seconds |
+| 17 | `#=asks`: the tmux sessions stopped at Claude's trust question, read off their screen — so every browser and every account sees the same amber Attach, where a mark kept in the browser that clicked Start had shown it there only |
 
 ## Adding a fact
 

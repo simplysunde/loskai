@@ -36,8 +36,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   also loads in a second instead of about 8.
 - **A tmux session or project name typed with spaces gets dashes** as you type
   (`lima vm wrapper` → `lima-vm-wrapper`), instead of being refused when you click.
-- When Claude's **Start** stops at a question, such as whether to trust the folder, that
-  project's **Attach** turns amber until you click it, even after a reload.
+- When a Claude session is stopped at a question, such as whether to trust the folder, that
+  project's **Attach** and the row's Claude button turn amber until it is answered, for
+  everyone and on every device. Each machine asks you to click **Install again** once.
 - A run Loskai refuses before its terminal opens, such as a tool missing on the machine, is
   in the machine's **Log** with why, and in the server's log.
 - Git's **Keys** says when `~/.ssh/config` names a key it can't find on the machine — a host

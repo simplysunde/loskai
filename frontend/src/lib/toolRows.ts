@@ -1,6 +1,5 @@
 import { formatAgo } from "./format";
 import { tailscaleState, tailscaleStatus, type Facts, type SshStatus } from "./ssh";
-import { waitingKey } from "./waiting";
 import type { Tool, ToolAction, ToolRun, TargetKind } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
@@ -131,17 +130,23 @@ export function runningCount(t: Tool, ctx: ToolContext): number {
 }
 
 // What on a tool waits on you, in a few words, or null — its row button turns amber. A row
-// whose Start stopped at a question (`waiting`, in this browser) while its session still
-// runs; Tailscale logged out, or waiting for approval — not off, which is a choice.
-export function waitsOnYou(t: Tool, ctx: ToolContext, waiting: (key: string) => boolean): string | null {
+// whose session is stopped at a question, as the machine says (`isAsking`); Tailscale logged
+// out, or waiting for approval — not off, which is a choice.
+export function waitsOnYou(t: Tool, ctx: ToolContext): string | null {
   if (t.requires.includes("tailscale")) {
     return ["login", "approval"].includes(tailscaleState(ctx.facts)) ? tailscaleStatus(ctx.facts) : null;
   }
   const asking = listsOf(t, ctx).flatMap(({ kind, rows }) =>
-    rows.filter((r) => isLive(t, kind, r.name, ctx.facts) && waiting(waitingKey(ctx.machineId, t.id, kind, r.name))).map((r) => r.name),
+    rows.filter((r) => isAsking(t, kind, r.name, ctx.facts)).map((r) => r.name),
   );
   if (asking.length === 0) return null;
   return `${asking.length === 1 ? `${asking[0]} asks` : `${asking.length} ask`} something first: open it and Attach`;
+}
+
+// A row whose shared session is stopped at a question, as the machine's screen shows it:
+// opening it answers. The same for everyone who looks, until someone does.
+export function isAsking(t: Tool, kind: TargetKind, name: string, facts: Facts): boolean {
+  return facts.asks?.[t.id]?.[kind]?.includes(name) ?? false;
 }
 
 // A row whose shared session is running, as the server says: opening it attaches.

@@ -609,7 +609,8 @@ shell are on the Git card.
   it.
 
 If Start says **Claude asks whether to trust** the project first, click **Attach** and
-answer it there. Until you do, that project's **Attach** is amber, even after a reload. If it says **Claude isn't logged in on this machine**, open a **Terminal**,
+answer it there. Until someone does, that project's **Attach** is amber, for everyone and on
+every device. If it says **Claude isn't logged in on this machine**, open a **Terminal**,
 run `claude`, and log in with `/login`; then click **Start** again.
 
 Under the list: type a name and click **New project** to make a folder with a git

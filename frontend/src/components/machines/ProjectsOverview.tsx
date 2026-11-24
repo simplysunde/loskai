@@ -357,7 +357,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
               })}
               <td className="px-2.5 py-1 max-sm:ml-auto">
                 <span className="flex flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
-                  <RowButtons machine={ctx.machineId} here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
+                  <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
                 </span>
               </td>
             </tr>

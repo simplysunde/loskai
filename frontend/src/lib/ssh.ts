@@ -283,6 +283,9 @@ export interface Facts {
   tmux?: { name: string; created: number; attached: boolean; windows: number; tool: string | null }[];
   // By tool and kind, the rows whose shared session is running: { claude: { project: ["site"] } }.
   live?: Record<string, Record<string, string[]>>;
+  // The same for those whose session is stopped at a question there (Claude's trust
+  // question), as the machine's screen shows it — the same for every browser (v17).
+  asks?: Record<string, Record<string, string[]>>;
   tailscale?: string | null; // its Tailscale IPv4 address; null: not connected
   // The devices `tailscale status` lists, this machine first (`self`).
   tailnet?: { ip: string; name: string; os: string; online: boolean; self: boolean; status: string }[];

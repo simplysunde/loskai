@@ -1260,7 +1260,6 @@ test("a tool's dialog on an older status line goes straight to installing it aga
 
 test("a tool's row button counts what runs there, small, and turns amber where something waits on you", async () => {
   sshSetUp();
-  localStorage.removeItem("loskai-waiting");
   renderPage();
   await screen.findByText("Storage box");
   const button = async (name: RegExp) => within(nasRow()).findByRole("button", { name });
@@ -1274,19 +1273,14 @@ test("a tool's row button counts what runs there, small, and turns amber where s
   expect(claude).not.toHaveClass("text-amber-300");
   cleanup();
 
-  // A Start stopped at Claude's question, in this browser: amber, and why.
-  localStorage.setItem("loskai-waiting", JSON.stringify(["nas/claude/project/site", "nas/claude/project/blog"]));
-  try {
-    renderPage();
-    await screen.findByText("Storage box");
-    const waits = await button(/^Claude Code/);
-    expect(waits).toHaveClass("text-amber-300");
-    // blog's session isn't running: its mark is old, and not counted.
-    expect(waits).toHaveAccessibleName("Claude Code — site asks something first: open it and Attach");
-    expect(await button(/^tmux/)).not.toHaveClass("text-amber-300");
-  } finally {
-    localStorage.removeItem("loskai-waiting");
-  }
+  // A session the machine says is stopped at Claude's question: amber, and why.
+  facts = { ...FACTS, asks: { claude: { project: ["site"] } } };
+  renderPage();
+  await screen.findByText("Storage box");
+  const waits = await button(/^Claude Code/);
+  await waitFor(() => expect(waits).toHaveClass("text-amber-300"));
+  expect(waits).toHaveAccessibleName("Claude Code — site asks something first: open it and Attach");
+  expect(await button(/^tmux/)).not.toHaveClass("text-amber-300");
 });
 
 test("Tailscale's row button turns amber logged out or waiting for approval, not when it is off", async () => {
@@ -1934,8 +1928,7 @@ test("a project's buttons follow its session in the same places: Attach, greyed 
   fireEvent.pointerDown(document.body);
 });
 
-test("a Start that failed with its session running marks Attach until it is clicked, across a reload", async () => {
-  localStorage.removeItem("loskai-waiting");
+test("a session the machine says asks a question marks its Attach, as long as it asks — after a reload too", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
   await screen.findAllByText("blog");
@@ -1945,9 +1938,10 @@ test("a Start that failed with its session running marks Attach until it is clic
   const WAITING = /asks something first/;
   expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING));
 
-  // Start stops at Claude's trust question: it fails, and its session runs, waiting.
+  // Start stops at Claude's trust question: it fails, its session runs, and the machine says
+  // it asks.
   fireEvent.click(within(claude("blog")).getByRole("button", { name: "Start" }));
-  facts = { ...FACTS, live: { claude: { project: ["site", "blog"] } } };
+  facts = { ...FACTS, live: { claude: { project: ["site", "blog"] } }, asks: { claude: { project: ["blog"] } } };
   fireEvent.click(await screen.findByRole("button", { name: "end: failed" }));
   // Closed: what runs there is read again.
   fireEvent.click(within(await screen.findByRole("region", { name: /Start blog/ })).getByRole("button", { name: "Close" }));
@@ -1956,19 +1950,19 @@ test("a Start that failed with its session running marks Attach until it is clic
   // Only that row's.
   expect(within(claude("site")).getByRole("button", { name: "Attach" })).not.toHaveAttribute("title", expect.stringMatching(WAITING));
 
-  // A reload keeps it.
+  // Read from the machine, not this browser: a reload — any browser — sees it.
   cleanup();
   renderPage("/machines/nas/tools");
   await screen.findAllByText("blog");
   await waitFor(() => expect(attach()).toHaveAttribute("title", expect.stringMatching(WAITING)));
 
-  // Attached: gone, and stays gone.
-  fireEvent.click(attach());
-  await waitFor(() => expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING)));
+  // Answered, the machine no longer says so: gone.
+  facts = { ...FACTS, live: { claude: { project: ["site", "blog"] } } };
   cleanup();
   renderPage("/machines/nas/tools");
   await screen.findAllByText("blog");
-  expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING));
+  await waitFor(() => expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING)));
+  expect(localStorage.getItem("loskai-waiting")).toBeNull();
 });
 
 test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {
