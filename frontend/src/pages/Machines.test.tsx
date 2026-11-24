@@ -629,7 +629,8 @@ test("a machine's row adds a route on its address", async () => {
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(within(nasRow()).getByTitle("Add a route on this machine"));
+  fireEvent.click(within(nasRow()).getByRole("button", { name: "More" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Add a route" }));
 
   expect(await screen.findByRole("combobox", { name: "Host" })).toHaveValue("192.168.10.50");
 });
@@ -649,9 +650,11 @@ test("the Docker host is listed before it is named, with the routes on its addre
     // First, as it is once named.
     expect(screen.getAllByRole("row")[1]).toBe(row);
     expect(screen.getByText(":8081")).toBeInTheDocument();
-    // Nothing to set up until it has a name: no settings, no delete.
+    // Nothing to set up until it has a name: no settings, no delete — More only adds a route.
     expect(within(row).queryByTitle("Machine settings")).not.toBeInTheDocument();
-    expect(within(row).queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "More" }));
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Add a route"]);
+    fireEvent.keyDown(document, { key: "Escape" });
 
     fireEvent.click(within(row).getByTitle(/Name it/));
     expect(screen.getByPlaceholderText("192.168.1.x")).toHaveValue("192.168.10.220");
@@ -942,18 +945,24 @@ test("a tool the machine lacks is offered to add, when Loskai can install what i
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
 });
 
-test("a set-up machine's row has a Tools menu: each added tool, how it stands, in a dialog", async () => {
+test("a set-up machine's row has a button for each tool added there, how it stands in its title, opening its dialog", async () => {
   sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  // The machine's overview is read once the menu is open.
-  expect(await screen.findByRole("menuitem", { name: /Claude Code.*2 projects, 1 running/ })).toBeInTheDocument();
-  expect(screen.getByRole("menuitem", { name: /Versions.*not added/ })).toBeInTheDocument();
-  // System is standard: on the machine's page, not in the menu.
-  expect(screen.queryByRole("menuitem", { name: /System/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("menuitem", { name: /tmux/ }));
+  // No menu: each tool the machine has, on the row, in the order of the tools.
+  expect(within(nasRow()).queryByRole("button", { name: "Tools" })).toBeNull();
+  expect(await within(nasRow()).findByRole("button", { name: "Claude Code — 2 projects, 1 running" })).toBeInTheDocument();
+  const tools = within(nasRow()).getAllByRole("button").map((b) => b.title).filter((t) => /^(tmux|Claude Code|Tailscale|Git|Versions|System)\b/.test(t));
+  expect(tools.map((t) => t.split(" — ")[0])).toEqual(["tmux", "Claude Code", "Tailscale", "Git"]);
+  // One not added isn't on the row — Add tool, in the machine's dialog, adds it — nor is
+  // System, standard, whose Update is in More.
+  expect(within(nasRow()).queryByRole("button", { name: /^Versions/ })).toBeNull();
+  expect(within(nasRow()).queryByRole("button", { name: /^System/ })).toBeNull();
+  // pve has no SSH: no tools.
+  const pve = screen.getByText("pve").closest("tr") as HTMLElement;
+  expect(within(pve).queryByRole("button", { name: /^Git/ })).toBeNull();
+  fireEvent.click(within(nasRow()).getByRole("button", { name: /^tmux/ }));
 
   expect(await screen.findByText("tmux — Storage box")).toBeInTheDocument();
   expect(await screen.findByText("build")).toBeInTheDocument();
@@ -968,8 +977,7 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /Claude Code/ }));
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Claude Code/ }));
   expect(await screen.findByText("site")).toBeInTheDocument();
   expect(screen.getByText("~/projects/")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Machine" }));
@@ -1145,8 +1153,7 @@ test("Tailscale is two switches — connected, and sharing — with the tailnet 
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*100\.64\.0\.7$/ }));
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Tailscale.*100\.64\.0\.7$/ }));
 
   expect(await screen.findByRole("switch", { name: "Connected" })).toBeChecked();
   expect(screen.getByRole("switch", { name: "Share this network" })).not.toBeChecked();
@@ -1170,8 +1177,7 @@ test("on a status line before v9, sharing has no switch, only how to see it", as
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale/ }));
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Tailscale/ }));
 
   expect(await screen.findByRole("switch", { name: "Connected" })).toBeChecked();
   expect(screen.getByText(/Install again, under SSH, to see and change it/)).toBeInTheDocument();
@@ -1196,8 +1202,7 @@ test("Tailscale off, or logged out, offers only to connect", async () => {
     renderPage();
     await screen.findByText("Storage box");
 
-    fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*logged out/ }));
+    fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Tailscale.*logged out/ }));
 
     const connected = await screen.findByRole("switch", { name: "Connected" });
     expect(connected).not.toBeChecked();
@@ -1221,8 +1226,7 @@ test("Tailscale says which networks it shares, and which wait for approval", asy
     renderPage();
     await screen.findByText("Storage box");
 
-    fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Tailscale.*sharing 192\.168\.10\.0\/24, 10\.0\.0\.0\/24/ }));
+    fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Tailscale.*sharing 192\.168\.10\.0\/24, 10\.0\.0\.0\/24/ }));
 
     expect(await screen.findByRole("switch", { name: "Share this network" })).toBeChecked();
     const shared = screen.getByText("192.168.10.0/24").parentElement as HTMLElement;
@@ -1237,47 +1241,32 @@ test("Tailscale says which networks it shares, and which wait for approval", asy
 
 test("a tool's dialog on an older status line goes straight to installing it again", async () => {
   sshSetUp();
-  facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };
   renderPage();
   await screen.findByText("Storage box");
-
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /tmux/ }));
+  // The row's buttons come from the overview it read; the dialog reads it again.
+  const tmux = await within(nasRow()).findByRole("button", { name: /^tmux/ });
+  facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };
+  fireEvent.click(tmux);
   fireEvent.click(await screen.findByRole("link", { name: "Install again" }));
 
   // The machine's page, its SSH setup open.
   expect(await screen.findByText(/SSH — Storage box/)).toBeInTheDocument();
 });
 
-test("a tool's dialog whose request fails says why, and links to the machine's settings", async () => {
-  sshSetUp();
-  factsStatus = 409;
-  facts = { detail: "Storage box has no SSH user" };
-  renderPage();
-  await screen.findByText("Storage box");
-
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /tmux/ }));
-
-  // Not a spinner that never stops.
-  expect(await screen.findByText("Storage box has no SSH user")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("link", { name: "Settings" }));
-  expect(await screen.findByRole("dialog", { name: "Storage box" })).toBeInTheDocument();
-});
-
-test("a tool the machine lacks opens to what it needs, and adds it", async () => {
-  sshSetUp();
-  renderPage();
-  await screen.findByText("Storage box");
-
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Tools" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: /Versions/ }));
-
-  expect(await screen.findByText("Versions — Storage box")).toBeInTheDocument();
-  expect(screen.getByText("kubectl")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /Add Versions — installs kubectl/ }));
-  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=versions&install=true")).toBeInTheDocument();
-});
+for (const [why, reply, status] of [
+  ["its status line is older", { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" }, 200],
+  ["its request fails", { detail: "Storage box has no SSH user" }, 409],
+] as const) {
+  test(`a machine whose overview can't be read — ${why} — has no tool buttons on its row`, async () => {
+    sshSetUp();
+    facts = reply;
+    factsStatus = status;
+    renderPage();
+    await screen.findByText("Storage box");
+    await vi.waitFor(() => expect(within(nasRow()).getByTitle("Machine settings")).toBeInTheDocument());
+    expect(within(nasRow()).queryByRole("button", { name: /^(tmux|Git|Claude Code)/ })).toBeNull();
+  });
+}
 
 test("a tool's card lists its rows, each with its buttons — not another tool's sessions", async () => {
   sshSetUp();
@@ -2155,10 +2144,16 @@ test("a set-up machine's row updates its system in its terminal; the plain one h
   renderPage();
   await screen.findByText("Storage box");
 
-  // pve has no SSH: no Update on its row.
+  // In More, beside Add a route and Delete. pve has no SSH: no Update there.
   const pve = screen.getByText("pve").closest("tr") as HTMLElement;
   expect(within(pve).queryByTitle(/^Update the system/)).toBeNull();
-  fireEvent.click(await within(nasRow()).findByTitle(/^Update the system/));
+  fireEvent.click(within(pve).getByRole("button", { name: "More" }));
+  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Add a route", "Delete machine"]);
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(within(nasRow()).queryByTitle(/^Update the system/)).toBeNull();
+  fireEvent.click(within(nasRow()).getByRole("button", { name: "More" }));
+  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Add a route", "Update system", "Delete machine"]);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Update system" }));
 
   expect(await screen.findByText("Update — Storage box")).toBeInTheDocument();
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update")).toBeInTheDocument();

@@ -21,14 +21,14 @@ import { CARD_TABLE } from "../../lib/ui";
 import { dnsFine } from "../../lib/routes";
 import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
-import { RowMenu } from "../shared/RowMenu";
+import { RowMenu, type RowMenuItem } from "../shared/RowMenu";
 import type { Running, SshHost } from "../../lib/ssh";
 import type { Tool, TargetKind } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { splitUpstream } from "../../lib/validation";
 import { DOCKER_HOST_ID, routesOn } from "../routing/machine";
-import { ToolsMenu } from "./MachineTools";
+import { RowTools } from "./MachineTools";
 import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "../routing/machineServices";
 import { RunningPill, type PortAction } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
@@ -223,6 +223,18 @@ export function MachineTable({
               const hasSshLogin = Boolean(sshEntry?.user);
               const open = expanded.isOpen(machine.id);
               const Chevron = open ? ChevronDown : ChevronRight;
+              const menu: RowMenuItem[] = [
+                ...(onAddRoute ? [{ label: "Add a route", icon: <RouteIcon className="h-3.5 w-3.5" />, onClick: () => onAddRoute(machine) }] : []),
+                ...(hasSshLogin && trusted[machine.id] && onUpdate
+                  ? [{
+                      label: "Update system",
+                      title: "Refresh the package lists, then install every update — in its terminal",
+                      icon: <Download className="h-3.5 w-3.5" />,
+                      onClick: () => onUpdate(machine),
+                    }]
+                  : []),
+                ...(unnamed ? [] : [{ label: "Delete machine", icon: <Trash2 className="h-3.5 w-3.5" />, danger: true, onClick: () => onDelete(machine) }]),
+              ];
               return (
                 <Fragment key={machine.id}>
                   <tr className={`group border-t border-slate-800 max-sm:px-4 max-sm:py-2.5 ${atHost ? "bg-teal-500/5" : "bg-slate-900/50"}`}>
@@ -288,32 +300,18 @@ export function MachineTable({
                       )}
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {hasSshLogin && machine.subdomain && targets[machine.id] && trusted[machine.id] && onTerminal && (
                           <IconButton title={`Terminal: ssh ${machine.subdomain} — ${targets[machine.id]}`} onClick={() => onTerminal(machine)}>
                             <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {hasSshLogin && trusted[machine.id] && tools && onTool && (
-                          <ToolsMenu
+                          <RowTools
                             machineId={machine.id}
                             tools={tools}
-                            className={ICON_BUTTON}
                             onPick={(toolId) => onTool(machine, toolId)}
                           />
-                        )}
-                        {onAddRoute && (
-                          <IconButton title="Add a route on this machine" onClick={() => onAddRoute(machine)}>
-                            <RouteIcon className="h-3.5 w-3.5" />
-                          </IconButton>
-                        )}
-                        {hasSshLogin && trusted[machine.id] && onUpdate && (
-                          <IconButton
-                            title="Update the system: refresh the package lists, then install every update — in its terminal"
-                            onClick={() => onUpdate(machine)}
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </IconButton>
                         )}
                         {unnamed && onName && (
                           <IconButton title="Name it — a DNS name, then SSH and its tools" onClick={() => onName(machine)}>
@@ -329,7 +327,9 @@ export function MachineTable({
                         >
                           <Settings className="h-3.5 w-3.5" />
                         </IconButton>}
-                        {!unnamed && <RowMenu
+                        {/* What a row does less often: a route on its address, its system's
+                            update, and — once named — deleting it. */}
+                        {menu.length > 0 && <RowMenu
                           label="More"
                           trigger={
                             busyId === machine.id ? (
@@ -339,14 +339,7 @@ export function MachineTable({
                             )
                           }
                           triggerClass={ICON_BUTTON}
-                          items={[
-                            {
-                              label: "Delete machine",
-                              icon: <Trash2 className="h-3.5 w-3.5" />,
-                              danger: true,
-                              onClick: () => onDelete(machine),
-                            },
-                          ]}
+                          items={menu}
                         />}
                       </div>
                     </td>

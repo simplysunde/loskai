@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Plus, Wrench } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 import { SELF_UPDATING_REASON, tailscaleState, updatesItself, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
@@ -19,6 +19,7 @@ import {
   type TargetKind,
 } from "../../lib/tools";
 import { RowMenu } from "../shared/RowMenu";
+import { IconButton } from "../shared/IconButton";
 import { SettingRow, Switch } from "../shared/SettingRow";
 import { CardSettings, GitIdentity, ToolSettingsButton, ToolSettingsDialog } from "./ToolSettings";
 import { ToolAsk } from "./ToolAsk";
@@ -370,48 +371,37 @@ export function AddToolMenu({ ctx }: { ctx: ToolContext }) {
   );
 }
 
-// The Tools button on a machine's row in the Machines tab: each added tool with how it
-// stands there, opening it in a dialog. The machine's overview is read only while the menu
-// is open — the Machines tab doesn't otherwise ask for it.
-export function ToolsMenu({
+// A set-up machine's row: a button per tool it has, beyond the standard ones (System's
+// Update is in the row's More), in the tools' order, each opening its dialog and saying how it
+// stands in its title. From the machine's overview, read for the row and not polled: until it
+// answers, or where it can't be read, the row has none. Adding one is the machine's dialog's.
+export function RowTools({
   machineId,
   tools,
-  className,
   onPick,
 }: {
   machineId: string;
   tools: Tool[];
-  className: string;
   onPick: (toolId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const facts = useFacts(machineId, open);
+  const facts = useFacts(machineId, true, false);
   const ssh = useSsh();
-  const addOnTools = tools.filter((t) => !isStandard(t));
-  if (addOnTools.length === 0) return null;
-
-  const status = (t: Tool): string => {
-    if (!facts.data) return "…";
-    if (!facts.data.ok) return "";
-    const programs = facts.data.programs ?? [];
-    if (!applies(t, programs)) return addable(t, programs) ? "not added" : `needs ${missing(t, programs).join(", ")}`;
-    const ctx = toolContext(machineId, tools, facts.data, ssh.data);
-    return (ctx && toolSummary(t, ctx)) || "added";
-  };
-
+  if (!facts.data?.ok) return null;
+  const programs = facts.data.programs ?? [];
+  const ctx = toolContext(machineId, tools, facts.data, ssh.data);
   return (
-    <RowMenu
-      label="Tools"
-      trigger={<Wrench className="h-3.5 w-3.5" />}
-      triggerClass={className}
-      onOpenChange={setOpen}
-      items={addOnTools.map((t) => ({
-        label: t.name,
-        hint: status(t),
-        icon: <ToolIcon id={t.id} />,
-        onClick: () => onPick(t.id),
-      }))}
-    />
+    <>
+      {tools
+        .filter((t) => !isStandard(t) && applies(t, programs))
+        .map((t) => {
+          const summary = ctx && toolSummary(t, ctx);
+          return (
+            <IconButton key={t.id} title={summary ? `${t.name} — ${summary}` : t.name} onClick={() => onPick(t.id)}>
+              <ToolIcon id={t.id} />
+            </IconButton>
+          );
+        })}
+    </>
   );
 }
 

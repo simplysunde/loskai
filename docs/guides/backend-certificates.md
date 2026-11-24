@@ -43,7 +43,7 @@ for that name can't be checked at the service. Use two names:
 | `pve.home.lan` | a **route** to `192.168.10.177:8006`, **Backend speaks HTTPS** ticked | its card on the Dashboard, through Caddy |
 
 Name the machine on the **Machines** tab with **Name a machine**. Add the route from its row
-(**Add a route on this machine**): type `8006` as the **Port**, or pick `pveproxy` from the
+(**Add a route**, in the ⋮ menu): type `8006` as the **Port**, or pick `pveproxy` from the
 **Machines** list when the machine has SSH set up. Both move together if the machine's
 address changes.
 

@@ -344,8 +344,8 @@ The machine's row shows its name under **URL**. A tag beside it, **DNS missing**
 the buttons that copy the name and the address.
 
 **Routes on a machine.** A route whose address is the machine's is listed under it: click
-the machine's name to open it. Closed, it shows how many. The route icon on its row
-(**Add a route on this machine**) adds one. Give the machine another **Address** in its
+the machine's name to open it. Closed, it shows how many. **Add a route**, in the ⋮ menu
+(**More**) on its row, adds one. Give the machine another **Address** in its
 dialog and its routes move with it, except a container's route that follows its container.
 
 > *Example:* name `192.168.10.177` **proxmox** and it gets `proxmox.home.lan`. Add a route
@@ -379,7 +379,7 @@ is a good choice, and root works.
    lines shown to `~/.ssh/authorized_keys` on the machine, and click **Test connection**.
 5. You see **Loskai logs in with its key.** and how much is running. Click **Done**.
 
-The machine's row now has a terminal, the wrench (**Tools**), the update arrow and
+The machine's row now has a terminal, a button for each [tool](#tools) it has, and
 **n running**. If a step fails:
 [A machine over SSH](troubleshooting.md#a-machine-over-ssh).
 
@@ -439,7 +439,8 @@ use a narrower `sudo` rule.
 
 ### Update, reboot or shut down a machine
 
-1. Click the update arrow on the machine's row, or **Update** in its dialog. It refreshes
+1. Click **Update system** in the ⋮ menu (**More**) on the machine's row, or **Update** in
+   its dialog. It refreshes
    the package lists and installs every update, with the machine's own package manager.
 2. If `sudo` needs a password there, a dialog asks for it. Type it and click **Run**. It is
    checked on the machine and used for this run only.
@@ -479,8 +480,8 @@ A tool adds a card to a machine's dialog, under **Tools**, where the machine has
 program: **Git**, **Claude Code**, **Tailscale**, **tmux**.
 
 - **Add one.** Click **Add tool** and pick it. Each says what it installs.
-- **Open one from the list.** The wrench (**Tools**) on a machine's row lists the four with
-  how each stands there, **not added** included, and opens the one you click.
+- **Open one from the list.** A machine's row has a button for each tool it has. Point at
+  one to see how it stands there, such as **2 projects, 1 running**; click it to open it.
 
 Point at a tool's button to see the command it runs. Some run by themselves in the panel at
 the top, like an update. The others open a terminal, where you answer what the program asks:

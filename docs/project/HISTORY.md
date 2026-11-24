@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-24 — A machine's row: a button per tool; Add a route and Update in More
+
+The row's wrench opened a menu of every tool, added or not. Sunde wanted the tools on the
+row itself, and asked whether Add a route and Update belonged in More. They do: Update has
+**Update all** above the table and **Update** in the machine's dialog, and a route is added
+less often than a tool is opened — with them in More, the row's width goes to the tools. A
+tool not added isn't on the row; the machine's dialog's **Add tool** adds one, as it did.
+The cost is that the table reads each set-up machine's overview when it opens (the status
+key, read-only; not polled), where it read it only while the menu was open — about a second
+a machine since v16, which also lets a machine's dialog open on it at once. A machine whose
+overview can't be read has no tool buttons; its dialog says why.
+
 ## 2026-11-23 — Keys after Phase 64: Add SSH key, Delete in Git's Keys, a key's use shown everywhere
 
 Using Phase 64 on codebox and throne changed five of its choices.
