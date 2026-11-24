@@ -379,8 +379,8 @@ is a good choice, and root works.
    lines shown to `~/.ssh/authorized_keys` on the machine, and click **Test connection**.
 5. You see **Loskai logs in with its key.** and how much is running. Click **Done**.
 
-The machine's row now has a terminal, a button for each [tool](#tools) it has, and
-**n running**. If a step fails:
+The machine's row now has **n running**, a button for each [tool](#tools) it has, and a
+terminal beside the cog. If a step fails:
 [A machine over SSH](troubleshooting.md#a-machine-over-ssh).
 
 **Your password unlocks the key.** The first thing you do that needs it opens **Unlock

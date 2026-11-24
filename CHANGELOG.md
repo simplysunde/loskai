@@ -17,8 +17,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
   tag names only a site something uses it on, so an unused key no longer looks like the one
   in use.
 - **A machine's row has a button for each tool it has**, in place of the Tools menu; its
-  tooltip says how the tool stands. **Add a route** and **Update system** moved into the row's
-  ⋮ menu, beside **Delete machine**.
+  tooltip says how the tool stands. The terminal, the cog and ⋮ end every row, in the same
+  place. **Add a route** and **Update system** moved into the ⋮ menu, beside **Delete
+  machine**.
 - **A machine's SSH keys are in one place, Git's Keys.** The **Keys (n)** button in the
   machine's SSH settings is gone. Git's **Keys** now has **Label** on every key, and lists a
   key nothing claims yet, such as a new machine's own, under **Not used by git yet**; a key

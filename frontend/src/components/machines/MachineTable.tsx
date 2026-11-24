@@ -301,11 +301,6 @@ export function MachineTable({
                     </td>
                     <td className="px-4 py-2 max-sm:ml-auto">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        {hasSshLogin && machine.subdomain && targets[machine.id] && trusted[machine.id] && onTerminal && (
-                          <IconButton title={`Terminal: ssh ${machine.subdomain} — ${targets[machine.id]}`} onClick={() => onTerminal(machine)}>
-                            <Terminal className="h-3.5 w-3.5" />
-                          </IconButton>
-                        )}
                         {hasSshLogin && trusted[machine.id] && tools && onTool && (
                           <RowTools
                             machineId={machine.id}
@@ -316,6 +311,13 @@ export function MachineTable({
                         {unnamed && onName && (
                           <IconButton title="Name it — a DNS name, then SSH and its tools" onClick={() => onName(machine)}>
                             <Tag className="h-3.5 w-3.5" />
+                          </IconButton>
+                        )}
+                        {/* What every row has comes last, so it sits in the same place on each:
+                            the tools a machine has go to its left. */}
+                        {hasSshLogin && machine.subdomain && targets[machine.id] && trusted[machine.id] && onTerminal && (
+                          <IconButton title={`Terminal: ssh ${machine.subdomain} — ${targets[machine.id]}`} onClick={() => onTerminal(machine)}>
+                            <Terminal className="h-3.5 w-3.5" />
                           </IconButton>
                         )}
                         {/* Its dialog: name, address, SSH, what runs there. Amber while it has

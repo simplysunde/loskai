@@ -959,6 +959,11 @@ test("a set-up machine's row has a button for each tool added there, how it stan
   // System, standard, whose Update is in More.
   expect(within(nasRow()).queryByRole("button", { name: /^Versions/ })).toBeNull();
   expect(within(nasRow()).queryByRole("button", { name: /^System/ })).toBeNull();
+  // The tools first, then what every row has, ending each row in the same place: Terminal,
+  // Machine settings, More.
+  const titles = within(nasRow()).getAllByRole("button").filter((b) => !b.hasAttribute("aria-expanded") || b.title === "More").map((b) => b.title);
+  expect(titles.slice(-3).map((t) => t.split(":")[0])).toEqual(["Terminal", "Machine settings", "More"]);
+  expect(titles.indexOf(tools[tools.length - 1])).toBeLessThan(titles.length - 3);
   // pve has no SSH: no tools.
   const pve = screen.getByText("pve").closest("tr") as HTMLElement;
   expect(within(pve).queryByRole("button", { name: /^Git/ })).toBeNull();
