@@ -20,6 +20,21 @@ interface Copied {
   ok: boolean;
 }
 
+// What the terminal holds, as text: its rows, a row wrapped from the one above joined to it,
+// and the blank ones at the end left out. Inside tmux that is tmux's screen — its own
+// scrollback stays on the machine.
+function terminalText(term: XTerm): string {
+  const buffer = term.buffer.active;
+  const lines: string[] = [];
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i);
+    if (!line) continue;
+    const text = line.translateToString(true);
+    if (line.isWrapped && lines.length) lines[lines.length - 1] += text;
+    else lines.push(text);
+  }
+  return lines.join("\n").trimEnd();
+}
 
 // An interactive shell over a WebSocket: keystrokes and pastes go out as bytes (stdin), a
 // resize as a JSON control frame, output comes back as bytes. The container terminal and a
@@ -43,17 +58,24 @@ export function XtermSession({
   onOutput?: (text: string) => void;
   toolbar?: (run: (command: string) => void) => ReactNode;
   height?: string;
-  // The keyboard icon listing the terminal's keys; the quick terminal leaves it out, and
-  // with it the row above the terminal, unless something is copied.
+  // The keyboard icon listing the terminal's keys; the quick terminal leaves it out.
   keys?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const termRef = useRef<XTerm | null>(null);
+  const clearCopied = useRef<ReturnType<typeof setTimeout>>(undefined);
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
   const onOutputRef = useRef(onOutput);
   onOutputRef.current = onOutput;
   const [copied, setCopied] = useState<Copied | null>(null);
+  // Said beside the buttons; a copy that went through goes after a moment.
+  const showCopied = (text: string, ok: boolean) => {
+    setCopied({ text, ok });
+    clearTimeout(clearCopied.current);
+    if (ok) clearCopied.current = setTimeout(() => setCopied(null), 4000);
+  };
 
   useEffect(() => {
     const term = new XTerm({
@@ -65,6 +87,7 @@ export function XtermSession({
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(hostRef.current!);
+    termRef.current = term;
     fit.fit();
 
     // Once the session has ended there is no program left to read Escape, so it is passed on:
@@ -91,15 +114,12 @@ export function XtermSession({
     // their own. Without this xterm drops it, and the text never leaves the terminal. The
     // keypress that copied is usually still a user gesture, so the browser allows it; when
     // it doesn't (plain HTTP, Firefox), a button copies it on the next click.
-    let clearCopied: ReturnType<typeof setTimeout> | undefined;
     const oscSub = term.parser.registerOscHandler(52, (data) => {
       const text = decodeOsc52(data);
       if (text) {
         void copyText(text).then((ok) => {
           term.focus();
-          setCopied({ text, ok });
-          clearTimeout(clearCopied);
-          if (ok) clearCopied = setTimeout(() => setCopied(null), 4000);
+          showCopied(text, ok);
         });
       }
       return true;
@@ -157,13 +177,14 @@ export function XtermSession({
       dataSub.dispose();
       resizeSub.dispose();
       oscSub.dispose();
-      clearTimeout(clearCopied);
+      clearTimeout(clearCopied.current);
       clearTimeout(connecting);
       if (ws) {
         ws.onclose = null;
         ws.close();
       }
       term.dispose();
+      termRef.current = null;
     };
   }, [url, first]);
 
@@ -171,32 +192,43 @@ export function XtermSession({
     wsRef.current?.send(new TextEncoder().encode(command + "\n"));
   };
 
+  const copyOutput = () => {
+    const text = termRef.current ? terminalText(termRef.current) : "";
+    if (text) void copyText(text).then((ok) => showCopied(text, ok));
+  };
+
   return (
     <>
-      {(keys || toolbar || copied) && (
-        <div className="mb-2 flex items-start gap-2">
-          <div className="min-w-0 flex-1">{toolbar?.(run)}</div>
-          {copied?.ok && (
-            <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-300">
-              <Check className="h-3.5 w-3.5" /> Copied {copied.text.length} characters
-            </span>
-          )}
-          {copied && !copied.ok && (
-            <button
-              title="The browser didn't let the terminal copy by itself — this copies it"
-              onClick={() => void copyText(copied.text).then((ok) => ok && setCopied(null))}
-              className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 px-1.5 py-0.5 text-xs text-amber-300 hover:bg-amber-500/10"
-            >
-              <Copy className="h-3.5 w-3.5" /> Copy {copied.text.length} characters
-            </button>
-          )}
-          {keys && (
-            <Hint text={KEYS_HINT} className="shrink-0 text-slate-500">
-              <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
-            </Hint>
-          )}
-        </div>
-      )}
+      <div className="mb-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1">{toolbar?.(run)}</div>
+        {copied?.ok && (
+          <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-300">
+            <Check className="h-3.5 w-3.5" /> Copied {copied.text.length} characters
+          </span>
+        )}
+        {copied && !copied.ok && (
+          <button
+            title="The browser didn't let the terminal copy by itself — this copies it"
+            onClick={() => void copyText(copied.text).then((ok) => ok && setCopied(null))}
+            className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 px-1.5 py-0.5 text-xs text-amber-300 hover:bg-amber-500/10"
+          >
+            <Copy className="h-3.5 w-3.5" /> Copy {copied.text.length} characters
+          </button>
+        )}
+        <button
+          onClick={copyOutput}
+          aria-label="Copy the output"
+          title="Copy the output"
+          className="shrink-0 rounded p-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+        {keys && (
+          <Hint text={KEYS_HINT} className="shrink-0 text-slate-500">
+            <Keyboard aria-label="Keyboard shortcuts" className="h-4 w-4" />
+          </Hint>
+        )}
+      </div>
       <div ref={hostRef} className={`${height} rounded-lg bg-slate-950 p-2`} />
     </>
   );

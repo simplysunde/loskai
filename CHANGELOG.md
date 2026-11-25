@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Every terminal has a copy icon**, the drop-down one too: it copies everything the
+  terminal shows, a long line whole.
 - **Pull** and **Push** drop down from the top of the page, as an update does, and say
   **Done** or **Failed** with git's last lines; a failure stays until you close it. So do
   **Pull all** and **Push all**.

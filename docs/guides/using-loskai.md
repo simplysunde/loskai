@@ -398,6 +398,9 @@ icon at the top lists its keys:
 - Shift+drag selects where a program uses the mouse itself: tmux, Claude Code.
 - What a program copies, in tmux or Claude Code, lands on your clipboard.
 
+The copy icon beside it copies everything the terminal shows, to paste an error whole. It is
+on every terminal, the drop-down one too.
+
 ### A machine's dialog
 
 The cog on a machine's row (**Machine settings**) opens it. The menu down its side jumps to

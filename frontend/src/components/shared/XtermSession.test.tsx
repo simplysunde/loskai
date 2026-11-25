@@ -1,8 +1,11 @@
 import { StrictMode } from "react";
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
+import { copyText } from "../../lib/clipboard";
 import { XtermSession } from "./XtermSession";
+
+vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(async () => true) }));
 
 // xterm needs a real canvas; a terminal that does nothing will do, keeping its key handler.
 let keys: ((e: KeyboardEvent) => boolean) | null = null;
@@ -19,6 +22,19 @@ vi.mock("@xterm/xterm", () => ({
     onData = () => ({ dispose() {} });
     onResize = () => ({ dispose() {} });
     hasSelection = () => false;
+    // What it shows: a long line wrapped onto a second row, then blank rows.
+    buffer = {
+      active: {
+        length: 5,
+        getLine: (i: number) => [
+          { isWrapped: false, translateToString: () => "error: failed to push some refs to 'ssh://host" },
+          { isWrapped: true, translateToString: () => "/repo.git'" },
+          { isWrapped: false, translateToString: () => "[failed, exit 1] Enter closes this." },
+          { isWrapped: false, translateToString: () => "" },
+          { isWrapped: false, translateToString: () => "" },
+        ][i],
+      },
+    };
     write() {}
     focus() {}
     dispose() {}
@@ -109,4 +125,16 @@ test("once the session has ended, Escape is passed on to close the dialog", asyn
   expect(keys?.(escape)).toBe(true);
   sockets[0].onclose?.({ code: 1000, reason: "" });
   expect(keys?.(escape)).toBe(false);
+});
+
+test.each([true, false])("Copy takes what the terminal shows, a wrapped line whole (keys: %s)", async (keys) => {
+  vi.stubGlobal("WebSocket", Object.assign(class { readyState = 0; close() {} send() {} }, { OPEN: 1 }));
+  render(<XtermSession url="/api/ssh/machines/nas/terminal" keys={keys} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Copy the output" }));
+
+  expect(copyText).toHaveBeenLastCalledWith(
+    "error: failed to push some refs to 'ssh://host/repo.git'\n[failed, exit 1] Enter closes this.",
+  );
+  expect(await screen.findByText(/Copied 92 characters/)).toBeTruthy();
 });
