@@ -452,7 +452,8 @@ use a narrower `sudo` rule.
    last lines. It closes by itself after three seconds. Point at it to hold it, or click **Keep open**. If it says
    **Failed**, it stays, with the output.
 
-**Reboot** and **Shut down** are in the dialog, under **General**. Each asks first.
+**Reboot** and **Shut down** are in the same ⋮ menu, and in the dialog under **General**.
+Each asks first.
 
 ### Updates without a password
 

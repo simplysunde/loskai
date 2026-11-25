@@ -2250,11 +2250,27 @@ test("a set-up machine's row updates its system in its terminal; the plain one h
   fireEvent.keyDown(document, { key: "Escape" });
   expect(within(nasRow()).queryByTitle(/^Update the system/)).toBeNull();
   fireEvent.click(within(nasRow()).getByRole("button", { name: "More" }));
-  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Add a route", "Update system", "Delete machine"]);
+  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Add a route", "Update system", "Reboot", "Delete machine"]);
+  // Delete stands apart from what the row does to the machine.
+  expect(screen.getByRole("menuitem", { name: "Delete machine" }).previousElementSibling).toHaveAttribute("role", "separator");
   fireEvent.click(screen.getByRole("menuitem", { name: "Update system" }));
 
   expect(await screen.findByText("Update — Storage box")).toBeInTheDocument();
   expect(screen.getByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=update")).toBeInTheDocument();
+});
+
+test("a set-up machine's row reboots it from More, asking first", async () => {
+  sshSetUp();
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(within(nasRow()).getByRole("button", { name: "More" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Reboot" }));
+  expect(await screen.findByText("Everything on it stops until it is back up.")).toBeInTheDocument();
+  expect(screen.queryByText(/shell at/)).toBeNull();
+
+  fireEvent.click(within(screen.getByRole("dialog", { name: /Reboot — Storage box/ })).getByRole("button", { name: "Reboot" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=system&action=reboot")).toBeInTheDocument();
 });
 
 test("a set-up machine's row opens a terminal on it", async () => {

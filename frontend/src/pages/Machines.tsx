@@ -7,7 +7,7 @@ import { api, apiMessage } from "../lib/api";
 import { refreshRecords, saveNew, useInstanceRows } from "../lib/routes";
 import { useSettings } from "../lib/settings";
 import { takesKeysOff, useRunning, useSsh } from "../lib/ssh";
-import { MACHINE_TOOL, useTools, type ToolRun } from "../lib/tools";
+import { MACHINE_TOOL, useTools } from "../lib/tools";
 import { useHealth } from "../lib/useHealth";
 import { AddMachineModal } from "../components/machines/AddMachineModal";
 import { AddRouteModal, type NewLink, type NewRoute } from "../components/routing/AddRouteModal";
@@ -15,6 +15,7 @@ import type { MachineService } from "../components/routing/machineServices";
 import { isMachine, routesOn, unnamedDockerHost } from "../components/routing/machine";
 import { MachineTable } from "../components/machines/MachineTable";
 import { MachineTerminal } from "../components/machines/MachineTerminal";
+import { useToolRunner } from "../components/machines/useToolRunner";
 import { SaveBanner } from "../components/routing/SaveBanner";
 import { ProjectsOverview } from "../components/machines/ProjectsOverview";
 import { UpdateAll } from "../components/machines/UpdateAll";
@@ -48,8 +49,11 @@ export function Machines() {
   // The machine a new route is being added on, from its row — with a port of its running
   // list already picked, from there.
   const [routeOn, setRouteOn] = useState<{ machine: Instance; service?: MachineService } | null>(null);
-  // The machine with a terminal open, and what it runs there — its shell, or System's Update.
-  const [terminalFor, setTerminalFor] = useState<{ machine: Instance; run?: ToolRun } | null>(null);
+  // The machine with a terminal open on its shell, from its row.
+  const [terminalFor, setTerminalFor] = useState<Instance | null>(null);
+  // The machine one of System's actions runs on, from its row's More — asked first where
+  // the action says so (Reboot, Shut down), as in its dialog.
+  const [systemOn, setSystemOn] = useState<Instance | null>(null);
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: Instance; toolId: string } | null>(null);
   // Every machine's projects, and every machine's updates, from the row above the table.
@@ -64,6 +68,7 @@ export function Machines() {
   const sshHosts = ssh.data?.hosts ?? {};
   const trusted = ssh.data?.trusted ?? {};
   const running = useRunning(Object.keys(trusted).length > 0);
+  const system = useToolRunner(systemOn ? { id: systemOn.id, name: systemOn.name } : undefined, ssh.data?.key ?? null);
 
   const canUpdate = Boolean(tools.data?.some((t) => t.id === MACHINE_TOOL && t.actions.some((a) => a.id === "update")));
 
@@ -178,12 +183,11 @@ export function Machines() {
           onOpen={(m) => navigate(`/machines/${m.id}`)}
           tools={tools.data}
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
-          onTerminal={(machine) => setTerminalFor({ machine })}
-          onUpdate={
-            canUpdate
-              ? (machine) => setTerminalFor({ machine, run: { tool: MACHINE_TOOL, action: "update", title: "Update" } })
-              : undefined
-          }
+          onTerminal={(machine) => setTerminalFor(machine)}
+          onSystem={(machine, action) => {
+            setSystemOn(machine);
+            system.start({ tool: MACHINE_TOOL, action: action.id, title: action.label }, action);
+          }}
           onName={(m) => {
             setError(null);
             setNaming({ address: m.upstream ?? "" });
@@ -246,19 +250,13 @@ export function Machines() {
       )}
       {terminalFor && (
         <MachineTerminal
-          key={terminalFor.machine.id}
-          machine={{ id: terminalFor.machine.id, name: terminalFor.machine.name }}
+          key={terminalFor.id}
+          machine={{ id: terminalFor.id, name: terminalFor.name }}
           sshKey={ssh.data?.key ?? null}
-          run={terminalFor.run}
-          // The row's only run is System's Update, which is automatic.
-          quick={Boolean(terminalFor.run)}
-          onClose={() => {
-            setTerminalFor(null);
-            // An update changes what the overview counts as waiting.
-            if (terminalFor.run) qc.invalidateQueries({ queryKey: ["ssh-facts"] });
-          }}
+          onClose={() => setTerminalFor(null)}
         />
       )}
+      {system.ui}
 
       <ConfirmDialog
         open={confirmDelete !== null}

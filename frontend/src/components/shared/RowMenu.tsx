@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 export interface RowMenuItem {
@@ -8,6 +8,7 @@ export interface RowMenuItem {
   danger?: boolean;
   hint?: string; // a muted second part, after the label
   title?: string; // a tooltip, for what the label leaves out
+  divider?: boolean; // a line above it, setting it apart (Delete, after what a row does)
 }
 
 // A row's less-used actions behind one "⋯" button — or behind `trigger`, a labelled button
@@ -84,8 +85,9 @@ export function RowMenu({
           >
             {heading && <div className="border-b border-slate-800 px-3 pt-1 pb-2 text-xs text-slate-500">{heading}</div>}
             {items.map((item) => (
+              <Fragment key={item.label}>
+              {item.divider && <div role="separator" className="my-1 border-t border-slate-800" />}
               <button
-                key={item.label}
                 role="menuitem"
                 title={item.title}
                 onClick={() => {
@@ -102,6 +104,7 @@ export function RowMenu({
                 {item.label}
                 {item.hint && <span className="ml-auto pl-4 text-slate-500">{item.hint}</span>}
               </button>
+              </Fragment>
             ))}
           </div>
         </>

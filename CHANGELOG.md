@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Reboot** and **Shut down** are in a machine's ⋮ menu too, beside **Update system**, each
+  asking first as in its dialog. **Delete machine** sits below a line, apart from them.
 - **Installing Loskai's keys on a Proxmox host keeps its `authorized_keys` link.** Root's
   `~/.ssh/authorized_keys` there links to the cluster's `/etc/pve/priv/authorized_keys`;
   an install, or removing SSH, now writes that file and leaves the link, where before it put

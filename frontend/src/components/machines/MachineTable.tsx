@@ -5,7 +5,6 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   CornerDownRight,
-  Download,
   HardDrive,
   Loader2,
   MoreVertical,
@@ -23,12 +22,13 @@ import { ICON_BUTTON, IconButton } from "../shared/IconButton";
 import { RouteLink } from "../shared/RouteLink";
 import { RowMenu, type RowMenuItem } from "../shared/RowMenu";
 import { statusProblem, useFacts, type Running, type SshHost } from "../../lib/ssh";
-import type { Tool, TargetKind } from "../../lib/tools";
+import { isOnCard, MACHINE_TOOL, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
 import { useExpanded } from "../../lib/useExpanded";
 import { useCaddySetUp } from "../../lib/useHealth";
 import { splitUpstream } from "../../lib/validation";
 import { DOCKER_HOST_ID, routesOn } from "../routing/machine";
 import { RowTools } from "./MachineTools";
+import { ActionIcon } from "./ToolIcon";
 import { guestAddress, guestHostname, guestMachine, servicesOn, type MachineService } from "../routing/machineServices";
 import { RunningPill, type PortAction } from "./RunningPill";
 import { CopyButton } from "../shared/CopyButton";
@@ -61,7 +61,7 @@ export function MachineTable({
   onNameGuest,
   dockerHost,
   onTerminal,
-  onUpdate,
+  onSystem,
   tools,
   onTool,
   busyId,
@@ -79,8 +79,8 @@ export function MachineTable({
   // The machine's own page — the cog. Once its SSH is set up, a terminal on it too.
   onOpen: (machine: Instance) => void;
   onTerminal?: (machine: Instance) => void;
-  // System's Update, run in its terminal — given only where there is one.
-  onUpdate?: (machine: Instance) => void;
+  // One of System's actions on the machine itself — Update, Reboot, Shut down — in More.
+  onSystem?: (machine: Instance, action: ToolAction) => void;
   // Behind the row's ⋮, so it isn't one click from the buttons used every day.
   onDelete: (machine: Instance) => void;
   // Add route, already on this machine's address — the usual reason to have named it.
@@ -181,6 +181,8 @@ export function MachineTable({
   };
 
   const isHost = (m: Instance) => Boolean(dockerHost) && m.upstream === dockerHost;
+  // What More offers on a set-up machine, from System's tool file — what its dialog has by the overview.
+  const systemActions = (tools?.find((t) => t.id === MACHINE_TOOL)?.actions ?? []).filter((a) => !a.target && !a.ask && isOnCard(a));
   const ids = machines.map((m) => m.id);
   const anyOpen = expanded.anyOpen(ids);
   const AllIcon = anyOpen ? ChevronsDownUp : ChevronsUpDown;
@@ -225,15 +227,16 @@ export function MachineTable({
               const Chevron = open ? ChevronDown : ChevronRight;
               const menu: RowMenuItem[] = [
                 ...(onAddRoute ? [{ label: "Add a route", icon: <RouteIcon className="h-3.5 w-3.5" />, onClick: () => onAddRoute(machine) }] : []),
-                ...(hasSshLogin && trusted[machine.id] && onUpdate
-                  ? [{
-                      label: "Update system",
-                      title: "Refresh the package lists, then install every update — in its terminal",
-                      icon: <Download className="h-3.5 w-3.5" />,
-                      onClick: () => onUpdate(machine),
-                    }]
+                ...(hasSshLogin && trusted[machine.id] && onSystem
+                  ? systemActions.map((a) => ({
+                      // "Update" alone, among a row's actions, could be Loskai's own.
+                      label: a.id === "update" ? "Update system" : a.label,
+                      title: `${a.description} — in its terminal`,
+                      icon: <ActionIcon tool={MACHINE_TOOL} action={a.id} className="h-3.5 w-3.5" />,
+                      onClick: () => onSystem(machine, a),
+                    }))
                   : []),
-                ...(unnamed ? [] : [{ label: "Delete machine", icon: <Trash2 className="h-3.5 w-3.5" />, danger: true, onClick: () => onDelete(machine) }]),
+                ...(unnamed ? [] : [{ label: "Delete machine", icon: <Trash2 className="h-3.5 w-3.5" />, danger: true, divider: true, onClick: () => onDelete(machine) }]),
               ];
               return (
                 <Fragment key={machine.id}>
