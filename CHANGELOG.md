@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Pull** and **Push** drop down from the top of the page, as an update does, and say
+  **Done** or **Failed** with git's last lines; a failure stays until you close it. So do
+  **Pull all** and **Push all**.
 - **Running an action again runs it again.** A run whose window was closed before Enter
   stayed on the machine, waiting, and the next **Push** (or any action) showed that old
   result and ran nothing. Now a run that has finished is closed and a new one starts; one

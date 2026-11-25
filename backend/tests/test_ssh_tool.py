@@ -32,6 +32,8 @@ def test_every_shipped_tool_is_valid():
     # The tests drop down, their answer Done or Failed, and so does making the account key —
     # Keys shows it; deleting one stays open to read.
     assert all(tools["git"].actions[a].automatic for a in ("key-on-host", "account-key"))
+    # Pull and Push too: the drop-down says Done or Failed, with git's last lines.
+    assert all(tools["git"].actions[a].automatic for a in ("pull", "push", "pull-all", "push-all"))
     assert tools["git"].actions["account-key"].ask == "key-comment"
     assert not tools["git"].actions["delete-key"].automatic
     assert tools["tmux"].actions["new"].ask == "session" and tools["tmux"].actions["attach"].session is False

@@ -274,8 +274,10 @@ succeeds it stays three seconds — hovering holds it, **Keep open** keeps it �
 away; a failure stays, saying its exit code, until closed or Enter is pressed in it. The
 page tells a failure by the `[failed, exit N]` line `tool.terminal_command` prints: inside tmux, the
 exit code never reaches the end of the session. Leave it out for anything whose
-output is the point (a status, a pull) or that you work in (a shell, an attach, Claude,
-a login link): those answer sudo in the terminal. Adding a tool, and the sudo rule, always
+output is the point (a status) or that you work in (a shell, an attach, Claude,
+a login link): those answer sudo in the terminal. The drop-down takes typing, so a run that
+sometimes asks — git's login over HTTPS, trusting a new host — can still be automatic: Git's
+Pull and Push are. Adding a tool, and the sudo rule, always
 run this way.
 
 ## How an action runs

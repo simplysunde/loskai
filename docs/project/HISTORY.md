@@ -4,6 +4,16 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-25 — Pull and Push drop down
+
+Sunde asked for a push to be "a quake terminal that says if the action succeeded or failed,
+the summary of the result". This walks back 2026-11-03's "Status, Pull and Push stay as they
+were, because their output is the point": with a remote over SSH they run unattended, and
+the drop-down keeps git's last lines — on screen three seconds, or until closed on a
+failure. Pull all and Push all came with them, as the same buttons in the user's eyes. A
+remote that asks (an HTTPS login, a new host) still gets its answer: the drop-down takes
+typing. Clone is left a window: the request was pull and push.
+
 ## 2026-11-25 — A finished run is never attached to again
 
 Sunde found that a Push whose window was closed before **Enter closes this** left its tmux

@@ -525,7 +525,8 @@ change it.
   says `as` and the name.
 - **Work on a project.** Each has **Pull**, which only fast-forwards, **Push**, and
   **Terminal**, a shell in it. **Pull all** and **Push all** do every project that has
-  something to pull or push.
+  something to pull or push. Pulls and pushes drop down from the top of the page and say
+  **Done** or **Failed**, with git's last lines.
 - **Get a project.** Paste a repository's address beside **Clone** and click it.
 
 These run in the machine's terminal as its SSH user. Over HTTPS a public repository just

@@ -2,7 +2,9 @@
 # its projects folder ($PROJECTS), which Claude Code finds its projects in too: clone one,
 # pull or push it, or open a shell in it. They run in the machine's terminal as its SSH
 # user, so a remote over SSH uses that user's own key and asks to trust a new host there,
-# and one over HTTPS asks for its login there when it needs one. That user's keys are in
+# and one over HTTPS asks for its login there when it needs one — Pull and Push are
+# automatic, so that is in the drop-down, which says Done or Failed with git's last lines
+# (a closed window never leaves one waiting to be attached to). That user's keys are in
 # Keys: each one's Copy (the page's, from the overview), Test and Delete, a new account
 # key, a key for a host, and a test on any host. A
 # project can have its own commit name, email and key — a deploy key — in place of the
@@ -49,11 +51,13 @@ actions:
     label: Pull
     description: Bring in what was pushed from elsewhere — only when it fast-forwards, never a merge.
     target: project
+    automatic: true
     run: cd "$PROJECTS/$1" && git pull --ff-only
   push:
     label: Push
     description: Send this project's commits to its remote.
     target: project
+    automatic: true
     run: cd "$PROJECTS/$1" && git push
   terminal:
     label: Terminal
@@ -100,6 +104,7 @@ actions:
   pull-all:
     label: Pull all
     description: Pull every project that has a remote — each only when it fast-forwards.
+    automatic: true
     run: >-
       cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
       s=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
@@ -110,6 +115,7 @@ actions:
     description: >-
       Push every project with commits its remote doesn't have yet, as of the last fetch —
       and any without an upstream, which says so.
+    automatic: true
     run: >-
       cd "$PROJECTS" 2>/dev/null || { echo "No projects folder yet."; exit 0; };
       s=0; n=0; for g in */.git; do [ -e "$g" ] || continue; d=${g%/.git};
