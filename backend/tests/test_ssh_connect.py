@@ -761,7 +761,7 @@ def test_with_tmux_an_action_runs_in_its_own_session(api, machine_net, shell):
     with api.websocket_connect(TERMINAL + "&tool=services&action=restart-service&target=nginx", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
-    assert shell["command"].startswith("tmux new-session -A -s loskai-services-restart-service-nginx ")
+    assert "tmux new-session -A -s loskai-services-restart-service-nginx " in shell["command"]
     assert "loskai nginx" in shell["command"]  # the target, as $1
 
 
@@ -869,7 +869,7 @@ def test_a_project_action_runs_in_its_claude_session_in_the_machine_s_folder(api
     with api.websocket_connect(TERMINAL + "&tool=claude&action=attach&target=site", headers=ORIGIN) as ws:
         ws.receive_bytes()
 
-    assert shell["command"].startswith("tmux new-session -A -s claude-site ")
+    assert "tmux new-session -A -s claude-site " in shell["command"]
     assert "PROJECTS=$HOME/code;" in shell["command"] and "has ended" in shell["command"]
     assert _closed_with(api, TERMINAL + "&tool=claude&action=new&target=..")[1] == "Not a project: '..'"
 

@@ -4,6 +4,18 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-25 — A finished run is never attached to again
+
+Sunde found that a Push whose window was closed before **Enter closes this** left its tmux
+session waiting at that prompt, and the next Push attached to it: the old output, and
+nothing pushed. Any action in tmux did the same — `new-session -A` attaches to whatever
+session has the name. A run now sets `@loskai-ended` on its session once its command
+ends, and the next run of the action kills a session so marked before `new-session -A`. A
+session still running is attached to, as it always was — closing the tab mid-update must
+not cut the update off, nor start a second. Asking tmux whether the pane waits on `read`
+was the alternative; the mark says it in the session's own words, with no guessing at
+what its process is doing.
+
 ## 2026-11-24 — Loskai's lines go through a linked `authorized_keys`
 
 On a Proxmox host, root's `~/.ssh/authorized_keys` is a link to `/etc/pve/priv/authorized_keys`,

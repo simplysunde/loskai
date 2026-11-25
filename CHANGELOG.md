@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Running an action again runs it again.** A run whose window was closed before Enter
+  stayed on the machine, waiting, and the next **Push** (or any action) showed that old
+  result and ran nothing. Now a run that has finished is closed and a new one starts; one
+  still running is shown, as before.
 - **Reboot** and **Shut down** are in a machine's ⋮ menu too, beside **Update system**, each
   asking first as in its dialog. **Delete machine** sits below a line, apart from them.
 - **Installing Loskai's keys on a Proxmox host keeps its `authorized_keys` link.** Root's

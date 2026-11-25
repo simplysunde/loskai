@@ -293,7 +293,9 @@ run this way.
    been printed: a window whose session ended without it stays, saying why.
 3. **Inside tmux** when the machine has it, in the session `session` says. Closing the
    browser tab leaves it running, and running the same action again attaches to it rather
-   than starting a second.
+   than starting a second. A run that has ended marks its session (`@loskai-ended`) while
+   it waits for Enter, so one whose window was closed before Enter is ended by the next
+   run, which starts afresh rather than showing the old result.
 
 Adding a tool runs the same way, but never inside tmux: tmux may be what it installs.
 

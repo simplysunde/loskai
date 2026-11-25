@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 
 import pytest
 
@@ -584,6 +585,66 @@ def test_an_automatic_action_in_tmux_leaves_its_last_lines_on_screen(tmp_path, p
     assert not any((tmp_path / ".cache" / "loskai").glob("*"))
 
 
+class _Window:
+    """A run's terminal window, as the page opens one: the command under a pty, its output
+    read as it comes. `close` is the window shut before Enter — tmux's client goes, its
+    session stays."""
+
+    def __init__(self, command, env):
+        self.proc = subprocess.Popen(["script", "-qfec", command, "/dev/null"], env=env, stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.out = b""
+        os.set_blocking(self.proc.stdout.fileno(), False)
+
+    def wait_for(self, text, timeout=15):
+        end = time.monotonic() + timeout
+        while text.encode() not in self.out:
+            assert time.monotonic() < end, f"never said {text!r}: {self.out[-300:]!r}"
+            self.out += self.proc.stdout.read() or b""
+            time.sleep(0.05)
+
+    def close(self):
+        self.proc.kill()
+        self.proc.wait(timeout=10)
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None or shutil.which("script") is None, reason="needs tmux and script")
+@pytest.mark.parametrize("automatic", [False, True])
+def test_a_run_left_at_its_enter_prompt_is_not_what_the_next_run_attaches_to(tmp_path, automatic):
+    """Found on a real machine: a Push whose window was closed before Enter left its session
+    waiting at the prompt, and the next Push attached to it — the old result, and nothing
+    pushed. A finished run is ended; one still running is attached to, as before."""
+    env = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "TMUX_TMPDIR": str(tmp_path), "TERM": "xterm-256color"}
+    say = tmp_path / "say"
+    command = tool.terminal_command(f'cat {say}; [ "$(cat {say})" != stays ] || sleep 60; exit 3', None,
+                                    "loskai-test-push", automatic=automatic)
+    try:
+        say.write_text("first\n")
+        first = _Window(command, env)
+        first.wait_for("Enter closes this")
+        first.close()
+
+        say.write_text("second\n")
+        second = _Window(command, env)
+        second.wait_for("second")
+        second.close()
+
+        # Still running, it is attached to: the run isn't cut off, nor a second started.
+        subprocess.run(["tmux", "kill-server"], env=env)
+        say.write_text("stays\n")
+        running = _Window(command, env)
+        running.wait_for("stays")
+        running.close()
+        say.write_text("third\n")
+        again = _Window(command, env)
+        time.sleep(1)
+        again.wait_for("stays")
+        again.close()
+        assert b"third" not in again.out
+    finally:
+        subprocess.run(["tmux", "kill-server"], env=env, capture_output=True)
+
+
 def test_in_tmux_the_password_reaches_the_pane_through_a_fifo_and_a_running_session_is_attached():
     command = tool.terminal_command("true", None, "loskai-system-update", automatic=True, password=True)
 
@@ -718,7 +779,7 @@ def test_with_tmux_the_action_runs_in_a_session_named_after_it():
     command = tool.terminal_command("true", None, name)
 
     assert name == "loskai-services-restart-container-jelly_fin_1"
-    assert command.startswith("tmux new-session -A -s loskai-services-restart-container-jelly_fin_1 ")
+    assert "tmux new-session -A -s loskai-services-restart-container-jelly_fin_1 " in command
 
 
 def test_an_action_can_share_a_session_or_be_tmux_itself():

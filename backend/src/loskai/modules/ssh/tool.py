@@ -680,6 +680,18 @@ def _last_lines(session: str) -> tuple[str, str]:
     return saved, shown
 
 
+# A run in tmux that has ended and waits for Enter says so on its session, which outlives a
+# window closed before Enter: the next run of that action ends it and starts afresh, rather
+# than attaching to the old result with nothing run. One still running is attached to.
+_MARK_ENDED = "tmux set -q @loskai-ended 1 2>/dev/null; "
+
+
+def _end_if_ended(session: str) -> str:
+    name = shlex.quote(f"={session}")
+    # show-options takes a pane: `=name:` is that session's.
+    return f'[ "$(tmux show -qv -t {name}: @loskai-ended 2>/dev/null)" = 1 ] && tmux kill-session -t {name}; '
+
+
 def _pane_reads_password() -> str:
     """The pane's start: it reads the password from the FIFO in its folder, then removes
     the folder and goes home — or, sent nothing within `PASSWORD_WAIT`, removes it and
@@ -701,7 +713,7 @@ def terminal_command(
     is on the PATH, as the overview has it, and `$PROJECTS` is the machine's projects
     folder (`projects_folder`, as stored; None: the default). Given a tmux `session`, it runs
     inside it — closing the tab leaves it running, and running the same action again
-    attaches to it rather than starting a second.
+    attaches to it rather than starting a second, unless it has ended (`_MARK_ENDED`).
 
     With `password`, the terminal's first line is sudo's password (`connect.prepare`
     checked it). It is never in a command line: read into a shell variable, and handed to
@@ -710,13 +722,14 @@ def terminal_command(
     saved, shown = _last_lines(session) if automatic and session else ("", "")
     body = USER_PATH + _projects_env(projects_folder) + 'if [ "$(id -u)" = 0 ]; then sudo() { "$@"; }; fi; ' + script
     job = f"sh -c {shlex.quote(body)} loskai" + (f" {shlex.quote(target_name)}" if target_name else "")
+    job += "; s=$?; " + (_MARK_ENDED if session else "")
     if automatic:
-        job += f"; s=$?; [ $s = 0 ] && {{ {saved}exit 0; }}; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
+        job += f"[ $s = 0 ] && {{ {saved}exit 0; }}; printf '\\n[failed, exit %s] Enter closes this.\\n' $s; read _"
     else:
-        job += "; s=$?; printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
+        job += "printf '\\n[done, exit %s] Enter closes this.\\n' $s; read _"
     if not password:
         if session:
-            return f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}" + shown
+            return _end_if_ended(session) + f"tmux new-session -A -s {shlex.quote(session)} {shlex.quote(job)}" + shown
         return job
     if not session:
         return _READ_PASSWORD + _SUDO_VALIDATE + "; " + job
@@ -725,7 +738,7 @@ def terminal_command(
     inner = _pane_reads_password() + _SUDO_VALIDATE + "; " + job
     name = shlex.quote(session)
     return (
-        _READ_PASSWORD + 'd=$(mktemp -d) && mkfifo "$d/p" && '
+        _READ_PASSWORD + _end_if_ended(session) + 'd=$(mktemp -d) && mkfifo "$d/p" && '
         f'if tmux new-session -d -s {name} -c "$d" {shlex.quote(inner)} 2>/dev/null; '
         """then printf '%s\\n' "$p" > "$d/p"; fi; p=; rm -rf "$d"; """
         + (f"tmux attach-session -t ={name}" + shown if shown else f"exec tmux attach-session -t ={name}")
