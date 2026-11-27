@@ -649,7 +649,8 @@ Claude Code has to be logged in on the machine. The first time, open the machine
 **Projects** is above the machines once one has SSH set up. It lists each machine that has
 projects and, per project, its branch, what isn't pushed or committed, its last commit and
 its Claude session, with the buttons of both cards: **Pull**, **Push**, **Terminal**,
-**Attach**, **Start** or **Stop**. Under a machine's projects are its tmux sessions.
+**Attach**, **Start** or **Stop**, and its cog, **Project settings**. Under a machine's
+projects are its tmux sessions.
 
 - The strip of machines across the top jumps to one, and **Search** finds one by a
   project's name too. A machine that can't be read says why at the top.

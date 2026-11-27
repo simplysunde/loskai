@@ -5,6 +5,8 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Projects on every machine** has each project's cog, **Project settings**, as a
+  machine's own Projects does, and **Machine** is a button there too.
 - **A project's first Push sets where it goes**: a branch with no upstream yet follows
   origin's, so **New project**, a **Remote**, then **Push** works without the terminal. A
   project with no remote says where to set one.

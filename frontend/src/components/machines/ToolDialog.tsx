@@ -58,14 +58,11 @@ export function ToolDialog({
             {applies(tool, programs) && <CardSettings tool={tool} ctx={ctx} />}
             {/* The machine's own dialog — its name, SSH, every tool (the projects folder is in
                 the Git card's settings). */}
-            <Link
-              to={`/machines/${machine.id}/tools`}
+            <MachineButton
+              machineId={machine.id}
               onClick={onClose}
               title="This machine's dialog — its name, SSH and every tool; the projects folder is in Git's settings"
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
-            >
-              <HardDrive className="h-3.5 w-3.5" /> Machine
-            </Link>
+            />
           </div>
         </div>
         {tool.actions.some((a) => a.target === "project" || a.ask === "project") && (
@@ -154,5 +151,21 @@ export function OverviewProblem({
         <Settings className="h-3.5 w-3.5" /> {old ? "Install again" : "Settings"}
       </Link>
     </div>
+  );
+}
+
+// Machine: the way to a machine's own dialog — its name, SSH, every tool — from a dialog of
+// one part of it (a tool, its Projects) or every machine's Projects. `onClick` closes the
+// dialog it is in; without one that dialog stays under the machine's.
+export function MachineButton({ machineId, title, onClick }: { machineId: string; title: string; onClick?: () => void }) {
+  return (
+    <Link
+      to={`/machines/${machineId}/tools`}
+      onClick={onClick}
+      title={title}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+    >
+      <HardDrive className="h-3.5 w-3.5" /> Machine
+    </Link>
   );
 }

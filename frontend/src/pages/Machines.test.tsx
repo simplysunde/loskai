@@ -2102,8 +2102,8 @@ test("Without Claude Code, a project has a tmux session of its own: Session open
   const nas = await screen.findByRole("region", { name: "Storage box" });
   const row = (name: string) => within(nas).getByText(name).closest("tr") as HTMLElement;
   const buttons = (name: string) => within(row(name)).getAllByRole("button").map((b) => b.textContent?.trim()).sort();
-  await waitFor(() => expect(buttons("site")).toEqual(["End", "Pull", "Session"]));
-  expect(buttons("blog")).toEqual(["Pull", "Session"]);
+  await waitFor(() => expect(buttons("site")).toEqual(["", "End", "Pull", "Session"]));
+  expect(buttons("blog")).toEqual(["", "Pull", "Session"]);
   expect(within(row("site")).getByText("running")).toBeInTheDocument();
   expect(within(row("blog")).queryByText("running")).toBeNull();
 
@@ -2163,8 +2163,10 @@ test("Projects, from the Machines tab: each set-up machine's projects, their git
   expect(within(row("site")).getAllByRole("cell")[3]).toHaveAttribute("title", "Last commit: Add the header");
   // No Claude yet: a dash, not an empty cell.
   expect(within(row("blog")).getAllByRole("cell")[4]).toHaveTextContent("—");
-  expect(buttons("site")).toEqual(["Attach", "Pull", "Stop"]);
-  expect(buttons("blog")).toEqual(["Attach", "Pull", "Start"]);
+  // A project's own settings, by its buttons, as on the machine's Projects: a cog, named.
+  expect(buttons("site")).toEqual(["", "Attach", "Pull", "Stop"]);
+  expect(buttons("blog")).toEqual(["", "Attach", "Pull", "Start"]);
+  expect(within(row("site")).getByRole("button", { name: "Project settings for site" })).toBeInTheDocument();
   expect(within(row("blog")).getByRole("button", { name: "Attach" })).toHaveAttribute("aria-disabled", "true");
 
   // Under them, its tmux sessions of your own — not Claude's, which is on its project — with
@@ -2186,7 +2188,10 @@ test("Machine, in Projects, opens the machine's dialog over it; closing that com
   fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
   const nas = await within(await screen.findByRole("dialog", { name: "Projects" })).findByRole("region", { name: "Storage box" });
 
-  fireEvent.click(within(nas).getByRole("link", { name: "Machine" }));
+  // A button, as on the machine's Projects: its icon and its name.
+  const link = within(nas).getByRole("link", { name: "Machine" });
+  expect(link.querySelector("svg")).not.toBeNull();
+  fireEvent.click(link);
   const machine = await screen.findByRole("dialog", { name: "Storage box" });
   expect(screen.getByRole("dialog", { name: "Projects" })).toBeInTheDocument();
   // On top: drawn after it.

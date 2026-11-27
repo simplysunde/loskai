@@ -1,5 +1,4 @@
-import { FolderGit2, HardDrive, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FolderGit2, Loader2 } from "lucide-react";
 
 import { overviewError, useFacts, useSsh } from "../../lib/ssh";
 import { projectsOf, toolContext } from "../../lib/toolRows";
@@ -9,7 +8,7 @@ import { OwnButtons } from "./MachineTools";
 import { ProjectTables } from "./ProjectsOverview";
 import { CardKeys } from "./SshKeys";
 import { ToolAsk } from "./ToolAsk";
-import { OverviewProblem } from "./ToolDialog";
+import { MachineButton, OverviewProblem } from "./ToolDialog";
 import { CardSettings, GitIdentity } from "./ToolSettings";
 import { useToolRunner } from "./useToolRunner";
 
@@ -54,18 +53,11 @@ export function ProjectsDialog({ machine, onClose }: { machine: { id: string; na
             {here.map((t) => (
               <CardSettings key={t.id} tool={t} ctx={ctx} />
             ))}
-            <Link
-              to={`/machines/${machine.id}/tools`}
-              onClick={onClose}
-              title="This machine's dialog — its name, SSH and every tool"
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
-            >
-              <HardDrive className="h-3.5 w-3.5" /> Machine
-            </Link>
+            <MachineButton machineId={machine.id} onClick={onClose} title="This machine's dialog — its name, SSH and every tool" />
           </div>
         </div>
         {lists && rows.length === 0 && <p className="text-xs text-slate-500">No projects there yet.</p>}
-        <ProjectTables ctx={ctx} settings />
+        <ProjectTables ctx={ctx} />
         <div className="flex flex-wrap items-center gap-1">
           {here.map((t) => (
             <OwnButtons key={t.id} tool={t} ctx={ctx} small />

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { HardDrive, Loader2, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
 
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type LoskaiKey } from "../../lib/ssh";
 import { COLUMNS, isLive, projectsOf, toolContext, type ToolContext } from "../../lib/toolRows";
@@ -9,6 +8,7 @@ import { CARD_TABLE } from "../../lib/ui";
 import { rowSettingsOf, useTools, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { SectionDialog } from "./MachineDialog";
+import { MachineButton } from "./ToolDialog";
 import { RowButtons } from "./MachineTools";
 import { ToolSettingsButton, ToolSettingsDialog } from "./ToolSettings";
 import { Overlay } from "../shared/Modal";
@@ -21,14 +21,14 @@ type Machine = { id: string; name: string; upstream?: string | null };
 const PHONE: Record<string, string> = { "Last commit": "committed", Claude: "Claude" };
 
 // Each table's column widths, the name's first — the same on every machine, so they line
-// up under the one heading. The buttons' column fits the most a row has (a project's five,
-// about 300px, with its padding), and they never wrap there: a wrapped one made rows of two
-// lines.
+// up under the one heading. The buttons' column fits the most a row has (a project's five
+// and its settings' cog, about 360px, with its padding), and they never wrap there: a wrapped
+// one made rows of two lines.
 const WIDTHS: Partial<Record<TargetKind, string[]>> = {
   project: ["w-[22%]", "w-[15%]", "w-[17%]", "w-[11%]", "w-[10%]"],
   session: ["w-[37%]", "w-[17%]", "w-[21%]"],
 };
-const ACTIONS_WIDTH = "w-[21.5rem]";
+const ACTIONS_WIDTH = "w-[23.5rem]";
 
 // A table's column widths (a wider screen's: a phone's rows are cards).
 function Columns({ kind }: { kind: TargetKind }) {
@@ -152,16 +152,10 @@ function MachineLine({ machine, facts }: { machine: Machine; facts: Facts }) {
     facts.programs?.includes("tailscale") ? `Tailscale ${tailscaleStatus(facts)}` : null,
   ].filter(Boolean);
   return (
-    <span className="flex min-w-0 items-baseline gap-3">
+    <span className="flex min-w-0 items-center gap-3">
       <span className="hidden truncate font-mono text-xs text-slate-500 sm:inline">{line.join(" · ")}</span>
       {/* Over this dialog, which stays: closing the machine's comes back here. */}
-      <Link
-        to={`/machines/${machine.id}/tools`}
-        title="Its dialog, over this one — its tools, and each project's settings"
-        className="shrink-0 text-xs text-teal-400 hover:underline"
-      >
-        Machine
-      </Link>
+      <MachineButton machineId={machine.id} title="Its dialog, over this one — its name, SSH and every tool" />
     </span>
   );
 }
@@ -304,9 +298,9 @@ function MachineProjects({ machine }: { machine: Machine }) {
 }
 
 // A machine's projects as a table, then its tmux sessions, each row with the buttons of
-// every tool that applies (`ctx.onRun` runs them). `settings`: a project's own settings
-// (Git's), by its buttons — on the machine's Projects, not every machine's.
-export function ProjectTables({ ctx, settings = false }: { ctx: ToolContext; settings?: boolean }) {
+// every tool that applies (`ctx.onRun` runs them), and a project's own settings (Git's) by
+// its buttons.
+export function ProjectTables({ ctx }: { ctx: ToolContext }) {
   const { here, rows, sessions } = projectsOf(ctx);
   // The row whose own settings are open, and whose tool's.
   const [open, setOpen] = useState<{ tool: Tool; kind: TargetKind; name: string } | null>(null);
@@ -348,12 +342,11 @@ export function ProjectTables({ ctx, settings = false }: { ctx: ToolContext; set
               <td className="px-2.5 py-1 max-sm:ml-auto">
                 <span className="flex flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
                   <RowButtons here={here} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
-                  {settings &&
-                    here
-                      .filter((t) => rowSettingsOf(t, kind).length > 0)
-                      .map((t) => (
-                        <ToolSettingsButton key={t.id} tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ tool: t, kind, name: r.name })} />
-                      ))}
+                  {here
+                    .filter((t) => rowSettingsOf(t, kind).length > 0)
+                    .map((t) => (
+                      <ToolSettingsButton key={t.id} tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ tool: t, kind, name: r.name })} />
+                    ))}
                 </span>
               </td>
             </tr>
