@@ -316,7 +316,7 @@ function ProjectKey({ tool, ctx, name, onRun }: { tool: Tool; ctx: ToolContext; 
   return (
     <div className="mt-3">
       <span className="text-sm text-slate-200">SSH key</span>
-      <span className="mb-1 block text-xs text-slate-500">Its own is a deploy key: it reaches this repository alone.</span>
+      <span className="mb-1 block text-xs text-slate-500">Which key git uses here — the machine's, or a deploy key of its own, for this repository alone.</span>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span aria-label="SSH key" className={`text-xs ${key != null ? "text-slate-200" : "text-slate-400"}`}>
           {line}
