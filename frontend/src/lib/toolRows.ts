@@ -1,6 +1,6 @@
 import { formatAgo } from "./format";
 import { tailscaleState, tailscaleStatus, type Facts, type SshStatus } from "./ssh";
-import type { Tool, ToolAction, ToolRun, TargetKind } from "./tools";
+import { withPrograms, type Tool, type ToolAction, type ToolRun, type TargetKind } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
 // target, and a tool in a few words.
@@ -75,7 +75,7 @@ function rowsOf(kind: TargetKind, facts: Facts, folder: string): Row[] | null {
 // projects folder.
 export interface ToolContext {
   machineId: string;
-  tools: Tool[]; // every tool in the image
+  tools: Tool[]; // every tool in the image, as this machine offers it (`withPrograms`)
   facts: Facts;
   folder: string;
   onRun: ToolStart;
@@ -91,7 +91,7 @@ export function toolContext(
   onRun: ToolStart = () => {},
 ): ToolContext | null {
   if (!facts?.ok || !tools || !ssh) return null;
-  return { machineId, tools, facts, folder: ssh.projects[machineId] ?? "", onRun };
+  return { machineId, tools: withPrograms(tools, facts.programs ?? []), facts, folder: ssh.projects[machineId] ?? "", onRun };
 }
 
 export function listsOf(t: Tool, { facts, folder }: ToolContext) {

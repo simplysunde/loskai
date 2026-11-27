@@ -4,6 +4,17 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-27 — A project's own tmux session, where Claude Code isn't
+
+Sunde wanted a session per project on machines that have git and tmux but no Claude Code —
+or run Claude in a sandbox of their own: "for machines not having claude code installed,
+using tmux is the preferred way". tmux's file gained **Session** (a shell in the project,
+in the shared session `project-<project>`, so the overview's `live` says it runs) and
+**End**. Where Claude Code is, they would be a second session beside Claude's on every
+row, so a new action key, `unless: [programs]`, hides them there; the page applies it once,
+in `toolContext` (`withPrograms`). A tool-level switch was the alternative, but it is the
+actions, not tmux's card, that overlap with Claude Code's.
+
 ## 2026-11-25 — Pull and Push drop down
 
 Sunde asked for a push to be "a quake terminal that says if the action succeeded or failed,

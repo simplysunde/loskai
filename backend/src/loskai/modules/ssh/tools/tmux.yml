@@ -1,4 +1,5 @@
-# The machine's tmux sessions: attach to one, end one, start one. Loskai's own actions run in
+# The machine's tmux sessions: attach to one, end one, start one — and, where Claude Code
+# isn't, a project's own (below). Loskai's own actions run in
 # sessions too (loskai-<tool>-<action>), so an update left running is here to pick back up.
 # docs/reference/tool-schema.md is the format.
 name: tmux
@@ -25,3 +26,29 @@ actions:
     ask: session
     session: false
     run: tmux new-session -A -s "$1" -c "$HOME"
+  # A project's own session, where Claude Code isn't on the machine — where it is, its Start
+  # and Attach are the project's session. A shell in the project folder, in project-<project>,
+  # to work in or run Claude in a sandbox of your own; Session opens it, starting it when it
+  # isn't running, and the project says running while it is.
+  project-session:
+    label: Session
+    description: >-
+      Open this project's own tmux session, in its folder — started when it isn't running.
+      Detach (Ctrl+B, then D) and it keeps running.
+    target: project
+    session: project
+    unless: [claude]
+    run: cd "$PROJECTS/$1" && exec "${SHELL:-sh}" -l
+  project-end:
+    label: End
+    description: End this project's session and everything running in it.
+    target: project
+    when: running
+    session: false
+    automatic: true
+    unless: [claude]
+    confirm: Everything running in it stops.
+    # The session is project-<project>, with the characters tmux won't take as _ (tool.session_name).
+    run: >-
+      tmux kill-session -t "=project-$(printf %s "$1" | tr . _)" 2>/dev/null &&
+      echo "Ended $1's session." || echo "No session runs in $1."

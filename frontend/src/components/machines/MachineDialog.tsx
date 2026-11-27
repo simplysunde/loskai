@@ -19,7 +19,7 @@ import { useSettings } from "../../lib/settings";
 import { statusProblem, useFacts, useRunning, useSsh } from "../../lib/ssh";
 import { Hint } from "../shared/Hint";
 import { toolContext } from "../../lib/toolRows";
-import { applies, MACHINE_TOOL, useTools, type TargetKind } from "../../lib/tools";
+import { applies, MACHINE_TOOL, useTools, withPrograms, type TargetKind } from "../../lib/tools";
 import { useMe } from "../../lib/useAuth";
 import { assembleFqdn, isValidDnsOnlyPrefix, isValidDnsTarget, isValidPort, SSH_USER } from "../../lib/validation";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -131,7 +131,7 @@ export function MachineDialog({ id, section }: { id: string; section?: string })
   // Reading its status failed, or its line is out of date: SSH says so, by its keys.
   const problem = trusted ? statusProblem(facts.data) : null;
   const programs = facts.data?.programs ?? [];
-  const here = (tools.data ?? []).filter((t) => applies(t, programs));
+  const here = withPrograms(tools.data ?? [], programs).filter((t) => applies(t, programs));
   // What a tool's card needs — once the overview and the tools are in.
   const ctx = toolContext(id, tools.data, facts.data, ssh.data, runner.start);
   // System's Update, Reboot and Shut down are the machine's own: on General, by its overview.

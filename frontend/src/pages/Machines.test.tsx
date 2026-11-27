@@ -139,6 +139,10 @@ const TOOLS = [
     actions: [
       { id: "attach", label: "Attach", description: "Open it.", target: "session", ask: null, confirm: null, run: "tmux attach-session -t \"=$1\"" },
       { id: "new", label: "New session", description: "Start one.", target: null, ask: "session", confirm: null, run: "tmux new-session -A -s \"$1\"" },
+      { id: "project-session", label: "Session", description: "Its own.", target: "project", ask: null, confirm: null, session: "project",
+        unless: ["claude"], run: "exec sh -l" },
+      { id: "project-end", label: "End", description: "End it.", target: "project", ask: null, confirm: "Everything in it stops.",
+        session: false, automatic: true, when: "running", unless: ["claude"], run: "tmux kill-session" },
     ],
   },
   {
@@ -2018,6 +2022,49 @@ test("a session the machine says asks a question marks its Attach, as long as it
   await screen.findAllByText("blog");
   await waitFor(() => expect(attach()).not.toHaveAttribute("title", expect.stringMatching(WAITING)));
   expect(localStorage.getItem("loskai-waiting")).toBeNull();
+});
+
+test("Without Claude Code, a project has a tmux session of its own: Session opens it, End ends it", async () => {
+  sshSetUp();
+  facts = {
+    ...FACTS, programs: ["tmux", "git"], live: { tmux: { project: ["site"] } },
+    tmux: [...FACTS.tmux.filter((s) => s.name === "build"), { name: "project-site", created: 1793212547, attached: false, windows: 1, tool: "tmux" }],
+  };
+  renderPage();
+  await screen.findByText("Storage box");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const nas = await screen.findByRole("region", { name: "Storage box" });
+  const row = (name: string) => within(nas).getByText(name).closest("tr") as HTMLElement;
+  const buttons = (name: string) => within(row(name)).getAllByRole("button").map((b) => b.textContent?.trim()).sort();
+  await waitFor(() => expect(buttons("site")).toEqual(["End", "Pull", "Session"]));
+  expect(buttons("blog")).toEqual(["Pull", "Session"]);
+  expect(within(row("site")).getByText("running")).toBeInTheDocument();
+  expect(within(row("blog")).queryByText("running")).toBeNull();
+
+  fireEvent.click(within(row("blog")).getByRole("button", { name: "Session" }));
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=project-session&target=blog")).toBeInTheDocument();
+  cleanup();
+
+  // End asks first.
+  renderPage();
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const again = await screen.findByRole("region", { name: "Storage box" });
+  const site = (await within(again).findByText("site")).closest("tr") as HTMLElement;
+  fireEvent.click(await within(site).findByRole("button", { name: "End" }));
+  expect(await screen.findByText("Everything in it stops.")).toBeInTheDocument();
+  fireEvent.click(screen.getAllByRole("button", { name: "End" }).at(-1)!);
+  expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=project-end&target=site")).toBeInTheDocument();
+});
+
+test("With Claude Code, a project's session is Claude's: tmux's own isn't offered", async () => {
+  sshSetUp();
+  renderPage();
+  await screen.findByText("Storage box");
+  fireEvent.click(await screen.findByRole("button", { name: "Projects" }));
+  const nas = await screen.findByRole("region", { name: "Storage box" });
+  const site = (await within(nas).findByText("site")).closest("tr") as HTMLElement;
+  expect(within(site).queryByRole("button", { name: "Session" })).toBeNull();
 });
 
 test("Projects, from the Machines tab: each set-up machine's projects, their git and Claude together, run there", async () => {

@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **A project gets its own tmux session** on a machine with tmux and no Claude Code:
+  **Session** on its row opens it in the project's folder, starting it when it isn't
+  running, and **End** ends it. The project says **running** while it is.
 - **Every terminal has a copy icon**, the drop-down one too: it copies everything the
   terminal shows, a long line whole.
 - **Pull** and **Push** drop down from the top of the page, as an update does, and say

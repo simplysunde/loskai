@@ -29,8 +29,8 @@ export function ToolDialog({
   const facts = useFacts(machine.id, true);
   const tools = useTools();
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
-  const tool = tools.data?.find((t) => t.id === toolId);
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
+  const tool = (ctx?.tools ?? tools.data)?.find((t) => t.id === toolId);
 
   // The machine answered but couldn't be read, or a request failed outright (a 409 when its
   // SSH user or host key is gone) — either way, never a spinner that doesn't stop.

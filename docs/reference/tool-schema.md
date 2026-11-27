@@ -248,6 +248,14 @@ when an action's terminal closes. The server doesn't check it, so the command st
 with the other case — a session started or ended elsewhere since: Start says it is already
 running, Stop that none is.
 
+### `unless`
+
+A list of programs (from those `requires` takes) whose presence hides the action: offered
+only on a machine without them. tmux's **Session** and **End** on a project are
+`unless: [claude]` — where Claude Code is, its Start and Attach are the project's session.
+Like `when`, the page decides (`withPrograms`, as the tool context is built) and the server
+doesn't check it.
+
 ### `place`
 
 Where an action is offered, and the dialog closes as it runs:

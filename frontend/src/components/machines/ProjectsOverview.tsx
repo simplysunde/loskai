@@ -319,7 +319,6 @@ function MachineProjects({ machine }: { machine: Machine }) {
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
   if (!ctx) return null;
   const { here, rows, sessions } = projectsOf(ctx);
-  const claude = here.find((t) => t.id === "claude");
   // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a
   // card (CARD_TABLE): the name on a line of its own, the cells that say something, then
   // the buttons.
@@ -336,7 +335,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
                 <span title={r.title ?? r.name} className="font-mono text-slate-200">
                   {r.name}
                 </span>
-                {kind === "project" && claude && isLive(claude, "project", r.name, ctx.facts) && (
+                {kind === "project" && here.some((t) => isLive(t, "project", r.name, ctx.facts)) && (
                   <span className="ml-2 text-emerald-300">running</span>
                 )}
                 {r.tag && <span className="ml-2 text-slate-500">{r.tag}</span>}

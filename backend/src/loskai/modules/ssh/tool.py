@@ -192,6 +192,9 @@ class Action:
     # `PLACES`: on the card or its row; in a settings dialog — the row's, for a kind of row
     # that has settings (`SETTING_TARGETS`); or in Keys, for one on no row.
     place: str = "card"
+    # Programs whose presence hides it: an action for a machine without them (tmux's own
+    # session on a project, where Claude Code has none). Like `when`, the page's to show.
+    unless: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -263,7 +266,8 @@ def parse(tool_id: str, doc: object) -> Tool:
             continue
         # `on:` would be YAML 1.1's `true`, hence `target`.
         extra = set(raw) - {
-            "label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when", "otherwise", "place"}
+            "label", "description", "run", "target", "ask", "confirm", "session", "automatic", "when", "otherwise", "place",
+            "unless"}
         if extra:
             problems.append(f"`{where}`: unknown keys: {', '.join(sorted(map(str, extra)))}")
         for key in ("label", "description"):
@@ -306,12 +310,16 @@ def parse(tool_id: str, doc: object) -> Tool:
             problems.append(f"`{where}.place`: only a {', '.join(SETTING_TARGETS)} has a settings dialog")
         elif place == "keys" and target is not None:
             problems.append(f"`{where}.place`: a key's own actions are on its row in Keys")
+        unless = raw.get("unless", [])
+        if not isinstance(unless, list) or not all(p in PROGRAMS for p in unless):
+            problems.append(f"`{where}.unless` must be a list of programs the overview detects ({', '.join(PROGRAMS)})")
+            unless = []
         actions[action_id] = Action(
             id=action_id, label=str(raw.get("label", "")), description=str(raw.get("description", "")),
             run=run if isinstance(run, dict | str) else "", target=target, ask=ask, confirm=confirm,
             session=session, automatic=automatic is True, when=when if when in WHEN else None,
             otherwise=otherwise if otherwise in OTHERWISE else "hidden",
-            place=place if place in PLACES else "card",
+            place=place if place in PLACES else "card", unless=tuple(unless),
         )
     # A row's session is running when an action of its kind shares one (`claim_sessions`):
     # without one, `when` could never be told.
@@ -422,7 +430,8 @@ def view(tool: Tool) -> dict:
         "actions": [
             {"id": a.id, "label": a.label, "description": a.description, "target": a.target,
              "ask": a.ask, "confirm": a.confirm, "session": a.session, "automatic": a.automatic,
-             "when": a.when, "otherwise": a.otherwise, "place": a.place, "run": a.run}
+             "when": a.when, "otherwise": a.otherwise, "place": a.place, "unless": list(a.unless),
+             "run": a.run}
             for a in tool.actions.values()
         ],
         "settings": [

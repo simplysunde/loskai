@@ -25,6 +25,9 @@ export interface ToolAction {
   // On the card or its row (the default); in a settings dialog — one set up once (a
   // project's Own key); or in Keys, beside the list of SSH keys (New account key).
   place?: "card" | "settings" | "keys";
+  // Programs whose presence hides it (`withPrograms`): tmux's own session on a project,
+  // only where Claude Code isn't.
+  unless?: string[];
   run: string | Record<string, string>; // one command, or one per package manager
 }
 
@@ -122,6 +125,16 @@ export function missing(tool: Tool, programs: string[]): string[] {
 // A tool that applies to a machine with `programs` — it has everything the tool requires.
 export function applies(tool: Tool, programs: string[]): boolean {
   return missing(tool, programs).length === 0;
+}
+
+// The tools as a machine with `programs` offers them: each without the actions its programs
+// hide (`unless`).
+export function withPrograms(tools: Tool[], programs: string[]): Tool[] {
+  return tools.map((t) =>
+    t.actions.some((a) => a.unless?.some((p) => programs.includes(p)))
+      ? { ...t, actions: t.actions.filter((a) => !a.unless?.some((p) => programs.includes(p))) }
+      : t,
+  );
 }
 
 // A tool Loskai can add to a machine with `programs`: it lacks something, all installable.

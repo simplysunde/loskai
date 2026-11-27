@@ -506,6 +506,10 @@ The card lists the machine's tmux sessions. Claude's are on their projects inste
 - **Attach** opens one in the terminal. Ctrl+B, then D, leaves it running.
 - **End** ends it, after asking.
 - To start one, type a name and click **New session**.
+- On a machine without Claude Code, each project has **Session** too: its own tmux session,
+  opened in the project's folder, and started first when it isn't running. The project says
+  **running** while it is, and **End** beside it ends it, after asking. Where Claude Code
+  is, its **Start** and **Attach** are the project's session instead.
 
 #### Tailscale
 

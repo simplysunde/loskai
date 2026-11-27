@@ -381,7 +381,7 @@ export function RowTools({
   const ctx = toolContext(machineId, tools, facts.data, ssh.data);
   return (
     <>
-      {tools
+      {(ctx?.tools ?? tools)
         .filter((t) => !isStandard(t) && applies(t, programs))
         .map((t) => {
           const waits = ctx && waitsOnYou(t, ctx);

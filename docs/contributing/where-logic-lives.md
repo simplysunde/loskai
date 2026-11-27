@@ -121,6 +121,7 @@ What a machine's status key may run is [ssh-status.md](../reference/ssh-status.m
 | What Tailscale is doing on a machine, and in a few words | `lib/ssh.ts` `tailscaleState` `tailscaleStatus` | `components/machines/MachineOverview.tsx` `components/machines/MachineTools.tsx` `components/machines/ProjectsOverview.tsx` `lib/toolRows.ts` |
 | What is wrong with reading a machine's status, in words with what to do — its cog's amber and tooltip, SSH's Keys row | `lib/ssh.ts` `statusProblem` | `components/machines/MachineDialog.tsx` `components/machines/MachineTable.tsx` |
 | What a tool's card lists, and its one-line summary | `lib/toolRows.ts` `toolSummary` `listsOf` `toolContext` | `components/machines/MachineDialog.tsx` `components/machines/MachineTools.tsx` `components/machines/ProjectsOverview.tsx` `components/machines/ToolDialog.tsx` |
+| Which of a tool's actions a machine offers — none its programs hide (`unless`) | `lib/tools.ts` `withPrograms` | `components/machines/MachineDialog.tsx` `lib/toolRows.ts` |
 | A tool's row button: how many of its sessions run, and what waits on you (amber) — a row whose session asks, as the machine says | `lib/toolRows.ts` `runningCount` `waitsOnYou` `isAsking` | `components/machines/MachineTools.tsx` |
 | An automatic run's terminal: drops down, lingers, stays on a failure | `components/shared/QuickTerminal.tsx` `QuickTerminal` | `components/machines/MachineTerminal.tsx` |
 

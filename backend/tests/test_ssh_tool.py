@@ -769,6 +769,27 @@ def test_a_pane_sent_no_password_ends_rather_than_wait_for_the_next_run(tmp_path
     assert pane.returncode != 0 and out == "" and not folder.exists()
 
 
+def test_unless_names_programs_whose_presence_hides_the_action():
+    t = tool.parse("t", {"name": "T", "description": "d", "actions": {
+        "go": {"label": "Go", "description": "d", "unless": ["claude"], "run": "true"}}})
+    assert t.actions["go"].unless == ("claude",)
+    assert tool.view(t)["actions"][0]["unless"] == ["claude"]
+    with pytest.raises(tool.ToolError, match="unless` must be a list of programs"):
+        tool.parse("t", {"name": "T", "description": "d", "actions": {
+            "go": {"label": "Go", "description": "d", "unless": ["vim"], "run": "true"}}})
+
+
+def test_tmux_gives_a_project_its_own_session_where_claude_code_isnt():
+    """Found wanted on a machine with git and tmux and no Claude Code: Claude's Start and
+    Attach are where it has one, so tmux's are only where it hasn't."""
+    tmux = tool.load()["tmux"]
+    session, end = tmux.actions["project-session"], tmux.actions["project-end"]
+    assert (session.target, session.session, session.unless) == ("project", "project", ("claude",))
+    assert (end.target, end.when, end.unless) == ("project", "running", ("claude",)) and end.confirm
+    assert tool.session_name(tmux, session, "my.blog") == "project-my_blog"
+    assert 'tr . _' in end.run and "=project-" in end.run
+
+
 def test_automatic_must_be_true_or_false():
     with pytest.raises(tool.ToolError, match="automatic` must be true or false"):
         tool.parse("t", {"name": "T", "description": "d", "actions": {

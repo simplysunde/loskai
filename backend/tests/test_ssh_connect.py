@@ -697,12 +697,17 @@ def test_the_overview_is_read_with_the_status_key_and_cached(api, machine_net):
 def test_the_overview_says_whose_each_tmux_session_is(api, machine_net):
     _with_key(api)
     _trust(api)
-    machine_net["facts"] = FACTS + "#=tmux\nclaude-site|1700000000|0|1\nwork|1700000000|1|2\n#=projects\n/home/u/site|main|0|0|-|0|\n"
+    machine_net["facts"] = FACTS + (
+        "#=tmux\nclaude-site|1700000000|0|1\nproject-blog|1700000000|0|1\nwork|1700000000|1|2\n"
+        "#=projects\n/home/u/site|main|0|0|-|0|\n/home/u/blog|main|0|0|-|0|\n"
+    )
 
     view = api.get("/api/ssh/machines/nas/facts").json()
 
-    assert [(s["name"], s["tool"]) for s in view["tmux"]] == [("claude-site", "claude"), ("work", None)]
-    assert view["live"] == {"claude": {"project": ["site"]}}
+    assert [(s["name"], s["tool"]) for s in view["tmux"]] == [
+        ("claude-site", "claude"), ("project-blog", "tmux"), ("work", None)]
+    # A project's own tmux session, where there is no Claude Code, makes it running too.
+    assert view["live"] == {"claude": {"project": ["site"]}, "tmux": {"project": ["blog"]}}
 
 
 def test_a_machine_on_the_older_status_line_is_asked_to_reinstall(api, machine_net):
@@ -736,7 +741,8 @@ def test_the_tools_are_listed_with_their_commands(api):
     reboot = next(a for a in tools["system"]["actions"] if a["id"] == "reboot")
     assert reboot == {"id": "reboot", "label": "Reboot", "description": "Restart the machine.", "target": None,
                       "ask": None, "confirm": "Everything on it stops until it is back up.", "session": None,
-                      "automatic": True, "when": None, "otherwise": "hidden", "place": "card", "run": "sudo reboot"}
+                      "automatic": True, "when": None, "otherwise": "hidden", "place": "card", "unless": [],
+                      "run": "sudo reboot"}
     assert tools["proxmox"]["installable"] == []
     assert tools["tailscale"]["installable"] == ["tailscale"]
 
