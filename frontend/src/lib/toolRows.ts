@@ -1,6 +1,6 @@
 import { formatAgo } from "./format";
 import { tailscaleState, tailscaleStatus, type Facts, type SshStatus } from "./ssh";
-import { withPrograms, type Tool, type ToolAction, type ToolRun, type TargetKind } from "./tools";
+import { applies, withPrograms, type Tool, type ToolAction, type ToolRun, type TargetKind } from "./tools";
 
 // What a tool's card and page list, from a machine's overview — the rows of each kind of
 // target, and a tool in a few words.
@@ -117,6 +117,45 @@ export function toolSummary(t: Tool, ctx: ToolContext): string {
       const noun = kind === "project" ? "project" : "session";
       return `${rows.length} ${noun}${rows.length === 1 ? "" : "s"}${live ? `, ${live} running` : ""}`;
     })
+    .join(" · ");
+}
+
+// What an action asks for when it makes a project, in the order they are offered: a name
+// (Claude Code's New project), then a repository (Git's Clone).
+const MAKES = ["project", "repo"];
+
+// A machine's rows of a kind as its cards list them — the same on every tool that lists
+// them, so one is read.
+function rowsHere(here: Tool[], kind: TargetKind, ctx: ToolContext) {
+  const lister = here.find((t) => t.actions.some((a) => a.target === kind));
+  return (lister && listsOf(lister, ctx).find((l) => l.kind === kind)?.rows) ?? [];
+}
+
+// A machine's projects, and its tmux sessions of your own (Claude's are on their
+// projects), with the tools that apply there.
+export function projectsOf(ctx: ToolContext) {
+  const here = ctx.tools.filter((t) => applies(t, ctx.facts.programs ?? []));
+  const rows = rowsHere(here, "project", ctx);
+  const sessions = rowsHere(here, "session", ctx);
+  const makers = here
+    .flatMap((t) => t.actions.filter((a) => a.ask && MAKES.includes(a.ask)).map((a) => ({ tool: t, action: a })))
+    .sort((a, b) => MAKES.indexOf(a.action.ask!) - MAKES.indexOf(b.action.ask!));
+  return { here, rows, sessions, makers };
+}
+
+// A machine's Projects in a few words, for its row button: its projects, how many of them
+// run (any tool's session — Claude's, tmux's own), and its tmux sessions of your own.
+export function projectsSummary(here: Tool[], ctx: ToolContext): string {
+  const projects = rowsHere(here, "project", ctx);
+  const live = projects.filter((r) => here.some((t) => isLive(t, "project", r.name, ctx.facts))).length;
+  const sessions = rowsHere(here, "session", ctx).length;
+  return [
+    here.some((t) => t.actions.some((a) => a.target === "project"))
+      ? `${projects.length} ${projects.length === 1 ? "project" : "projects"}${live ? `, ${live} running` : ""}`
+      : null,
+    sessions ? `${sessions} tmux ${sessions === 1 ? "session" : "sessions"}` : null,
+  ]
+    .filter(Boolean)
     .join(" · ");
 }
 

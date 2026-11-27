@@ -51,17 +51,19 @@ export function Modal({
   children,
   wide = false,
   narrow = false,
+  label,
 }: {
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
   narrow?: boolean; // a short prompt — a password, say
+  label?: string; // the dialog's name, for a title that isn't only text (an icon beside it)
 }) {
   return (
     <Overlay
       onClose={onClose}
-      label={typeof title === "string" ? title : undefined}
+      label={label ?? (typeof title === "string" ? title : undefined)}
       className={`flex max-h-full w-full flex-col sm:max-h-[85vh] rounded-xl border border-slate-700 bg-slate-900 shadow-2xl ${
         wide ? "max-w-4xl" : narrow ? "max-w-md" : "max-w-2xl"
       }`}

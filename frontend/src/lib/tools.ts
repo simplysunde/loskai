@@ -127,6 +127,12 @@ export function applies(tool: Tool, programs: string[]): boolean {
   return missing(tool, programs).length === 0;
 }
 
+// A tool of a machine's Projects: one with actions on its projects or its tmux sessions —
+// Git, Claude Code, tmux. The row has one Projects button for them all.
+export function isProjectTool(tool: Tool): boolean {
+  return tool.actions.some((a) => a.target === "project" || a.target === "session");
+}
+
 // The tools as a machine with `programs` offers them: each without the actions its programs
 // hide (`unless`).
 export function withPrograms(tools: Tool[], programs: string[]): Tool[] {

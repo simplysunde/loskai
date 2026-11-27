@@ -64,6 +64,7 @@ export function MachineTable({
   onSystem,
   tools,
   onTool,
+  onProjects,
   busyId,
 }: {
   machines: Instance[];
@@ -97,6 +98,8 @@ export function MachineTable({
   // The tools in the image: a set-up machine's row opens each added one in a dialog.
   tools?: Tool[];
   onTool?: (machine: Instance, toolId: string) => void;
+  // Its Projects: Git, Claude Code and tmux together.
+  onProjects?: (machine: Instance) => void;
   busyId?: string | null;
 }) {
   const expanded = useExpanded("loskai.machines.expanded");
@@ -309,6 +312,7 @@ export function MachineTable({
                             machineId={machine.id}
                             tools={tools}
                             onPick={(toolId) => onTool(machine, toolId)}
+                            onProjects={() => onProjects?.(machine)}
                           />
                         )}
                         {unnamed && onName && (

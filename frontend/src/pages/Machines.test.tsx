@@ -956,11 +956,12 @@ test("a set-up machine's row has a button for each tool added there, how it stan
   renderPage();
   await screen.findByText("Storage box");
 
-  // No menu: each tool the machine has, on the row, in the order of the tools.
+  // No menu: Projects — Git, Claude Code and tmux together — then each other tool the
+  // machine has, in the order of the tools.
   expect(within(nasRow()).queryByRole("button", { name: "Tools" })).toBeNull();
-  expect(await within(nasRow()).findByRole("button", { name: "Claude Code — 2 projects, 1 running" })).toBeInTheDocument();
-  const tools = within(nasRow()).getAllByRole("button").map((b) => b.title).filter((t) => /^(tmux|Claude Code|Tailscale|Git|Versions|System)\b/.test(t));
-  expect(tools.map((t) => t.split(" — ")[0])).toEqual(["tmux", "Claude Code", "Tailscale", "Git"]);
+  expect(await within(nasRow()).findByRole("button", { name: "Projects — 2 projects, 1 running · 1 tmux session" })).toBeInTheDocument();
+  const tools = within(nasRow()).getAllByRole("button").map((b) => b.title).filter((t) => /^(Projects|tmux|Claude Code|Tailscale|Git|Versions|System)\b/.test(t));
+  expect(tools.map((t) => t.split(" — ")[0])).toEqual(["Projects", "Tailscale"]);
   // One not added isn't on the row — Add tool, in the machine's dialog, adds it — nor is
   // System, standard, whose Update is in More.
   expect(within(nasRow()).queryByRole("button", { name: /^Versions/ })).toBeNull();
@@ -972,14 +973,51 @@ test("a set-up machine's row has a button for each tool added there, how it stan
   expect(titles.indexOf(tools[tools.length - 1])).toBeLessThan(titles.length - 3);
   // pve has no SSH: no tools.
   const pve = screen.getByText("pve").closest("tr") as HTMLElement;
-  expect(within(pve).queryByRole("button", { name: /^Git/ })).toBeNull();
-  fireEvent.click(within(nasRow()).getByRole("button", { name: /^tmux/ }));
-
-  expect(await screen.findByText("tmux — Storage box")).toBeInTheDocument();
-  expect(await screen.findByText("build")).toBeInTheDocument();
+  expect(within(pve).queryByRole("button", { name: /^Projects/ })).toBeNull();
+  fireEvent.click(within(nasRow()).getByRole("button", { name: /^Tailscale/ }));
+  expect(await screen.findByText("Tailscale — Storage box")).toBeInTheDocument();
   // It is added: what it needs is only shown to add it.
   expect(screen.queryByText("Needs")).not.toBeInTheDocument();
-  fireEvent.click(within(screen.getByText("build").closest("li") as HTMLElement).getByRole("button", { name: "Attach" }));
+});
+
+test("a machine with only git: its Projects are git's — no sessions, nothing of Claude's or tmux's", async () => {
+  sshSetUp();
+  facts = { ...FACTS, programs: ["git"] };
+  renderPage();
+  await screen.findByText("Storage box");
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: "Projects — 2 projects" }));
+  const dialog = await screen.findByRole("dialog", { name: "Projects — Storage box" });
+  const site = (await within(dialog).findByText("site")).closest("tr") as HTMLElement;
+  expect(within(site).getAllByRole("button").map((b) => b.textContent?.trim()).filter(Boolean)).toEqual(["Pull"]);
+  expect(within(dialog).queryByRole("table", { name: "tmux sessions" })).toBeNull();
+  expect(within(dialog).queryByRole("button", { name: "New session" })).toBeNull();
+  expect(within(dialog).getByRole("button", { name: "Clone" })).toBeInTheDocument();
+});
+
+test("a machine's Projects: its projects with Git's and Claude's buttons, its tmux sessions, and the tools' own at the foot", async () => {
+  sshSetUp();
+  renderPage();
+  await screen.findByText("Storage box");
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Projects/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Projects — Storage box" });
+
+  const row = (name: string) => within(dialog).getByText(name).closest("tr") as HTMLElement;
+  const buttons = (name: string) => within(row(name)).getAllByRole("button").map((b) => b.textContent?.trim() || b.title).sort();
+  expect(await within(dialog).findByText("site")).toBeInTheDocument();
+  expect(within(dialog).getByText("~/projects/")).toBeInTheDocument();
+  // A project's own settings (Git's), by its buttons.
+  expect(buttons("site")).toEqual(["Attach", expect.stringMatching(/^Project overrides/), "Pull", "Stop"]);
+  expect(within(row("site")).getByText("running")).toBeInTheDocument();
+  expect(within(dialog).getByRole("table", { name: "tmux sessions" })).toBeInTheDocument();
+  // Git's Keys and Settings, as on its card.
+  expect(within(dialog).getByRole("button", { name: "Keys" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: /^Git settings/ })).toBeInTheDocument();
+  // Each tool's own: Pull all and Push all; what asks for a name — a session, a repository, a project.
+  for (const name of ["Pull all", "Push all", "New session", "Clone", "New project"]) {
+    expect(within(dialog).getByRole("button", { name })).toBeInTheDocument();
+  }
+
+  fireEvent.click(within(row("build")).getByRole("button", { name: "Attach" }));
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=tmux&action=attach&target=build")).toBeInTheDocument();
 });
 
@@ -988,7 +1026,7 @@ test("a tool's dialog has a Settings button to the machine's page; Claude Code's
   renderPage();
   await screen.findByText("Storage box");
 
-  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Claude Code/ }));
+  fireEvent.click(await within(nasRow()).findByRole("button", { name: /^Projects/ }));
   expect(await screen.findByText("site")).toBeInTheDocument();
   expect(screen.getByText("~/projects/")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Machine" }));
@@ -1255,7 +1293,7 @@ test("a tool's dialog on an older status line goes straight to installing it aga
   renderPage();
   await screen.findByText("Storage box");
   // The row's buttons come from the overview it read; the dialog reads it again.
-  const tmux = await within(nasRow()).findByRole("button", { name: /^tmux/ });
+  const tmux = await within(nasRow()).findByRole("button", { name: /^Projects/ });
   facts = { ok: false, old: true, checked: 0, error: "Its status line is older than this Loskai — install again" };
   fireEvent.click(tmux);
   fireEvent.click(await screen.findByRole("link", { name: "Install again" }));
@@ -1269,24 +1307,22 @@ test("a tool's row button counts what runs there, small, and turns amber where s
   renderPage();
   await screen.findByText("Storage box");
   const button = async (name: RegExp) => within(nasRow()).findByRole("button", { name });
-  // A count of its running sessions, out of the button's name, as its card has them: Claude's
-  // one; tmux's one — build, claude-site being Claude's.
-  const claude = await button(/^Claude Code/);
-  expect(claude).toHaveTextContent(/^1$/);
-  expect(await button(/^tmux/)).toHaveTextContent(/^1$/);
+  // A count of its running sessions, out of the button's name: Claude's one, and tmux's one —
+  // build, claude-site being Claude's.
+  const projects = await button(/^Projects/);
+  expect(projects).toHaveTextContent(/^2$/);
   // None running: no count.
-  expect(await button(/^Git/)).toHaveTextContent(/^$/);
-  expect(claude).not.toHaveClass("text-amber-300");
+  expect(await button(/^Tailscale/)).toHaveTextContent(/^$/);
+  expect(projects).not.toHaveClass("text-amber-300");
   cleanup();
 
   // A session the machine says is stopped at Claude's question: amber, and why.
   facts = { ...FACTS, asks: { claude: { project: ["site"] } } };
   renderPage();
   await screen.findByText("Storage box");
-  const waits = await button(/^Claude Code/);
+  const waits = await button(/^Projects/);
   await waitFor(() => expect(waits).toHaveClass("text-amber-300"));
-  expect(waits).toHaveAccessibleName("Claude Code — site asks something first: open it and Attach");
-  expect(await button(/^tmux/)).not.toHaveClass("text-amber-300");
+  expect(waits).toHaveAccessibleName("Projects — site asks something first: open it and Attach");
 });
 
 test("Tailscale's row button turns amber logged out or waiting for approval, not when it is off", async () => {
@@ -1336,7 +1372,7 @@ test("a machine read from the current status line has a plain cog", async () => 
   sshSetUp();
   renderPage();
   await screen.findByText("Storage box");
-  await within(nasRow()).findByRole("button", { name: /^tmux/ });
+  await within(nasRow()).findByRole("button", { name: /^Projects/ });
   expect(within(nasRow()).getByTitle("Machine settings")).not.toHaveClass("text-amber-300");
 });
 

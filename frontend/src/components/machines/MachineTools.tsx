@@ -1,14 +1,15 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderGit2, Plus } from "lucide-react";
 
 import { SELF_UPDATING_REASON, tailscaleState, updatesItself, useFacts, useSsh, type Facts } from "../../lib/ssh";
 import { ActionIcon, ToolIcon } from "./ToolIcon";
-import { isAsking, isLive, listsOf, runningCount, toolContext, toolSummary, waitsOnYou, type ToolContext, type ToolStart } from "../../lib/toolRows";
+import { isAsking, isLive, listsOf, projectsSummary, runningCount, toolContext, toolSummary, waitsOnYou, type ToolContext, type ToolStart } from "../../lib/toolRows";
 import {
   addable,
   applies,
   commandFor,
   hasCardSettings,
+  isProjectTool,
   isStandard,
   MACHINE_TOOL,
   missing,
@@ -360,45 +361,53 @@ export function AddToolMenu({ ctx }: { ctx: ToolContext }) {
   );
 }
 
-// A set-up machine's row: a button per tool it has, beyond the standard ones (System's
-// Update is in the row's More), in the tools' order, each opening its dialog and saying how it
-// stands in its title, a small count of its running sessions, amber where something waits on
-// you (`waitsOnYou`). From the machine's overview, read for the row and not polled: until it
-// answers, or where it can't be read, the row has none. Adding one is the machine's dialog's.
+// A set-up machine's row: Projects, for the tools of its projects and tmux sessions together
+// (`isProjectTool` — Git, Claude Code, tmux), then a button per other tool it has, beyond the
+// standard ones (System's Update is in the row's More), in the tools' order. Each says how
+// it stands in its title, with a small count of its running sessions, amber where something
+// waits on you (`waitsOnYou`). From the machine's overview, read for the row and not polled:
+// until it answers, or where it can't be read, the row has none. Adding one is the machine's
+// dialog's.
 export function RowTools({
   machineId,
   tools,
   onPick,
+  onProjects,
 }: {
   machineId: string;
   tools: Tool[];
   onPick: (toolId: string) => void;
+  onProjects: () => void;
 }) {
   const facts = useFacts(machineId, true, false);
   const ssh = useSsh();
   if (!facts.data?.ok) return null;
   const programs = facts.data.programs ?? [];
   const ctx = toolContext(machineId, tools, facts.data, ssh.data);
+  const here = (ctx?.tools ?? tools).filter((t) => !isStandard(t) && applies(t, programs));
+  const projectTools = here.filter(isProjectTool);
+  const button = (key: string, name: string, of: Tool[], said: string, onClick: () => void, icon: ReactNode) => {
+    const waits = ctx && of.map((t) => waitsOnYou(t, ctx)).find(Boolean);
+    const told = waits || said;
+    return (
+      <IconButton
+        key={key}
+        title={told ? `${name} — ${told}` : name}
+        tone={waits ? "warn" : "plain"}
+        count={ctx ? of.reduce((n, t) => n + runningCount(t, ctx), 0) : 0}
+        onClick={onClick}
+      >
+        {icon}
+      </IconButton>
+    );
+  };
   return (
     <>
-      {(ctx?.tools ?? tools)
-        .filter((t) => !isStandard(t) && applies(t, programs))
-        .map((t) => {
-          const waits = ctx && waitsOnYou(t, ctx);
-          const said = waits || (ctx && toolSummary(t, ctx));
-          return (
-            <IconButton
-              key={t.id}
-              title={said ? `${t.name} — ${said}` : t.name}
-              tone={waits ? "warn" : "plain"}
-              count={ctx ? runningCount(t, ctx) : 0}
-              onClick={() => onPick(t.id)}
-            >
-              <ToolIcon id={t.id} />
-            </IconButton>
-          );
-        })}
+      {projectTools.length > 0 &&
+        button("projects", "Projects", projectTools, ctx ? projectsSummary(projectTools, ctx) : "", onProjects, <FolderGit2 className="h-3.5 w-3.5" />)}
+      {here
+        .filter((t) => !isProjectTool(t))
+        .map((t) => button(t.id, t.name, [t], ctx ? toolSummary(t, ctx) : "", () => onPick(t.id), <ToolIcon id={t.id} />))}
     </>
   );
 }
-

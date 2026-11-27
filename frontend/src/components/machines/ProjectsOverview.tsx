@@ -4,12 +4,13 @@ import { HardDrive, Loader2, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { factsQuery, tailscaleStatus, useFacts, useSsh, type Facts, type LoskaiKey } from "../../lib/ssh";
-import { COLUMNS, isLive, listsOf, toolContext, type ToolContext } from "../../lib/toolRows";
+import { COLUMNS, isLive, projectsOf, toolContext, type ToolContext } from "../../lib/toolRows";
 import { CARD_TABLE } from "../../lib/ui";
-import { applies, useTools, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
+import { rowSettingsOf, useTools, type Tool, type ToolAction, type TargetKind } from "../../lib/tools";
 import { SectionPane } from "../shared/SectionPane";
 import { SectionDialog } from "./MachineDialog";
 import { RowButtons } from "./MachineTools";
+import { ToolSettingsButton, ToolSettingsDialog } from "./ToolSettings";
 import { Overlay } from "../shared/Modal";
 import { useToolRunner } from "./useToolRunner";
 
@@ -60,29 +61,6 @@ function Head({ kind, className = "" }: { kind: TargetKind; className?: string }
       </tr>
     </thead>
   );
-}
-
-// What an action asks for when it makes a project, in the order they are offered: a name
-// (Claude Code's New project), then a repository (Git's Clone).
-const MAKES = ["project", "repo"];
-
-// A machine's rows of a kind as its cards list them — the same on every tool that lists
-// them, so one is read.
-function rowsHere(here: Tool[], kind: TargetKind, ctx: ToolContext) {
-  const lister = here.find((t) => t.actions.some((a) => a.target === kind));
-  return (lister && listsOf(lister, ctx).find((l) => l.kind === kind)?.rows) ?? [];
-}
-
-// A machine's projects, and its tmux sessions of your own (Claude's are on their
-// projects), with the tools that apply there.
-function projectsOf(ctx: ToolContext) {
-  const here = ctx.tools.filter((t) => applies(t, ctx.facts.programs ?? []));
-  const rows = rowsHere(here, "project", ctx);
-  const sessions = rowsHere(here, "session", ctx);
-  const makers = here
-    .flatMap((t) => t.actions.filter((a) => a.ask && MAKES.includes(a.ask)).map((a) => ({ tool: t, action: a })))
-    .sort((a, b) => MAKES.indexOf(a.action.ask!) - MAKES.indexOf(b.action.ask!));
-  return { here, rows, sessions, makers };
 }
 
 // Every machine's projects in one place, from the Machines tab: a side menu of the machines
@@ -317,8 +295,21 @@ function MachineProjects({ machine }: { machine: Machine }) {
   const facts = useFacts(machine.id, true, false);
   const runner = useToolRunner(machine, ssh.data?.key ?? null);
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
-  if (!ctx) return null;
+  return (
+    <>
+      {ctx && <ProjectTables ctx={ctx} />}
+      {runner.ui}
+    </>
+  );
+}
+
+// A machine's projects as a table, then its tmux sessions, each row with the buttons of
+// every tool that applies (`ctx.onRun` runs them). `settings`: a project's own settings
+// (Git's), by its buttons — on the machine's Projects, not every machine's.
+export function ProjectTables({ ctx, settings = false }: { ctx: ToolContext; settings?: boolean }) {
   const { here, rows, sessions } = projectsOf(ctx);
+  // The row whose own settings are open, and whose tool's.
+  const [open, setOpen] = useState<{ tool: Tool; kind: TargetKind; name: string } | null>(null);
   // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a
   // card (CARD_TABLE): the name on a line of its own, the cells that say something, then
   // the buttons.
@@ -356,7 +347,13 @@ function MachineProjects({ machine }: { machine: Machine }) {
               })}
               <td className="px-2.5 py-1 max-sm:ml-auto">
                 <span className="flex flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
-                  <RowButtons here={here} kind={kind} name={r.name} onRun={runner.start} facts={ctx.facts} />
+                  <RowButtons here={here} kind={kind} name={r.name} onRun={ctx.onRun} facts={ctx.facts} />
+                  {settings &&
+                    here
+                      .filter((t) => rowSettingsOf(t, kind).length > 0)
+                      .map((t) => (
+                        <ToolSettingsButton key={t.id} tool={t} ctx={ctx} row={{ kind, name: r.name }} onOpen={() => setOpen({ tool: t, kind, name: r.name })} />
+                      ))}
                 </span>
               </td>
             </tr>
@@ -367,7 +364,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
   );
   return (
     <>
-      {table("project", rows, "Projects")}
+      {rows.length > 0 && table("project", rows, "Projects")}
       {sessions.length > 0 && (
         <>
           <h3 className="mb-1 mt-3 text-xs text-slate-500">
@@ -376,7 +373,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
           {table("session", sessions, "tmux sessions")}
         </>
       )}
-      {runner.ui}
+      {open && <ToolSettingsDialog tool={open.tool} ctx={ctx} row={{ kind: open.kind, name: open.name }} onClose={() => setOpen(null)} />}
     </>
   );
 }

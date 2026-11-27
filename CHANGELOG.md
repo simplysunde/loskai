@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **One Projects button on a machine's row** in place of Git's, Claude Code's and tmux's.
+  It opens that machine's projects with every button they have, its tmux sessions, and
+  **Pull all**, **Push all**, **Clone**, **New project** and **New session** at the foot —
+  whichever of those tools the machine has. Its count and amber are all three's.
 - **A project gets its own tmux session** on a machine with tmux and no Claude Code:
   **Session** on its row opens it in the project's folder, starting it when it isn't
   running, and **End** ends it. The project says **running** while it is.

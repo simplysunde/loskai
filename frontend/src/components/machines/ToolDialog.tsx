@@ -1,8 +1,7 @@
 import { Check, HardDrive, Loader2, Plus, Settings, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { apiMessage } from "../../lib/api";
-import { useFacts, useSsh } from "../../lib/ssh";
+import { overviewError, useFacts, useSsh } from "../../lib/ssh";
 import { toolContext, toolSummary } from "../../lib/toolRows";
 import { addable, applies, missing, useTools } from "../../lib/tools";
 import { Modal } from "../shared/Modal";
@@ -32,32 +31,11 @@ export function ToolDialog({
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
   const tool = (ctx?.tools ?? tools.data)?.find((t) => t.id === toolId);
 
-  // The machine answered but couldn't be read, or a request failed outright (a 409 when its
-  // SSH user or host key is gone) — either way, never a spinner that doesn't stop.
-  const failed = [facts, tools, ssh].find((q) => q.isError && !q.data)?.error;
-  const error =
-    facts.data && !facts.data.ok
-      ? facts.data.error
-      : failed && apiMessage(failed, "Couldn't reach Loskai");
+  const error = overviewError(facts, tools, ssh);
 
   let body: React.ReactNode = <Loader2 className="h-4 w-4 animate-spin text-slate-500" />;
   if (error) {
-    // A shortcut to where it is fixed: the machine's SSH setup reinstalls the status line.
-    const old = facts.data?.old;
-    const setup: MachineState = { setup: true };
-    body = (
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-amber-300">{error}</p>
-        <Link
-          to={`/machines/${machine.id}/${old ? "ssh" : "general"}`}
-          state={old ? setup : undefined}
-          onClick={onClose}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
-        >
-          <Settings className="h-3.5 w-3.5" /> {old ? "Install again" : "Settings"}
-        </Link>
-      </div>
-    );
+    body = <OverviewProblem machineId={machine.id} error={error} old={facts.data?.old} onClose={onClose} />;
   } else if (tool && ctx) {
     const programs = ctx.facts.programs ?? [];
     const summary = applies(tool, programs) ? toolSummary(tool, ctx) : "";
@@ -147,5 +125,34 @@ export function ToolDialog({
       </Modal>
       {runner.ui}
     </>
+  );
+}
+
+// Why a machine's overview can't be shown, and a shortcut to where it is fixed: the machine's
+// SSH setup reinstalls an out-of-date status line; anything else, its settings.
+export function OverviewProblem({
+  machineId,
+  error,
+  old,
+  onClose,
+}: {
+  machineId: string;
+  error: string;
+  old?: boolean;
+  onClose: () => void;
+}) {
+  const setup: MachineState = { setup: true };
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <p className="text-xs text-amber-300">{error}</p>
+      <Link
+        to={`/machines/${machineId}/${old ? "ssh" : "general"}`}
+        state={old ? setup : undefined}
+        onClick={onClose}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800"
+      >
+        <Settings className="h-3.5 w-3.5" /> {old ? "Install again" : "Settings"}
+      </Link>
+    </div>
   );
 }

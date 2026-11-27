@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import { api } from "./api";
+import { api, apiMessage } from "./api";
 
 // Loskai's SSH key (null until one is made) and each Host in its SSH config, by alias — a
 // machine's entry is the one named after its hostname.
@@ -374,4 +374,14 @@ export function tailscaleStatus(facts: Facts): string {
 export const SELF_UPDATING_REASON = "It updates itself, with its own updater";
 export function updatesItself(facts: Facts | undefined): boolean {
   return facts?.updates?.count === null;
+}
+
+// A machine's overview, its tools and Loskai's SSH state — and, once they are in, what
+// stops them being shown, in words (`OverviewProblem`): the machine answered but couldn't
+// be read, or a request failed outright (a 409 when its SSH user or host key is gone) —
+// either way, never a spinner that doesn't stop.
+export function overviewError(facts: UseQueryResult<Facts>, ...others: UseQueryResult<unknown>[]): string | null {
+  if (facts.data && !facts.data.ok) return facts.data.error ?? "Couldn't read it";
+  const failed = [facts, ...others].find((q) => q.isError && !q.data)?.error;
+  return failed ? apiMessage(failed, "Couldn't reach Loskai") : null;
 }

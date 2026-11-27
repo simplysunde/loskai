@@ -17,6 +17,7 @@ import { MachineTable } from "../components/machines/MachineTable";
 import { MachineTerminal } from "../components/machines/MachineTerminal";
 import { useToolRunner } from "../components/machines/useToolRunner";
 import { SaveBanner } from "../components/routing/SaveBanner";
+import { ProjectsDialog } from "../components/machines/ProjectsDialog";
 import { ProjectsOverview } from "../components/machines/ProjectsOverview";
 import { UpdateAll } from "../components/machines/UpdateAll";
 import { ToolDialog } from "../components/machines/ToolDialog";
@@ -56,6 +57,7 @@ export function Machines() {
   const [systemOn, setSystemOn] = useState<Instance | null>(null);
   // A tool on a machine, from the Tools menu on its row.
   const [toolFor, setToolFor] = useState<{ machine: Instance; toolId: string } | null>(null);
+  const [projectsFor, setProjectsFor] = useState<Instance | null>(null);
   // Every machine's projects, and every machine's updates, from the row above the table.
   const [projects, setProjects] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -183,6 +185,7 @@ export function Machines() {
           onOpen={(m) => navigate(`/machines/${m.id}`)}
           tools={tools.data}
           onTool={(machine, toolId) => setToolFor({ machine, toolId })}
+          onProjects={(machine) => setProjectsFor(machine)}
           onTerminal={(machine) => setTerminalFor(machine)}
           onSystem={(machine, action) => {
             setSystemOn(machine);
@@ -241,6 +244,9 @@ export function Machines() {
 
       {projects && <ProjectsOverview machines={machines} onClose={() => setProjects(false)} />}
       {updating && <UpdateAll machines={machines} onClose={() => setUpdating(false)} />}
+      {projectsFor && (
+        <ProjectsDialog machine={{ id: projectsFor.id, name: projectsFor.name }} onClose={() => setProjectsFor(null)} />
+      )}
       {toolFor && (
         <ToolDialog
           machine={{ id: toolFor.machine.id, name: toolFor.machine.name }}

@@ -488,11 +488,14 @@ A tool adds a card to a machine's dialog, under **Tools**, where the machine has
 program: **Git**, **Claude Code**, **Tailscale**, **tmux**.
 
 - **Add one.** Click **Add tool** and pick it. Each says what it installs.
-- **Open one from the list.** A machine's row has a button for each tool it has. Point at
-  one to see how it stands there, such as **2 projects, 1 running**; click it to open it.
-  A small number in its corner counts the sessions running. It turns amber when something
-  there waits on you: a Claude session stopped at a question, or Tailscale logged out or
-  waiting for approval.
+- **Open one from the list.** A machine's row has a button for each tool it has. Git,
+  Claude Code and tmux share one, **Projects**: it opens the machine's projects with all
+  their buttons together (**Pull**, **Push**, **Start**, **Attach**, **Session**), its
+  tmux sessions, and at the foot **Pull all**, **Push all**, **Clone**, **New project** and
+  **New session**, as far as the machine has those tools. Point at a button to see how it
+  stands there, such as **2 projects, 1 running · 1 tmux session**. A small number in its
+  corner counts the sessions running. It turns amber when something there waits on you: a
+  Claude session stopped at a question, or Tailscale logged out or waiting for approval.
 
 Point at a tool's button to see the command it runs. Some run by themselves in the panel at
 the top, like an update. The others open a terminal, where you answer what the program asks:

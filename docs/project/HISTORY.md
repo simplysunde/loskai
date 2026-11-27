@@ -4,6 +4,19 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-27 — One Projects button on a machine's row
+
+Sunde, using the row's tool buttons machine by machine, wanted "to start and stop, push and
+pull all in one": Git, Claude Code and tmux each opened their own dialog over the same
+projects. Their row buttons are now one, **Projects**, opening the machine's projects as the
+Projects overview shows every machine's — each project once, with every tool's buttons —
+plus its own settings, the tmux sessions, and the tools' foot (Pull all, Clone, New
+session). Which tools join it is the data's: those with actions on a `project` or a
+`session` (`isProjectTool`), so a new tool on projects joins without a list to update.
+Tailscale, Proxmox and the rest keep a button each. Opening the Projects overview at the
+machine was the other way offered; it lacked the foot, and left out a machine with tmux and
+no projects. Each tool's own card stays in the machine's dialog.
+
 ## 2026-11-27 — A project's own tmux session, where Claude Code isn't
 
 Sunde wanted a session per project on machines that have git and tmux but no Claude Code —
