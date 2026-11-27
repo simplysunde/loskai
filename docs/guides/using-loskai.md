@@ -595,7 +595,7 @@ another key in its place, so that host refuses the machine.
 A deploy key reaches one repository only: a good choice on a machine where Claude works by
 itself.
 
-1. On the project's row, click the cog (**Project overrides**), then **Give it its own
+1. On the project's row, click the cog (**Project settings**), then **Give it its own
    key**. A terminal shows the key.
 2. Add it to the repository on GitHub or Forgejo, under Settings › Deploy keys, with write
    access if the project pushes.
@@ -603,8 +603,12 @@ itself.
 **Back to the machine's key**, in the same place, undoes it. The button waits while the
 project has no remote over SSH: over HTTPS no SSH key is used.
 
-A project's own **Name** and **Email** are in **Project overrides** too, kept in that clone
-only. Empty, the card's apply.
+A project's own **Name** and **Email** are in **Project settings** too, kept in that clone
+only. Empty, the card's apply; while one is set, or its own key, the cog is teal.
+
+**Remote**, there too, is where the project's **Pull** and **Push** go (git's `origin`):
+type an address, `git@github.com:you/project.git` or `https://…`, and click **Save**. A
+project without one gets it added. To remove a remote, use the project's **Terminal**.
 
 **Find the key a host takes**
 

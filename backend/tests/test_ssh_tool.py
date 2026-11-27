@@ -1030,7 +1030,7 @@ def test_an_update_that_isn_t_plain_sudo_steps_gets_no_rule(monkeypatch):
 def test_git_s_settings_are_its_name_and_email():
     git = tool.load()["git"]
 
-    assert list(git.settings) == ["name", "email", "project-name", "project-email"]
+    assert list(git.settings) == ["name", "email", "project-name", "project-email", "project-remote"]
     assert git.settings["email"].write == 'git config --global user.email "$1"'
     assert git.settings["project-email"].target == "project" and git.settings["project-email"].overrides == "email"
 
@@ -1073,16 +1073,45 @@ def test_a_project_s_setting_is_written_read_and_taken_off_in_its_repo(tmp_path)
     assert read["values"]["name"] == "Ola Nordmann"
     # A folder no project can be named (`-x`) isn't read; one with nothing set reads None.
     assert read["targets"] == {"project": {
-        "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example"},
-        "notes": {"project-name": None, "project-email": None}}}
+        "site": {"project-name": "Ola; $(id)", "project-email": "ola@work.example", "project-remote": None},
+        "notes": {"project-name": None, "project-email": None, "project-remote": None}}}
     # Taking one off leaves the global one, and taking off what isn't there is no failure.
     sh(tool.write_setting_script(git, "project-name", "", target_name="site"))
     sh(tool.write_setting_script(git, "project-name", "", target_name="site"))
     assert tool.parse_settings(git, sh(tool.read_settings_script(git)))["targets"]["project"]["site"] == {
-        "project-name": None, "project-email": "ola@work.example"}
+        "project-name": None, "project-email": "ola@work.example", "project-remote": None}
     who = subprocess.run(["git", "-C", str(projects / "site"), "config", "user.name"], env=env,
                          capture_output=True, text=True).stdout.strip()
     assert who == "Ola Nordmann"
+
+
+def test_a_project_s_remote_is_added_changed_and_read_never_taken_off(tmp_path):
+    """Its own value, not one in place of the machine's: no `overrides`, so it never turns the
+    cog teal. Emptying it would remove the remote, which is the terminal's to do."""
+    home = tmp_path / "home"
+    subprocess.run(["git", "init", "-q", str(home / "projects" / "site")], check=True)
+    git = tool.load()["git"]
+    remote = git.settings["project-remote"]
+    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def sh(script):
+        out = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, timeout=30)
+        assert out.returncode == 0, out.stderr
+        return out.stdout
+
+    def origin():
+        return tool.parse_settings(git, sh(tool.read_settings_script(git)))["targets"]["project"]["site"]["project-remote"]
+
+    assert (remote.target, remote.value, remote.overrides, remote.unset) == ("project", "repo", None, None)
+    assert origin() is None
+    sh(tool.write_setting_script(git, "project-remote", "git@github.com:simplysunde/site.git", target_name="site"))
+    assert origin() == "git@github.com:simplysunde/site.git"
+    sh(tool.write_setting_script(git, "project-remote", "https://codeberg.org/sunde/site.git", target_name="site"))
+    assert origin() == "https://codeberg.org/sunde/site.git"
+    with pytest.raises(tool.ToolError):
+        tool.write_setting_script(git, "project-remote", "", target_name="site")
+    with pytest.raises(tool.ToolError):
+        tool.write_setting_script(git, "project-remote", "https://ghp_x@github.com/a/b.git", target_name="site")
 
 
 def test_a_project_s_setting_needs_its_project_and_the_machine_s_none():

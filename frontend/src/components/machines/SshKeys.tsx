@@ -39,7 +39,7 @@ export function CardKeys({ tool, ctx }: { tool: Tool; ctx: ToolContext }) {
 // nor Loskai's, so it isn't listed.
 const GROUPS = [
   { id: "account", title: "Account keys", hint: "on your account, reaching every repository you can" },
-  { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project overrides" },
+  { id: "deploy", title: "Deploy keys", hint: "on one repository each — made in Project settings" },
   { id: "other", title: "Not used by git yet", hint: "no remote uses them, and no label says — Label one that is git's" },
 ] as const;
 

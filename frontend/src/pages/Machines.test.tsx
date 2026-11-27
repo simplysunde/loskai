@@ -188,6 +188,9 @@ const TOOLS = [
         target: "project", overrides: "name" },
       { id: "project-email", label: "Email", description: "This project's.", value: "email", read: "x", write: "x",
         unset: "x", target: "project", overrides: "email" },
+      // Its own, in place of nothing.
+      { id: "project-remote", label: "Remote", description: "Where Pull and Push go.", value: "repo", read: "x", write: "x",
+        target: "project" },
     ],
   },
   {
@@ -281,6 +284,8 @@ beforeEach(() => {
                 : { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": null } } } }
             : path.endsWith("/tools/git/settings/email")
               ? { values: { name: "Ola Nordmann", email: "ola@example.no" }, targets: { project: {} } }
+            : path.endsWith("/tools/git/settings/project-remote")
+              ? { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": null, "project-remote": "git@github.com:ola/site.git" } } } }
             : path.endsWith("/tools/git/settings/project-email")
               ? { values: { name: "Ola Nordmann", email: null }, targets: { project: { site: { "project-name": null, "project-email": "ola@work.example" } } } }
             : path.endsWith("/facts")
@@ -1006,7 +1011,7 @@ test("a machine's Projects: its projects with Git's and Claude's buttons, its tm
   expect(await within(dialog).findByText("site")).toBeInTheDocument();
   expect(within(dialog).getByText("~/projects/")).toBeInTheDocument();
   // A project's own settings (Git's), by its buttons.
-  expect(buttons("site")).toEqual(["Attach", expect.stringMatching(/^Project overrides/), "Pull", "Stop"]);
+  expect(buttons("site")).toEqual(["Attach", expect.stringMatching(/^Project settings/), "Pull", "Stop"]);
   expect(within(row("site")).getByText("running")).toBeInTheDocument();
   expect(within(dialog).getByRole("table", { name: "tmux sessions" })).toBeInTheDocument();
   // Git's Keys and Settings, as on its card.
@@ -1067,10 +1072,10 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   renderPage("/machines/nas/tools");
 
   const tools = await screen.findByRole("region", { name: "Tools" });
-  const cog = await within(tools).findByRole("button", { name: "Project overrides for site" });
+  const cog = await within(tools).findByRole("button", { name: "Project settings for site" });
   fireEvent.click(cog);
   // Opened once the settings are read again: never the locked error it had.
-  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  const dialog = await screen.findByRole("dialog", { name: "Project settings for site" });
   expect(within(dialog).queryByText(/locked/)).toBeNull();
   expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
   expect(within(dialog).getByLabelText("Name")).toBeEnabled();
@@ -1081,15 +1086,39 @@ test("a project's cog opens a dialog that sets its own commit email, the global 
   fireEvent.change(email, { target: { value: "ola@work.example" } });
   fireEvent.click(save);
 
-  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull());
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Project settings for site" })).toBeNull());
   // Only the field changed is written.
   expect(calls.filter((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual([{
     path: "/api/ssh/machines/nas/tools/git/settings/project-email", method: "PUT",
     body: { value: "ola@work.example", target: "site" },
   }]);
   // Set, its cog says so; the card's own Email is untouched.
-  expect(cog).toHaveAttribute("title", "Project overrides — Email ola@work.example");
+  expect(cog).toHaveAttribute("title", "Project settings — Email ola@work.example");
+  expect(cog).toHaveClass("text-teal-300");
   expect(within(tools).getByRole("button", { name: "Git settings" }).title).toContain("Email not set");
+});
+
+test("a project's remote is set in its settings, and leaves its cog plain: it overrides nothing", async () => {
+  sshSetUp();
+  renderPage("/machines/nas/tools");
+
+  const tools = await screen.findByRole("region", { name: "Tools" });
+  const cog = await within(tools).findByRole("button", { name: "Project settings for site" });
+  fireEvent.click(cog);
+  const dialog = await screen.findByRole("dialog", { name: "Project settings for site" });
+  const remote = within(dialog).getByLabelText("Remote");
+  expect(remote).toHaveAttribute("placeholder", "not set");
+  fireEvent.change(remote, { target: { value: "git@github.com:ola/site.git" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Project settings for site" })).toBeNull());
+  expect(calls.filter((c) => c.method === "PUT" && c.path.includes("/settings/"))).toEqual([{
+    path: "/api/ssh/machines/nas/tools/git/settings/project-remote", method: "PUT",
+    body: { value: "git@github.com:ola/site.git", target: "site" },
+  }]);
+  // Said in its title, but not teal: teal is for what replaces the machine's.
+  expect(cog).toHaveAttribute("title", "Project settings — Remote git@github.com:ola/site.git");
+  expect(cog).not.toHaveClass("text-teal-300");
 });
 
 test("Git's Pull all and Push all are together at its list's foot, ahead of Clone", async () => {
@@ -1113,12 +1142,12 @@ test("a project's settings dialog cancelled writes nothing", async () => {
   sshSetUp();
   renderPage("/machines/nas/tools");
 
-  fireEvent.click(await screen.findByRole("button", { name: "Project overrides for site" }));
-  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  fireEvent.click(await screen.findByRole("button", { name: "Project settings for site" }));
+  const dialog = await screen.findByRole("dialog", { name: "Project settings for site" });
   fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Someone" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
-  expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Project settings for site" })).toBeNull();
   expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
@@ -1158,14 +1187,14 @@ test("with Loskai's key locked, a project's cog asks for your password, then ope
   renderPage("/machines/nas/tools");
 
   await vi.waitFor(() => expect(screen.getByRole("button", { name: "Git settings" }).title).toContain("(locked)"));
-  fireEvent.click(screen.getByRole("button", { name: "Project overrides for site" }));
+  fireEvent.click(screen.getByRole("button", { name: "Project settings for site" }));
   const prompt = await screen.findByRole("dialog", { name: "Unlock Loskai's key" });
   fireEvent.change(within(prompt).getByLabelText("Your password"), { target: { value: "admin-pw" } });
   gitStatus = 200;
   fireEvent.click(within(prompt).getByRole("button", { name: "Unlock" }));
 
   // Opened once the settings are read again: never the locked error it had.
-  const dialog = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  const dialog = await screen.findByRole("dialog", { name: "Project settings for site" });
   expect(within(dialog).queryByText(/locked/)).toBeNull();
   expect(within(dialog).getByLabelText("Name")).toHaveAttribute("placeholder", "Ola Nordmann");
   expect(within(dialog).getByLabelText("Name")).toBeEnabled();
@@ -1934,11 +1963,11 @@ test("a project's cog says which key it uses — its own teal like its own name 
   const siteRow = within(tools).getAllByText("site").map((el) => el.closest("li") as HTMLElement).find((li) => within(li).queryByRole("button", { name: "Pull" }))!;
   expect(within(siteRow).queryByRole("button", { name: "Own key" })).toBeNull();
   // blog has its own key: its cog is teal, and says so.
-  const blogCog = await within(tools).findByRole("button", { name: "Project overrides for blog" });
+  const blogCog = await within(tools).findByRole("button", { name: "Project settings for blog" });
   await vi.waitFor(() => expect(blogCog).toHaveClass("text-teal-300"));
   expect(blogCog.title).toContain("SSH key deploy_blog");
   fireEvent.click(blogCog);
-  const blog = await screen.findByRole("dialog", { name: "Project overrides for blog" });
+  const blog = await screen.findByRole("dialog", { name: "Project settings for blog" });
   expect(within(blog).getByLabelText("SSH key")).toHaveTextContent("Uses its own key, deploy_blog · SHA256:blog");
   // The one button that applies: back to the machine's — no list of actions beside it.
   expect(within(blog).getByRole("button", { name: /Back to the machine's key/ })).toBeEnabled();
@@ -1946,11 +1975,11 @@ test("a project's cog says which key it uses — its own teal like its own name 
   expect(within(blog).queryByText("Actions")).toBeNull();
   fireEvent.click(within(blog).getByRole("button", { name: "Cancel" }));
 
-  fireEvent.click(within(tools).getByRole("button", { name: "Project overrides for site" }));
-  const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  fireEvent.click(within(tools).getByRole("button", { name: "Project settings for site" }));
+  const site = await screen.findByRole("dialog", { name: "Project settings for site" });
   expect(within(site).getByLabelText("SSH key")).toHaveTextContent("Uses the machine's key.");
   fireEvent.click(within(site).getByRole("button", { name: /Give it its own key/ }));
-  expect(screen.queryByRole("dialog", { name: "Project overrides for site" })).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Project settings for site" })).toBeNull();
   expect(await screen.findByText("shell at /api/ssh/machines/nas/terminal?tool=git&action=own-key&target=site")).toBeInTheDocument();
   expect(screen.getByRole("dialog", { name: /Own key: site — Storage box/ })).toBeInTheDocument();
 });
@@ -1960,8 +1989,8 @@ test("a project whose remote is over HTTP: no SSH key is used, which its overrid
   facts = { ...FACTS, remotes: [{ path: "projects/site", module: "", kind: "url", url: "http://192.168.10.216:3000/me/site.git" }] };
   renderPage("/machines/nas/tools");
   const tools = await screen.findByRole("region", { name: "Tools" });
-  fireEvent.click(await within(tools).findByRole("button", { name: "Project overrides for site" }));
-  const site = await screen.findByRole("dialog", { name: "Project overrides for site" });
+  fireEvent.click(await within(tools).findByRole("button", { name: "Project settings for site" }));
+  const site = await screen.findByRole("dialog", { name: "Project settings for site" });
   expect(within(site).getByRole("button", { name: /Give it its own key/ })).toHaveAttribute("aria-disabled", "true");
   expect(site).toHaveTextContent("Its remote is over HTTP(S), which uses no SSH key — switch it to its SSH address first.");
 });

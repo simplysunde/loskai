@@ -4,6 +4,20 @@
 
 **Read this when** you are about to reverse a decision — newest first, with the reasons.
 
+## 2026-11-27 — A project's remote, in Project settings
+
+Sunde wanted to set a project's git remote from the page "without cluttering the ui", by
+its cog. Git's file gained `project-remote` (origin only, the `repo` kind, added where
+there is none); it has no `unset`, since emptying a field would remove the remote and its
+tracking branches — the terminal's to do. The cog's dialog, **Project overrides** since
+Phase 56 (renamed from "Settings for <project>" when it held only overrides), is now
+**Project settings**, as it holds one that replaces nothing; its teal stays a sign of an
+override — a setting with `overrides`, or its own key — so a project with a remote isn't
+lit. The `repo` kind now refuses a user on http(s), since a setting's value and a clone's
+address are both written to the SSH log and a token goes there. Sunde asked that no name
+overlap: "Project settings" is used nowhere else, and the field's description names git's
+origin so **Remote** isn't read as Claude's Remote Control.
+
 ## 2026-11-27 — One Projects button on a machine's row
 
 Sunde, using the row's tool buttons machine by machine, wanted "to start and stop, push and

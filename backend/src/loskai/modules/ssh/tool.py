@@ -460,13 +460,14 @@ def _projects_env(projects_folder: str | None) -> str:
 def read_settings_script(tool: Tool, projects_folder: str | None = None) -> str:
     """One script reading each of the tool's settings, each after a line naming it — a
     project's for every git repo in the projects folder, after a line naming both. A folder
-    whose name a project can't have is skipped, so a name never needs quoting or breaks a line."""
+    whose name a project can't have is skipped, so a name never needs quoting or breaks a line.
+    A read that fails is "not set", never the script's failure (`|| :`)."""
     machine = [
-        f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null"
+        f"printf '%s\\n' {shlex.quote(_SETTING_MARK + s.id)}; ({s.read}) 2>/dev/null || :"
         for s in tool.settings.values() if s.target is None
     ]
     rows = [
-        f"printf '%s\\n' \"{_SETTING_MARK}{s.id} $n\"; sh -c {shlex.quote(s.read)} loskai \"$n\" 2>/dev/null"
+        f"printf '%s\\n' \"{_SETTING_MARK}{s.id} $n\"; sh -c {shlex.quote(s.read)} loskai \"$n\" 2>/dev/null || :"
         for s in tool.settings.values() if s.target == "project"
     ]
     if rows:

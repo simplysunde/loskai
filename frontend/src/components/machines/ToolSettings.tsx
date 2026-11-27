@@ -35,14 +35,16 @@ function useToolSettings(tool: Tool, machineId: string) {
 // Where a dialog's settings are: the card's — the machine's own values — or a row's.
 type Row = { kind: TargetKind; name: string };
 
-// A row's own settings, in place of the card's, are its overrides: "Project overrides".
-function overridesOf(row: Row): string {
-  return `${row.kind[0].toUpperCase()}${row.kind.slice(1)} overrides`;
+// A row's own settings — some in place of the card's (`overrides`), some only its own (Git's
+// Remote): "Project settings".
+function settingsNameOf(row: Row): string {
+  return `${row.kind[0].toUpperCase()}${row.kind.slice(1)} settings`;
 }
 
 // Opens the card's settings — a Settings button in its header — or, given a `row`, that
 // row's own, from a cog on it, in a dialog. Read with Loskai's key: while it is locked, your
-// password first. A row's cog is teal while any of its own is set.
+// password first. A row's cog is teal while it overrides the card: one of its own set in place
+// of the card's, or its own SSH key. One that replaces nothing (a remote) is in its title only.
 export function ToolSettingsButton({
   tool,
   ctx,
@@ -60,12 +62,13 @@ export function ToolSettingsButton({
   let own = false;
   if (row) {
     const mine = values.data?.targets?.[row.kind]?.[row.name] ?? {};
-    const ownSettings = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]).map((s) => `${s.label} ${mine[s.id]}`);
-    // Its own SSH key counts as its own setting: one in place of the machine's.
+    const set = rowSettingsOf(tool, row.kind).filter((s) => mine[s.id]);
+    const said = set.map((s) => `${s.label} ${mine[s.id]}`);
+    // Its own SSH key overrides too: one in place of the machine's.
     const key = row.kind === "project" && hasKeys(tool) ? projectKeyOf(ctx, row.name) : null;
-    if (key != null) ownSettings.push(`SSH key ${key || "its own command"}`);
-    own = ownSettings.length > 0;
-    title = own ? `${overridesOf(row)} — ${ownSettings.join(", ")}` : `${overridesOf(row)}: its own settings in place of the card's`;
+    if (key != null) said.push(`SSH key ${key || "its own command"}`);
+    own = set.some((s) => s.overrides) || key != null;
+    title = said.length ? `${settingsNameOf(row)} — ${said.join(", ")}` : `${settingsNameOf(row)}: none of its own yet`;
   } else {
     const shown = [
       ...(tool.id === "git" ? [`Projects folder ${ctx.folder}`] : []),
@@ -76,7 +79,7 @@ export function ToolSettingsButton({
   return (
     <button
       type="button"
-      aria-label={row ? `${overridesOf(row)} for ${row.name}` : `${tool.name} settings`}
+      aria-label={row ? `${settingsNameOf(row)} for ${row.name}` : `${tool.name} settings`}
       aria-haspopup="dialog"
       title={title}
       onClick={async () => {
@@ -169,7 +172,7 @@ export function ToolSettingsDialog({
     },
     onSuccess: onClose,
   });
-  const label = row ? `${overridesOf(row)} for ${row.name}` : `${tool.name} settings`;
+  const label = row ? `${settingsNameOf(row)} for ${row.name}` : `${tool.name} settings`;
   const formId = useId();
   // A project's own key and back are its key section's buttons, not the list's.
   const keyed = row?.kind === "project" && hasKeys(tool);
@@ -192,7 +195,7 @@ export function ToolSettingsDialog({
         <h2 className="text-base font-semibold text-slate-100">
           {row ? (
             <>
-              {overridesOf(row)} for <span className="font-mono">{row.name}</span>
+              {settingsNameOf(row)} for <span className="font-mono">{row.name}</span>
             </>
           ) : (
             label
@@ -200,9 +203,9 @@ export function ToolSettingsDialog({
         </h2>
         <p className="mt-1 text-sm text-slate-400">
           {row
-            ? `In place of the card's, for this ${row.kind} only — empty, the card's applies.`
+            ? `For this ${row.kind} only — one that replaces the card's, left empty, leaves the card's.`
             : (tool.settings ?? []).some((s) => s.target)
-              ? "On this machine — Project overrides, a project's cog, can set its own."
+              ? "On this machine — Project settings, a project's cog, can set its own."
               : "On this machine."}
         </p>
         <div className="mt-4 space-y-3">

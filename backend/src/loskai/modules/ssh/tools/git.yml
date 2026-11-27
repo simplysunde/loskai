@@ -46,6 +46,17 @@ settings:
     read: git -C "$PROJECTS/$1" config --local user.email
     write: git -C "$PROJECTS/$1" config --local user.email "$2"
     unset: git -C "$PROJECTS/$1" config --local --unset user.email; s=$?; [ $s = 0 ] || [ $s = 5 ]
+  # The project's own, not in place of anything (no `overrides`): where Pull and Push go.
+  # Added when there is none. No `unset` — removing a remote is the terminal's to do.
+  project-remote:
+    label: Remote
+    description: Where Pull and Push go — git's origin, https://… or git@host:path.
+    target: project
+    value: repo
+    read: git -C "$PROJECTS/$1" remote get-url origin
+    write: >-
+      git -C "$PROJECTS/$1" remote set-url origin "$2" 2>/dev/null ||
+      git -C "$PROJECTS/$1" remote add origin "$2"
 actions:
   pull:
     label: Pull

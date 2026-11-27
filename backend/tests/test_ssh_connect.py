@@ -1125,7 +1125,7 @@ def test_a_project_s_own_name_is_set_in_its_folder_and_read_back(api, machine_ne
     r = api.put(SETTINGS + "/project-name", json={"value": "Ola at work", "target": "site"}, headers=ORIGIN)
 
     assert r.status_code == 200
-    assert r.json()["targets"] == {"project": {"site": {"project-name": "Ola at work", "project-email": None}}}
+    assert r.json()["targets"] == {"project": {"site": {"project-name": "Ola at work", "project-email": None, "project-remote": None}}}
     assert machine_net["writes"][-1] == "sh -c " + shlex.quote(
         status.USER_PATH + "PROJECTS=$HOME/code; export PROJECTS; "
         + "sh -c 'git -C \"$PROJECTS/$1\" config --local user.name \"$2\"' loskai site 'Ola at work'")

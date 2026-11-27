@@ -5,6 +5,10 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **A project's remote is in its settings**: **Remote**, under its cog, sets where **Pull**
+  and **Push** go, adding one where it has none. The cog is now **Project settings**, and
+  turns teal only for what replaces the machine's (a name, an email, its own key) — not for
+  its remote.
 - **Clone refuses an `https://` address with a user or token in it**: git asks for the login
   in the terminal instead, since the address is written to the SSH log.
 - **One Projects button on a machine's row** in place of Git's, Claude Code's and tmux's.
