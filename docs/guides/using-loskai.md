@@ -540,7 +540,9 @@ change it.
 - **Get a project.** Paste a repository's address beside **Clone** and click it.
 
 These run in the machine's terminal as its SSH user. Over HTTPS a public repository just
-works, and a private one asks for its login in the terminal. Over SSH the machine needs a
+works, and a private one asks for its login in the terminal. An address with a login or
+token in it (`https://token@github.com/…`) is refused, since addresses are written to the
+SSH log. Over SSH the machine needs a
 key of its own that GitHub or your Forgejo knows, and the first time it asks you to trust
 that host's key. Loskai's key never leaves Loskai.
 

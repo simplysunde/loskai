@@ -65,12 +65,15 @@ TARGETS = {
     "vm": re.compile(r"^\d{1,9}$"),
     "session": re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@+=,~-]{0,99}$"),
     "project": re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"),
-    # A git remote to clone: https://, http://, ssh:// or git:// with a user and a host that
-    # each start with a letter or digit (never an option to ssh, whatever git's version), or
-    # scp-like `user@host:path`. No other transport — `ext::` would run a command.
+    # A git remote (Clone's, a project's Remote): https:// or http:// with no user — the
+    # address is in the SSH log, and a token goes there (`https://<token>@github.com/…`); git
+    # asks for the login instead — ssh:// or git:// with a user and a host that each start
+    # with a letter or digit (never an option to ssh, whatever git's version), or scp-like
+    # `user@host:path`. No other transport — `ext::` would run a command.
     "repo": re.compile(
         r"^(?=.{1,300}$)(?:"
-        r"(?:https?|ssh|git)://(?:[A-Za-z0-9][A-Za-z0-9._~%-]*@)?[A-Za-z0-9][A-Za-z0-9.-]*(?::\d{1,5})?/[A-Za-z0-9._~%/+@-]+"
+        r"https?://[A-Za-z0-9][A-Za-z0-9.-]*(?::\d{1,5})?/[A-Za-z0-9._~%/+@-]+"
+        r"|(?:ssh|git)://(?:[A-Za-z0-9][A-Za-z0-9._~%-]*@)?[A-Za-z0-9][A-Za-z0-9.-]*(?::\d{1,5})?/[A-Za-z0-9._~%/+@-]+"
         r"|[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*:[A-Za-z0-9._~][A-Za-z0-9._~/+-]*"
         r")$"
     ),

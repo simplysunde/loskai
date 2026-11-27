@@ -59,6 +59,16 @@ def test_clone_refuses_an_option_another_transport_or_a_path(url):
     assert not tool.TARGETS["repo"].fullmatch(url)
 
 
+@pytest.mark.parametrize("url", [
+    "https://ghp_abc123@github.com/simplysunde/loskai.git", "http://user@192.168.10.216:3000/sunde/loskai.git",
+    "https://x-access-token@github.com/a/b.git",
+])
+def test_a_remote_over_http_carries_no_user_where_a_token_would_go(url):
+    """A remote's address is written to the SSH log — a clone's target, a project's Remote —
+    so `https://<token>@host/…`, as GitHub takes one, is refused: git asks for the login."""
+    assert not tool.TARGETS["repo"].fullmatch(url)
+
+
 @pytest.mark.parametrize("host", ["github.com", "codeberg.org", "git.home.lan:2222", "192.168.10.216"])
 def test_test_key_takes_a_host_and_a_port(host):
     assert tool.TARGETS["host"].fullmatch(host)
