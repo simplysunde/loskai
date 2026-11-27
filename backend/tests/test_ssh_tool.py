@@ -1114,6 +1114,32 @@ def test_a_project_s_remote_is_added_changed_and_read_never_taken_off(tmp_path):
         tool.write_setting_script(git, "project-remote", "https://ghp_x@github.com/a/b.git", target_name="site")
 
 
+def test_push_sets_a_new_project_s_upstream_and_says_when_there_is_no_remote(tmp_path):
+    """New project makes a repo with no remote; once Remote is set, its first Push has no
+    upstream to go to — so it sets origin's, and later pushes are plain."""
+    home = tmp_path / "home"
+    site, lone, bare = home / "projects" / "site", home / "projects" / "lone", tmp_path / "remote.git"
+    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1", "PROJECTS": str(home / "projects"),
+           "GIT_AUTHOR_NAME": "a", "GIT_AUTHOR_EMAIL": "a@b", "GIT_COMMITTER_NAME": "a", "GIT_COMMITTER_EMAIL": "a@b"}
+    subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+    for repo in (site, lone):
+        subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-q", "--allow-empty", "-m", "first"], check=True, env=env)
+    subprocess.run(["git", "-C", str(site), "remote", "add", "origin", str(bare)], check=True)
+    command = tool.load()["git"].actions["push"].run
+
+    def run(project):
+        return subprocess.run(["sh", "-c", command, "loskai", project], env=env, capture_output=True, text=True, timeout=30)
+
+    first = run("site")
+    assert first.returncode == 0, first.stderr
+    upstream = subprocess.run(["git", "-C", str(site), "rev-parse", "--abbrev-ref", "@{u}"], capture_output=True, text=True)
+    assert upstream.stdout.strip() == "origin/main"
+    assert run("site").returncode == 0
+    none = run("lone")
+    assert none.returncode == 1 and "no remote yet" in none.stdout
+
+
 def test_a_project_s_setting_needs_its_project_and_the_machine_s_none():
     git = tool.load()["git"]
 

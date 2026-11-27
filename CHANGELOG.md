@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **A project's first Push sets where it goes**: a branch with no upstream yet follows
+  origin's, so **New project**, a **Remote**, then **Push** works without the terminal. A
+  project with no remote says where to set one.
 - **A project's remote is in its settings**: **Remote**, under its cog, sets where **Pull**
   and **Push** go, adding one where it has none. The cog is now **Project settings**, and
   turns teal only for what replaces the machine's (a name, an email, its own key) — not for

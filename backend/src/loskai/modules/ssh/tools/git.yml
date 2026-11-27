@@ -69,7 +69,13 @@ actions:
     description: Send this project's commits to its remote.
     target: project
     automatic: true
-    run: cd "$PROJECTS/$1" && git push
+    # A project with no upstream yet — New project's, once its Remote is set — gets origin's
+    # on its first push; one with no remote at all is told where to set it.
+    run: >-
+      cd "$PROJECTS/$1" || exit 1;
+      git remote | grep -q . || { echo "$1 has no remote yet: set its Remote under its cog, Project settings."; exit 1; };
+      if git rev-parse -q --verify '@{u}' >/dev/null 2>&1 || ! git remote get-url origin >/dev/null 2>&1;
+      then git push; else git push -u origin HEAD; fi
   terminal:
     label: Terminal
     description: A shell in this project.
