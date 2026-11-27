@@ -2229,9 +2229,18 @@ test("Projects lists only the machines with projects, beside a menu of them, and
   expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
   expect(within(menu).queryByRole("button", { name: "pve" })).toBeNull();
   expect(within(dialog).queryByRole("region", { name: "pve" })).toBeNull();
-  // The search finds a machine by its projects.
-  fireEvent.change(within(dialog).getByLabelText("Search"), { target: { value: "blog" } });
+  // The search finds a machine by its projects — and shows only the projects it found, so
+  // one project can be followed across machines.
+  const search = within(dialog).getByLabelText("Search");
+  const nas = within(dialog).getByRole("region", { name: "Storage box" });
+  const names = () => within(nas).queryAllByRole("row").map((r) => r.querySelector(".font-mono")?.textContent).filter(Boolean);
+  fireEvent.change(search, { target: { value: "blog" } });
   expect(within(menu).getByRole("button", { name: "Storage box" })).toBeInTheDocument();
+  await waitFor(() => expect(names()).toEqual(["blog"]));
+  // A machine found by its own name shows them all.
+  fireEvent.change(search, { target: { value: "storage" } });
+  await waitFor(() => expect(names()).toEqual(["site", "blog", "build"]));
+  fireEvent.change(search, { target: { value: "" } });
 
   // New project, from the dialog's header, in a dialog of its own: on pve — Claude Code's
   // new folder, or Git's clone — run in pve's terminal.

@@ -136,7 +136,7 @@ export function ProjectsOverview({ machines, onClose }: { machines: Machine[]; o
             // The search finds a machine by its projects and sessions too.
             words: [...r.rows, ...r.sessions].map((p) => p.name).join(" "),
             action: <MachineLine machine={r.machine} facts={r.facts!} />,
-            content: <MachineProjects machine={r.machine} />,
+            content: (query: string) => <MachineProjects machine={r.machine} only={query} />,
           }))}
         />
       )}
@@ -283,7 +283,7 @@ function NewProject({
 
 // One machine's projects, then its tmux sessions, each with its buttons. Its overview is
 // the one the list read.
-function MachineProjects({ machine }: { machine: Machine }) {
+function MachineProjects({ machine, only }: { machine: Machine; only: string }) {
   const ssh = useSsh();
   const tools = useTools();
   const facts = useFacts(machine.id, true, false);
@@ -291,7 +291,7 @@ function MachineProjects({ machine }: { machine: Machine }) {
   const ctx = toolContext(machine.id, tools.data, facts.data, ssh.data, runner.start);
   return (
     <>
-      {ctx && <ProjectTables ctx={ctx} />}
+      {ctx && <ProjectTables ctx={ctx} only={only} />}
       {runner.ui}
     </>
   );
@@ -299,9 +299,11 @@ function MachineProjects({ machine }: { machine: Machine }) {
 
 // A machine's projects as a table, then its tmux sessions, each row with the buttons of
 // every tool that applies (`ctx.onRun` runs them), and a project's own settings (Git's) by
-// its buttons.
-export function ProjectTables({ ctx }: { ctx: ToolContext }) {
-  const { here, rows, sessions } = projectsOf(ctx);
+// its buttons. `only`: what the search is for, lowercase — just the rows whose name has it.
+export function ProjectTables({ ctx, only = "" }: { ctx: ToolContext; only?: string }) {
+  const all = projectsOf(ctx);
+  const here = all.here;
+  const [rows, sessions] = [all.rows, all.sessions].map((list) => list.filter((r) => r.name.toLowerCase().includes(only)));
   // The row whose own settings are open, and whose tool's.
   const [open, setOpen] = useState<{ tool: Tool; kind: TargetKind; name: string } | null>(null);
   // A table of a kind of row: its name, its COLUMNS, its buttons. On a phone each row is a

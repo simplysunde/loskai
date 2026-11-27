@@ -13,7 +13,9 @@ export interface PaneSection {
   words: string;
   // On the right of its heading.
   action?: ReactNode;
-  content: ReactNode;
+  // Or, given what is searched for — "" for nothing, or for a section found by its label —
+  // its content narrowed to what matches (Projects: the projects found).
+  content: ReactNode | ((query: string) => ReactNode);
 }
 
 export function SectionPane({
@@ -140,7 +142,7 @@ export function SectionPane({
               <h2 className="text-sm font-semibold text-slate-100">{s.label}</h2>
               {s.action}
             </div>
-            {s.content}
+            {typeof s.content === "function" ? s.content(s.label.toLowerCase().includes(q) ? "" : q) : s.content}
           </section>
         ))}
       </div>

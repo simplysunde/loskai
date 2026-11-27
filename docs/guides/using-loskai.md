@@ -652,8 +652,9 @@ its Claude session, with the buttons of both cards: **Pull**, **Push**, **Termin
 **Attach**, **Start** or **Stop**, and its cog, **Project settings**. Under a machine's
 projects are its tmux sessions.
 
-- The strip of machines across the top jumps to one, and **Search** finds one by a
-  project's name too. A machine that can't be read says why at the top.
+- The strip of machines across the top jumps to one. **Search** finds a machine by its
+  name, showing all its projects, or a project by its name, showing just that project on
+  each machine that has it. A machine that can't be read says why at the top.
 - **Machine**, beside a machine's name, opens its dialog. Closing it comes back.
 - **New project** makes one on the machine you pick: a new folder with Claude opened in it,
   or a clone of a repository.

@@ -5,6 +5,9 @@ in [`HISTORY.md`](docs/project/HISTORY.md).
 
 ## Unreleased
 
+- **Search in Projects narrows to the projects found**: type a project's name and each
+  machine that has it shows only that one, so one project can be followed across machines.
+  A machine's name still shows all of its.
 - **Projects on every machine** has each project's cog, **Project settings**, as a
   machine's own Projects does, and **Machine** is a button there too.
 - **A project's first Push sets where it goes**: a branch with no upstream yet follows
